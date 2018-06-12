@@ -8,7 +8,8 @@ in C (I think).
 
 
 import numpy
-import scipy.integrate
+import scipy.integrate as integrate
+import util
 
 
 # The weather interface:
@@ -16,14 +17,12 @@ import scipy.integrate
 # point_hydrostatic_delay: x * y * z -> hydrostatic delay
 
 
-def _to_centered_coords(lat, lon, height):
-    """Convert (lat, lon, height) to (x, y, z)."""
-    # TODO: implement this
+class Zenith:
+    """Special value indicating a look vector of "zenith"."""
     pass
 
 
-def _generic_delay(weather, lat, lon, height, look_x, look_y, look_z, rnge,
-                   delay_fn):
+def _generic_delay(lat, lon, height, look_vec, rnge, delay_fn):
     """Compute delay from (lat, lon, height) up to the satellite.
 
     Satellite position is determined from (look_x, look_y, look_z) and
@@ -34,26 +33,28 @@ def _generic_delay(weather, lat, lon, height, look_x, look_y, look_z, rnge,
     Delay is either dry or hydrostatic, and delay_fn queries weather for
     the appropriate value.
     """
-    look_vec = numpy.array((look_x, look_y, look_z))
-    unit_look_vec = look_vec / numpy.linalg.norm(look_vec)
-    start_position = _to_centered_coords(lat, lon, height)
+    position = util.lla2ecef(lat, lon, height)
+    if look_vec is not Zenith:
+        raise NotImplemented
+    else:
+        corrected_lv = util.lla2ecef(lat, lon, height + 1) - position
+    unit_look_vec = corrected_lv / numpy.linalg.norm(corrected_lv)
     def delay_at(t):
-        (x, y, z) = start_position + look_vec * t
-        return delay_fn(weather, x, y, z)
-    return scipy.integrate.quad(delay_at, 0, rnge)
+        (x, y, z) = position + unit_look_vec * t
+        return delay_fn(x, y, z)
+    return integrate.quad(delay_at, 0, rnge)
 
 
-def dry_delay(weather, lat, lon, height, look_x, look_y, look_z, rnge):
+def dry_delay(weather, lat, lon, height, look_vec, rnge):
     """Compute dry delay using _generic_delay."""
-    def point_dry_delay(weather, x, y, z):
+    def point_dry_delay(x, y, z):
         return weather.point_dry_delay(x, y, z)
-    return _generic_delay(weather, lat, lon, height, look_x, look_y, look_z,
-                          rnge, point_dry_delay)
+    return _generic_delay(lat, lon, height, look_vec, rnge, point_dry_delay)
 
 
 def hydrostatic_delay(weather, lat, lon, height, look_x, look_y, look_z, rnge):
     """Compute hydrostatic delay using _generic_delay."""
-    def point_hydrostatic_delay(weather, x, y, z):
+    def point_hydrostatic_delay(x, y, z):
         return weather.point_hydrostatic_delay(x, y, z)
-    return _generic_delay(weather, lat, lon, height, look_x, look_y, look_z,
-                          rnge, point_hydrostatic_delay)
+    return _generic_delay(lat, lon, height, look_vec, rnge,
+                          point_hydrostatic_delay)

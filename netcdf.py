@@ -10,6 +10,7 @@
 import numpy
 import scipy.interpolate as interpolate
 import scipy.io.netcdf as netcdf
+import util
 
 
 # Parameters from Hanssen, 2001
@@ -70,16 +71,7 @@ def _toXYZ(lat, lon, ht):
 
     # Calculate Geometric Height, h
     h = (ht*Re)/(g/g0*Re - ht)
-    # This all comes straight from Wikipedia
-    a = 6378137.0 # equatorial radius
-    b = 6356752.3 # polar radius
-    e2 = 1 - b**2/a**2 # square of first numerical eccentricity of the
-                       # ellipsoid
-    N = a/numpy.sqrt(1 - e2*numpy.sin(lat)**2)
-    x = (N + h)*numpy.cos(lat)*numpy.cos(lon)
-    y = (N + h)*numpy.cos(lat)*numpy.sin(lon)
-    z = (b**2/a**2*N + h)*numpy.sin(lat)
-    return numpy.array((x, y, z))
+    return util.lla2ecef(lat, lon, h)
 
 
 def _read_netcdf(out, plev):
