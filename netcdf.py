@@ -52,7 +52,7 @@ class NetCDFModel:
         return k1*P/T # Hanssen, 2001
 
 
-def toXYZ(lat, lon, ht):
+def _toXYZ(lat, lon, ht):
     """Convert lat, lon, geopotential height to x, y, z in ECEF."""
     # This all comes straight from Wikipedia
     a = 6378137.0 # equatorial radius
@@ -66,7 +66,7 @@ def toXYZ(lat, lon, ht):
     return numpy.array((x, y, z))
 
 
-def read_netcdf(out, plev):
+def _read_netcdf(out, plev):
     """Return a NetCDFModel given open netcdf files."""
     # n.b.: all of these things we read are arrays of length 1, so
     # we get the first element to access the actual data.
