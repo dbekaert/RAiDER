@@ -114,12 +114,19 @@ def _read_netcdf(out, plev):
                 ht = geopotential_heights[lvl][row][col]
                 points[to1D(lvl, row, col)] = _toXYZ(lat, lon, ht)
     # TODO: think about whether array copying is necessary
-    return NetCDFModel(points=points, pressure=new_plevs,
-                       temperature=new_temps, humidity=new_humids)
+    return points, new_plevs, new_temps, new_humids
 
 
 def load(out, plev):
     """Load a NetCDF weather model as a NetCDFModel object."""
     with netcdf.netcdf_file(out) as f:
         with netcdf.netcdf_file(plev) as g:
-            return _read_netcdf(f, g)
+            points, plevs, temps, humids = _read_netcdf(f, g)
+            # Copy all of the arrays so that the files can be safely closed
+            point_cpy = points.copy()
+            plev_cpy = plevs.copy()
+            tmp_cpy = temps.copy()
+            humid_cpy = humids.copy()
+            del points, plevs, temps, humids
+            return NetCDFModel(points=point_cpy, pressure=plev_cpy,
+                               temperature=tmp_cpy, humidity=humid_cpy)
