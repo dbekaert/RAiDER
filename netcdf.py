@@ -5,6 +5,7 @@
 # is inaccurate).
 
 
+import numpy
 import scipy.interpolate as interpolate
 import scipy.io.netcdf as netcdf
 
@@ -33,8 +34,8 @@ class NetCDFModel:
 
     def point_dry_delay(self, x, y, z):
         """Calculate dry delay at a point."""
-        temperature = self._t_inp(x, y, z)[0]
-        relative_humidity = self._rh_inp(x, y, z)[0]
+        T = self._t_inp(x, y, z)
+        relative_humidity = self._rh_inp(x, y, z)
         # Calculate the saturation vapor pressure as in Hobiger et al.,
         # 2008. Maybe we want to do this like TRAIN instead.
         p_w = (10.79574*(1 - 273.16/T) - 5.028*numpy.log10(T/273.16)
@@ -43,13 +44,13 @@ class NetCDFModel:
                 + 0.78614444)
         # It's called p_v in Hobiger, but everyone else calls it e
         e = relative_humidity/100*p_w
-        return k2*e/temperature + k3*e/temperature**2
+        return k2*e/T + k3*e/T**2
 
     def point_hydrostatic_delay(self, x, y, z):
         """Calculate hydrostatic delay at a point."""
-        P = numpy.exp(self._p_inp(x, y, z)[0])
-        T = self._t_inp(x, y, z)[0]
-        return k1*P/T # Hanssen, 2001
+        pressure = numpy.exp(self._p_inp(x, y, z))
+        temperature = self._t_inp(x, y, z)
+        return k1*pressure/temperature # Hanssen, 2001
 
 
 def _toXYZ(lat, lon, ht):
@@ -60,9 +61,9 @@ def _toXYZ(lat, lon, ht):
     e2 = 1 - b**2/a**2 # square of first numerical eccentricity of the
                        # ellipsoid
     N = a/numpy.sqrt(1 - e2*numpy.sin(lat)**2)
-    x = (N(lat) + ht)*numpy.cos(lat)*numpy.cos(lon)
-    y = (N(lat) + ht)*numpy.cos(lat)*numpy.sin(lon)
-    z = (b**2/a**2*N(lat) + ht)*numpy.sin(lat)
+    x = (N + ht)*numpy.cos(lat)*numpy.cos(lon)
+    y = (N + ht)*numpy.cos(lat)*numpy.sin(lon)
+    z = (b**2/a**2*N + ht)*numpy.sin(lat)
     return numpy.array((x, y, z))
 
 
@@ -83,6 +84,9 @@ def _read_netcdf(out, plev):
         raise NetCDFException
     outlength = lats.size * len(plevs)
     points = numpy.zeros((outlength, 3), dtype=lats.dtype)
+    rows, cols = lats.shape
+    def to1D(lvl, row, col):
+        return lvl * rows * cols + row * cols + col
     # This one's a bit weird. temps and humids are easier.
     new_plevs = numpy.zeros(outlength)
     for lvl in range(len(plevs)):
@@ -93,9 +97,6 @@ def _read_netcdf(out, plev):
     # For temperature and humidity, we just make them flat.
     new_temps = numpy.reshape(temps, (outlength,))
     new_humids = numpy.reshape(humids, (outlength,))
-    rows, cols = lats.shape
-    def to1D(lvl, row, col):
-        return lvl * rows * cols + row * cols + col
     for lvl in range(len(plevs)):
         for row in range(rows):
             for col in range(cols):
