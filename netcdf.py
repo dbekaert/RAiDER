@@ -3,6 +3,8 @@
 
 # TODO: use a different method of interpolation (someone told me linear
 # is inaccurate).
+# TODO: preprocess file to remove -999s, and replace with above values
+# TODO: (maybe) add another layer below to make sure we get everything
 
 
 import numpy
@@ -55,15 +57,28 @@ class NetCDFModel:
 
 def _toXYZ(lat, lon, ht):
     """Convert lat, lon, geopotential height to x, y, z in ECEF."""
+    # Convert geopotential to geometric height. This comes straight from
+    # TRAIN
+    g0 = 9.80665
+    # Map of g with latitude (I'm skeptical of this equation)
+    g = 9.80616*(1 - 0.002637*numpy.cos(2*lat)
+            + 0.0000059*(numpy.cos(2*lat))**2)
+    Rmax = 6378137
+    Rmin = 6356752
+    Re = numpy.sqrt(1/(((numpy.cos(lat)**2)/Rmax**2)
+        + ((numpy.sin(lat)**2)/Rmin**2)))
+
+    # Calculate Geometric Height, h
+    h = (ht*Re)/(g/g0*Re - ht)
     # This all comes straight from Wikipedia
     a = 6378137.0 # equatorial radius
     b = 6356752.3 # polar radius
     e2 = 1 - b**2/a**2 # square of first numerical eccentricity of the
                        # ellipsoid
     N = a/numpy.sqrt(1 - e2*numpy.sin(lat)**2)
-    x = (N + ht)*numpy.cos(lat)*numpy.cos(lon)
-    y = (N + ht)*numpy.cos(lat)*numpy.sin(lon)
-    z = (b**2/a**2*N + ht)*numpy.sin(lat)
+    x = (N + h)*numpy.cos(lat)*numpy.cos(lon)
+    y = (N + h)*numpy.cos(lat)*numpy.sin(lon)
+    z = (b**2/a**2*N + h)*numpy.sin(lat)
     return numpy.array((x, y, z))
 
 
