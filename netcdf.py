@@ -62,12 +62,12 @@ def _toXYZ(lat, lon, ht):
     # TRAIN
     g0 = 9.80665
     # Map of g with latitude (I'm skeptical of this equation)
-    g = 9.80616*(1 - 0.002637*numpy.cos(2*lat)
-            + 0.0000059*(numpy.cos(2*lat))**2)
+    g = 9.80616*(1 - 0.002637*util.cosd(2*lat)
+            + 0.0000059*(util.cosd(2*lat))**2)
     Rmax = 6378137
     Rmin = 6356752
-    Re = numpy.sqrt(1/(((numpy.cos(lat)**2)/Rmax**2)
-        + ((numpy.sin(lat)**2)/Rmin**2)))
+    Re = numpy.sqrt(1/(((util.cosd(lat)**2)/Rmax**2)
+        + ((util.sind(lat)**2)/Rmin**2)))
 
     # Calculate Geometric Height, h
     h = (ht*Re)/(g/g0*Re - ht)
