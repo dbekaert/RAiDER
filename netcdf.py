@@ -47,13 +47,15 @@ class NetCDFModel:
                 + 0.78614444)
         # It's called p_v in Hobiger, but everyone else calls it e
         e = relative_humidity/100*p_w
-        return k2*e/T + k3*e/T**2
+        delay = k2*e/T + k3*e/T**2
+        return delay if not numpy.isnan(delay) else 0
 
     def point_hydrostatic_delay(self, x, y, z):
         """Calculate hydrostatic delay at a point."""
         pressure = numpy.exp(self._p_inp(x, y, z))
         temperature = self._t_inp(x, y, z)
-        return k1*pressure/temperature # Hanssen, 2001
+        delay = k1*pressure/temperature # Hanssen, 2001
+        return delay if not numpy.isnan(delay) else 0
 
 
 def _toXYZ(lat, lon, ht):
