@@ -12,38 +12,9 @@ import scipy.io.netcdf as netcdf
 import util
 
 
-# Parameters from Hanssen, 2001
-k1 = 0.776 # [K/Pa]
-# Should be k2'
-k2 = 0.233 # [K/Pa]
-k3 = 3.75e3 # [K^2/Pa]
-
-
 class NetCDFException(Exception):
     """Exception for unexpected values from the NetCDF file we read."""
     pass
-
-
-def _calculate_e(temp, hum):
-    """Calculate e, the partial pressure of water vapor.
-
-    We're given Temperature and Humiditiy. Right now we're using the
-    equations from TRAIN, even though they're different from Hobiger et
-    al., 2008.
-    """
-    svpw = 6.1121*numpy.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16))
-    svpi = 6.1121*numpy.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16))
-    tempbound1 = 273.16 # 0
-    tempbound2 = 250.16 # -23
-
-    svp = svpw
-    wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
-    svp = svpi + (svpw - svpi)*wgt**2
-    if temp > tempbound1:
-        return hum/100 * svpw
-    elif temp < tempbound2:
-        return hum/100 * svpi
-    return hum/100 * svp
 
 
 class NetCDFModel:
@@ -56,20 +27,17 @@ class NetCDFModel:
         self._t_inp = interpolate.LinearNDInterpolator(points, temperature)
         self._rh_inp = interpolate.LinearNDInterpolator(points, humidity)
 
-    def point_dry_delay(self, x, y, z):
-        """Calculate dry delay at a point."""
-        T = self._t_inp(x, y, z)
-        relative_humidity = self._rh_inp(x, y, z)
-        e = _calculate_e(T, relative_humidity)
-        delay = k2*e/T + k3*e/T**2
-        return delay if not numpy.isnan(delay) else 0
+    def pressure(self, x, y, z):
+        """Calculate pressure at a point."""
+        return numpy.exp(self._p_inp(x, y, z))
 
-    def point_hydrostatic_delay(self, x, y, z):
-        """Calculate hydrostatic delay at a point."""
-        pressure = numpy.exp(self._p_inp(x, y, z))
-        temperature = self._t_inp(x, y, z)
-        delay = k1*pressure/temperature # Hanssen, 2001
-        return delay if not numpy.isnan(delay) else 0
+    def temperature(self, x, y, z):
+        """Calculate temperature at a point."""
+        return self._t_inp(x, y, z)
+
+    def rel_humid(self, x, y, z):
+        """Calculate relative humidity at a point."""
+        return self._rh_inp(x, y, z)
 
 
 def _toXYZ(lat, lon, ht):
