@@ -58,7 +58,7 @@ def _generic_delay(lat, lon, height, look_vec, rnge, delay_fn):
     def delay_at(t):
         (x, y, z) = position + unit_look_vec * t
         return delay_fn(x, y, z)
-    val, _ = integrate.quad(delay_at, 0, rnge, limit=1000)
+    val, _ = integrate.quad(delay_at, 0, rnge, limit=rnge/15)
     return val
 
 
@@ -78,9 +78,9 @@ def work(l):
     weather, lats, lons, hts, i, j, k = l
     return (i, j, k,
             hydrostatic_delay(weather, lats[j], lons[k], hts[i],
-                              Zenith, numpy.inf),
+                              Zenith, 15000),
             dry_delay(weather, lats[j], lons[k], hts[i], Zenith,
-                      numpy.inf))
+                      15000))
 
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
