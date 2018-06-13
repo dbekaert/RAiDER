@@ -27,6 +27,15 @@ class Zenith:
     pass
 
 
+def _my_sucky_integrator(f, a, b):
+    """Integrate f from a to b (badly)."""
+    step = 1.
+    num_pts = numpy.floor((b - a) / step)
+    x_pts = numpy.linspace(a, b, num=numpy.ceil((b - a)/step))
+    y_pts = numpy.array([f(x_pts[i]) for i in range(x_pts.size)])
+    return numpy.trapz(y_pts, x_pts)
+
+
 def _generic_delay(lat, lon, height, look_vec, rnge, delay_fn):
     """Compute delay from (lat, lon, height) up to the satellite.
 
