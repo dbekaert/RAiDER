@@ -25,6 +25,28 @@ class NetCDFException(Exception):
     pass
 
 
+def _calculate_e(temp, hum):
+    """Calculate e, the partial pressure of water vapor.
+
+    We're given Temperature and Humiditiy. Right now we're using the
+    equations from TRAIN, even though they're different from Hobiger et
+    al., 2008.
+    """
+    svpw = 6.1121*numpy.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16))
+    svpi = 6.1121*numpy.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16))
+    tempbound1 = 273.16 # 0
+    tempbound2 = 250.16 # -23
+
+    svp = svpw
+    wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
+    svp = svpi + (svpw - svpi)*wgt**2
+    if temp > tempbound1:
+        return hum/100 * svpw
+    elif temp < tempbound2:
+        return hum/100 * svpi
+    return hum/100 * svp
+
+
 class NetCDFModel:
     """Weather model for NetCDF. Knows dry and hydrostatic delay."""
     def __init__(self, points, pressure, temperature, humidity):
@@ -39,14 +61,7 @@ class NetCDFModel:
         """Calculate dry delay at a point."""
         T = self._t_inp(x, y, z)
         relative_humidity = self._rh_inp(x, y, z)
-        # Calculate the saturation vapor pressure as in Hobiger et al.,
-        # 2008. Maybe we want to do this like TRAIN instead.
-        p_w = (10.79574*(1 - 273.16/T) - 5.028*numpy.log10(T/273.16)
-                + 1.50475e-4*(1 - 10**(-8.2969*(T/273.16 - 1)))
-                + 0.42873e-3*(10**(-4.76955*(1 - 273.16/T) - 1))
-                + 0.78614444)
-        # It's called p_v in Hobiger, but everyone else calls it e
-        e = relative_humidity/100*p_w
+        e = _calculate_e(T, relative_humidity)
         delay = k2*e/T + k3*e/T**2
         return delay if not numpy.isnan(delay) else 0
 
@@ -76,6 +91,13 @@ def _toXYZ(lat, lon, ht):
     return util.lla2ecef(lat, lon, h)
 
 
+def _big_and(*args):
+    result = args[0]
+    for a in args[1:]:
+        result = numpy.logical_and(result, a)
+    return result
+
+
 def _read_netcdf(out, plev):
     """Return a NetCDFModel given open netcdf files."""
     # n.b.: all of these things we read are arrays of length 1, so
@@ -88,6 +110,13 @@ def _read_netcdf(out, plev):
     temps = plev.variables['T_PL'][0]
     humids = plev.variables['RH_PL'][0]
     geopotential_heights = plev.variables['GHT_PL'][0]
+
+    # Replacing the non-useful values by NaN
+    temps_fixed = numpy.where(temps != -999, temps, numpy.nan)
+    humids_fixed = numpy.where(humids != -999, humids, numpy.nan)
+    geo_ht_fix = numpy.where(geopotential_heights != -999,
+                             geopotential_heights, numpy.nan)
+
     # I really hope these are always the same
     if lats.size != lons.size:
         raise NetCDFException
@@ -97,24 +126,39 @@ def _read_netcdf(out, plev):
     def to1D(lvl, row, col):
         return lvl * rows * cols + row * cols + col
     # This one's a bit weird. temps and humids are easier.
-    new_plevs = numpy.zeros(outlength)
+    new_plevs = numpy.zeros(outlength, dtype=plevs.dtype)
     for lvl in range(len(plevs)):
         p = plevs[lvl]
         for row in range(rows):
             for col in range(cols):
                 new_plevs[to1D(lvl, row, col)] = p
-    # For temperature and humidity, we just make them flat.
-    new_temps = numpy.reshape(temps, (outlength,))
-    new_humids = numpy.reshape(humids, (outlength,))
+    new_temps = numpy.reshape(temps_fixed, (outlength,))
+    new_humids = numpy.reshape(humids_fixed, (outlength,))
     for lvl in range(len(plevs)):
         for row in range(rows):
             for col in range(cols):
                 lat = lats[row][col]
                 lon = lons[row][col]
-                ht = geopotential_heights[lvl][row][col]
-                points[to1D(lvl, row, col)] = _toXYZ(lat, lon, ht)
-    # TODO: think about whether array copying is necessary
-    return points, new_plevs, new_temps, new_humids
+                geo_ht = geo_ht_fix[lvl][row][col]
+                pt_idx = to1D(lvl, row, col)
+                points[pt_idx] = _toXYZ(lat, lon, geo_ht)
+
+    # The issue now arises that some of the values are NaN. That's not
+    # ok, so we go through the arduous process of removing those
+    # elements.
+    points_thing = numpy.zeros(new_plevs.shape, dtype=bool)
+    for i in range(new_plevs.size):
+        points_thing[i] = numpy.all(numpy.logical_not(numpy.isnan(points[i])))
+    ok = _big_and(numpy.logical_not(numpy.isnan(new_plevs)),
+                  numpy.logical_not(numpy.isnan(new_temps)),
+                  numpy.logical_not(numpy.isnan(new_humids)), points_thing)
+    num_ok = ok.size
+    points_fix = points[ok]
+    plevs_fix = new_plevs[ok]
+    temps_fix = new_temps[ok]
+    humids_fix = new_humids[ok]
+
+    return points_fix, plevs_fix, temps_fix, humids_fix
 
 
 def load(out, plev):
@@ -122,11 +166,5 @@ def load(out, plev):
     with netcdf.netcdf_file(out) as f:
         with netcdf.netcdf_file(plev) as g:
             points, plevs, temps, humids = _read_netcdf(f, g)
-            # Copy all of the arrays so that the files can be safely closed
-            point_cpy = points.copy()
-            plev_cpy = plevs.copy()
-            tmp_cpy = temps.copy()
-            humid_cpy = humids.copy()
-            del points, plevs, temps, humids
-            return NetCDFModel(points=point_cpy, pressure=plev_cpy,
-                               temperature=tmp_cpy, humidity=humid_cpy)
+            return NetCDFModel(points=points, pressure=plevs,
+                               temperature=temps, humidity=humids)
