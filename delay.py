@@ -58,7 +58,7 @@ def _generic_delay(lat, lon, height, look_vec, rnge, delay_fn):
     def delay_at(t):
         (x, y, z) = position + unit_look_vec * t
         return delay_fn(x, y, z)
-    val, _ = integrate.quad(delay_at, 0, rnge, limit=rnge/15)
+    val, _ = integrate.quad(delay_at, 0, rnge, limit=int(rnge/15))
     return val
 
 
