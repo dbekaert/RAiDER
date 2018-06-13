@@ -7,11 +7,6 @@ in C (I think).
 """
 
 
-# TODO: figure out why scipy's integrator sucks so much and how to fix
-# it (on the other hand, we might have to write our own anyway to make
-# it run on the GPU, so that's something to consider.
-
-
 import numpy
 import scipy.integrate as integrate
 import util
@@ -31,8 +26,13 @@ def _my_sucky_integrator(f, a, b):
     """Integrate f from a to b (badly)."""
     step = 1.
     num_pts = numpy.floor((b - a) / step)
+    print("Calculating x points")
     x_pts = numpy.linspace(a, b, num=numpy.ceil((b - a)/step))
-    y_pts = numpy.array([f(x_pts[i]) for i in range(x_pts.size)])
+    print("Calculating y points")
+    y_pts = numpy.zeros(x_pts.size)
+    for i in range(x_pts.size):
+        y_pts[i] = f(x_pts[i])
+    print("Integrating")
     return numpy.trapz(y_pts, x_pts)
 
 
@@ -56,7 +56,6 @@ def _generic_delay(lat, lon, height, look_vec, rnge, delay_fn):
     def delay_at(t):
         (x, y, z) = position + unit_look_vec * t
         return delay_fn(x, y, z)
-    # TODO: figure out a good limit
     val, _ = integrate.quad(delay_at, 0, rnge, limit=1000)
     return val
 
