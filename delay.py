@@ -16,7 +16,7 @@ import util
 
 
 # Step in meters to use when integrating
-_step = 10
+_step = 15
 
 # Parameters from Hanssen, 2001
 _k1 = 0.776 # [K/Pa]
@@ -63,7 +63,7 @@ def _common_delay(weather, lat, lon, height, look_vec, rnge):
 def _work(l):
     """Worker function for integrating delay in a thread."""
     weather, lats, lons, hts, i, j, k = l
-    big = 100000
+    big = 15000
     return (i, j, k,
             hydrostatic_delay(weather, lats[j], lons[k], hts[i],
                               Zenith, big),
