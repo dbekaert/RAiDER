@@ -7,7 +7,9 @@ in C (I think).
 """
 
 
+import multiprocessing
 import numpy
+import progressbar
 import scipy.integrate as integrate
 import util
 
@@ -70,3 +72,37 @@ def hydrostatic_delay(weather, lat, lon, height, look_vec, rnge):
     """Compute hydrostatic delay using _generic_delay."""
     return _generic_delay(lat, lon, height, look_vec, rnge,
                           weather.point_hydrostatic_delay)
+
+
+def work(l):
+    weather, lats, lons, hts, i, j, k = l
+    return (i, j, k,
+            hydrostatic_delay(weather, lats[j], lons[k], hts[i],
+                              Zenith, numpy.inf),
+            dry_delay(weather, lats[j], lons[k], hts[i], Zenith,
+                      numpy.inf))
+
+
+def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
+                    lon_res, ht_min, ht_max, ht_res):
+    """Calculate (in parallel!!) the delays over an area."""
+    lats = numpy.arange(lat_min, lat_max, lat_res)
+    lons = numpy.arange(lon_min, lon_max, lon_res)
+    hts = numpy.arange(ht_min, ht_max, ht_res)
+    out = numpy.zeros((hts.size, lats.size, lons.size),
+                      dtype=[('hydro', 'float64'), ('dry', 'float64')])
+    with multiprocessing.Pool() as pool:
+        jobs = ((weather, lats, lons, hts, i, j, k)
+                for i in range(hts.size)
+                for j in range(lats.size)
+                for k in range(lons.size))
+        num_jobs = hts.size * lats.size * lons.size
+        answers = pool.imap_unordered(work, jobs, chunksize=10)
+        bar = progressbar.progressbar(answers,
+                                      widgets=[progressbar.Bar(), ' ',
+                                               progressbar.ETA()],
+                                      max_value=num_jobs)
+        for result in bar:
+            i, j, k, hydro_delay, dry_delay = result
+            out[i][j][k] = (hydro_delay, dry_delay)
+    return out
