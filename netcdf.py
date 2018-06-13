@@ -3,7 +3,6 @@
 
 # TODO: use a different method of interpolation (someone told me linear
 # is inaccurate).
-# TODO: preprocess file to remove -999s, and replace with above values
 # TODO: (maybe) add another layer below to make sure we get everything
 
 
@@ -98,6 +97,26 @@ def _big_and(*args):
     return result
 
 
+def _propagate_down(a):
+    """Pull real values down to cover NaNs
+
+    a might contain some NaNs which live under real values. We replace
+    those NaNs with actual values. a must be a 3D array.
+    """
+    out = a.copy()
+    z, x, y = out.shape
+    for i in range(x):
+        for j in range(y):
+            held = None
+            for k in range(z - 1, -1, -1):
+                val = out[k][i][j]
+                if numpy.isnan(val) and held is not None:
+                    out[k][i][j] = held
+                elif not numpy.isnan(val):
+                    held = val
+    return out
+
+
 def _read_netcdf(out, plev):
     """Return a NetCDFModel given open netcdf files."""
     # n.b.: all of these things we read are arrays of length 1, so
@@ -111,15 +130,18 @@ def _read_netcdf(out, plev):
     humids = plev.variables['RH_PL'][0]
     geopotential_heights = plev.variables['GHT_PL'][0]
 
-    # Replacing the non-useful values by NaN
-    temps_fixed = numpy.where(temps != -999, temps, numpy.nan)
-    humids_fixed = numpy.where(humids != -999, humids, numpy.nan)
-    geo_ht_fix = numpy.where(geopotential_heights != -999,
-                             geopotential_heights, numpy.nan)
+    # Replacing the non-useful values by NaN, and fill in values under
+    # the topography
+    temps_fixed = _propagate_down(numpy.where(temps != -999, temps, numpy.nan))
+    humids_fixed = _propagate_down(numpy.where(humids != -999, humids,
+                                               numpy.nan))
+    geo_ht_fix = _propagate_down(numpy.where(geopotential_heights != -999,
+                                             geopotential_heights, numpy.nan))
 
     # I really hope these are always the same
     if lats.size != lons.size:
         raise NetCDFException
+
     outlength = lats.size * len(plevs)
     points = numpy.zeros((outlength, 3), dtype=lats.dtype)
     rows, cols = lats.shape
@@ -143,22 +165,16 @@ def _read_netcdf(out, plev):
                 pt_idx = to1D(lvl, row, col)
                 points[pt_idx] = _toXYZ(lat, lon, geo_ht)
 
-    # The issue now arises that some of the values are NaN. That's not
-    # ok, so we go through the arduous process of removing those
-    # elements.
+    # So a while ago we removed all the NaNs under the earth, but there
+    # are still going to be some left, so we just remove those points.
     points_thing = numpy.zeros(new_plevs.shape, dtype=bool)
     for i in range(new_plevs.size):
         points_thing[i] = numpy.all(numpy.logical_not(numpy.isnan(points[i])))
     ok = _big_and(numpy.logical_not(numpy.isnan(new_plevs)),
                   numpy.logical_not(numpy.isnan(new_temps)),
                   numpy.logical_not(numpy.isnan(new_humids)), points_thing)
-    num_ok = ok.size
-    points_fix = points[ok]
-    plevs_fix = new_plevs[ok]
-    temps_fix = new_temps[ok]
-    humids_fix = new_humids[ok]
 
-    return points_fix, plevs_fix, temps_fix, humids_fix
+    return points[ok], new_plevs[ok], new_temps[ok], new_humids[ok]
 
 
 def load(out, plev):
