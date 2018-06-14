@@ -93,7 +93,7 @@ def _read_netcdf(out, plev):
     # Why is it XLONG with a G? Maybe the G means geo (but then why
     # isn't it XLATG?).
     lons = out.variables['XLONG'][0]
-    plevs = plev.variables['P_PL'][0] / 100 # Convert hPa to Pa
+    plevs = plev.variables['P_PL'][0]
     temps = plev.variables['T_PL'][0]
     humids = plev.variables['RH_PL'][0]
     geopotential_heights = plev.variables['GHT_PL'][0]
