@@ -54,8 +54,7 @@ def _common_delay(weather, lat, lon, height, look_vec, rnge):
     else:
         corrected_lv = util.lla2ecef(lat, lon, height + 1) - position
     unit_look_vec = corrected_lv / numpy.linalg.norm(corrected_lv)
-    t_points = (numpy.exp(numpy.linspace(0, numpy.log(rnge + 1), rnge / _step))
-            - 1)
+    t_points = numpy.linspace(0, rnge, rnge / _step)
     def where(t):
         return position + unit_look_vec * t
     return t_points, where
