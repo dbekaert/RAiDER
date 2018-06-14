@@ -50,7 +50,7 @@ def _common_delay(weather, lat, lon, height, look_vec, rnge):
     """Perform computation common to hydrostatic and dry delay."""
     position = util.lla2ecef(lat, lon, height)
     if look_vec is not Zenith:
-        raise NotImplemented
+        corrected_lv = look_vec
     else:
         corrected_lv = util.lla2ecef(lat, lon, height + 1) - position
     unit_look_vec = corrected_lv / numpy.linalg.norm(corrected_lv)
@@ -70,6 +70,20 @@ def _work(l):
                               Zenith, big),
             dry_delay(weather, lats[j], lons[k], hts[i], Zenith,
                       big))
+
+
+def make_lv_range(earth_position, satellite_position):
+    """Calculate the look vector and range from satellite position.
+
+    We're given the position on the ground and of the satellite, both in
+    lat, lon, ht. From this we calculate the look vector as needed by
+    the delay functions. We also calculate the length of the vector,
+    i.e., the range for delay.
+    """
+    earth_ecef = util.lla2ecef(*earth_position)
+    satellite_ecef = util.lla2ecef(*satellite_position)
+    vec = satellite_ecef - earth_ecef
+    return (vec, numpy.linalg.norm(vec))
 
 
 def dry_delay(weather, lat, lon, height, look_vec, rnge):
