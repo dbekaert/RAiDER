@@ -52,7 +52,9 @@ def _common_delay(weather, lat, lon, height, look_vec, rnge):
     if look_vec is not Zenith:
         corrected_lv = look_vec
     else:
-        corrected_lv = util.lla2ecef(lat, lon, height + 1) - position
+        corrected_lv = numpy.array((util.cosd(lat)*util.cosd(lon),
+                                    util.cosd(lat)*util.sind(lon),
+                                    util.sind(lat)))
     unit_look_vec = corrected_lv / numpy.linalg.norm(corrected_lv)
     t_points = numpy.linspace(0, rnge, rnge / _step)
     def where(t):
@@ -163,7 +165,7 @@ def hydrostatic_delay(weather, lat, lon, height, look_vec, rnge):
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
                     lon_res, ht_min, ht_max, ht_res):
-    """Calculate (in parallel!!) the delays over an area."""
+    """Calculate (in parallel) the delays over an area."""
     lats = numpy.arange(lat_min, lat_max, lat_res)
     lons = numpy.arange(lon_min, lon_max, lon_res)
     hts = numpy.arange(ht_min, ht_max, ht_res)
