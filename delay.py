@@ -18,12 +18,6 @@ import util
 # Step in meters to use when integrating
 _step = 15
 
-# Parameters from Hanssen, 2001
-_k1 = 0.776 # [K/Pa]
-# Should be k2'
-_k2 = 0.233 # [K/Pa]
-_k3 = 3.75e3 # [K^2/Pa]
-
 
 class Zenith:
     """Special value indicating a look vector of "zenith"."""
@@ -140,7 +134,7 @@ def dry_delay(weather, lat, lon, height, look_vec, rnge):
     # e, the partial pressure of water vapor, is the value we seek
     e = _find_e(temp, rh)
 
-    delay = (_k2*e/temp + _k3*e/temp**2)
+    delay = (weather.k2*e/temp + weather.k3*e/temp**2)
 
     delay[numpy.isnan(delay)] = 0
 
@@ -156,7 +150,7 @@ def hydrostatic_delay(weather, lat, lon, height, look_vec, rnge):
     p = _from_generator((weather.pressure(*where(t)) for t in t_points),
                         t_points.size)
 
-    delay = _k1*p/temp
+    delay = weather.k1*p/temp
 
     delay[numpy.isnan(delay)] = 0
 

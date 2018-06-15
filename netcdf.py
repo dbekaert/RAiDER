@@ -39,6 +39,12 @@ class NetCDFModel:
         """Calculate relative humidity at a point."""
         return self._rh_inp(x, y, z)
 
+    # Parameters from Hanssen, 2001
+    k1 = 0.776 # [K/Pa]
+    # Should be k2'
+    k2 = 0.233 # [K/Pa]
+    k3 = 3.75e3 # [K^2/Pa]
+
 
 def _toXYZ(lat, lon, ht):
     """Convert lat, lon, geopotential height to x, y, z in ECEF."""
