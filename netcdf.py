@@ -93,10 +93,31 @@ def _read_netcdf(out, plev):
     # Why is it XLONG with a G? Maybe the G means geo (but then why
     # isn't it XLATG?).
     lons = out.variables['XLONG'][0]
-    plevs = plev.variables['P_PL'][0]
-    temps = plev.variables['T_PL'][0]
-    humids = plev.variables['RH_PL'][0]
-    geopotential_heights = plev.variables['GHT_PL'][0]
+
+    if plev.variables['P_PL'].units.decode('utf-8') == 'Pa':
+        plevs = plev.variables['P_PL'][0]
+    else:
+        err = "Unknown units for pressure: '{}'"
+        raise NetCDFException(err.format(plev.variables['P_PL'].units))
+
+    if plev.variables['T_PL'].units.decode('utf-8') == 'K':
+        temps = plev.variables['T_PL'][0]
+    else:
+        err = "Unknown units for temperature: '{}'"
+        raise NetCDFException(err.format(plev.variables['T_PL'].units))
+
+    # TODO: extract partial pressure directly (q?)
+    if plev.variables['RH_PL'].units.decode('utf-8') == '%':
+        humids = plev.variables['RH_PL'][0]
+    else:
+        err = "Unknown units for relative humidity: '{}'"
+        raise NetCDFException(err.format(plev.variables['RH_PL'].units))
+
+    if plev.variables['GHT_PL'].units.decode('utf-8') == 'm':
+        geopotential_heights = plev.variables['GHT_PL'][0]
+    else:
+        err = "Unknown units for geopotential height: '{}'"
+        raise NetCDFException(err.format(plev.variables['GHT_PL'].units))
 
     # Replacing the non-useful values by NaN, and fill in values under
     # the topography
