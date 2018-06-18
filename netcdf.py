@@ -107,31 +107,47 @@ def _read_netcdf(out, plev):
         raise NetCDFException(err.format(plev.variables['P_PL'].units))
 
     if plev.variables['T_PL'].units.decode('utf-8') == 'K':
-        temps = plev.variables['T_PL'][0]
+        temps = plev.variables['T_PL']
     else:
         err = "Unknown units for temperature: '{}'"
         raise NetCDFException(err.format(plev.variables['T_PL'].units))
 
     # TODO: extract partial pressure directly (q?)
     if plev.variables['RH_PL'].units.decode('utf-8') == '%':
-        humids = plev.variables['RH_PL'][0]
+        humids = plev.variables['RH_PL']
     else:
         err = "Unknown units for relative humidity: '{}'"
         raise NetCDFException(err.format(plev.variables['RH_PL'].units))
 
     if plev.variables['GHT_PL'].units.decode('utf-8') == 'm':
-        geopotential_heights = plev.variables['GHT_PL'][0]
+        geopotential_heights = plev.variables['GHT_PL']
     else:
         err = "Unknown units for geopotential height: '{}'"
         raise NetCDFException(err.format(plev.variables['GHT_PL'].units))
 
+    # _FillValue is not always set, but when it is we want to read it
+    try:
+        temp_fill = temps._FillValue
+    except AttributeError:
+        temp_fill = -999
+    try:
+        humid_fill = humids._FillValue
+    except AttributeError:
+        humid_fill = -999
+    try:
+        geo_fill = geopotential_heights._FillValue
+    except AttributeError:
+        geo_fill = -999
+
     # Replacing the non-useful values by NaN, and fill in values under
     # the topography
-    temps_fixed = _propagate_down(numpy.where(temps != -999, temps, numpy.nan))
-    humids_fixed = _propagate_down(numpy.where(humids != -999, humids,
-                                               numpy.nan))
-    geo_ht_fix = _propagate_down(numpy.where(geopotential_heights != -999,
-                                             geopotential_heights, numpy.nan))
+    temps_fixed = _propagate_down(numpy.where(temps[0] != temp_fill, temps[0],
+                                              numpy.nan))
+    humids_fixed = _propagate_down(numpy.where(humids[0] != humid_fill,
+                                               humids[0], numpy.nan))
+    geo_ht_fix = _propagate_down(numpy.where(
+        geopotential_heights[0] != geo_fill, geopotential_heights[0],
+        numpy.nan))
 
     # I really hope these are always the same
     if lats.size != lons.size:
