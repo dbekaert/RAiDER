@@ -2,6 +2,7 @@
 
 
 import numpy
+import pyproj
 
 
 def sind(x):
@@ -15,14 +16,7 @@ def cosd(x):
 
 
 def lla2ecef(lat, lon, height):
-    """Convert lat, lon, height to ECEF using the ellipsoid."""
-    # This all comes straight from Wikipedia
-    a = 6378137.0 # equatorial radius
-    b = 6356752.3 # polar radius
-    e2 = 1 - b**2/a**2 # square of first numerical eccentricity of the
-                       # ellipsoid
-    N = a/numpy.sqrt(1 - e2*sind(lat)**2)
-    x = (N + height)*cosd(lat)*cosd(lon)
-    y = (N + height)*cosd(lat)*sind(lon)
-    z = (b**2/a**2*N + height)*sind(lat)
-    return numpy.array((x, y, z))
+    ecef = pyproj.Proj(proj='geocent')
+    lla = pyproj.Proj(proj='latlong')
+
+    return numpy.array(pyproj.transform(lla, ecef, lon, lat, height))
