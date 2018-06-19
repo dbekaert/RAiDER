@@ -24,22 +24,6 @@ class Zenith:
     pass
 
 
-def _from_generator(g, n):
-    """Return a numpy array by taking n elements from g.
-
-    If g returns fewer than n elements, the rest are padded with 0s, but
-    you really should just pass in n equal to how many things g will
-    return.
-
-    It's like 4 lines and therefore too long to inline everywhere that I
-    want to use this function.
-    """
-    a = numpy.zeros(n)
-    for i, el in enumerate(g):
-        a[i] = el
-    return a
-
-
 def _common_delay(weather, lat, lon, height, look_vec, rnge):
     """Perform computation common to hydrostatic and dry delay."""
     position = util.lla2ecef(lat, lon, height)
@@ -51,9 +35,12 @@ def _common_delay(weather, lat, lon, height, look_vec, rnge):
                                     util.sind(lat)))
     unit_look_vec = corrected_lv / numpy.linalg.norm(corrected_lv)
     t_points = numpy.linspace(0, rnge, rnge / _step)
-    def where(t):
-        return position + unit_look_vec * t
-    return t_points, where
+
+    wheres = numpy.zeros((t_points.size, 3))
+    for i in range(t_points.size):
+        wheres[i][:] = position + unit_look_vec * t_points[i]
+
+    return t_points, wheres
 
 
 def _work(l):
@@ -124,12 +111,10 @@ def _find_e(temp, rh):
 
 def dry_delay(weather, lat, lon, height, look_vec, rnge):
     """Compute dry delay along the look vector."""
-    t_points, where = _common_delay(weather, lat, lon, height, look_vec, rnge)
+    t_points, wheres = _common_delay(weather, lat, lon, height, look_vec, rnge)
 
-    temp = _from_generator((weather.temperature(*where(t)) for t in t_points),
-                           t_points.size)
-    rh = _from_generator((weather.rel_humid(*where(t)) for t in t_points),
-                         t_points.size)
+    temp = weather.temperature(wheres)
+    rh = weather.rel_humid(wheres)
 
     # e, the partial pressure of water vapor, is the value we seek
     e = _find_e(temp, rh)
@@ -143,12 +128,10 @@ def dry_delay(weather, lat, lon, height, look_vec, rnge):
 
 def hydrostatic_delay(weather, lat, lon, height, look_vec, rnge):
     """Compute hydrostatic delay along the look vector."""
-    t_points, where = _common_delay(weather, lat, lon, height, look_vec, rnge)
+    t_points, wheres = _common_delay(weather, lat, lon, height, look_vec, rnge)
 
-    temp = _from_generator((weather.temperature(*where(t)) for t in t_points),
-                           t_points.size)
-    p = _from_generator((weather.pressure(*where(t)) for t in t_points),
-                        t_points.size)
+    temp = weather.temperature(wheres)
+    p = weather.pressure(wheres)
 
     delay = weather.k1*p/temp
 

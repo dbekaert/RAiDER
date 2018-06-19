@@ -25,19 +25,20 @@ class LinearModel:
         self.k2 = k2
         self.k3 = k3
 
-    def pressure(self, x, y, z):
+    def pressure(self, a):
         """Calculate pressure at a point."""
-        return numpy.exp(self._p_inp(x, y, z))
+        return numpy.exp(self._p_inp(a))
 
-    def temperature(self, x, y, z):
+    def temperature(self, a):
         """Calculate temperature at a point."""
-        return self._t_inp(x, y, z)
+        return self._t_inp(a)
 
-    def rel_humid(self, x, y, z):
+    def rel_humid(self, a):
         """Calculate relative humidity at a point."""
-        return self._rh_inp(x, y, z)
+        return self._rh_inp(a)
 
 
+# TODO: (big) doesn't this actually propagate *up*?
 def _propagate_down(a):
     """Pull real values down to cover NaNs
 
