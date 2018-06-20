@@ -68,74 +68,20 @@ def make_lv_range(earth_position, satellite_position):
     return (vec, numpy.linalg.norm(vec))
 
 
-def _find_e(temp, rh):
-    """Calculate partial pressure of water vapor."""
-    # We have two possible ways to calculate partial pressure of water
-    # vapor. There's the equation from Hanssen, and there's the
-    # equations from TRAIN. I don't know which is better.
-
-    # Hanssen: (of course, L, latent heat, isn't perfectly accurate.)
-    # e_0 = 611.
-    # T_0 = 273.16
-    # L = 2.5e6
-    # R_v = 461.495
-    # e_s = e_0*numpy.exp(L/R_v * (1/T_0 - 1/temp))
-    # e = e_s * rh / 100
-
-    # From TRAIN:
-    # Could not find the wrf used equation as they appear to be
-    # mixed with latent heat etc. Istead I used the equations used
-    # in ERA-I (see IFS documentation part 2: Data assimilation
-    # (CY25R1)). Calculate saturated water vapour pressure (svp) for
-    # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
-    # and Eskridge (1996) euation AERKi
-    svpw = (6.1121
-            * numpy.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
-    svpi = (6.1121
-            * numpy.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
-    tempbound1 = 273.16 # 0
-    tempbound2 = 250.16 # -23
-
-    svp = svpw
-    wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
-    svp = svpi + (svpw - svpi)*wgt**2
-    ix_bound1 = temp > tempbound1
-    svp[ix_bound1] = svpw[ix_bound1]
-    ix_bound2 = temp < tempbound2
-    svp[ix_bound2] = svpi[ix_bound2]
-
-    e = rh/100 * svp * 100
-
-    return e
-
-
-def dry_delay(weather, lat, lon, height, look_vec, rnge):
+def dry_delay(weather, lat, lon, height, look_vec):
     """Compute dry delay along the look vector."""
     t_points, wheres = _common_delay(weather, lat, lon, height, look_vec, rnge)
 
-    temp = weather.temperature(wheres)
-    rh = weather.rel_humid(wheres)
+    dry_delays = weather.dry_delay(wheres)
 
-    # e, the partial pressure of water vapor, is the value we seek
-    e = _find_e(temp, rh)
-
-    delay = (weather.k2*e/temp + weather.k3*e/temp**2)
-
-    delay[numpy.isnan(delay)] = 0
-
-    return numpy.trapz(delay, t_points)
+    return numpy.trapz(dry_delays, t_points)
 
 
-def hydrostatic_delay(weather, lat, lon, height, look_vec, rnge):
+def hydrostatic_delay(weather, lat, lon, height, look_vec):
     """Compute hydrostatic delay along the look vector."""
-    t_points, wheres = _common_delay(weather, lat, lon, height, look_vec, rnge)
+    t_points, wheres = _common_delay(weather, lat, lon, height, look_vec)
 
-    temp = weather.temperature(wheres)
-    p = weather.pressure(wheres)
-
-    delay = weather.k1*p/temp
-
-    delay[numpy.isnan(delay)] = 0
+    delay = weather.hydrostatic_delay(wheres)
 
     return numpy.trapz(delay, t_points)
 

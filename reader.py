@@ -14,31 +14,67 @@ class LinearModel:
     """
     def __init__(self, points, pressure, temperature, humidity, k1, k2, k3):
         """Initialize a NetCDFModel."""
-        # Log of pressure since pressure is interpolated exponentially
-        self._p_inp = scipy.interpolate.LinearNDInterpolator(points,
-                                                             numpy.log(
-                                                                 pressure))
-        self._t_inp = scipy.interpolate.LinearNDInterpolator(points,
-                                                             temperature)
-        self._rh_inp = scipy.interpolate.LinearNDInterpolator(points, humidity)
-        self.k1 = k1
-        self.k2 = k2
-        self.k3 = k3
+        e = _find_e(temperature, humidity)
+        dry_delay = k2*e/temperature + k3*e/temperature**2
+        dry_delay[numpy.isnan(dry_delay)] = 0
+        self._dry_inp = scipy.interpolate.LinearNDInterpolator(points,
+                                                               dry_delay)
 
-    def pressure(self, a):
-        """Calculate pressure at a point."""
-        return numpy.exp(self._p_inp(a))
+        hydro_delay = k1*pressure/temperature
+        hydro_delay[numpy.isnan(hydro_delay)] = 0
+        self._hydro_inp = scipy.interpolate.LinearNDInterpolator(points,
+                                                                 hydro_delay)
 
-    def temperature(self, a):
-        """Calculate temperature at a point."""
-        return self._t_inp(a)
+    def dry_delay(self, a):
+        """Calculate delay at a list of points."""
+        return self._dry_inp(a)
 
-    def rel_humid(self, a):
-        """Calculate relative humidity at a point."""
-        return self._rh_inp(a)
+    def hydrostatic_delay(self, a):
+        """Calculate hydrostatic delay at a list of points."""
+        return self._hydro_inp(a)
 
 
-# TODO: (big) doesn't this actually propagate *up*?
+def _find_e(temp, rh):
+    """Calculate partial pressure of water vapor."""
+    # We have two possible ways to calculate partial pressure of water
+    # vapor. There's the equation from Hanssen, and there's the
+    # equations from TRAIN. I don't know which is better.
+
+    # Hanssen: (of course, L, latent heat, isn't perfectly accurate.)
+    # e_0 = 611.
+    # T_0 = 273.16
+    # L = 2.5e6
+    # R_v = 461.495
+    # e_s = e_0*numpy.exp(L/R_v * (1/T_0 - 1/temp))
+    # e = e_s * rh / 100
+
+    # From TRAIN:
+    # Could not find the wrf used equation as they appear to be
+    # mixed with latent heat etc. Istead I used the equations used
+    # in ERA-I (see IFS documentation part 2: Data assimilation
+    # (CY25R1)). Calculate saturated water vapour pressure (svp) for
+    # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
+    # and Eskridge (1996) euation AERKi
+    svpw = (6.1121
+            * numpy.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
+    svpi = (6.1121
+            * numpy.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
+    tempbound1 = 273.16 # 0
+    tempbound2 = 250.16 # -23
+
+    svp = svpw
+    wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
+    svp = svpi + (svpw - svpi)*wgt**2
+    ix_bound1 = temp > tempbound1
+    svp[ix_bound1] = svpw[ix_bound1]
+    ix_bound2 = temp < tempbound2
+    svp[ix_bound2] = svpi[ix_bound2]
+
+    e = rh/100 * svp * 100
+
+    return e
+
+
 def _propagate_down(a):
     """Pull real values down to cover NaNs
 
