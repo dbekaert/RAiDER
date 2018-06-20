@@ -105,14 +105,26 @@ def import_grids(lats, lons, pressure, temperature, temp_fill, humidity,
     this function, we'll need to add some more abstraction. For now,
     this function is only used for NetCDF anyway.
     """
+    # Sometimes the layers come in reverse order, so we'll flip them if
+    # so.
+    if pressure[0] > pressure[1]:
+        # In this case, the levels go from the bottom up, so we can
+        # propagate down directly
+        order = 1
+    else:
+        # Otherwise we need to reverse the arrays
+        order = -1
+    temp_order = temperature[::order]
+    humid_order = humidity[::order]
+    geo_ht_order = geo_ht[::order]
     # Replace the non-useful values by NaN, and fill in values under
     # the topography
-    temps_fixed = _propagate_down(numpy.where(temperature != temp_fill,
-                                              temperature, numpy.nan))
-    humids_fixed = _propagate_down(numpy.where(humidity != humid_fill,
-                                               humidity, numpy.nan))
-    geo_ht_fix = _propagate_down(numpy.where(geo_ht != geo_ht_fill,
-                                             geo_ht, numpy.nan))
+    temps_fixed = _propagate_down(numpy.where(temp_order != temp_fill,
+                                              temp_order, numpy.nan))
+    humids_fixed = _propagate_down(numpy.where(humid_order != humid_fill,
+                                               humid_order, numpy.nan))
+    geo_ht_fix = _propagate_down(numpy.where(geo_ht_order != geo_ht_fill,
+                                             geo_ht_order, numpy.nan))
 
     outlength = lats.size * pressure.size
     points = numpy.zeros((outlength, 3), dtype=lats.dtype)
