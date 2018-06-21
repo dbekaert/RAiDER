@@ -14,22 +14,35 @@ class LinearModel:
     """
     def __init__(self, points, pressure, temperature, humidity, k1, k2, k3):
         """Initialize a NetCDFModel."""
-        e = _find_e(temperature, humidity)
-        dry_delay = k2*e/temperature + k3*e/temperature**2
-        self._dry_inp = scipy.interpolate.LinearNDInterpolator(
-                points, dry_delay, fill_value=0)
-
-        hydro_delay = k1*pressure/temperature
-        self._hydro_inp = scipy.interpolate.LinearNDInterpolator(
-                points, hydro_delay, fill_value=0)
+        self._p_inp = scipy.interpolate.LinearNDInterpolator(
+                points, numpy.log(pressure), fill_value=0)
+        self._t_inp = scipy.interpolate.LinearNDInterpolator(
+                points, temperature, fill_value=0)
+        self._h_inp = scipy.interpolate.LinearNDInterpolator(
+                points, humidity, fill_value=0)
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
 
     def dry_delay(self, a):
         """Calculate delay at a list of points."""
-        return self._dry_inp(a)
+        temperature = self._t_inp(a)
+        humidity = self._h_inp(a)
+        e = _find_e(temperature, humidity)
+        # Let's avoid dividing by 0
+        temperature[temperature == 0] = numpy.nan
+        dry_delay = self.k2*e/temperature + self.k3*e/temperature**2
+        dry_delay[numpy.isnan(dry_delay)] = 0
+        return dry_delay
 
     def hydrostatic_delay(self, a):
         """Calculate hydrostatic delay at a list of points."""
-        return self._hydro_inp(a)
+        temperature = self._t_inp(a)
+        pressure = numpy.exp(self._p_inp(a))
+        temperature[temperature == 0] = numpy.nan
+        hydro_delay = self.k1*pressure/temperature
+        hydro_delay[numpy.isnan(hydro_delay)] = 0
+        return hydro_delay
 
 
 def _find_e(temp, rh):
