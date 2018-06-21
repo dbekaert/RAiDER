@@ -41,7 +41,7 @@ def _common_delay(weather, lat, lon, height, look_vec):
 
     t_points = numpy.linspace(0, rnge, rnge / _step)
 
-    wheres = position + look_vec * t_points
+    wheres = position + look_vec * t_points.reshape((t_points.size,1))
 
     return t_points, wheres
 
