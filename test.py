@@ -14,9 +14,9 @@ def test_weather():
     """Test the functions with some hard-coded data."""
     return netcdf.load(
             '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
-                'wrfout_d01_2007-01-30_06:00:00',
+                'wrfout_d02_2007-01-30_05:16:00',
             '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
-                'wrfplev_d01_2007-01-30_06:00:00')
+                'wrfplev_d02_2007-01-30_05:16:00')
 
 
 def test_delay(weather):
