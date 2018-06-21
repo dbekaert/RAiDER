@@ -9,7 +9,6 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 
 from osgeo import gdal
-import multiprocessing
 import numpy
 import progressbar
 import scipy.integrate as integrate
@@ -22,7 +21,7 @@ _step = 15
 
 class Zenith:
     """Special value indicating a look vector of "zenith"."""
-    def __init__(self, rnge):
+    def __init__(self, rnge=None):
         self.rnge = rnge
 
 
@@ -69,7 +68,7 @@ def dry_delay(weather, lat, lon, height, look_vec):
 
     dry_delays = weather.dry_delay(wheres)
 
-    return numpy.trapz(dry_delays, t_points)
+    return 1e-6 * numpy.trapz(dry_delays, t_points)
 
 
 def hydrostatic_delay(weather, lat, lon, height, look_vec):
@@ -78,7 +77,7 @@ def hydrostatic_delay(weather, lat, lon, height, look_vec):
 
     delay = weather.hydrostatic_delay(wheres)
 
-    return numpy.trapz(delay, t_points)
+    return 1e-6 * numpy.trapz(delay, t_points)
 
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
@@ -100,39 +99,23 @@ def _delay_from_grid_work(l):
         position = util.lla2ecef(lat, lon, ht)
         look_vec = craft - position
     else:
-        look_vec = Zenith(15000)
+        look_vec = Zenith(15000 - ht)
     hydro = hydrostatic_delay(weather, lat, lon, ht, look_vec)
     dry = dry_delay(weather, lat, lon, ht, look_vec)
-    return (i, hydro, dry)
+    return hydro, dry
 
 
 def delay_from_grid(weather, llas, craft):
-    out = numpy.zeros((llas.size, 2))
-    with multiprocessing.Pool() as pool:
-        jobs = ((weather, llas, craft, i) for i in range(llas.shape[0]))
-        answers = pool.imap_unordered(_delay_from_grid_work, jobs,
-                                      chunksize=100)
-        bar = progressbar.progressbar(answers,
-                                      widgets=[progressbar.Bar(), ' ',
-                                               progressbar.ETA()],
-                                      max_value=llas.shape[0])
-        for result in bar:
-            i, hydro_delay, dry_delay = result
-            out[i] = (hydro_delay, dry_delay)
-    return out
-
-
-
-def nonparallel(weather, llas, craft):
     out = numpy.zeros((llas.shape[0], 2))
     jobs = ((weather, llas, craft, i) for i in range(llas.shape[0]))
     answers = map(_delay_from_grid_work, jobs)
-    bar = progressbar.progressbar(answers,
-                                  widgets=[progressbar.Bar(), ' ',
-                                           progressbar.AdaptiveETA(samples=100)],
-                                  max_value=llas.shape[0])
-    for result in bar:
-        i, hydro_delay, dry_delay = result
+    bar = progressbar.progressbar(
+            answers,
+            widgets=[progressbar.Bar(), ' ',
+                     progressbar.AdaptiveETA(samples=100)],
+            max_value=llas.shape[0])
+    for i, result in enumerate(bar):
+        hydro_delay, dry_delay = result
         out[i][:] = (hydro_delay, dry_delay)
     return out
 
@@ -142,5 +125,4 @@ def delay_from_files(weather, lat, lon, ht):
     lons = gdal.Open(lon).ReadAsArray()
     hts = gdal.Open(ht).ReadAsArray()
     llas = numpy.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
-    #return delay_from_grid(weather, llas, Zenith(15000))
-    return nonparallel(weather, llas, Zenith(15000))
+    return delay_from_grid(weather, llas, Zenith())
