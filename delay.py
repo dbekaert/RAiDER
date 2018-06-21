@@ -69,7 +69,7 @@ def dry_delay(weather, lat, lon, height, look_vec):
 
     dry_delays = weather.dry_delay(wheres)
 
-    return numpy.trapz(dry_delays, t_points)
+    return 1e-6 * numpy.trapz(dry_delays, t_points)
 
 
 def hydrostatic_delay(weather, lat, lon, height, look_vec):
@@ -78,7 +78,7 @@ def hydrostatic_delay(weather, lat, lon, height, look_vec):
 
     delay = weather.hydrostatic_delay(wheres)
 
-    return numpy.trapz(delay, t_points)
+    return 1e-6 * numpy.trapz(delay, t_points)
 
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
