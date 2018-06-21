@@ -16,14 +16,12 @@ class LinearModel:
         """Initialize a NetCDFModel."""
         e = _find_e(temperature, humidity)
         dry_delay = k2*e/temperature + k3*e/temperature**2
-        dry_delay[numpy.isnan(dry_delay)] = 0
-        self._dry_inp = scipy.interpolate.LinearNDInterpolator(points,
-                                                               dry_delay)
+        self._dry_inp = scipy.interpolate.LinearNDInterpolator(
+                points, dry_delay, fill_value=0)
 
         hydro_delay = k1*pressure/temperature
-        hydro_delay[numpy.isnan(hydro_delay)] = 0
-        self._hydro_inp = scipy.interpolate.LinearNDInterpolator(points,
-                                                                 hydro_delay)
+        self._hydro_inp = scipy.interpolate.LinearNDInterpolator(
+                points, hydro_delay, fill_value=0)
 
     def dry_delay(self, a):
         """Calculate delay at a list of points."""
