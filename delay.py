@@ -18,6 +18,9 @@ import util
 # Step in meters to use when integrating
 _step = 15
 
+# Top of the troposphere
+_zref = 15000
+
 
 class Zenith:
     """Special value indicating a look vector of "zenith"."""
@@ -97,7 +100,7 @@ def _delay_from_grid_work(l):
         position = util.lla2ecef(lat, lon, ht)
         look_vec = craft - position
     else:
-        look_vec = Zenith(15000 - ht)
+        look_vec = Zenith(_zref - ht)
     hydro = hydrostatic_delay(weather, lat, lon, ht, look_vec)
     dry = dry_delay(weather, lat, lon, ht, look_vec)
     return hydro, dry

@@ -13,6 +13,13 @@ import scipy.io.netcdf as netcdf
 import util
 
 
+# NetCDF files have the ability to record their nodata value, but in the
+# particular NetCDF files that I'm reading, this field is left
+# unspecified and a nodata value of -999 is used. The solution I'm using
+# is to check if nodata is specified, and otherwise assume it's -999.
+_default_fill_value = -999
+
+
 # Parameters from Hanssen, 2001
 _k1 = 0.776 # [K/Pa]
 # Should be k2'
@@ -58,15 +65,15 @@ def _read_netcdf(out, plev):
     try:
         temp_fill = temps._FillValue
     except AttributeError:
-        temp_fill = -999
+        temp_fill = _default_fill_value
     try:
         humid_fill = humids._FillValue
     except AttributeError:
-        humid_fill = -999
+        humid_fill = _default_fill_value
     try:
         geo_fill = geopotential_heights._FillValue
     except AttributeError:
-        geo_fill = -999
+        geo_fill = _default_fill_value
 
     return reader.import_grids(lats=lats, lons=lons, pressure=plevs,
                                temperature=temps[0], temp_fill=temp_fill,

@@ -34,18 +34,6 @@ class LinearModel:
 
 def _find_e(temp, rh):
     """Calculate partial pressure of water vapor."""
-    # We have two possible ways to calculate partial pressure of water
-    # vapor. There's the equation from Hanssen, and there's the
-    # equations from TRAIN. I don't know which is better.
-
-    # Hanssen: (of course, L, latent heat, isn't perfectly accurate.)
-    # e_0 = 611.
-    # T_0 = 273.16
-    # L = 2.5e6
-    # R_v = 461.495
-    # e_s = e_0*numpy.exp(L/R_v * (1/T_0 - 1/temp))
-    # e = e_s * rh / 100
-
     # From TRAIN:
     # Could not find the wrf used equation as they appear to be
     # mixed with latent heat etc. Istead I used the equations used
@@ -53,6 +41,9 @@ def _find_e(temp, rh):
     # (CY25R1)). Calculate saturated water vapour pressure (svp) for
     # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
     # and Eskridge (1996) euation AERKi
+
+    # TODO: figure out the sources of all these magic numbers and move
+    # them somewhere more visible.
     svpw = (6.1121
             * numpy.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
     svpi = (6.1121
