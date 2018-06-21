@@ -9,9 +9,9 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 
 from osgeo import gdal
+import multiprocessing
 import numpy
 import progressbar
-import scipy.integrate as integrate
 import util
 
 
@@ -92,9 +92,12 @@ def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
     return delay_from_grid(weather, llas, Zenith)
 
 
-def _delay_from_grid_work(l):
-    """Worker function for integrating delay in a thread."""
-    weather, llas, craft, i = l
+def _delay_from_grid_work(weather, llas, craft, i):
+    """Worker function for integrating delay.
+    
+    This can't be called directly within multiprocessing since we don't
+    want weather, llas, and craft to be copied. But this function is
+    what does the real work."""
     lat, lon, ht = llas[i]
     if not isinstance(craft, Zenith):
         position = util.lla2ecef(lat, lon, ht)
@@ -106,24 +109,41 @@ def _delay_from_grid_work(l):
     return hydro, dry
 
 
-def delay_from_grid(weather, llas, craft):
+def _parallel_worker(i):
+    """Calculate delay at a single index."""
+    # please_cow contains the data we'd like to be CoW'd into the
+    # subprocesses
+    global please_cow
+    weather, llas, craft = please_cow
+    return _delay_from_grid_work(weather, llas, craft, i)
+
+
+def delay_from_grid(weather, llas, craft, parallel=False):
+    """Calculate delay on every point in a list.
+
+    weather is the weather object, llas is a list of lat, lon, ht points
+    at which to calculate delay, and craft is the location of the
+    spacecraft. Pass parallel=True if you want to have real speed.
+    """
     out = numpy.zeros((llas.shape[0], 2))
-    jobs = ((weather, llas, craft, i) for i in range(llas.shape[0]))
-    answers = map(_delay_from_grid_work, jobs)
-    bar = progressbar.progressbar(
-            answers,
-            widgets=[progressbar.Bar(), ' ',
-                     progressbar.AdaptiveETA(samples=100)],
-            max_value=llas.shape[0])
-    for i, result in enumerate(bar):
+    if parallel:
+        global please_cow
+        please_cow = weather, llas, craft
+        with multiprocessing.Pool() as p:
+            answers = p.map(_parallel_worker, range(llas.shape[0]))
+    else:
+        answers = (_delay_from_grid_work(weather, llas, craft, i)
+                for i in range(llas.shape[0]))
+    for i, result in enumerate(answers):
         hydro_delay, dry_delay = result
         out[i][:] = (hydro_delay, dry_delay)
     return out
 
 
-def delay_from_files(weather, lat, lon, ht):
+def delay_from_files(weather, lat, lon, ht, parallel=False):
+    """Read location information from files and calculate delay."""
     lats = gdal.Open(lat).ReadAsArray()
     lons = gdal.Open(lon).ReadAsArray()
     hts = gdal.Open(ht).ReadAsArray()
     llas = numpy.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
-    return delay_from_grid(weather, llas, Zenith())
+    return delay_from_grid(weather, llas, Zenith(), parallel=parallel)
