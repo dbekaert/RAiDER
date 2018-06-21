@@ -22,7 +22,7 @@ _step = 15
 
 class Zenith:
     """Special value indicating a look vector of "zenith"."""
-    def __init__(self, rnge):
+    def __init__(self, rnge=None):
         self.rnge = rnge
 
 
@@ -100,7 +100,7 @@ def _delay_from_grid_work(l):
         position = util.lla2ecef(lat, lon, ht)
         look_vec = craft - position
     else:
-        look_vec = Zenith(15000)
+        look_vec = Zenith(15000 - ht)
     hydro = hydrostatic_delay(weather, lat, lon, ht, look_vec)
     dry = dry_delay(weather, lat, lon, ht, look_vec)
     return (i, hydro, dry)
@@ -142,5 +142,4 @@ def delay_from_files(weather, lat, lon, ht):
     lons = gdal.Open(lon).ReadAsArray()
     hts = gdal.Open(ht).ReadAsArray()
     llas = numpy.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
-    #return delay_from_grid(weather, llas, Zenith(15000))
-    return nonparallel(weather, llas, Zenith(15000))
+    return delay_from_grid(weather, llas, Zenith())
