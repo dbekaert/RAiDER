@@ -110,7 +110,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.plot(x,y,z)
+ax.plot(x,y,z, "--^")
 ax.plot([Sensor[0]], [Sensor[1]], [Sensor[2]], "-o")
 plt.show()
 
