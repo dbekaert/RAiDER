@@ -119,6 +119,7 @@ pixel Geo2rdr::get_radar_coordinate( Orbit &orbit, point &xyz, double t0)
         ii++;
     }
     double t_azimuth = t;
+    
     double slant_range = sqrt(pow(xyz.x - st.position.x ,2) + pow(xyz.y - st.position.y, 2) + pow(xyz.z - st.position.z, 2));
     return pixel(t_azimuth, slant_range);
 }
@@ -204,9 +205,9 @@ void Geo2rdr::geo2rdr()
             get_radar_coordinate(xyz, sensor_xyz, this_range, t0);
             //azimuth_time[line*nr_pixels + pixel] = rdr_pixel.time;
             range[line*nr_pixels + pixel] = this_range;
-            los_x[line*nr_pixels + pixel] = (xyz.x - sensor_xyz.x)/this_range;
-            los_y[line*nr_pixels + pixel] = (xyz.y - sensor_xyz.y)/this_range;
-            los_z[line*nr_pixels + pixel] = (xyz.z - sensor_xyz.z)/this_range;
+            los_x[line*nr_pixels + pixel] = (sensor_xyz.x - xyz.x)/this_range;
+            los_y[line*nr_pixels + pixel] = (sensor_xyz.y - xyz.y)/this_range;
+            los_z[line*nr_pixels + pixel] = (sensor_xyz.z - xyz.z)/this_range;
 
          }
     }
