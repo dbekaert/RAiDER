@@ -33,6 +33,8 @@ def _common_delay(weather, lat, lon, height, look_vec):
     position = util.lla2ecef(lat, lon, height)
     if isinstance(look_vec, Zenith):
         rnge = look_vec.rnge
+        if rnge is None:
+            rnge = _zref - height
         look_vec = numpy.array((util.cosd(lat)*util.cosd(lon),
                                 util.cosd(lat)*util.sind(lon), util.sind(lat)))
         l = numpy.linalg.norm(look_vec)
@@ -103,7 +105,7 @@ def _delay_from_grid_work(weather, llas, craft, i):
         position = util.lla2ecef(lat, lon, ht)
         look_vec = craft - position
     else:
-        look_vec = Zenith(_zref - ht)
+        look_vec = craft
     hydro = hydrostatic_delay(weather, lat, lon, ht, look_vec)
     wet = wet_delay(weather, lat, lon, ht, look_vec)
     return hydro, wet
