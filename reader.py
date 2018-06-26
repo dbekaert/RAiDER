@@ -24,16 +24,16 @@ class LinearModel:
         self.k2 = k2
         self.k3 = k3
 
-    def dry_delay(self, a):
+    def wet_delay(self, a):
         """Calculate delay at a list of points."""
         temperature = self._t_inp(a)
         humidity = self._h_inp(a)
         e = _find_e(temperature, humidity)
         # Let's avoid dividing by 0
         temperature[temperature == 0] = numpy.nan
-        dry_delay = self.k2*e/temperature + self.k3*e/temperature**2
-        dry_delay[numpy.isnan(dry_delay)] = 0
-        return dry_delay
+        wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
+        wet_delay[numpy.isnan(wet_delay)] = 0
+        return wet_delay
 
     def hydrostatic_delay(self, a):
         """Calculate hydrostatic delay at a list of points."""

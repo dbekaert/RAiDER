@@ -29,7 +29,7 @@ class Zenith:
 
 
 def _common_delay(weather, lat, lon, height, look_vec):
-    """Perform computation common to hydrostatic and dry delay."""
+    """Perform computation common to hydrostatic and wet delay."""
     position = util.lla2ecef(lat, lon, height)
     if isinstance(look_vec, Zenith):
         rnge = look_vec.rnge
@@ -63,13 +63,13 @@ def make_lv_range(earth_position, satellite_position):
     return (vec, numpy.linalg.norm(vec))
 
 
-def dry_delay(weather, lat, lon, height, look_vec):
-    """Compute dry delay along the look vector."""
+def wet_delay(weather, lat, lon, height, look_vec):
+    """Compute wet delay along the look vector."""
     t_points, wheres = _common_delay(weather, lat, lon, height, look_vec)
 
-    dry_delays = weather.dry_delay(wheres)
+    wet_delays = weather.wet_delay(wheres)
 
-    return 1e-6 * numpy.trapz(dry_delays, t_points)
+    return 1e-6 * numpy.trapz(wet_delays, t_points)
 
 
 def hydrostatic_delay(weather, lat, lon, height, look_vec):
@@ -105,8 +105,8 @@ def _delay_from_grid_work(weather, llas, craft, i):
     else:
         look_vec = Zenith(_zref - ht)
     hydro = hydrostatic_delay(weather, lat, lon, ht, look_vec)
-    dry = dry_delay(weather, lat, lon, ht, look_vec)
-    return hydro, dry
+    wet = wet_delay(weather, lat, lon, ht, look_vec)
+    return hydro, wet
 
 
 def _parallel_worker(i):
@@ -135,8 +135,8 @@ def delay_from_grid(weather, llas, craft, parallel=False):
         answers = (_delay_from_grid_work(weather, llas, craft, i)
                 for i in range(llas.shape[0]))
     for i, result in enumerate(answers):
-        hydro_delay, dry_delay = result
-        out[i][:] = (hydro_delay, dry_delay)
+        hydro_delay, wet_delay = result
+        out[i][:] = (hydro_delay, wet_delay)
     return out
 
 
