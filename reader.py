@@ -125,33 +125,20 @@ def import_grids(lats, lons, pressure, temperature, temp_fill, humidity,
                                              geo_ht, numpy.nan))
 
     outlength = lats.size * pressure.size
-    points = numpy.zeros((outlength, 3), dtype=lats.dtype)
     rows, cols = lats.shape
-    def to1D(lvl, row, col):
-        return lvl * rows * cols + row * cols + col
     # This one's a bit weird. temps and humids are easier.
-    new_plevs = numpy.zeros(outlength, dtype=pressure.dtype)
-    for lvl in range(len(pressure)):
-        p = pressure[lvl]
-        for row in range(rows):
-            for col in range(cols):
-                new_plevs[to1D(lvl, row, col)] = p
+    new_plevs = numpy.repeat(pressure, rows * cols)
     new_temps = numpy.reshape(temps_fixed, (outlength,))
     new_humids = numpy.reshape(humids_fixed, (outlength,))
-    for lvl in range(len(pressure)):
-        for row in range(rows):
-            for col in range(cols):
-                lat = lats[row][col]
-                lon = lons[row][col]
-                geo_ht = geo_ht_fix[lvl][row][col]
-                pt_idx = to1D(lvl, row, col)
-                points[pt_idx] = util.toXYZ(lat, lon, geo_ht)
+    # Keep in mind, index order into geo_ht_fix is z, lat, lon
+    # So we tile lats and lons to make them the same length
+    points = util.toXYZ(numpy.tile(lats.flatten(), pressure.size),
+                        numpy.tile(lons.flatten(), pressure.size),
+                        geo_ht_fix.flatten())
 
     # So a while ago we removed all the NaNs under the earth, but there
     # are still going to be some left, so we just remove those points.
-    points_thing = numpy.zeros(new_plevs.shape, dtype=bool)
-    for i in range(new_plevs.size):
-        points_thing[i] = numpy.all(numpy.logical_not(numpy.isnan(points[i])))
+    points_thing = numpy.all(numpy.logical_not(numpy.isnan(points)), axis=1)
 
     ok = util.big_and(numpy.logical_not(numpy.isnan(new_plevs)),
                       numpy.logical_not(numpy.isnan(new_temps)),
