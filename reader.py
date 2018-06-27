@@ -94,8 +94,9 @@ def _propagate_down(a):
     return out
 
 
-def import_grids(lats, lons, pressure, temperature, temp_fill, humidity,
-                 humid_fill, geo_ht, geo_ht_fill, k1, k2, k3):
+def import_grids(lats, lons, pressure, temperature, humidity, geo_ht,
+                 k1, k2, k3, temp_fill=numpy.nan, humid_fill=numpy.nan,
+                 geo_ht_fill=numpy.nan):
     """Import weather information to make a weather model object.
     
     This takes in lat, lon, pressure, temperature, humidity in the 3D

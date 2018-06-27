@@ -9,6 +9,7 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 
 from osgeo import gdal
+gdal.UseExceptions()
 import multiprocessing
 import numpy
 import progressbar
