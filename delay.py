@@ -85,7 +85,7 @@ def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
     return delay_from_grid(weather, llas, sensor, parallel=True)
 
 
-def _delay_from_grid_work(weather, llas, sensor, i):
+def _delay_from_grid_work(weather, llas, sensor, raytrace, i):
     """Worker function for integrating delay.
 
     This can't be called directly within multiprocessing since we don't
@@ -95,10 +95,17 @@ def _delay_from_grid_work(weather, llas, sensor, i):
     if not isinstance(sensor, Zenith):
         position = util.lla2ecef(lat, lon, ht)
         look_vec = sensor - position
+        if not raytrace:
+            pos = look_vec
+            look_vec = Zenith(_zref)
+            correction = numpy.linalg.norm(pos) / _zref
+        else:
+            correction = 1
     else:
         look_vec = sensor
-    hydro = hydrostatic_delay(weather, lat, lon, ht, look_vec)
-    wet = wet_delay(weather, lat, lon, ht, look_vec)
+        correction = 1
+    hydro = correction * hydrostatic_delay(weather, lat, lon, ht, look_vec)
+    wet = correction * wet_delay(weather, lat, lon, ht, look_vec)
     return hydro, wet
 
 
@@ -107,11 +114,11 @@ def _parallel_worker(i):
     # please_cow contains the data we'd like to be CoW'd into the
     # subprocesses
     global please_cow
-    weather, llas, sensor = please_cow
-    return _delay_from_grid_work(weather, llas, sensor, i)
+    weather, llas, sensor, raytrace = please_cow
+    return _delay_from_grid_work(weather, llas, sensor, raytrace, i)
 
 
-def delay_from_grid(weather, llas, sensor, parallel=False):
+def delay_from_grid(weather, llas, sensor, parallel=False, raytrace=True):
     """Calculate delay on every point in a list.
 
     weather is the weather object, llas is a list of lat, lon, ht points
@@ -121,11 +128,11 @@ def delay_from_grid(weather, llas, sensor, parallel=False):
     out = numpy.zeros((llas.shape[0], 2))
     if parallel:
         global please_cow
-        please_cow = weather, llas, sensor
+        please_cow = weather, llas, sensor, raytrace
         with multiprocessing.Pool() as p:
             answers = p.map(_parallel_worker, range(llas.shape[0]))
     else:
-        answers = (_delay_from_grid_work(weather, llas, sensor, i)
+        answers = (_delay_from_grid_work(weather, llas, sensor, raytrace, i)
                 for i in range(llas.shape[0]))
     for i, result in enumerate(answers):
         hydro_delay, wet_delay = result
@@ -157,7 +164,7 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     vy = numpy.ones(numSV)
     vz = numpy.ones(numSV)
 
-    for i,st in enumerate(obj.orbit.stateVectors):
+    for i, st in enumerate(obj.orbit.stateVectors):
         #tt = st.time
         #t[i] = datetime2year(tt)
         t[i] = st.time.second + st.time.minute*60.0
