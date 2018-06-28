@@ -34,7 +34,7 @@ class Zenith:
         self.rnge = rnge
 
 
-def _common_delay(weather, lat, lon, height, look_vec):
+def _common_delay(lat, lon, height, look_vec):
     """Perform computation common to hydrostatic and wet delay."""
     position = util.lla2ecef(lat, lon, height)
     if isinstance(look_vec, Zenith):
@@ -59,7 +59,7 @@ def _common_delay(weather, lat, lon, height, look_vec):
 
 def wet_delay(weather, lat, lon, height, look_vec):
     """Compute wet delay along the look vector."""
-    t_points, wheres = _common_delay(weather, lat, lon, height, look_vec)
+    t_points, wheres = _common_delay(lat, lon, height, look_vec)
 
     wet_delays = weather.wet_delay(wheres)
 
@@ -68,7 +68,7 @@ def wet_delay(weather, lat, lon, height, look_vec):
 
 def hydrostatic_delay(weather, lat, lon, height, look_vec):
     """Compute hydrostatic delay along the look vector."""
-    t_points, wheres = _common_delay(weather, lat, lon, height, look_vec)
+    t_points, wheres = _common_delay(lat, lon, height, look_vec)
 
     delay = weather.hydrostatic_delay(wheres)
 
@@ -76,26 +76,26 @@ def hydrostatic_delay(weather, lat, lon, height, look_vec):
 
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
-                    lon_res, ht_min, ht_max, ht_res, sensor=Zenith()):
+                    lon_res, ht_min, ht_max, ht_res, los=Zenith()):
     """Calculate (in parallel) the delays over an area."""
     lats = numpy.arange(lat_min, lat_max, lat_res)
     lons = numpy.arange(lon_min, lon_max, lon_res)
     hts = numpy.arange(ht_min, ht_max, ht_res)
     # It's the cartesian product (thanks StackOverflow)
     llas = numpy.array(numpy.meshgrid(lats, lons, hts)).T.reshape(-1,3)
-    return delay_from_grid(weather, llas, sensor, parallel=True)
+    return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def _delay_from_grid_work(weather, llas, sensor, raytrace, i):
+def _delay_from_grid_work(weather, llas, los, raytrace, i):
     """Worker function for integrating delay.
 
     This can't be called directly within multiprocessing since we don't
-    want weather, llas, and sensor to be copied. But this function is
+    want weather, llas, and los to be copied. But this function is
     what does the real work."""
     lat, lon, ht = llas[i]
-    if not isinstance(sensor, Zenith):
+    if not isinstance(los, Zenith):
         position = util.lla2ecef(lat, lon, ht)
-        look_vec = sensor - position
+        look_vec = los[i]
         if not raytrace:
             pos = look_vec
             look_vec = Zenith(_zref)
@@ -103,7 +103,7 @@ def _delay_from_grid_work(weather, llas, sensor, raytrace, i):
         else:
             correction = 1
     else:
-        look_vec = sensor
+        look_vec = los
         correction = 1
     hydro = correction * hydrostatic_delay(weather, lat, lon, ht, look_vec)
     wet = correction * wet_delay(weather, lat, lon, ht, look_vec)
@@ -115,25 +115,26 @@ def _parallel_worker(i):
     # please_cow contains the data we'd like to be CoW'd into the
     # subprocesses
     global please_cow
-    weather, llas, sensor, raytrace = please_cow
-    return _delay_from_grid_work(weather, llas, sensor, raytrace, i)
+    weather, llas, los, raytrace = please_cow
+    return _delay_from_grid_work(weather, llas, los, raytrace, i)
 
 
-def delay_from_grid(weather, llas, sensor, parallel=False, raytrace=True):
+def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     """Calculate delay on every point in a list.
 
     weather is the weather object, llas is a list of lat, lon, ht points
-    at which to calculate delay, and sensor is the location of the
-    sensor. Pass parallel=True if you want to have real speed.
+    at which to calculate delay, and los an array of line-of-sight
+    vectors at each point. Pass parallel=True if you want to have real
+    speed.
     """
     out = numpy.zeros((llas.shape[0], 2))
     if parallel:
         global please_cow
-        please_cow = weather, llas, sensor, raytrace
+        please_cow = weather, llas, los, raytrace
         with multiprocessing.Pool() as p:
             answers = p.map(_parallel_worker, range(llas.shape[0]))
     else:
-        answers = (_delay_from_grid_work(weather, llas, sensor, raytrace, i)
+        answers = (_delay_from_grid_work(weather, llas, los, raytrace, i)
                 for i in range(llas.shape[0]))
     for i, result in enumerate(answers):
         hydro_delay, wet_delay = result
@@ -141,13 +142,21 @@ def delay_from_grid(weather, llas, sensor, parallel=False, raytrace=True):
     return out
 
 
-def delay_from_files(weather, lat, lon, ht, parallel=False, sensor=Zenith()):
+def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith(),
+                     raytrace=True):
     """Read location information from files and calculate delay."""
-    lats = gdal.Open(lat).ReadAsArray()
-    lons = gdal.Open(lon).ReadAsArray()
+    lats_file = gdal.Open(lat)
+    # TODO: is copy necessary?
+    lats = lats_file.ReadAsArray().copy()
+    del lats_file
+    lons_file = gdal.Open(lon)
+    lons = lons_file.ReadAsArray().copy()
+    del lons_file
+
     hts = gdal.Open(ht).ReadAsArray()
     llas = numpy.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
-    return delay_from_grid(weather, llas, sensor, parallel=parallel)
+    return delay_from_grid(weather, llas, los, parallel=parallel,
+                           raytrace=raytrace)
 
 
 def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
@@ -198,13 +207,21 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     geo2rdrObj.geo2rdr()
 
     # get back the line of sight unit vector
+    # TODO: should I really convert to an array?
     los = numpy.array(geo2rdrObj.get_los())
 
     # get back the slant ranges
     slant_range = geo2rdrObj.get_slant_range()
 
-    sensor = util.lla2ecef(lat_min, lon_min, ht_min) + slant_range * los
+    los = slant_range * los
 
     return delay_over_area(weather, lat_min, lat_max, lat_res,
                            lon_min, lon_max, lon_res,
-                           ht_min, ht_max, ht_res, sensor=sensor)
+                           ht_min, ht_max, ht_res, los=los)
+
+
+def los_from_position(lats, lons, hts, sensor):
+    """In this case, sensor is lla, but it could easily be xyz."""
+    sensor_xyz = util.lla2ecef(*sensor)
+    positions_xyz = util.lla2ecef(lats, lons, hts)
+    return sensor_xyz - positions_xyz
