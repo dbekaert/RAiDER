@@ -65,50 +65,77 @@ def nonans(a):
 def ninetyfive(a):
     a = a.copy()
     a.sort()
-    return a[int(len(a)*0.05)], a[int(len(a)*0.95)]
+    low = a[int(len(a)*0.05)]
+    high = a[int(len(a)*0.95)]
+    bigger = max(numpy.abs(low), numpy.abs(high))
+    return -bigger, bigger
 
 
 saved_weather = None
 
 
-def generate_plots():
+def generate_plots(output='pdf', weather=None, hydro=None, wet=None):
     """Output plots of things compared to TRAIN.
 
     For testing purposes only.
     """
     # Some easy memoization
-    global saved_weather
-    if saved_weather is None:
+    if not weather:
         weather = test_weather()
+        global saved_weather
         saved_weather = weather
-    else:
-        weather = saved_weather
-    hydro, wet = delay.delay_from_files(weather, '/Users/hogenson/lat.rdr', '/Users/hogenson/lon.rdr', '/Users/hogenson/hgt.rdr', parallel=True).T
+    if hydro is None or wet is None:
+        hydro, wet = delay.delay_from_files(weather, '/Users/hogenson/lat.rdr', '/Users/hogenson/lon.rdr', '/Users/hogenson/hgt.rdr', parallel=True).T
+        global saved_hydro
+        saved_hydro = hydro
+        global saved_wet
+        saved_wet = wet
     hydro = hydro.reshape(-1, 48)
     wet = wet.reshape(-1, 48)
     train_hydro = numpy.load('comp_train/train_hydro.npy')
     train_wet = numpy.load('comp_train/train_wet.npy')
-    nc = ninetyfive((hydro + wet - train_hydro - train_wet).flat)
-    plt.hist(nonans((hydro + wet - train_hydro - train_wet).flat), range=nc)
-    plt.savefig('comp_train/combineddiffhistogram.pdf', bbox_inches='tight')
+
+    def annotate(values):
+        plt.annotate(f'mean: {numpy.mean(values):.4f} m\nstandard deviation: {numpy.std(values):.4f} m', xy=(0.05, 0.85), xycoords='axes fraction')
+
+    nc = (-0.05, 0.05)# ninetyfive((hydro + wet - train_hydro - train_wet).flat)
+    plt.hist(nonans((hydro + wet - train_hydro - train_wet).flat), range=nc, bins='auto')
+    values = nonans((hydro + wet - train_hydro - train_wet).flat)
+    annotate(values)
+    plt.title('Total')
+    plt.savefig(f'comp_train/combineddiffhistogram.{output}', bbox_inches='tight')
     plt.clf()
-    nh = ninetyfive(nonans((hydro - train_hydro).flat))
-    plt.hist(nonans((hydro - train_hydro).flat), range=nh)
-    plt.savefig('comp_train/hydrodiffhistogram.pdf', bbox_inches='tight')
+
+    nh = (-0.05, 0.05)#ninetyfive(nonans((hydro - train_hydro).flat))
+    values = nonans((hydro - train_hydro).flat)
+    plt.hist(values, range=nh, bins='auto')
+    annotate(values)
+    plt.title('Hydrostatic')
+    plt.savefig(f'comp_train/hydrodiffhistogram.{output}', bbox_inches='tight')
     plt.clf()
-    nw = ninetyfive(nonans((wet - train_wet).flat))
-    plt.hist(nonans((wet - train_wet).flat), range=nw)
-    plt.savefig('comp_train/wetdiffhistogram.pdf', bbox_inches='tight')
+
+    nw = (-0.05, 0.05)#ninetyfive(nonans((wet - train_wet).flat))
+    values = nonans((wet - train_wet).flat)
+    plt.hist(values, range=nw, bins='auto')
+    annotate(values)
+    plt.title('Wet')
+    plt.savefig(f'comp_train/wetdiffhistogram.{output}', bbox_inches='tight')
     plt.clf()
+
     plt.imshow(hydro + wet - train_hydro - train_wet, vmin=nc[0], vmax=nc[1])
     plt.colorbar()
-    plt.savefig('comp_train/combinedmap.pdf', bbox_inches='tight')
+    plt.title('Total')
+    plt.savefig(f'comp_train/combinedmap.{output}', bbox_inches='tight')
     plt.clf()
+
     plt.imshow(hydro - train_hydro, vmin=nh[0], vmax=nh[1])
     plt.colorbar()
-    plt.savefig('comp_train/hydromap.pdf', bbox_inches='tight')
+    plt.title('Hydrostatic')
+    plt.savefig(f'comp_train/hydromap.{output}', bbox_inches='tight')
     plt.clf()
+
     plt.imshow(wet - train_wet, vmin=nw[0], vmax=nw[1])
     plt.colorbar()
-    plt.savefig('comp_train/wetmap.pdf', bbox_inches='tight')
+    plt.title('Wet')
+    plt.savefig(f'comp_train/wetmap.{output}', bbox_inches='tight')
     plt.clf()
