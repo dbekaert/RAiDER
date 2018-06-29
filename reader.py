@@ -30,7 +30,6 @@ class LinearModel:
         humidity = self._h_inp(a)
         e = _find_e(temperature, humidity)
         wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
-        wet_delay[numpy.isnan(wet_delay)] = 0
         return wet_delay
 
     def hydrostatic_delay(self, a):
@@ -38,7 +37,6 @@ class LinearModel:
         temperature = self._t_inp(a)
         pressure = numpy.exp(self._p_inp(a))
         hydro_delay = self.k1*pressure/temperature
-        hydro_delay[numpy.isnan(hydro_delay)] = 0
         return hydro_delay
 
 
@@ -130,9 +128,9 @@ def import_grids(lats, lons, pressure, temperature, humidity, geo_ht,
     new_humids = numpy.reshape(humids_fixed, (outlength,))
     # Keep in mind, index order into geo_ht_fix is z, lat, lon
     # So we tile lats and lons to make them the same length
-    points = util.toXYZ(numpy.tile(lats.flatten(), pressure.size),
-                        numpy.tile(lons.flatten(), pressure.size),
-                        geo_ht_fix.flatten())
+    points = numpy.array(util.toXYZ(numpy.tile(lats.flatten(), pressure.size),
+                                    numpy.tile(lons.flatten(), pressure.size),
+                                    geo_ht_fix.flatten())).T
 
     # So a while ago we removed all the NaNs under the earth, but there
     # are still going to be some left, so we just remove those points.

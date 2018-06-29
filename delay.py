@@ -36,7 +36,7 @@ class Zenith:
 
 def _common_delay(lat, lon, height, look_vec):
     """Perform computation common to hydrostatic and wet delay."""
-    position = util.lla2ecef(lat, lon, height)
+    position = numpy.array(util.lla2ecef(lat, lon, height))
     if isinstance(look_vec, Zenith):
         rnge = look_vec.rnge
         if rnge is None:
@@ -94,7 +94,7 @@ def _delay_from_grid_work(weather, llas, los, raytrace, i):
     what does the real work."""
     lat, lon, ht = llas[i]
     if not isinstance(los, Zenith):
-        position = util.lla2ecef(lat, lon, ht)
+        position = numpy.array(util.lla2ecef(lat, lon, ht))
         look_vec = los[i]
         if not raytrace:
             pos = look_vec
@@ -146,11 +146,10 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith(),
                      raytrace=True):
     """Read location information from files and calculate delay."""
     lats_file = gdal.Open(lat)
-    # TODO: is copy necessary?
-    lats = lats_file.ReadAsArray().copy()
+    lats = lats_file.ReadAsArray()
     del lats_file
     lons_file = gdal.Open(lon)
-    lons = lons_file.ReadAsArray().copy()
+    lons = lons_file.ReadAsArray()
     del lons_file
 
     hts = gdal.Open(ht).ReadAsArray()
@@ -222,6 +221,6 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
 
 def los_from_position(lats, lons, hts, sensor):
     """In this case, sensor is lla, but it could easily be xyz."""
-    sensor_xyz = util.lla2ecef(*sensor)
-    positions_xyz = util.lla2ecef(lats, lons, hts)
-    return sensor_xyz - positions_xyz
+    sensorx, sensory, sensorz = util.lla2ecef(*sensor)
+    xs, ys, zs = util.lla2ecef(lats, lons, hts)
+    return xs - sensorx, ys - sensory, zs - sensorz

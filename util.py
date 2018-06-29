@@ -19,7 +19,7 @@ def lla2ecef(lat, lon, height):
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
 
-    return numpy.array(pyproj.transform(lla, ecef, lon, lat, height)).T
+    return pyproj.transform(lla, ecef, lon, lat, height)
 
 
 def toXYZ(lats, lons, hts):
