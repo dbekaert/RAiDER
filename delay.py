@@ -10,8 +10,10 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 from osgeo import gdal
 gdal.UseExceptions()
+import itertools
 import multiprocessing
 import numpy
+import os
 import progressbar
 import util
 try:
@@ -117,13 +119,17 @@ def _delay_from_grid_work(weather, llas, los, raytrace, i):
     return hydro, wet
 
 
-def _parallel_worker(i):
+def _parallel_worker(hydro, start, end):
     """Calculate delay at a single index."""
     # please_cow contains the data we'd like to be CoW'd into the
     # subprocesses
     global please_cow
-    weather, llas, los, raytrace = please_cow
-    return _delay_from_grid_work(weather, llas, los, raytrace, i)
+    weather, lats, lons, hts, los, raytrace = please_cow
+    if hydro:
+        return hydrostatic_delay(weather, lats[start:end], lons[start:end],
+                                 hts[start:end], los[start:end])
+    return wet_delay(weather, lats[start:end], lons[start:end], hts[start:end],
+                     los[start:end])
 
 
 def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
@@ -138,22 +144,35 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     if los is Zenith:
         los = numpy.array((util.cosd(lats)*util.cosd(lons),
             util.cosd(lats)*util.sind(lons), util.sind(lats))).T * (_zref - llas[:,2]).reshape(-1,1)
-    hydro = hydrostatic_delay(weather, lats, lons, hts, los)
-    wet = wet_delay(weather, lats, lons, hts, los)
+    if parallel:
+        num_procs = os.cpu_count()
+
+        hydro_procs = num_procs // 2
+        wet_procs = num_procs - hydro_procs
+
+        # Divide up jobs into an appropriate number of pieces
+        hindices = numpy.linspace(0, len(llas), hydro_procs + 1, dtype=int)
+        windices = numpy.linspace(0, len(llas), wet_procs + 1, dtype=int)
+
+        # Store some things in global memory
+        global please_cow
+        please_cow = weather, lats, lons, hts, los, raytrace
+
+        # Map over the jobs
+        # TODO: magic true and false
+        hjobs = ((True, hindices[i], hindices[i + 1]) for i in range(hydro_procs))
+        wjobs = ((False, hindices[i], hindices[i + 1]) for i in range(wet_procs))
+        jobs = itertools.chain(hjobs, wjobs)
+        with multiprocessing.pool.Pool() as p:
+            result = p.starmap(_parallel_worker, jobs)
+
+        # Collect results
+        hydro = numpy.concatenate(result[:hydro_procs])
+        wet = numpy.concatenate(result[hydro_procs:])
+    else:
+        hydro = hydrostatic_delay(weather, lats, lons, hts, los)
+        wet = wet_delay(weather, lats, lons, hts, los)
     return hydro, wet
-    # out = numpy.zeros((llas.shape[0], 2))
-    # if parallel:
-    #     global please_cow
-    #     please_cow = weather, llas, los, raytrace
-    #     with multiprocessing.Pool() as p:
-    #         answers = p.map(_parallel_worker, range(llas.shape[0]))
-    # else:
-    #     answers = (_delay_from_grid_work(weather, llas, los, raytrace, i)
-    #             for i in range(llas.shape[0]))
-    # for i, result in enumerate(answers):
-    #     hydro_delay, wet_delay = result
-    #     out[i][:] = (hydro_delay, wet_delay)
-    # return out
 
 
 def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith(),
