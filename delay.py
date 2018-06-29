@@ -16,7 +16,6 @@ import progressbar
 import util
 try:
     import Geo2rdr
-    from iscesys.Component.ProductManager import ProductManager as PM
 except ImportError: # TODO: consider later
     pass
 
@@ -34,45 +33,53 @@ class Zenith:
         self.rnge = rnge
 
 
-def _common_delay(lat, lon, height, look_vec):
+def _common_delay(delay, lats, lons, heights, look_vecs):
     """Perform computation common to hydrostatic and wet delay."""
-    position = numpy.array(util.lla2ecef(lat, lon, height))
-    if isinstance(look_vec, Zenith):
-        rnge = look_vec.rnge
-        if rnge is None:
-            rnge = _zref - height
-        look_vec = numpy.array((util.cosd(lat)*util.cosd(lon),
-                                util.cosd(lat)*util.sind(lon), util.sind(lat)))
-        l = numpy.linalg.norm(look_vec)
-        look_vec /= l
-        look_vec *= rnge
+    lengths = numpy.linalg.norm(look_vecs, axis=-1)
+    steps = numpy.array(numpy.ceil(lengths / _step), dtype=numpy.int64)
+    indices = numpy.cumsum(steps)
 
-    rnge = numpy.linalg.norm(look_vec)
-    look_vec /= numpy.linalg.norm(look_vec)
+    # We want the first index to be 0, and the others shifted
+    indices = numpy.roll(indices, 1)
+    indices[0] = 0
 
-    t_points = numpy.linspace(0, rnge, rnge / _step)
+    start_positions = numpy.array(util.lla2ecef(lats, lons, heights)).T
 
-    wheres = position + look_vec * t_points.reshape((t_points.size,1))
+    scaled_look_vecs = look_vecs / lengths.reshape(-1, 1)
 
-    return t_points, wheres
+    positions_l = list()
+    t_points_l = list()
+    # Please do it without a for loop
+    for i in range(len(steps)):
+        thisspace = numpy.linspace(0, lengths[i], steps[i])
+        t_points_l.append(thisspace)
+        position = start_positions[i] + thisspace.reshape(-1, 1) * scaled_look_vecs[i]
+        positions_l.append(position)
+
+    positions_a = numpy.concatenate(positions_l)
+
+    wet_delays = delay(positions_a)
+
+    delays = numpy.zeros(lats.shape[0])
+    for i in range(len(steps)):
+        start = indices[i]
+        length = steps[i]
+        chunk = wet_delays[start:start + length]
+        t_points = t_points_l[i]
+        delays[i] = 1e-6 * numpy.trapz(chunk, t_points)
+
+    return delays
 
 
-def wet_delay(weather, lat, lon, height, look_vec):
+def wet_delay(weather, lats, lons, heights, look_vecs):
     """Compute wet delay along the look vector."""
-    t_points, wheres = _common_delay(lat, lon, height, look_vec)
-
-    wet_delays = weather.wet_delay(wheres)
-
-    return 1e-6 * numpy.trapz(wet_delays, t_points)
+    return _common_delay(weather.wet_delay, lats, lons, heights, look_vecs)
 
 
-def hydrostatic_delay(weather, lat, lon, height, look_vec):
+def hydrostatic_delay(weather, lats, lons, heights, look_vecs):
     """Compute hydrostatic delay along the look vector."""
-    t_points, wheres = _common_delay(lat, lon, height, look_vec)
-
-    delay = weather.hydrostatic_delay(wheres)
-
-    return 1e-6 * numpy.trapz(delay, t_points)
+    return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
+                         look_vecs)
 
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
@@ -127,19 +134,26 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     vectors at each point. Pass parallel=True if you want to have real
     speed.
     """
-    out = numpy.zeros((llas.shape[0], 2))
-    if parallel:
-        global please_cow
-        please_cow = weather, llas, los, raytrace
-        with multiprocessing.Pool() as p:
-            answers = p.map(_parallel_worker, range(llas.shape[0]))
-    else:
-        answers = (_delay_from_grid_work(weather, llas, los, raytrace, i)
-                for i in range(llas.shape[0]))
-    for i, result in enumerate(answers):
-        hydro_delay, wet_delay = result
-        out[i][:] = (hydro_delay, wet_delay)
-    return out
+    lats, lons, hts = llas.T
+    if los is Zenith:
+        los = numpy.array((util.cosd(lats)*util.cosd(lons),
+            util.cosd(lats)*util.sind(lons), util.sind(lats))).T * (_zref - llas[:,2]).reshape(-1,1)
+    hydro = hydrostatic_delay(weather, lats, lons, hts, los)
+    wet = wet_delay(weather, lats, lons, hts, los)
+    return hydro, wet
+    # out = numpy.zeros((llas.shape[0], 2))
+    # if parallel:
+    #     global please_cow
+    #     please_cow = weather, llas, los, raytrace
+    #     with multiprocessing.Pool() as p:
+    #         answers = p.map(_parallel_worker, range(llas.shape[0]))
+    # else:
+    #     answers = (_delay_from_grid_work(weather, llas, los, raytrace, i)
+    #             for i in range(llas.shape[0]))
+    # for i, result in enumerate(answers):
+    #     hydro_delay, wet_delay = result
+    #     out[i][:] = (hydro_delay, wet_delay)
+    # return out
 
 
 def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith(),
@@ -159,20 +173,13 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith(),
 
 
 def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
-                ht_min, ht_max, ht_step, orbit):
-    pm = PM()
-    pm.configure()
-    obj = pm.loadProduct(orbit)
+                ht_min, ht_max, ht_step, t, x, y, z, vx, vy, vz):
+    """Calculate delay over an area using state vectors.
 
-    numSV = len(obj.orbit.stateVectors)
-    t = numpy.ones(numSV)
-    x = numpy.ones(numSV)
-    y = numpy.ones(numSV)
-    z = numpy.ones(numSV)
-    vx = numpy.ones(numSV)
-    vy = numpy.ones(numSV)
-    vz = numpy.ones(numSV)
-
+    The information about the sensor is given by t, x, y, z, vx, vy, vz.
+    Other parameters specify the region of interest. The returned object
+    will be hydrostatic and wet arrays covering the indicated area.
+    """
     for i, st in enumerate(obj.orbit.stateVectors):
         #tt = st.time
         #t[i] = datetime2year(tt)

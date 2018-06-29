@@ -29,6 +29,16 @@ class LinearModel:
         temperature = self._t_inp(a)
         humidity = self._h_inp(a)
         e = _find_e(temperature, humidity)
+
+        # e2 = e.copy()
+        # e /= temperature
+        # temperature **= 2
+        # e2 /= temperature
+        # e *= self.k2
+        # e2 *= self.k3
+        # e += e2
+        # wet_delay = e
+
         wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
         return wet_delay
 
@@ -36,6 +46,13 @@ class LinearModel:
         """Calculate hydrostatic delay at a list of points."""
         temperature = self._t_inp(a)
         pressure = numpy.exp(self._p_inp(a))
+
+        # numpy.exp(pressure, pressure)
+        # pressure /= temperature
+        # pressure *= self.k1
+        # hydro_delay = pressure
+
+
         hydro_delay = self.k1*pressure/temperature
         return hydro_delay
 
