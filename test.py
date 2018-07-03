@@ -8,6 +8,7 @@ it's just convenience for when I'm testing everything.
 import delay
 import netcdf
 import numpy
+import pickle
 import matplotlib.pyplot as plt
 
 
@@ -138,4 +139,48 @@ def generate_plots(output='pdf', weather=None, hydro=None, wet=None):
     plt.colorbar()
     plt.title('Wet')
     plt.savefig(f'comp_train/wetmap.{output}', bbox_inches='tight')
+    plt.clf()
+
+
+def pickle_dump(obj, fname):
+    with open(fname, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+def pickle_load(fname):
+    with open(fname, 'rb') as f:
+        return pickle.load(f)
+
+
+def recalculate_weather():
+    weather = test_weather()
+    pickle_dump(weather, 'weather')
+    return weather
+
+
+def recalculate_mexico():
+    weather = pickle_load('weather')
+    hydro, wet = numpy.array(delay.delay_from_files(weather, '/Users/hogenson/lat.rdr', '/Users/hogenson/lon.rdr', '/Users/hogenson/hgt.rdr', parallel=True)).reshape(2,-1,48)
+    numpy.save('my_hydro', hydro)
+    numpy.save('my_wet', wet)
+
+
+def compare_with_train():
+    with open('weather', 'rb') as f:
+        weather = pickle.load(f)
+    train_hydro = numpy.load('comp_train/train_hydro.npy')
+    train_wet = numpy.load('comp_train/train_wet.npy')
+    my_hydro = numpy.load('my_hydro.npy')
+    my_wet = numpy.load('my_wet.npy')
+    diff = my_hydro + my_wet - train_hydro - train_wet
+    plt.imshow(diff, vmin=-0.05, vmax=0.05)
+    plt.colorbar()
+    plt.savefig('comp_train/combinedmap.pdf', bbox_inches='tight')
+
+    plt.clf()
+
+    plt.figure(figsize=(4.5,3.5))
+    plt.hist(diff.flatten(), range=(-0.05, 0.05), bins='auto')
+    plt.savefig('comp_train/combineddiffhistogram.pdf', bbox_inches='tight')
+
     plt.clf()
