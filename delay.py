@@ -31,12 +31,23 @@ _zref = 15000
 
 class Zenith:
     """Special value indicating a look vector of "zenith"."""
-    def __init__(self, rnge=None):
-        self.rnge = rnge
+    pass
 
 
-def _common_delay(delay, lats, lons, heights, look_vecs):
+def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     """Perform computation common to hydrostatic and wet delay."""
+    # Deal with Zenith special value, and non-raytracing method
+    if raytrace:
+        correction = None
+    else:
+        correction = 1/util.cosd(look_vecs)
+        look_vecs = Zenith
+    if look_vecs is Zenith:
+        look_vecs = (numpy.array((util.cosd(lats)*util.cosd(lons),
+                                  util.cosd(lats)*util.sind(lons),
+                                  util.sind(lats))).T
+                            * (_zref - heights).reshape(-1,1))
+
     lengths = numpy.linalg.norm(look_vecs, axis=-1)
     steps = numpy.array(numpy.ceil(lengths / _step), dtype=numpy.int64)
     indices = numpy.cumsum(steps)
@@ -70,22 +81,27 @@ def _common_delay(delay, lats, lons, heights, look_vecs):
         t_points = t_points_l[i]
         delays[i] = 1e-6 * numpy.trapz(chunk, t_points)
 
+    # Finally apply cosine correction if applicable
+    if correction is not None:
+        delays *= correction
+
     return delays
 
 
-def wet_delay(weather, lats, lons, heights, look_vecs):
+def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
     """Compute wet delay along the look vector."""
-    return _common_delay(weather.wet_delay, lats, lons, heights, look_vecs)
+    return _common_delay(weather.wet_delay, lats, lons, heights, look_vecs,
+                         raytrace)
 
 
-def hydrostatic_delay(weather, lats, lons, heights, look_vecs):
+def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
     """Compute hydrostatic delay along the look vector."""
     return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
-                         look_vecs)
+                         look_vecs, raytrace)
 
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
-                    lon_res, ht_min, ht_max, ht_res, los=Zenith()):
+                    lon_res, ht_min, ht_max, ht_res, los=Zenith):
     """Calculate (in parallel) the delays over an area."""
     lats = numpy.arange(lat_min, lat_max, lat_res)
     lons = numpy.arange(lon_min, lon_max, lon_res)
@@ -95,41 +111,23 @@ def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def _delay_from_grid_work(weather, llas, los, raytrace, i):
-    """Worker function for integrating delay.
-
-    This can't be called directly within multiprocessing since we don't
-    want weather, llas, and los to be copied. But this function is
-    what does the real work."""
-    lat, lon, ht = llas[i]
-    if not isinstance(los, Zenith):
-        position = numpy.array(util.lla2ecef(lat, lon, ht))
-        look_vec = los[i]
-        if not raytrace:
-            pos = look_vec
-            look_vec = Zenith(_zref)
-            correction = numpy.linalg.norm(pos) / _zref
-        else:
-            correction = 1
-    else:
-        look_vec = los
-        correction = 1
-    hydro = correction * hydrostatic_delay(weather, lat, lon, ht, look_vec)
-    wet = correction * wet_delay(weather, lat, lon, ht, look_vec)
-    return hydro, wet
-
-
-def _parallel_worker(hydro, start, end):
+def _parallel_worker(job_type, start, end):
     """Calculate delay at a single index."""
     # please_cow contains the data we'd like to be CoW'd into the
     # subprocesses
     global please_cow
     weather, lats, lons, hts, los, raytrace = please_cow
-    if hydro:
+    if los is Zenith:
+        my_los = Zenith
+    else:
+        my_los = los[start:end]
+    if job_type == 'hydro':
         return hydrostatic_delay(weather, lats[start:end], lons[start:end],
-                                 hts[start:end], los[start:end])
-    return wet_delay(weather, lats[start:end], lons[start:end], hts[start:end],
-                     los[start:end])
+                                 hts[start:end], my_los, raytrace=raytrace)
+    if job_type == 'wet':
+        return wet_delay(weather, lats[start:end], lons[start:end],
+                         hts[start:end], my_los, raytrace=raytrace)
+    raise ValueError('Unknown job type {}'.format(job_type))
 
 
 def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
@@ -141,9 +139,6 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     speed.
     """
     lats, lons, hts = llas.T
-    if los is Zenith:
-        los = numpy.array((util.cosd(lats)*util.cosd(lons),
-            util.cosd(lats)*util.sind(lons), util.sind(lats))).T * (_zref - llas[:,2]).reshape(-1,1)
     if parallel:
         num_procs = os.cpu_count()
 
@@ -159,23 +154,25 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
         please_cow = weather, lats, lons, hts, los, raytrace
 
         # Map over the jobs
-        # TODO: magic true and false
-        hjobs = ((True, hindices[i], hindices[i + 1]) for i in range(hydro_procs))
-        wjobs = ((False, hindices[i], hindices[i + 1]) for i in range(wet_procs))
+        hjobs = (('hydro', hindices[i], hindices[i + 1])
+                for i in range(hydro_procs))
+        wjobs = (('wet', hindices[i], hindices[i + 1])
+                for i in range(wet_procs))
         jobs = itertools.chain(hjobs, wjobs)
-        with multiprocessing.pool.Pool() as p:
+        with multiprocessing.Pool() as p:
             result = p.starmap(_parallel_worker, jobs)
 
         # Collect results
         hydro = numpy.concatenate(result[:hydro_procs])
         wet = numpy.concatenate(result[hydro_procs:])
     else:
-        hydro = hydrostatic_delay(weather, lats, lons, hts, los)
-        wet = wet_delay(weather, lats, lons, hts, los)
+        hydro = hydrostatic_delay(weather, lats, lons, hts, los,
+                                  raytrace=raytrace)
+        wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace)
     return hydro, wet
 
 
-def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith(),
+def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
                      raytrace=True):
     """Read location information from files and calculate delay."""
     lats_file = gdal.Open(lat)
@@ -243,10 +240,3 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_over_area(weather, lat_min, lat_max, lat_res,
                            lon_min, lon_max, lon_res,
                            ht_min, ht_max, ht_res, los=los)
-
-
-def los_from_position(lats, lons, hts, sensor):
-    """In this case, sensor is lla, but it could easily be xyz."""
-    sensorx, sensory, sensorz = util.lla2ecef(*sensor)
-    xs, ys, zs = util.lla2ecef(lats, lons, hts)
-    return xs - sensorx, ys - sensory, zs - sensorz
