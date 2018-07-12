@@ -12,7 +12,7 @@ from osgeo import gdal
 gdal.UseExceptions()
 import itertools
 import multiprocessing
-import numpy
+import numpy as np
 import os
 import progressbar
 import util
@@ -43,20 +43,20 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
         correction = 1/util.cosd(look_vecs)
         look_vecs = Zenith
     if look_vecs is Zenith:
-        look_vecs = (numpy.array((util.cosd(lats)*util.cosd(lons),
+        look_vecs = (np.array((util.cosd(lats)*util.cosd(lons),
                                   util.cosd(lats)*util.sind(lons),
                                   util.sind(lats))).T
                             * (_zref - heights).reshape(-1,1))
 
-    lengths = numpy.linalg.norm(look_vecs, axis=-1)
-    steps = numpy.array(numpy.ceil(lengths / _step), dtype=numpy.int64)
-    indices = numpy.cumsum(steps)
+    lengths = np.linalg.norm(look_vecs, axis=-1)
+    steps = np.array(np.ceil(lengths / _step), dtype=np.int64)
+    indices = np.cumsum(steps)
 
     # We want the first index to be 0, and the others shifted
-    indices = numpy.roll(indices, 1)
+    indices = np.roll(indices, 1)
     indices[0] = 0
 
-    start_positions = numpy.array(util.lla2ecef(lats, lons, heights)).T
+    start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
     scaled_look_vecs = look_vecs / lengths.reshape(-1, 1)
 
@@ -64,22 +64,22 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     t_points_l = list()
     # Please do it without a for loop
     for i in range(len(steps)):
-        thisspace = numpy.linspace(0, lengths[i], steps[i])
+        thisspace = np.linspace(0, lengths[i], steps[i])
         t_points_l.append(thisspace)
         position = start_positions[i] + thisspace.reshape(-1, 1) * scaled_look_vecs[i]
         positions_l.append(position)
 
-    positions_a = numpy.concatenate(positions_l)
+    positions_a = np.concatenate(positions_l)
 
     wet_delays = delay(positions_a)
 
-    delays = numpy.zeros(lats.shape[0])
+    delays = np.zeros(lats.shape[0])
     for i in range(len(steps)):
         start = indices[i]
         length = steps[i]
         chunk = wet_delays[start:start + length]
         t_points = t_points_l[i]
-        delays[i] = 1e-6 * numpy.trapz(chunk, t_points)
+        delays[i] = 1e-6 * np.trapz(chunk, t_points)
 
     # Finally apply cosine correction if applicable
     if correction is not None:
@@ -103,11 +103,11 @@ def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
                     lon_res, ht_min, ht_max, ht_res, los=Zenith):
     """Calculate (in parallel) the delays over an area."""
-    lats = numpy.arange(lat_min, lat_max, lat_res)
-    lons = numpy.arange(lon_min, lon_max, lon_res)
-    hts = numpy.arange(ht_min, ht_max, ht_res)
+    lats = np.arange(lat_min, lat_max, lat_res)
+    lons = np.arange(lon_min, lon_max, lon_res)
+    hts = np.arange(ht_min, ht_max, ht_res)
     # It's the cartesian product (thanks StackOverflow)
-    llas = numpy.array(numpy.meshgrid(lats, lons, hts)).T.reshape(-1,3)
+    llas = np.array(np.meshgrid(lats, lons, hts)).T.reshape(-1,3)
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
@@ -146,8 +146,8 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
         wet_procs = num_procs - hydro_procs
 
         # Divide up jobs into an appropriate number of pieces
-        hindices = numpy.linspace(0, len(llas), hydro_procs + 1, dtype=int)
-        windices = numpy.linspace(0, len(llas), wet_procs + 1, dtype=int)
+        hindices = np.linspace(0, len(llas), hydro_procs + 1, dtype=int)
+        windices = np.linspace(0, len(llas), wet_procs + 1, dtype=int)
 
         # Store some things in global memory
         global please_cow
@@ -163,8 +163,8 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
             result = p.starmap(_parallel_worker, jobs)
 
         # Collect results
-        hydro = numpy.concatenate(result[:hydro_procs])
-        wet = numpy.concatenate(result[hydro_procs:])
+        hydro = np.concatenate(result[:hydro_procs])
+        wet = np.concatenate(result[hydro_procs:])
     else:
         hydro = hydrostatic_delay(weather, lats, lons, hts, los,
                                   raytrace=raytrace)
@@ -175,17 +175,27 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
 def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
                      raytrace=True):
     """Read location information from files and calculate delay."""
-    lats_file = gdal.Open(lat)
-    lats = lats_file.ReadAsArray()
-    del lats_file
-    lons_file = gdal.Open(lon)
-    lons = lons_file.ReadAsArray()
-    del lons_file
+    lats = util.gdal_open(lat)
+    lons = util.gdal_open(lon)
+    hts = util.gdal_open(ht)
 
-    hts = gdal.Open(ht).ReadAsArray()
-    llas = numpy.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
-    return delay_from_grid(weather, llas, los, parallel=parallel,
-                           raytrace=raytrace)
+    if los is not Zenith:
+        incidence, heading = util.gdal_open(los)
+        los = util.los_to_lv(incidence, heading, lats, lons, hts).reshape(-1,3)
+
+    # We need the three to be the same shape so that we know what to
+    # reshape hydro and wet to. Plus, them being different sizes
+    # indicates a definite user error.
+    if not (lats.shape == lons.shape == hts.shape):
+        raise ValueError(f'lat, lon, and ht should have the same shape, but '
+                'instead lat had shape {lats.shape}, lon had shape '
+                '{lons.shape}, and ht had shape {hts.shape}')
+
+    llas = np.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
+    hydro, wet = delay_from_grid(weather, llas, los,
+                                 parallel=parallel, raytrace=raytrace)
+    hydro, wet = np.stack((hydro, wet)).reshape((2,) + lats.shape)
+    return hydro, wet
 
 
 def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
@@ -219,7 +229,7 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     #                           lat and lon steps
     #                           DEM heights
 
-    hts = numpy.zeroes((lats.size, lons.size)) # TODO: ???
+    hts = np.zeroes((lats.size, lons.size)) # TODO: ???
 
     geo2rdrObj.set_geo_coordinate(lon_min, lat_min,
                                   lon_res, lat_res,
@@ -230,7 +240,7 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
 
     # get back the line of sight unit vector
     # TODO: should I really convert to an array?
-    los = numpy.array(geo2rdrObj.get_los())
+    los = np.array(geo2rdrObj.get_los())
 
     # get back the slant ranges
     slant_range = geo2rdrObj.get_slant_range()
@@ -240,3 +250,12 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_over_area(weather, lat_min, lat_max, lat_res,
                            lon_min, lon_max, lon_res,
                            ht_min, ht_max, ht_res, los=los)
+
+
+def los_to_lv(los):
+    incidence = los[0]
+    heading = los[1]
+    xs = util.sind(incidence)*util.cosd(heading + 90)
+    ys = util.sind(incidence)*util.sind(heading + 90)
+    zs = util.cosd(incidence)
+    return xs, ys, zs

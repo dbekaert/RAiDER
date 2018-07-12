@@ -27,7 +27,7 @@ _k2 = 0.233 # [K/Pa]
 _k3 = 3.75e3 # [K^2/Pa]
 
 
-def _read_netcdf(out, plev):
+def _read_netcdf(out, plev, scipy_interpolate):
     """Return a NetCDFModel given open netcdf files."""
     # n.b.: all of these things we read are arrays of length 1, so
     # we get the first element to access the actual data.
@@ -39,8 +39,9 @@ def _read_netcdf(out, plev):
     if plev.variables['P_PL'].units.decode('utf-8') == 'Pa':
         plevs = plev.variables['P_PL'][0]
     else:
-        err = "Unknown units for pressure: '{}'"
-        raise NetCDFException(err.format(plev.variables['P_PL'].units))
+        raise NetCDFException(
+                f"Unknown units for pressure: "
+                "'{plev.variables['P_PL'].units}'")
 
     if plev.variables['T_PL'].units.decode('utf-8') == 'K':
         temps = plev.variables['T_PL']
@@ -79,11 +80,12 @@ def _read_netcdf(out, plev):
                                temperature=temps[0], temp_fill=temp_fill,
                                humidity=humids[0], humid_fill=humid_fill,
                                geo_ht=geopotential_heights[0],
-                               geo_ht_fill=geo_fill, k1=_k1, k2=_k2, k3=_k3)
+                               geo_ht_fill=geo_fill, k1=_k1, k2=_k2, k3=_k3,
+                               scipy_interpolate=scipy_interpolate)
 
 
-def load(out, plev):
+def load(out, plev, scipy_interpolate=True):
     """Load a NetCDF weather model as a NetCDFModel object."""
     with netcdf.netcdf_file(out) as f:
         with netcdf.netcdf_file(plev) as g:
-            return _read_netcdf(f, g)
+            return _read_netcdf(f, g, scipy_interpolate)
