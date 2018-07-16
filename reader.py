@@ -152,8 +152,11 @@ def _propagate_down(a, direction=1):
         nonnan = np.logical_not(nans)
         try:
             f = scipy.interpolate.LinearNDInterpolator(points[nonnan], a[i][nonnan])
-        # TODO[urgent]: catch the appropriate types of errors
-        except:
+        except (ValueError, scipy.spatial.qhull.QhullError):
+            # ValueError indicates that every point was nan, a
+            # QhullError indicates that there weren't enough points to
+            # form a convex hull. In any case, we just take the points
+            # directly and we'll fill them from above later.
             out[i] = a[i]
             continue
         out[i] = f(points.reshape(-1, 2)).reshape(out[i].shape)
