@@ -47,7 +47,7 @@ out_new = '/Users/hogenson/igram3/20080202/wrfout_d02_2008-02-02_05:16:00'
 plev_new = '/Users/hogenson/igram3/20080202/wrfplev_d02_2008-02-02_05:16:00'
 
 
-def test_weather(scipy_interpolate=True):
+def test_weather(scipy_interpolate=False):
     """Test the functions with some hard-coded data."""
     return netcdf.load(
             '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'

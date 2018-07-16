@@ -7,6 +7,24 @@ import scipy
 import util
 
 
+# Minimum z (height) value on the earth
+_zmin = -100
+
+
+def _least_nonzero(a):
+    out = np.full(a.shape[1:], np.nan)
+    xlim, ylim = out.shape
+    zlim = len(a)
+    for x in range(xlim):
+        for y in range(ylim):
+            for z in range(zlim):
+                val = a[z][x][y]
+                if not np.isnan(val):
+                    out[x][y] = val
+                    break
+    return out
+
+
 class LinearModel:
     """Generic weather model.
 
@@ -19,26 +37,23 @@ class LinearModel:
         # Best idea so far: pulling the values down is screwing things up
 
         if scipy_interpolate:
-            # TODO: magic -100
-            # new_heights = np.zeros(heights.shape[1:]) - 100
-            pressure = _propagate_down(pressure)
-            temperature = _propagate_down(temperature)
-            humidity = _propagate_down(humidity)
-            # Garbage
-            # heights = _propagate_down(heights)
-            # new_pressures = pressure[-1]
-            # new_temps = temperature[-1]
-            # new_humids = humidity[-1]
-            # heights = np.concatenate((heights, new_heights[np.newaxis]))
-            # pressure = np.concatenate((pressure, new_pressures[np.newaxis]))
-            # temperature = np.concatenate((temperature, new_temps[np.newaxis]))
-            # humidity = np.concatenate((humidity, new_humids[np.newaxis]))
+            # Add an extra layer below to interpolate below the surface
+            new_heights = np.zeros(heights.shape[1:]) + _zmin
+            new_pressures = _least_nonzero(pressure)
+            new_temps = _least_nonzero(temperature)
+            new_humids = _least_nonzero(humidity)
+            heights = np.concatenate((new_heights[np.newaxis], heights))
+            pressure = np.concatenate((new_pressures[np.newaxis], pressure))
+            temperature = np.concatenate((new_temps[np.newaxis], temperature))
+            humidity = np.concatenate((new_humids[np.newaxis], humidity))
 
             ecef = pyproj.Proj(proj='geocent')
 
             # Points in native projection
-            points_a = np.broadcast_to(xs[np.newaxis,np.newaxis,:], pressure.shape)
-            points_b = np.broadcast_to(ys[np.newaxis,:,np.newaxis], pressure.shape)
+            points_a = np.broadcast_to(xs[np.newaxis,np.newaxis,:],
+                                       pressure.shape)
+            points_b = np.broadcast_to(ys[np.newaxis,:,np.newaxis],
+                                       pressure.shape)
             points_c = heights
 
             # Points in ecef
@@ -47,13 +62,20 @@ class LinearModel:
                                                points_b.flatten(),
                                                points_c.flatten()), axis=-1)
 
-            nonnan = np.all(np.logical_not(np.isnan(points)), axis=1)
+            pts_nonnan = np.all(np.logical_not(np.isnan(points)), axis=1)
+            both = np.logical_and(np.logical_not(np.isnan(pressure)).flatten(),
+                                  pts_nonnan)
             self._p_inp = scipy.interpolate.LinearNDInterpolator(
-                    points[nonnan], np.log(pressure.flatten())[nonnan])
+                    points[both], np.log(pressure.flatten())[both])
+            both = np.logical_and(
+                    np.logical_not(np.isnan(temperature)).flatten(),
+                    pts_nonnan)
             self._t_inp = scipy.interpolate.LinearNDInterpolator(
-                    points[nonnan], temperature.flatten()[nonnan])
+                    points[both], temperature.flatten()[both])
+            both = np.logical_and(np.logical_not(np.isnan(humidity)).flatten(),
+                                  pts_nonnan)
             self._h_inp = scipy.interpolate.LinearNDInterpolator(
-                    points[nonnan], humidity.flatten()[nonnan])
+                    points[both], humidity.flatten()[both])
         else:
             self._p_inp, self._t_inp, self._h_inp = _sane_interpolate(
                     xs, ys, heights, projection,
@@ -147,11 +169,11 @@ def _propagate_down(a, direction=1):
     xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
     points = np.stack((xgrid, ygrid), axis=-1)
     for i in range(z):
-        # TODO: slow and gross
         nans = np.isnan(a[i])
         nonnan = np.logical_not(nans)
         try:
-            f = scipy.interpolate.LinearNDInterpolator(points[nonnan], a[i][nonnan])
+            f = scipy.interpolate.LinearNDInterpolator(points[nonnan],
+                                                       a[i][nonnan])
         except (ValueError, scipy.spatial.qhull.QhullError):
             # ValueError indicates that every point was nan, a
             # QhullError indicates that there weren't enough points to
@@ -171,17 +193,19 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 
     new_bottom = np.nanmin(heights)
 
-    # TODO: magic -100
-    new_heights = np.linspace(-100, new_top, num_levels)
+    new_heights = np.linspace(_zmin, new_top, num_levels)
 
-    inp_values = [np.zeros((len(new_heights),) + values.shape[1:]) for values in values_list]
+    inp_values = [np.zeros((len(new_heights),) + values.shape[1:])
+            for values in values_list]
 
     # TODO: do without a for loop
     for iv in range(len(values_list)):
         for x in range(values_list[iv].shape[1]):
             for y in range(values_list[iv].shape[2]):
                 not_nan = np.logical_not(np.isnan(heights[:,x,y]))
-                f = scipy.interpolate.interp1d(heights[:,x,y][not_nan], values_list[iv][:,x,y][not_nan], bounds_error=False)
+                f = scipy.interpolate.interp1d(heights[:,x,y][not_nan],
+                                               values_list[iv][:,x,y][not_nan],
+                                               bounds_error=False)
                 inp_values[iv][:,x,y] = f(new_heights)
         inp_values[iv] = _propagate_down(inp_values[iv], -1)
 
@@ -196,7 +220,9 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
         # Indexing as height, ys, xs is a bit confusing, but it'll error
         # if the sizes don't match, so we can be sure it's the correct
         # order.
-        f = scipy.interpolate.RegularGridInterpolator((new_heights, ys, xs), inp_values[iv], bounds_error=False)
+        f = scipy.interpolate.RegularGridInterpolator((new_heights, ys, xs),
+                                                      inp_values[iv],
+                                                      bounds_error=False)
         # Python has some weird behavior here, eh?
         def ggo(interp):
             def go(pts):
@@ -213,7 +239,7 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 
 def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
                  k1, k2, k3, projection, temp_fill=np.nan, humid_fill=np.nan,
-                 geo_ht_fill=np.nan, scipy_interpolate=True):
+                 geo_ht_fill=np.nan, scipy_interpolate=False):
     """Import weather information to make a weather model object.
     
     This takes in lat, lon, pressure, temperature, humidity in the 3D

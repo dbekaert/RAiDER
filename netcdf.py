@@ -108,7 +108,7 @@ def _read_netcdf(out, plev, scipy_interpolate):
                                scipy_interpolate=scipy_interpolate)
 
 
-def load(out, plev, scipy_interpolate=True):
+def load(out, plev, scipy_interpolate=False):
     """Load a NetCDF weather model as a NetCDFModel object."""
     with netcdf.netcdf_file(out) as f:
         with netcdf.netcdf_file(plev) as g:
