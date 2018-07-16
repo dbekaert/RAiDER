@@ -4,9 +4,11 @@
 # TODO: use a different method of interpolation (someone told me linear
 # is inaccurate).
 # TODO: (maybe) add another layer below to make sure we get everything
+# What did he mean by this? ^^
 
 
-import numpy
+import numpy as np
+import pyproj
 import reader
 import scipy.interpolate as interpolate
 import scipy.io.netcdf as netcdf
@@ -36,6 +38,7 @@ def _read_netcdf(out, plev, scipy_interpolate):
     # isn't it XLATG?).
     lons = out.variables['XLONG'][0]
 
+    # TODO: it'd be cool to use some kind of units package
     if plev.variables['P_PL'].units.decode('utf-8') == 'Pa':
         plevs = plev.variables['P_PL'][0]
     else:
@@ -76,11 +79,32 @@ def _read_netcdf(out, plev, scipy_interpolate):
     except AttributeError:
         geo_fill = _default_fill_value
 
-    return reader.import_grids(lats=lats, lons=lons, pressure=plevs,
+    # Project lat/lon grid so it's regular (for easy interpolation)
+
+    # See http://www.pkrc.net/wrf-lambert.html
+    projection = pyproj.Proj(proj='lcc', lat_1=out.TRUELAT1,
+                             lat_2=out.TRUELAT2, lat_0=out.MOAD_CEN_LAT,
+                             lon_0=out.STAND_LON, a=6370, b=6370,
+                             towgs84=(0,0,0), no_defs=True)
+
+    lla = pyproj.Proj(proj='latlong')
+
+    xs, ys = pyproj.transform(lla, projection, lons.flatten(), lats.flatten())
+    xs = xs.reshape(lats.shape)
+    ys = ys.reshape(lons.shape)
+
+    # At this point, if all has gone well, xs has every column the same,
+    # and ys has every row the same. Maybe they're not exactly the same
+    # (due to rounding errors), so we'll average them.
+    xs = np.mean(xs, axis=0)
+    ys = np.mean(ys, axis=1)
+
+    return reader.import_grids(xs=xs, ys=ys, pressure=plevs,
                                temperature=temps[0], temp_fill=temp_fill,
                                humidity=humids[0], humid_fill=humid_fill,
                                geo_ht=geopotential_heights[0],
                                geo_ht_fill=geo_fill, k1=_k1, k2=_k2, k3=_k3,
+                               projection=projection,
                                scipy_interpolate=scipy_interpolate)
 
 

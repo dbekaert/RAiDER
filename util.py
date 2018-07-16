@@ -4,8 +4,6 @@
 from osgeo import gdal
 import numpy as np
 import pyproj
-# TODO: don't depend on pymap3d (copy the code in??)
-import pymap3d
 
 
 def sind(x):
@@ -37,21 +35,31 @@ def ecef2lla(x, y, z):
     return lat, lon, height
 
 
-def enu_to_ecef(east, north, up, lat, lon, height):
-    """Return ecef as offset from lat, lon."""
-    # https://gssc.esa.int/navipedia/index.php/Transformations_between_ECEF_and_ENU_coordinates
+def enu2ecef(east, north, up, lat0, lon0, h0):
+    """Return ecef from enu coordinates."""
+    # I'm looking at
+    # https://github.com/scivision/pymap3d/blob/master/pymap3d/__init__.py
+    x0, y0, z0 = lla2ecef(lat0, lon0, h0)
 
-    # t = cosd(lat) * height - sind(lat) * north
-    # w = sind(lat) * up + cosd(lat) * north
+    t = cosd(lat0) * up - sind(lat0) * north
+    w = sind(lat0) * up + cosd(lat0) * north
 
-    # u = cosd(lon) * t - sind(lon) * east
-    # v = sind(lon) * t + cosd(lon) * east
+    u = cosd(lon0) * t - sind(lon0) * east
+    v = sind(lon0) * t + cosd(lon0) * east
 
-    # x, y, z = lla2ecef(lat, lon, height)
+    my_ecef = np.stack((x0 + u, y0 + v, z0 + w))
 
-    # return u + x, v + y, w + z
+    return my_ecef
 
-    return pymap3d.enu2ecef(east, north, up, lat, lon, height)
+
+def lla2lambert(lat, lon, height=None):
+    lla = pyproj.Proj(proj='latlong')
+    lambert = pyproj.Proj('+proj=lcc +lat_1=30.0 +lat_2=60.0 +lat_0=18.500015 +lon_0=-100.2 +a=6370 +b=6370 +towgs84=0,0,0 +no_defs')
+    #lambert = pyproj.Proj(proj='lcc')
+
+    if height is None:
+        return lla(lat, lon, errcheck=True)
+    return pyproj.transform(lla, lambert, lat, lon, height)
 
 
 def los_to_lv(incidence, heading, lats, lons, heights):
@@ -67,7 +75,7 @@ def los_to_lv(incidence, heading, lats, lons, heights):
 
     east, north, up = np.stack((east, north, up))*r
 
-    x, y, z = enu_to_ecef(east.flatten(), north.flatten(), up.flatten(), lats.flatten(), lons.flatten(), heights.flatten())
+    x, y, z = enu2ecef(east.flatten(), north.flatten(), up.flatten(), lats.flatten(), lons.flatten(), heights.flatten())
 
     los = (np.stack((x, y, z), axis=-1)
             - np.stack(lla2ecef(lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))

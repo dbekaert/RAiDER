@@ -2,6 +2,7 @@
 
 
 import numpy as np
+import pyproj
 import scipy
 import util
 
@@ -12,18 +13,40 @@ class LinearModel:
     This model is based upon a linear interpolation scheme for pressure,
     temperature, and relative humidity.
     """
-    def __init__(self, lats, lons, heights, pressure, temperature, humidity, k1, k2, k3, scipy_interpolate):
+    def __init__(self, xs, ys, heights, pressure, temperature, humidity,
+                 k1, k2, k3, projection, scipy_interpolate):
         """Initialize a NetCDFModel."""
+        # Best idea so far: pulling the values down is screwing things up
+
         if scipy_interpolate:
-            points = np.stack(
-                    util.lla2ecef(
-                        np.broadcast_to(
-                            lats.reshape((1,) + lats.shape),
-                            (len(heights),) + lats.shape).flatten(),
-                        np.broadcast_to(
-                            lons.reshape((1,) + lons.shape),
-                            (len(heights),) + lons.shape).flatten(),
-                        heights.flatten()), axis=-1)
+            # TODO: magic -100
+            # new_heights = np.zeros(heights.shape[1:]) - 100
+            pressure = _propagate_down(pressure)
+            temperature = _propagate_down(temperature)
+            humidity = _propagate_down(humidity)
+            # Garbage
+            # heights = _propagate_down(heights)
+            # new_pressures = pressure[-1]
+            # new_temps = temperature[-1]
+            # new_humids = humidity[-1]
+            # heights = np.concatenate((heights, new_heights[np.newaxis]))
+            # pressure = np.concatenate((pressure, new_pressures[np.newaxis]))
+            # temperature = np.concatenate((temperature, new_temps[np.newaxis]))
+            # humidity = np.concatenate((humidity, new_humids[np.newaxis]))
+
+            ecef = pyproj.Proj(proj='geocent')
+
+            # Points in native projection
+            points_a = np.broadcast_to(xs[np.newaxis,np.newaxis,:], pressure.shape)
+            points_b = np.broadcast_to(ys[np.newaxis,:,np.newaxis], pressure.shape)
+            points_c = heights
+
+            # Points in ecef
+            points = np.stack(pyproj.transform(projection, ecef,
+                                               points_a.flatten(),
+                                               points_b.flatten(),
+                                               points_c.flatten()), axis=-1)
+
             nonnan = np.all(np.logical_not(np.isnan(points)), axis=1)
             self._p_inp = scipy.interpolate.LinearNDInterpolator(
                     points[nonnan], np.log(pressure.flatten())[nonnan])
@@ -32,21 +55,9 @@ class LinearModel:
             self._h_inp = scipy.interpolate.LinearNDInterpolator(
                     points[nonnan], humidity.flatten()[nonnan])
         else:
-            (self._p_inp, self.p_grid, _, _, _), (self._t_inp, self.t_grid, self.new_heights, self.newlons, self.newlats), (self._h_inp, self.h_grid, _, _, _) = _sane_interpolate(
-                    lats, lons, heights,
+            self._p_inp, self._t_inp, self._h_inp = _sane_interpolate(
+                    xs, ys, heights, projection,
                     (np.log(pressure), temperature, humidity))
-            # def interpolate_pressure(pts):
-            #     lat, lon, ht = util.ecef2lla(*pts.T)
-            #     return self._p_inp_raw(np.stack((ht, lon, lat), axis=-1))
-            # def interpolate_temperature(pts):
-            #     lat, lon, ht = util.ecef2lla(*pts.T)
-            #     return self._t_inp_raw(np.stack((ht, lon, lat), axis=-1))
-            # def interpolate_humidity(pts):
-            #     lat, lon, ht = util.ecef2lla(*pts.T)
-            #     return self._h_inp_raw(np.stack((ht, lon, lat), axis=-1))
-            # self._p_inp = interpolate_pressure
-            # self._t_inp = interpolate_temperature
-            # self._h_inp = interpolate_humidity
         self.k1 = k1
         self.k2 = k2
         self.k3 = k3
@@ -101,7 +112,7 @@ def _find_e(temp, rh):
     return e
 
 
-def _propagate_down(a):
+def _propagate_down(a, direction=1):
     """Pull real values down to cover NaNs
 
     a might contain some NaNs which live under real values. We replace
@@ -112,7 +123,14 @@ def _propagate_down(a):
     for i in range(x):
         for j in range(y):
             held = None
-            for k in range(z):
+            if direction == 1:
+                r = range(z)
+            elif direction == -1:
+                r = range(z - 1, -1, -1)
+            else:
+                raise ValueError(
+                        'Unsupported direction. direction should be 1 or -1')
+            for k in r:
                 val = out[k][i][j]
                 if np.isnan(val) and held is not None:
                     out[k][i][j] = held
@@ -121,19 +139,17 @@ def _propagate_down(a):
     return out
 
 
-def _sane_interpolate(lats, lons, heights, values_list):
+def _sane_interpolate(xs, ys, heights, projection, values_list):
     num_levels = 2 * heights.shape[0]
-    # First, find the maximum height in each column
-    max_heights = np.nanmax(heights, axis=0)
-    new_top = np.max(max_heights)
+    # First, find the maximum height
+    new_top = np.nanmax(heights)
 
-    min_heights = np.nanmin(heights, axis=0)
-    new_bottom = np.min(min_heights)
+    new_bottom = np.nanmin(heights)
 
-    # new_heights = np.linspace(new_bottom, new_top, num_levels)
-    new_heights = np.linspace(-50, new_top, num_levels)
+    # TODO: magic -100
+    new_heights = np.linspace(-100, new_top, num_levels)
 
-    inp_values = [np.zeros((len(new_heights), lats.shape[0], lats.shape[1])) for values in values_list]
+    inp_values = [np.zeros((len(new_heights),) + values.shape[1:]) for values in values_list]
 
     # TODO: do without a for loop
     for iv in range(len(values_list)):
@@ -142,57 +158,32 @@ def _sane_interpolate(lats, lons, heights, values_list):
                 not_nan = np.logical_not(np.isnan(heights[:,x,y]))
                 f = scipy.interpolate.interp1d(heights[:,x,y][not_nan], values_list[iv][:,x,y][not_nan], bounds_error=False)
                 inp_values[iv][:,x,y] = f(new_heights)
-        inp_values[iv] = _propagate_down(inp_values[iv])
+        inp_values[iv] = _propagate_down(inp_values[iv], -1)
 
-    minlat = np.min(np.min(lats, axis=1))
-    maxlat = np.max(np.max(lats, axis=1))
-
-    minlon = np.min(np.min(lons, axis=0))
-    maxlon = np.max(np.max(lons, axis=0))
-
-    # TODO: maybe don't hard-code the shape indices?
-    # TODO: is 2x too much resolution? (yes)
-    newlats = np.linspace(minlat, maxlat, 2*lats.shape[1])
-    newlons = np.linspace(minlon, maxlon, 2*lons.shape[0])
-
-    points = np.stack((lons.flatten(), lats.flatten()), axis=-1)
-
-    # Every bug results from traversal order
-    # We want indexing to be ij, since we'd like to index as lon, lat
-    pts = np.stack(np.meshgrid(newlons, newlats, indexing='ij'), axis=-1).reshape(-1, 2)
-
-    regular_grid = [np.zeros((inp_values[i].shape[0], newlons.size, newlats.size)) for i in range(len(values_list))]
-
-    # TODO: for loops are slow
-    for iv in range(len(values_list)):
-        for z in range(inp_values[iv].shape[0]):
-            f = scipy.interpolate.LinearNDInterpolator(points, inp_values[iv][z].flatten())
-            regular_grid[iv][z] = f(pts).reshape(regular_grid[iv][z].shape)
-
-    np.save('regular_grid', regular_grid)
-
-    zs, xs, ys = np.meshgrid(new_heights, newlons, newlats)
-
-    interpolator = [(scipy.interpolate.RegularGridInterpolator((new_heights, newlons, newlats), regular_grid_, bounds_error=False), regular_grid_, new_heights, newlons, newlats) for regular_grid_ in regular_grid]
-
-    #return interpolator
+    ecef = pyproj.Proj(proj='geocent')
 
     interps = list()
-    for inp, grid, a, b, c in interpolator:
+    for iv in range(len(values_list)):
+        # Indexing as height, ys, xs is a bit confusing, but it'll error
+        # if the sizes don't match, so we can be sure it's the correct
+        # order.
+        f = scipy.interpolate.RegularGridInterpolator((new_heights, ys, xs), inp_values[iv], bounds_error=False)
         # Python has some weird behavior here, eh?
         def ggo(interp):
-            def go(a):
-                lat, lon, ht = util.ecef2lla(*a.T)
-                ans = interp(np.stack((ht, lon, lat), axis=-1))
-                return ans
+            def go(pts):
+                xs, ys, zs = np.moveaxis(pts, -1, 0)
+                a, b, c = pyproj.transform(ecef, projection, xs, ys, zs)
+                # Again we index as ys, xs
+                llas = np.stack((c, b, a), axis=-1)
+                return interp(llas)
             return go
-        interps.append((ggo(inp), grid, a, b, c))
+        interps.append(ggo(f))
 
     return interps
 
 
-def import_grids(lats, lons, pressure, temperature, humidity, geo_ht,
-                 k1, k2, k3, temp_fill=np.nan, humid_fill=np.nan,
+def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
+                 k1, k2, k3, projection, temp_fill=np.nan, humid_fill=np.nan,
                  geo_ht_fill=np.nan, scipy_interpolate=True):
     """Import weather information to make a weather model object.
     
@@ -210,24 +201,24 @@ def import_grids(lats, lons, pressure, temperature, humidity, geo_ht,
         temperature = temperature[::-1]
         humidity = humidity[::-1]
         geo_ht = geo_ht[::-1]
-    # Replace the non-useful values by NaN, and fill in values under
-    # the topography
-    # temps_fixed = _propagate_down(np.where(temperature != temp_fill,
-    #                                           temperature, np.nan))
-    # humids_fixed = _propagate_down(np.where(humidity != humid_fill,
-    #                                            humidity, np.nan))
-    # geo_ht_fix = _propagate_down(np.where(geo_ht != geo_ht_fill,
-    #                                          geo_ht, np.nan))
 
+    # Replace the non-useful values by NaN
     temps_fixed = np.where(temperature != temp_fill, temperature, np.nan)
     humids_fixed = np.where(humidity != humid_fill, humidity, np.nan)
     geo_ht_fix = np.where(geo_ht != geo_ht_fill, geo_ht, np.nan)
 
+    # We've got to recover the grid of lat, lon
+    xgrid, ygrid = np.meshgrid(xs, ys)
+    lla = pyproj.Proj(proj='latlong')
+    lons, lats = pyproj.transform(projection, lla, xgrid, ygrid)
+
     heights = util.geo_to_ht(lats, lons, geo_ht_fix)
 
-    new_plevs = np.repeat(pressure, lats.shape[0] * lats.shape[1]).reshape(-1, lats.shape[0], lats.shape[1])
+    new_plevs = np.broadcast_to(pressure[:,np.newaxis,np.newaxis],
+                                heights.shape)
 
-    return LinearModel(lats=lats, lons=lons, heights=heights, pressure=new_plevs,
+    return LinearModel(xs=xs, ys=ys, heights=heights,
+                       pressure=new_plevs,
                        temperature=temps_fixed, humidity=humids_fixed,
-                       k1=k1, k2=k2, k3=k3,
+                       k1=k1, k2=k2, k3=k3, projection=projection,
                        scipy_interpolate=scipy_interpolate)
