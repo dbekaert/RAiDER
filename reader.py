@@ -112,7 +112,7 @@ def _find_e(temp, rh):
     return e
 
 
-def _propagate_down(a, direction=1):
+def _just_pull_down(a, direction=-1):
     """Pull real values down to cover NaNs
 
     a might contain some NaNs which live under real values. We replace
@@ -139,6 +139,28 @@ def _propagate_down(a, direction=1):
     return out
 
 
+def _propagate_down(a, direction=1):
+    out = np.zeros_like(a)
+    z, x, y = a.shape
+    xs = np.arange(x)
+    ys = np.arange(y)
+    xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
+    points = np.stack((xgrid, ygrid), axis=-1)
+    for i in range(z):
+        # TODO: slow and gross
+        nans = np.isnan(a[i])
+        nonnan = np.logical_not(nans)
+        try:
+            f = scipy.interpolate.LinearNDInterpolator(points[nonnan], a[i][nonnan])
+        # TODO[urgent]: catch the appropriate types of errors
+        except:
+            out[i] = a[i]
+            continue
+        out[i] = f(points.reshape(-1, 2)).reshape(out[i].shape)
+    # I honestly have no idea if this will work
+    return _just_pull_down(out)
+
+
 def _sane_interpolate(xs, ys, heights, projection, values_list):
     num_levels = 2 * heights.shape[0]
     # First, find the maximum height
@@ -153,14 +175,18 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 
     # TODO: do without a for loop
     for iv in range(len(values_list)):
-        for x in range(inp_values[iv].shape[1]):
-            for y in range(inp_values[iv].shape[2]):
+        for x in range(values_list[iv].shape[1]):
+            for y in range(values_list[iv].shape[2]):
                 not_nan = np.logical_not(np.isnan(heights[:,x,y]))
                 f = scipy.interpolate.interp1d(heights[:,x,y][not_nan], values_list[iv][:,x,y][not_nan], bounds_error=False)
                 inp_values[iv][:,x,y] = f(new_heights)
         inp_values[iv] = _propagate_down(inp_values[iv], -1)
 
     ecef = pyproj.Proj(proj='geocent')
+
+    np.save('grobage', inp_values[1])
+    np.save('new_heights', new_heights)
+    np.save('old_heights', heights)
 
     interps = list()
     for iv in range(len(values_list)):
@@ -194,9 +220,9 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
     this function is only used for NetCDF anyway.
     """
     # In some cases, the pressure goes the wrong way. The way we'd like
-    # is from top to bottom, i.e., low pressures to high pressures. If
+    # is from bottom to top, i.e., high pressures to low pressures. If
     # that's not the case, we'll reverse everything.
-    if pressure[0] > pressure[1]:
+    if pressure[0] < pressure[1]:
         pressure = pressure[::-1]
         temperature = temperature[::-1]
         humidity = humidity[::-1]
