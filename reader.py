@@ -171,17 +171,17 @@ def _propagate_down(a, direction=1):
     for i in range(z):
         nans = np.isnan(a[i])
         nonnan = np.logical_not(nans)
+        inpts = points[nonnan]
+        apts = a[i][nonnan]
+        outpoints = points.reshape(-1, 2)
         try:
-            f = scipy.interpolate.LinearNDInterpolator(points[nonnan],
-                                                       a[i][nonnan])
-        except (ValueError, scipy.spatial.qhull.QhullError):
-            # ValueError indicates that every point was nan, a
-            # QhullError indicates that there weren't enough points to
-            # form a convex hull. In any case, we just take the points
-            # directly and we'll fill them from above later.
-            out[i] = a[i]
-            continue
-        out[i] = f(points.reshape(-1, 2)).reshape(out[i].shape)
+            ans = scipy.interpolate.griddata(inpts, apts, outpoints,
+                                             method='nearest')
+        except ValueError:
+            # Likely there aren't any (non-nan) values here, but we'll
+            # copy over the whole thing to be safe.
+            ans = a[i]
+        out[i] = ans.reshape(out[i].shape)
     # I honestly have no idea if this will work
     return _just_pull_down(out)
 
@@ -193,7 +193,7 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 
     new_bottom = np.nanmin(heights)
 
-    new_heights = np.linspace(_zmin, new_top, num_levels)
+    new_heights = np.linspace(-1, new_top, num_levels)
 
     inp_values = [np.zeros((len(new_heights),) + values.shape[1:])
             for values in values_list]
@@ -203,10 +203,11 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
         for x in range(values_list[iv].shape[1]):
             for y in range(values_list[iv].shape[2]):
                 not_nan = np.logical_not(np.isnan(heights[:,x,y]))
-                f = scipy.interpolate.interp1d(heights[:,x,y][not_nan],
-                                               values_list[iv][:,x,y][not_nan],
-                                               bounds_error=False)
-                inp_values[iv][:,x,y] = f(new_heights)
+                inp_values[iv][:,x,y] = scipy.interpolate.griddata(
+                        heights[:,x,y][not_nan],
+                        values_list[iv][:,x,y][not_nan],
+                        new_heights,
+                        method='cubic')
         inp_values[iv] = _propagate_down(inp_values[iv], -1)
 
     ecef = pyproj.Proj(proj='geocent')

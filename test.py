@@ -222,8 +222,8 @@ def compare_with_train():
     plt.clf()
 
 
-def make_plot(out, plev, lat, lon, height):
-    weather = netcdf.load(out, plev, scipy_interpolate=False)
+def make_plot(out, plev, lat, lon, height, scipy_interpolate=False):
+    weather = netcdf.load(out, plev, scipy_interpolate=scipy_interpolate)
     hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=True, los=delay.Zenith)
     return hydro, wet
 
