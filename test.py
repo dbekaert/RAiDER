@@ -46,6 +46,13 @@ plev_old = '/Users/hogenson/igram3/20071102/wrfplev_d02_2007-11-02_05:16:00'
 out_new = '/Users/hogenson/igram3/20080202/wrfout_d02_2008-02-02_05:16:00'
 plev_new = '/Users/hogenson/igram3/20080202/wrfplev_d02_2008-02-02_05:16:00'
 
+t_local = '/Users/hogenson/slc/t.npy'
+pos_local = '/Users/hogenson/slc/pos.npy'
+v_local = '/Users/hogenson/slc/velocity.npy'
+t_kriek = '/home/hogenson/t.npy'
+pos_kriek = '/home/hogenson/pos.npy'
+v_kriek = '/home/hogenson/velocity.npy'
+
 
 def test_weather(scipy_interpolate=False):
     """Test the functions with some hard-coded data."""
