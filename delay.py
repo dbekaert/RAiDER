@@ -180,7 +180,11 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
 
     if los is not Zenith:
         incidence, heading = util.gdal_open(los)
-        los = util.los_to_lv(incidence, heading, lats, lons, hts).reshape(-1,3)
+        if raytrace:
+            los = util.los_to_lv(
+                    incidence, heading, lats, lons, hts).reshape(-1,3)
+        else:
+            los = incidence
 
     # We need the three to be the same shape so that we know what to
     # reshape hydro and wet to. Plus, them being different sizes
