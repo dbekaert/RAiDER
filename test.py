@@ -264,3 +264,37 @@ def train_igram(hydro1, wet1, hydro2, wet2, lat, lon):
     train_hydro2, train_wet2 = train_interpolate(hydro2, wet2, lat, lon)
     diff = train_hydro1 + train_wet1 - train_hydro2 - train_wet2
     return diff
+
+
+def state_to_los(t, x, y, z, vx, vy, vz, lon_first, lon_step, lat_first,
+                 lat_step, heights):
+    global Geo2rdr
+    try:
+        Geo2rdr
+    except NameError:
+        import Geo2rdr
+    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
+    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
+    geo2rdr_obj.set_geo_coordinate(np.radians(lon_first),
+                                   np.radians(lat_first),
+                                   np.radians(lon_step), np.radians(lat_step),
+                                   heights.astype(np.double,
+                                                  casting='same_kind'))
+    # compute the radar coordinate for each geo coordinate
+    geo2rdr_obj.geo2rdr()
+
+    # get back the line of sight unit vector
+    los_x, los_y, los_z = geo2rdr_obj.get_los()
+
+
+    # get back the slant ranges
+    slant_range = geo2rdr_obj.get_slant_range()
+    return np.array((los_x, los_y, los_z)) * slant_range
+
+
+def test_geo2rdr(t_file, pos_file, v_file):
+    t = np.load(t_file)
+    x, y, z = np.load(pos_file)
+    vx, vy, vz = np.load(v_file)
+    return state_to_los(t, x, y, z, vx, vy, vz, -99.7, 0.002, 17.99, -0.002,
+                        np.zeros((1, 1)))

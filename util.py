@@ -3,7 +3,12 @@
 
 from osgeo import gdal
 import numpy as np
+import pickle
 import pyproj
+
+
+# Top of the troposphere
+zref = 15000
 
 
 def sind(x):
@@ -62,18 +67,23 @@ def lla2lambert(lat, lon, height=None):
     return pyproj.transform(lla, lambert, lat, lon, height)
 
 
-def los_to_lv(incidence, heading, lats, lons, heights):
+def los_to_lv(incidence, heading, lats, lons, heights, ranges=None):
     # I'm looking at http://earthdef.caltech.edu/boards/4/topics/327
     a_0 = incidence
     a_1 = heading
-    # TODO: Garbage---must fix
-    r = (15000 - heights) / cosd(incidence)
 
     east = sind(a_0)*cosd(a_1 + 90)
     north = sind(a_0)*sind(a_1 + 90)
     up = cosd(a_0)
 
-    east, north, up = np.stack((east, north, up))*r
+    east, north, up = np.stack((east, north, up))
+
+    # Pick reasonable range to top of troposphere if not provided
+    if ranges is None:
+        ranges = (zref - heights) / up
+
+    # Scale look vectors by range
+    east, north, up = np.stack((east, north, up)) * ranges
 
     x, y, z = enu2ecef(east.flatten(), north.flatten(), up.flatten(), lats.flatten(), lons.flatten(), heights.flatten())
 
@@ -137,3 +147,8 @@ def gdal_open(fname):
     val = ds.ReadAsArray()
     del ds
     return val
+
+
+def pickle_dump(o, f):
+    with open(f, 'wb') as fil:
+        pickle.dump(o, fil)

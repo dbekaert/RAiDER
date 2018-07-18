@@ -16,17 +16,13 @@ import numpy as np
 import os
 import progressbar
 import util
-try:
-    import Geo2rdr
-except ImportError: # TODO: consider later
-    pass
 
 
 # Step in meters to use when integrating
 _step = 15
 
 # Top of the troposphere
-_zref = 15000
+_zref = util.zref
 
 
 class Zenith:
@@ -254,12 +250,3 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_over_area(weather, lat_min, lat_max, lat_res,
                            lon_min, lon_max, lon_res,
                            ht_min, ht_max, ht_res, los=los)
-
-
-def los_to_lv(los):
-    incidence = los[0]
-    heading = los[1]
-    xs = util.sind(incidence)*util.cosd(heading + 90)
-    ys = util.sind(incidence)*util.sind(heading + 90)
-    zs = util.cosd(incidence)
-    return xs, ys, zs
