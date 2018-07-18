@@ -14,7 +14,6 @@ import itertools
 import multiprocessing
 import numpy as np
 import os
-import progressbar
 import util
 
 
