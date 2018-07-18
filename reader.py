@@ -212,10 +212,6 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 
     ecef = pyproj.Proj(proj='geocent')
 
-    np.save('grobage', inp_values[1])
-    np.save('new_heights', new_heights)
-    np.save('old_heights', heights)
-
     interps = list()
     for iv in range(len(values_list)):
         # Indexing as height, ys, xs is a bit confusing, but it'll error
