@@ -193,7 +193,7 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 
     new_bottom = np.nanmin(heights)
 
-    new_heights = np.linspace(-1, new_top, num_levels)
+    new_heights = np.linspace(_zmin, new_top, num_levels)
 
     inp_values = [np.zeros((len(new_heights),) + values.shape[1:])
             for values in values_list]

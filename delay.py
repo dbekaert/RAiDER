@@ -135,9 +135,6 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     """
     lats, lons, hts = llas.T
 
-    # TRAIN rounds the DEM up to 0, so we will do so as well.
-    hts[hts < 0] = 0
-
     if parallel:
         num_procs = os.cpu_count()
 
