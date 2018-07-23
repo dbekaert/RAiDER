@@ -11,9 +11,10 @@ issues, and probably I will. It goes pretty quickly right now, though.
 from osgeo import gdal
 gdal.UseExceptions()
 import itertools
-import multiprocessing
 import numpy as np
 import os
+import queue
+import threading
 import util
 
 
@@ -106,23 +107,33 @@ def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def _parallel_worker(job_type, start, end):
-    """Calculate delay at a single index."""
-    # please_cow contains the data we'd like to be CoW'd into the
-    # subprocesses
-    global please_cow
-    weather, lats, lons, hts, los, raytrace = please_cow
-    if los is Zenith:
-        my_los = Zenith
-    else:
-        my_los = los[start:end]
-    if job_type == 'hydro':
-        return hydrostatic_delay(weather, lats[start:end], lons[start:end],
-                                 hts[start:end], my_los, raytrace=raytrace)
-    if job_type == 'wet':
-        return wet_delay(weather, lats[start:end], lons[start:end],
-                         hts[start:end], my_los, raytrace=raytrace)
-    raise ValueError('Unknown job type {}'.format(job_type))
+def _parmap(f, i):
+    """Execute f on elements of i in parallel."""
+    # Queue of jobs
+    q = queue.Queue()
+    # Space for answers
+    answers = list()
+    for idx, x in enumerate(i):
+        q.put((idx, x))
+        answers.append(None)
+
+    def go():
+        while True:
+            try:
+                i, elem = q.get_nowait()
+            except queue.Empty:
+                break
+            answers[i] = f(elem)
+
+    threads = [threading.Thread(target=go) for _ in range(os.cpu_count())]
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    return answers
 
 
 def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
@@ -145,18 +156,31 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
         hindices = np.linspace(0, len(llas), hydro_procs + 1, dtype=int)
         windices = np.linspace(0, len(llas), wet_procs + 1, dtype=int)
 
-        # Store some things in global memory
-        global please_cow
-        please_cow = weather, lats, lons, hts, los, raytrace
-
-        # Map over the jobs
+        # Build the jobs
         hjobs = (('hydro', hindices[i], hindices[i + 1])
                 for i in range(hydro_procs))
         wjobs = (('wet', hindices[i], hindices[i + 1])
                 for i in range(wet_procs))
         jobs = itertools.chain(hjobs, wjobs)
-        with multiprocessing.Pool() as p:
-            result = p.starmap(_parallel_worker, jobs)
+
+        # Parallel worker
+        def go(job):
+            job_type, start, end = job
+            if los is Zenith:
+                my_los = Zenith
+            else:
+                my_los = los[start:end]
+            if job_type == 'hydro':
+                return hydrostatic_delay(weather, lats[start:end],
+                                         lons[start:end], hts[start:end],
+                                         my_los, raytrace=raytrace)
+            if job_type == 'wet':
+                return wet_delay(weather, lats[start:end], lons[start:end],
+                                 hts[start:end], my_los, raytrace=raytrace)
+            raise ValueError('Unknown job type {}'.format(job_type))
+
+        # Execute the parallel worker
+        result = _parmap(go, jobs)
 
         # Collect results
         hydro = np.concatenate(result[:hydro_procs])
