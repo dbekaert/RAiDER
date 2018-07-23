@@ -220,9 +220,9 @@ def compare_with_train():
     plt.clf()
 
 
-def make_plot(out, plev, lat, lon, height, scipy_interpolate=False):
+def make_plot(out, plev, lat, lon, height, scipy_interpolate=False, los=delay.Zenith):
     weather = netcdf.load(out, plev, scipy_interpolate=scipy_interpolate)
-    hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=True, los=delay.Zenith)
+    hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=True, los=los)
     return hydro, wet
 
 
@@ -296,3 +296,17 @@ def test_geo2rdr(t_file, pos_file, v_file):
     vx, vy, vz = np.load(v_file)
     return state_to_los(t, x, y, z, vx, vy, vz, -99.7, 0.002, 17.99, -0.002,
                         np.zeros((1, 1)))
+
+
+def run_timeseries(timeseries, prefix, lat, lon, height, los):
+    f = h5py.File(timeseries)
+    dates = map(lambda x: datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S'), f['dateList'])
+    results = None
+    for i, date in enumerate(dates):
+        out, plev = (os.path.join(prefix, date.strftime(f'wrf{ext}_d01_%Y-%m-%d_%H:%M:%S')) for ext in ('out', 'plev'))
+        hydro, wet = make_plot(out, plev, lat, lon, height, los=los)
+        if results is None:
+            results = np.zeros((len(dates), 2) + hydro.shape)
+        results[i][0] = hydro
+        results[i][1] = wet
+    return results
