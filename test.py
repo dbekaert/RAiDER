@@ -7,6 +7,7 @@ it's just convenience for when I'm testing everything.
 
 import delay
 from osgeo import gdal
+import h5py
 import netcdf
 import numpy as np
 import pickle
