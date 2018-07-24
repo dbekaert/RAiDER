@@ -44,6 +44,9 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
                                   util.cosd(lats)*util.sind(lons),
                                   util.sind(lats))).T
                             * (_zref - heights).reshape(-1,1))
+    else:
+        # Scale down so we don't integrate above the troposphere
+        look_vecs /= look_vecs[...,2][...,np.newaxis] / _zref
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
     steps = np.array(np.ceil(lengths / _step), dtype=np.int64)
@@ -145,7 +148,7 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     vectors at each point. Pass parallel=True if you want to have real
     speed.
     """
-    lats, lons, hts = llas.T
+    lats, lons, hts = np.moveaxis(llas, -1, 0)
 
     if parallel:
         num_procs = os.cpu_count()
@@ -248,19 +251,18 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     geo2rdrObj.geo2rdr()
 
     # get back the line of sight unit vector
-    # TODO: should I really convert to an array?
-    los = np.array(geo2rdrObj.get_los())
+    los = np.stack(geo2rdrObj.get_los(), axis=-1)
 
     # get back the slant ranges
     slant_range = geo2rdrObj.get_slant_range()
 
-    los = slant_range * los
+    los = slant_range[...,np.newaxis] * los
 
     latlin = np.linspace(lat_min, lat_max, (lat_max - lat_min)/lat_res)
     lonlin = np.linspace(lon_min, lon_max, (lon_max - lon_min)/lon_res)
 
-    lons, lats = np.meshgrid(lonlin, latlin, indexing='ij')
+    lons, lats = np.meshgrid(lonlin, latlin)
 
     llas = np.stack((lats, lons, hts), axis=-1)
 
-    return delay_from_grid(weather, llas.reshape(-1, 48), los, parallel=True)
+    return delay_from_grid(weather, llas.reshape(-1, 3), los.reshape(-1, 3), parallel=True)
