@@ -10,6 +10,7 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 from osgeo import gdal
 gdal.UseExceptions()
+import Geo2rdr
 import itertools
 import numpy as np
 import os
@@ -19,7 +20,7 @@ import util
 
 
 # Step in meters to use when integrating
-_step = 15
+_step = 1
 
 # Top of the troposphere
 _zref = util.zref
@@ -43,6 +44,9 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
                                   util.cosd(lats)*util.sind(lons),
                                   util.sind(lats))).T
                             * (_zref - heights).reshape(-1,1))
+    else:
+        # Scale down so we don't integrate above the troposphere
+        look_vecs /= look_vecs[...,2][...,np.newaxis] / _zref
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
     steps = np.array(np.ceil(lengths / _step), dtype=np.int64)
@@ -144,7 +148,7 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     vectors at each point. Pass parallel=True if you want to have real
     speed.
     """
-    lats, lons, hts = llas.T
+    lats, lons, hts = np.moveaxis(llas, -1, 0)
 
     if parallel:
         num_procs = os.cpu_count()
@@ -223,37 +227,21 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
 
 
 def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
-                ht_min, ht_max, ht_step, t, x, y, z, vx, vy, vz):
+                t, x, y, z, vx, vy, vz, hts):
     """Calculate delay over an area using state vectors.
 
     The information about the sensor is given by t, x, y, z, vx, vy, vz.
     Other parameters specify the region of interest. The returned object
     will be hydrostatic and wet arrays covering the indicated area.
     """
-    for i, st in enumerate(obj.orbit.stateVectors):
-        #tt = st.time
-        #t[i] = datetime2year(tt)
-        t[i] = st.time.second + st.time.minute*60.0
-        x[i] = st.position[0]
-        y[i] = st.position[1]
-        z[i] = st.position[2]
-        vx[i] = st.velocity[0]
-        vy[i] = st.velocity[1]
-        vz[i] = st.velocity[2]
-
-    ###########################
-    #Instantiate Geo2rdr
-
     geo2rdrObj = Geo2rdr.PyGeo2rdr()
 
     # pass the 1D arrays of state vectors to geo2rdr object
-    geo2rdrObj.set_orbit(t, x, y, z, vx , vy , vz)
+    geo2rdrObj.set_orbit(t, x, y, z, vx, vy, vz)
 
     # set the geo coordinates: lat and lon of the start pixel,
     #                           lat and lon steps
     #                           DEM heights
-
-    hts = np.zeroes((lats.size, lons.size)) # TODO: ???
 
     geo2rdrObj.set_geo_coordinate(lon_min, lat_min,
                                   lon_res, lat_res,
@@ -263,14 +251,18 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     geo2rdrObj.geo2rdr()
 
     # get back the line of sight unit vector
-    # TODO: should I really convert to an array?
-    los = np.array(geo2rdrObj.get_los())
+    los = np.stack(geo2rdrObj.get_los(), axis=-1)
 
     # get back the slant ranges
     slant_range = geo2rdrObj.get_slant_range()
 
-    los = slant_range * los
+    los = slant_range[...,np.newaxis] * los
 
-    return delay_over_area(weather, lat_min, lat_max, lat_res,
-                           lon_min, lon_max, lon_res,
-                           ht_min, ht_max, ht_res, los=los)
+    latlin = np.linspace(lat_min, lat_max, (lat_max - lat_min)/lat_res)
+    lonlin = np.linspace(lon_min, lon_max, (lon_max - lon_min)/lon_res)
+
+    lons, lats = np.meshgrid(lonlin, latlin)
+
+    llas = np.stack((lats, lons, hts), axis=-1)
+
+    return delay_from_grid(weather, llas.reshape(-1, 3), los.reshape(-1, 3), parallel=True)
