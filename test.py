@@ -5,6 +5,7 @@ it's just convenience for when I'm testing everything.
 """
 
 
+import datetime
 import delay
 from osgeo import gdal
 import h5py
@@ -12,6 +13,8 @@ import netcdf
 import numpy as np
 import pickle
 import matplotlib.pyplot as plt
+import pyproj
+import reader
 import scipy
 import util
 
@@ -19,6 +22,7 @@ import util
 lat = '/Users/hogenson/lat.rdr'
 lon = '/Users/hogenson/lon.rdr'
 height = '/Users/hogenson/hgt.rdr'
+los = '/Users/hogenson/los.rdr'
 
 train_hydro_old = '/Users/hogenson/train-igram/20070802_ZHD.xyz'
 train_wet_old= '/Users/hogenson/train-igram/20070802_ZWD.xyz'
@@ -311,3 +315,106 @@ def run_timeseries(timeseries, prefix, lat, lon, height, los):
         results[i][0] = hydro
         results[i][1] = wet
     return results
+
+
+def make_sim_weather(out, plev):
+    outf = scipy.io.netcdf.netcdf_file(out)
+    plevf = scipy.io.netcdf.netcdf_file(plev)
+    temperature = plevf.variables['T_PL'][0].copy()
+    temperature[temperature == -999] = np.nan
+    sim_temp = np.broadcast_to(np.mean(temperature, axis=(1, 2)).reshape(-1, 1, 1), temperature.shape)
+    humidity = plevf.variables['RH_PL'][0].copy()
+    humidity[humidity == -999] = np.nan
+    sim_humidity = np.broadcast_to(np.mean(humidity, axis=(1, 2)).reshape(-1, 1, 1), humidity.shape)
+    plevs = plevf.variables['P_PL'][0]
+    geo_ht = plevf.variables['GHT_PL'][0].copy()
+    geo_ht[geo_ht == -999] = np.nan
+    sim_geo_ht = np.broadcast_to(np.mean(geo_ht, axis=(1, 2)).reshape(-1, 1, 1), geo_ht.shape)
+    lat = outf.variables['XLAT'][0]
+    lon = outf.variables['XLONG'][0]
+
+    # Project lat/lon grid so it's regular (for easy interpolation)
+
+    # See http://www.pkrc.net/wrf-lambert.html
+    projection = pyproj.Proj(proj='lcc', lat_1=outf.TRUELAT1,
+                             lat_2=outf.TRUELAT2, lat_0=outf.MOAD_CEN_LAT,
+                             lon_0=outf.STAND_LON, a=6370, b=6370,
+                             towgs84=(0,0,0), no_defs=True)
+
+    lla = pyproj.Proj(proj='latlong')
+
+    xs, ys = pyproj.transform(lla, projection, lon.flatten(), lat.flatten())
+    xs = xs.reshape(lat.shape)
+    ys = ys.reshape(lon.shape)
+
+    # At this point, if all has gone well, xs has every column the same,
+    # and ys has every row the same. Maybe they're not exactly the same
+    # (due to rounding errors), so we'll average them.
+    xs = np.mean(xs, axis=0)
+    ys = np.mean(ys, axis=1)
+
+    return reader.import_grids(xs=xs, ys=ys, pressure=plevs,
+                               temperature=sim_temp, humidity=sim_humidity,
+                               geo_ht=sim_geo_ht,
+                               k1=netcdf._k1, k2=netcdf._k2, k3=netcdf._k3,
+                               projection=projection)
+
+
+def sim_weather_plots(sim_weather, lat, lon, los):
+    lats = util.gdal_open(lat)
+    lons = util.gdal_open(lon)
+    llas = np.stack((lats, lons, np.zeros_like(lats)), axis=-1)
+
+    hydro, wet = delay.delay_from_grid(
+            sim_weather, llas.reshape(-1, 3), delay.Zenith)
+    hydro = hydro.reshape(lats.shape)
+    wet = wet.reshape(lats.shape)
+    zenith = hydro + wet
+
+    incidence, heading = util.gdal_open(los)
+    hydro, wet = delay.delay_from_grid(sim_weather, llas.reshape(-1, 3), incidence.flatten(), raytrace=False)
+    hydro = hydro.reshape(lats.shape)
+    wet = wet.reshape(lats.shape)
+    cmbd_cosine = hydro + wet
+
+    lvs = util.los_to_lv(incidence, heading, lats, lons, np.zeros_like(lats))
+
+    hydro, wet = delay.delay_from_grid(sim_weather, llas.reshape(-1, 3), lvs.reshape(-1, 3), raytrace=True)
+    hydro = hydro.reshape(lats.shape)
+    wet = wet.reshape(lats.shape)
+    cmbd_raytrace = hydro + wet
+
+    return zenith, cmbd_raytrace, cmbd_cosine
+
+
+def make_plots(zenith, raytrace, cosine):
+    plt.imshow(zenith, vmin=1.925, vmax=1.928)
+    plt.colorbar()
+    plt.savefig('simulation/zenith.pdf', bbox_inches='tight')
+    plt.show()
+
+    fig = plt.figure(figsize=(4.5,4))
+
+    top = np.nanpercentile(np.stack((zenith, raytrace)), 95)
+    bottom = np.nanpercentile(np.stack((zenith, raytrace)), 5)
+
+    fig.add_subplot(1, 3, 1)
+    plt.axis('off')
+    plt.imshow(raytrace, vmin=bottom, vmax=top)
+    plt.colorbar()
+    plt.title('Raytraced')
+
+    fig.add_subplot(1, 3, 2)
+    plt.axis('off')
+    plt.imshow(cosine, vmin=bottom, vmax=top)
+    plt.colorbar()
+    plt.title('Projected')
+
+    fig.add_subplot(1, 3, 3)
+    plt.axis('off')
+    plt.imshow(raytrace - cosine, vmin=-0.003, vmax=0.003)
+    plt.colorbar()
+    plt.title('Difference')
+
+    plt.savefig('simulation/comparison.pdf', bbox_inches='tight')
+    plt.show()
