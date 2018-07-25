@@ -11,6 +11,7 @@ from osgeo import gdal
 import h5py
 import netcdf
 import numpy as np
+import os
 import pickle
 import matplotlib.pyplot as plt
 import pyproj
@@ -305,10 +306,10 @@ def test_geo2rdr(t_file, pos_file, v_file):
 
 def run_timeseries(timeseries, prefix, lat, lon, height, los):
     f = h5py.File(timeseries)
-    dates = map(lambda x: datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S'), f['dateList'])
+    dates = map(lambda x: datetime.datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S'), f['dateList'])
     results = None
     for i, date in enumerate(dates):
-        out, plev = (os.path.join(prefix, date.strftime(f'wrf{ext}_d01_%Y-%m-%d_%H:%M:%S')) for ext in ('out', 'plev'))
+        out, plev = (os.path.join(prefix, date.strftime(f'%Y%m%d/wrf{ext}_d01_%Y-%m-%d_%H:%M:%S')) for ext in ('out', 'plev'))
         hydro, wet = make_plot(out, plev, lat, lon, height, los=los)
         if results is None:
             results = np.zeros((len(dates), 2) + hydro.shape)
