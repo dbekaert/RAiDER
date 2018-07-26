@@ -10,7 +10,6 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 from osgeo import gdal
 gdal.UseExceptions()
-import Geo2rdr
 import itertools
 import numpy as np
 import os
@@ -148,6 +147,19 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     vectors at each point. Pass parallel=True if you want to have real
     speed.
     """
+
+    # Save the shape so we can restore later, but flatten to make it
+    # easier to think about
+    real_shape = llas.shape[:-1]
+    llas = llas.reshape(-1, 3)
+    # los can either be a bunch of vectors or a bunch of scalars. If
+    # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
+    if los is not Zenith:
+        if raytrace:
+            los = los.reshape(-1, 3)
+        else:
+            los = los.flatten()
+
     lats, lons, hts = np.moveaxis(llas, -1, 0)
 
     if parallel:
@@ -193,6 +205,10 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
         hydro = hydrostatic_delay(weather, lats, lons, hts, los,
                                   raytrace=raytrace)
         wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace)
+
+    # Restore shape
+    hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
+
     return hydro, wet
 
 
@@ -234,29 +250,9 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     Other parameters specify the region of interest. The returned object
     will be hydrostatic and wet arrays covering the indicated area.
     """
-    geo2rdrObj = Geo2rdr.PyGeo2rdr()
 
-    # pass the 1D arrays of state vectors to geo2rdr object
-    geo2rdrObj.set_orbit(t, x, y, z, vx, vy, vz)
-
-    # set the geo coordinates: lat and lon of the start pixel,
-    #                           lat and lon steps
-    #                           DEM heights
-
-    geo2rdrObj.set_geo_coordinate(lon_min, lat_min,
-                                  lon_res, lat_res,
-                                  hts)
-
-    # compute the radar coordinate for each geo coordinate
-    geo2rdrObj.geo2rdr()
-
-    # get back the line of sight unit vector
-    los = np.stack(geo2rdrObj.get_los(), axis=-1)
-
-    # get back the slant ranges
-    slant_range = geo2rdrObj.get_slant_range()
-
-    los = slant_range[...,np.newaxis] * los
+    los = np.stack(util.state_to_los(t, x, y, z, vx, vy, vz, lon_min, lon_res,
+                                     lat_min, lat_res, hts), axis=-1)
 
     latlin = np.linspace(lat_min, lat_max, (lat_max - lat_min)/lat_res)
     lonlin = np.linspace(lon_min, lon_max, (lon_max - lon_min)/lon_res)
@@ -265,4 +261,4 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
 
     llas = np.stack((lats, lons, hts), axis=-1)
 
-    return delay_from_grid(weather, llas.reshape(-1, 3), los.reshape(-1, 3), parallel=True)
+    return delay_from_grid(weather, llas, los, parallel=True)

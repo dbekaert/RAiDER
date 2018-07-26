@@ -5,6 +5,11 @@ from osgeo import gdal
 import numpy as np
 import pickle
 import pyproj
+try:
+    import Geo2rdr
+except ImportError as e:
+    # We'll raise it again when it's needed
+    Geo2rdr_error = e
 
 
 # Top of the troposphere
@@ -91,6 +96,78 @@ def los_to_lv(incidence, heading, lats, lons, heights, ranges=None):
             - np.stack(lla2ecef(lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
     los = los.reshape(east.shape + (3,))
     
+    return los
+
+
+def state_to_los_indiv(t, x, y, z, vx, vy, vz, lats, lons, heights):
+    try:
+        Geo2rdr
+    except NameError:
+        raise Geo2rdr_error
+
+    real_shape = lats.shape
+    lats = lats.flatten()
+    lons = lons.flatten()
+    heights = heights.flatten()
+
+    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
+    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
+
+    loss = np.zeros((3, len(lats)))
+    slant_ranges = np.zeros_like(lats)
+
+    for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
+        height_array = np.array(((height,),))
+        geo2rdr_obj.set_geo_coordinate(np.radians(lon),
+                                       np.radians(lat),
+                                       1, 1,
+                                       height_array)
+        # compute the radar coordinate for each geo coordinate
+        geo2rdr_obj.geo2rdr()
+
+        # get back the line of sight unit vector
+        los_x, los_y, los_z = geo2rdr_obj.get_los()
+        loss[:, i] = los_x, los_y, los_z
+
+        # get back the slant ranges
+        slant_range = geo2rdr_obj.get_slant_range()
+        slant_ranges[i] = slant_range
+
+    los = loss * slant_ranges
+
+    # Have to think about traversal order here. It's easy, though, since
+    # in both orders xs come first, followed by all ys, followed by all
+    # zs.
+    return los.reshape((3,) + real_shape)
+
+
+def state_to_los(t, x, y, z, vx, vy, vz, lon_first, lon_step, lat_first,
+                 lat_step, heights):
+
+    try:
+        Geo2rdr
+    except NameError:
+        raise Geo2rdr_error
+
+    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
+    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
+    geo2rdr_obj.set_geo_coordinate(np.radians(lon_first),
+                                   np.radians(lat_first),
+                                   np.radians(lon_step), np.radians(lat_step),
+                                   heights.astype(np.double,
+                                                  casting='same_kind'))
+    # compute the radar coordinate for each geo coordinate
+    geo2rdr_obj.geo2rdr()
+
+    # get back the line of sight unit vector
+    los_x, los_y, los_z = geo2rdr_obj.get_los()
+
+
+    # get back the slant ranges
+    slant_range = geo2rdr_obj.get_slant_range()
+    return slant_range
+    los = np.stack((los_x, los_y, los_z)) * slant_range
+
     return los
 
 
