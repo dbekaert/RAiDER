@@ -30,6 +30,14 @@ class Zenith:
     pass
 
 
+def _too_high(positions, zref):
+    positions_ecef = np.moveaxis(positions, -1, 0)
+    positions_lla = np.stack(util.ecef2lla(*positions_ecef))
+    high_indices = np.where(positions_lla[2] > zref)[0]
+    first_high_index = high_indices[0] if high_indices.size else -1
+    return first_high_index
+
+
 def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     """Perform computation common to hydrostatic and wet delay."""
     # Deal with Zenith special value, and non-raytracing method
@@ -43,18 +51,9 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
                                   util.cosd(lats)*util.sind(lons),
                                   util.sind(lats))).T
                             * (_zref - heights).reshape(-1,1))
-    else:
-        # Scale down so we don't integrate above the troposphere
-        look_vecs /= look_vecs[...,2][...,np.newaxis] / _zref
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
     steps = np.array(np.ceil(lengths / _step), dtype=np.int64)
-    indices = np.cumsum(steps)
-
-    # We want the first index to be 0, and the others shifted
-    indices = np.roll(indices, 1)
-    indices[0] = 0
-
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
     scaled_look_vecs = look_vecs / lengths.reshape(-1, 1)
@@ -64,13 +63,23 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     # Please do it without a for loop
     for i in range(len(steps)):
         thisspace = np.linspace(0, lengths[i], steps[i])
-        t_points_l.append(thisspace)
         position = start_positions[i] + thisspace.reshape(-1, 1) * scaled_look_vecs[i]
-        positions_l.append(position)
+        first_high_index = _too_high(position, _zref)
+        t_points_l.append(thisspace[:first_high_index])
+        positions_l.append(position[:first_high_index])
+
+        # Also correct the number of steps
+        steps[i] = first_high_index
 
     positions_a = np.concatenate(positions_l)
 
     wet_delays = delay(positions_a)
+
+    # Compute starting indices
+    indices = np.cumsum(steps)
+    # We want the first index to be 0, and the others shifted
+    indices = np.roll(indices, 1)
+    indices[0] = 0
 
     delays = np.zeros(lats.shape[0])
     for i in range(len(steps)):
@@ -225,7 +234,7 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
             los = util.los_to_lv(
                     incidence, heading, lats, lons, hts).reshape(-1,3)
         else:
-            los = incidence
+            los = incidence.flatten()
 
     # We need the three to be the same shape so that we know what to
     # reshape hydro and wet to. Plus, them being different sizes
