@@ -19,7 +19,7 @@ import util
 
 
 # Step in meters to use when integrating
-_step = 1
+_step = 15
 
 # Top of the troposphere
 _zref = util.zref
