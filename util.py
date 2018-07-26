@@ -99,20 +99,7 @@ def los_to_lv(incidence, heading, lats, lons, heights, ranges=None):
     return los
 
 
-def cut_look_vecs(los, lats, lons, heights, zref):
-    """Cut look vecs to zref."""
-    ground_ecef = np.stack(lla2ecef(lats, lons, heights))
-    los_ecef = np.moveaxis(los, -1, 0)
-    sensor_ecef = ground_ecef + los_ecef
-    sensor_lla = ecef2lla(*sensor_ecef)
-    integ_end_lla *= zref / sensor_lla[2]
-    integ_end_ecef = lla2ecef(*sensor_lla)
-    integ_los_ecef = integ_end_ecef - ground_ecef
-
-    return np.moveaxis(integ_los_ecef, 0, -1)
-
-
-def state_to_los_indiv(t, x, y, z, vx, vy, vz, lats, lons, heights):
+def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     try:
         Geo2rdr
     except NameError:
@@ -152,36 +139,6 @@ def state_to_los_indiv(t, x, y, z, vx, vy, vz, lats, lons, heights):
     # in both orders xs come first, followed by all ys, followed by all
     # zs.
     return los.reshape((3,) + real_shape)
-
-
-def state_to_los(t, x, y, z, vx, vy, vz, lon_first, lon_step, lat_first,
-                 lat_step, heights):
-
-    try:
-        Geo2rdr
-    except NameError:
-        raise Geo2rdr_error
-
-    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
-    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
-    geo2rdr_obj.set_geo_coordinate(np.radians(lon_first),
-                                   np.radians(lat_first),
-                                   np.radians(lon_step), np.radians(lat_step),
-                                   heights.astype(np.double,
-                                                  casting='same_kind'))
-    # compute the radar coordinate for each geo coordinate
-    geo2rdr_obj.geo2rdr()
-
-    # get back the line of sight unit vector
-    los_x, los_y, los_z = geo2rdr_obj.get_los()
-
-
-    # get back the slant ranges
-    slant_range = geo2rdr_obj.get_slant_range()
-    return slant_range
-    los = np.stack((los_x, los_y, los_z)) * slant_range
-
-    return los
 
 
 def geo_to_ht(lats, lons, hts):
