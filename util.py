@@ -99,6 +99,19 @@ def los_to_lv(incidence, heading, lats, lons, heights, ranges=None):
     return los
 
 
+def cut_look_vecs(los, lats, lons, heights, zref):
+    """Cut look vecs to zref."""
+    ground_ecef = np.stack(lla2ecef(lats, lons, heights))
+    los_ecef = np.moveaxis(los, -1, 0)
+    sensor_ecef = ground_ecef + los_ecef
+    sensor_lla = ecef2lla(*sensor_ecef)
+    integ_end_lla *= zref / sensor_lla[2]
+    integ_end_ecef = lla2ecef(*sensor_lla)
+    integ_los_ecef = integ_end_ecef - ground_ecef
+
+    return np.moveaxis(integ_los_ecef, 0, -1)
+
+
 def state_to_los_indiv(t, x, y, z, vx, vy, vz, lats, lons, heights):
     try:
         Geo2rdr
