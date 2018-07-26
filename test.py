@@ -13,7 +13,6 @@ import netcdf
 import numpy as np
 import os
 import pickle
-import matplotlib.pyplot as plt
 import pyproj
 import reader
 import scipy
@@ -24,6 +23,13 @@ lat = '/Users/hogenson/lat.rdr'
 lon = '/Users/hogenson/lon.rdr'
 height = '/Users/hogenson/hgt.rdr'
 los = '/Users/hogenson/los.rdr'
+
+lat_kriek = '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/processing/merged/geom_master_multilooked/lat.rdr'
+lon_kriek = '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/processing/merged/geom_master_multilooked/lon.rdr'
+height_kriek = '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/processing/merged/geom_master_multilooked/hgt.rdr'
+los_kriek = '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/processing/merged/geom_master_multilooked/los.rdr'
+timeseries = '/u/k-data/fattahi/Mexico/timeseries_ionoCor.h5'
+prefix = '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/WRF'
 
 train_hydro_old = '/Users/hogenson/train-igram/20070802_ZHD.xyz'
 train_wet_old= '/Users/hogenson/train-igram/20070802_ZWD.xyz'
@@ -53,12 +59,19 @@ v_kriek = '/home/hogenson/velocity.npy'
 
 def test_weather(scipy_interpolate=False):
     """Test the functions with some hard-coded data."""
-    return netcdf.load(
-            '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
-                'wrfout_d02_2007-01-30_05:16:00',
-            '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
-                'wrfplev_d02_2007-01-30_05:16:00',
-            scipy_interpolate=scipy_interpolate)
+    try:
+        return netcdf.load(
+                '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
+                    'wrfout_d02_2007-01-30_05:16:00',
+                '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
+                    'wrfplev_d02_2007-01-30_05:16:00',
+                scipy_interpolate=scipy_interpolate)
+    except FileNotFoundError:
+        return netcdf.load(
+                '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/WRF/'
+                    '20070130/wrfout_d01_2007-01-30_00:00:00',
+                '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/WRF/'
+                    '20070130/wrfplev_d01_2007-01-30_00:00:00')
 
 
 def test_delay(weather):
@@ -68,6 +81,7 @@ def test_delay(weather):
 
 def compare(a_hydro, a_wet, b_hydro, b_wet):
     """Generate a comparison plot."""
+    import matplotlib.pyplot as plt
     fig = plt.figure()
     def go(img, title=None, vmin=None, vmax=None, ylabel=None):
         a = fig.add_subplot(3, 3, go.count)
@@ -120,6 +134,7 @@ def generate_plots(output='pdf', weather=None, hydro=None, wet=None):
 
     For testing purposes only.
     """
+    import matplotlib.pyplot as plt
     # Some easy memoization
     if not weather:
         weather = test_weather()
@@ -226,9 +241,9 @@ def compare_with_train():
     plt.clf()
 
 
-def make_plot(out, plev, lat, lon, height, scipy_interpolate=False, los=delay.Zenith):
+def make_plot(out, plev, lat, lon, height, scipy_interpolate=False, los=delay.Zenith, raytrace=True):
     weather = netcdf.load(out, plev, scipy_interpolate=scipy_interpolate)
-    hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=True, los=los)
+    hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=True, los=los, raytrace=raytrace)
     return hydro, wet
 
 
@@ -278,18 +293,18 @@ def test_geo2rdr(t_file, pos_file, v_file):
                         np.zeros((1, 1)))
 
 
-def run_timeseries(timeseries, prefix, lat, lon, height, los):
-    f = h5py.File(timeseries)
-    dates = map(lambda x: datetime.datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S'), f['dateList'])
-    results = None
-    for i, date in enumerate(dates):
-        out, plev = (os.path.join(prefix, date.strftime(f'%Y%m%d/wrf{ext}_d01_%Y-%m-%d_%H:%M:%S')) for ext in ('out', 'plev'))
-        hydro, wet = make_plot(out, plev, lat, lon, height, los=los)
-        if results is None:
-            results = np.zeros((len(dates), 2) + hydro.shape)
-        results[i][0] = hydro
-        results[i][1] = wet
-    return results
+def run_timeseries(timeseries, prefix, lat, lon, height, los, raytrace=True):
+    with h5py.File(timeseries) as f:
+        dates = list(map(lambda x: datetime.datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S'), f['dateList']))
+        results = None
+        for i, date in enumerate(dates):
+            out, plev = (os.path.join(prefix, date.strftime(f'%Y%m%d/wrf{ext}_d01_%Y-%m-%d_%H:%M:%S')) for ext in ('out', 'plev'))
+            hydro, wet = make_plot(out, plev, lat, lon, height, los=los, raytrace=raytrace)
+            if results is None:
+                results = np.zeros((len(dates), 2) + hydro.shape)
+            results[i][0] = hydro
+            results[i][1] = wet
+        return results
 
 
 def make_sim_weather(out, plev):
@@ -393,3 +408,28 @@ def make_plots(zenith, raytrace, cosine):
 
     plt.savefig('simulation/comparison.pdf', bbox_inches='tight')
     plt.show()
+
+
+def test_statevecs():
+    weather = test_weather()
+    t = np.load('/home/hogenson/t.npy')
+    x, y, z = np.load('/home/hogenson/position.npy')
+    vx, vy, vz = np.load('/home/hogenson/velocity.npy')
+    lats = util.gdal_open(lat_kriek)
+    lons = util.gdal_open(lon_kriek)
+    heights = util.gdal_open(height_kriek)
+    los = np.stack(util.state_to_los_indiv(t, x, y, z, vx, vy, vz, lats, lons, heights.astype(np.double)), axis=-1)
+    # Tiny
+    # los *= 15000/np.max(np.linalg.norm(los, axis=-1))
+    llas = np.stack((lats, lons, heights), axis=-1)
+    return delay.delay_from_grid(weather, llas, los, parallel=True)
+
+
+def los_ecef_to_lla(los, lats, lons, heights):
+    los_ecef = np.moveaxis(los, -1, 0)
+    ground_lla = np.stack((lats, lons, heights))
+    ground_ecef = np.stack(util.lla2ecef(*ground_lla))
+    sensor_ecef = ground_ecef + los_ecef
+    sensor_lla = np.stack(util.ecef2lla(*sensor_ecef))
+    los_lla = sensor_lla - ground_lla
+    return np.moveaxis(los_lla, 0, -1)
