@@ -9,6 +9,7 @@ import datetime
 import delay
 from osgeo import gdal
 import h5py
+import matplotlib.pyplot as plt
 import netcdf
 import numpy as np
 import os
@@ -16,6 +17,7 @@ import pickle
 import pyproj
 import reader
 import scipy
+import scipy.stats
 import util
 
 
@@ -285,6 +287,13 @@ def train_igram(hydro1, wet1, hydro2, wet2, lat, lon):
     return diff
 
 
+def compare_igram():
+    me = make_igram(out_old, plev_old, out_new, plev_new, lat, lon, height)
+    train = train_igram(train_hydro_old, train_wet_old, train_hydro_new, train_wet_new, lat, lon)
+
+    return me - train
+
+
 def test_geo2rdr(t_file, pos_file, v_file):
     t = np.load(t_file)
     x, y, z = np.load(pos_file)
@@ -305,6 +314,84 @@ def run_timeseries(timeseries, prefix, lat, lon, height, los, raytrace=True):
             results[i][0] = hydro
             results[i][1] = wet
         return results
+
+
+def analyze_timeseries(tropo_delays):
+    with h5py.File('/Users/hogenson/timeseries_ionoCor.h5', 'r') as f:
+        ionocorr = f['unw_phase_iono_corrected'][:][:,::10,::10]
+        dates = list(map(lambda x: datetime.datetime.strptime(x.decode('utf-8'), '%Y-%m-%d %H:%M:%S'), f['dateList'][:]))
+        coherence = f['temporal_coherence_unw_phase_iono_corrected'][:][::10,::10]
+
+    # ???
+    # tropo_delays = tropo_delays * 2
+
+    # ... in time and space
+    tropo_delays = tropo_delays - tropo_delays[0]
+    tropo_delays -= tropo_delays[:,214,24][...,np.newaxis,np.newaxis]
+
+    tropocorr = ionocorr - tropo_delays
+
+    datesecs = list(map(lambda date: (date - dates[0]).total_seconds(), dates))
+    dateyears = list(map(lambda secs: secs / 31557600, datesecs))
+
+    def v_e(i, j, ds):
+        v, _, _, _, e = scipy.stats.linregress(dateyears, ds[:,i,j])
+        return v, e
+
+    iono_error = np.zeros(tropocorr.shape[1:])
+    iono_velocity = np.zeros_like(iono_error)
+    tropo_error = np.zeros_like(iono_error)
+    tropo_velocity = np.zeros_like(iono_error)
+
+    for i in range(iono_error.shape[0]):
+        for j in range(iono_error.shape[1]):
+            iono_velocity[i,j], iono_error[i,j] = v_e(i, j, ionocorr)
+            tropo_velocity[i,j], tropo_error[i,j] = v_e(i, j, tropocorr)
+
+
+    mask = coherence < 0.5
+    iono_velocity[mask] = np.nan
+    tropo_velocity[mask] = np.nan
+    tropo_error[mask] = np.nan
+    iono_error[mask] = np.nan
+
+    return iono_velocity, iono_error, tropo_velocity, tropo_error
+
+
+def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
+    velocity_max = np.nanpercentile((iono_velocity, tropo_velocity), 99)
+    velocity_min = np.nanpercentile((iono_velocity, tropo_velocity), 1)
+    velocity_max = max(velocity_max, -velocity_min)
+    velocity_min = min(velocity_min, -velocity_max)
+
+    error_max = np.nanpercentile((iono_error, tropo_error), 99)
+    error_min = 0
+
+    plt.figure(figsize=(10,10))
+
+    plt.subplot(2, 2, 1)
+    plt.title('Iono velocity')
+    plt.imshow(iono_velocity, vmin=velocity_min, vmax=velocity_max)
+    plt.colorbar()
+
+    plt.subplot(2, 2, 2)
+    plt.title('Tropo velocity')
+    plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
+    plt.colorbar()
+
+    plt.subplot(2, 2, 3)
+    plt.title('Iono error')
+    plt.imshow(iono_error, vmin=0, vmax=error_max)
+    plt.colorbar()
+
+    plt.subplot(2, 2, 4)
+    plt.title('Tropo error')
+    plt.imshow(tropo_error, vmin=0, vmax=error_max)
+    plt.colorbar()
+
+    plt.savefig('timeseries-comparison.pdf', bbox_inches='tight')
+
+    plt.show()
 
 
 def make_sim_weather(out, plev):
@@ -411,18 +498,20 @@ def make_plots(zenith, raytrace, cosine):
 
 
 def test_statevecs():
-    weather = test_weather()
-    t = np.load('/home/hogenson/t.npy')
-    x, y, z = np.load('/home/hogenson/position.npy')
-    vx, vy, vz = np.load('/home/hogenson/velocity.npy')
-    lats = util.gdal_open(lat_kriek)
-    lons = util.gdal_open(lon_kriek)
-    heights = util.gdal_open(height_kriek)
-    los = np.stack(util.state_to_los_indiv(t, x, y, z, vx, vy, vz, lats, lons, heights.astype(np.double)), axis=-1)
+    weather = make_sim_weather(out_old, plev_old)
+    # t = np.load('/Users/hogenson/t.npy')
+    # x, y, z = np.load('/Users/hogenson/position.npy')
+    # vx, vy, vz = np.load('/Users/hogenson/velocity.npy')
+    lats = util.gdal_open(lat)
+    lons = util.gdal_open(lon)
+    heights = np.zeros_like(lats)
+    incidence, heading = util.gdal_open(los)
+    loss = util.los_to_lv(incidence, heading, lats, lons, heights)
+    # los_sv = np.stack(util.state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights.astype(np.double)), axis=-1)
     # Tiny
     # los *= 15000/np.max(np.linalg.norm(los, axis=-1))
     llas = np.stack((lats, lons, heights), axis=-1)
-    return delay.delay_from_grid(weather, llas, los, parallel=True)
+    return delay.delay_from_grid(weather, llas, loss, parallel=True)
 
 
 def los_ecef_to_lla(los, lats, lons, heights):

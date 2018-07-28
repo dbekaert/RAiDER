@@ -118,6 +118,10 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
     for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
         height_array = np.array(((height,),))
+
+        # Geo2rdr is picky about the type of height
+        height_array = height_array.astype(np.double)
+
         geo2rdr_obj.set_geo_coordinate(np.radians(lon),
                                        np.radians(lat),
                                        1, 1,
