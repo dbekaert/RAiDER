@@ -245,7 +245,7 @@ def compare_with_train():
 
 def make_plot(out, plev, lat, lon, height, scipy_interpolate=False, los=delay.Zenith, raytrace=True):
     weather = netcdf.load(out, plev, scipy_interpolate=scipy_interpolate)
-    hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=True, los=los, raytrace=raytrace)
+    hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=False, los=los, raytrace=raytrace)
     return hydro, wet
 
 
@@ -291,6 +291,12 @@ def compare_igram():
     me = make_igram(out_old, plev_old, out_new, plev_new, lat, lon, height)
     train = train_igram(train_hydro_old, train_wet_old, train_hydro_new, train_wet_new, lat, lon)
 
+    return me - train
+
+
+def compare_single():
+    me = np.sum(np.stack(make_plot(out_old, plev_old, lat, lon, height)), axis=0)
+    train = np.sum(np.stack(train_interpolate(train_hydro_old, train_wet_old, lat, lon)), axis=0)
     return me - train
 
 
@@ -367,7 +373,7 @@ def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
     error_max = np.nanpercentile((iono_error, tropo_error), 99)
     error_min = 0
 
-    plt.figure(figsize=(10,10))
+    plt.figure(figsize=(6, 6.8))
 
     plt.subplot(2, 2, 1)
     plt.title('Iono velocity')

@@ -11,6 +11,7 @@ issues, and probably I will. It goes pretty quickly right now, though.
 from osgeo import gdal
 gdal.UseExceptions()
 import itertools
+import los_reader
 import numpy as np
 import os
 import queue
@@ -34,7 +35,7 @@ def _too_high(positions, zref):
     positions_ecef = np.moveaxis(positions, -1, 0)
     positions_lla = np.stack(util.ecef2lla(*positions_ecef))
     high_indices = np.where(positions_lla[2] > zref)[0]
-    first_high_index = high_indices[0] if high_indices.size else -1
+    first_high_index = high_indices[0] if high_indices.size else len(positions)
     return first_high_index
 
 
@@ -50,20 +51,19 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
         look_vecs = (np.array((util.cosd(lats)*util.cosd(lons),
                                   util.cosd(lats)*util.sind(lons),
                                   util.sind(lats))).T
-                            * (_zref - heights).reshape(-1,1))
+                            * (_zref - heights)[...,np.newaxis])
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
     steps = np.array(np.ceil(lengths / _step), dtype=np.int64)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
-    scaled_look_vecs = look_vecs / lengths.reshape(-1, 1)
+    scaled_look_vecs = look_vecs / lengths[...,np.newaxis]
 
     positions_l = list()
     t_points_l = list()
-    # Please do it without a for loop
     for i in range(len(steps)):
         thisspace = np.linspace(0, lengths[i], steps[i])
-        position = start_positions[i] + thisspace.reshape(-1, 1) * scaled_look_vecs[i]
+        position = start_positions[i] + thisspace[...,np.newaxis] * scaled_look_vecs[i]
         first_high_index = _too_high(position, _zref)
         t_points_l.append(thisspace[:first_high_index])
         positions_l.append(position[:first_high_index])
@@ -271,3 +271,10 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     llas = np.stack((lats, lons, hts), axis=-1)
 
     return delay_from_grid(weather, llas, los, parallel=True)
+
+
+def tropo_delay(los, lat, lon, heights, weathers, zref, out):
+    if los is None:
+        los = Zenith
+    else:
+        los = los_reader.infer_los(los)

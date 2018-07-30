@@ -5,6 +5,7 @@ from osgeo import gdal
 import numpy as np
 import pickle
 import pyproj
+import importlib
 try:
     import Geo2rdr
 except ImportError as e:
