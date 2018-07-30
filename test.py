@@ -9,7 +9,7 @@ import datetime
 import delay
 from osgeo import gdal
 import h5py
-import netcdf
+import wrf
 import numpy as np
 import os
 import pickle
@@ -61,14 +61,14 @@ v_kriek = '/home/hogenson/velocity.npy'
 def test_weather(scipy_interpolate=False):
     """Test the functions with some hard-coded data."""
     try:
-        return netcdf.load(
+        return wrf.load(
                 '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
                     'wrfout_d02_2007-01-30_05:16:00',
                 '/Users/hogenson/Desktop/APS/WRF_mexico/20070130/'
                     'wrfplev_d02_2007-01-30_05:16:00',
                 scipy_interpolate=scipy_interpolate)
     except FileNotFoundError:
-        return netcdf.load(
+        return wrf.load(
                 '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/WRF/'
                     '20070130/wrfout_d01_2007-01-30_00:00:00',
                 '/u/k-data/dbekaert/APS_raytracing/Mexico/ALOS/track_188/WRF/'
@@ -243,7 +243,7 @@ def compare_with_train():
 
 
 def make_plot(out, plev, lat, lon, height, scipy_interpolate=False, los=delay.Zenith, raytrace=True):
-    weather = netcdf.load(out, plev, scipy_interpolate=scipy_interpolate)
+    weather = wrf.load(out, plev, scipy_interpolate=scipy_interpolate)
     hydro, wet = delay.delay_from_files(weather, lat, lon, height, parallel=False, los=los, raytrace=raytrace)
     return hydro, wet
 
@@ -438,7 +438,7 @@ def make_sim_weather(out, plev):
     return reader.import_grids(xs=xs, ys=ys, pressure=plevs,
                                temperature=sim_temp, humidity=sim_humidity,
                                geo_ht=sim_geo_ht,
-                               k1=netcdf._k1, k2=netcdf._k2, k3=netcdf._k3,
+                               k1=wrf._k1, k2=wrf._k2, k3=wrf._k3,
                                projection=projection)
 
 
