@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+
+
+import argparse
+import datetime
+import itertools
+
+
+class Zenith:
+    pass
+
+
+class LineOfSight:
+    def __init__(self, los):
+        self.los = los
+
+
+class StateVectors:
+    def __init__(self, sv):
+        self.sv = sv
+
+
+class WRFDirect:
+    def __init__(self, out, plev):
+        self.out = out
+        self.plev = plev
+
+
+class WRFDownload:
+    def __init__(self, dates, lats, lons):
+        self.dates = dates
+        self.lats = lats
+        self.lons = lons
+
+    def __repr__(self):
+        return f'WRFDownload({vars(self)})'
+
+
+class Parameters:
+    def __init__(self, los, lat, lon, heights, weathers, zref, out):
+        self.los = los
+        self.lat = lat
+        self.lon = lon
+        self.heights = heights
+        self.weathers = weathers
+        self.zref = zref
+        self.out = out
+
+    def __repr__(self):
+        return f'Parameters({vars(self)})'
+
+
+def read_date(s):
+    year_formats = (
+        '%Y-%m-%d',
+        '%Y%m%d',
+        '%Y-%m',
+        '%Y', # I don't think anyone would ever want just a year
+    )
+    time_formats = (
+        '',
+        'T%H:%M:%S.%f',
+        'T%H:%M:%S',
+        'T%H%M%S.%f',
+        'T%H%M%S',
+        'T%H:%M',
+        'T%H%M',
+        'T%H',
+    )
+    timezone_formats = (
+        '',
+        'Z',
+        '%z',
+    )
+    all_formats = map(lambda t: ''.join(t), itertools.product(year_formats, time_formats, timezone_formats))
+    date = None
+    for date_format in all_formats:
+        try:
+            date = datetime.datetime.strptime(s, date_format)
+        except ValueError:
+            continue
+    if date is None:
+        raise ValueError(f'Unable to coerce {s} to a date. Try %Y-%m-%dT%H:%M:%S.%f%z')
+
+    return date
+
+
+def main():
+    p = argparse.ArgumentParser(description='Calculate tropospheric delay from a weather model')
+
+    # Line of sight
+    los = p.add_mutually_exclusive_group()
+    los.add_argument(
+            '--lineofsight', '-l',
+            help='GDAL-readable line-of-sight file',
+            metavar='LOS')
+    los.add_argument(
+            '--statevectors', '-s',
+            help='An ISCE XML or shelve file containing state vectors specifying the orbit of the sensor')
+
+    # Area
+    p.add_argument(
+            '--area', '-a', nargs=2,
+            help='GDAL-readable longitude and latitude files to specify the region over which to calculate delay. Delay will be calculated at weather model nodes if unspecified',
+            metavar=('LONG', 'LAT'))
+
+    # DEM
+    p.add_argument(
+            '--dem', '-d',
+            help='DEM file. DEM will be downloaded if not specified')
+
+    # Weather model
+    p.add_argument(
+            '--times', nargs='+',
+            help='Fetch weather model data at these times. Can be a list of ISO times or a file containing a list of times',
+            type=read_date)
+    p.add_argument(
+            '--model',
+            help='Weather model to use',
+            choices=('WRF',), default='WRF')
+    wrf = p.add_argument_group(
+            title='WRF',
+            description='Arguments for when --model WRF is specified')
+    wrf.add_argument(
+            '--wrfmodelfiles', nargs=2,
+            help='Weather model files. Model will be downloaded if unspecified. Specify multiple times to calculate on multiple dates',
+            metavar=('OUT', 'PLEV'), action='append')
+
+    # Height max
+    p.add_argument(
+            '--zref', '-z',
+            help='Height limit when integrating (meters) (default: %(default)s)',
+            type=int, default=15000)
+
+    p.add_argument('out', help='Output file')
+
+    args = p.parse_args()
+
+    # Line of sight
+    if args.lineofsight is not None:
+        los = LineOfSight(args.lineofsight)
+    elif args.statevectors is not None:
+        los = StateVectors(args.statevectors)
+    else:
+        los = None
+
+    # Area
+    if args.area is not None:
+        lat, lon = args.area
+    else:
+        lat = lon = None
+
+    # DEM
+    heights = args.dem
+
+    # Weather
+    if args.model == 'WRF':
+        # If we had any other model readers, here would be the place to
+        # throw an error if invalid arguments were specified
+        if args.wrfmodelfiles is not None:
+            if args.times is not None:
+                p.error('Argument --times invalid with --wrfmodelfiles')
+            else:
+                weathers = map(lambda x: WrfDirect(*x), args.wrfmodelfiles)
+        elif lat is not None:
+            if args.times is not None:
+                weathers = WRFDownload(args.times, lat, lon)
+            else:
+                p.error('Need a list of times if --wrfmodefiles is unspecified')
+        else:
+            p.error('Need at least --area or --wrfmodelfiles to determine region of interest')
+
+    # zref
+    zref = args.zref
+
+    out = args.out
+
+    params = Parameters(los, lat, lon, heights, weathers, zref, out)
+
+
+if __name__ == '__main__':
+    main()
