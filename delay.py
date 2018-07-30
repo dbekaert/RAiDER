@@ -11,7 +11,7 @@ issues, and probably I will. It goes pretty quickly right now, though.
 from osgeo import gdal
 gdal.UseExceptions()
 import itertools
-import los_reader
+import losreader
 import numpy as np
 import os
 import queue

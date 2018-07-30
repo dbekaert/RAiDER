@@ -1,3 +1,5 @@
+import numpy as np
+
 import os.path
 import shelve
 try:
@@ -64,7 +66,7 @@ def read_shelve(filename):
     except NameError:
         raise isce_error
     
-    with shelve.open(filename) as db:
+    with shelve.open(filename, 'r') as db:
         obj=db['frame']
     
     numSV = len(obj.orbit.stateVectors)
@@ -145,6 +147,8 @@ def read_xml_file(filename):
         vx[i] = st.velocity[0]
         vy[i] = st.velocity[1]
         vz[i] = st.velocity[2]
+
+    return t, x, y, z, vx, vy, vz
 
 
 def infer_sv(los_file, lats, lons, heights):

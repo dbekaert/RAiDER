@@ -9,7 +9,6 @@ import datetime
 import delay
 from osgeo import gdal
 import h5py
-import matplotlib.pyplot as plt
 import netcdf
 import numpy as np
 import os
