@@ -32,7 +32,7 @@ class LinearModel:
     temperature, and relative humidity.
     """
     def __init__(self, xs, ys, heights, pressure, temperature, humidity,
-                 k1, k2, k3, projection, scipy_interpolate):
+                 k1, k2, k3, projection, scipy_interpolate, humidity_type):
         """Initialize a NetCDFModel."""
         # Best idea so far: pulling the values down is screwing things up
 
@@ -84,11 +84,17 @@ class LinearModel:
         self.k2 = k2
         self.k3 = k3
 
+        self.humidity_type = humidity_type
+
     def wet_delay(self, a):
         """Calculate delay at a list of points."""
         temperature = self._t_inp(a)
         humidity = self._h_inp(a)
-        e = _find_e(temperature, humidity)
+        # Sometimes we've got it directly
+        if self.humidity_type == 'q':
+            e = humidity
+        else:
+            e = _find_e(temperature, humidity)
 
         wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
         return wet_delay
@@ -102,7 +108,7 @@ class LinearModel:
         return hydro_delay
 
 
-def _find_e(temp, rh):
+def _find_e(temp, humidity):
     """Calculate partial pressure of water vapor."""
     # From TRAIN:
     # Could not find the wrf used equation as they appear to be
@@ -236,7 +242,8 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 
 def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
                  k1, k2, k3, projection, temp_fill=np.nan, humid_fill=np.nan,
-                 geo_ht_fill=np.nan, scipy_interpolate=False):
+                 geo_ht_fill=np.nan, scipy_interpolate=False,
+                 humidity_type='rh'):
     """Import weather information to make a weather model object.
     
     This takes in lat, lon, pressure, temperature, humidity in the 3D
@@ -273,4 +280,5 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
                        pressure=new_plevs,
                        temperature=temps_fixed, humidity=humids_fixed,
                        k1=k1, k2=k2, k3=k3, projection=projection,
-                       scipy_interpolate=scipy_interpolate)
+                       scipy_interpolate=scipy_interpolate,
+                       humidity_type=humidity_type)

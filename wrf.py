@@ -1,12 +1,6 @@
 """Netcdf reader for weather data."""
 
 
-# TODO: use a different method of interpolation (someone told me linear
-# is inaccurate).
-# TODO: (maybe) add another layer below to make sure we get everything
-# What did he mean by this? ^^
-
-
 import numpy as np
 import pyproj
 import reader
@@ -23,10 +17,10 @@ _default_fill_value = -999
 
 
 # Parameters from Hanssen, 2001
-_k1 = 0.776 # [K/Pa]
+k1 = 0.776 # [K/Pa]
 # Should be k2'
-_k2 = 0.233 # [K/Pa]
-_k3 = 3.75e3 # [K^2/Pa]
+k2 = 0.233 # [K/Pa]
+k3 = 3.75e3 # [K^2/Pa]
 
 
 def _read_netcdf(out, plev, scipy_interpolate):
@@ -103,7 +97,7 @@ def _read_netcdf(out, plev, scipy_interpolate):
                                temperature=temps[0], temp_fill=temp_fill,
                                humidity=humids[0], humid_fill=humid_fill,
                                geo_ht=geopotential_heights[0],
-                               geo_ht_fill=geo_fill, k1=_k1, k2=_k2, k3=_k3,
+                               geo_ht_fill=geo_fill, k1=k1, k2=k2, k3=k3,
                                projection=projection,
                                scipy_interpolate=scipy_interpolate)
 
@@ -113,3 +107,8 @@ def load(out, plev, scipy_interpolate=False):
     with netcdf.netcdf_file(out) as f:
         with netcdf.netcdf_file(plev) as g:
             return _read_netcdf(f, g, scipy_interpolate)
+
+
+def wm_nodes(out):
+    with netcdf.netcdf_file(out) as outf:
+        lats = out.variables['XLAT']
