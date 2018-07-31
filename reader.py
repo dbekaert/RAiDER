@@ -108,7 +108,7 @@ class LinearModel:
         return hydro_delay
 
 
-def _find_e(temp, humidity):
+def _find_e(temp, rh):
     """Calculate partial pressure of water vapor."""
     # From TRAIN:
     # Could not find the wrf used equation as they appear to be

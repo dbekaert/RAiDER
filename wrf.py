@@ -27,18 +27,18 @@ def _read_netcdf(out, plev, scipy_interpolate):
     """Return a NetCDFModel given open netcdf files."""
     # n.b.: all of these things we read are arrays of length 1, so
     # we get the first element to access the actual data.
-    lats = out.variables['XLAT'][0]
+    lats = out.variables['XLAT'][0].copy()
     # Why is it XLONG with a G? Maybe the G means geo (but then why
     # isn't it XLATG?).
-    lons = out.variables['XLONG'][0]
+    lons = out.variables['XLONG'][0].copy()
 
     # TODO: it'd be cool to use some kind of units package
     if plev.variables['P_PL'].units.decode('utf-8') == 'Pa':
-        plevs = plev.variables['P_PL'][0]
+        plevs = plev.variables['P_PL'][0].copy()
     else:
         raise NetCDFException(
-                f"Unknown units for pressure: "
-                "'{plev.variables['P_PL'].units}'")
+                "Unknown units for pressure: "
+                f"'{plev.variables['P_PL'].units}'")
 
     if plev.variables['T_PL'].units.decode('utf-8') == 'K':
         temps = plev.variables['T_PL']
@@ -94,9 +94,9 @@ def _read_netcdf(out, plev, scipy_interpolate):
     ys = np.mean(ys, axis=1)
 
     return reader.import_grids(xs=xs, ys=ys, pressure=plevs,
-                               temperature=temps[0], temp_fill=temp_fill,
-                               humidity=humids[0], humid_fill=humid_fill,
-                               geo_ht=geopotential_heights[0],
+                               temperature=temps[0].copy(), temp_fill=temp_fill,
+                               humidity=humids[0].copy(), humid_fill=humid_fill,
+                               geo_ht=geopotential_heights[0].copy(),
                                geo_ht_fill=geo_fill, k1=k1, k2=k2, k3=k3,
                                projection=projection,
                                scipy_interpolate=scipy_interpolate)
@@ -104,11 +104,15 @@ def _read_netcdf(out, plev, scipy_interpolate):
 
 def load(out, plev, scipy_interpolate=False):
     """Load a NetCDF weather model as a NetCDFModel object."""
-    with netcdf.netcdf_file(out) as f:
-        with netcdf.netcdf_file(plev) as g:
+    with netcdf.netcdf_file(out, 'r', maskandscale=True) as f:
+        with netcdf.netcdf_file(plev, 'r', maskandscale=True) as g:
             return _read_netcdf(f, g, scipy_interpolate)
 
 
-def wm_nodes(out):
-    with netcdf.netcdf_file(out) as outf:
-        lats = out.variables['XLAT']
+def wm_nodes(out, plev):
+    with netcdf.netcdf_file(out, 'r', maskandscale=True) as outf:
+        # TODO: there might be multiple dates, and you're just ignoring
+        # all but the first
+        lats = outf.variables['XLAT'][0].copy()
+        lons = outf.variables['XLONG'][0].copy()
+    return lats, lons

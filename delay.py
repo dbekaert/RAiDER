@@ -8,6 +8,7 @@ issues, and probably I will. It goes pretty quickly right now, though.
 """
 
 
+import demdownload
 from osgeo import gdal
 gdal.UseExceptions()
 import itertools
@@ -17,6 +18,7 @@ import os
 import queue
 import threading
 import util
+import wrf
 
 
 # Step in meters to use when integrating
@@ -274,7 +276,51 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
 
 
 def tropo_delay(los, lat, lon, heights, weathers, zref, out):
+    weather_fmt, weather_files = weathers
+
+    # Lat, lon
+    if lat is None:
+        if weather_fmt is 'times':
+            raise ValueError('I need an area to work with')
+        lats, lons = wrf.wm_nodes(*weather_files[0])
+    else:
+        lats = util.gdal_open(lat)
+        lons = util.gdal_open(lon)
+
+    # Height
+    if heights is None:
+        hts = demdownload.download_dem(lats, lons)
+    else:
+        hts = util.gdal_open(heights)
+
+    # LOS
     if los is None:
         los = Zenith
     else:
-        los = los_reader.infer_los(los)
+        los = losreader.infer_los(los, lats, lons, hts, zref)
+
+    # We want to test if any shapes are different
+    if (not hts.shape == lats.shape == lons.shape
+            or los is not Zenith and los.shape != hts.shape):
+        raise ValueError('I need lats, lons, heights, and los to all be the '
+            'same shape.')
+
+    # Make weather
+    if weather_fmt == 'wrf':
+        if len(weather_files) != 1:
+            raise NotImplemented("Can't do multiple dates yet")
+        weather = wrf.load(*weather_files[0])
+    elif weather_fmt == 'times':
+        raise NotImplemented("Can't download quite yet, sorry")
+
+    llas = np.stack((lats, lons, hts), axis=-1)
+    hydro, wet = delay_from_grid(weather, llas, los, parallel=True,
+                                 raytrace=True)
+
+    # Write the output file
+    # TODO: maybe support other files than ENVI
+    drv = gdal.GetDriverByName('ENVI')
+    ds = drv.Create(out, hydro.shape[1], hydro.shape[0], 2, gdal.GDT_Float64)
+    ds.GetRasterBand(1).WriteArray(hydro)
+    ds.GetRasterBand(2).WriteArray(wet)
+    ds = None

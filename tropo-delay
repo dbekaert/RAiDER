@@ -3,51 +3,8 @@
 
 import argparse
 import datetime
+import delay
 import itertools
-
-
-class Zenith:
-    pass
-
-
-class LineOfSight:
-    def __init__(self, los):
-        self.los = los
-
-
-class StateVectors:
-    def __init__(self, sv):
-        self.sv = sv
-
-
-class WRFDirect:
-    def __init__(self, out, plev):
-        self.out = out
-        self.plev = plev
-
-
-class WRFDownload:
-    def __init__(self, dates, lats, lons):
-        self.dates = dates
-        self.lats = lats
-        self.lons = lons
-
-    def __repr__(self):
-        return f'WRFDownload({vars(self)})'
-
-
-class Parameters:
-    def __init__(self, los, lat, lon, heights, weathers, zref, out):
-        self.los = los
-        self.lat = lat
-        self.lon = lon
-        self.heights = heights
-        self.weathers = weathers
-        self.zref = zref
-        self.out = out
-
-    def __repr__(self):
-        return f'Parameters({vars(self)})'
 
 
 def read_date(s):
@@ -138,9 +95,9 @@ def main():
 
     # Line of sight
     if args.lineofsight is not None:
-        los = LineOfSight(args.lineofsight)
+        los = ('los', args.lineofsight)
     elif args.statevectors is not None:
-        los = StateVectors(args.statevectors)
+        los = ('sv', args.statevectors)
     else:
         los = None
 
@@ -161,10 +118,10 @@ def main():
             if args.times is not None:
                 p.error('Argument --times invalid with --wrfmodelfiles')
             else:
-                weathers = map(lambda x: WrfDirect(*x), args.wrfmodelfiles)
+                weathers = ('wrf', args.wrfmodelfiles)
         elif lat is not None:
             if args.times is not None:
-                weathers = WRFDownload(args.times, lat, lon)
+                weathers = ('times', args.times)
             else:
                 p.error('Need a list of times if --wrfmodefiles is unspecified')
         else:
@@ -175,7 +132,7 @@ def main():
 
     out = args.out
 
-    params = Parameters(los, lat, lon, heights, weathers, zref, out)
+    return delay.tropo_delay(los, lat, lon, heights, weathers, zref, out)
 
 
 if __name__ == '__main__':

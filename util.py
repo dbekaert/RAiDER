@@ -73,33 +73,6 @@ def lla2lambert(lat, lon, height=None):
     return pyproj.transform(lla, lambert, lat, lon, height)
 
 
-def los_to_lv(incidence, heading, lats, lons, heights, ranges=None):
-    # I'm looking at http://earthdef.caltech.edu/boards/4/topics/327
-    a_0 = incidence
-    a_1 = heading
-
-    east = sind(a_0)*cosd(a_1 + 90)
-    north = sind(a_0)*sind(a_1 + 90)
-    up = cosd(a_0)
-
-    east, north, up = np.stack((east, north, up))
-
-    # Pick reasonable range to top of troposphere if not provided
-    if ranges is None:
-        ranges = (zref - heights) / up
-
-    # Scale look vectors by range
-    east, north, up = np.stack((east, north, up)) * ranges
-
-    x, y, z = enu2ecef(east.flatten(), north.flatten(), up.flatten(), lats.flatten(), lons.flatten(), heights.flatten())
-
-    los = (np.stack((x, y, z), axis=-1)
-            - np.stack(lla2ecef(lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
-    los = los.reshape(east.shape + (3,))
-    
-    return los
-
-
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     try:
         Geo2rdr

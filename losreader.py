@@ -12,6 +12,7 @@ except ImportError as e:
     isce_error = e
 else:
     import iscesys.Component.ProductManager
+import util
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
@@ -165,3 +166,40 @@ def infer_sv(los_file, lats, lons, heights):
         # the message might be sometimes misleading.
         svs = read_shelve(los_file)
     return state_to_los(*svs, lats, lons, heights)
+
+
+def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
+    # I'm looking at http://earthdef.caltech.edu/boards/4/topics/327
+    a_0 = incidence
+    a_1 = heading
+
+    east = util.sind(a_0)*util.cosd(a_1 + 90)
+    north = util.sind(a_0)*util.sind(a_1 + 90)
+    up = util.cosd(a_0)
+
+    east, north, up = np.stack((east, north, up))
+
+    # Pick reasonable range to top of troposphere if not provided
+    if ranges is None:
+        ranges = (zref - heights) / up
+
+    # Scale look vectors by range
+    east, north, up = np.stack((east, north, up)) * ranges
+
+    x, y, z = util.enu2ecef(east.flatten(), north.flatten(), up.flatten(), lats.flatten(), lons.flatten(), heights.flatten())
+
+    los = (np.stack((x, y, z), axis=-1)
+            - np.stack(util.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
+    los = los.reshape(east.shape + (3,))
+    
+    return los
+
+
+def infer_los(los, lats, lons, heights, zref):
+    los_type, los_file = los
+    if los_type == 'sv':
+        return infer_sv(los_file, lats, lons, heights)
+    if los_type == 'los':
+        incidence, heading = util.gdal_open(los_file)
+        return los_to_lv(incidence, heading, lats, lons, heights, zref)
+    raise ValueError(f"Unsupported los type '{los_type}'")
