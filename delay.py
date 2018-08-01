@@ -281,9 +281,8 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
 
     # Lat, lon
     if lat is None:
-        if weather_fmt is 'times':
-            raise ValueError('I need an area to work with')
-        lats, lons = wrf.wm_nodes(*weather_files)
+        # They'll get set later with weather
+        lats = lons = None
     else:
         lats = util.gdal_open(lat)
         lons = util.gdal_open(lon)
@@ -310,6 +309,10 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     if weather_fmt == 'wrf':
         if weather_type == 'files':
             weather = wrf.load(*weather_files)
+
+            # Let lats and lons to weather model nodes if necessary
+            if lats is None:
+                lats, lons = wrf.wm_nodes(*weather_files)
         else:
             raise ValueError('weather_type should be files with wrf model, '
                 f'got {repr(weather_type)}')
