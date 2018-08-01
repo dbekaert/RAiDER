@@ -308,7 +308,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     # Make weather
     if weather_fmt == 'wrf':
         if weather_type == 'files':
-            weather = wrf.load(*weather_files)
+            weather = wrf.load(*weather_files, zmin=np.min(hts))
 
             # Let lats and lons to weather model nodes if necessary
             if lats is None:

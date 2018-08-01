@@ -23,7 +23,7 @@ k2 = 0.233 # [K/Pa]
 k3 = 3.75e3 # [K^2/Pa]
 
 
-def _read_netcdf(out, plev, scipy_interpolate):
+def _read_netcdf(out, plev, scipy_interpolate, zmin):
     """Return a NetCDFModel given open netcdf files."""
     # n.b.: all of these things we read are arrays of length 1, so
     # we get the first element to access the actual data.
@@ -99,14 +99,15 @@ def _read_netcdf(out, plev, scipy_interpolate):
                                geo_ht=geopotential_heights[0].copy(),
                                geo_ht_fill=geo_fill, k1=k1, k2=k2, k3=k3,
                                projection=projection,
-                               scipy_interpolate=scipy_interpolate)
+                               scipy_interpolate=scipy_interpolate,
+                               zmin=zmin)
 
 
-def load(out, plev, scipy_interpolate=False):
+def load(out, plev, scipy_interpolate=False, zmin=None):
     """Load a NetCDF weather model as a NetCDFModel object."""
     with netcdf.netcdf_file(out, 'r', maskandscale=True) as f:
         with netcdf.netcdf_file(plev, 'r', maskandscale=True) as g:
-            return _read_netcdf(f, g, scipy_interpolate)
+            return _read_netcdf(f, g, scipy_interpolate, zmin)
 
 
 def wm_nodes(out, plev):
