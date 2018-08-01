@@ -90,11 +90,15 @@ class LinearModel:
         """Calculate delay at a list of points."""
         temperature = self._t_inp(a)
         humidity = self._h_inp(a)
+        pressure = np.exp(self._p_inp(a))
         # Sometimes we've got it directly
         if self.humidity_type == 'q':
-            e = humidity
+            e = _find_e_from_q(temperature, humidity, pressure)
+        elif self.humidity_type == 'rh':
+            e = _find_e_from_rh(temperature, humidity)
         else:
-            e = _find_e(temperature, humidity)
+            raise ValueError('self.humidity_type should be one of q or rh. It '
+                f'was {self.humidityType}')
 
         wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
         return wet_delay
@@ -108,8 +112,7 @@ class LinearModel:
         return hydro_delay
 
 
-def _find_e(temp, rh):
-    """Calculate partial pressure of water vapor."""
+def _find_svp(temp):
     # From TRAIN:
     # Could not find the wrf used equation as they appear to be
     # mixed with latent heat etc. Istead I used the equations used
@@ -135,7 +138,23 @@ def _find_e(temp, rh):
     ix_bound2 = temp < tempbound2
     svp[ix_bound2] = svpi[ix_bound2]
 
-    e = rh/100 * svp * 100
+    return svp * 100
+
+
+def _find_e_from_q(temp, q, p):
+    R_v = 461.524
+    R_d = 287.053
+    e_s = _find_svp(temp)
+    # We have q = w/(w + 1), so w = q/(1 - q)
+    w = q/(1 - q)
+    e = w*R_v*(p - e_s)/R_d
+
+
+def _find_e_from_rh(temp, rh):
+    """Calculate partial pressure of water vapor."""
+    svp = _find_svp(temp)
+
+    e = rh/100 * svp
 
     return e
 

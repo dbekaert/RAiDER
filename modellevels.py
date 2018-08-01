@@ -11,9 +11,9 @@ def get_ecmwf(lat_min, lat_max, lat_step, lon_min, lon_max, lon_step):
         "class": "ei",
         "dataset": "interim",
         "expver": "1",
-        "levelist": "1-60", # TODO: avoid the use of the value 'ALL'
+        "levelist": "all", # TODO: avoid the use of the value 'ALL'
         "levtype": "ml",
-        "param": "z/lnsp",
+        "param": "r",
         "stream": "oper",
         "date": "2015-01-01",    #date: Specify a single date as "2015-08-01" or a period as "2015-08-01/to/2015-08-31".
         "type": "an",        #type: Use an (analysis) unless you have a particular reason to use fc (forecast).
@@ -22,7 +22,7 @@ def get_ecmwf(lat_min, lat_max, lat_step, lon_min, lon_max, lon_step):
         "grid": f'{lat_step}/{lon_step}',    #grid: Only regular lat/lon grids are supported.
         "area": f'{lat_max}/{lon_min}/{lat_min}/{lon_max}',    #area: N/W/S/E, here we have Europe.
         "format": "netcdf",
-        "target": "tzlnsp.nc",    #target: the name of the output file.
+        "target": "justr.nc",    #target: the name of the output file.
     })
 
 
