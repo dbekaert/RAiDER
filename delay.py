@@ -301,9 +301,11 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
 
     # We want to test if any shapes are different
     if (not hts.shape == lats.shape == lons.shape
-            or los is not Zenith and los.shape != hts.shape):
+            or los is not Zenith and los.shape[:-1] != hts.shape):
         raise ValueError('I need lats, lons, heights, and los to all be the '
-            'same shape.')
+            f'same shape. lats had shape {lats.shape}, lons had shape '
+            f'{lons.shape}, heights had shape {hts.shape}, and los had shape '
+            f'{los.shape}')
 
     # Make weather
     if weather_fmt == 'wrf':
