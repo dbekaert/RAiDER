@@ -23,7 +23,7 @@ k2 = 0.233 # [K/Pa]
 k3 = 3.75e3 # [K^2/Pa]
 
 
-def _read_netcdf(out, plev, scipy_interpolate, zmin=None):
+def _read_netcdf(out, plev, scipy_interpolate):
     """Return a NetCDFModel given open netcdf files."""
     # n.b.: all of these things we read are arrays of length 1, so
     # we get the first element to access the actual data.
@@ -93,19 +93,20 @@ def _read_netcdf(out, plev, scipy_interpolate, zmin=None):
     xs = np.mean(xs, axis=0)
     ys = np.mean(ys, axis=1)
 
-    return reader.import_grids(
-            xs=xs, ys=ys, pressure=plevs, temperature=temps[0].copy(),
-            temp_fill=temp_fill, humidity=humids[0].copy(),
-            humid_fill=humid_fill, geo_ht=geopotential_heights[0].copy(),
-            geo_ht_fill=geo_fill, k1=k1, k2=k2, k3=k3, projection=projection,
-            scipy_interpolate=scipy_interpolate, zmin=zmin)
+    return reader.import_grids(xs=xs, ys=ys, pressure=plevs,
+                               temperature=temps[0].copy(), temp_fill=temp_fill,
+                               humidity=humids[0].copy(), humid_fill=humid_fill,
+                               geo_ht=geopotential_heights[0].copy(),
+                               geo_ht_fill=geo_fill, k1=k1, k2=k2, k3=k3,
+                               projection=projection,
+                               scipy_interpolate=scipy_interpolate)
 
 
-def load(out, plev, scipy_interpolate=False, zmin=None):
+def load(out, plev, scipy_interpolate=False):
     """Load a NetCDF weather model as a NetCDFModel object."""
     with netcdf.netcdf_file(out, 'r', maskandscale=True) as f:
         with netcdf.netcdf_file(plev, 'r', maskandscale=True) as g:
-            return _read_netcdf(f, g, scipy_interpolate, zmin)
+            return _read_netcdf(f, g, scipy_interpolate)
 
 
 def wm_nodes(out, plev):

@@ -280,17 +280,14 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
+def tropo_delay(los, lat, lon, heights, weather, zref, out):
     weather_fmt, weather_type, weather_files = weather
 
     # Lat, lon
     if lat is None:
-        if weather_fmt == 'times':
+        if weather_fmt is 'times':
             raise ValueError('I need an area to work with')
-        if weather_fmt == 'wrf':
-            lats, lons = wrf.wm_nodes(*weather_files)
-        else:
-            raise ValueError(f'Unexpected weather_fmt {repr(weather_fmt)}')
+        lats, lons = wrf.wm_nodes(*weather_files[0])
     else:
         lats = util.gdal_open(lat)
         lons = util.gdal_open(lon)
@@ -315,16 +312,11 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
 
     # Make weather
     if weather_fmt == 'wrf':
-        if weather_type == 'files':
-            zmin = np.min(hts)
-            weather = wrf.load(*weather_files, zmin)
-        else:
-            raise ValueError(
-                    f'Unknown subformat for WRF files: {repr(weather_type)}')
-    else:
-        raise NotImplemented(
-                f'Unknown weather format {repr(weather_fmt)}. See '
-                    'documentation for list of supported types.')
+        if len(weather_files) != 1:
+            raise NotImplemented("Can't do multiple dates yet")
+        weather = wrf.load(*weather_files[0])
+    elif weather_fmt == 'times':
+        raise NotImplemented("Can't download quite yet, sorry")
 
     llas = np.stack((lats, lons, hts), axis=-1)
     print('calculating delay')
@@ -335,8 +327,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     # TODO: maybe support other files than ENVI
     print('writing output')
     drv = gdal.GetDriverByName('ENVI')
-    hydroname, wetname = (f'{weather_fmt}_{dtyp}_'
-        f'{time.isoformat() if time is not None else ""}_delay.envi'
+    hydroname, wetname = (f'{weather_fmt}_{dtyp}_delay.envi'
             for dtyp in ('hydro', 'wet'))
     hydro_ds = drv.Create(
             os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0], 1,

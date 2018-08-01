@@ -29,9 +29,7 @@ def read_date(s):
         'Z',
         '%z',
     )
-    all_formats = map(
-            lambda t: ''.join(t),
-            itertools.product(year_formats, time_formats, timezone_formats))
+    all_formats = map(lambda t: ''.join(t), itertools.product(year_formats, time_formats, timezone_formats))
     date = None
     for date_format in all_formats:
         try:
@@ -39,15 +37,13 @@ def read_date(s):
         except ValueError:
             continue
     if date is None:
-        raise ValueError(
-                f'Unable to coerce {s} to a date. Try %Y-%m-%dT%H:%M:%S.%f%z')
+        raise ValueError(f'Unable to coerce {s} to a date. Try %Y-%m-%dT%H:%M:%S.%f%z')
 
     return date
 
 
 def main():
-    p = argparse.ArgumentParser(
-            description='Calculate tropospheric delay from a weather model')
+    p = argparse.ArgumentParser(description='Calculate tropospheric delay from a weather model')
 
     # Line of sight
     los = p.add_mutually_exclusive_group()
@@ -57,15 +53,12 @@ def main():
             metavar='LOS')
     los.add_argument(
             '--statevectors', '-s',
-            help='An ISCE XML or shelve file containing state vectors '
-                'specifying the orbit of the sensor')
+            help='An ISCE XML or shelve file containing state vectors specifying the orbit of the sensor')
 
     # Area
     p.add_argument(
             '--area', '-a', nargs=2,
-            help='GDAL-readable longitude and latitude files to specify the '
-                'region over which to calculate delay. Delay will be '
-                'calculated at weather model nodes if unspecified',
+            help='GDAL-readable longitude and latitude files to specify the region over which to calculate delay. Delay will be calculated at weather model nodes if unspecified',
             metavar=('LONG', 'LAT'))
 
     # DEM
@@ -75,8 +68,8 @@ def main():
 
     # Weather model
     p.add_argument(
-            '--time',
-            help='Fetch weather model data at this ISO 8601-format time',
+            '--times', nargs='+',
+            help='Fetch weather model data at these times. Can be a list of ISO times or a file containing a list of times',
             type=read_date)
     p.add_argument(
             '--model',
@@ -87,19 +80,16 @@ def main():
             description='Arguments for when --model WRF is specified')
     wrf.add_argument(
             '--wrfmodelfiles', nargs=2,
-            help='Weather model files. Model will be downloaded if '
-                'unspecified',
-            metavar=('OUT', 'PLEV'))
+            help='Weather model files. Model will be downloaded if unspecified. Specify multiple times to calculate on multiple dates',
+            metavar=('OUT', 'PLEV'), action='append')
 
     # Height max
     p.add_argument(
             '--zref', '-z',
-            help='Height limit when integrating (meters) '
-                '(default: %(default)s)',
+            help='Height limit when integrating (meters) (default: %(default)s)',
             type=int, default=15000)
 
-    p.add_argument(
-            '--out', help='Directory to store output files', default='.')
+    p.add_argument('out', help='Output file')
 
     args = p.parse_args()
 
@@ -120,20 +110,29 @@ def main():
     # DEM
     heights = args.dem
 
-    # Acquisition time
-    time = args.time
-
     # Weather
     if args.model == 'WRF':
+        # If we had any other model readers, here would be the place to
+        # throw an error if invalid arguments were specified
         if args.wrfmodelfiles is not None:
-            weather = ('wrf', 'files', args.wrfmodelfiles)
+            if args.times is not None:
+                p.error('Argument --times invalid with --wrfmodelfiles')
+            else:
+                weathers = ('wrf', 'files', args.wrfmodelfiles)
+        elif lat is not None:
+            if args.times is not None:
+                weathers = ('times', args.times)
+            else:
+                p.error('Need a list of times if --wrfmodefiles is unspecified')
+        else:
+            p.error('Need at least --area or --wrfmodelfiles to determine region of interest')
 
     # zref
     zref = args.zref
 
     out = args.out
 
-    return delay.tropo_delay(los, lat, lon, heights, weather, zref, out, time)
+    return delay.tropo_delay(los, lat, lon, heights, weathers, zref, out)
 
 
 if __name__ == '__main__':
