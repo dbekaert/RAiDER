@@ -9,6 +9,7 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 
 import demdownload
+import era
 from osgeo import gdal
 gdal.UseExceptions()
 import itertools
@@ -331,6 +332,21 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
         else:
             raise ValueError('weather_type should be files with wrf model, '
                 f'got {repr(weather_type)}')
+    elif weather_fmt == 'era-i':
+        if weather_type == 'netcdf':
+            weather = era.load(*weather_files)
+            if lats is None:
+                lats, lons = era.wm_nodes(*weather_files)
+        elif weather_type == 'download':
+            if lats is None:
+                raise ValueError(
+                        "Can't use delay at weather model nodes if you also "
+                            "want me to download the weather model")
+            weather = era.fetch_era_interim(lats, lons, time)
+        else:
+            raise ValueError(
+                    'weather_type should be download or netcdf, but it was '
+                    f'{repr(weather_type)}')
     else:
         raise ValueError(f'Unknown weather model type {repr(weather_fmt)}')
 

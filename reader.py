@@ -148,6 +148,7 @@ def _find_e_from_q(temp, q, p):
     # We have q = w/(w + 1), so w = q/(1 - q)
     w = q/(1 - q)
     e = w*R_v*(p - e_s)/R_d
+    return e
 
 
 def _find_e_from_rh(temp, rh):
@@ -274,15 +275,6 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
     if zmin is None:
         zmin = _zmin
 
-    # In some cases, the pressure goes the wrong way. The way we'd like
-    # is from bottom to top, i.e., high pressures to low pressures. If
-    # that's not the case, we'll reverse everything.
-    if pressure[0] < pressure[1]:
-        pressure = pressure[::-1]
-        temperature = temperature[::-1]
-        humidity = humidity[::-1]
-        geo_ht = geo_ht[::-1]
-
     # Replace the non-useful values by NaN
     temps_fixed = np.where(temperature != temp_fill, temperature, np.nan)
     humids_fixed = np.where(humidity != humid_fill, humidity, np.nan)
@@ -295,8 +287,14 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
 
     heights = util.geo_to_ht(lats, lons, geo_ht_fix)
 
-    new_plevs = np.broadcast_to(pressure[:,np.newaxis,np.newaxis],
-                                heights.shape)
+    # We want to support both pressure levels and true pressure grids.
+    # If the shape has one dimension, we'll scale it up to act as a
+    # grid, otherwise we'll leave it alone.
+    if len(pressure.shape) == 1:
+        new_plevs = np.broadcast_to(pressure[:,np.newaxis,np.newaxis],
+                                    heights.shape)
+    else:
+        new_plevs = pressure
 
     return LinearModel(xs=xs, ys=ys, heights=heights,
                        pressure=new_plevs,
