@@ -275,14 +275,17 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def tropo_delay(los, lat, lon, heights, weathers, zref, out):
-    weather_fmt, weather_files = weathers
+def tropo_delay(los, lat, lon, heights, weather, zref, out):
+    weather_fmt, weather_type, weather_files = weather
 
     # Lat, lon
     if lat is None:
-        if weather_fmt is 'times':
+        if weather_fmt == 'times':
             raise ValueError('I need an area to work with')
-        lats, lons = wrf.wm_nodes(*weather_files[0])
+        if weather_fmt == 'wrf':
+            lats, lons = wrf.wm_nodes(*weather_files)
+        else:
+            raise ValueError(f'Unexpected weather_fmt {repr(weather_fmt)}')
     else:
         lats = util.gdal_open(lat)
         lons = util.gdal_open(lon)
@@ -307,11 +310,16 @@ def tropo_delay(los, lat, lon, heights, weathers, zref, out):
 
     # Make weather
     if weather_fmt == 'wrf':
-        if len(weather_files) != 1:
-            raise NotImplemented("Can't do multiple dates yet")
-        weather = wrf.load(*weather_files[0])
-    elif weather_fmt == 'times':
-        raise NotImplemented("Can't download quite yet, sorry")
+        if weather_type == 'files':
+            zmin = np.min(hts)
+            weather = wrf.load(*weather_files, zmin)
+        else:
+            raise ValueError(
+                    f'Unknown subformat for WRF files: {repr(weather_type)}')
+    else:
+        raise NotImplemented(
+                f'Unknown weather format {repr(weather_fmt)}. See '
+                    'documentation for list of supported types.')
 
     llas = np.stack((lats, lons, hts), axis=-1)
     hydro, wet = delay_from_grid(weather, llas, los, parallel=True,

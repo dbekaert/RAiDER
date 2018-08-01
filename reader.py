@@ -32,20 +32,22 @@ class LinearModel:
     temperature, and relative humidity.
     """
     def __init__(self, xs, ys, heights, pressure, temperature, humidity,
-                 k1, k2, k3, projection, scipy_interpolate, humidity_type):
+                 k1, k2, k3, projection, scipy_interpolate, humidity_type,
+                 zmin):
         """Initialize a NetCDFModel."""
-        # Best idea so far: pulling the values down is screwing things up
-
         if scipy_interpolate:
             # Add an extra layer below to interpolate below the surface
-            new_heights = np.zeros(heights.shape[1:]) + _zmin
-            new_pressures = _least_nonzero(pressure)
-            new_temps = _least_nonzero(temperature)
-            new_humids = _least_nonzero(humidity)
-            heights = np.concatenate((new_heights[np.newaxis], heights))
-            pressure = np.concatenate((new_pressures[np.newaxis], pressure))
-            temperature = np.concatenate((new_temps[np.newaxis], temperature))
-            humidity = np.concatenate((new_humids[np.newaxis], humidity))
+            if np.min(heights) > zmin:
+                new_heights = np.zeros(heights.shape[1:]) + zmin
+                new_pressures = _least_nonzero(pressure)
+                new_temps = _least_nonzero(temperature)
+                new_humids = _least_nonzero(humidity)
+                heights = np.concatenate((new_heights[np.newaxis], heights))
+                pressure = np.concatenate(
+                        (new_pressures[np.newaxis], pressure))
+                temperature = np.concatenate(
+                        (new_temps[np.newaxis], temperature))
+                humidity = np.concatenate((new_humids[np.newaxis], humidity))
 
             ecef = pyproj.Proj(proj='geocent')
 
@@ -79,7 +81,8 @@ class LinearModel:
         else:
             self._p_inp, self._t_inp, self._h_inp = _sane_interpolate(
                     xs, ys, heights, projection,
-                    (np.log(pressure), temperature, humidity))
+                    (np.log(pressure), temperature, humidity),
+                    zmin=zmin)
         self.k1 = k1
         self.k2 = k2
         self.k3 = k3
@@ -211,14 +214,17 @@ def _propagate_down(a, direction=1):
     return _just_pull_down(out)
 
 
-def _sane_interpolate(xs, ys, heights, projection, values_list):
+def _sane_interpolate(xs, ys, heights, projection, values_list, zmin=None):
+    if zmin is None:
+        zmin = _zmin
+
     num_levels = 2 * heights.shape[0]
     # First, find the maximum height
     new_top = np.nanmax(heights)
 
     new_bottom = np.nanmin(heights)
 
-    new_heights = np.linspace(_zmin, new_top, num_levels)
+    new_heights = np.linspace(zmin, new_top, num_levels)
 
     inp_values = [np.zeros((len(new_heights),) + values.shape[1:])
             for values in values_list]
@@ -262,7 +268,7 @@ def _sane_interpolate(xs, ys, heights, projection, values_list):
 def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
                  k1, k2, k3, projection, temp_fill=np.nan, humid_fill=np.nan,
                  geo_ht_fill=np.nan, scipy_interpolate=False,
-                 humidity_type='rh'):
+                 humidity_type='rh', zmin=None):
     """Import weather information to make a weather model object.
     
     This takes in lat, lon, pressure, temperature, humidity in the 3D
@@ -271,6 +277,9 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
     this function, we'll need to add some more abstraction. For now,
     this function is only used for NetCDF anyway.
     """
+    if zmin is None:
+        zmin = _zmin
+
     # In some cases, the pressure goes the wrong way. The way we'd like
     # is from bottom to top, i.e., high pressures to low pressures. If
     # that's not the case, we'll reverse everything.
@@ -300,4 +309,4 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
                        temperature=temps_fixed, humidity=humids_fixed,
                        k1=k1, k2=k2, k3=k3, projection=projection,
                        scipy_interpolate=scipy_interpolate,
-                       humidity_type=humidity_type)
+                       humidity_type=humidity_type, zmin=zmin)
