@@ -53,19 +53,20 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
         look_vecs = (np.array((util.cosd(lats)*util.cosd(lons),
                                   util.cosd(lats)*util.sind(lons),
                                   util.sind(lats))).T
-                            * (_zref - heights)[...,np.newaxis])
+                            * (_zref - heights)[..., np.newaxis])
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
     steps = np.array(np.ceil(lengths / _step), dtype=np.int64)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
-    scaled_look_vecs = look_vecs / lengths[...,np.newaxis]
+    scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
     positions_l = list()
     t_points_l = list()
     for i in range(len(steps)):
         thisspace = np.linspace(0, lengths[i], steps[i])
-        position = start_positions[i] + thisspace[...,np.newaxis] * scaled_look_vecs[i]
+        position = (start_positions[i]
+                + thisspace[..., np.newaxis]*scaled_look_vecs[i])
         first_high_index = _too_high(position, _zref)
         t_points_l.append(thisspace[:first_high_index])
         positions_l.append(position[:first_high_index])
@@ -95,6 +96,8 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     if correction is not None:
         delays *= correction
 
+    print('Got the delay')
+
     return delays
 
 
@@ -106,6 +109,7 @@ def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
 
 def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
     """Compute hydrostatic delay along the look vector."""
+    print('worker doing hydrostatic delay')
     return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
                          look_vecs, raytrace)
 
@@ -208,6 +212,7 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
 
         # Execute the parallel worker
         result = _parmap(go, jobs)
+        print('got results')
 
         # Collect results
         hydro = np.concatenate(result[:hydro_procs])
@@ -275,7 +280,7 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def tropo_delay(los, lat, lon, heights, weather, zref, out):
+def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     weather_fmt, weather_type, weather_files = weather
 
     # Lat, lon
@@ -322,13 +327,24 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out):
                     'documentation for list of supported types.')
 
     llas = np.stack((lats, lons, hts), axis=-1)
+    print('calculating delay')
     hydro, wet = delay_from_grid(weather, llas, los, parallel=True,
                                  raytrace=True)
 
     # Write the output file
     # TODO: maybe support other files than ENVI
+    print('writing output')
     drv = gdal.GetDriverByName('ENVI')
-    ds = drv.Create(out, hydro.shape[1], hydro.shape[0], 2, gdal.GDT_Float64)
-    ds.GetRasterBand(1).WriteArray(hydro)
-    ds.GetRasterBand(2).WriteArray(wet)
-    ds = None
+    hydroname, wetname = (f'{weather_fmt}_{dtyp}_'
+        f'{time.isoformat() if time is not None else ""}_delay.envi'
+            for dtyp in ('hydro', 'wet'))
+    hydro_ds = drv.Create(
+            os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0], 1,
+            gdal.GDT_Float64)
+    hydro_ds.GetRasterBand(1).WriteArray(hydro)
+    hydro_ds = None
+    wet_ds = drv.Create(
+            os.path.join(out, wetname), wet.shape[1], wet.shape[0], 1,
+            gdal.GDT_Float64)
+    wet_ds.GetRasterBand(1).WriteArray(wet)
+    wet_ds = None

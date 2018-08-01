@@ -120,10 +120,11 @@ def main():
     # DEM
     heights = args.dem
 
+    # Acquisition time
+    time = args.time
+
     # Weather
     if args.model == 'WRF':
-        if args.time is not None:
-            p.error('Argument --time invalid with WRF weather model')
         if args.wrfmodelfiles is not None:
             weather = ('wrf', 'files', args.wrfmodelfiles)
 
@@ -132,7 +133,7 @@ def main():
 
     out = args.out
 
-    return delay.tropo_delay(los, lat, lon, heights, weather, zref, out)
+    return delay.tropo_delay(los, lat, lon, heights, weather, zref, out, time)
 
 
 if __name__ == '__main__':

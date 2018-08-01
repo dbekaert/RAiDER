@@ -160,10 +160,10 @@ def big_and(*args):
 
 
 def gdal_open(fname):
-    ds = gdal.Open(fname)
+    ds = gdal.Open(fname, gdal.GA_ReadOnly)
     val = ds.ReadAsArray()
     # It'll get closed automatically too, but we can be explicit
-    del ds
+    ds = None
     return val
 
 

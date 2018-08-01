@@ -35,6 +35,7 @@ class LinearModel:
                  k1, k2, k3, projection, scipy_interpolate, humidity_type,
                  zmin):
         """Initialize a NetCDFModel."""
+        zmin = -100
         if scipy_interpolate:
             # Add an extra layer below to interpolate below the surface
             if np.min(heights) > zmin:
