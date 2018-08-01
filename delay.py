@@ -276,23 +276,7 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
-    weather_fmt, weather_type, weather_files = weather
-
-    # Lat, lon
-    if lat is None:
-        # They'll get set later with weather
-        lats = lons = None
-    else:
-        lats = util.gdal_open(lat)
-        lons = util.gdal_open(lon)
-
-    # Height
-    if heights is None:
-        hts = demdownload.download_dem(lats, lons)
-    else:
-        hts = util.gdal_open(heights)
-
+def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
     # LOS
     if los is None:
         los = Zenith
@@ -306,6 +290,35 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
             f'same shape. lats had shape {lats.shape}, lons had shape '
             f'{lons.shape}, heights had shape {hts.shape}, and los had shape '
             f'{los.shape}')
+
+    # Do the calculation
+    llas = np.stack((lats, lons, hts), axis=-1)
+    hydro, wet = delay_from_grid(weather, llas, los, parallel=True,
+                                 raytrace=True)
+    return hydro, wet
+
+
+def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
+    weather_fmt, weather_type, weather_files = weather
+
+    # Lat, lon
+    if lat is None:
+        # They'll get set later with weather
+        lats = lons = None
+    else:
+        lats = util.gdal_open(lat)
+        lons = util.gdal_open(lon)
+
+    # Height
+    height_type, height_info = heights
+    if height_type == 'dem':
+        hts = util.gdal_open(height_info)
+    elif height_type == 'lvs':
+        hts = height_info
+    elif height_type == 'download':
+        hts = demdownload.download_dem(lats, lons)
+    else:
+        raise ValueError(f'Unexpected height_type {repr(height_type)}')
 
     # Make weather
     if weather_fmt == 'wrf':
@@ -321,23 +334,56 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     else:
         raise ValueError(f'Unknown weather model type {repr(weather_fmt)}')
 
-    llas = np.stack((lats, lons, hts), axis=-1)
-    hydro, wet = delay_from_grid(weather, llas, los, parallel=True,
-                                 raytrace=True)
-
-    # Write the output file
-    # TODO: maybe support other files than ENVI
+    # For later
     drv = gdal.GetDriverByName('ENVI')
     hydroname, wetname = (f'{weather_fmt}_{dtyp}_'
         f'{time.isoformat() + "_" if time is not None else ""}delay.envi'
             for dtyp in ('hydro', 'wet'))
-    hydro_ds = drv.Create(
-            os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0], 1,
-            gdal.GDT_Float64)
-    hydro_ds.GetRasterBand(1).WriteArray(hydro)
-    hydro_ds = None
-    wet_ds = drv.Create(
-            os.path.join(out, wetname), wet.shape[1], wet.shape[0], 1,
-            gdal.GDT_Float64)
-    wet_ds.GetRasterBand(1).WriteArray(wet)
-    wet_ds = None
+
+    # Pretty different calculation depending on whether they specified a
+    # list of heights or just a DEM
+    if height_type == 'lvs':
+        shape = (len(hts),) + lats.shape
+        total_hydro = np.zeros(shape)
+        total_wet = np.zeros(shape)
+        for i, ht in enumerate(hts):
+            hydro, wet = _tropo_delay_with_values(
+                    los, lats, lons, np.broadcast_to(ht, lats.shape), weather,
+                    zref, out, time)
+            total_hydro[i] = hydro
+            total_wet[i] = wet
+
+        hydro_ds = drv.Create(
+                os.path.join(out, hydroname), total_hydro.shape[2],
+                total_hydro.shape[1], len(hts), gdal.GDT_Float64)
+        for lvl, (hydro, ht) in enumerate(zip(total_hydro, hts), start=1):
+            band = hydro_ds.GetRasterBand(lvl)
+            band.SetDescription(str(ht))
+            band.WriteArray(hydro)
+        hydro_ds = None
+
+        wet_ds = drv.Create(
+                os.path.join(out, wetname), total_wet.shape[2],
+                total_wet.shape[1], len(hts), gdal.GDT_Float64)
+        for lvl, (wet, ht) in enumerate(zip(total_wet, hts), start=1):
+            band = wet_ds.GetRasterBand(lvl)
+            band.SetDescription(str(ht))
+            band.WriteArray(wet)
+        wet_ds = None
+
+    else:
+        hydro, wet = _tropo_delay_with_values(
+                los, lats, lons, hts, weather, zref, out, time)
+
+        # Write the output file
+        # TODO: maybe support other files than ENVI
+        hydro_ds = drv.Create(
+                os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0],
+                1, gdal.GDT_Float64)
+        hydro_ds.GetRasterBand(1).WriteArray(hydro)
+        hydro_ds = None
+        wet_ds = drv.Create(
+                os.path.join(out, wetname), wet.shape[1], wet.shape[0], 1,
+                gdal.GDT_Float64)
+        wet_ds.GetRasterBand(1).WriteArray(wet)
+        wet_ds = None

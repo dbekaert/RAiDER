@@ -43,7 +43,8 @@ def read_date(s):
 
 
 def main():
-    p = argparse.ArgumentParser(description='Calculate tropospheric delay from a weather model')
+    p = argparse.ArgumentParser(
+            description='Calculate tropospheric delay from a weather model')
 
     # Line of sight
     los = p.add_mutually_exclusive_group()
@@ -53,7 +54,8 @@ def main():
             metavar='LOS')
     los.add_argument(
             '--statevectors', '-s',
-            help='An ISCE XML or shelve file containing state vectors specifying the orbit of the sensor')
+            help='An ISCE XML or shelve file containing state vectors '
+                'specifying the orbit of the sensor')
 
     # Area
     p.add_argument(
@@ -63,10 +65,16 @@ def main():
                 'calculated at weather model nodes if unspecified',
             metavar=('LONG', 'LAT'))
 
-    # DEM
-    p.add_argument(
+    # heights
+    heights = p.add_mutually_exclusive_group()
+    heights.add_argument(
             '--dem', '-d',
             help='DEM file. DEM will be downloaded if not specified')
+    heights.add_argument(
+            '--heightlvs',
+            help='Delay will be calculated at each of these heights across '
+                'all of the specified area',
+            nargs='+', type=float)
 
     # Weather model
     p.add_argument(
@@ -113,7 +121,12 @@ def main():
         lat = lon = None
 
     # DEM
-    heights = args.dem
+    if args.dem is not None:
+        heights = ('dem', args.dem)
+    elif args.heightlvs is not None:
+        heights = ('lvs', args.heightlvs)
+    else:
+        heights = ('download', None)
 
     # Weather
     if args.model == 'WRF':
