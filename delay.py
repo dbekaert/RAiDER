@@ -332,7 +332,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
         else:
             raise ValueError('weather_type should be files with wrf model, '
                 f'got {repr(weather_type)}')
-    elif weather_fmt == 'era-i':
+    if weather_fmt in ('era-i', 'era5'):
         if weather_type == 'netcdf':
             weather = era.load(*weather_files)
             if lats is None:
@@ -342,7 +342,10 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
                 raise ValueError(
                         "Can't use delay at weather model nodes if you also "
                             "want me to download the weather model")
-            weather = era.fetch_era_interim(lats, lons, time)
+            if weather_fmt == 'era-i':
+                weather = era.fetch_era_interim(lats, lons, time)
+            else:
+                weather = era.fetch_era5(lats, lons, time)
         else:
             raise ValueError(
                     'weather_type should be download or netcdf, but it was '

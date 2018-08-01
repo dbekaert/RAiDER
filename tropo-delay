@@ -92,7 +92,7 @@ def main():
     p.add_argument(
             '--model',
             help='Weather model to use',
-            choices=('WRF', 'ERA-I'), default='ERA-I')
+            choices=('WRF', 'ERA-I', 'ERA5'), default='ERA-I')
 
     wrf = p.add_argument_group(
             title='WRF',
@@ -106,16 +106,16 @@ def main():
     # manually.
     wrf_args = ArgGroup('WRF', 'wrfmodelfiles')
 
-    era_i = p.add_argument_group(
+    era = p.add_argument_group(
             title='ERA-I',
-            description='Arguments for when --model ERA-I is specified')
-    era_i.add_argument(
+            description='Arguments for when --model ERA-I or ERA5 is '
+                'specified')
+    era.add_argument(
             '--eranetcdf',
-            help='ERA-interim netcdf file. Should have q, t, z, lnsp as '
-                'variables')
-    era_i_args = ArgGroup('ERA-I', 'eranetcdf')
+            help='ERA netcdf file. Should have q, t, z, lnsp as variables')
+    era_args = ArgGroup('ERA-I or ERA5', 'eranetcdf')
 
-    wm_arg_groups = {wrf_args, era_i_args}
+    wm_arg_groups = {wrf_args, era_args}
 
     # Height max
     p.add_argument(
@@ -165,7 +165,7 @@ def main():
         else:
             p.error('Argument --wrfmodelfiles required with --model WRF')
     if args.model == 'ERA-I':
-        wm_check_disallowed_args(era_i_args)
+        wm_check_disallowed_args(era_args)
         if args.eranetcdf is not None:
             weathers = ('era-i', 'netcdf', args.eranetcdf)
         elif args.time is None:
@@ -176,7 +176,18 @@ def main():
                 'figure out what to download)')
         else:
             weathers = ('era-i', 'download', None)
-
+    if args.model == 'ERA5':
+        wm_check_disallowed_args(era_args)
+        if args.eranetcdf is not None:
+            weathers = ('era5', 'netcdf', args.eranetcdf)
+        elif args.time is None:
+            p.error('Must specify one of --eranetcdf or --time (so I can '
+                'figure out what to download)')
+        elif lat is None:
+            p.error('Must specify one of --eranetcdf or --area (so I can '
+                'figure out what to download)')
+        else:
+            weathers = ('era5', 'download', None)
 
     # zref
     zref = args.zref
