@@ -96,8 +96,6 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     if correction is not None:
         delays *= correction
 
-    print('Got the delay')
-
     return delays
 
 
@@ -109,7 +107,6 @@ def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
 
 def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
     """Compute hydrostatic delay along the look vector."""
-    print('worker doing hydrostatic delay')
     return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
                          look_vecs, raytrace)
 
@@ -212,7 +209,6 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
 
         # Execute the parallel worker
         result = _parmap(go, jobs)
-        print('got results')
 
         # Collect results
         hydro = np.concatenate(result[:hydro_procs])
@@ -280,14 +276,14 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
     return delay_from_grid(weather, llas, los, parallel=True)
 
 
-def tropo_delay(los, lat, lon, heights, weather, zref, out):
+def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     weather_fmt, weather_type, weather_files = weather
 
     # Lat, lon
     if lat is None:
         if weather_fmt is 'times':
             raise ValueError('I need an area to work with')
-        lats, lons = wrf.wm_nodes(*weather_files[0])
+        lats, lons = wrf.wm_nodes(*weather_files)
     else:
         lats = util.gdal_open(lat)
         lons = util.gdal_open(lon)
@@ -312,22 +308,23 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out):
 
     # Make weather
     if weather_fmt == 'wrf':
-        if len(weather_files) != 1:
-            raise NotImplemented("Can't do multiple dates yet")
-        weather = wrf.load(*weather_files[0])
-    elif weather_fmt == 'times':
-        raise NotImplemented("Can't download quite yet, sorry")
+        if weather_type == 'files':
+            weather = wrf.load(*weather_files)
+        else:
+            raise ValueError('weather_type should be files with wrf model, '
+                f'got {repr(weather_type)}')
+    else:
+        raise ValueError(f'Unknown weather model type {repr(weather_fmt)}')
 
     llas = np.stack((lats, lons, hts), axis=-1)
-    print('calculating delay')
     hydro, wet = delay_from_grid(weather, llas, los, parallel=True,
                                  raytrace=True)
 
     # Write the output file
     # TODO: maybe support other files than ENVI
-    print('writing output')
     drv = gdal.GetDriverByName('ENVI')
-    hydroname, wetname = (f'{weather_fmt}_{dtyp}_delay.envi'
+    hydroname, wetname = (f'{weather_fmt}_{dtyp}_'
+        f'{time.isoformat() + "_" if time is not None else ""}delay.envi'
             for dtyp in ('hydro', 'wet'))
     hydro_ds = drv.Create(
             os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0], 1,

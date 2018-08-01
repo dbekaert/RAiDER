@@ -58,7 +58,9 @@ def main():
     # Area
     p.add_argument(
             '--area', '-a', nargs=2,
-            help='GDAL-readable longitude and latitude files to specify the region over which to calculate delay. Delay will be calculated at weather model nodes if unspecified',
+            help='GDAL-readable longitude and latitude files to specify the '
+                'region over which to calculate delay. Delay will be '
+                'calculated at weather model nodes if unspecified',
             metavar=('LONG', 'LAT'))
 
     # DEM
@@ -68,8 +70,8 @@ def main():
 
     # Weather model
     p.add_argument(
-            '--times', nargs='+',
-            help='Fetch weather model data at these times. Can be a list of ISO times or a file containing a list of times',
+            '--time',
+            help='Fetch weather model data at this (ISO 8601 format) time',
             type=read_date)
     p.add_argument(
             '--model',
@@ -80,16 +82,19 @@ def main():
             description='Arguments for when --model WRF is specified')
     wrf.add_argument(
             '--wrfmodelfiles', nargs=2,
-            help='Weather model files. Model will be downloaded if unspecified. Specify multiple times to calculate on multiple dates',
-            metavar=('OUT', 'PLEV'), action='append')
+            help='Weather model files. Model will be downloaded if '
+                'unspecified. Specify multiple times to calculate on multiple '
+                'dates',
+            metavar=('OUT', 'PLEV'))
 
     # Height max
     p.add_argument(
             '--zref', '-z',
-            help='Height limit when integrating (meters) (default: %(default)s)',
+            help='Height limit when integrating (meters) '
+                '(default: %(default)s)',
             type=int, default=15000)
 
-    p.add_argument('out', help='Output file')
+    p.add_argument('--out', help='Output file directory', default='.')
 
     args = p.parse_args()
 
@@ -112,27 +117,19 @@ def main():
 
     # Weather
     if args.model == 'WRF':
-        # If we had any other model readers, here would be the place to
-        # throw an error if invalid arguments were specified
         if args.wrfmodelfiles is not None:
-            if args.times is not None:
-                p.error('Argument --times invalid with --wrfmodelfiles')
-            else:
-                weathers = ('wrf', 'files', args.wrfmodelfiles)
-        elif lat is not None:
-            if args.times is not None:
-                weathers = ('times', args.times)
-            else:
-                p.error('Need a list of times if --wrfmodefiles is unspecified')
+            weathers = ('wrf', 'files', args.wrfmodelfiles)
         else:
-            p.error('Need at least --area or --wrfmodelfiles to determine region of interest')
+            p.error('Argument --wrfmodelfiles required with --model WRF')
 
     # zref
     zref = args.zref
 
+    time = args.time
+
     out = args.out
 
-    return delay.tropo_delay(los, lat, lon, heights, weathers, zref, out)
+    return delay.tropo_delay(los, lat, lon, heights, weathers, zref, out, time)
 
 
 if __name__ == '__main__':
