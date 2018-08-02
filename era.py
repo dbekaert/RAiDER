@@ -201,8 +201,6 @@ def get_from_ecmwf(lat_min, lat_max, lat_step, lon_min, lon_max, lon_step,
 
     corrected_date = round_date(time, datetime.timedelta(hours=6))
 
-    maxlv = class_to_maxlv(classname)
-
     server.retrieve({
         "class": classname, # ERA-Interim
         'dataset': class_to_dataset(classname),

@@ -310,17 +310,6 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
         lats = util.gdal_open(lat)
         lons = util.gdal_open(lon)
 
-    # Height
-    height_type, height_info = heights
-    if height_type == 'dem':
-        hts = util.gdal_open(height_info)
-    elif height_type == 'lvs':
-        hts = height_info
-    elif height_type == 'download':
-        hts = demdownload.download_dem(lats, lons)
-    else:
-        raise ValueError(f'Unexpected height_type {repr(height_type)}')
-
     # Make weather
     if weather_fmt == 'wrf':
         if weather_type == 'files':
@@ -334,9 +323,9 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
                 f'got {repr(weather_type)}')
     if weather_fmt in ('era-i', 'era5'):
         if weather_type == 'netcdf':
-            weather = era.load(*weather_files)
+            weather = era.load(weather_files)
             if lats is None:
-                lats, lons = era.wm_nodes(*weather_files)
+                lats, lons = era.wm_nodes(weather_files)
         elif weather_type == 'download':
             if lats is None:
                 raise ValueError(
@@ -352,6 +341,17 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
                     f'{repr(weather_type)}')
     else:
         raise ValueError(f'Unknown weather model type {repr(weather_fmt)}')
+
+    # Height
+    height_type, height_info = heights
+    if height_type == 'dem':
+        hts = util.gdal_open(height_info)
+    elif height_type == 'lvs':
+        hts = height_info
+    elif height_type == 'download':
+        hts = demdownload.download_dem(lats, lons)
+    else:
+        raise ValueError(f'Unexpected height_type {repr(height_type)}')
 
     # For later
     drv = gdal.GetDriverByName('ENVI')
