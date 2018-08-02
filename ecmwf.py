@@ -142,4 +142,4 @@ def load(fname):
     # isn't clever enough to pick up on the fact that they are the same
     lons[lons > 180] -= 360
 
-    return lats, lons, lla, t, q, z, lnsp
+    return lons, lats, lla, t, q, z, lnsp

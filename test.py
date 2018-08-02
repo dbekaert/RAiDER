@@ -19,6 +19,8 @@ import scipy
 import scipy.stats
 import util
 
+import matplotlib.pyplot as plt
+
 
 lat = '/Users/hogenson/lat.rdr'
 lon = '/Users/hogenson/lon.rdr'
@@ -372,31 +374,39 @@ def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
     error_max = np.nanpercentile((iono_error, tropo_error), 99)
     error_min = 0
 
-    plt.figure(figsize=(6, 6.8))
+    #plt.figure(figsize=(6, 6.8))
 
-    plt.subplot(2, 2, 1)
+    #plt.subplot(2, 2, 1)
     plt.title('Iono velocity')
     plt.imshow(iono_velocity, vmin=velocity_min, vmax=velocity_max)
     plt.colorbar()
+    plt.savefig('timeseries-iono-velocity.pdf', bbox_inches='tight')
+    plt.show()
 
-    plt.subplot(2, 2, 2)
+    #plt.subplot(2, 2, 2)
     plt.title('Tropo velocity')
     plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
     plt.colorbar()
+    plt.savefig('timeseries-tropo-velocity.pdf', bbox_inches='tight')
+    plt.show()
 
-    plt.subplot(2, 2, 3)
+    #plt.subplot(2, 2, 3)
     plt.title('Iono error')
     plt.imshow(iono_error, vmin=0, vmax=error_max)
     plt.colorbar()
+    plt.savefig('timeseries-iono-error.pdf', bbox_inches='tight')
+    plt.show()
 
-    plt.subplot(2, 2, 4)
+    #plt.subplot(2, 2, 4)
     plt.title('Tropo error')
     plt.imshow(tropo_error, vmin=0, vmax=error_max)
     plt.colorbar()
-
-    plt.savefig('timeseries-comparison.pdf', bbox_inches='tight')
-
+    plt.savefig('timeseries-tropo-error.pdf', bbox_inches='tight')
     plt.show()
+
+    #plt.savefig('timeseries-comparison.pdf', bbox_inches='tight')
+
+    #plt.show()
 
 
 def make_sim_weather(out, plev):

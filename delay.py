@@ -20,6 +20,8 @@ import queue
 import threading
 import util
 import wrf
+import reader
+import pyproj
 
 
 # Step in meters to use when integrating
@@ -316,6 +318,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     # Make weather
     weather_type = weather['type']
     weather_files = weather['files']
+    weather_fmt = weather['name']
     if weather_type == 'wrf':
         weather = wrf.load(*weather_files, zmin=np.min(hts))
 

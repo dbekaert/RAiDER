@@ -157,7 +157,8 @@ def main():
         if args.wmnetcdf is not None:
             p.error('Argument --wmnetcdf invalid with --model WRF')
         if args.wrfmodelfiles is not None:
-            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles}
+            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
+                        'name': 'wrf'}
         else:
             p.error('Argument --wrfmodelfiles required with --model WRF')
     else:
@@ -168,7 +169,8 @@ def main():
             p.error(f"Couldn't find a module named {repr(model_module_name)}, "
                 f"needed to load weather model {repr(args.model)}")
         if args.wmnetcdf is not None:
-            weathers = {'type': model_module, 'files': args.wmnetcdf}
+            weathers = {'type': model_module, 'files': args.wmnetcdf,
+                        'name': args.model}
         elif args.time is None:
             p.error('Must specify one of --wmnetcdf or --time (so I can '
                 'figure out what to download)')
@@ -176,7 +178,8 @@ def main():
             p.error('Must specify one of --wmnetcdf or --area (so I can '
                 'figure out what to download)')
         else:
-            weathers = {'type': model_module, 'files': None}
+            weathers = {'type': model_module, 'files': None,
+                        'name': args.model}
 
     # zref
     zref = args.zref
