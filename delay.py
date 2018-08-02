@@ -301,9 +301,10 @@ def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
     return hydro, wet
 
 
-def get_weather(module, filename, zmin=None):
+def get_weather_and_nodes(module, filename, zmin=None):
     xs, ys, proj, t, q, z, lnsp = module.load(filename)
-    return reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin)
+    return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
+            xs, ys, proj)
 
 
 def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
@@ -334,13 +335,15 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
                             'download the weather model')
             with tempfile.NamedTemporaryFile() as f:
                 weather_module.fetch(lats, lons, time, f.name)
-                weather = get_weather(weather_module, f.name)
+                weather, _, _, _ = get_weather_and_nodes(
+                        weather_module, f.name)
         else:
-            weather = get_weather(weather_module, weather_files)
+            weather, xs, ys, proj = get_weather_and_nodes(
+                    weather_module, weather_files)
             if lats is None:
                 lla = pyproj.Proj(proj='latlong')
-                lon_pts, lat_pts = pyproj.Transform(proj, lla, xs, ys)
-                lats, lons = np.meshgrid(lats, lons, indexing='ij')
+                xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
+                lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
 
     # Height
     height_type, height_info = heights
