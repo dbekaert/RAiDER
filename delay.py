@@ -9,13 +9,13 @@ issues, and probably I will. It goes pretty quickly right now, though.
 
 
 import demdownload
-import era
 from osgeo import gdal
 gdal.UseExceptions()
 import itertools
 import losreader
 import numpy as np
 import os
+import tempfile
 import queue
 import threading
 import util
@@ -299,9 +299,12 @@ def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
     return hydro, wet
 
 
-def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
-    weather_fmt, weather_type, weather_files = weather
+def get_weather(module, filename, zmin=None):
+    xs, ys, proj, t, q, z, lnsp = module.load(filename)
+    return reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin)
 
+
+def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     # Lat, lon
     if lat is None:
         # They'll get set later with weather
@@ -311,36 +314,30 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
         lons = util.gdal_open(lon)
 
     # Make weather
-    if weather_fmt == 'wrf':
-        if weather_type == 'files':
-            weather = wrf.load(*weather_files, zmin=np.min(hts))
+    weather_type = weather['type']
+    weather_files = weather['files']
+    if weather_type == 'wrf':
+        weather = wrf.load(*weather_files, zmin=np.min(hts))
 
-            # Let lats and lons to weather model nodes if necessary
-            if lats is None:
-                lats, lons = wrf.wm_nodes(*weather_files)
-        else:
-            raise ValueError('weather_type should be files with wrf model, '
-                f'got {repr(weather_type)}')
-    if weather_fmt in ('era-i', 'era5'):
-        if weather_type == 'netcdf':
-            weather = era.load(weather_files)
-            if lats is None:
-                lats, lons = era.wm_nodes(weather_files)
-        elif weather_type == 'download':
+        # Let lats and lons to weather model nodes if necessary
+        if lats is None:
+            lats, lons = wrf.wm_nodes(*weather_files)
+    else:
+        weather_module = weather_type
+        if weather_files is None:
             if lats is None:
                 raise ValueError(
-                        "Can't use delay at weather model nodes if you also "
-                            "want me to download the weather model")
-            if weather_fmt == 'era-i':
-                weather = era.fetch_era_interim(lats, lons, time)
-            else:
-                weather = era.fetch_era5(lats, lons, time)
+                        'Unable to infer lats and lons if you also want me to '
+                            'download the weather model')
+            with tempfile.NamedTemporaryFile() as f:
+                weather_module.fetch(lats, lons, time, f.name)
+                weather = get_weather(weather_module, f.name)
         else:
-            raise ValueError(
-                    'weather_type should be download or netcdf, but it was '
-                    f'{repr(weather_type)}')
-    else:
-        raise ValueError(f'Unknown weather model type {repr(weather_fmt)}')
+            weather = get_weather(weather_module, weather_files)
+            if lats is None:
+                lla = pyproj.Proj(proj='latlong')
+                lon_pts, lat_pts = pyproj.Transform(proj, lla, xs, ys)
+                lats, lons = np.meshgrid(lats, lons, indexing='ij')
 
     # Height
     height_type, height_info = heights

@@ -5,6 +5,7 @@ import argparse
 import datetime
 import delay
 import itertools
+import importlib
 
 
 def read_date(s):
@@ -50,6 +51,17 @@ class ArgGroup:
         return iter(self.args)
 
 
+def mangle_model_to_module(model_name):
+    """Turn an arbitrary string into a module name.
+
+    Takes as input a model name, which hopefully looks like ERA-I, and
+    converts it to a module name, which will look like erai. I doesn't
+    always produce a valid module name, but that's not the goal. The
+    goal is just to handle common cases.
+    """
+    return model_name.lower().replace('-', '')
+
+
 def main():
     p = argparse.ArgumentParser(
             description='Calculate tropospheric delay from a weather model')
@@ -92,7 +104,7 @@ def main():
     p.add_argument(
             '--model',
             help='Weather model to use',
-            choices=('WRF', 'ERA-I', 'ERA5'), default='ERA-I')
+            default='ERA-I')
 
     wrf = p.add_argument_group(
             title='WRF',
@@ -101,21 +113,11 @@ def main():
             '--wrfmodelfiles', nargs=2,
             help='WRF model files',
             metavar=('OUT', 'PLEV'))
-    # It'd be pretty sweet if I could construct this value somehow, but
-    # it's not obvious to me how to do so, so I'll just specify it
-    # manually.
-    wrf_args = ArgGroup('WRF', 'wrfmodelfiles')
 
-    era = p.add_argument_group(
-            title='ERA-I',
-            description='Arguments for when --model ERA-I or ERA5 is '
-                'specified')
-    era.add_argument(
-            '--eranetcdf',
-            help='ERA netcdf file. Should have q, t, z, lnsp as variables')
-    era_args = ArgGroup('ERA-I or ERA5', 'eranetcdf')
-
-    wm_arg_groups = {wrf_args, era_args}
+    p.add_argument(
+            '--wmnetcdf',
+            help='Weather model netcdf file. Should have q, t, z, lnsp as '
+                'variables')
 
     # Height max
     p.add_argument(
@@ -150,44 +152,31 @@ def main():
     else:
         heights = ('download', None)
 
-    def wm_check_disallowed_args(group):
-        for dgroup in wm_arg_groups - {group}:
-            for arg in dgroup:
-                if getattr(args, arg) is not None:
-                    p.error(f'Argument {arg} cannot be used with --model '
-                        f'{group.name}')
-
     # Weather
     if args.model == 'WRF':
-        wm_check_disallowed_args(wrf_args)
+        if args.wmnetcdf is not None:
+            p.error('Argument --wmnetcdf invalid with --model WRF')
         if args.wrfmodelfiles is not None:
-            weathers = ('wrf', 'files', args.wrfmodelfiles)
+            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles}
         else:
             p.error('Argument --wrfmodelfiles required with --model WRF')
-    if args.model == 'ERA-I':
-        wm_check_disallowed_args(era_args)
-        if args.eranetcdf is not None:
-            weathers = ('era-i', 'netcdf', args.eranetcdf)
+    else:
+        model_module_name = mangle_model_to_module(args.model)
+        try:
+            model_module = importlib.import_module(model_module_name)
+        except ImportError:
+            p.error(f"Couldn't find a module named {repr(model_module_name)}, "
+                f"needed to load weather model {repr(args.model)}")
+        if args.wmnetcdf is not None:
+            weathers = {'type': model_module, 'files': args.wmnetcdf}
         elif args.time is None:
-            p.error('Must specify one of --eranetcdf or --time (so I can '
+            p.error('Must specify one of --wmnetcdf or --time (so I can '
                 'figure out what to download)')
         elif lat is None:
-            p.error('Must specify one of --eranetcdf or --area (so I can '
+            p.error('Must specify one of --wmnetcdf or --area (so I can '
                 'figure out what to download)')
         else:
-            weathers = ('era-i', 'download', None)
-    if args.model == 'ERA5':
-        wm_check_disallowed_args(era_args)
-        if args.eranetcdf is not None:
-            weathers = ('era5', 'netcdf', args.eranetcdf)
-        elif args.time is None:
-            p.error('Must specify one of --eranetcdf or --time (so I can '
-                'figure out what to download)')
-        elif lat is None:
-            p.error('Must specify one of --eranetcdf or --area (so I can '
-                'figure out what to download)')
-        else:
-            weathers = ('era5', 'download', None)
+            weathers = {'type': model_module, 'files': None}
 
     # zref
     zref = args.zref

@@ -302,3 +302,74 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
                        k1=k1, k2=k2, k3=k3, projection=projection,
                        scipy_interpolate=scipy_interpolate,
                        humidity_type=humidity_type, zmin=zmin)
+
+
+# This function is copied (with slight modification) from
+# https://confluence.ecmwf.int//display/CKB/ERA-Interim%3A+compute+geopotential+on+model+levels#ERA-Interim:computegeopotentialonmodellevels-Step2:Computegeopotentialonmodellevels.
+# That script is licensed under the Apache license. I don't know if this
+# is legal.
+def calculategeoh(a, b, z, lnsp, ts, qs):
+    geotoreturn = np.zeros_like(ts)
+    pressurelvs = np.zeros_like(ts)
+
+    Rd = 287.06
+
+    z_h = 0
+
+    #surface pressure
+    sp = np.exp(lnsp)
+
+    levelSize = len(ts)
+    A = a
+    B = b
+
+    if len(a) != levelSize + 1 or len(b) != levelSize + 1:
+        raise ValueError(f'I have here a model with {levelSize} levels, but '
+            f'parameters a and b have lengths {len(a)} and {len(b)} '
+            'respectively. Of course, these three numbers should be equal.')
+
+    Ph_levplusone = A[levelSize] + (B[levelSize]*sp)
+
+    #Integrate up into the atmosphere from lowest level
+    for lev, t_level, q_level in zip(range(levelSize, 0, -1), ts[::-1], qs[::-1]):
+        #lev is the level number 1-60, we need a corresponding index into ts and qs
+        ilevel = levelSize - lev
+
+        #compute moist temperature
+        t_level = t_level*(1 + 0.609133*q_level)
+
+        #compute the pressures (on half-levels)
+        Ph_lev = A[lev-1] + (B[lev-1] * sp)
+
+        pressurelvs[ilevel] = Ph_lev
+
+        if lev == 1:
+            dlogP = np.log(Ph_levplusone/0.1)
+            alpha = np.log(2)
+        else:
+            dlogP = np.log(Ph_levplusone/Ph_lev)
+            dP = Ph_levplusone - Ph_lev
+            alpha = 1 - ((Ph_lev/dP)*dlogP)
+
+        TRd = t_level*Rd
+
+        # z_f is the geopotential of this full level
+        # integrate from previous (lower) half-level z_h to the full level
+        z_f = z_h + TRd*alpha
+
+        #Geopotential (add in surface geopotential)
+        geotoreturn[ilevel] = z_f + z
+
+        # z_h is the geopotential of 'half-levels'
+        # integrate z_h to next half level
+        z_h += TRd * dlogP
+
+        Ph_levplusone = Ph_lev
+
+    return geotoreturn, pressurelvs
+
+
+def read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin=None):
+    geo_ht, press = calculategeoh(module.a, module.b, z, lnsp, t, q)
+    return import_grids(xs, ys, press, t, q, geo_ht, module.k1, module.k2,
+                        module.k3, proj, humidity_type='q', zmin=zmin)
