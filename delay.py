@@ -15,6 +15,7 @@ import itertools
 import losreader
 import numpy as np
 import os
+import os.path
 import tempfile
 import queue
 import threading
@@ -308,13 +309,48 @@ def get_weather_and_nodes(module, filename, zmin=None):
 
 
 def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
+    # This is a stupid way of setting geolocation information, but
+    # pretty flexible. The variable set_geo_info will be a function
+    # which sets all the required info on ds, and we'll build up the
+    # function as we go as we get more information that we might need to
+    # set.
+    def set_geo_info(ds):
+        pass
+
     # Lat, lon
     if lat is None:
         # They'll get set later with weather
         lats = lons = None
+        latproj = lonproj = None
     else:
-        lats = util.gdal_open(lat)
-        lons = util.gdal_open(lon)
+        latds = gdal.Open(lat)
+        latproj = latds.GetProjection()
+        lats = latds.GetRasterBand(1).ReadAsArray()
+        latds = None
+
+        londs = gdal.Open(lon)
+        lonproj = londs.GetProjection()
+        lons = londs.GetRasterBand(1).ReadAsArray()
+        londs = None
+
+        old_geo_info = set_geo_info
+        def set_geo_info(ds):
+            ds.SetMetadata({'X_DATASET': os.path.abspath(lat), 'X_BAND': '1',
+                            'Y_DATASET': os.path.abspath(lon), 'Y_BAND': '1'})
+            old_geo_info(ds)
+
+    # Is it ever possible that lats and lons will actually have embedded
+    # projections?
+    if latproj:
+        old_geo_info = set_geo_info
+        def set_geo_info(ds):
+            ds.SetProjection(latproj)
+            old_geo_info(ds)
+    elif lonproj:
+        old_geo_info = set_geo_info
+        def set_geo_info(ds):
+            ds.SetProjection(lonproj)
+            old_geo_info(ds)
 
     # Make weather
     weather_type = weather['type']
@@ -341,6 +377,13 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
             weather, xs, ys, proj = get_weather_and_nodes(
                     weather_module, weather_files)
             if lats is None:
+                old_geo_info = set_geo_info
+                def set_geo_info(ds):
+                    ds.SetProjection(str(proj))
+                    ds.SetGeoTransform((xs[0], xs[1] - xs[0], 0, ys[0], 0,
+                                        ys[1] - ys[0]))
+                    old_geo_info(ds)
+
                 lla = pyproj.Proj(proj='latlong')
                 xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
                 lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
@@ -382,6 +425,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
             band = hydro_ds.GetRasterBand(lvl)
             band.SetDescription(str(ht))
             band.WriteArray(hydro)
+        set_geo_info(hydro_ds)
         hydro_ds = None
 
         wet_ds = drv.Create(
@@ -391,6 +435,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
             band = wet_ds.GetRasterBand(lvl)
             band.SetDescription(str(ht))
             band.WriteArray(wet)
+        set_geo_info(wet_ds)
         wet_ds = None
 
     else:
@@ -403,9 +448,11 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
                 os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0],
                 1, gdal.GDT_Float64)
         hydro_ds.GetRasterBand(1).WriteArray(hydro)
+        set_geo_info(hydro_ds)
         hydro_ds = None
         wet_ds = drv.Create(
                 os.path.join(out, wetname), wet.shape[1], wet.shape[0], 1,
                 gdal.GDT_Float64)
         wet_ds.GetRasterBand(1).WriteArray(wet)
+        set_geo_info(wet_ds)
         wet_ds = None
