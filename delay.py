@@ -238,7 +238,7 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
     if los is not Zenith:
         incidence, heading = util.gdal_open(los)
         if raytrace:
-            los = util.los_to_lv(
+            los = losreader.los_to_lv(
                     incidence, heading, lats, lons, hts).reshape(-1,3)
         else:
             los = incidence.flatten()
