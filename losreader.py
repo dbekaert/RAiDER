@@ -66,12 +66,12 @@ def read_shelve(filename):
         isce
     except NameError:
         raise isce_error
-    
+
     with shelve.open(filename, 'r') as db:
-        obj=db['frame']
-    
+        obj = db['frame']
+
     numSV = len(obj.orbit.stateVectors)
-    
+
     t = np.ones(numSV)
     x = np.ones(numSV)
     y = np.ones(numSV)
@@ -79,8 +79,8 @@ def read_shelve(filename):
     vx = np.ones(numSV)
     vy = np.ones(numSV)
     vz = np.ones(numSV)
-    
-    for i,st in enumerate(obj.orbit.stateVectors):
+
+    for i, st in enumerate(obj.orbit.stateVectors):
         t[i] = st.time.second + st.time.minute*60.0
         x[i] = st.position[0]
         y[i] = st.position[1]
@@ -105,7 +105,10 @@ def read_txt_file(filename):
             try:
                 t_, x_, y_, z_, vx_, vy_, vz_ = line.split()
             except ValueError:
-                raise ValueError(f"I need {filename} to be a 7 column text file, with columns t, x, y, z, vx, vy, vz (Couldn't parse line {repr(line)})")
+                raise ValueError(
+                        f"I need {filename} to be a 7 column text file, with "
+                        "columns t, x, y, z, vx, vy, vz (Couldn't parse line "
+                        f"{repr(line)})")
             t.append(t_)
             x.append(x_)
             y.append(y_)
@@ -138,9 +141,7 @@ def read_xml_file(filename):
     vy = np.ones(numSV)
     vz = np.ones(numSV)
 
-    for i,st in enumerate(obj.orbit.stateVectors):
-        #tt = st.time
-        #t[i] = datetime2year(tt)
+    for i, st in enumerate(obj.orbit.stateVectors):
         t[i] = st.time.second + st.time.minute*60.0
         x[i] = st.position[0]
         y[i] = st.position[1]
@@ -186,12 +187,15 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     # Scale look vectors by range
     east, north, up = np.stack((east, north, up)) * ranges
 
-    x, y, z = util.enu2ecef(east.flatten(), north.flatten(), up.flatten(), lats.flatten(), lons.flatten(), heights.flatten())
+    x, y, z = util.enu2ecef(
+            east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
+            lons.flatten(), heights.flatten())
 
     los = (np.stack((x, y, z), axis=-1)
-            - np.stack(util.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
+           - np.stack(util.lla2ecef(
+               lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
     los = los.reshape(east.shape + (3,))
-    
+
     return los
 
 

@@ -64,8 +64,9 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
 
 def lla2lambert(lat, lon, height=None):
     lla = pyproj.Proj(proj='latlong')
-    lambert = pyproj.Proj('+proj=lcc +lat_1=30.0 +lat_2=60.0 +lat_0=18.500015 +lon_0=-100.2 +a=6370 +b=6370 +towgs84=0,0,0 +no_defs')
-    #lambert = pyproj.Proj(proj='lcc')
+    lambert = pyproj.Proj(
+            '+proj=lcc +lat_1=30.0 +lat_2=60.0 +lat_0=18.500015 +lon_0=-100.2 '
+            '+a=6370 +b=6370 +towgs84=0,0,0 +no_defs')
 
     if height is None:
         return lla(lat, lon, errcheck=True)

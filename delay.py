@@ -334,6 +334,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
         londs = None
 
         old_geo_info = set_geo_info
+
         def set_geo_info(ds):
             ds.SetMetadata({'X_DATASET': os.path.abspath(lat), 'X_BAND': '1',
                             'Y_DATASET': os.path.abspath(lon), 'Y_BAND': '1'})
@@ -343,11 +344,13 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     # projections?
     if latproj:
         old_geo_info = set_geo_info
+
         def set_geo_info(ds):
             ds.SetProjection(latproj)
             old_geo_info(ds)
     elif lonproj:
         old_geo_info = set_geo_info
+
         def set_geo_info(ds):
             ds.SetProjection(lonproj)
             old_geo_info(ds)
@@ -378,12 +381,12 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
                 weather_module, weather_files)
             if lats is None:
                 old_geo_info = set_geo_info
+
                 def set_geo_info(ds):
                     ds.SetProjection(str(proj))
                     ds.SetGeoTransform((xs[0], xs[1] - xs[0], 0, ys[0], 0,
                                         ys[1] - ys[0]))
                     old_geo_info(ds)
-
                 lla = pyproj.Proj(proj='latlong')
                 xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
                 lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)

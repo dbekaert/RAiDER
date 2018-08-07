@@ -65,25 +65,33 @@ def get_from_ecmwf(lat_min, lat_max, lat_step, lon_min, lon_max, lon_step,
     corrected_date = round_date(time, datetime.timedelta(hours=6))
 
     server.retrieve({
-        "class": classname, # ERA-Interim
+        "class": classname,  # ERA-Interim
         'dataset': class_to_dataset(classname),
         "expver": "1",
         # They warn me against all, but it works well
         "levelist": 'all',
-        "levtype": "ml", # Model levels
-        "param": "lnsp/q/z/t", # Necessary variables
+        "levtype": "ml",  # Model levels
+        "param": "lnsp/q/z/t",  # Necessary variables
         "stream": "oper",
-        #date: Specify a single date as "2015-08-01" or a period as "2015-08-01/to/2015-08-31".
+        # date: Specify a single date as "2015-08-01" or a period as
+        # "2015-08-01/to/2015-08-31".
         "date": datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
-        "type": "an",        #type: Use an (analysis) unless you have a particular reason to use fc (forecast).
-        #time: With type=an, time can be any of "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can be any of "00:00:00/12:00:00",
+        # type: Use an (analysis) unless you have a particular reason to
+        # use fc (forecast).
+        "type": "an",
+        # time: With type=an, time can be any of
+        # "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can
+        # be any of "00:00:00/12:00:00",
         "time": datetime.datetime.strftime(corrected_date, "%H:%M:%S"),
-        "step": "0",        #step: With type=an, step is always "0". With type=fc, step can be any of "3/6/9/12".
-        "grid": f'{lat_step}/{lon_step}',    #grid: Only regular lat/lon grids are supported.
-        "area": f'{lat_max}/{lon_min}/{lat_min}/{lon_max}',    #area: N/W/S/E
+        # step: With type=an, step is always "0". With type=fc, step can
+        # be any of "3/6/9/12".
+        "step": "0",
+        # grid: Only regular lat/lon grids are supported.
+        "grid": f'{lat_step}/{lon_step}',
+        "area": f'{lat_max}/{lon_min}/{lat_min}/{lon_max}',    # area: N/W/S/E
         "format": "netcdf",
         "resol": "av",
-        "target": out,    #target: the name of the output file.
+        "target": out,    # target: the name of the output file.
     })
 
 

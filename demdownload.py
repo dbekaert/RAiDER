@@ -5,7 +5,7 @@ import util
 
 
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
-                'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
+              'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
 def download_dem(lats, lons):
@@ -23,7 +23,7 @@ def download_dem(lats, lons):
     gdal.Warp(
             '/vsimem/warped', f'/vsicurl/{_world_dem}',
             options=f'-te {minlon} {minlat} {maxlon} {maxlat} '
-                f'-tr {lonres} {latres}')
+                    f'-tr {lonres} {latres}')
     try:
         out = util.gdal_open('/vsimem/warped')
     finally:

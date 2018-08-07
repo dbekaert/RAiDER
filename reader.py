@@ -43,16 +43,18 @@ class LinearModel:
                 new_temps = _least_nonzero(temperature)
                 new_humids = _least_nonzero(humidity)
                 heights = np.concatenate((new_heights[np.newaxis], heights))
-                pressure = np.concatenate((new_pressures[np.newaxis], pressure))
-                temperature = np.concatenate((new_temps[np.newaxis], temperature))
+                pressure = np.concatenate(
+                    (new_pressures[np.newaxis], pressure))
+                temperature = np.concatenate(
+                    (new_temps[np.newaxis], temperature))
                 humidity = np.concatenate((new_humids[np.newaxis], humidity))
 
             ecef = pyproj.Proj(proj='geocent')
 
             # Points in native projection
-            points_a = np.broadcast_to(xs[np.newaxis,np.newaxis,:],
+            points_a = np.broadcast_to(xs[np.newaxis, np.newaxis, :],
                                        pressure.shape)
-            points_b = np.broadcast_to(ys[np.newaxis,:,np.newaxis],
+            points_b = np.broadcast_to(ys[np.newaxis, :, np.newaxis],
                                        pressure.shape)
             points_c = heights
 
@@ -98,7 +100,7 @@ class LinearModel:
             e = _find_e_from_rh(temperature, humidity)
         else:
             raise ValueError('self.humidity_type should be one of q or rh. It '
-                f'was {self.humidityType}')
+                             f'was {self.humidityType}')
 
         wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
         return wet_delay
@@ -127,8 +129,8 @@ def _find_svp(temp):
             * np.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
     svpi = (6.1121
             * np.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
-    tempbound1 = 273.16 # 0
-    tempbound2 = 250.16 # -23
+    tempbound1 = 273.16  # 0
+    tempbound2 = 250.16  # -23
 
     svp = svpw
     wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
@@ -220,16 +222,16 @@ def _sane_interpolate(xs, ys, heights, projection, values_list, zmin):
     new_heights = np.linspace(zmin, new_top, num_levels)
 
     inp_values = [np.zeros((len(new_heights),) + values.shape[1:])
-            for values in values_list]
+                  for values in values_list]
 
     # TODO: do without a for loop
     for iv in range(len(values_list)):
         for x in range(values_list[iv].shape[1]):
             for y in range(values_list[iv].shape[2]):
-                not_nan = np.logical_not(np.isnan(heights[:,x,y]))
-                inp_values[iv][:,x,y] = scipy.interpolate.griddata(
-                        heights[:,x,y][not_nan],
-                        values_list[iv][:,x,y][not_nan],
+                not_nan = np.logical_not(np.isnan(heights[:, x, y]))
+                inp_values[iv][:, x, y] = scipy.interpolate.griddata(
+                        heights[:, x, y][not_nan],
+                        values_list[iv][:, x, y][not_nan],
                         new_heights,
                         method='cubic')
         inp_values[iv] = _propagate_down(inp_values[iv], -1)
@@ -244,6 +246,7 @@ def _sane_interpolate(xs, ys, heights, projection, values_list, zmin):
         f = scipy.interpolate.RegularGridInterpolator((new_heights, ys, xs),
                                                       inp_values[iv],
                                                       bounds_error=False)
+
         # Python has some weird behavior here, eh?
         def ggo(interp):
             def go(pts):
@@ -263,7 +266,7 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
                  geo_ht_fill=np.nan, scipy_interpolate=False,
                  humidity_type='rh', zmin=None):
     """Import weather information to make a weather model object.
-    
+
     This takes in lat, lon, pressure, temperature, humidity in the 3D
     grid format that NetCDF uses, and I imagine might be common
     elsewhere. If other weather models don't make it convenient to use
@@ -289,7 +292,7 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
     # If the shape has one dimension, we'll scale it up to act as a
     # grid, otherwise we'll leave it alone.
     if len(pressure.shape) == 1:
-        new_plevs = np.broadcast_to(pressure[:,np.newaxis,np.newaxis],
+        new_plevs = np.broadcast_to(pressure[:, np.newaxis, np.newaxis],
                                     heights.shape)
     else:
         new_plevs = pressure
@@ -314,7 +317,7 @@ def calculategeoh(a, b, z, lnsp, ts, qs):
 
     z_h = 0
 
-    #surface pressure
+    # surface pressure
     sp = np.exp(lnsp)
 
     levelSize = len(ts)
@@ -322,21 +325,24 @@ def calculategeoh(a, b, z, lnsp, ts, qs):
     B = b
 
     if len(a) != levelSize + 1 or len(b) != levelSize + 1:
-        raise ValueError(f'I have here a model with {levelSize} levels, but '
-            f'parameters a and b have lengths {len(a)} and {len(b)} '
-            'respectively. Of course, these three numbers should be equal.')
+        raise ValueError(
+            f'I have here a model with {levelSize} levels, but parameters a '
+            f'and b have lengths {len(a)} and {len(b)} respectively. Of '
+            'course, these three numbers should be equal.')
 
     Ph_levplusone = A[levelSize] + (B[levelSize]*sp)
 
-    #Integrate up into the atmosphere from lowest level
-    for lev, t_level, q_level in zip(range(levelSize, 0, -1), ts[::-1], qs[::-1]):
-        #lev is the level number 1-60, we need a corresponding index into ts and qs
+    # Integrate up into the atmosphere from lowest level
+    for lev, t_level, q_level in zip(
+            range(levelSize, 0, -1), ts[::-1], qs[::-1]):
+        # lev is the level number 1-60, we need a corresponding index
+        # into ts and qs
         ilevel = levelSize - lev
 
-        #compute moist temperature
+        # compute moist temperature
         t_level = t_level*(1 + 0.609133*q_level)
 
-        #compute the pressures (on half-levels)
+        # compute the pressures (on half-levels)
         Ph_lev = A[lev-1] + (B[lev-1] * sp)
 
         pressurelvs[ilevel] = Ph_lev
@@ -355,7 +361,7 @@ def calculategeoh(a, b, z, lnsp, ts, qs):
         # integrate from previous (lower) half-level z_h to the full level
         z_f = z_h + TRd*alpha
 
-        #Geopotential (add in surface geopotential)
+        # Geopotential (add in surface geopotential)
         geotoreturn[ilevel] = z_f + z
 
         # z_h is the geopotential of 'half-levels'
