@@ -30,7 +30,9 @@ def read_date(s):
         'Z',
         '%z',
     )
-    all_formats = map(lambda t: ''.join(t), itertools.product(year_formats, time_formats, timezone_formats))
+    all_formats = map(
+        lambda t: ''.join(t),
+        itertools.product(year_formats, time_formats, timezone_formats))
     date = None
     for date_format in all_formats:
         try:
@@ -64,67 +66,67 @@ def mangle_model_to_module(model_name):
 
 def main():
     p = argparse.ArgumentParser(
-            description='Calculate tropospheric delay from a weather model')
+        description='Calculate tropospheric delay from a weather model')
 
     # Line of sight
     los = p.add_mutually_exclusive_group()
     los.add_argument(
-            '--lineofsight', '-l',
-            help='GDAL-readable line-of-sight file',
-            metavar='LOS')
+        '--lineofsight', '-l',
+        help='GDAL-readable line-of-sight file',
+        metavar='LOS')
     los.add_argument(
-            '--statevectors', '-s',
-            help='An ISCE XML or shelve file containing state vectors '
-                'specifying the orbit of the sensor')
+        '--statevectors', '-s',
+        help=('An ISCE XML or shelve file containing state vectors specifying '
+              'the orbit of the sensor'))
 
     # Area
     p.add_argument(
-            '--area', '-a', nargs=2,
-            help='GDAL-readable longitude and latitude files to specify the '
-                'region over which to calculate delay. Delay will be '
-                'calculated at weather model nodes if unspecified',
-            metavar=('LONG', 'LAT'))
+        '--area', '-a', nargs=2,
+        help=('GDAL-readable longitude and latitude files to specify the '
+              'region over which to calculate delay. Delay will be '
+              'calculated at weather model nodes if unspecified'),
+        metavar=('LONG', 'LAT'))
 
     # heights
     heights = p.add_mutually_exclusive_group()
     heights.add_argument(
-            '--dem', '-d',
-            help='DEM file. DEM will be downloaded if not specified')
+        '--dem', '-d',
+        help='DEM file. DEM will be downloaded if not specified')
     heights.add_argument(
-            '--heightlvs',
-            help='Delay will be calculated at each of these heights across '
-                'all of the specified area',
-            nargs='+', type=float)
+        '--heightlvs',
+        help=('Delay will be calculated at each of these heights across '
+              'all of the specified area'),
+        nargs='+', type=float)
 
     # Weather model
     p.add_argument(
-            '--time',
-            help='Fetch weather model data at this (ISO 8601 format) time',
-            type=read_date)
+        '--time',
+        help='Fetch weather model data at this (ISO 8601 format) time',
+        type=read_date)
     p.add_argument(
-            '--model',
-            help='Weather model to use',
-            default='ERA-I')
+        '--model',
+        help='Weather model to use',
+        default='ERA-I')
 
     wrf = p.add_argument_group(
-            title='WRF',
-            description='Arguments for when --model WRF is specified')
+        title='WRF',
+        description='Arguments for when --model WRF is specified')
     wrf.add_argument(
-            '--wrfmodelfiles', nargs=2,
-            help='WRF model files',
-            metavar=('OUT', 'PLEV'))
+        '--wrfmodelfiles', nargs=2,
+        help='WRF model files',
+        metavar=('OUT', 'PLEV'))
 
     p.add_argument(
-            '--wmnetcdf',
-            help='Weather model netcdf file. Should have q, t, z, lnsp as '
-                'variables')
+        '--wmnetcdf',
+        help=('Weather model netcdf file. Should have q, t, z, lnsp as '
+              'variables'))
 
     # Height max
     p.add_argument(
-            '--zref', '-z',
-            help='Height limit when integrating (meters) '
-                '(default: %(default)s)',
-            type=int, default=15000)
+        '--zref', '-z',
+        help=('Height limit when integrating (meters) '
+              '(default: %(default)s)'),
+        type=int, default=15000)
 
     p.add_argument('--out', help='Output file directory', default='.')
 
@@ -167,16 +169,16 @@ def main():
             model_module = importlib.import_module(model_module_name)
         except ImportError:
             p.error(f"Couldn't find a module named {repr(model_module_name)}, "
-                f"needed to load weather model {repr(args.model)}")
+                    f"needed to load weather model {repr(args.model)}")
         if args.wmnetcdf is not None:
             weathers = {'type': model_module, 'files': args.wmnetcdf,
                         'name': args.model}
         elif args.time is None:
             p.error('Must specify one of --wmnetcdf or --time (so I can '
-                'figure out what to download)')
+                    'figure out what to download)')
         elif lat is None:
             p.error('Must specify one of --wmnetcdf or --area (so I can '
-                'figure out what to download)')
+                    'figure out what to download)')
         else:
             weathers = {'type': model_module, 'files': None,
                         'name': args.model}
