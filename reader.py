@@ -12,6 +12,10 @@ _zmin = -100
 
 
 def _least_nonzero(a):
+    """Fill in a flat array with the lowest nonzero value.
+    
+    Useful for interpolation below the bottom of the weather model.
+    """
     out = np.full(a.shape[1:], np.nan)
     xlim, ylim = out.shape
     zlim = len(a)
@@ -115,6 +119,7 @@ class LinearModel:
 
 
 def _find_svp(temp):
+    """Calculate standard vapor presure."""
     # From TRAIN:
     # Could not find the wrf used equation as they appear to be
     # mixed with latent heat etc. Istead I used the equations used
@@ -144,6 +149,7 @@ def _find_svp(temp):
 
 
 def _find_e_from_q(temp, q, p):
+    """Calculate e, partial pressure of water vapor."""
     R_v = 461.524
     R_d = 287.053
     e_s = _find_svp(temp)
@@ -189,7 +195,8 @@ def _just_pull_down(a, direction=-1):
     return out
 
 
-def _propagate_down(a, direction=1):
+def _propagate_down(a):
+    """Try to fill in NaN values in a."""
     out = np.zeros_like(a)
     z, x, y = a.shape
     xs = np.arange(x)

@@ -3,8 +3,7 @@
 Dry and hydrostatic delays are calculated in separate functions.
 Currently we take samples every _STEP meters, which causes either
 inaccuracies or inefficiencies, and we no longer can integrate to
-infinity. We could develop a more advanced integrator to deal with these
-issues, and probably I will. It goes pretty quickly right now, though.
+infinity.
 """
 
 
@@ -39,6 +38,13 @@ class Zenith:
 
 
 def _too_high(positions, zref):
+    """Find index of first position higher than zref.
+
+    This is useful when we're trying to cut off integration at the top
+    of the troposphere. I calculate the list of all points, then use
+    this function to compute the first index above the troposphere, then
+    I can cut the list down to just the important points.
+    """
     positions_ecef = np.moveaxis(positions, -1, 0)
     positions_lla = np.stack(util.ecef2lla(*positions_ecef))
     high_indices = np.where(positions_lla[2] > zref)[0]
@@ -162,7 +168,8 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
     weather is the weather object, llas is a list of lat, lon, ht points
     at which to calculate delay, and los an array of line-of-sight
     vectors at each point. Pass parallel=True if you want to have real
-    speed.
+    speed. If raytrace=True, we'll do raytracing, if raytrace=False,
+    we'll do projection.
     """
 
     # Save the shape so we can restore later, but flatten to make it
@@ -281,6 +288,7 @@ def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
 
 
 def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
+    """Calculate troposphere delay from processed command-line arguments."""
     # LOS
     if los is None:
         los = Zenith
@@ -303,12 +311,23 @@ def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
 
 
 def get_weather_and_nodes(module, filename, zmin=None):
+    """Look up weather information from a module and file.
+
+    We use the module.load method to load the weather model file, but
+    we'll also create a weather model object for it.
+    """
     xs, ys, proj, t, q, z, lnsp = module.load(filename)
     return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
             xs, ys, proj)
 
 
 def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
+    """Calculate troposphere delay from command-line arguments.
+
+    We do a little bit of preprocessing, then call
+    _tropo_delay_with_values. Then we'll write the output to the output
+    file.
+    """
     # This is a stupid way of setting geolocation information, but
     # pretty flexible. The variable set_geo_info will be a function
     # which sets all the required info on ds, and we'll build up the
