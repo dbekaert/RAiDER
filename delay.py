@@ -246,7 +246,7 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
         incidence, heading = util.gdal_open(los)
         if raytrace:
             los = losreader.los_to_lv(
-                incidence, heading, lats, lons, hts).reshape(-1, 3)
+                incidence, heading, lats, lons, hts, _ZREF).reshape(-1, 3)
         else:
             los = incidence.flatten()
 
@@ -263,28 +263,6 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
                                  parallel=parallel, raytrace=raytrace)
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + lats.shape)
     return hydro, wet
-
-
-def slant_delay(weather, lat_min, lat_max, lat_res, lon_min, lon_max, lon_res,
-                t, x, y, z, vx, vy, vz, hts):
-    """Calculate delay over an area using state vectors.
-
-    The information about the sensor is given by t, x, y, z, vx, vy, vz.
-    Other parameters specify the region of interest. The returned object
-    will be hydrostatic and wet arrays covering the indicated area.
-    """
-
-    los = np.stack(util.state_to_los(t, x, y, z, vx, vy, vz, lon_min, lon_res,
-                                     lat_min, lat_res, hts), axis=-1)
-
-    latlin = np.linspace(lat_min, lat_max, (lat_max - lat_min)/lat_res)
-    lonlin = np.linspace(lon_min, lon_max, (lon_max - lon_min)/lon_res)
-
-    lons, lats = np.meshgrid(lonlin, latlin)
-
-    llas = np.stack((lats, lons, hts), axis=-1)
-
-    return delay_from_grid(weather, llas, los, parallel=True)
 
 
 def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):

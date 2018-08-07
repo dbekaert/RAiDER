@@ -104,7 +104,7 @@ class LinearModel:
             e = _find_e_from_rh(temperature, humidity)
         else:
             raise ValueError('self.humidity_type should be one of q or rh. It '
-                             f'was {self.humidityType}')
+                             f'was {self.humidity_type}')
 
         wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
         return wet_delay
@@ -241,7 +241,7 @@ def _sane_interpolate(xs, ys, heights, projection, values_list, zmin):
                         values_list[iv][:, x, y][not_nan],
                         new_heights,
                         method='cubic')
-        inp_values[iv] = _propagate_down(inp_values[iv], -1)
+        inp_values[iv] = _propagate_down(inp_values[iv])
 
     ecef = pyproj.Proj(proj='geocent')
 
