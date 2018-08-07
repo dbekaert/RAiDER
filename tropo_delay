@@ -1,14 +1,56 @@
 #!/usr/bin/env python3
+"""
+usage: tropo_delay [-h] [--lineofsight LOS | --statevectors STATEVECTORS]
+                   [--area LONG LAT]
+                   [--dem DEM | --heightlvs HEIGHTLVS [HEIGHTLVS ...]]
+                   [--time TIME] [--model MODEL] [--wrfmodelfiles OUT PLEV]
+                   [--wmnetcdf WMNETCDF] [--zref ZREF] [--out OUT]
+
+Calculate tropospheric delay from a weather model
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --lineofsight LOS, -l LOS
+                        GDAL-readable line-of-sight file
+  --statevectors STATEVECTORS, -s STATEVECTORS
+                        An ISCE XML or shelve file containing state vectors
+                        specifying the orbit of the sensor
+  --area LONG LAT, -a LONG LAT
+                        GDAL-readable longitude and latitude files to specify
+                        the region over which to calculate delay. Delay will
+                        be calculated at weather model nodes if unspecified
+  --dem DEM, -d DEM     DEM file. DEM will be downloaded if not specified
+  --heightlvs HEIGHTLVS [HEIGHTLVS ...]
+                        Delay will be calculated at each of these heights
+                        across all of the specified area
+  --time TIME           Fetch weather model data at this (ISO 8601 format)
+                        time
+  --model MODEL         Weather model to use
+  --wmnetcdf WMNETCDF   Weather model netcdf file. Should have q, t, z, lnsp
+                        as variables
+  --zref ZREF, -z ZREF  Height limit when integrating (meters) (default:
+                        15000)
+  --out OUT             Output file directory
+
+WRF:
+  Arguments for when --model WRF is specified
+
+  --wrfmodelfiles OUT PLEV
+                        WRF model files
+"""
 
 
 import argparse
 import datetime
-import delay
 import itertools
 import importlib
 
 
+import delay
+
+
 def read_date(s):
+    """Read a date from a string in pseudo-ISO 8601 format."""
     year_formats = (
         '%Y-%m-%d',
         '%Y%m%d',
@@ -31,7 +73,7 @@ def read_date(s):
         '%z',
     )
     all_formats = map(
-        lambda t: ''.join(t),
+        ''.join,
         itertools.product(year_formats, time_formats, timezone_formats))
     date = None
     for date_format in all_formats:
@@ -45,14 +87,6 @@ def read_date(s):
     return date
 
 
-class ArgGroup:
-    def __init__(self, name, *args):
-        self.name = name
-        self.args = args
-    def __iter__(self):
-        return iter(self.args)
-
-
 def mangle_model_to_module(model_name):
     """Turn an arbitrary string into a module name.
 
@@ -64,7 +98,8 @@ def mangle_model_to_module(model_name):
     return model_name.lower().replace('-', '')
 
 
-def main():
+def parse_args():
+    """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         description='Calculate tropospheric delay from a weather model')
 
@@ -130,7 +165,15 @@ def main():
 
     p.add_argument('--out', help='Output file directory', default='.')
 
-    args = p.parse_args()
+    return p.parse_args(), p
+
+
+def main():
+    """tropo_delay main function.
+
+    We'll parse arguments and call delay.py.
+    """
+    args, p = parse_args()
 
     # Line of sight
     if args.lineofsight is not None:

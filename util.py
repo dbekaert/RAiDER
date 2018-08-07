@@ -5,7 +5,6 @@ from osgeo import gdal
 import numpy as np
 import pickle
 import pyproj
-import importlib
 try:
     import Geo2rdr
 except ImportError as e:
@@ -164,13 +163,6 @@ def gdal_open(fname):
     val = ds.ReadAsArray()
     # It'll get closed automatically too, but we can be explicit
     ds = None
-    return val
-
-
-def gdal_open(fname):
-    ds = gdal.Open(fname)
-    val = ds.ReadAsArray()
-    del ds
     return val
 
 

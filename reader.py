@@ -217,8 +217,6 @@ def _sane_interpolate(xs, ys, heights, projection, values_list, zmin):
     # First, find the maximum height
     new_top = np.nanmax(heights)
 
-    new_bottom = np.nanmin(heights)
-
     new_heights = np.linspace(zmin, new_top, num_levels)
 
     inp_values = [np.zeros((len(new_heights),) + values.shape[1:])

@@ -6,10 +6,7 @@ Read model level WRF ECMWF file.
 import datetime
 import numpy as np
 import pyproj
-import tempfile
 import scipy.io
-import reader
-import wrf
 
 try:
     import ecmwfapi
