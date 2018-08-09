@@ -164,6 +164,10 @@ def parse_args():
               '(default: %(default)s)'),
         type=int, default=15000)
 
+    p.add_argument(
+        '--outformat', help='GDAL format for output files (default: ENVI)',
+        default='ENVI')
+
     p.add_argument('--out', help='Output file directory', default='.')
 
     return p.parse_args(), p
@@ -230,11 +234,14 @@ def main():
     # zref
     zref = args.zref
 
+    outformat = args.outformat
+
     time = args.time
 
     out = args.out
 
-    return delay.tropo_delay(los, lat, lon, heights, weathers, zref, out, time)
+    return delay.tropo_delay(
+        los, lat, lon, heights, weathers, zref, out, time, outformat)
 
 
 if __name__ == '__main__':

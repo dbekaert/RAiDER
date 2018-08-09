@@ -299,7 +299,8 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
-def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
+def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
+                outformat='ENVI'):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
@@ -400,7 +401,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
         raise ValueError(f'Unexpected height_type {repr(height_type)}')
 
     # For later
-    drv = gdal.GetDriverByName('ENVI')
+    drv = gdal.GetDriverByName(outformat)
     hydroname, wetname = (
         f'{weather_fmt}_{dtyp}_'
         f'{time.isoformat() + "_" if time is not None else ""}delay.envi'
