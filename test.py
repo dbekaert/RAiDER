@@ -11,6 +11,7 @@ from osgeo import gdal
 import h5py
 import wrf
 import numpy as np
+import losreader
 import os
 import pickle
 import pyproj
@@ -362,10 +363,10 @@ def analyze_timeseries(tropo_delays):
     tropo_error[mask] = np.nan
     iono_error[mask] = np.nan
 
-    return iono_velocity, iono_error, tropo_velocity, tropo_error
+    return dateyears, ionocorr, tropocorr, iono_velocity, iono_error, tropo_velocity, tropo_error
 
 
-def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
+def plot_timeseries(dateyears, ionocorr, tropocorr, iono_velocity, iono_error, tropo_velocity, tropo_error):
     velocity_max = np.nanpercentile((iono_velocity, tropo_velocity), 99)
     velocity_min = np.nanpercentile((iono_velocity, tropo_velocity), 1)
     velocity_max = max(velocity_max, -velocity_min)
@@ -380,6 +381,7 @@ def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
     plt.title('Iono velocity')
     plt.imshow(iono_velocity, vmin=velocity_min, vmax=velocity_max)
     plt.colorbar()
+    plt.scatter([24], [214], color='red')
     plt.savefig('timeseries-iono-velocity.pdf', bbox_inches='tight')
     plt.show()
 
@@ -387,6 +389,7 @@ def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
     plt.title('Tropo velocity')
     plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
     plt.colorbar()
+    plt.scatter([24], [214], color='red')
     plt.savefig('timeseries-tropo-velocity.pdf', bbox_inches='tight')
     plt.show()
 
@@ -394,6 +397,7 @@ def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
     plt.title('Iono error')
     plt.imshow(iono_error, vmin=0, vmax=error_max)
     plt.colorbar()
+    plt.scatter([24], [214], color='red')
     plt.savefig('timeseries-iono-error.pdf', bbox_inches='tight')
     plt.show()
 
@@ -401,7 +405,40 @@ def plot_timeseries(iono_velocity, iono_error, tropo_velocity, tropo_error):
     plt.title('Tropo error')
     plt.imshow(tropo_error, vmin=0, vmax=error_max)
     plt.colorbar()
+    plt.scatter([24], [214], color='red')
     plt.savefig('timeseries-tropo-error.pdf', bbox_inches='tight')
+    plt.show()
+
+    plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
+    plt.scatter([12], [160], color='red', marker='*')
+    plt.scatter([24], [214], color='red')
+    plt.savefig('timeseries-single-point.pdf', bbox_inches='tight')
+    plt.show()
+
+    plt.plot(dateyears, ionocorr[:,160,12], ':', color='blue')
+    plt.plot(dateyears, tropocorr[:,160,12], ':', color='red')
+    plt.scatter(dateyears, ionocorr[:,160,12], color='blue', label='Ionosphere corrected')
+    plt.scatter(dateyears, tropocorr[:,160,12], color='red', label='Ionosphere & troposphere corrected')
+    plt.xlabel('Time (years)')
+    plt.ylabel('Displacement (m)')
+    plt.legend()
+    plt.savefig('timeseries-single-point-scatter.pdf', bbox_inches='tight')
+    plt.show()
+
+    plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
+    plt.scatter([47], [71], color='red', marker='*')
+    plt.scatter([24], [214], color='red')
+    plt.savefig('timeseries-second-point.pdf', bbox_inches='tight')
+    plt.show()
+
+    plt.plot(dateyears, ionocorr[:,71,47], ':', color='blue')
+    plt.plot(dateyears, tropocorr[:,71,47], ':', color='red')
+    plt.scatter(dateyears, ionocorr[:,71,47], color='blue', label='Ionosphere corrected')
+    plt.scatter(dateyears, tropocorr[:, 71, 47], color='red', label='Ionosphere & troposphere corrected')
+    plt.xlabel('Time (years)')
+    plt.ylabel('Displacement (m)')
+    plt.legend()
+    plt.savefig('timeseries-second-point-scatter.pdf', bbox_inches='tight')
     plt.show()
 
     #plt.savefig('timeseries-comparison.pdf', bbox_inches='tight')
@@ -448,7 +485,7 @@ def make_sim_weather(out, plev):
     return reader.import_grids(xs=xs, ys=ys, pressure=plevs,
                                temperature=sim_temp, humidity=sim_humidity,
                                geo_ht=sim_geo_ht,
-                               k1=wrf._k1, k2=wrf._k2, k3=wrf._k3,
+                               k1=wrf.k1, k2=wrf.k2, k3=wrf.k3,
                                projection=projection)
 
 
@@ -469,7 +506,7 @@ def sim_weather_plots(sim_weather, lat, lon, los):
     wet = wet.reshape(lats.shape)
     cmbd_cosine = hydro + wet
 
-    lvs = util.los_to_lv(incidence, heading, lats, lons, np.zeros_like(lats))
+    lvs = losreader.los_to_lv(incidence, heading, lats, lons, np.zeros_like(lats), 15000)
 
     hydro, wet = delay.delay_from_grid(sim_weather, llas.reshape(-1, 3), lvs.reshape(-1, 3), raytrace=True)
     hydro = hydro.reshape(lats.shape)
@@ -513,20 +550,23 @@ def make_plots(zenith, raytrace, cosine):
 
 
 def test_statevecs():
-    weather = make_sim_weather(out_old, plev_old)
+    weather = test_weather()
+    #weather = make_sim_weather(out_old, plev_old)
     # t = np.load('/Users/hogenson/t.npy')
     # x, y, z = np.load('/Users/hogenson/position.npy')
     # vx, vy, vz = np.load('/Users/hogenson/velocity.npy')
     lats = util.gdal_open(lat)
     lons = util.gdal_open(lon)
-    heights = np.zeros_like(lats)
+    #heights = np.zeros_like(lats)
+    heights = util.gdal_open(height)
     incidence, heading = util.gdal_open(los)
-    loss = util.los_to_lv(incidence, heading, lats, lons, heights)
+    loss = losreader.los_to_lv(incidence, heading, lats, lons, heights, 15000)
     # los_sv = np.stack(util.state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights.astype(np.double)), axis=-1)
     # Tiny
     # los *= 15000/np.max(np.linalg.norm(los, axis=-1))
     llas = np.stack((lats, lons, heights), axis=-1)
-    return delay.delay_from_grid(weather, llas, loss, parallel=True)
+    #return delay.delay_from_grid(weather, llas, loss, parallel=True)
+    return delay.delay_from_grid(weather, llas, delay.Zenith, parallel=True)
 
 
 def los_ecef_to_lla(los, lats, lons, heights):

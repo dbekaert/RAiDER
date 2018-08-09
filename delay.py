@@ -288,13 +288,13 @@ def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
     return hydro, wet
 
 
-def get_weather_and_nodes(module, filename, zmin=None):
-    """Look up weather information from a module and file.
+def get_weather_and_nodes(model, filename, zmin=None):
+    """Look up weather information from a model and file.
 
     We use the module.load method to load the weather model file, but
     we'll also create a weather model object for it.
     """
-    xs, ys, proj, t, q, z, lnsp = module.load(filename)
+    xs, ys, proj, t, q, z, lnsp = model.load(filename)
     return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
             xs, ys, proj)
 
@@ -356,26 +356,27 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
+    height_type, height_info = heights
+
     if weather_type == 'wrf':
-        weather = wrf.load(*weather_files, zmin=np.min(heights))
+        weather = wrf.load(*weather_files)
 
         # Let lats and lons to weather model nodes if necessary
         if lats is None:
             lats, lons = wrf.wm_nodes(*weather_files)
     else:
-        weather_module = weather_type
+        weather_model = weather_type
         if weather_files is None:
             if lats is None:
                 raise ValueError(
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
             with tempfile.NamedTemporaryFile() as f:
-                weather_module.fetch(lats, lons, time, f.name)
-                weather, _, _, _ = get_weather_and_nodes(
-                    weather_module, f.name)
+                weather_model.fetch(lats, lons, time, f.name)
+                weather = weather_model.load(f.name)
         else:
-            weather, xs, ys, proj = get_weather_and_nodes(
-                weather_module, weather_files)
+            weather, xs, ys, proj = weather_model.weather_and_nodes(
+                weather_files)
             if lats is None:
                 old_geo_info = set_geo_info
 
@@ -389,7 +390,6 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time):
                 lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
 
     # Height
-    height_type, height_info = heights
     if height_type == 'dem':
         hts = util.gdal_open(height_info)
     elif height_type == 'lvs':

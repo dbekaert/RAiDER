@@ -11,6 +11,47 @@ import util
 _zmin = -100
 
 
+class Model:
+    humidity_type = 'q'
+    k1 = 0.776
+    k2 = 0.233
+    k3 = 3.75e3
+
+    @classmethod
+    def fetch(self, lats, lons, time, out):
+        raise NotImplemented
+
+    @classmethod
+    def load_model_level(self, filename):
+        raise NotImplemented
+
+    @classmethod
+    def load_pressure_level(self, filename):
+        raise NotImplemented
+
+    @classmethod
+    def weather_and_nodes_from_model_levels(self, filename):
+        xs, ys, proj, t, q, z, lnsp = self.load_model_level(filename)
+        return (read_model_level(self, xs, ys, proj, t, q, z, lnsp), xs,
+                ys, proj)
+
+    @classmethod
+    def weather_and_nodes_from_pressure_levels(self, filename):
+        xs, ys, proj, t, q, z, p = self.load_pressure_level(filename)
+        return import_grids(
+            xs, ys, p, t, q, z, self.k1, self.k2, self.k3, proj,
+            humidity_type=self.humidity_type)
+
+    @classmethod
+    def weather_and_nodes(self, filename):
+        return self.weather_and_nodes_from_model_levels(filename)
+
+    @classmethod
+    def load(self, filename):
+        weather, _, _, _ = self.weather_and_nodes(filename)
+        return weather
+
+
 def _least_nonzero(a):
     """Fill in a flat array with the lowest nonzero value.
     

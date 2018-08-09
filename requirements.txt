@@ -1,6 +1,5 @@
-numpy==1.14.5
-progressbar2==3.38.0
+ecmwf-api-client==1.5.0
+numpy==1.15.0
+pygdal==2.3.1.4
 pyproj==1.9.5.1
-python-utils==2.3.0
 scipy==1.1.0
-six==1.11.0
