@@ -375,46 +375,50 @@ def plot_timeseries(dateyears, ionocorr, tropocorr, iono_velocity, iono_error, t
     error_max = np.nanpercentile((iono_error, tropo_error), 99)
     error_min = 0
 
-    #plt.figure(figsize=(6, 6.8))
+    plt.figure(figsize=(4.7, 6.8))
 
-    #plt.subplot(2, 2, 1)
+    plt.subplot(2, 2, 1)
     plt.title('Iono velocity')
     plt.imshow(iono_velocity, vmin=velocity_min, vmax=velocity_max)
-    plt.colorbar()
-    plt.scatter([24], [214], color='red')
-    plt.savefig('timeseries-iono-velocity.pdf', bbox_inches='tight')
-    plt.show()
+    plt.axis('off')
+    plt.colorbar(label='(m)')
+    plt.scatter([24], [214], marker='*', color='red')
+    #plt.savefig('timeseries-iono-velocity.pdf', bbox_inches='tight')
+    #plt.show()
 
-    #plt.subplot(2, 2, 2)
+    plt.subplot(2, 2, 2)
     plt.title('Tropo velocity')
     plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
-    plt.colorbar()
-    plt.scatter([24], [214], color='red')
-    plt.savefig('timeseries-tropo-velocity.pdf', bbox_inches='tight')
-    plt.show()
+    plt.axis('off')
+    plt.colorbar(label='(m)')
+    plt.scatter([24], [214], marker='*', color='red')
+    #plt.savefig('timeseries-tropo-velocity.pdf', bbox_inches='tight')
+    #plt.show()
 
-    #plt.subplot(2, 2, 3)
+    plt.subplot(2, 2, 3)
     plt.title('Iono error')
     plt.imshow(iono_error, vmin=0, vmax=error_max)
-    plt.colorbar()
-    plt.scatter([24], [214], color='red')
-    plt.savefig('timeseries-iono-error.pdf', bbox_inches='tight')
-    plt.show()
+    plt.axis('off')
+    plt.colorbar(label='(m)')
+    plt.scatter([24], [214], marker='*', color='red')
+    #plt.savefig('timeseries-iono-error.pdf', bbox_inches='tight')
+    #plt.show()
 
-    #plt.subplot(2, 2, 4)
+    plt.subplot(2, 2, 4)
     plt.title('Tropo error')
     plt.imshow(tropo_error, vmin=0, vmax=error_max)
-    plt.colorbar()
-    plt.scatter([24], [214], color='red')
-    plt.savefig('timeseries-tropo-error.pdf', bbox_inches='tight')
+    plt.axis('off')
+    plt.colorbar(label='(m)')
+    plt.scatter([24], [214], marker='*', color='red')
+    plt.savefig('writeup/timeseries-comparison.pdf', bbox_inches='tight')
     plt.show()
 
+    plt.figure(figsize=(8, 4))
+    plt.subplot(1, 2, 1)
     plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
     plt.scatter([12], [160], color='red', marker='*')
-    plt.scatter([24], [214], color='red')
-    plt.savefig('timeseries-single-point.pdf', bbox_inches='tight')
-    plt.show()
-
+    plt.axis('off')
+    plt.subplot(1, 2, 2)
     plt.plot(dateyears, ionocorr[:,160,12], ':', color='blue')
     plt.plot(dateyears, tropocorr[:,160,12], ':', color='red')
     plt.scatter(dateyears, ionocorr[:,160,12], color='blue', label='Ionosphere corrected')
@@ -422,7 +426,8 @@ def plot_timeseries(dateyears, ionocorr, tropocorr, iono_velocity, iono_error, t
     plt.xlabel('Time (years)')
     plt.ylabel('Displacement (m)')
     plt.legend()
-    plt.savefig('timeseries-single-point-scatter.pdf', bbox_inches='tight')
+    plt.tight_layout()
+    plt.savefig('writeup/timeseries-single-point-scatter.pdf', bbox_inches='tight')
     plt.show()
 
     plt.imshow(tropo_velocity, vmin=velocity_min, vmax=velocity_max)
@@ -530,19 +535,19 @@ def make_plots(zenith, raytrace, cosine):
     fig.add_subplot(1, 3, 1)
     plt.axis('off')
     plt.imshow(raytrace, vmin=bottom, vmax=top)
-    plt.colorbar()
+    plt.colorbar(label='(m)')
     plt.title('Raytraced')
 
     fig.add_subplot(1, 3, 2)
     plt.axis('off')
     plt.imshow(cosine, vmin=bottom, vmax=top)
-    plt.colorbar()
+    plt.colorbar(label='(m)')
     plt.title('Projected')
 
     fig.add_subplot(1, 3, 3)
     plt.axis('off')
     plt.imshow(raytrace - cosine, vmin=-0.003, vmax=0.003)
-    plt.colorbar()
+    plt.colorbar(label='(m)')
     plt.title('Difference')
 
     plt.savefig('simulation/comparison.pdf', bbox_inches='tight')
@@ -577,3 +582,71 @@ def los_ecef_to_lla(los, lats, lons, heights):
     sensor_lla = np.stack(util.ecef2lla(*sensor_ecef))
     los_lla = sensor_lla - ground_lla
     return np.moveaxis(los_lla, 0, -1)
+
+
+def plot_train_comparison(diff):
+    plt.figure(figsize=(4.7, 3))
+    plt.subplot(1, 2, 1)
+    plt.imshow(diff, vmin=-0.022, vmax=0.022)
+    plt.colorbar(label='(m)')
+    plt.axis('off')
+    plt.subplot(1, 2, 2)
+    plt.hist(diff.flatten(), range=(-0.022, 0.022), bins='auto')
+    plt.xlabel('Difference (m)')
+    plt.tight_layout(w_pad=1.5)
+    plt.savefig('/Users/hogenson/Documents/raytracing_current/writeup/single-date.pdf', bbox_inches='tight')
+    plt.show()
+
+
+def plot_igram(diff):
+    plt.figure(figsize=(4.7, 3))
+    plt.subplot(1, 2, 1)
+    plt.imshow(diff, vmin=-0.003, vmax=0.003)
+    plt.colorbar(label='(m)')
+    plt.axis('off')
+    plt.subplot(1, 2, 2)
+    plt.hist(diff.flatten(), range=(-0.003, 0.003), bins='auto')
+    plt.xlabel('Difference (m)')
+    plt.tight_layout(w_pad=1.5)
+    plt.savefig('/Users/hogenson/Documents/raytracing_current/writeup/igram.pdf', bbox_inches='tight')
+    plt.show()
+
+
+def plot_region_of_interest():
+    lons = util.gdal_open(lon)
+    lats = util.gdal_open(lat)
+    minlon = np.min(lons)
+    minlat = np.min(lats)
+    maxlon = np.max(lons)
+    maxlat = np.max(lats)
+    minlon -= 1
+    maxlon += 1
+    minlat -= 1
+    maxlat += 1
+    lonsteps = lons.shape[0] * 5
+    lonres = (maxlon - minlon) / lonsteps
+    latres = lonres
+    gdal.Warp('/vsimem/warped', '/vsicurl/https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt', options=f'-te {minlon} {minlat} {maxlon} {maxlat} -tr {lonres} {latres}')
+    try:
+        out = util.gdal_open('/vsimem/warped')
+    finally:
+        gdal.Unlink('/vsimem/warped')
+    out = out[::-1]
+    def latlontopixel(lat, lon):
+        return int((lon - minlon) / lonres), int((lat - minlat) / latres)
+    area = np.stack(np.vectorize(latlontopixel)(lats, lons))
+    hull = scipy.spatial.Delaunay(np.stack((area[1].flatten(), area[0].flatten()), axis=-1))
+    pts_x = np.arange(0, out.shape[0])
+    pts_y = np.arange(0, out.shape[1])
+    pts_x_grid, pts_y_grid = np.meshgrid(pts_x, pts_y, indexing='ij')
+    pts = np.stack((pts_x_grid, pts_y_grid), axis=-1)
+    mask = hull.find_simplex(pts) >= 0
+    z5 = np.zeros(mask.shape + (4,))
+    z5[..., 0] = 1
+    z5[..., 3] = 0.4*mask.astype(float)
+    plt.imshow(out[::-1], vmin=-15)
+    plt.colorbar(label='(m)')
+    plt.imshow(z5[::-1])
+    plt.axis('off')
+    plt.savefig('/Users/hogenson/Documents/raytracing_current/writeup/area-of-interest.pdf', bbox_inches='tight')
+    plt.show()
