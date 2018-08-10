@@ -16,6 +16,8 @@ class Model:
     k1 = 0.776
     k2 = 0.233
     k3 = 3.75e3
+    a = []
+    b = []
 
     @classmethod
     def fetch(self, lats, lons, time, out):
