@@ -2,7 +2,6 @@
 
 
 import numpy as np
-import pyproj
 import reader
 import scipy.interpolate as interpolate
 import scipy.io.netcdf as netcdf
@@ -25,6 +24,8 @@ k3 = 3.75e3 # [K^2/Pa]
 
 def _read_netcdf(out, plev, scipy_interpolate, zmin):
     """Return a NetCDFModel given open netcdf files."""
+    import pyproj
+
     # n.b.: all of these things we read are arrays of length 1, so
     # we get the first element to access the actual data.
     lats = out.variables['XLAT'][0].copy()

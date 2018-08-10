@@ -9,11 +9,6 @@ import pyproj
 import scipy.io
 import reader
 
-try:
-    import ecmwfapi
-except ImportError as e:
-    ecmwfapi_error = e
-
 
 class Model(reader.Model):
     time_period = datetime.timedelta(hours=6)
@@ -56,10 +51,7 @@ class Model(reader.Model):
     @classmethod
     def get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                        lon_step, time, out):
-        try:
-            ecmwfapi
-        except NameError:
-            raise ecmwfapi_error
+        import ecmwfapi
 
         server = ecmwfapi.ECMWFDataServer()
 

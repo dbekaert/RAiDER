@@ -2,24 +2,11 @@ import numpy as np
 
 import os.path
 import shelve
-try:
-    import Geo2rdr
-except ImportError as e:
-    Geo2rdr_error = e
-try:
-    import isce
-except ImportError as e:
-    isce_error = e
-else:
-    import iscesys.Component.ProductManager
 import util
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
-    try:
-        Geo2rdr
-    except NameError:
-        raise Geo2rdr_error
+    import Geo2rdr
 
     real_shape = lats.shape
     lats = lats.flatten()
@@ -62,10 +49,8 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
 
 def read_shelve(filename):
-    try:
-        isce
-    except NameError:
-        raise isce_error
+    import isce
+    import iscesys.Component.ProductManager
 
     with shelve.open(filename, 'r') as db:
         obj = db['frame']
@@ -121,10 +106,8 @@ def read_txt_file(filename):
 
 
 def read_xml_file(filename):
-    try:
-        isce
-    except NameError:
-        raise isce_error
+    import isce
+    import iscesys.Component.ProductManager
 
     pm = iscesys.Component.ProductManager.ProductManager()
     pm.configure()

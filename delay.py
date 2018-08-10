@@ -20,7 +20,6 @@ import threading
 import util
 import wrf
 import reader
-import pyproj
 
 gdal.UseExceptions()
 
@@ -307,6 +306,8 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
     _tropo_delay_with_values. Then we'll write the output to the output
     file.
     """
+    import pyproj
+
     # set_geo_info should be a list of functions to call on the dataset,
     # and each will do some bit of work
     set_geo_info = list()
@@ -389,10 +390,10 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
         raise ValueError(f'Unexpected height_type {repr(height_type)}')
 
     # For later
-    drv = gdal.GetDriverByName(outformat)
     hydroname, wetname = (
         f'{weather_fmt}_{dtyp}_'
-        f'{time.isoformat() + "_" if time is not None else ""}delay.envi'
+        f'{time.isoformat() + "_" if time is not None else ""}'
+        f'{"z" if los is None else "s"}td.{outformat}'
         for dtyp in ('hydro', 'wet'))
 
     # Pretty different calculation depending on whether they specified a
@@ -408,27 +409,31 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
             total_hydro[i] = hydro
             total_wet[i] = wet
 
-        hydro_ds = drv.Create(
-            os.path.join(out, hydroname), total_hydro.shape[2],
-            total_hydro.shape[1], len(hts), gdal.GDT_Float64)
-        for lvl, (hydro, ht) in enumerate(zip(total_hydro, hts), start=1):
-            band = hydro_ds.GetRasterBand(lvl)
-            band.SetDescription(str(ht))
-            band.WriteArray(hydro)
-        for f in set_geo_info:
-            f(hydro_ds)
-        hydro_ds = None
+        if outformat == 'hdf5':
+            raise NotImplemented
+        else:
+            drv = gdal.GetDriverByName(outformat)
+            hydro_ds = drv.Create(
+                os.path.join(out, hydroname), total_hydro.shape[2],
+                total_hydro.shape[1], len(hts), gdal.GDT_Float64)
+            for lvl, (hydro, ht) in enumerate(zip(total_hydro, hts), start=1):
+                band = hydro_ds.GetRasterBand(lvl)
+                band.SetDescription(str(ht))
+                band.WriteArray(hydro)
+            for f in set_geo_info:
+                f(hydro_ds)
+            hydro_ds = None
 
-        wet_ds = drv.Create(
-            os.path.join(out, wetname), total_wet.shape[2],
-            total_wet.shape[1], len(hts), gdal.GDT_Float64)
-        for lvl, (wet, ht) in enumerate(zip(total_wet, hts), start=1):
-            band = wet_ds.GetRasterBand(lvl)
-            band.SetDescription(str(ht))
-            band.WriteArray(wet)
-        for f in set_geo_info:
-            f(wet_ds)
-        wet_ds = None
+            wet_ds = drv.Create(
+                os.path.join(out, wetname), total_wet.shape[2],
+                total_wet.shape[1], len(hts), gdal.GDT_Float64)
+            for lvl, (wet, ht) in enumerate(zip(total_wet, hts), start=1):
+                band = wet_ds.GetRasterBand(lvl)
+                band.SetDescription(str(ht))
+                band.WriteArray(wet)
+            for f in set_geo_info:
+                f(wet_ds)
+            wet_ds = None
 
     else:
         hydro, wet = _tropo_delay_with_values(
@@ -436,17 +441,21 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
 
         # Write the output file
         # TODO: maybe support other files than ENVI
-        hydro_ds = drv.Create(
-            os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0],
-            1, gdal.GDT_Float64)
-        hydro_ds.GetRasterBand(1).WriteArray(hydro)
-        for f in set_geo_info:
-            f(hydro_ds)
-        hydro_ds = None
-        wet_ds = drv.Create(
-            os.path.join(out, wetname), wet.shape[1], wet.shape[0], 1,
-            gdal.GDT_Float64)
-        wet_ds.GetRasterBand(1).WriteArray(wet)
-        for f in set_geo_info:
-            f(wet_ds)
-        wet_ds = None
+        if outformat == 'hdf5':
+            raise NotImplemented
+        else:
+            drv = gdal.GetDriverByName(outformat)
+            hydro_ds = drv.Create(
+                os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0],
+                1, gdal.GDT_Float64)
+            hydro_ds.GetRasterBand(1).WriteArray(hydro)
+            for f in set_geo_info:
+                f(hydro_ds)
+            hydro_ds = None
+            wet_ds = drv.Create(
+                os.path.join(out, wetname), wet.shape[1], wet.shape[0], 1,
+                gdal.GDT_Float64)
+            wet_ds.GetRasterBand(1).WriteArray(wet)
+            for f in set_geo_info:
+                f(wet_ds)
+            wet_ds = None

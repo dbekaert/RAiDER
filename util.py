@@ -5,11 +5,8 @@ from osgeo import gdal
 import numpy as np
 import pickle
 import pyproj
-try:
-    import Geo2rdr
-except ImportError as e:
-    # We'll raise it again when it's needed
-    Geo2rdr_error = e
+
+gdal.UseExceptions()
 
 
 # Top of the troposphere
@@ -74,10 +71,7 @@ def lla2lambert(lat, lon, height=None):
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
-    try:
-        Geo2rdr
-    except NameError:
-        raise Geo2rdr_error
+    import Geo2rdr
 
     real_shape = lats.shape
     lats = lats.flatten()

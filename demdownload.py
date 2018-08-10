@@ -3,6 +3,8 @@ import numpy as np
 import scipy.interpolate
 import util
 
+gdal.UseExceptions()
+
 
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
