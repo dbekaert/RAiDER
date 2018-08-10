@@ -8,6 +8,8 @@ import numpy as np
 import scipy.io
 import pyproj
 import urllib.request
+import json
+import os.path
 
 
 class Model(reader.Model):
@@ -15,19 +17,48 @@ class Model(reader.Model):
     @classmethod
     def fetch(self, lats, lons, time, out):
         """Fetch MERRA-2."""
+        # TODO: This function doesn't work right now. I'm getting a 302
+        # Found response, with a message The document has moved. That's
+        # annoying, it'd be nice if pydap would just follow to the new
+        # page. I don't have time to debug this now, so I'll just drop
+        # this comment here.
+        import pydap.client
+        import pydap.cas.urs
+
         lat_min = int(np.min(lats))
         lat_max = int(np.max(lats) + 0.5)
         lon_min = int(np.min(lons))
         lon_max = int(np.max(lons) + 0.5)
-        url = _url_builder(
-            time, lat_min, 1, lat_max, lon_min, 1, lon_max)
-        # TODO: This doesn't work right now because the user isn't
-        # authenticated with URS. Pydap provides a way to authenticate,
-        # but the way the interface is set up, I'll need to write a
-        # netcdf file. The most straightforward path, then, is to use
-        # pydap to get the data, then write to a netcdf file ourselves.
-        with urllib.request.urlopen(url) as response, open(out, 'wb') as f:
-            shutil.copyfileobj(response, f)
+        url = ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I6NPANA.5.12.4/1980/01/MERRA2_100.inst6_3d_ana_Np.19800101.nc4')
+        config = os.path.expandvars(os.path.join('$HOME', '.urs-auth'))
+        with open(config, 'r') as f:
+            j = json.load(f)
+            username = j['username']
+            password = j['password']
+
+        session = pydap.cas.urs.setup_session(
+            username, password, check_url=url)
+        # TODO: probably use a context manager so it gets closed
+        dataset = pydap.client.open_url(url, session=session)
+
+        # TODO: gotta figure out how to index as time
+        timeNum = 0
+
+        with scipy.io.netcdf.netcdf_file(out, 'w') as f:
+            def index(ds):
+                return ds[timeNum][:][lat_min:lat_max][lon_min:lon_max]
+            t = f.createVariable('T', float, [])
+            t[:] = index(dataset['T'])
+            lats = f.createVariable('lat', float, [])
+            lats[:] = dataset['lat'][lat_min:lat_max]
+            lons = f.createVariable('lon', float, [])
+            lons[:] = dataset['lon'][lon_min:lon_max]
+            q = f.createVariable('QV', float, [])
+            q[:] = index(dataset['QV'])
+            z = f.createVariable('H', float, [])
+            z[:] = index(dataset['H'])
+            p = f.createVariable('lev', float, [])
+            p[:] = dataset['lev'][:]
 
     @classmethod
     def load_pressure_level(self, filename):
