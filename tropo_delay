@@ -119,7 +119,7 @@ def parse_args():
         help=('GDAL-readable longitude and latitude files to specify the '
               'region over which to calculate delay. Delay will be '
               'calculated at weather model nodes if unspecified'),
-        metavar=('LONG', 'LAT'))
+        metavar=('LAT', 'LONG'))
 
     # heights
     heights = p.add_mutually_exclusive_group()

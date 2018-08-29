@@ -93,6 +93,7 @@ class Model(reader.Model):
         lat_max = np.max(lats)
         lon_min = np.min(lons)
         lon_max = np.max(lons)
+        print(lat_min, lat_max)
         lat_res = 0.2
         lon_res = 0.2
 
