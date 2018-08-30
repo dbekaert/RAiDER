@@ -298,7 +298,7 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
-def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
+def tropo_delay(los = None, lat = None, lon = None, heights = None, weather = None, zref = None, out = None, time = None,
                 outformat='ENVI'):
     """Calculate troposphere delay from command-line arguments.
 
@@ -319,13 +319,17 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
         latproj = lonproj = None
     else:
         latds = gdal.Open(lat)
+        noDataVal = latds.GetRasterBand(1).GetNoDataValue()
+        print(noDataVal)
         latproj = latds.GetProjection()
         lats = latds.GetRasterBand(1).ReadAsArray()
+        lats = np.ma.masked_equal(lats, noDataVal)
         latds = None
 
         londs = gdal.Open(lon)
         lonproj = londs.GetProjection()
         lons = londs.GetRasterBand(1).ReadAsArray()
+        lons = np.ma.masked_equal(lons, noDataVal)
         londs = None
 
         def geo_info(ds):
@@ -363,9 +367,10 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
                 raise ValueError(
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
-            with tempfile.NamedTemporaryFile() as f:
-                weather_model.fetch(lats, lons, time, f.name)
-                weather = weather_model.load(f.name)
+            f = 'model'
+            #with tempfile.NamedTemporaryFile() as f:
+            weather_model.fetch(lats, lons, time, f)
+            weather = weather_model.load(f)
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)
