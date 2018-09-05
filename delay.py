@@ -64,22 +64,29 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
                                util.cosd(lats)*util.sind(lons),
                                util.sind(lats))).T
                      * (_ZREF - heights)[..., np.newaxis])
+    if verbose:
+        print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
+    lengths = np.ma.masked_invalid(lengths)
     steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
+    steps = np.ma.masked_invalid(steps)
     if verbose:
-        print('The number of steps is {}'.format(len(steps)))
+        print('_common_delay: The number of steps is {}'.format(len(steps)))
 
-    import pdb
-    pdb.set_trace()
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
     positions_l = list()
     t_points_l = list()
-    for i in range(len(steps)):
-        thisspace = np.linspace(0, lengths[i], steps[i])
+    for i, N in enumerate(steps):
+        # Have to handle the case where there are invalid data
+        try:
+            thisspace = np.linspace(0, lengths[i], N)
+        except ValueError:
+            continue
+
         position = (start_positions[i]
                     + thisspace[..., np.newaxis]*scaled_look_vecs[i])
         first_high_index = _too_high(position, _ZREF)
@@ -89,8 +96,13 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
         # Also correct the number of steps
         steps[i] = first_high_index
 
+    if verbose:
+        print('_common_delay: Finished steps')
+
     positions_a = np.concatenate(positions_l)
 
+    if verbose:
+        print('_common_delay: starting wet_delay calculation')
     wet_delays = delay(positions_a)
 
     # Compute starting indices
@@ -99,6 +111,8 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
     indices = np.roll(indices, 1)
     indices[0] = 0
 
+    if verbose:
+        print('_common_delay: starting integration')
     delays = np.zeros(lats.shape[0])
     for i in range(len(steps)):
         start = indices[i]
@@ -106,6 +120,8 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
         chunk = wet_delays[start:start + length]
         t_points = t_points_l[i]
         delays[i] = 1e-6 * np.trapz(chunk, t_points)
+        if verbose:
+            print('_common_delay:Integrating step {}'.format(i))
 
     # Finally apply cosine correction if applicable
     if correction is not None:
@@ -116,12 +132,20 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
 
 def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
     """Compute wet delay along the look vector."""
+
+    if verbose:
+        print('wet_delay: Running _common_delay for weather.wet_delay')
+
     return _common_delay(weather.wet_delay, lats, lons, heights, look_vecs,
                          raytrace, verbose)
 
 
 def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
     """Compute hydrostatic delay along the look vector."""
+
+    if verbose:
+        print('hydrostatic_delay: Running _common_delay for weather.hydrostatic_delay')
+
     return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
                          look_vecs, raytrace, verbose)
 
@@ -136,8 +160,20 @@ def delay_over_area(weather,
     lats = np.arange(lat_min, lat_max, lat_res)
     lons = np.arange(lon_min, lon_max, lon_res)
     hts = np.arange(ht_min, ht_max, ht_res)
+
+    if verbose:
+        print('delay_over_area: Size of lats: {}'.format(np.shape(lats)))
+        print('delay_over_area: Size of lons: {}'.format(np.shape(lons)))
+        print('delay_over_area: Size of hts: {}'.format(np.shape(hts)))
+
     # It's the cartesian product (thanks StackOverflow)
     llas = np.array(np.meshgrid(lats, lons, hts)).T.reshape(-1, 3)
+    if verbose:
+        print('delay_over_area: Size of llas: {}'.format(np.shape(llas)))
+
+    if verbose:
+        print('delay_over_area: running delay_from_grid')
+
     return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
 
 
@@ -186,6 +222,12 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
     llas = llas.reshape(-1, 3)
     # los can either be a bunch of vectors or a bunch of scalars. If
     # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
+    if verbose: 
+        if los is Zenith:
+           print("LOS is Zenith")
+        else:
+           print('LOS is not Zenith')
+
     if los is not Zenith:
         if raytrace:
             los = los.reshape(-1, 3)
@@ -195,13 +237,24 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
     lats, lons, hts = np.moveaxis(llas, -1, 0)
 
     if parallel:
+        # TODO: Need to use all open processors, not all possible
         num_procs = os.cpu_count()
+        if verbose:
+            print('{} processors available'.format(num_procs))
+        os.nice(10)
 
         hydro_procs = num_procs // 2
         wet_procs = num_procs - hydro_procs
 
+        if verbose: 
+            print('delay_from_grid: using {} processors for hydro delay'.format(hydro_procs))
+            print('delay_from_grid: using {} processors for wet delay'.format(wet_procs))
+
         # Divide up jobs into an appropriate number of pieces
         hindices = np.linspace(0, len(llas), hydro_procs + 1, dtype=int)
+
+        if verbose: 
+            print('delay_from_grid: hindices: {}'.format(hindices))
 
         # Build the jobs
         hjobs = (('hydro', hindices[i], hindices[i + 1], verbose)
