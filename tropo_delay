@@ -175,7 +175,7 @@ def parse_args():
     return p.parse_args(), p
 
 
-def main():
+def getTropoDelay():
     """tropo_delay main function.
 
     We'll parse arguments and call delay.py.
@@ -235,24 +235,20 @@ def main():
 
     # zref
     zref = args.zref
-
     outformat = args.outformat
-
     time = args.time
-
     out = args.out
 
     parallel = True if not args.no_parallel else False
     verbose = args.verbose
-
-    return delay.tropo_delay(
-        los, lat, lon, heights, 
-        weathers, zref, 
-        out, 
-        time, 
-        outformat, 
-        parallel=parallel, verbose = verbose)
+    delay.tropo_delay(los, lat, lon, heights, 
+                      weathers, zref, 
+                      out, 
+                      time, 
+                      outformat, 
+                      parallel=parallel, verbose = verbose)
 
 
 if __name__ == '__main__':
-    main()
+    getTropoDelay()
+
