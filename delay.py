@@ -51,7 +51,7 @@ def _too_high(positions, zref):
     return first_high_index
 
 
-def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
+def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = False):
     """Perform computation common to hydrostatic and wet delay."""
     # Deal with Zenith special value, and non-raytracing method
     if raytrace:
@@ -67,6 +67,9 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
     steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
+    if verbose:
+        print('The number of steps is {}'.format(len(steps)))
+
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
@@ -109,27 +112,27 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     return delays
 
 
-def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
+def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
     """Compute wet delay along the look vector."""
     return _common_delay(weather.wet_delay, lats, lons, heights, look_vecs,
-                         raytrace)
+                         raytrace, verbose)
 
 
-def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True):
+def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
     """Compute hydrostatic delay along the look vector."""
     return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
-                         look_vecs, raytrace)
+                         look_vecs, raytrace, verbose)
 
 
 def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
-                    lon_res, ht_min, ht_max, ht_res, los=Zenith):
+                    lon_res, ht_min, ht_max, ht_res, los=Zenith, verbose = False):
     """Calculate (in parallel) the delays over an area."""
     lats = np.arange(lat_min, lat_max, lat_res)
     lons = np.arange(lon_min, lon_max, lon_res)
     hts = np.arange(ht_min, ht_max, ht_res)
     # It's the cartesian product (thanks StackOverflow)
     llas = np.array(np.meshgrid(lats, lons, hts)).T.reshape(-1, 3)
-    return delay_from_grid(weather, llas, los, parallel=True)
+    return delay_from_grid(weather, llas, los, parallel=True, verbose = verbose)
 
 
 def _parmap(f, i):
@@ -161,7 +164,7 @@ def _parmap(f, i):
     return answers
 
 
-def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
+def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose = False):
     """Calculate delay on every point in a list.
 
     weather is the weather object, llas is a list of lat, lon, ht points
@@ -195,15 +198,15 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
         hindices = np.linspace(0, len(llas), hydro_procs + 1, dtype=int)
 
         # Build the jobs
-        hjobs = (('hydro', hindices[i], hindices[i + 1])
+        hjobs = (('hydro', hindices[i], hindices[i + 1], verbose)
                  for i in range(hydro_procs))
-        wjobs = (('wet', hindices[i], hindices[i + 1])
+        wjobs = (('wet', hindices[i], hindices[i + 1], verbose)
                  for i in range(wet_procs))
         jobs = itertools.chain(hjobs, wjobs)
 
         # Parallel worker
         def go(job):
-            job_type, start, end = job
+            job_type, start, end, verbose = job
             if los is Zenith:
                 my_los = Zenith
             else:
@@ -211,10 +214,10 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
             if job_type == 'hydro':
                 return hydrostatic_delay(weather, lats[start:end],
                                          lons[start:end], hts[start:end],
-                                         my_los, raytrace=raytrace)
+                                         my_los, raytrace=raytrace, verbose)
             if job_type == 'wet':
                 return wet_delay(weather, lats[start:end], lons[start:end],
-                                 hts[start:end], my_los, raytrace=raytrace)
+                                 hts[start:end], my_los, raytrace=raytrace, verbose)
             raise ValueError('Unknown job type {}'.format(job_type))
 
         # Execute the parallel worker
@@ -225,8 +228,8 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
         wet = np.concatenate(result[hydro_procs:])
     else:
         hydro = hydrostatic_delay(weather, lats, lons, hts, los,
-                                  raytrace=raytrace)
-        wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace)
+                                  raytrace=raytrace, verbose)
+        wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose)
 
     # Restore shape
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
@@ -235,7 +238,7 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True):
 
 
 def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
-                     raytrace=True):
+                     raytrace=True, verbose = False):
     """Read location information from files and calculate delay."""
     lats = util.gdal_open(lat)
     lons = util.gdal_open(lon)
@@ -259,12 +262,12 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
 
     llas = np.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
     hydro, wet = delay_from_grid(weather, llas, los,
-                                 parallel=parallel, raytrace=raytrace)
+                                 parallel=parallel, raytrace=raytrace, verbose)
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + lats.shape)
     return hydro, wet
 
 
-def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
+def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time, verbose = False):
     """Calculate troposphere delay from processed command-line arguments."""
     # LOS
     if los is None:
@@ -283,7 +286,7 @@ def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time):
     # Do the calculation
     llas = np.stack((lats, lons, hts), axis=-1)
     hydro, wet = delay_from_grid(weather, llas, los, parallel=True,
-                                 raytrace=True)
+                                 raytrace=True, verbose = verbose)
     return hydro, wet
 
 
@@ -298,8 +301,13 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
-def tropo_delay(los = None, lat = None, lon = None, heights = None, weather = None, zref = None, out = None, time = None,
-                outformat='ENVI'):
+def tropo_delay(los = None, lat = None, lon = None, 
+                heights = None, 
+                weather = None, zref = None, 
+                out = None, 
+                time = None,
+                outformat='ENVI', 
+                verbose = False):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
@@ -410,7 +418,7 @@ def tropo_delay(los = None, lat = None, lon = None, heights = None, weather = No
         for i, ht in enumerate(hts):
             hydro, wet = _tropo_delay_with_values(
                 los, lats, lons, np.broadcast_to(ht, lats.shape), weather,
-                zref, out, time)
+                zref, out, time, verbose = verbose)
             total_hydro[i] = hydro
             total_wet[i] = wet
 
