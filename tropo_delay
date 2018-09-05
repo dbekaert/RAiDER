@@ -168,7 +168,7 @@ def parse_args():
 
     p.add_argument('--out', help='Output file directory', default='.')
 
-    p.add_argument('--parallel', '-p', action='store_true',dest='parallel', default = False, help='Run operation in parallel? Default True. Recommend only False for verbose (debug) mode')
+    p.add_argument('--no_parallel', '-p', action='store_true',dest='no_parallel', default = False, help='Do not run operation in parallel? Default False. Recommend only True for verbose (debug) mode')
 
     p.add_argument('--verbose', '-v', action='store_true',dest='verbose', default = False, help='Run in verbose (debug) mode? Default False')
 
@@ -241,6 +241,9 @@ def main():
     time = args.time
 
     out = args.out
+
+    parallel = True if not args.no_parallel else False
+    verbose = args.verbose
 
     return delay.tropo_delay(
         los, lat, lon, heights, 
