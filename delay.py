@@ -70,6 +70,8 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
     if verbose:
         print('The number of steps is {}'.format(len(steps)))
 
+    import pdb
+    pdb.set_trace()
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
@@ -124,15 +126,19 @@ def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True, ve
                          look_vecs, raytrace, verbose)
 
 
-def delay_over_area(weather, lat_min, lat_max, lat_res, lon_min, lon_max,
-                    lon_res, ht_min, ht_max, ht_res, los=Zenith, verbose = False):
+def delay_over_area(weather, 
+                    lat_min, lat_max, lat_res, 
+                    lon_min, lon_max, lon_res, 
+                    ht_min, ht_max, ht_res, 
+                    los=Zenith, 
+                    parallel = True, verbose = False):
     """Calculate (in parallel) the delays over an area."""
     lats = np.arange(lat_min, lat_max, lat_res)
     lons = np.arange(lon_min, lon_max, lon_res)
     hts = np.arange(ht_min, ht_max, ht_res)
     # It's the cartesian product (thanks StackOverflow)
     llas = np.array(np.meshgrid(lats, lons, hts)).T.reshape(-1, 3)
-    return delay_from_grid(weather, llas, los, parallel=True, verbose = verbose)
+    return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
 
 
 def _parmap(f, i):
@@ -214,10 +220,10 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
             if job_type == 'hydro':
                 return hydrostatic_delay(weather, lats[start:end],
                                          lons[start:end], hts[start:end],
-                                         my_los, raytrace=raytrace, verbose)
+                                         my_los, raytrace=raytrace, verbose=verbose)
             if job_type == 'wet':
                 return wet_delay(weather, lats[start:end], lons[start:end],
-                                 hts[start:end], my_los, raytrace=raytrace, verbose)
+                                 hts[start:end], my_los, raytrace=raytrace, verbose = verbose)
             raise ValueError('Unknown job type {}'.format(job_type))
 
         # Execute the parallel worker
@@ -228,8 +234,8 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
         wet = np.concatenate(result[hydro_procs:])
     else:
         hydro = hydrostatic_delay(weather, lats, lons, hts, los,
-                                  raytrace=raytrace, verbose)
-        wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose)
+                                  raytrace=raytrace, verbose = verbose)
+        wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
 
     # Restore shape
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
@@ -262,12 +268,16 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
 
     llas = np.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
     hydro, wet = delay_from_grid(weather, llas, los,
-                                 parallel=parallel, raytrace=raytrace, verbose)
+                                 parallel=parallel, raytrace=raytrace, verbose = verbose)
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + lats.shape)
     return hydro, wet
 
 
-def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time, verbose = False):
+def _tropo_delay_with_values(los, lats, lons, hts, 
+                             weather, zref, 
+                             out, 
+                             time, 
+                             parallel = True, verbose = False):
     """Calculate troposphere delay from processed command-line arguments."""
     # LOS
     if los is None:
@@ -285,7 +295,7 @@ def _tropo_delay_with_values(los, lats, lons, hts, weather, zref, out, time, ver
 
     # Do the calculation
     llas = np.stack((lats, lons, hts), axis=-1)
-    hydro, wet = delay_from_grid(weather, llas, los, parallel=True,
+    hydro, wet = delay_from_grid(weather, llas, los, parallel=parallel,
                                  raytrace=True, verbose = verbose)
     return hydro, wet
 
@@ -307,6 +317,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 out = None, 
                 time = None,
                 outformat='ENVI', 
+                parallel=True,
                 verbose = False):
     """Calculate troposphere delay from command-line arguments.
 
@@ -418,7 +429,7 @@ def tropo_delay(los = None, lat = None, lon = None,
         for i, ht in enumerate(hts):
             hydro, wet = _tropo_delay_with_values(
                 los, lats, lons, np.broadcast_to(ht, lats.shape), weather,
-                zref, out, time, verbose = verbose)
+                zref, out, time, parallel=parallel, verbose = verbose)
             total_hydro[i] = hydro
             total_wet[i] = wet
 
@@ -450,7 +461,7 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     else:
         hydro, wet = _tropo_delay_with_values(
-            los, lats, lons, hts, weather, zref, out, time)
+            los, lats, lons, hts, weather, zref, out, time, parallel = parallel, verbose = verbose)
 
         # Write the output file
         # TODO: maybe support other files than ENVI

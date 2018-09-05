@@ -38,8 +38,11 @@ def download_dem(lats, lons):
 
     # Index into out as lat, lon
     interpolator = scipy.interpolate.RegularGridInterpolator(
-            (np.linspace(minlat, maxlat, latsteps),
-                np.linspace(minlon, maxlon, lonsteps)), out, method='linear')
+            points = (np.linspace(minlat, maxlat, latsteps),
+                      np.linspace(minlon, maxlon, lonsteps)), 
+            values = out,
+            method='linear', 
+            bounds_error = False)
 
     out_interpolated = interpolator(np.stack((lats, lons), axis=-1))
 
