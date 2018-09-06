@@ -68,9 +68,11 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
         print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
+#    lengths[~np.isfinite(lengths)] = np.nan
     lengths = np.ma.masked_invalid(lengths)
     steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
-    steps = np.ma.masked_invalid(steps)
+    # may need to make this more general in the future 
+    steps[steps < 0] = 0
     if verbose:
         print('_common_delay: The number of steps is {}'.format(len(steps)))
 
@@ -82,10 +84,12 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
     t_points_l = list()
     for i, N in enumerate(steps):
         # Have to handle the case where there are invalid data
-        try:
-            thisspace = np.linspace(0, lengths[i], N)
-        except ValueError:
+        if N==0:
+            t_points_l.append(np.empty((0,3)))
+            positions_l.append(np.empty((0,3)))
             continue
+        else:
+            thisspace = np.linspace(0, lengths[i], N)
 
         position = (start_positions[i]
                     + thisspace[..., np.newaxis]*scaled_look_vecs[i])
@@ -114,14 +118,16 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
     if verbose:
         print('_common_delay: starting integration')
     delays = np.zeros(lats.shape[0])
-    for i in range(len(steps)):
+    for i,length in enumerate(steps):
+        if length ==0:
+            continue
         start = indices[i]
-        length = steps[i]
         chunk = wet_delays[start:start + length]
         t_points = t_points_l[i]
         delays[i] = 1e-6 * np.trapz(chunk, t_points)
-        if verbose:
-            print('_common_delay:Integrating step {}'.format(i))
+
+    if verbose:
+        print('_common_delay: Finished integration')
 
     # Finally apply cosine correction if applicable
     if correction is not None:
@@ -237,7 +243,7 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
     lats, lons, hts = np.moveaxis(llas, -1, 0)
 
     if parallel:
-        # TODO: Need to use all open processors, not all possible
+        # TODO: Need to specify a specific number of processors to use, not use all open
         num_procs = os.cpu_count()
         if verbose:
             print('{} processors available'.format(num_procs))
@@ -328,8 +334,8 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
 
 def _tropo_delay_with_values(los, lats, lons, hts, 
                              weather, zref, 
-                             out, 
                              time, 
+                             raytrace = True
                              parallel = True, verbose = False):
     """Calculate troposphere delay from processed command-line arguments."""
     # LOS
@@ -346,10 +352,13 @@ def _tropo_delay_with_values(los, lats, lons, hts,
             f'lats had shape {lats.shape}, lons had shape {lons.shape}, '
             'heights had shape {hts.shape}, and los had shape {los.shape}')
 
+    if verbose: 
+        print('_tropo_delay_with_values: called delay_from_grid')
+
     # Do the calculation
     llas = np.stack((lats, lons, hts), axis=-1)
     hydro, wet = delay_from_grid(weather, llas, los, parallel=parallel,
-                                 raytrace=True, verbose = verbose)
+                                 raytrace=raytrace, verbose = verbose)
     return hydro, wet
 
 
@@ -366,7 +375,8 @@ def get_weather_and_nodes(model, filename, zmin=None):
 
 def tropo_delay(los = None, lat = None, lon = None, 
                 heights = None, 
-                weather = None, zref = None, 
+                weather = None, 
+                zref = 15000, 
                 out = None, 
                 time = None,
                 outformat='ENVI', 
@@ -380,6 +390,19 @@ def tropo_delay(los = None, lat = None, lon = None,
     """
     import pyproj
 
+    if out is None:
+        out = os.getcwd()
+
+    # For later
+    hydroname, wetname = (
+        f'{weather_fmt}_{dtyp}_'
+        f'{time.isoformat() + "_" if time is not None else ""}'
+        f'{"z" if los is None else "s"}td.{outformat}'
+        for dtyp in ('hydro', 'wet'))
+
+    hydro_file_name = os.path.join(out, hydroname)
+    wet_file_name = os.path.join(out, wetname)
+
     # set_geo_info should be a list of functions to call on the dataset,
     # and each will do some bit of work
     set_geo_info = list()
@@ -392,7 +415,8 @@ def tropo_delay(los = None, lat = None, lon = None,
     else:
         latds = gdal.Open(lat)
         noDataVal = latds.GetRasterBand(1).GetNoDataValue()
-        print(noDataVal)
+        if verbose:
+            print('NoDataValue for Latitutde file is {}'.format(noDataVal))
         latproj = latds.GetProjection()
         lats = latds.GetRasterBand(1).ReadAsArray()
         lats = np.ma.masked_equal(lats, noDataVal)
@@ -425,6 +449,11 @@ def tropo_delay(los = None, lat = None, lon = None,
     weather_files = weather['files']
     weather_fmt = weather['name']
     height_type, height_info = heights
+    if verbose:
+        print('Type of height: {}'.format(height_type))
+        print('Type of weather model: {}'.format(weather_type))
+        print('{} weather files'.format(len(weather_files)))
+        print('Weather format: {}'.format(weather_fmt))
 
     if weather_type == 'wrf':
         weather = wrf.load(*weather_files)
@@ -466,13 +495,6 @@ def tropo_delay(los = None, lat = None, lon = None,
     else:
         raise ValueError(f'Unexpected height_type {repr(height_type)}')
 
-    # For later
-    hydroname, wetname = (
-        f'{weather_fmt}_{dtyp}_'
-        f'{time.isoformat() + "_" if time is not None else ""}'
-        f'{"z" if los is None else "s"}td.{outformat}'
-        for dtyp in ('hydro', 'wet'))
-
     # Pretty different calculation depending on whether they specified a
     # list of heights or just a DEM
     if height_type == 'lvs':
@@ -482,7 +504,7 @@ def tropo_delay(los = None, lat = None, lon = None,
         for i, ht in enumerate(hts):
             hydro, wet = _tropo_delay_with_values(
                 los, lats, lons, np.broadcast_to(ht, lats.shape), weather,
-                zref, out, time, parallel=parallel, verbose = verbose)
+                zref, time, parallel=parallel, verbose = verbose)
             total_hydro[i] = hydro
             total_wet[i] = wet
 
@@ -491,7 +513,7 @@ def tropo_delay(los = None, lat = None, lon = None,
         else:
             drv = gdal.GetDriverByName(outformat)
             hydro_ds = drv.Create(
-                os.path.join(out, hydroname), total_hydro.shape[2],
+                hydro_file_name, total_hydro.shape[2],
                 total_hydro.shape[1], len(hts), gdal.GDT_Float64)
             for lvl, (hydro, ht) in enumerate(zip(total_hydro, hts), start=1):
                 band = hydro_ds.GetRasterBand(lvl)
@@ -502,7 +524,7 @@ def tropo_delay(los = None, lat = None, lon = None,
             hydro_ds = None
 
             wet_ds = drv.Create(
-                os.path.join(out, wetname), total_wet.shape[2],
+                wet_file_name, total_wet.shape[2],
                 total_wet.shape[1], len(hts), gdal.GDT_Float64)
             for lvl, (wet, ht) in enumerate(zip(total_wet, hts), start=1):
                 band = wet_ds.GetRasterBand(lvl)
@@ -514,7 +536,7 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     else:
         hydro, wet = _tropo_delay_with_values(
-            los, lats, lons, hts, weather, zref, out, time, parallel = parallel, verbose = verbose)
+            los, lats, lons, hts, weather, zref, time, parallel = parallel, verbose = verbose)
 
         # Write the output file
         # TODO: maybe support other files than ENVI
@@ -523,16 +545,18 @@ def tropo_delay(los = None, lat = None, lon = None,
         else:
             drv = gdal.GetDriverByName(outformat)
             hydro_ds = drv.Create(
-                os.path.join(out, hydroname), hydro.shape[1], hydro.shape[0],
+                hydro_file_name, hydro.shape[1], hydro.shape[0],
                 1, gdal.GDT_Float64)
             hydro_ds.GetRasterBand(1).WriteArray(hydro)
             for f in set_geo_info:
                 f(hydro_ds)
             hydro_ds = None
             wet_ds = drv.Create(
-                os.path.join(out, wetname), wet.shape[1], wet.shape[0], 1,
+                wet_file_name, wet.shape[1], wet.shape[0], 1,
                 gdal.GDT_Float64)
             wet_ds.GetRasterBand(1).WriteArray(wet)
             for f in set_geo_info:
                 f(wet_ds)
             wet_ds = None
+
+    return hydro_file_name, wet_file_name
