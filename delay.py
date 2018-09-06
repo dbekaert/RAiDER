@@ -335,7 +335,7 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
 def _tropo_delay_with_values(los, lats, lons, hts, 
                              weather, zref, 
                              time, 
-                             raytrace = True
+                             raytrace = True,
                              parallel = True, verbose = False):
     """Calculate troposphere delay from processed command-line arguments."""
     # LOS
@@ -393,6 +393,10 @@ def tropo_delay(los = None, lat = None, lon = None,
     if out is None:
         out = os.getcwd()
 
+    weather_type = weather['type']
+    weather_files = weather['files']
+    weather_fmt = weather['name']
+
     # For later
     hydroname, wetname = (
         f'{weather_fmt}_{dtyp}_'
@@ -445,9 +449,6 @@ def tropo_delay(los = None, lat = None, lon = None,
         set_geo_info.append(geo_info)
 
     # Make weather
-    weather_type = weather['type']
-    weather_files = weather['files']
-    weather_fmt = weather['name']
     height_type, height_info = heights
     if verbose:
         print('Type of height: {}'.format(height_type))
