@@ -51,6 +51,24 @@ def _too_high(positions, zref):
     return first_high_index
 
 
+def _get_lengths(look_vecs):
+    '''
+    Returns the lengths of something
+    '''
+    lengths = np.linalg.norm(look_vecs, axis=-1)
+    lengths[~np.isfinite(lengths)] = 0
+    return lengths
+
+
+def _get_steps(lengths):
+    '''
+    Get the number of integration steps for each path
+    '''
+    steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
+    steps[steps < 0] = 0
+    return steps
+
+
 def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     """Perform computation common to hydrostatic and wet delay."""
     # Deal with Zenith special value, and non-raytracing method
@@ -65,10 +83,8 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
                                util.sind(lats))).T
                      * (_ZREF - heights)[..., np.newaxis])
 
-    lengths = np.linalg.norm(look_vecs, axis=-1)
-    # jlm
-    lengths[~np.isfinite(lengths)] = 0
-    steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
+    lengths = _get_lengths(look_vecs)
+    steps = _get_steps(lengths)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
