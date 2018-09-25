@@ -66,6 +66,8 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
                      * (_ZREF - heights)[..., np.newaxis])
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
+    # jlm
+    lengths[~np.isfinite(lengths)] = 0
     steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
 

@@ -2,6 +2,8 @@
 import datetime
 import delay
 import traceback
+import os
+
 import erai
 
 class TimeTests():
@@ -25,6 +27,8 @@ class TimeTests():
 
     print('Weather model: {}'.format(wm))
 
+    outdir = os.getcwd()
+
     test_time = datetime.datetime(2018, 1, 1, 0, 48, 0)
 
     # test error messaging
@@ -35,11 +39,13 @@ class TimeTests():
         delay.tropo_delay(los = self.los, 
                           lat = self.latfile, 
                           lon = self.lonfile, 
-                          heights = self.heights, 
+                          heights = self.heights,
                           weather = self.wm, 
+                          zref = 15000,
                           time = self.test_time, 
-                          parallel=False, 
-                          verbose = True)
+                          out = self.outdir)
+                          #parallel=False, 
+                          #verbose = True)
 
 
 if __name__=='__main__':
@@ -47,15 +53,15 @@ if __name__=='__main__':
     errFileName = 'errors.txt'
     timeFileName = 'timing_result_smallArea.txt'
 
-#    import cProfile
+    import cProfile
     import os
 
     # profile the code
-#    pr = cProfile.Profile()
+    pr = cProfile.Profile()
     test = TimeTests()
 
     # time the process
-#    pr.enable()
+    pr.enable()
     try:
         test.time_tropo_smallArea()
     except Exception as e:
@@ -65,8 +71,8 @@ if __name__=='__main__':
         with open(errFileName, 'w') as f:
             f.write(str(e))
             f.write(traceback.format_exc())
-#    pr.disable()
+    pr.disable()
 
     # write results to file
-#    pr.dump_stats(timeFileName)
+    pr.dump_stats(timeFileName)
 
