@@ -158,14 +158,21 @@ def gdal_open(fname):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     ds = gdal.Open(fname, gdal.GA_ReadOnly)
-    val = ds.ReadAsArray()
-    try:
-        val[val==ds.GetNoDataValue()] = np.nan
-    except:
-        pass
-    # It'll get closed automatically too, but we can be explicit
+
+    val = []
+    for band in range(ds.RasterCount):
+        b = ds.GetRasterBand(band + 1) # gdal counts from 1, not 0
+        d = b.ReadAsArray()
+        try:
+            ndv = b.GetNoDataValue()
+            d[d==ndv]=np.nan
+        except:
+            pass
+        val.append(d)
+        b = None
+       
     ds = None
-    return val
+    return np.stack(val)
 
 
 def pickle_dump(o, f):
