@@ -5,6 +5,7 @@ from osgeo import gdal
 import numpy as np
 import pickle
 import pyproj
+import os
 
 gdal.UseExceptions()
 
@@ -154,8 +155,14 @@ def big_and(*args):
 
 
 def gdal_open(fname):
+    if os.path.exists(fname + '.vrt'):
+        fname = fname + '.vrt'
     ds = gdal.Open(fname, gdal.GA_ReadOnly)
     val = ds.ReadAsArray()
+    try:
+        val[val==ds.GetNoDataValue()] = np.nan
+    except:
+        pass
     # It'll get closed automatically too, but we can be explicit
     ds = None
     return val

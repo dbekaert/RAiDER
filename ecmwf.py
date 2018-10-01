@@ -89,10 +89,10 @@ class Model(reader.Model):
 
     @classmethod
     def fetch(self, lats, lons, time, out):
-        lat_min = np.min(lats)
-        lat_max = np.max(lats)
-        lon_min = np.min(lons)
-        lon_max = np.max(lons)
+        lat_min = np.nanmin(lats)
+        lat_max = np.nanmax(lats)
+        lon_min = np.nanmin(lons)
+        lon_max = np.nanmax(lons)
         lat_res = 0.2
         lon_res = 0.2
 
