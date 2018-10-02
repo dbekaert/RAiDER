@@ -140,6 +140,7 @@ class LinearModel:
         temperature = self._t_inp(a)
         humidity = self._h_inp(a)
         pressure = np.exp(self._p_inp(a))
+
         # Sometimes we've got it directly
         if self.humidity_type == 'q':
             e = _find_e_from_q(temperature, humidity, pressure)
@@ -150,7 +151,7 @@ class LinearModel:
                              f'was {self.humidity_type}')
 
         wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
-        return wet_delay
+        return wet_delay, temperature, humidity, pressure, e
 
     def hydrostatic_delay(self, a):
         """Calculate hydrostatic delay at a list of points."""

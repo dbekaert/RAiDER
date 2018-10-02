@@ -189,3 +189,22 @@ def gdal_open(fname, returnProj = False):
 def pickle_dump(o, f):
     with open(f, 'wb') as fil:
         pickle.dump(o, fil)
+
+
+def writeArrayToRaster(array, filename, fmt = 'ENVI'):
+    # write a numpy array to a GDAL-readable raster
+    import gdal
+    import numpy as np
+    array_shp = np.shape(array)
+    dType = array.dtype
+    if 'complex' in str(dType):
+        dType = gdal.GDT_CFloat32
+    elif 'float' in str(dType):
+        dType = gdal.GDT_Float32
+    else:
+        dType = gdal.GDT_Byte
+
+    driver = gdal.GetDriverByName(fmt)
+    ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
+    ds.GetRasterBand(1).WriteArray(array)
+    ds = None

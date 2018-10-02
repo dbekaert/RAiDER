@@ -118,7 +118,10 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
 
     if verbose:
         print('_common_delay: starting wet_delay calculation')
-    wet_delays = delay(positions_a)
+    try:
+        wet_delays,temp, hum, pres, e = delay(positions_a)
+    except:
+        wet_delays = delay(positions_a)
 
     # Compute starting indices
     indices = np.cumsum(steps)
