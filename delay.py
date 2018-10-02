@@ -69,7 +69,7 @@ def _get_steps(lengths):
     return steps
 
 
-def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
+def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = False):
     """Perform computation common to hydrostatic and wet delay."""
     # Deal with Zenith special value, and non-raytracing method
     if raytrace:
@@ -478,8 +478,8 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather = weather_model.load(f)
             else:
                 with tempfile.NamedTemporaryFile() as f:
-                weather_model.fetch(lats, lons, time, f)
-                weather = weather_model.load(f)
+                    weather_model.fetch(lats, lons, time, f)
+                    weather = weather_model.load(f)
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)
