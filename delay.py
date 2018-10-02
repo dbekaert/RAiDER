@@ -359,6 +359,8 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
+    import pdb
+    pdb.set_trace()
     height_type, height_info = heights
 
     if weather_type == 'wrf':
@@ -374,8 +376,7 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
                 raise ValueError(
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
-            with tempfile.NamedTemporaryFile(delete = False) as f:
-                print(f.name)
+            with tempfile.NamedTemporaryFile() as f:
                 weather_model.fetch(lats, lons, time, f.name)
                 weather = weather_model.load(f.name)
         else:
