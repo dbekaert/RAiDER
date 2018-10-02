@@ -172,13 +172,18 @@ def gdal_open(fname, returnProj = False):
             pass
         val.append(d)
         b = None
-       
     ds = None
 
-    if not returnProj:
-        return np.stack(val)
+    if len(val) > 1:
+        data = np.stack(val)
     else:
-        return np.stack(val), proj
+        data = val[0]
+
+    if not returnProj:
+        return data
+    else:
+        return data, proj
+
 
 
 def pickle_dump(o, f):

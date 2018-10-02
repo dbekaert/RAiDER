@@ -97,10 +97,6 @@ class Model(reader.Model):
         lon_min = np.nanmin(lons) - Nextra*lon_res
         lon_max = np.nanmax(lons) + Nextra*lon_res
  
-        print('************************************************')
-        print('lat_min: {}, lon_max = {}'.format(lat_min, lon_max))
-        print('************************************************')
-
         self.get_from_ecmwf(
                 lat_min, lat_max, lat_res, lon_min, lon_max, lon_res, time,
                 out)
