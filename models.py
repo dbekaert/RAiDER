@@ -12,42 +12,71 @@ class WeatherModel:
     '''
     Implement a generic weather model for getting estimated SAR delays
     '''
-    _k1 = None
-    _k2 = None
-    _k3 = None
-    _humType = 'q'
-    _a = []
-    _b = []
-    _zmin = const._ZMIN
+    def __init__(self):
+        self._k1 = None
+        self._k2 = None
+        self._k3 = None
+        self._humidityType = 'q'
+        self._a = []
+        self._b = []
+        self._zmin = const._ZMIN
+        self._xs = None
+        self._ys = None
+        self._lats = None
+        self._lons = None
+        self._lon_res = None
+        self._lat_res = None
+
+        
+    @classmethod
+    def __str__(self):
+        string = '======Weather Model class object======'
+        string += 'Number of Lat/Lon points = {}/{}'.format(len(self._lats),len(self._lons))
+        string += 'Total number of points (3D): {}'.format(len(self._xs)*len(self._ys)*len(self._zs))
+        string += 'Projection = {}'.format(self._proj)
+        string += 'Humidity type = {}'.format(self._humidity_type)
+        string += 'k1 = {}'.format(self._k1)
+        string += 'k2 = {}'.format(self._k2)
+        string += 'k3 = {}'.format(self._k3)
+        string += '====================================='
+        return string
+
+    @classmethod
+    def plot(self):
+        pass
 
     @classmethod
     def fetch(self, lats, lons, time, out):
         raise NotImplemented
 
+#    @classmethod
+#    def load(self, filename):
+#        weather, _, _, _ = self.weather_and_nodes(filename)
+#        return weather
     @classmethod
     def load(self, filename):
+        self.load_weather(filename)
+
+#    @classmethod
+#    def load_pressure_level(self, filename):
+#        raise NotImplemented
+
+    @classmethod
+    def load_weather(self, filename):
         raise NotImplemented
 
-    @classmethod
-    def load_pressure_level(self, filename):
-        raise NotImplemented
-
-    @classmethod
-    def load_model_level(self, filename):
-        raise NotImplemented
-
-    @classmethod
-    def weather_from_model(self, filename):
-        self.xs, self.ys, self.proj, self.t, self.q, self.z, self.p = self.load_model_level(filename)
-        geo_ht, press = calculategeoh(self._a, self._b, self._heights, self.p, self.t, self.q)
-        self.grid = self._import_grids()
-        #return grid
-        #self.data = read_model_level(self, xs, ys, proj, t, q, z, lnsp)
-
-    @classmethod
-    def weather_from_pressure(self, filename):
-        self.xs, self.ys, self.proj, self.t, self.q, self.z, self.p = self.load_pressure_level(filename)
-        self.grid = self._import_grids()
+#    @classmethod
+#    def weather_from_model(self, filename):
+#        self._xs, self._ys, self._proj, self._t, self._q, self._z, p = self.load_model_level(filename)
+#        self._zs=geo_ht, self._p = util.calculategeoh(self._a, self._b, self._heights, p, self.t, self.q)
+#        self.grid = self._import_grids()
+#        #return grid
+#        #self.data = read_model_level(self, xs, ys, proj, t, q, z, lnsp)
+#
+#    @classmethod
+#    def weather_from_pressure(self, filename):
+#        self.xs, self.ys, self.proj, self.t, self.q, self.z, self.p = self.load_pressure_level(filename)
+#        self.grid = self._import_grids()
 
 
     @classmethod
@@ -84,11 +113,61 @@ class WeatherModel:
                                         heights.shape)
     
 
-    def _get_heights(self, geo_ht_fill = np.nan):
+def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
+                 k1, k2, k3, projection, temp_fill=np.nan, humid_fill=np.nan,
+                 geo_ht_fill=np.nan, scipy_interpolate=False,
+                 humidity_type='rh', zmin=None):
+    """Import weather information to make a weather model object.
+
+    This takes in lat, lon, pressure, temperature, humidity in the 3D
+    grid format that NetCDF uses, and I imagine might be common
+    elsewhere. If other weather models don't make it convenient to use
+    this function, we'll need to add some more abstraction. For now,
+    this function is only used for NetCDF anyway.
+    """
+    if zmin is None:
+        zmin = _zmin
+
+    # Replace the non-useful values by NaN
+    temps_fixed = np.where(temperature != temp_fill, temperature, np.nan)
+    humids_fixed = np.where(humidity != humid_fill, humidity, np.nan)
+    geo_ht_fix = np.where(geo_ht != geo_ht_fill, geo_ht, np.nan)
+
+    # We've got to recover the grid of lat, lon
+    xgrid, ygrid = np.meshgrid(xs, ys)
+    lla = pyproj.Proj(proj='latlong')
+    lons, lats = pyproj.transform(projection, lla, xgrid, ygrid)
+
+    heights = util.geo_to_ht(lats, lons, geo_ht_fix)
+
+    # We want to support both pressure levels and true pressure grids.
+    # If the shape has one dimension, we'll scale it up to act as a
+    # grid, otherwise we'll leave it alone.
+    if len(pressure.shape) == 1:
+        new_plevs = np.broadcast_to(pressure[:, np.newaxis, np.newaxis],
+                                    heights.shape)
+    else:
+        new_plevs = pressure
+
+    wmdata = WeatherModel(lats, lons, xs, ys, heights, 
+                          new_plevs, temps_fixed, humids_fixed, 
+                          k1, k2, k3, projection, humidity_type, 
+                          zmin)
+
+    linMod = LinearModel(xs=xs, ys=ys, heights=heights,
+                       pressure=new_plevs,
+                       temperature=temps_fixed, humidity=humids_fixed,
+                       k1=k1, k2=k2, k3=k3, projection=projection,
+                       scipy_interpolate=scipy_interpolate,
+                       humidity_type=humidity_type, zmin=zmin)
+
+    return linMod, wmdata
+
+    def _get_heights(self, geo_hgt, geo_ht_fill = np.nan):
         '''
         Transform geo heights to actual heights
         '''
-        geo_ht_fix = np.where(self.z!= geo_ht_fill, self.z, np.nan)
+        geo_ht_fix = np.where(geo_hgt!= geo_ht_fill, geo_hgt, np.nan)
         self.heights = util.geo_to_ht(self.lats, self.lons, geo_ht_fix)
 
     def _get_ll(self):
@@ -100,7 +179,7 @@ class WeatherModel:
         self.lons, self.lats = pyproj.transform(self.projection, lla, xgrid, ygrid)
 
 
-    def getInterpFcn(scipy_interpolate = False):
+    def getInterpFcn(self, scipy_interpolate = False):
         '''
         Get the interpolation fcn for interpolating new points
         '''
@@ -118,20 +197,38 @@ class ECMWF(WeatherModel):
     '''
     Implement ECMWF models
     '''
-    _k1 = 0.776
-    _k2 = 0.233
-    _k3 = 3.75e3
+    def __init__(self):
 
-    _lon_res = 0.2
-    _lat_res = 0.2
+        # model constants
+        self._k1 = 0.776  # [K/Pa]
+        self._k2 = 0.233 # [K/Pa]
+        self._k3 = 3.75e3 # [K^2/Pa]
+
+        # model resolution
+        self._lon_res = 0.2
+        self._lat_res = 0.2
+
 
     @classmethod
-    def load(self, filename):
-        weather, _, _, _ = self.weather_and_nodes_from_model_levels(filename)
-        return weather
+    def load_weather(self, filename):
+        '''
+        Consistent class method to be implemented across all weather model types
+        '''
+#    @classmethod
+#    def weather_from_model(self, filename):
+#        self._xs, self._ys, self._proj, self._t, self._q, self._z, p = self.load_model_level(filename)
+#        self._zs=geo_ht, self._p = calculategeoh(self._a, self._b, self._heights, p, self.t, self.q)
+#        self.grid = self._import_grids()
+#        #return grid
+#        #self.data = read_model_level(self, xs, ys, proj, t, q, z, lnsp)
+        self._load_model_level(filename)
+#        self._zs, self._p = util.calculategeoh(self._a, self._b, hgt, p, self.t, self.q)
+#        model_level = weather_from_model(self, xs, ys, proj, t, q, z, lnsp)
+#                return model_level
+
 
     @classmethod
-    def load_model_level(self, fname):
+    def _load_model_level(self, fname):
         import scipy.io
         with scipy.io.netcdf.netcdf_file(fname, 'r', maskandscale=True) as f:
             # 0,0 to get first time and first level
@@ -164,7 +261,46 @@ class ECMWF(WeatherModel):
         # they are the same
         lons[lons > 180] -= 360
 
-        return lons, lats, lla, t, q, z, np.exp(lnsp)
+
+        self._lons = lons
+        self._lats = lats
+        self._proj = lla
+        self._t = t
+        self._q = q
+
+        geo_hgt, self._p = util.calculategeoh(self._a, self._b, z, lnsp, self._t, self._q)
+
+        
+#        # Replace the non-useful values by NaN
+#        # TODO: replace np.where with dask.where
+#        self.t = np.where(self.t!= tempNoData, self.t, np.nan)
+#        self.q = np.where(self.q!= humidNoData, self.q, np.nan)
+#
+    
+        # We've got to recover the grid of lat, lon
+        # TODO: replace np.meshgrid with dask.meshgrid
+        self._get_ll()
+        self._get_heights(geo_hgt)
+
+        # We want to support both pressure levels and true pressure grids.
+        # If the shape has one dimension, we'll scale it up to act as a
+        # grid, otherwise we'll leave it alone.
+        if len(self.p.shape) == 1:
+            self.p = np.broadcast_to(self.p[:, np.newaxis, np.newaxis],
+                                        heights.shape)
+        self._find_e_from_q()
+        #return lons, lats, lla, t, q, z, np.exp(lnsp)
+
+    @classmethod
+    def _find_e_from_q(self):
+        """Calculate e, partial pressure of water vapor."""
+        R_v = 461.524
+        R_d = 287.053
+        e_s = util._find_svp(self._t)
+        # We have q = w/(w + 1), so w = q/(1 - q)
+        w = self._q/(1 - self._q)
+        self._e = w*R_v*(self._p - e_s)/R_d
+        #return e
 
     @classmethod
     def get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
