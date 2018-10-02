@@ -208,3 +208,97 @@ def writeArrayToRaster(array, filename, fmt = 'ENVI'):
     ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
     ds.GetRasterBand(1).WriteArray(array)
     ds = None
+
+
+def calculategeoh(a, b, z, lnsp, ts, qs):
+    geotoreturn = np.zeros_like(ts)
+    pressurelvs = np.zeros_like(ts)
+
+    Rd = 287.06
+
+    z_h = 0
+
+    # surface pressure
+    sp = np.exp(lnsp)
+
+    levelSize = len(ts)
+    A = a
+    B = b
+
+    if len(a) != levelSize + 1 or len(b) != levelSize + 1:
+        raise ValueError(
+            f'I have here a model with {levelSize} levels, but parameters a '
+            f'and b have lengths {len(a)} and {len(b)} respectively. Of '
+            'course, these three numbers should be equal.')
+
+    Ph_levplusone = A[levelSize] + (B[levelSize]*sp)
+
+    # Integrate up into the atmosphere from lowest level
+    for lev, t_level, q_level in zip(
+            range(levelSize, 0, -1), ts[::-1], qs[::-1]):
+        # lev is the level number 1-60, we need a corresponding index
+        # into ts and qs
+        ilevel = levelSize - lev
+
+        # compute moist temperature
+        t_level = t_level*(1 + 0.609133*q_level)
+
+        # compute the pressures (on half-levels)
+        Ph_lev = A[lev-1] + (B[lev-1] * sp)
+
+        pressurelvs[ilevel] = Ph_lev
+
+        if lev == 1:
+            dlogP = np.log(Ph_levplusone/0.1)
+            alpha = np.log(2)
+        else:
+            dlogP = np.log(Ph_levplusone/Ph_lev)
+            dP = Ph_levplusone - Ph_lev
+            alpha = 1 - ((Ph_lev/dP)*dlogP)
+
+        TRd = t_level*Rd
+
+        # z_f is the geopotential of this full level
+        # integrate from previous (lower) half-level z_h to the full level
+        z_f = z_h + TRd*alpha
+
+        # Geopotential (add in surface geopotential)
+        geotoreturn[ilevel] = z_f + z
+
+        # z_h is the geopotential of 'half-levels'
+        # integrate z_h to next half level
+        z_h += TRd * dlogP
+
+        Ph_levplusone = Ph_lev
+
+    return geotoreturn, pressurelvs
+
+
+def _find_svp(temp):
+    """Calculate standard vapor presure."""
+    # From TRAIN:
+    # Could not find the wrf used equation as they appear to be
+    # mixed with latent heat etc. Istead I used the equations used
+    # in ERA-I (see IFS documentation part 2: Data assimilation
+    # (CY25R1)). Calculate saturated water vapour pressure (svp) for
+    # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
+    # and Eskridge (1996) euation AERKi
+
+    # TODO: figure out the sources of all these magic numbers and move
+    # them somewhere more visible.
+    svpw = (6.1121
+            * np.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
+    svpi = (6.1121
+            * np.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
+    tempbound1 = 273.16  # 0
+    tempbound2 = 250.16  # -23
+
+    svp = svpw
+    wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
+    svp = svpi + (svpw - svpi)*wgt**2
+    ix_bound1 = temp > tempbound1
+    svp[ix_bound1] = svpw[ix_bound1]
+    ix_bound2 = temp < tempbound2
+    svp[ix_bound2] = svpi[ix_bound2]
+
+    return svp * 100
