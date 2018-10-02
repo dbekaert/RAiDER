@@ -326,31 +326,24 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
     """
     import pyproj
 
-    # set_geo_info should be a list of functions to call on the dataset,
-    # and each will do some bit of work
-    set_geo_info = list()
-
     # Lat, lon
     if lat is None:
         # They'll get set later with weather
         lats = lons = None
         latproj = lonproj = None
     else:
-        latds = gdal.Open(lat)
-        latproj = latds.GetProjection()
-        lats = latds.GetRasterBand(1).ReadAsArray()
-        latds = None
+        lats, latproj = util.gdal_open(lat, returnProj = True)
+        lons, lonproj = util.gdal_open(lon, returnProj = True)
 
-        londs = gdal.Open(lon)
-        lonproj = londs.GetProjection()
-        lons = londs.GetRasterBand(1).ReadAsArray()
-        londs = None
 
+    # set_geo_info should be a list of functions to call on the dataset,
+    # and each will do some bit of work
+    set_geo_info = list()
+    if lat is not None:
         def geo_info(ds):
             ds.SetMetadata({'X_DATASET': os.path.abspath(lat), 'X_BAND': '1',
                             'Y_DATASET': os.path.abspath(lon), 'Y_BAND': '1'})
         set_geo_info.append(geo_info)
-
     # Is it ever possible that lats and lons will actually have embedded
     # projections?
     if latproj:
@@ -375,8 +368,6 @@ def tropo_delay(los, lat, lon, heights, weather, zref, out, time,
         if lats is None:
             lats, lons = wrf.wm_nodes(*weather_files)
     else:
-        import pdb
-        pdb.set_trace()
         weather_model = weather_type
         if weather_files is None:
             if lats is None:

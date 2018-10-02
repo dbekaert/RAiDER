@@ -154,10 +154,11 @@ def big_and(*args):
     return result
 
 
-def gdal_open(fname):
+def gdal_open(fname, returnProj = False):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     ds = gdal.Open(fname, gdal.GA_ReadOnly)
+    proj = ds.GetProjection()
 
     val = []
     for band in range(ds.RasterCount):
@@ -167,12 +168,17 @@ def gdal_open(fname):
             ndv = b.GetNoDataValue()
             d[d==ndv]=np.nan
         except:
+            print('NoDataValue attempt failed*******')
             pass
         val.append(d)
         b = None
        
     ds = None
-    return np.stack(val)
+
+    if not returnProj:
+        return np.stack(val)
+    else:
+        return np.stack(val), proj
 
 
 def pickle_dump(o, f):
