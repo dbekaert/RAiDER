@@ -5,6 +5,7 @@ from osgeo import gdal
 import numpy as np
 import pickle
 import pyproj
+import os
 
 gdal.UseExceptions()
 
@@ -153,12 +154,36 @@ def big_and(*args):
     return result
 
 
-def gdal_open(fname):
+def gdal_open(fname, returnProj = False):
+    if os.path.exists(fname + '.vrt'):
+        fname = fname + '.vrt'
     ds = gdal.Open(fname, gdal.GA_ReadOnly)
-    val = ds.ReadAsArray()
-    # It'll get closed automatically too, but we can be explicit
+    proj = ds.GetProjection()
+
+    val = []
+    for band in range(ds.RasterCount):
+        b = ds.GetRasterBand(band + 1) # gdal counts from 1, not 0
+        d = b.ReadAsArray()
+        try:
+            ndv = b.GetNoDataValue()
+            d[d==ndv]=np.nan
+        except:
+            print('NoDataValue attempt failed*******')
+            pass
+        val.append(d)
+        b = None
     ds = None
-    return val
+
+    if len(val) > 1:
+        data = np.stack(val)
+    else:
+        data = val[0]
+
+    if not returnProj:
+        return data
+    else:
+        return data, proj
+
 
 
 def pickle_dump(o, f):

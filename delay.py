@@ -51,7 +51,25 @@ def _too_high(positions, zref):
     return first_high_index
 
 
-def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = False):
+def _get_lengths(look_vecs):
+    '''
+    Returns the lengths of something
+    '''
+    lengths = np.linalg.norm(look_vecs, axis=-1)
+    lengths[~np.isfinite(lengths)] = 0
+    return lengths
+
+
+def _get_steps(lengths):
+    '''
+    Get the number of integration steps for each path
+    '''
+    steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
+    steps[steps < 0] = 0
+    return steps
+
+
+def _common_delay(delay, lats, lons, heights, look_vecs, raytrace):
     """Perform computation common to hydrostatic and wet delay."""
     # Deal with Zenith special value, and non-raytracing method
     if raytrace:
@@ -64,21 +82,14 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
                                util.cosd(lats)*util.sind(lons),
                                util.sind(lats))).T
                      * (_ZREF - heights)[..., np.newaxis])
+    lengths = _get_lengths(look_vecs)
+    steps = _get_steps(lengths)
+    start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
+    scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
+
     if verbose:
         print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
-
-    lengths = np.linalg.norm(look_vecs, axis=-1)
-#    lengths[~np.isfinite(lengths)] = np.nan
-    lengths = np.ma.masked_invalid(lengths)
-    steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
-    # may need to make this more general in the future 
-    steps[steps < 0] = 0
-    if verbose:
         print('_common_delay: The number of steps is {}'.format(len(steps)))
-
-    start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
-
-    scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
     positions_l = list()
     t_points_l = list()
@@ -393,6 +404,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     if out is None:
         out = os.getcwd()
 
+    # Make weather
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
@@ -417,26 +429,17 @@ def tropo_delay(los = None, lat = None, lon = None,
         lats = lons = None
         latproj = lonproj = None
     else:
-        latds = gdal.Open(lat)
-        noDataVal = latds.GetRasterBand(1).GetNoDataValue()
-        if verbose:
-            print('NoDataValue for Latitutde file is {}'.format(noDataVal))
-        latproj = latds.GetProjection()
-        lats = latds.GetRasterBand(1).ReadAsArray()
-        lats = np.ma.masked_equal(lats, noDataVal)
-        latds = None
+        lats, latproj = util.gdal_open(lat, returnProj = True)
+        lons, lonproj = util.gdal_open(lon, returnProj = True)
 
-        londs = gdal.Open(lon)
-        lonproj = londs.GetProjection()
-        lons = londs.GetRasterBand(1).ReadAsArray()
-        lons = np.ma.masked_equal(lons, noDataVal)
-        londs = None
-
+    # set_geo_info should be a list of functions to call on the dataset,
+    # and each will do some bit of work
+    set_geo_info = list()
+    if lat is not None:
         def geo_info(ds):
             ds.SetMetadata({'X_DATASET': os.path.abspath(lat), 'X_BAND': '1',
                             'Y_DATASET': os.path.abspath(lon), 'Y_BAND': '1'})
         set_geo_info.append(geo_info)
-
     # Is it ever possible that lats and lons will actually have embedded
     # projections?
     if latproj:
@@ -448,12 +451,12 @@ def tropo_delay(los = None, lat = None, lon = None,
             ds.SetProjection(lonproj)
         set_geo_info.append(geo_info)
 
-    # Make weather
     height_type, height_info = heights
     if verbose:
         print('Type of height: {}'.format(height_type))
         print('Type of weather model: {}'.format(weather_type))
-        print('{} weather files'.format(len(weather_files)))
+        if weather_files is not None:
+            print('{} weather files'.format(len(weather_files)))
         print('Weather format: {}'.format(weather_fmt))
 
     if weather_type == 'wrf':
@@ -469,10 +472,14 @@ def tropo_delay(los = None, lat = None, lon = None,
                 raise ValueError(
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
-            f = 'model'
-            #with tempfile.NamedTemporaryFile() as f:
-            weather_model.fetch(lats, lons, time, f)
-            weather = weather_model.load(f)
+            if verbose:
+                f = os.path.join(out, 'weather_model.dat')
+                weather_model.fetch(lats, lons, time, f)
+                weather = weather_model.load(f)
+            else:
+                with tempfile.NamedTemporaryFile() as f:
+                weather_model.fetch(lats, lons, time, f)
+                weather = weather_model.load(f)
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)

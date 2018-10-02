@@ -347,13 +347,14 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
     else:
         new_plevs = pressure
 
-    return LinearModel(xs=xs, ys=ys, heights=heights,
+    linMod = LinearModel(xs=xs, ys=ys, heights=heights,
                        pressure=new_plevs,
                        temperature=temps_fixed, humidity=humids_fixed,
                        k1=k1, k2=k2, k3=k3, projection=projection,
                        scipy_interpolate=scipy_interpolate,
                        humidity_type=humidity_type, zmin=zmin)
 
+    return linMod
 
 # This function is copied (with slight modification) from
 # https://confluence.ecmwf.int//display/CKB/ERA-Interim%3A+compute+geopotential+on+model+levels#ERA-Interim:computegeopotentialonmodellevels-Step2:Computegeopotentialonmodellevels.

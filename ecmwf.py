@@ -88,15 +88,15 @@ class Model(reader.Model):
         })
 
     @classmethod
-    def fetch(self, lats, lons, time, out):
-        lat_min = np.min(lats)
-        lat_max = np.max(lats)
-        lon_min = np.min(lons)
-        lon_max = np.max(lons)
-        print(lat_min, lat_max)
-        lat_res = 0.2
-        lon_res = 0.2
-
+    def fetch(self, lats, lons, time, out, lat_res = 0.2, lon_res = 0.2,Nextra = 2):
+        '''
+        Fetch a weather model from ECMWF
+        '''
+        lat_min = np.nanmin(lats) - Nextra*lat_res
+        lat_max = np.nanmax(lats) + Nextra*lat_res
+        lon_min = np.nanmin(lons) - Nextra*lon_res
+        lon_max = np.nanmax(lons) + Nextra*lon_res
+ 
         self.get_from_ecmwf(
                 lat_min, lat_max, lat_res, lon_min, lon_max, lon_res, time,
                 out)

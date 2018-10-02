@@ -1,0 +1,22 @@
+<VRTDataset rasterXSize="226" rasterYSize="45">
+  <VRTRasterBand dataType="Float32" band="1">
+    <NoDataValue>0</NoDataValue>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">los.rdr</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="226" RasterYSize="45" DataType="Float32" BlockXSize="226" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="226" ySize="45" />
+      <DstRect xOff="0" yOff="0" xSize="226" ySize="45" />
+    </SimpleSource>
+  </VRTRasterBand>
+  <VRTRasterBand dataType="Float32" band="2">
+    <NoDataValue>0</NoDataValue>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">los.rdr</SourceFilename>
+      <SourceBand>2</SourceBand>
+      <SourceProperties RasterXSize="226" RasterYSize="45" DataType="Float32" BlockXSize="226" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="226" ySize="45" />
+      <DstRect xOff="0" yOff="0" xSize="226" ySize="45" />
+    </SimpleSource>
+  </VRTRasterBand>
+</VRTDataset>
