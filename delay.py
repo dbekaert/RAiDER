@@ -476,6 +476,8 @@ def tropo_delay(los = None, lat = None, lon = None,
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
             if verbose:
+                import pdb
+                pdb.set_trace()
                 f = os.path.join(out, 'weather_model.dat')
                 weather_model.fetch(lats, lons, time, f)
                 weather = weather_model.load(f)

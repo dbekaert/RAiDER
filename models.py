@@ -1,6 +1,7 @@
 
 # standard imports
 import datetime
+import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
 import os
@@ -20,11 +21,11 @@ class WeatherModel():
         self._a = []
         self._b = []
         self._zmin = const._ZMIN
-        self._xs = None
-        self._ys = None
-        self._zs = None
-        self._lats = None
-        self._lons = None
+        self._xs = [] 
+        self._ys = [] 
+        self._zs = []
+        self._lats = []
+        self._lons = []
         self._lon_res = None
         self._lat_res = None
         self._proj = None
@@ -38,19 +39,32 @@ class WeatherModel():
 
         
     def __repr__(self):
-        string = '======Weather Model class object======'
-        string += 'Number of Lat/Lon points = {}/{}'.format(len(self._lats),len(self._lons))
-        string += 'Total number of points (3D): {}'.format(len(self._xs)*len(self._ys)*len(self._zs))
-        string += 'Projection = {}'.format(self._proj)
-        string += 'Humidity type = {}'.format(self._humidityType)
-        string += 'k1 = {}'.format(self._k1)
-        string += 'k2 = {}'.format(self._k2)
-        string += 'k3 = {}'.format(self._k3)
-        string += '====================================='
+        string = '======Weather Model class object=====\n'
+        string += 'Projection = {}\n'.format(self._proj)
+        string += '=====================================\n'
+        string += 'Number of Lat/Lon points = {}/{}\n'.format(len(self._lats),len(self._lons))
+        string += 'Total number of points (3D): {}\n'.format(len(self._xs)*len(self._ys)*len(self._zs))
+        string += 'Latitude resolution: {}\n'.format(self._lat_res)
+        string += 'Longitude resolution: {}\n'.format(self._lon_res)
+        string += 'ZMIN: {}\n'.format(self._zmin)
+        string += '=====================================\n'
+        string += 'k1 = {}\n'.format(self._k1)
+        string += 'k2 = {}\n'.format(self._k2)
+        string += 'k3 = {}\n'.format(self._k3)
+        string += 'Humidity type = {}\n'.format(self._humidityType)
+        string += 'Use pure scipy interpolation: {}\n'.format(self._pure_scipy_interp)
+        string += '=====================================\n'
+        string += 'Class name: {}\n'.format(self._classname)
+        string += 'Dataset: {}\n'.format(self._dataset)
+        string += '=====================================\n'
         return str(string)
 
     def plot(self):
-        pass
+        try:
+            fig = plt.scatter(self._lons, self._lats)
+        except Exception as e:
+            print(e)
+        return fig
 
     def fetch(self, lats, lons, time, out):
         pass
@@ -188,7 +202,20 @@ class ECMWF(WeatherModel):
         self._e = w*R_v*(self._p - e_s)/R_d
         #return e
 
-    def get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
+    def fetch(self, lats, lons, time, out, Nextra = 2):
+        '''
+        Fetch a weather model from ECMWF
+        '''
+        lat_min = np.nanmin(lats) - Nextra*self._lat_res
+        lat_max = np.nanmax(lats) + Nextra*self._lat_res
+        lon_min = np.nanmin(lons) - Nextra*self._lon_res
+        lon_max = np.nanmax(lons) + Nextra*self._lon_res
+ 
+        self._get_from_ecmwf(
+                lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
+                out)
+
+    def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                        lon_step, time, out):
         import ecmwfapi
         import util
@@ -226,19 +253,6 @@ class ECMWF(WeatherModel):
             "resol": "av",
             "target": out,    # target: the name of the output file.
         })
-
-    def fetch(self, lats, lons, time, out, Nextra = 2):
-        '''
-        Fetch a weather model from ECMWF
-        '''
-        lat_min = np.nanmin(lats) - Nextra*self._lat_res
-        lat_max = np.nanmax(lats) + Nextra*self._lat_res
-        lon_min = np.nanmin(lons) - Nextra*self._lon_res
-        lon_max = np.nanmax(lons) + Nextra*self._lon_res
- 
-        self.get_from_ecmwf(
-                lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
-                out)
 
 
 class ERAI(ECMWF):
