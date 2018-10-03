@@ -22,12 +22,19 @@ class WeatherModel():
         self._zmin = const._ZMIN
         self._xs = None
         self._ys = None
+        self._zs = None
         self._lats = None
         self._lons = None
         self._lon_res = None
         self._lat_res = None
         self._proj = None
         self._pure_scipy_interp = False
+        self._p = None
+        self._q = None
+        self._t = None
+        self._e = None
+        self._classname = None 
+        self._dataset = None
 
         
     def __repr__(self):
@@ -46,62 +53,33 @@ class WeatherModel():
         pass
 
     def fetch(self, lats, lons, time, out):
-        raise NotImplemented
+        pass
 
-#    @classmethod
-#    def load(self, filename):
-#        weather, _, _, _ = self.weather_and_nodes(filename)
-#        return weather
     def load(self, filename):
         self.load_weather(filename)
         return self.getInterpFcn()
-
-#    @classmethod
-#    def load_pressure_level(self, filename):
-#        raise NotImplemented
 
     def setInterpMethod(self, use_pure_scipy = True):
         self._pure_scipy_interp = use_pure_scipy        
 
     def load_weather(self, filename):
-        raise NotImplemented
-
-#    def weather_from_model(self, filename):
-#        self._xs, self._ys, self._proj, self._t, self._q, self._z, p = self.load_model_level(filename)
-#        self._zs=geo_ht, self._p = util.calculategeoh(self._a, self._b, self._heights, p, self.t, self.q)
-#        self.grid = self._import_grids()
-#        #return grid
-#        #self.data = read_model_level(self, xs, ys, proj, t, q, z, lnsp)
-#
-#    @classmethod
-#    def weather_from_pressure(self, filename):
-#        self.xs, self.ys, self.proj, self.t, self.q, self.z, self.p = self.load_pressure_level(filename)
-#        self.grid = self._import_grids()
-
+        pass
 
     def _get_heights(self, geo_hgt, geo_ht_fill = np.nan):
         '''
         Transform geo heights to actual heights
         '''
         geo_ht_fix = np.where(geo_hgt!= geo_ht_fill, geo_hgt, np.nan)
-        self.heights = util.geo_to_ht(self.lats, self.lons, geo_ht_fix)
-
-#    def _get_ll(self):
-#        '''
-#        Transform x, y to lat, lon
-#        '''
-#        xgrid, ygrid = np.meshgrid(self.xs, self.ys)
-#        lla = pyproj.Proj(proj='latlong')
-#        self.lons, self.lats = pyproj.transform(self.projection, lla, xgrid, ygrid)
-
+        self.heights = util.geo_to_ht(self._lats, self._lons, geo_ht_fix)
 
     def getInterpFcn(self):
         '''
         Get the interpolation fcn for interpolating new points
         '''
-        interpFcn = LinearModel(xs=self.xs, ys=self.ys, heights=self.heights,
-                           pressure=self.p,
-                           temperature=self.t, humidity=self.q,
+        from reader import LinearModel as lm
+        interpFcn = lm(xs=self._xs, ys=self._ys, heights=self.heights,
+                           pressure=self._p,
+                           temperature=self._t, humidity=self._q,
                            k1=self._k1, k2=self._k2, k3=self._k3, projection=self._proj,
                            scipy_interpolate=self._pure_scipy_interp,
                            humidity_type=self._humidityType, zmin=self._zmin)
@@ -130,22 +108,11 @@ class ECMWF(WeatherModel):
         '''
         Consistent class method to be implemented across all weather model types
         '''
-#    @classmethod
-#    def weather_from_model(self, filename):
-#        self._xs, self._ys, self._proj, self._t, self._q, self._z, p = self.load_model_level(filename)
-#        self._zs=geo_ht, self._p = calculategeoh(self._a, self._b, self._heights, p, self.t, self.q)
-#        self.grid = self._import_grids()
-#        #return grid
-#        #self.data = read_model_level(self, xs, ys, proj, t, q, z, lnsp)
         self._load_model_level(filename)
-#        self._zs, self._p = util.calculategeoh(self._a, self._b, hgt, p, self.t, self.q)
-#        model_level = weather_from_model(self, xs, ys, proj, t, q, z, lnsp)
-#                return model_level
-
 
     def _load_model_level(self, fname):
-        import scipy.io
-        with scipy.io.netcdf.netcdf_file(fname, 'r', maskandscale=True) as f:
+        from scipy.io import netcdf as nc
+        with nc.netcdf_file(fname, 'r', maskandscale=True) as f:
             # 0,0 to get first time and first level
             z = f.variables['z'][0][0].copy()
             lnsp = f.variables['lnsp'][0][0].copy()
@@ -201,10 +168,10 @@ class ECMWF(WeatherModel):
         # If the shape has one dimension, we'll scale it up to act as a
         # grid, otherwise we'll leave it alone.
         if len(pres.shape) == 1:
-            self.p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
+            self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
                                         self.heights.shape)
         else:
-            self.p = press
+            self._p = pres
 
         # compute e
         self._find_e_from_q()
@@ -231,8 +198,8 @@ class ECMWF(WeatherModel):
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
 
         server.retrieve({
-            "class": self.classname,  # ERA-Interim
-            'dataset': self.dataset,
+            "class": self._classname,  # ERA-Interim
+            'dataset': self._dataset,
             "expver": "1",
             # They warn me against all, but it works well
             "levelist": 'all',
@@ -270,7 +237,7 @@ class ECMWF(WeatherModel):
         lon_max = np.nanmax(lons) + Nextra*self._lon_res
  
         self.get_from_ecmwf(
-                lat_min, lat_max, self._lat_res,_lon_min, lon_max, self._lon_res, time,
+                lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
                 out)
 
 
@@ -405,6 +372,8 @@ class MERRA2(WeatherModel):
         # this comment here.
         import pydap.client
         import pydap.cas.urs
+        import json
+        from scipy.io import netcdf as nc
 
         lat_min = int(np.min(lats))
         lat_max = int(np.max(lats) + 0.5)
@@ -427,7 +396,7 @@ class MERRA2(WeatherModel):
         # TODO: gotta figure out how to index as time
         timeNum = 0
 
-        with scipy.io.netcdf.netcdf_file(out, 'w') as f:
+        with nc.netcdf_file(out, 'w') as f:
             def index(ds):
                 return ds[timeNum][:][lat_min:lat_max][lon_min:lon_max]
             t = f.createVariable('T', float, [])
@@ -444,7 +413,8 @@ class MERRA2(WeatherModel):
             p[:] = dataset['lev'][:]
 
     def load_pressure_level(self, filename):
-        with scipy.io.netcdf.netcdf_file(
+        from scipy.io import netcdf as nc
+        with nc.netcdf_file(
                 filename, 'r', maskandscale=True) as f:
             lats = f.variables['lat'][:].copy()
             lons = f.variables['lon'][:].copy()
@@ -453,12 +423,15 @@ class MERRA2(WeatherModel):
             z = f.variables['H'][0].copy()
             p = f.variables['lev'][0].copy()
         proj = pyproj.Proj('lla')
-        return xs, ys, proj, t, q, z, p
+        return lats, lons, proj, t, q, z, p
 
     def weather_and_nodes(self, filename):
         return self.weather_and_nodes_from_pressure_levels(filename)
 
-    def _url_builder(time, lat_min, lat_step, lat_max, lon_min, lon_step, lon_max):
+    def weather_and_nodes_from_pressure_levels(self, filename):
+        pass
+
+    def _url_builder(self, time, lat_min, lat_step, lat_max, lon_min, lon_step, lon_max):
         if lon_max < 0:
             lon_max += 360
         if lon_min < 0:
