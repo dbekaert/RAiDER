@@ -302,3 +302,27 @@ def _find_svp(temp):
     svp[ix_bound2] = svpi[ix_bound2]
 
     return svp * 100
+
+def round_date(date, precision):
+    import datetime
+    # First try rounding up
+    # Timedelta since the beginning of time
+    datedelta = datetime.datetime.min - date
+    # Round that timedelta to the specified precision
+    rem = datedelta % precision
+    # Add back to get date rounded up
+    round_up = date + rem
+
+    # Next try rounding down
+    datedelta = date - datetime.datetime.min
+    rem = datedelta % precision
+    round_down = date - rem
+
+    # It's not the most efficient to calculate both and then choose, but
+    # it's clear, and performance isn't critical here.
+    up_diff = round_up - date
+    down_diff = date - round_down
+
+    return round_up if up_diff < down_diff else round_down
+
+
