@@ -43,6 +43,9 @@ class WeatherModel():
         self._dataset = None
         self._wet_refractivity = None
         self._hydrostatic_refractivity = None
+        self._svp = None
+        self._R_v = 461.524
+        self._R_d = 287.053
 
         
     def __repr__(self):
@@ -87,7 +90,7 @@ class WeatherModel():
         self.load_weather(filename)
 
     def loadInterp(self):
-        return self.getInterpFcn()
+        return self._getInterpFcn()
 
     def setInterpMethod(self, use_pure_scipy = True):
         self._pure_scipy_interp = use_pure_scipy        
@@ -104,12 +107,10 @@ class WeatherModel():
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
-        R_v = 461.524
-        R_d = 287.053
-        e_s = util._find_svp(self._t)
+        self._find_svp()
         # We have q = w/(w + 1), so w = q/(1 - q)
         w = self._q/(1 - self._q)
-        self._e = w*R_v*(self._p - e_s)/R_d
+        self._e = w*self._R_v*(self._p - self._svp)/self._R_d
 
     def _get_wet_refractivity(self):
         '''
@@ -139,7 +140,7 @@ class WeatherModel():
             new_humids = util._least_nonzero(self._q)
             self._q= np.concatenate((new_humids[np.newaxis], self._q))
 
-    def getInterpFcn(self):
+    def _getInterpFcn(self):
         '''
         Get the interpolation fcn for interpolating new points
         '''
@@ -153,7 +154,7 @@ class WeatherModel():
         return interpFcn
 
 
-    def _find_svp(self, temp):
+    def _find_svp(self):
         """Calculate standard vapor presure."""
         # From TRAIN:
         # Could not find the wrf used equation as they appear to be
@@ -169,21 +170,21 @@ class WeatherModel():
         # weather model types. Right now this will be used for all models, 
         # except WRF, which is yet to be implemented in my new structure.
         svpw = (6.1121
-                * np.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
+                * np.exp((17.502*(self._t- 273.16))/(240.97 + self._t- 273.16)))
         svpi = (6.1121
-                * np.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
+                * np.exp((22.587*( self._t - 273.16))/(273.86 + self._t  - 273.16)))
         tempbound1 = 273.16  # 0
         tempbound2 = 250.16  # -23
     
         svp = svpw
-        wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
+        wgt = (self._t - tempbound2)/(tempbound1 - tempbound2)
         svp = svpi + (svpw - svpi)*wgt**2
-        ix_bound1 = temp > tempbound1
+        ix_bound1 =self._t > tempbound1
         svp[ix_bound1] = svpw[ix_bound1]
-        ix_bound2 = temp < tempbound2
+        ix_bound2 =self._t < tempbound2
         svp[ix_bound2] = svpi[ix_bound2]
     
-        return svp * 100
+        self._svp = svp * 100
 
 
 class ECMWF(WeatherModel):
@@ -248,8 +249,6 @@ class ECMWF(WeatherModel):
         self._t = t
         self._q = q
 
-        import pdb
-        pdb.set_trace()
         geo_hgt,pres = util.calculategeoh(self._a, self._b, z, lnsp, self._t, self._q)
         self._get_heights(geo_hgt)
 
