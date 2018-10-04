@@ -8,6 +8,8 @@ import os
 
 # local imports
 import constants as const
+import util
+from util import robmin, robmax
 
 class WeatherModel():
     '''
@@ -21,14 +23,17 @@ class WeatherModel():
         self._a = []
         self._b = []
         self._zmin = const._ZMIN
-        self._xs = [] 
-        self._ys = [] 
-        self._zs = []
-        self._lats = []
-        self._lons = []
+        self._zref = const._ZMAX
+        self._xs = np.empty((1, 1, 1)) 
+        self._ys = np.empty((1, 1, 1))
+        self._zs = np.empty((1, 1, 1))
+        self._lats = np.empty((1, 1, 1))
+        self._lons = np.empty((1, 1, 1))
+        self._heights = np.empty((1, 1, 1))
         self._lon_res = None
         self._lat_res = None
-        self._proj = None
+        self._llaproj = pyproj.Proj(proj='latlong')
+        self._ecefproj = pyproj.Proj(proj='geocent')
         self._pure_scipy_interp = False
         self._p = None
         self._q = None
@@ -36,17 +41,25 @@ class WeatherModel():
         self._e = None
         self._classname = None 
         self._dataset = None
+        self._wet_refractivity = None
+        self._hydrostatic_refractivity = None
 
         
     def __repr__(self):
-        string = '======Weather Model class object=====\n'
-        string += 'Projection = {}\n'.format(self._proj)
-        string += '=====================================\n'
-        string += 'Number of Lat/Lon points = {}/{}\n'.format(len(self._lats),len(self._lons))
-        string += 'Total number of points (3D): {}\n'.format(len(self._xs)*len(self._ys)*len(self._zs))
+        string = '\n'
+        string += '======Weather Model class object=====\n'
+        string += 'Number of points in Lat/Lon = {}/{}\n'.format(*self._lats.shape[1:])
+        string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._xs.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'ZMIN: {}\n'.format(self._zmin)
+        string += 'ZMAX: {}\n'.format(self._zref)
+        string += 'Minimum/Maximum latitude: {}/{}\n'\
+                  .format(round(robmin(self._lats), 2), round(robmax(self._lats), 2))
+        string += 'Minimum/Maximum longitude: {}/{}\n'\
+                  .format(round(robmin(self._lons), 2), round(robmax(self._lons), 2))
+        string += 'Minimum/Maximum heights: {}/{}\n'\
+                  .format(robmin(self._heights), round(robmax(self._heights), 2))
         string += '=====================================\n'
         string += 'k1 = {}\n'.format(self._k1)
         string += 'k2 = {}\n'.format(self._k2)
@@ -58,6 +71,7 @@ class WeatherModel():
         string += 'Dataset: {}\n'.format(self._dataset)
         string += '=====================================\n'
         return str(string)
+
 
     def plot(self):
         try:
@@ -71,6 +85,8 @@ class WeatherModel():
 
     def load(self, filename):
         self.load_weather(filename)
+
+    def loadInterp(self):
         return self.getInterpFcn()
 
     def setInterpMethod(self, use_pure_scipy = True):
@@ -84,17 +100,54 @@ class WeatherModel():
         Transform geo heights to actual heights
         '''
         geo_ht_fix = np.where(geo_hgt!= geo_ht_fill, geo_hgt, np.nan)
-        self.heights = util.geo_to_ht(self._lats, self._lons, geo_ht_fix)
+        self._heights = util.geo_to_ht(self._lats, self._lons, geo_ht_fix)
+
+    def _find_e_from_q(self):
+        """Calculate e, partial pressure of water vapor."""
+        R_v = 461.524
+        R_d = 287.053
+        e_s = util._find_svp(self._t)
+        # We have q = w/(w + 1), so w = q/(1 - q)
+        w = self._q/(1 - self._q)
+        self._e = w*R_v*(self._p - e_s)/R_d
+
+    def _get_wet_refractivity(self):
+        '''
+        Calculate the wet delay from pressure, temperature, and e
+        '''
+        self._wet_refractivity = self._k2*self._e/self._t+ self._k3*self._e/self._t**2
+        
+    def _get_hydro_refractivity(self):
+        '''
+        Calculate the hydrostatic delay from pressure and temperature
+        '''
+        self._hydrostatic_refractivity = self._k1*self._p/self._t
+
+    def _adjust_grid(self):
+        if self._zmin < np.min(self._heights):
+            # add in a new layer at zmin
+            new_heights = np.zeros(self._heights.shape[1:]) + self._zmin
+            self._heights = np.concatenate((new_heights[np.newaxis], self._heights))
+
+            # need to extrapolate the other variables now
+            new_pressures = util._least_nonzero(self._p)
+            self._p= np.concatenate((new_pressures[np.newaxis], self._p))
+
+            new_temps = util._least_nonzero(self._t)
+            self._t= np.concatenate((new_temps[np.newaxis], self._t))
+
+            new_humids = util._least_nonzero(self._q)
+            self._q= np.concatenate((new_humids[np.newaxis], self._q))
 
     def getInterpFcn(self):
         '''
         Get the interpolation fcn for interpolating new points
         '''
         from reader import LinearModel as lm
-        interpFcn = lm(xs=self._xs, ys=self._ys, heights=self.heights,
+        interpFcn = lm(xs=self._xs, ys=self._ys, heights=self._heights,
                            pressure=self._p,
                            temperature=self._t, humidity=self._q,
-                           k1=self._k1, k2=self._k2, k3=self._k3, projection=self._proj,
+                           k1=self._k1, k2=self._k2, k3=self._k3, projection=self._llaproj,
                            scipy_interpolate=self._pure_scipy_interp,
                            humidity_type=self._humidityType, zmin=self._zmin)
         return interpFcn
@@ -135,7 +188,6 @@ class ECMWF(WeatherModel):
             lats = f.variables['latitude'][:].copy()
             lons = f.variables['longitude'][:].copy()
 
-        lla = pyproj.Proj(proj='latlong')
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
@@ -160,13 +212,34 @@ class ECMWF(WeatherModel):
 
         self._lons = lons
         self._lats = lats
-        self._proj = lla
         self._t = t
         self._q = q
 
+        import pdb
+        pdb.set_trace()
         geo_hgt,pres = util.calculategeoh(self._a, self._b, z, lnsp, self._t, self._q)
+        self._get_heights(geo_hgt)
 
-        
+        # We want to support both pressure levels and true pressure grids.
+        # If the shape has one dimension, we'll scale it up to act as a
+        # grid, otherwise we'll leave it alone.
+        if len(pres.shape) == 1:
+            self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
+                                        self._heights.shape)
+        else:
+            self._p = pres
+
+        # re-assign lons, lats to match heights
+        self._lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+                                     self._heights.shape)
+        self._lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+                                     self._heights.shape)
+
+        # Also get the earth-centered coordinates
+        self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
+                                                     self._lons.flatten(), 
+                                                     self._heights.flatten())
+
 #        # Replace the non-useful values by NaN
 #        # TODO: replace np.where with dask.where
 #        self.t = np.where(self.t!= tempNoData, self.t, np.nan)
@@ -176,31 +249,16 @@ class ECMWF(WeatherModel):
         # We've got to recover the grid of lat, lon
         # TODO: replace np.meshgrid with dask.meshgrid
         #self._get_ll()
-        self._get_heights(geo_hgt)
 
-        # We want to support both pressure levels and true pressure grids.
-        # If the shape has one dimension, we'll scale it up to act as a
-        # grid, otherwise we'll leave it alone.
-        if len(pres.shape) == 1:
-            self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
-                                        self.heights.shape)
-        else:
-            self._p = pres
-
-        # compute e
+        # compute e, wet delay, and hydrostatic delay
         self._find_e_from_q()
-        # no return needed for a self-consistent class method
-        #return lons, lats, lla, t, q, z, np.exp(lnsp)
+        self._get_wet_refractivity()
+        self._get_hydro_refractivity() 
+        
+        # adjust the grid based on the height data
+        self._adjust_grid()
 
-    def _find_e_from_q(self):
-        """Calculate e, partial pressure of water vapor."""
-        R_v = 461.524
-        R_d = 287.053
-        e_s = util._find_svp(self._t)
-        # We have q = w/(w + 1), so w = q/(1 - q)
-        w = self._q/(1 - self._q)
-        self._e = w*R_v*(self._p - e_s)/R_d
-        #return e
+
 
     def fetch(self, lats, lons, time, out, Nextra = 2):
         '''
@@ -218,7 +276,6 @@ class ECMWF(WeatherModel):
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                        lon_step, time, out):
         import ecmwfapi
-        import util
 
         server = ecmwfapi.ECMWFDataServer()
 
