@@ -274,35 +274,6 @@ def calculategeoh(a, b, z, lnsp, ts, qs):
     return geotoreturn, pressurelvs
 
 
-def _find_svp(temp):
-    """Calculate standard vapor presure."""
-    # From TRAIN:
-    # Could not find the wrf used equation as they appear to be
-    # mixed with latent heat etc. Istead I used the equations used
-    # in ERA-I (see IFS documentation part 2: Data assimilation
-    # (CY25R1)). Calculate saturated water vapour pressure (svp) for
-    # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
-    # and Eskridge (1996) euation AERKi
-
-    # TODO: figure out the sources of all these magic numbers and move
-    # them somewhere more visible.
-    svpw = (6.1121
-            * np.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
-    svpi = (6.1121
-            * np.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
-    tempbound1 = 273.16  # 0
-    tempbound2 = 250.16  # -23
-
-    svp = svpw
-    wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
-    svp = svpi + (svpw - svpi)*wgt**2
-    ix_bound1 = temp > tempbound1
-    svp[ix_bound1] = svpw[ix_bound1]
-    ix_bound2 = temp < tempbound2
-    svp[ix_bound2] = svpi[ix_bound2]
-
-    return svp * 100
-
 def round_date(date, precision):
     import datetime
     # First try rounding up

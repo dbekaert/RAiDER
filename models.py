@@ -153,6 +153,39 @@ class WeatherModel():
         return interpFcn
 
 
+    def _find_svp(self, temp):
+        """Calculate standard vapor presure."""
+        # From TRAIN:
+        # Could not find the wrf used equation as they appear to be
+        # mixed with latent heat etc. Istead I used the equations used
+        # in ERA-I (see IFS documentation part 2: Data assimilation
+        # (CY25R1)). Calculate saturated water vapour pressure (svp) for
+        # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
+        # and Eskridge (1996) euation AERKi
+    
+        # TODO: figure out the sources of all these magic numbers and move
+        # them somewhere more visible.
+        # TODO: (Jeremy) - Need to fix/get the equation for the other 
+        # weather model types. Right now this will be used for all models, 
+        # except WRF, which is yet to be implemented in my new structure.
+        svpw = (6.1121
+                * np.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
+        svpi = (6.1121
+                * np.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
+        tempbound1 = 273.16  # 0
+        tempbound2 = 250.16  # -23
+    
+        svp = svpw
+        wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
+        svp = svpi + (svpw - svpi)*wgt**2
+        ix_bound1 = temp > tempbound1
+        svp[ix_bound1] = svpw[ix_bound1]
+        ix_bound2 = temp < tempbound2
+        svp[ix_bound2] = svpi[ix_bound2]
+    
+        return svp * 100
+
+
 class ECMWF(WeatherModel):
     '''
     Implement ECMWF models
