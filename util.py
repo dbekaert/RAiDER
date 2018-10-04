@@ -326,3 +326,41 @@ def round_date(date, precision):
     return round_up if up_diff < down_diff else round_down
 
 
+def _least_nonzero(a):
+    """Fill in a flat array with the lowest nonzero value.
+    
+    Useful for interpolation below the bottom of the weather model.
+    """
+    import numpy as np
+    out = np.full(a.shape[1:], np.nan)
+    xlim, ylim = out.shape
+    zlim = len(a)
+    for x in range(xlim):
+        for y in range(ylim):
+            for z in range(zlim):
+                val = a[z][x][y]
+                if not np.isnan(val):
+                    out[x][y] = val
+                    break
+    return out
+
+
+def robmin(a):
+    '''
+    Get the minimum of an array, accounting for empty lists
+    '''
+    from numpy import nanmin as min
+    try:
+        return min(a)
+    except ValueError:
+        return 'N/A'
+
+def robmax(a):
+    '''
+    Get the minimum of an array, accounting for empty lists
+    '''
+    from numpy import nanmax as max
+    try:
+        return max(a)
+    except ValueError:
+        return 'N/A'
