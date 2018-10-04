@@ -12,22 +12,16 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
 
 def download_dem(lats, lons, save_flag= True):
     print('Getting the DEM')
-    minlon = np.nanmin(lons) - 0.5
-    maxlon = np.nanmax(lons) + 0.5
-    minlat = np.nanmin(lats) - 0.5
-    maxlat = np.nanmax(lats) + 0.5
+    minlon = np.nanmin(lons)
+    maxlon = np.nanmax(lons)
+    minlat = np.nanmin(lats)
+    maxlat = np.nanmax(lats)
     # We'll download at a high resolution to minimize the losses during
     # interpolation
-    if len(lats) > 1:
-        lonsteps = lons.shape[0] * 5
-        latsteps = lats.shape[1] * 5
-        lonres = (maxlon - minlon) / lonsteps
-        latres = (maxlat - minlat) / latsteps
-    else:
-        lonres = 0.01
-        latres = 0.01
-        lonsteps =(maxlon - minlon) / lonres
-        latsteps = (maxlat - minlat) / latres
+    lonsteps = lons.shape[0] * 5
+    latsteps = lats.shape[1] * 5
+    lonres = (maxlon - minlon) / lonsteps
+    latres = (maxlat - minlat) / latsteps
 
     outRaster = '/vsimem/warpedDEM'
 
