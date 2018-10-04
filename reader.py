@@ -363,6 +363,7 @@ def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
 # is legal.
 def calculategeoh(a, b, z, lnsp, ts, qs):
     geotoreturn = np.zeros_like(ts)
+    heighttoreturn = np.zeros_like(ts)
     pressurelvs = np.zeros_like(ts)
 
     Rd = 287.06
@@ -413,6 +414,7 @@ def calculategeoh(a, b, z, lnsp, ts, qs):
         # integrate from previous (lower) half-level z_h to the full level
         z_f = z_h + TRd*alpha
 
+        heighttoreturn[ilevel] = z_f/9.80665
         # Geopotential (add in surface geopotential)
         geotoreturn[ilevel] = z_f + z
 
@@ -422,10 +424,12 @@ def calculategeoh(a, b, z, lnsp, ts, qs):
 
         Ph_levplusone = Ph_lev
 
-    return geotoreturn, pressurelvs
+    return geotoreturn, pressurelvs, heighttoreturn
 
 
 def read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin=None):
-    geo_ht, press = calculategeoh(module.a, module.b, z, lnsp, t, q)
+    geo_ht, press, ht = calculategeoh(module.a, module.b, z, lnsp, t, q)
+    import pdb
+    pdb.set_trace()
     return import_grids(xs, ys, press, t, q, geo_ht, module.k1, module.k2,
                         module.k3, proj, humidity_type='q', zmin=zmin)
