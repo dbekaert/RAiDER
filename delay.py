@@ -431,6 +431,11 @@ def tropo_delay(los = None, lat = None, lon = None,
         # They'll get set later with weather
         lats = lons = None
         latproj = lonproj = None
+#TODO: implement single point case? 
+#    elif isinstance(lat, float):
+#        lats = np.array([lat])
+#        lons = np.array([lon])
+#        latproj = lonproj = None
     else:
         lats, latproj = util.gdal_open(lat, returnProj = True)
         lons, lonproj = util.gdal_open(lon, returnProj = True)
@@ -457,7 +462,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     height_type, height_info = heights
     if verbose:
         print('Type of height: {}'.format(height_type))
-        print('Type of weather model: {}'.format(weather_type))
+        print('Type of weather model: \n {}'.format(weather_type))
         if weather_files is not None:
             print('{} weather files'.format(len(weather_files)))
         print('Weather format: {}'.format(weather_fmt))
@@ -476,11 +481,10 @@ def tropo_delay(los = None, lat = None, lon = None,
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
             if verbose:
-                import pdb
-                pdb.set_trace()
                 f = os.path.join(out, 'weather_model.dat')
                 weather_model.fetch(lats, lons, time, f)
-                weather = weather_model.load(f)
+                weather_model.load(f)
+                weather = weather_model.loadInterp()
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)
