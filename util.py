@@ -114,23 +114,6 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     return los.reshape((3,) + real_shape)
 
 
-def geo_to_ht(lats, lons, hts):
-    """Convert geopotential height to altitude."""
-    # Convert geopotential to geometric height. This comes straight from
-    # TRAIN
-    g0 = 9.80665
-    # Map of g with latitude (I'm skeptical of this equation)
-    g = 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
-    Rmax = 6378137
-    Rmin = 6356752
-    Re = np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
-
-    # Calculate Geometric Height, h
-    h = (hts*Re)/(g/g0*Re - hts)
-
-    return h
-
-
 def toXYZ(lats, lons, hts):
     """Convert lat, lon, geopotential height to x, y, z in ECEF."""
     # Convert geopotential to geometric height. This comes straight from
@@ -208,70 +191,6 @@ def writeArrayToRaster(array, filename, fmt = 'ENVI'):
     ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
     ds.GetRasterBand(1).WriteArray(array)
     ds = None
-
-
-def calculategeoh(a, b, z, lnsp, ts, qs):
-    geotoreturn = np.zeros_like(ts)
-    pressurelvs = np.zeros_like(ts)
-
-    Rd = 287.06
-
-    z_h = 0
-
-    # surface pressure
-    sp = np.exp(lnsp)
-
-    levelSize = len(ts)
-    A = a
-    B = b
-
-    if len(a) != levelSize + 1 or len(b) != levelSize + 1:
-        raise ValueError(
-            f'I have here a model with {levelSize} levels, but parameters a '
-            f'and b have lengths {len(a)} and {len(b)} respectively. Of '
-            'course, these three numbers should be equal.')
-
-    Ph_levplusone = A[levelSize] + (B[levelSize]*sp)
-
-    # Integrate up into the atmosphere from lowest level
-    for lev, t_level, q_level in zip(
-            range(levelSize, 0, -1), ts[::-1], qs[::-1]):
-        # lev is the level number 1-60, we need a corresponding index
-        # into ts and qs
-        ilevel = levelSize - lev
-
-        # compute moist temperature
-        t_level = t_level*(1 + 0.609133*q_level)
-
-        # compute the pressures (on half-levels)
-        Ph_lev = A[lev-1] + (B[lev-1] * sp)
-
-        pressurelvs[ilevel] = Ph_lev
-
-        if lev == 1:
-            dlogP = np.log(Ph_levplusone/0.1)
-            alpha = np.log(2)
-        else:
-            dlogP = np.log(Ph_levplusone/Ph_lev)
-            dP = Ph_levplusone - Ph_lev
-            alpha = 1 - ((Ph_lev/dP)*dlogP)
-
-        TRd = t_level*Rd
-
-        # z_f is the geopotential of this full level
-        # integrate from previous (lower) half-level z_h to the full level
-        z_f = z_h + TRd*alpha
-
-        # Geopotential (add in surface geopotential)
-        geotoreturn[ilevel] = z_f + z
-
-        # z_h is the geopotential of 'half-levels'
-        # integrate z_h to next half level
-        z_h += TRd * dlogP
-
-        Ph_levplusone = Ph_lev
-
-    return geotoreturn, pressurelvs
 
 
 def round_date(date, precision):
