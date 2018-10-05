@@ -16,36 +16,42 @@ class WeatherModel():
     Implement a generic weather model for getting estimated SAR delays
     '''
     def __init__(self):
+        # Initialize model-specific constants/parameters
         self._k1 = None
         self._k2 = None
         self._k3 = None
         self._humidityType = 'q'
         self._a = []
         self._b = []
-        self._zmin = const._ZMIN
-        self._zref = const._ZMAX
+        self._lon_res = None
+        self._lat_res = None
+        self._pure_scipy_interp = False
+        self._classname = None 
+        self._dataset = None
+
+        # Define fixed constants
+        self._R_v = 461.524
+        self._R_d = 287.053
+        self._g0 = 9.80665 # gravity constant
+        self._zmin = const._ZMIN # minimum integration height
+        self._zref = const._ZMAX # max integration height
+        self._llaproj = pyproj.Proj(proj='latlong')
+        self._ecefproj = pyproj.Proj(proj='geocent')
+
+        # setup data structures  
         self._xs = np.empty((1, 1, 1)) 
         self._ys = np.empty((1, 1, 1))
         self._zs = np.empty((1, 1, 1))
         self._lats = np.empty((1, 1, 1))
         self._lons = np.empty((1, 1, 1))
         self._heights = np.empty((1, 1, 1))
-        self._lon_res = None
-        self._lat_res = None
-        self._llaproj = pyproj.Proj(proj='latlong')
-        self._ecefproj = pyproj.Proj(proj='geocent')
-        self._pure_scipy_interp = False
         self._p = None
         self._q = None
         self._t = None
         self._e = None
-        self._classname = None 
-        self._dataset = None
         self._wet_refractivity = None
         self._hydrostatic_refractivity = None
         self._svp = None
-        self._R_v = 461.524
-        self._R_d = 287.053
 
         
     def __repr__(self):
@@ -57,12 +63,12 @@ class WeatherModel():
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zref)
-        string += 'Minimum/Maximum latitude: {}/{}\n'\
-                  .format(round(robmin(self._lats), 2), round(robmax(self._lats), 2))
-        string += 'Minimum/Maximum longitude: {}/{}\n'\
-                  .format(round(robmin(self._lons), 2), round(robmax(self._lons), 2))
-        string += 'Minimum/Maximum heights: {}/{}\n'\
-                  .format(robmin(self._heights), round(robmax(self._heights), 2))
+        string += 'Minimum/Maximum latitude: {: 4.2f}/{: 4.2f}\n'\
+                  .format(robmin(self._lats), robmax(self._lats))
+        string += 'Minimum/Maximum longitude: {: 4.2f}/{: 4.2f}\n'\
+                  .format(robmin(self._lons), robmax(self._lons))
+        string += 'Minimum/Maximum heights: {: 10.2f}/{: 10.2f}\n'\
+                  .format(robmin(self._heights), robmax(self._heights))
         string += '=====================================\n'
         string += 'k1 = {}\n'.format(self._k1)
         string += 'k2 = {}\n'.format(self._k2)
@@ -103,7 +109,36 @@ class WeatherModel():
         Transform geo heights to actual heights
         '''
         geo_ht_fix = np.where(geo_hgt!= geo_ht_fill, geo_hgt, np.nan)
-        self._heights = util.geo_to_ht(self._lats, self._lons, geo_ht_fix)
+        self._heights = self._geo_to_ht(geo_ht_fix)
+
+    def _geo_to_ht(self, hts):
+        """Convert geopotential height to altitude."""
+        # Convert geopotential to geometric height. This comes straight from
+        # TRAIN
+        # Map of g with latitude (I'm skeptical of this equation)
+        g_ll = self._get_g_ll()
+        Re = self._get_Re()
+    
+        # Calculate Geometric Height, h
+        h = (hts*Re)/(g_ll/self._g0*Re - hts)
+    
+        return h
+
+    def _get_g_ll(self):
+        '''
+        Compute the variation in gravity constant with latitude
+        '''
+        #TODO: verify these constants. In particular why is the reference g different from self._g0?
+        return 9.80616*(1 - 0.002637*cosd(2*self._lats) + 0.0000059*(cosd(2*self._lats))**2)
+
+    def _get_Re(self):
+        '''
+        Returns the ellipsoid as a fcn of latitude
+        '''
+        #TODO: verify constants, add to base class constants? 
+        Rmax = 6378137
+        Rmin = 6356752
+        return np.sqrt(1/(((cosd(self._lats)**2)/Rmax**2) + ((sind(self._lats)**2)/Rmin**2)))
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
@@ -153,7 +188,6 @@ class WeatherModel():
                            humidity_type=self._humidityType, zmin=self._zmin)
         return interpFcn
 
-
     def _find_svp(self):
         """Calculate standard vapor presure."""
         # From TRAIN:
@@ -185,6 +219,94 @@ class WeatherModel():
         svp[ix_bound2] = svpi[ix_bound2]
     
         self._svp = svp * 100
+
+    
+    def _calculategeoh(self, z, lnsp):
+        geotoreturn = np.zeros_like(self._t)
+        pressurelvs = np.zeros_like(geotoreturn)
+        heighttoreturn = np.zeros_like(geotoreturn)
+    
+        # surface pressure
+        sp = np.exp(lnsp)
+    
+        #levelSize = len(self._t)
+        levelSize = self._t.shape[0]
+
+        if len(self._a) != levelSize + 1 or len(self._b) != levelSize + 1:
+            raise ValueError(
+                'I have here a model with {} levels, but parameters a '.format(levelSize) + 
+                'and b have lengths {} and {} respectively. Of '.format(len(self._a),len(self._b)) + 
+                'course, these three numbers should be equal.')
+    
+        Ph_levplusone = self._a[levelSize] + (self._b[levelSize]*sp)
+    
+        # Integrate up into the atmosphere from lowest level
+        z_h = 0 # initial value
+        for lev, t_level, q_level in zip(
+                range(levelSize, 0, -1), self._t[::-1], self._q[::-1]):
+            # lev is the level number 1-60, we need a corresponding index
+            # into ts and qs
+            ilevel = levelSize - lev
+    
+            # compute moist temperature
+            t_level = t_level*(1 + 0.609133*q_level)
+    
+            # compute the pressures (on half-levels)
+            Ph_lev = self._a[lev-1] + (self._b[lev-1] * sp)
+    
+            pressurelvs[ilevel] = Ph_lev
+    
+            if lev == 1:
+                dlogP = np.log(Ph_levplusone/0.1)
+                alpha = np.log(2)
+            else:
+                dlogP = np.log(Ph_levplusone/Ph_lev)
+                dP = Ph_levplusone - Ph_lev
+                alpha = 1 - ((Ph_lev/dP)*dlogP)
+    
+            TRd = t_level*self._R_d
+    
+            # z_f is the geopotential of this full level
+            # integrate from previous (lower) half-level z_h to the full level
+            z_f = z_h + TRd*alpha
+            heighttoreturn[ilevel] = z_f/self._g0
+
+            # Geopotential (add in surface geopotential)
+            geotoreturn[ilevel] = z_f + z
+
+            # z_h is the geopotential of 'half-levels'
+            # integrate z_h to next half level
+            z_h += TRd * dlogP
+
+            Ph_levplusone = Ph_lev
+
+        return geotoreturn, pressurelvs, heighttoreturn
+
+    def _get_ll_bounds(self, Nextra):
+        '''
+        returns the extents of lat/lon plus a buffer
+        '''
+        lat_min = np.nanmin(self._lats) - Nextra*self._lat_res
+        lat_max = np.nanmax(self._lats) + Nextra*self._lat_res
+        lon_min = np.nanmin(self._lons) - Nextra*self._lon_res
+        lon_max = np.nanmax(self._lons) + Nextra*self._lon_res
+
+        return lat_min, lat_max, lon_min, lon_max
+
+
+def sind(x):
+    """Return the sine of x when x is in degrees."""
+    return np.sin(np.radians(x))
+
+
+def cosd(x):
+    """Return the cosine of x when x is in degrees."""
+    return np.cos(np.radians(x))
+
+
+def tand(x):
+    """Return degree tangent."""
+    return np.tan(np.radians(x))
 
 
 class ECMWF(WeatherModel):
@@ -249,8 +371,14 @@ class ECMWF(WeatherModel):
         self._t = t
         self._q = q
 
-        geo_hgt,pres = util.calculategeoh(self._a, self._b, z, lnsp, self._t, self._q)
-        self._get_heights(geo_hgt)
+        geo_hgt,pres,hgt = self._calculategeoh(z, lnsp)
+
+        # re-assign lons, lats to match heights
+        self._lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+                                     hgt.shape)
+        self._lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+                                     hgt.shape)
+        self._get_heights(hgt)
 
         # We want to support both pressure levels and true pressure grids.
         # If the shape has one dimension, we'll scale it up to act as a
@@ -260,12 +388,6 @@ class ECMWF(WeatherModel):
                                         self._heights.shape)
         else:
             self._p = pres
-
-        # re-assign lons, lats to match heights
-        self._lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
-                                     self._heights.shape)
-        self._lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
-                                     self._heights.shape)
 
         # Also get the earth-centered coordinates
         self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
@@ -296,14 +418,14 @@ class ECMWF(WeatherModel):
         '''
         Fetch a weather model from ECMWF
         '''
-        lat_min = np.nanmin(lats) - Nextra*self._lat_res
-        lat_max = np.nanmax(lats) + Nextra*self._lat_res
-        lon_min = np.nanmin(lons) - Nextra*self._lon_res
-        lon_max = np.nanmax(lons) + Nextra*self._lon_res
- 
+        # bounding box plus a buffer
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(Nextra)
+
+        # execute the search at ECMWF
         self._get_from_ecmwf(
                 lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
                 out)
+
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                        lon_step, time, out):
@@ -336,8 +458,8 @@ class ECMWF(WeatherModel):
             # be any of "3/6/9/12".
             "step": "0",
             # grid: Only regular lat/lon grids are supported.
-            "grid": f'{lat_step}/{lon_step}',
-            "area": f'{lat_max}/{lon_min}/{lat_min}/{lon_max}',    # area: N/W/S/E
+            "grid": '{}/{}'.format(lat_step,lon_step),
+            "area": '{}/{}/{}/{}'.format(lat_max,lon_min,lat_min,lon_max), # area: N/W/S/E
             "format": "netcdf",
             "resol": "av",
             "target": out,    # target: the name of the output file.
@@ -478,10 +600,8 @@ class MERRA2(WeatherModel):
         import json
         from scipy.io import netcdf as nc
 
-        lat_min = int(np.min(lats))
-        lat_max = int(np.max(lats) + 0.5)
-        lon_min = int(np.min(lons))
-        lon_max = int(np.max(lons) + 0.5)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds()
+
         url = ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/'\
                'opendap/MERRA2/M2I6NPANA.5.12.4/1980/01/'\
                'MERRA2_100.inst6_3d_ana_Np.19800101.nc4')
