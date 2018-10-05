@@ -77,14 +77,16 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
     else:
         correction = 1/util.cosd(look_vecs)
         look_vecs = Zenith
+
     if look_vecs is Zenith:
         look_vecs = (np.array((util.cosd(lats)*util.cosd(lons),
                                util.cosd(lats)*util.sind(lons),
                                util.sind(lats))).T
                      * (_ZREF - heights)[..., np.newaxis])
+
     lengths = _get_lengths(look_vecs)
     steps = _get_steps(lengths)
-    start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
+    start_positions = np.array(self._xs, self._ys, self._zs).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
     if verbose:
@@ -484,7 +486,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 f = os.path.join(out, 'weather_model.dat')
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
-                weather = weather_model.loadInterp()
+                
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)
