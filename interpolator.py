@@ -1,170 +1,167 @@
 """Helper utilities for file readers."""
 
-
 import numpy as np
 import pyproj
 import scipy
+from scipy.interpolate import RegularGridInterpolator as rgi
 import util
 
-
-# Minimum z (height) value on the earth
-
-def _least_nonzero(a):
-    """Fill in a flat array with the lowest nonzero value.
-    
-    Useful for interpolation below the bottom of the weather model.
-    """
-    out = np.full(a.shape[1:], np.nan)
-    xlim, ylim = out.shape
-    zlim = len(a)
-    for x in range(xlim):
-        for y in range(ylim):
-            for z in range(zlim):
-                val = a[z][x][y]
-                if not np.isnan(val):
-                    out[x][y] = val
-                    break
-    return out
-
-
 class Interpolator:
-    """Generic weather model.
+    """
+    Generic interpolator
 
     This model is based upon a linear interpolation scheme for pressure,
     temperature, and relative humidity.
     """
-    def __init__(self, xs, ys, heights, pressure, temperature, humidity,
-                 k1, k2, k3, projection, scipy_interpolate, humidity_type,
-                 zmin):
+    #TODO: handle 1-D, 2-D cases correctly
+    def __init__(self, xs = None, ys = None, zs = None, old_proj = None, new_proj = None):
         """Initialize a NetCDFModel."""
-        if scipy_interpolate:
-            # Add an extra layer below to interpolate below the surface
-            if zmin < np.min(heights):
-                new_heights = np.zeros(heights.shape[1:]) + zmin
-                new_pressures = _least_nonzero(pressure)
-                new_temps = _least_nonzero(temperature)
-                new_humids = _least_nonzero(humidity)
-                heights = np.concatenate((new_heights[np.newaxis], heights))
-                pressure = np.concatenate(
-                    (new_pressures[np.newaxis], pressure))
-                temperature = np.concatenate(
-                    (new_temps[np.newaxis], temperature))
-                humidity = np.concatenate((new_humids[np.newaxis], humidity))
+        self._xs = []
+        self._ys = []
+        self._zs = []
+        self._shape = None
+        self.setPoints(xs, ys, zs)
+        self._proj = old_proj
+        self._fill_value = np.nan
 
-            ecef = pyproj.Proj(proj='geocent')
+        if new_proj is not None:
+            self.project(self._old_proj, self._new_proj)
 
-            # Points in native projection
-            points_a = np.broadcast_to(xs[np.newaxis, np.newaxis, :],
-                                       pressure.shape)
-            points_b = np.broadcast_to(ys[np.newaxis, :, np.newaxis],
-                                       pressure.shape)
-            points_c = heights
+    def __repr__(self):
+        '''
+        print method for Interpolator object
+        '''
+        string = '='*6 + 'Interpolator Object' + '='*6 + '\n'
+        string += 'Total Number of points: {}\n'.format(len(self._xs))
+        string += 'Shape of points: {}\n'.format(self._shape)
+        string += 'Current Projection: {}\n'.format(self._proj)
+        string += '='*30 + '\n'
+        return str(string)
+ 
+    def project(self, old_proj, new_proj):
+        '''
+        Project a set of points into a different coordinate system.
+        old_proj and new_proj should be pyproj projection objects. 
+        '''
+        self._xs, self._ys, self._zs = pyproj.transform(old_proj,new_proj, self._xs, self._ys, self._zs)
+        self._proj = new_proj
 
-            # Points in ecef
-            points = np.stack(pyproj.transform(projection, ecef,
-                                               points_a.flatten(),
-                                               points_b.flatten(),
-                                               points_c.flatten()), axis=-1)
+    def setPoints(self, xs, ys, zs):
+        '''
+        Assign x, y, z points to use for interpolating
+        '''
+        if xs is not None:
 
-            pts_nonnan = np.all(np.logical_not(np.isnan(points)), axis=1)
-            both = np.logical_and(np.logical_not(np.isnan(pressure)).flatten(),
-                                  pts_nonnan)
-            self._p_inp = scipy.interpolate.LinearNDInterpolator(
-                    points[both], np.log(pressure.flatten())[both])
-            both = np.logical_and(
-                    np.logical_not(np.isnan(temperature)).flatten(),
-                    pts_nonnan)
-            self._t_inp = scipy.interpolate.LinearNDInterpolator(
-                    points[both], temperature.flatten()[both])
-            both = np.logical_and(np.logical_not(np.isnan(humidity)).flatten(),
-                                  pts_nonnan)
-            self._h_inp = scipy.interpolate.LinearNDInterpolator(
-                    points[both], humidity.flatten()[both])
+            try:
+                self._shape = xs.shape
+            except AttributeError:
+                self._shape = (len(xs), len(ys), len(zs))
+
+            self._xs = xs.flatten()
+        if ys is not None:
+            self._ys = ys.flatten()
+        if zs is not None:
+            self._zs = zs.flatten()
+
+    def getInterpFcns(self, *args, use_pure_scipy = False, **kwargs):
+        '''
+        return of list of interpolators, corresponding to the list of 
+        inputs arguments
+        '''
+        if use_pure_scipy:
+            return self._make_scipy_interpolators()
         else:
-            self._p_inp, self._t_inp, self._h_inp = _sane_interpolate(
-                    xs, ys, heights, projection,
-                    (np.log(pressure), temperature, humidity), zmin)
-        self.k1 = k1
-        self.k2 = k2
-        self.k3 = k3
+            return self._make_sane_interpolators()
 
-        self.humidity_type = humidity_type
+    def _make_scipy_interpolators(self): 
+        '''
+        Interpolate a fcn or list of functions (contained 
+        in *args) that are defined on a regular grid using
+        scipy.  
+        '''
+        points = np.stack([self._xs, self._ys, self._zs], axis = -1)
+        _interpolators = []
+        for arg in self._argsList:
+            _interpolators.append(rgi(points, 
+                                      arg.flatten(), 
+                                      method = 'linear', 
+                                      bounds_error = False, 
+                                      fill_value = self._fill_value)
+                                       )
+        return _interpolators
 
-    def wet_delay(self, a):
-        """Calculate delay at a list of points."""
-        temperature = self._t_inp(a)
-        humidity = self._h_inp(a)
-        pressure = np.exp(self._p_inp(a))
+    def _make_sane_interpolators(self): 
+        '''
+        Interpolate a fcn or list of functions (contained 
+        in *args) that are defined on a regular grid. Use
+        the _sane_interpolate method. 
+        '''
+        _interpolators = []
+        for arg in self._argsList:
+            _interpolators.append(
+                          _sane_interpolate(self._xs,
+                                            self._ys, 
+                                            self._zs, 
+                                            self._argsList,
+                                            self._old_proj, 
+                                            self._new_proj,
+                                            zmin)
+                                            )
 
-        # Sometimes we've got it directly
-        if self.humidity_type == 'q':
-            e = _find_e_from_q(temperature, humidity, pressure)
-        elif self.humidity_type == 'rh':
-            e = _find_e_from_rh(temperature, humidity)
-        else:
-            raise ValueError('self.humidity_type should be one of q or rh. It '
-                             f'was {self.humidity_type}')
+        return _interpolators
 
-        wet_delay = self.k2*e/temperature + self.k3*e/temperature**2
-        return wet_delay, temperature, humidity, pressure, e
+def _sane_interpolate(xs, ys, zs, values_list, old_proj, new_proj, zmin):
+    '''
+    do some interpolation
+    '''
+    # just a check for the consistency with Ray's old code: 
+    ecef = pyproj.Proj(proj='geocent')
+    if old_proj != ecef:
+        import pdb
+        pdb.set_trace()
 
-    def hydrostatic_delay(self, a):
-        """Calculate hydrostatic delay at a list of points."""
-        temperature = self._t_inp(a)
-        pressure = np.exp(self._p_inp(a))
+    num_levels = 2 * zs.shape[0]
+    # First, find the maximum height
+    new_top = np.nanmax(zs)
 
-        hydro_delay = self.k1*pressure/temperature
-        return hydro_delay
+    new_zs = np.linspace(zmin, new_top, num_levels)
 
+    inp_values = [np.zeros((len(new_zs),) + values.shape[1:])
+                  for values in values_list]
 
-def _find_svp(temp):
-    """Calculate standard vapor presure."""
-    # From TRAIN:
-    # Could not find the wrf used equation as they appear to be
-    # mixed with latent heat etc. Istead I used the equations used
-    # in ERA-I (see IFS documentation part 2: Data assimilation
-    # (CY25R1)). Calculate saturated water vapour pressure (svp) for
-    # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
-    # and Eskridge (1996) euation AERKi
+    # TODO: do without a for loop
+    for iv in range(len(values_list)):
+        for x in range(values_list[iv].shape[1]):
+            for y in range(values_list[iv].shape[2]):
+                not_nan = np.logical_not(np.isnan(zs[:, x, y]))
+                inp_values[iv][:, x, y] = scipy.interpolate.griddata(
+                        zs[:, x, y][not_nan],
+                        values_list[iv][:, x, y][not_nan],
+                        new_zs,
+                        method='cubic')
+        inp_values[iv] = _propagate_down(inp_values[iv])
 
-    # TODO: figure out the sources of all these magic numbers and move
-    # them somewhere more visible.
-    svpw = (6.1121
-            * np.exp((17.502*(temp - 273.16))/(240.97 + temp - 273.16)))
-    svpi = (6.1121
-            * np.exp((22.587*(temp - 273.16))/(273.86 + temp - 273.16)))
-    tempbound1 = 273.16  # 0
-    tempbound2 = 250.16  # -23
+    interps = list()
+    for iv in range(len(values_list)):
+        # Indexing as height, ys, xs is a bit confusing, but it'll error
+        # if the sizes don't match, so we can be sure it's the correct
+        # order.
+        f = scipy.interpolate.RegularGridInterpolator((new_zs, ys, xs),
+                                                      inp_values[iv],
+                                                      bounds_error=False)
 
-    svp = svpw
-    wgt = (temp - tempbound2)/(tempbound1 - tempbound2)
-    svp = svpi + (svpw - svpi)*wgt**2
-    ix_bound1 = temp > tempbound1
-    svp[ix_bound1] = svpw[ix_bound1]
-    ix_bound2 = temp < tempbound2
-    svp[ix_bound2] = svpi[ix_bound2]
+        # Python has some weird behavior here, eh?
+        def ggo(interp):
+            def go(pts):
+                xs, ys, zs = np.moveaxis(pts, -1, 0)
+                a, b, c = pyproj.transform(old_proj, new_proj, xs, ys, zs)
+                # Again we index as ys, xs
+                llas = np.stack((c, b, a), axis=-1)
+                return interp(llas)
+            return go
+        interps.append(ggo(f))
 
-    return svp * 100
-
-
-def _find_e_from_q(temp, q, p):
-    """Calculate e, partial pressure of water vapor."""
-    R_v = 461.524
-    R_d = 287.053
-    e_s = _find_svp(temp)
-    # We have q = w/(w + 1), so w = q/(1 - q)
-    w = q/(1 - q)
-    e = w*R_v*(p - e_s)/R_d
-    return e
-
-
-def _find_e_from_rh(temp, rh):
-    """Calculate partial pressure of water vapor."""
-    svp = _find_svp(temp)
-
-    e = rh/100 * svp
-
-    return e
+    return interps
 
 
 def _just_pull_down(a, direction=-1):
@@ -220,167 +217,23 @@ def _propagate_down(a):
     return _just_pull_down(out)
 
 
-def _sane_interpolate(xs, ys, heights, projection, values_list, zmin):
-    num_levels = 2 * heights.shape[0]
-    # First, find the maximum height
-    new_top = np.nanmax(heights)
+# Minimum z (height) value on the earth
 
-    new_heights = np.linspace(zmin, new_top, num_levels)
-
-    inp_values = [np.zeros((len(new_heights),) + values.shape[1:])
-                  for values in values_list]
-
-    # TODO: do without a for loop
-    for iv in range(len(values_list)):
-        for x in range(values_list[iv].shape[1]):
-            for y in range(values_list[iv].shape[2]):
-                not_nan = np.logical_not(np.isnan(heights[:, x, y]))
-                inp_values[iv][:, x, y] = scipy.interpolate.griddata(
-                        heights[:, x, y][not_nan],
-                        values_list[iv][:, x, y][not_nan],
-                        new_heights,
-                        method='cubic')
-        inp_values[iv] = _propagate_down(inp_values[iv])
-
-    ecef = pyproj.Proj(proj='geocent')
-
-    interps = list()
-    for iv in range(len(values_list)):
-        # Indexing as height, ys, xs is a bit confusing, but it'll error
-        # if the sizes don't match, so we can be sure it's the correct
-        # order.
-        f = scipy.interpolate.RegularGridInterpolator((new_heights, ys, xs),
-                                                      inp_values[iv],
-                                                      bounds_error=False)
-
-        # Python has some weird behavior here, eh?
-        def ggo(interp):
-            def go(pts):
-                xs, ys, zs = np.moveaxis(pts, -1, 0)
-                a, b, c = pyproj.transform(ecef, projection, xs, ys, zs)
-                # Again we index as ys, xs
-                llas = np.stack((c, b, a), axis=-1)
-                return interp(llas)
-            return go
-        interps.append(ggo(f))
-
-    return interps
-
-
-def import_grids(xs, ys, pressure, temperature, humidity, geo_ht,
-                 k1, k2, k3, projection, temp_fill=np.nan, humid_fill=np.nan,
-                 geo_ht_fill=np.nan, scipy_interpolate=False,
-                 humidity_type='rh', zmin=None):
-    """Import weather information to make a weather model object.
-
-    This takes in lat, lon, pressure, temperature, humidity in the 3D
-    grid format that NetCDF uses, and I imagine might be common
-    elsewhere. If other weather models don't make it convenient to use
-    this function, we'll need to add some more abstraction. For now,
-    this function is only used for NetCDF anyway.
+def _least_nonzero(a):
+    """Fill in a flat array with the lowest nonzero value.
+    
+    Useful for interpolation below the bottom of the weather model.
     """
-    if zmin is None:
-        zmin = _zmin
-
-    # Replace the non-useful values by NaN
-    temps_fixed = np.where(temperature != temp_fill, temperature, np.nan)
-    humids_fixed = np.where(humidity != humid_fill, humidity, np.nan)
-    geo_ht_fix = np.where(geo_ht != geo_ht_fill, geo_ht, np.nan)
-
-    # We've got to recover the grid of lat, lon
-    xgrid, ygrid = np.meshgrid(xs, ys)
-    lla = pyproj.Proj(proj='latlong')
-    lons, lats = pyproj.transform(projection, lla, xgrid, ygrid)
-
-    heights = util.geo_to_ht(lats, lons, geo_ht_fix)
-
-    # We want to support both pressure levels and true pressure grids.
-    # If the shape has one dimension, we'll scale it up to act as a
-    # grid, otherwise we'll leave it alone.
-    if len(pressure.shape) == 1:
-        new_plevs = np.broadcast_to(pressure[:, np.newaxis, np.newaxis],
-                                    heights.shape)
-    else:
-        new_plevs = pressure
-
-    linMod = LinearModel(xs=xs, ys=ys, heights=heights,
-                       pressure=new_plevs,
-                       temperature=temps_fixed, humidity=humids_fixed,
-                       k1=k1, k2=k2, k3=k3, projection=projection,
-                       scipy_interpolate=scipy_interpolate,
-                       humidity_type=humidity_type, zmin=zmin)
-
-    return linMod
-
-# This function is copied (with slight modification) from
-# https://confluence.ecmwf.int//display/CKB/ERA-Interim%3A+compute+geopotential+on+model+levels#ERA-Interim:computegeopotentialonmodellevels-Step2:Computegeopotentialonmodellevels.
-# That script is licensed under the Apache license. I don't know if this
-# is legal.
-def calculategeoh(a, b, z, lnsp, ts, qs):
-    geotoreturn = np.zeros_like(ts)
-    pressurelvs = np.zeros_like(ts)
-
-    Rd = 287.06
-
-    z_h = 0
-
-    # surface pressure
-    sp = np.exp(lnsp)
-
-    levelSize = len(ts)
-    A = a
-    B = b
-
-    if len(a) != levelSize + 1 or len(b) != levelSize + 1:
-        raise ValueError(
-            f'I have here a model with {levelSize} levels, but parameters a '
-            f'and b have lengths {len(a)} and {len(b)} respectively. Of '
-            'course, these three numbers should be equal.')
-
-    Ph_levplusone = A[levelSize] + (B[levelSize]*sp)
-
-    # Integrate up into the atmosphere from lowest level
-    for lev, t_level, q_level in zip(
-            range(levelSize, 0, -1), ts[::-1], qs[::-1]):
-        # lev is the level number 1-60, we need a corresponding index
-        # into ts and qs
-        ilevel = levelSize - lev
-
-        # compute moist temperature
-        t_level = t_level*(1 + 0.609133*q_level)
-
-        # compute the pressures (on half-levels)
-        Ph_lev = A[lev-1] + (B[lev-1] * sp)
-
-        pressurelvs[ilevel] = Ph_lev
-
-        if lev == 1:
-            dlogP = np.log(Ph_levplusone/0.1)
-            alpha = np.log(2)
-        else:
-            dlogP = np.log(Ph_levplusone/Ph_lev)
-            dP = Ph_levplusone - Ph_lev
-            alpha = 1 - ((Ph_lev/dP)*dlogP)
-
-        TRd = t_level*Rd
-
-        # z_f is the geopotential of this full level
-        # integrate from previous (lower) half-level z_h to the full level
-        z_f = z_h + TRd*alpha
-
-        # Geopotential (add in surface geopotential)
-        geotoreturn[ilevel] = z_f + z
-
-        # z_h is the geopotential of 'half-levels'
-        # integrate z_h to next half level
-        z_h += TRd * dlogP
-
-        Ph_levplusone = Ph_lev
-
-    return geotoreturn, pressurelvs
+    out = np.full(a.shape[1:], np.nan)
+    xlim, ylim = out.shape
+    zlim = len(a)
+    for x in range(xlim):
+        for y in range(ylim):
+            for z in range(zlim):
+                val = a[z][x][y]
+                if not np.isnan(val):
+                    out[x][y] = val
+                    break
+    return out
 
 
-def read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin=None):
-    geo_ht, press = calculategeoh(module.a, module.b, z, lnsp, t, q)
-    return import_grids(xs, ys, press, t, q, geo_ht, module.k1, module.k2,
-                        module.k3, proj, humidity_type='q', zmin=zmin)
