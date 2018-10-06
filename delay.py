@@ -250,6 +250,9 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
         else:
            print('LOS is not Zenith')
 
+    import pdb
+    pdb.set_trace()
+
     if los is not Zenith:
         if raytrace:
             los = los.reshape(-1, 3)
@@ -258,59 +261,9 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
 
     lats, lons, hts = np.moveaxis(llas, -1, 0)
 
-    if parallel:
-        # TODO: Need to specify a specific number of processors to use, not use all open
-        num_procs = os.cpu_count()
-        if verbose:
-            print('{} processors available'.format(num_procs))
-        os.nice(10)
-
-        hydro_procs = num_procs // 2
-        wet_procs = num_procs - hydro_procs
-
-        if verbose: 
-            print('delay_from_grid: using {} processors for hydro delay'.format(hydro_procs))
-            print('delay_from_grid: using {} processors for wet delay'.format(wet_procs))
-
-        # Divide up jobs into an appropriate number of pieces
-        hindices = np.linspace(0, len(llas), hydro_procs + 1, dtype=int)
-
-        if verbose: 
-            print('delay_from_grid: hindices: {}'.format(hindices))
-
-        # Build the jobs
-        hjobs = (('hydro', hindices[i], hindices[i + 1], verbose)
-                 for i in range(hydro_procs))
-        wjobs = (('wet', hindices[i], hindices[i + 1], verbose)
-                 for i in range(wet_procs))
-        jobs = itertools.chain(hjobs, wjobs)
-
-        # Parallel worker
-        def go(job):
-            job_type, start, end, verbose = job
-            if los is Zenith:
-                my_los = Zenith
-            else:
-                my_los = los[start:end]
-            if job_type == 'hydro':
-                return hydrostatic_delay(weather, lats[start:end],
-                                         lons[start:end], hts[start:end],
-                                         my_los, raytrace=raytrace, verbose=verbose)
-            if job_type == 'wet':
-                return wet_delay(weather, lats[start:end], lons[start:end],
-                                 hts[start:end], my_los, raytrace=raytrace, verbose = verbose)
-            raise ValueError('Unknown job type {}'.format(job_type))
-
-        # Execute the parallel worker
-        result = _parmap(go, jobs)
-
-        # Collect results
-        hydro = np.concatenate(result[:hydro_procs])
-        wet = np.concatenate(result[hydro_procs:])
-    else:
-        hydro = hydrostatic_delay(weather, lats, lons, hts, los,
-                                  raytrace=raytrace, verbose = verbose)
-        wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
+    hydro = hydrostatic_delay(weather, lats, lons, hts, los,
+                              raytrace=raytrace, verbose = verbose)
+    wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
 
     # Restore shape
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
