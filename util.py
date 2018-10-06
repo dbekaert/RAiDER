@@ -222,7 +222,7 @@ def _least_nonzero(a):
     Useful for interpolation below the bottom of the weather model.
     """
     import numpy as np
-    out = np.full(a.shape[1:], np.nan)
+    out = np.full(a.shape[:2], np.nan)
     xlim, ylim = out.shape
     zlim = len(a)
     for x in range(xlim):
@@ -233,6 +233,21 @@ def _least_nonzero(a):
                     out[x][y] = val
                     break
     return out
+
+
+def sind(x):
+    """Return the sine of x when x is in degrees."""
+    return np.sin(np.radians(x))
+
+
+def cosd(x):
+    """Return the cosine of x when x is in degrees."""
+    return np.cos(np.radians(x))
+
+
+def tand(x):
+    """Return degree tangent."""
+    return np.tan(np.radians(x))
 
 
 def robmin(a):

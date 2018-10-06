@@ -1,7 +1,6 @@
 
 # standard imports
 import datetime
-import matplotlib.pyplot as plt
 import numpy as np
 import pyproj
 import os
@@ -82,13 +81,54 @@ class WeatherModel():
         return str(string)
 
 
-    def plot(self):
-        try:
-            fig = plt.scatter(self._lons, self._lats)
-        except Exception as e:
-            print(e)
-        return fig
+    def plot(self, *args, plotType = 'pqt', savefig = True):
+        '''
+        Plotting method. Valid plot types are 'pqt'
+        '''
+        if plotType=='pqt':
+            return self._plot_pqt(savefig)
+        
+    def _plot_pqt(self, savefig, lower_ind = 2, higher_ind = 30):
+        '''
+        Create a plot with pressure, temp, and humidity at two heights
+        '''
+        import matplotlib.pyplot as plt
 
+        # Now get the data to plot
+        plots = []
+        plots.append(self._p[:,:,lower_ind])
+        plots.append(self._e[:,:,lower_ind])
+        plots.append(self._t[:,:,lower_ind])
+        plots.append(self._p[:,:,higher_ind])
+        plots.append(self._e[:,:,higher_ind])
+        plots.append(self._t[:,:,higher_ind])
+        surf_hgt = self._heights[:,:,lower_ind][0,0]
+        high_hgt = self._heights[:,:,higher_ind][0,0]
+
+        # titles
+        titles = ('Surface P', 'Surface Q ({:5.1f} m)'.format(surf_hgt), 'Surface T', 'High P', 'High Q ({:5.1f} m)'.format(high_hgt), 'High T')
+
+        # setup the plot
+        from matplotlib.figure import Figure
+        from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
+        f = plt.figure(figsize = (8,6))
+
+        # loop over each plot
+        for ind, plot, title in zip(range(len(plots)), plots, titles):
+            sp = f.add_subplot(2,3,ind + 1)
+            sp.xaxis.set_ticklabels([])
+            sp.yaxis.set_ticklabels([])
+            im = sp.imshow(plot, cmap='viridis')
+            divider = mal(sp)
+            cax = divider.append_axes("right", size="4%", pad=0.05)
+            plt.colorbar(im, cax=cax)
+            sp.set_title(title)
+
+        if savefig:
+             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(hgt1, hgt2))
+        return f
+
+            
     def fetch(self, lats, lons, time, out):
         pass
 
@@ -129,7 +169,7 @@ class WeatherModel():
         Compute the variation in gravity constant with latitude
         '''
         #TODO: verify these constants. In particular why is the reference g different from self._g0?
-        return 9.80616*(1 - 0.002637*cosd(2*self._lats) + 0.0000059*(cosd(2*self._lats))**2)
+        return 9.80616*(1 - 0.002637*util.cosd(2*self._lats) + 0.0000059*(util.cosd(2*self._lats))**2)
 
     def _get_Re(self):
         '''
@@ -138,7 +178,7 @@ class WeatherModel():
         #TODO: verify constants, add to base class constants? 
         Rmax = 6378137
         Rmin = 6356752
-        return np.sqrt(1/(((cosd(self._lats)**2)/Rmax**2) + ((sind(self._lats)**2)/Rmin**2)))
+        return np.sqrt(1/(((util.cosd(self._lats)**2)/Rmax**2) + ((util.sind(self._lats)**2)/Rmin**2)))
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
@@ -160,33 +200,21 @@ class WeatherModel():
         self._hydrostatic_refractivity = self._k1*self._p/self._t
 
     def _adjust_grid(self):
-        if self._zmin < np.min(self._heights):
+        if self._zmin < np.nanmin(self._heights):
             # add in a new layer at zmin
-            new_heights = np.zeros(self._heights.shape[1:]) + self._zmin
-            self._heights = np.concatenate((new_heights[np.newaxis], self._heights))
+            new_heights = np.zeros(self._heights.shape[:2]) + self._zmin
+            self._heights = np.concatenate((new_heights[:,:,np.newaxis], self._heights), axis = 2)
 
             # need to extrapolate the other variables now
             new_pressures = util._least_nonzero(self._p)
-            self._p= np.concatenate((new_pressures[np.newaxis], self._p))
+            self._p= np.concatenate((new_pressures[:,:,np.newaxis], self._p), axis =2)
 
             new_temps = util._least_nonzero(self._t)
-            self._t= np.concatenate((new_temps[np.newaxis], self._t))
+            self._t= np.concatenate((new_temps[:,:,np.newaxis], self._t), axis = 2)
 
             new_humids = util._least_nonzero(self._q)
-            self._q= np.concatenate((new_humids[np.newaxis], self._q))
+            self._q= np.concatenate((new_humids[:,:,np.newaxis], self._q), axis = 2)
 
-    def _getInterpFcn(self):
-        '''
-        Get the interpolation fcn for interpolating new points
-        '''
-        from reader import LinearModel as lm
-        interpFcn = lm(xs=self._xs, ys=self._ys, heights=self._heights,
-                           pressure=self._p,
-                           temperature=self._t, humidity=self._q,
-                           k1=self._k1, k2=self._k2, k3=self._k3, projection=self._llaproj,
-                           scipy_interpolate=self._pure_scipy_interp,
-                           humidity_type=self._humidityType, zmin=self._zmin)
-        return interpFcn
 
     def _find_svp(self):
         """Calculate standard vapor presure."""
@@ -282,31 +310,16 @@ class WeatherModel():
 
         return geotoreturn, pressurelvs, heighttoreturn
 
-    def _get_ll_bounds(self, Nextra):
+    def _get_ll_bounds(self, lats, lons, Nextra):
         '''
         returns the extents of lat/lon plus a buffer
         '''
-        lat_min = np.nanmin(self._lats) - Nextra*self._lat_res
-        lat_max = np.nanmax(self._lats) + Nextra*self._lat_res
-        lon_min = np.nanmin(self._lons) - Nextra*self._lon_res
-        lon_max = np.nanmax(self._lons) + Nextra*self._lon_res
+        lat_min = np.nanmin(lats) - Nextra*self._lat_res
+        lat_max = np.nanmax(lats) + Nextra*self._lat_res
+        lon_min = np.nanmin(lons) - Nextra*self._lon_res
+        lon_max = np.nanmax(lons) + Nextra*self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
-
-
-def sind(x):
-    """Return the sine of x when x is in degrees."""
-    return np.sin(np.radians(x))
-
-
-def cosd(x):
-    """Return the cosine of x when x is in degrees."""
-    return np.cos(np.radians(x))
-
-
-def tand(x):
-    """Return degree tangent."""
-    return np.tan(np.radians(x))
 
 
 class ECMWF(WeatherModel):
@@ -332,6 +345,7 @@ class ECMWF(WeatherModel):
         Consistent class method to be implemented across all weather model types
         '''
         self._load_model_level(filename)
+
 
     def _load_model_level(self, fname):
         from scipy.io import netcdf as nc
@@ -389,6 +403,14 @@ class ECMWF(WeatherModel):
         else:
             self._p = pres
 
+        # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
+        self._p = np.transpose(self._p)
+        self._t = np.transpose(self._t)
+        self._q = np.transpose(self._q)
+        self._lats = np.transpose(self._lats)
+        self._lons = np.transpose(self._lons)
+        self._heights = np.transpose(self._heights)
+
         # Also get the earth-centered coordinates
         self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
                                                      self._lons.flatten(), 
@@ -419,7 +441,7 @@ class ECMWF(WeatherModel):
         Fetch a weather model from ECMWF
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at ECMWF
         self._get_from_ecmwf(
