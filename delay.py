@@ -486,7 +486,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 f = os.path.join(out, 'weather_model.dat')
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
-                
+                weather = weather_model
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)
