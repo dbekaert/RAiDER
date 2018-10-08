@@ -7,22 +7,25 @@ infinity.
 """
 
 
-import demdownload
 from osgeo import gdal
+gdal.UseExceptions()
+
+# standard imports
 import itertools
-import losreader
 import numpy as np
 import os
-import os.path
 import pyproj
 import tempfile
 import queue
 import threading
+
+# local imports
+import demdownload
+import losreader
+import interpolator as intrp
+import reader
 import util
 import wrf
-import reader
-
-gdal.UseExceptions()
 
 
 # Step in meters to use when integrating
@@ -70,6 +73,16 @@ def _get_steps(lengths):
     return steps
 
 
+def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
+    '''
+    Returns look vectors when Zenith is used
+    '''
+    return (np.array((util.cosd(lats)*util.cosd(lons),
+                              util.cosd(lats)*util.sind(lons),
+                              util.sind(lats))).T
+                    * (zref - heights)[..., np.newaxis])
+
+
 def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose = False):
     """
     Perform computations common to hydrostatic and wet delay.
@@ -83,10 +96,7 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
         look_vecs = Zenith
 
     if look_vecs is Zenith:
-        look_vecs = (np.array((util.cosd(lats)*util.cosd(lons),
-                               util.cosd(lats)*util.sind(lons),
-                               util.sind(lats))).T
-                     * (_ZREF - heights)[..., np.newaxis])
+        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
 
     lengths = _get_lengths(look_vecs)
     steps = _get_steps(lengths)
@@ -121,9 +131,6 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     if verbose:
         print('_common_delay: Finished steps')
 
-    import pdb
-    pdb.set_trace()
-
     positions_a = np.concatenate(positions_l)
     xs, ys, zs = positions_a[:,0], positions_a[:,1], positions_a[:,2]
     ecef = pyproj.Proj(proj='geocent')
@@ -132,10 +139,10 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     if verbose:
         print('_common_delay: starting wet_delay calculation')
 
-    intFcn= intrp.Inpterpolator()
-    intFcn.setPoints(weatherObj.getPoints())
+    intFcn= intrp.Interpolator()
+    intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
-    intFcn.getInterpFcns([weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity()])
+    intFcn.getInterpFcns(weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity())
     wet_delays, hydro_delays = intFcn(newPts)
 
 #    try:
@@ -456,6 +463,8 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
                 weather = weather_model
+                import pdb
+                pdb.set_trace()
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)

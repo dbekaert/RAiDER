@@ -90,11 +90,11 @@ class Interpolator:
         inputs arguments
         '''
         if interpType=='scipy':
-            self._make_scipy_interpolators(*args)
+            self._make_scipy_interpolators(args)
         elif interpType=='_sane':
-            self._make_sane_interpolators(*args)
+            self._make_sane_interpolators(args)
         else:
-            self._make_3D_interpolators(*args)
+            self._make_3D_interpolators(args)
 
 
     def _make_scipy_interpolators(self, *args): 
@@ -103,6 +103,8 @@ class Interpolator:
         in *args) that are defined on a regular grid using
         scipy.  
         '''
+        import pdb
+        pdb.set_trace()
         from scipy.interpolate import LinearNDInterpolator as lndi
         points = np.stack([self._xs, self._ys, self._zs], axis = -1)
         _interpolators = []
