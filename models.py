@@ -88,30 +88,51 @@ class WeatherModel():
         Plotting method. Valid plot types are 'pqt'
         '''
         if plotType=='pqt':
-            return self._plot_pqt(savefig)
+            pqt_plot = self._plot_pqt(savefig)
+            return pqt_plot
+        elif plotType=='wh':
+            pass
+        else:
+            raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         
-    def _plot_pqt(self, savefig, lower_ind = 2, higher_ind = 30):
+    def _plot_pqt(self, savefig, z1 = 500, z2 = 15000):
         '''
         Create a plot with pressure, temp, and humidity at two heights
         '''
         import matplotlib.pyplot as plt
+        import interpolator as intrp
+
+        # Get the interpolator 
+        intFcn= intrp.Interpolator()
+        intFcn.setPoints(*self.getPoints())
+        intFcn.setProjection(self.getProjection())
+        intFcn.getInterpFcns(self._p, self._e, self._t)
+
+        # get the points needed
+        x = self._xs[:,:,0]
+        y = self._ys[:,:,0]
+        z1a = np.zeros(x.shape) + z1
+        z2a = np.zeros(x.shape) + z2
+        pts1 = np.stack((x.flatten(), y.flatten(), z1a.flatten()), axis = 1)
+        pts2 = np.stack((x.flatten(), y.flatten(), z2a.flatten()), axis = 1)
+
+        p1, e1, t1 = intFcn(pts1)
+        p2, e2, t2 = intFcn(pts2)
+
+        #intFcn.getInterpFcns(self.getWetRefractivity(), self.getHydroRefractivity())
 
         # Now get the data to plot
-        plots = []
-        plots.append(self._p[:,:,lower_ind])
-        plots.append(self._e[:,:,lower_ind])
-        plots.append(self._t[:,:,lower_ind])
-        plots.append(self._p[:,:,higher_ind])
-        plots.append(self._e[:,:,higher_ind])
-        plots.append(self._t[:,:,higher_ind])
-        surf_hgt = self._zs[:,:,lower_ind][0,0]
-        high_hgt = self._zs[:,:,higher_ind][0,0]
+        plots = [p1/1e5, e1, t1 - 273.15, p2/1e5, e2, t2 - 273.15]
 
         # titles
-        titles = ('Surface P', 'Surface Q ({:5.1f} m)'.format(surf_hgt), 'Surface T', 'High P', 'High Q ({:5.1f} m)'.format(high_hgt), 'High T')
+        titles = ('Surface P (bars)', 
+                  'Surface Q ({:5.1f} m)'.format(z1), 
+                  'Surface T (C)', 
+                  'High P (bars)', 
+                  'High Q ({:5.1f} m)'.format(z2), 
+                  'High T (C)')
 
         # setup the plot
-        from matplotlib.figure import Figure
         from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
         f = plt.figure(figsize = (8,6))
 
@@ -120,14 +141,14 @@ class WeatherModel():
             sp = f.add_subplot(2,3,ind + 1)
             sp.xaxis.set_ticklabels([])
             sp.yaxis.set_ticklabels([])
-            im = sp.imshow(plot, cmap='viridis')
+            im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis')
             divider = mal(sp)
             cax = divider.append_axes("right", size="4%", pad=0.05)
             plt.colorbar(im, cax=cax)
             sp.set_title(title)
 
         if savefig:
-             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(surf_hgt, high_hgt))
+             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2))
         return f
 
             
@@ -194,6 +215,7 @@ class WeatherModel():
             self._p=util.padLower(self._p)
             self._t=util.padLower(self._t)
             self._q=util.padLower(self._q)
+            self._e=util.padLower(self._e)
             self._wet_refractivity=util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity=util.padLower(self._hydrostatic_refractivity)
 
