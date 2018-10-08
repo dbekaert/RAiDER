@@ -23,6 +23,7 @@ class Interpolator:
         self.setPoints(xs, ys, zs)
         self._proj = old_proj
         self._fill_value = np.nan
+        self._interp = []
         
         if new_proj is not None:
             self.reProject(self._old_proj, self._new_proj)
@@ -103,8 +104,6 @@ class Interpolator:
         in *args) that are defined on a regular grid using
         scipy.  
         '''
-        import pdb
-        pdb.set_trace()
         from scipy.interpolate import LinearNDInterpolator as lndi
         points = np.stack([self._xs, self._ys, self._zs], axis = -1)
         _interpolators = []
