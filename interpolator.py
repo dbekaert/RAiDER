@@ -19,13 +19,14 @@ class Interpolator:
         self._ys = []
         self._zs = []
         self._shape = None
+        self._Npoints = 0
         self.setPoints(xs, ys, zs)
         self._proj = old_proj
         self._fill_value = np.nan
-
+        
         if new_proj is not None:
             self.reProject(self._old_proj, self._new_proj)
-
+        
     def __call__(self, newX):
         '''
         Interpolate onto new coordinates
@@ -34,18 +35,19 @@ class Interpolator:
         for intFcn in self._interp:
             res.append(intFcn(newX))
         return res
-
+        
     def __repr__(self):
         '''
         print method for Interpolator object
         '''
         string = '='*6 + 'Interpolator Object' + '='*6 + '\n'
         string += 'Total Number of points: {}\n'.format(len(self._xs))
-        string += 'Shape of points: {}\n'.format(self._shape)
-        string += 'Current Projection: {}\n'.format(self._proj)
+        string += 'Number of points: {}\n'.format(self._Npoints)
+        string += 'Current Projection: {}\n'.format(self._proj.srs if self._proj.srs is not None else None)
+        string += 'Number of functions to interpolate: {}\n'.format(len(self._interp))
         string += '='*30 + '\n'
         return str(string)
- 
+
     def setProjection(self, proj):
         ''' 
         proj should be a prproj object
@@ -63,20 +65,24 @@ class Interpolator:
     def setPoints(self, xs, ys, zs):
         '''
         Assign x, y, z points to use for interpolating
+        If the z-dimension is not to be used, set that dimension 
+        to an empty list, e.g.: zs = []
         '''
-        if xs is not None:
+        if xs is None:
+            xs, ys, zs = [], [], []
 
-            try:
-                self._shape = xs.shape
-            except AttributeError:
-                self._shape = (len(xs), len(ys), len(zs))
+        if isinstance(xs, list):
+            xs,ys,zs = np.array(xs),np.array(ys),np.array(zs)
 
-            self._xs = xs.flatten()
-        if ys is not None:
-            self._ys = ys.flatten()
-        if zs is not None:
-            self._zs = zs.flatten()
+        self._shape = max(xs.shape, ys.shape, zs.shape)
+        self._Npoints = len(xs)
+        self._xs = xs.flatten()
+        self._ys = ys.flatten()
+        self._zs = zs.flatten()
 
+    def printPoints(self):
+        for pnt in zip(self._xs, self._ys, self._zs):
+            print('{}\n'.format(pnt))
 
     def getInterpFcns(self, *args, interpType= 'scipy', **kwargs):
         '''
@@ -100,11 +106,9 @@ class Interpolator:
         from scipy.interpolate import LinearNDInterpolator as lndi
         points = np.stack([self._xs, self._ys, self._zs], axis = -1)
         _interpolators = []
-        for arg in *args:
+        for arg in args:
             _interpolators.append(lndi(points, 
                                       arg.flatten(), 
-                                      method = 'linear', 
-                                      bounds_error = False, 
                                       fill_value = self._fill_value
                                       )
                                  )
@@ -117,7 +121,7 @@ class Interpolator:
         the _sane_interpolate method. 
         '''
         _interpolators = []
-        for arg in args*:
+        for arg in args:
             _interpolators.append(
                           _interp3D(self._xs,
                                     self._ys, 
