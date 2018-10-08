@@ -91,11 +91,11 @@ class Interpolator:
         inputs arguments
         '''
         if interpType=='scipy':
-            self._make_scipy_interpolators(args)
+            self._make_scipy_interpolators(*args)
         elif interpType=='_sane':
-            self._make_sane_interpolators(args)
+            self._make_sane_interpolators(*args)
         else:
-            self._make_3D_interpolators(args)
+            self._make_3D_interpolators(*args)
 
 
     def _make_scipy_interpolators(self, *args): 
