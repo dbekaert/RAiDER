@@ -144,7 +144,7 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     intFcn.setProjection(weatherObj.getProjection())
     intFcn.getInterpFcns(weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity())
 
-    wet_delays, hydro_delays = intFcn(newPts)
+    wet_pw, hydro_pw = intFcn(newPts)
 
 #    try:
 #        wet_delays,temp, hum, pres, e = delay(positions_a)
@@ -158,25 +158,41 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     indices[0] = 0
 
     if verbose:
+        print('_common_delay: finished delay calculation')
         print('_common_delay: starting integration')
 
-    delays = np.zeros(lats.shape[0])
-    for i,length in enumerate(steps):
-        if length ==0:
-            continue
-        start = indices[i]
-        chunk = wet_delays[start:start + length]
-        t_points = t_points_l[i]
-        delays[i] = 1e-6 * np.trapz(chunk, t_points)
+    # this is the integration step
+    delays = [] 
+    for d in (wet_pw, hydro_pw):
+        delays.append(_get_delays(steps, t_points_l, d))
 
     if verbose:
         print('_common_delay: Finished integration')
 
     # Finally apply cosine correction if applicable
     if correction is not None:
-        delays *= correction
+        delays [d*correction for d in delays]
 
     return delays
+
+
+#    delays = np.zeros(lats.shape[0])
+#    for i,length in enumerate(steps):
+#        if length ==0:
+#            continue
+#        start = indices[i]
+#        chunk = wet_delays[start:start + length]
+#        t_points = t_points_l[i]
+#        delays[i] = 1e-6 * np.trapz(chunk, t_points)
+#
+#    if verbose:
+#        print('_common_delay: Finished integration')
+#
+#    # Finally apply cosine correction if applicable
+#    if correction is not None:
+#        delays *= correction
+#
+#    return delays
 
 
 def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
