@@ -127,7 +127,7 @@ class WeatherModel():
             sp.set_title(title)
 
         if savefig:
-             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(hgt1, hgt2))
+             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(surf_hgt, high_hgt))
         return f
 
             
