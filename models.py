@@ -185,20 +185,17 @@ class WeatherModel():
             new_heights = np.zeros(self._zs.shape[:2]) + self._zmin
             self._zs = np.concatenate((new_heights[:,:,np.newaxis], self._zs), axis = 2)
 
-            # need to extrapolate the other variables now
-            new_pressures = util._least_nonzero(self._p)
-            self._p= np.concatenate((new_pressures[:,:,np.newaxis], self._p), axis =2)
-
-            new_temps = util._least_nonzero(self._t)
-            self._t= np.concatenate((new_temps[:,:,np.newaxis], self._t), axis = 2)
-
-            new_humids = util._least_nonzero(self._q)
-            self._q= np.concatenate((new_humids[:,:,np.newaxis], self._q), axis = 2)
-
             # since xs/ys (or lons/lats) are the same for all z, just add an
             # extra slice to match the new z shape
             self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis], self._xs), axis = 2)
             self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis], self._ys), axis = 2)
+
+            # need to extrapolate the other variables now
+            self._p=util.padLower(self._p)
+            self._t=util.padLower(self._t)
+            self._q=util.padLower(self._q)
+            self._wet_refractivity=util.padLower(self._wet_refractivity)
+            self._hydrostatic_refractivity=util.padLower(self._hydrostatic_refractivity)
 
 
     def _find_svp(self):
