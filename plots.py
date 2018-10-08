@@ -50,7 +50,7 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         divider = mal(sp)
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
-
+        sp.set_title(title)
 
         if savefig:
              plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2))
@@ -103,6 +103,7 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         divider = mal(sp)
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
+        sp.set_title(title)
 
         if savefig:
              plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2))
