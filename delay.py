@@ -127,15 +127,15 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     positions_a = np.concatenate(positions_l)
     xs, ys, zs = positions_a[:,0], positions_a[:,1], positions_a[:,2]
     ecef = pyproj.Proj(proj='geocent')
-    newPts = np.stack(pyproj.transform(ecef, weather.getProjection(), xs, ys, zs), axis = -1)
+    newPts = np.stack(pyproj.transform(ecef, weatherObj.getProjection(), xs, ys, zs), axis = -1)
 
     if verbose:
         print('_common_delay: starting wet_delay calculation')
 
     intFcn= intrp.Inpterpolator()
-    intFcn.setPoints(weather.getPoints())
-    intFcn.setProjection(weather.getProjection())
-    intFcn.getInterpFcns([weather.getWetRefractivity(), weather.getHydroRefractivity()])
+    intFcn.setPoints(weatherObj.getPoints())
+    intFcn.setProjection(weatherObj.getProjection())
+    intFcn.getInterpFcns([weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity()])
     wet_delays, hydro_delays = intFcn(newPts)
 
 #    try:
