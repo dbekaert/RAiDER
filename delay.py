@@ -143,6 +143,7 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
     intFcn.getInterpFcns(weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity())
+
     wet_delays, hydro_delays = intFcn(newPts)
 
 #    try:
@@ -158,6 +159,7 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
 
     if verbose:
         print('_common_delay: starting integration')
+
     delays = np.zeros(lats.shape[0])
     for i,length in enumerate(steps):
         if length ==0:
@@ -463,8 +465,6 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
                 weather = weather_model
-                import pdb
-                pdb.set_trace()
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)
