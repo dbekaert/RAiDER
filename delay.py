@@ -171,10 +171,59 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
 
     # Finally apply cosine correction if applicable
     if correction is not None:
-        delays [d*correction for d in delays]
+        delays = [d*correction for d in delays]
 
     return delays
 
+
+def _get_delays(steps, t_points_l, wet_delays):
+    '''
+    This function gets the actual delays by integrating the delay at each node
+    '''
+
+    numFlag = False
+    try:
+        import dask
+    except ImportError:
+        #numFlag = True
+        pass
+
+    # Compute starting indices
+    indices = np.cumsum(steps)
+    # We want the first index to be 0, and the others shifted
+    indices = np.roll(indices, 1)
+    indices[0] = 0
+
+    # break up into chunks for integrating
+    chunks = []
+    for L,I in zip(steps, indices):
+        if L ==0:
+            chunks.append(np.zeros(1))
+            continue
+        chunks.append(wet_delays[I:I+L])
+
+    # integrate the delays to get overall delay
+    def int_fcn(x,y):
+       if x.size == 1:
+           return 0
+       else:
+           return 1e-6*np.trapz(x, y) 
+
+    # check for consistency
+    if len(chunks)!=len(t_points_l):
+        raise RuntimeError('_get_delays: "chunks" and "t_points_l" are not the same length')
+
+    # Do the integration, in parallel if possible
+    delays = []
+    if numFlag:
+        for chunk,T in zip(chunks, t_points_l):
+            delays.append(int_fcn(chunk, T))
+        return delays
+    else:
+        for chunk, T in zip(chunks, t_points_l):
+            d = dask.delayed(int_fcn)(chunk, T)
+            delays.append(d)
+        return dask.compute(delays)
 
 #    delays = np.zeros(lats.shape[0])
 #    for i,length in enumerate(steps):
@@ -480,7 +529,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 f = os.path.join(out, 'weather_model.dat')
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
-                weather = weather_model
+                weather = weather_model # Need to maintain backwards compatibility at the moment
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)
