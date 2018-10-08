@@ -52,12 +52,12 @@ class Interpolator:
         '''
         self._proj = proj
  
-    def reProject(self, old_proj, new_proj):
+    def reProject(self, new_proj):
         '''
         Project a set of points into a different coordinate system.
         old_proj and new_proj should be pyproj projection objects. 
         '''
-        self._xs, self._ys, self._zs = pyproj.transform(old_proj,new_proj, self._xs, self._ys, self._zs)
+        self._xs, self._ys, self._zs = pyproj.transform(self._proj,new_proj, self._xs, self._ys, self._zs)
         self._proj = new_proj
 
     def setPoints(self, xs, ys, zs):

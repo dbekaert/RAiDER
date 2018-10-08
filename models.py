@@ -36,6 +36,7 @@ class WeatherModel():
         self._zref = const._ZMAX # max integration height
         self._llaproj = pyproj.Proj(proj='latlong')
         self._ecefproj = pyproj.Proj(proj='geocent')
+        self._proj = None
 
         # setup data structures  
         self._xs = np.empty((1, 1, 1)) 
@@ -60,6 +61,7 @@ class WeatherModel():
         string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._xs.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
+        string += 'Native projectino: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zref)
         string += 'Minimum/Maximum latitude: {: 4.2f}/{: 4.2f}\n'\
@@ -199,6 +201,12 @@ class WeatherModel():
         '''
         self._hydrostatic_refractivity = self._k1*self._p/self._t
 
+    def getWetRefractivity(self):
+        return self._wet_refractivity
+        
+    def getHydroRefractivity(self):
+        return self._hydrostatic_refractivity
+
     def _adjust_grid(self):
         if self._zmin < np.nanmin(self._heights):
             # add in a new layer at zmin
@@ -310,7 +318,7 @@ class WeatherModel():
 
         return geotoreturn, pressurelvs, heighttoreturn
 
-    def _get_ll_bounds(self, lats, lons, Nextra):
+    def _get_ll_bounds(self, lats, lons, Nextra = 2):
         '''
         returns the extents of lat/lon plus a buffer
         '''
@@ -320,6 +328,18 @@ class WeatherModel():
         lon_max = np.nanmax(lons) + Nextra*self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
+
+    def getProjection(self):
+        '''
+        Returns the native weather projection, which should be a pyproj object
+        ''' 
+        return self._proj
+
+    def getPoints(self):
+        #TODO: Probably should re-implement to use x/y/z throughout, more generic
+        return self._lons,self._lats, self._heights
+        #return self._xs, self._ys, self._zs
+        
 
 
 class ECMWF(WeatherModel):
@@ -380,6 +400,8 @@ class ECMWF(WeatherModel):
         lons[lons > 180] -= 360
 
 
+        self._proj = pyproj.Proj(proj='latlong')
+
         self._lons = lons
         self._lats = lats
         self._t = t
@@ -411,10 +433,10 @@ class ECMWF(WeatherModel):
         self._lons = np.transpose(self._lons)
         self._heights = np.transpose(self._heights)
 
-        # Also get the earth-centered coordinates
-        self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
-                                                     self._lons.flatten(), 
-                                                     self._heights.flatten())
+#        # Also get the earth-centered coordinates
+#        self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
+#                                                     self._lons.flatten(), 
+#                                                     self._heights.flatten())
 
 #        # Replace the non-useful values by NaN
 #        # TODO: replace np.where with dask.where

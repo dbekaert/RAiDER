@@ -69,8 +69,11 @@ def _get_steps(lengths):
     return steps
 
 
-def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = False):
-    """Perform computation common to hydrostatic and wet delay."""
+def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose = False):
+    """
+    Perform computations common to hydrostatic and wet delay.
+    """
+    import interpolator as intprn
     # Deal with Zenith special value, and non-raytracing method
     if raytrace:
         correction = None
@@ -117,13 +120,23 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
         print('_common_delay: Finished steps')
 
     positions_a = np.concatenate(positions_l)
+    xs, ys, zs = positions_a[:,1], positions_a[:,2], positions_a[:,3]
+    ecef = pyproj.Proj(proj='geocent')
+    newPts = np.stack(pyproj.transform(ecef, weather.getProjection(), xs, ys, zs), axis = -1)
 
     if verbose:
         print('_common_delay: starting wet_delay calculation')
-    try:
-        wet_delays,temp, hum, pres, e = delay(positions_a)
-    except:
-        wet_delays = delay(positions_a)
+
+    intFcn= intrp.Inpterpolator()
+    intFcn.setPoints(weather.getPoints())
+    intFcn.setProjection(weather.getProjection())
+    intFcn.getInterpFcns([weather.getWetRefractivity(), weather.getHydroRefractivity()])
+    wet_delays, hydro_delays = intFcn(newPts)
+
+#    try:
+#        wet_delays,temp, hum, pres, e = delay(positions_a)
+#    except:
+#        wet_delays = delay(positions_a)
 
     # Compute starting indices
     indices = np.cumsum(steps)
@@ -261,9 +274,10 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
 
     lats, lons, hts = np.moveaxis(llas, -1, 0)
 
-    hydro = hydrostatic_delay(weather, lats, lons, hts, los,
-                              raytrace=raytrace, verbose = verbose)
-    wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
+    # Call _common_delay to compute both the hydrostatic and wet delays
+    wet, hydro = _common_delay(weather, lats, lons, hts, los, raytrace = raytrace, verbose = verbose)
+#    hydro = hydrostatic_delay(weather, lats, lons, hts, los,
+#    wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
 
     # Restore shape
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
