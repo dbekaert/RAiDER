@@ -65,9 +65,9 @@ class WeatherModel():
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zref)
         string += 'Minimum/Maximum y (or latitude): {: 4.2f}/{: 4.2f}\n'\
-                  .format(robmin(self._xs), robmax(self._xs))
-        string += 'Minimum/Maximum x (or longitude): {: 4.2f}/{: 4.2f}\n'\
                   .format(robmin(self._ys), robmax(self._ys))
+        string += 'Minimum/Maximum x (or longitude): {: 4.2f}/{: 4.2f}\n'\
+                  .format(robmin(self._xs), robmax(self._xs))
         string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
                   .format(robmin(self._zs), robmax(self._zs))
         string += '=====================================\n'
@@ -194,6 +194,11 @@ class WeatherModel():
 
             new_humids = util._least_nonzero(self._q)
             self._q= np.concatenate((new_humids[:,:,np.newaxis], self._q), axis = 2)
+
+            # since xs/ys (or lons/lats) are the same for all z, just add an
+            # extra slice to match the new z shape
+            self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis], self._xs), axis = 2)
+            self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis], self._ys), axis = 2)
 
 
     def _find_svp(self):
@@ -386,7 +391,8 @@ class ECMWF(WeatherModel):
                                      hgt.shape)
         self._lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
                                      hgt.shape)
-        self._get_heights(self._xs, hgt)
+        # ys is latitude
+        self._get_heights(self._ys, hgt)
 
         # We want to support both pressure levels and true pressure grids.
         # If the shape has one dimension, we'll scale it up to act as a
