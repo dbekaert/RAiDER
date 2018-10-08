@@ -14,6 +14,7 @@ import losreader
 import numpy as np
 import os
 import os.path
+import pyproj
 import tempfile
 import queue
 import threading
@@ -89,7 +90,8 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
 
     lengths = _get_lengths(look_vecs)
     steps = _get_steps(lengths)
-    start_positions = np.array(self._xs, self._ys, self._zs).T
+    #start_positions = np.array(self._xs, self._ys, self._zs).T
+    start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
     if verbose:
@@ -119,8 +121,11 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     if verbose:
         print('_common_delay: Finished steps')
 
+    import pdb
+    pdb.set_trace()
+
     positions_a = np.concatenate(positions_l)
-    xs, ys, zs = positions_a[:,1], positions_a[:,2], positions_a[:,3]
+    xs, ys, zs = positions_a[:,0], positions_a[:,1], positions_a[:,2]
     ecef = pyproj.Proj(proj='geocent')
     newPts = np.stack(pyproj.transform(ecef, weather.getProjection(), xs, ys, zs), axis = -1)
 
@@ -262,9 +267,6 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
            print("LOS is Zenith")
         else:
            print('LOS is not Zenith')
-
-    import pdb
-    pdb.set_trace()
 
     if los is not Zenith:
         if raytrace:
@@ -454,8 +456,6 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
                 weather = weather_model
-                import pdb
-                pdb.set_trace()
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)
@@ -523,8 +523,6 @@ def tropo_delay(los = None, lat = None, lon = None,
             wet_ds = None
 
     else:
-        import pdb
-        pdb.set_trace()
         hydro, wet = _tropo_delay_with_values(
             los, lats, lons, hts, weather, zref, time, parallel = parallel, verbose = verbose)
 
