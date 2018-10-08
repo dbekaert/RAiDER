@@ -7,6 +7,7 @@ import os
 
 # local imports
 import constants as const
+import plots
 import util
 from util import robmin, robmax
 
@@ -88,71 +89,13 @@ class WeatherModel():
         Plotting method. Valid plot types are 'pqt'
         '''
         if plotType=='pqt':
-            pqt_plot = self._plot_pqt(savefig)
+            pqt_plot = plots.plot_pqt(self, savefig)
             return pqt_plot
         elif plotType=='wh':
-            pass
+            wh_plot = plots.plot_wh(self, savefig)
         else:
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         
-    def _plot_pqt(self, savefig, z1 = 500, z2 = 15000):
-        '''
-        Create a plot with pressure, temp, and humidity at two heights
-        '''
-        import matplotlib.pyplot as plt
-        import interpolator as intrp
-
-        # Get the interpolator 
-        intFcn= intrp.Interpolator()
-        intFcn.setPoints(*self.getPoints())
-        intFcn.setProjection(self.getProjection())
-        intFcn.getInterpFcns(self._p, self._e, self._t)
-
-        # get the points needed
-        x = self._xs[:,:,0]
-        y = self._ys[:,:,0]
-        z1a = np.zeros(x.shape) + z1
-        z2a = np.zeros(x.shape) + z2
-        pts1 = np.stack((x.flatten(), y.flatten(), z1a.flatten()), axis = 1)
-        pts2 = np.stack((x.flatten(), y.flatten(), z2a.flatten()), axis = 1)
-
-        p1, e1, t1 = intFcn(pts1)
-        p2, e2, t2 = intFcn(pts2)
-
-        #intFcn.getInterpFcns(self.getWetRefractivity(), self.getHydroRefractivity())
-
-        # Now get the data to plot
-        plots = [p1/1e5, e1, t1 - 273.15, p2/1e5, e2, t2 - 273.15]
-
-        # titles
-        titles = ('Surface P (bars)', 
-                  'Surface Q ({:5.1f} m)'.format(z1), 
-                  'Surface T (C)', 
-                  'High P (bars)', 
-                  'High Q ({:5.1f} m)'.format(z2), 
-                  'High T (C)')
-
-        # setup the plot
-        from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
-        f = plt.figure(figsize = (10,6))
-
-        # loop over each plot
-        for ind, plot, title in zip(range(len(plots)), plots, titles):
-            sp = f.add_subplot(2,3,ind + 1)
-            sp.xaxis.set_ticklabels([])
-            sp.yaxis.set_ticklabels([])
-            im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis')
-            divider = mal(sp)
-            cax = divider.append_axes("right", size="4%", pad=0.05)
-            plt.colorbar(im, cax=cax)
-            sp.set_title(title)
-
-        f.subplots_adjust(hspace=0.4)
-
-        if savefig:
-             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2), bbox_inches='tight')
-        return f
-
             
     def fetch(self, lats, lons, time, out):
         pass
@@ -376,20 +319,19 @@ class ECMWF(WeatherModel):
             lats = f.variables['latitude'][:].copy()
             lons = f.variables['longitude'][:].copy()
 
-
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
             z = z[::-1]
             lnsp = lnsp[::-1]
             t = t[:, ::-1]
-            q = q[:, ::-1]
+            Q = q[:, ::-1]
             lats = lats[::-1]
         # Lons is usually ok, but we'll throw in a check to be safe
         if lons[0] > lons[1]:
             z = z[..., ::-1]
             lnsp = lnsp[..., ::-1]
             t = t[..., ::-1]
-            q = q[..., ::-1]
+            Q = q[..., ::-1]
             lons = lons[::-1]
 
         # pyproj gets fussy if the latitude is wrong, plus our
@@ -403,17 +345,17 @@ class ECMWF(WeatherModel):
         self._lons = lons
         self._lats = lats
         self._t = t
-        self._q = q
+        self._q = Q
 
         geo_hgt,pres,hgt = self._calculategeoh(z, lnsp)
 
         # re-assign lons, lats to match heights
-        self._lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
                                      hgt.shape)
-        self._lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
                                      hgt.shape)
         # ys is latitude
-        self._get_heights(self._ys, hgt)
+        self._get_heights(_lats, hgt)
 
         # We want to support both pressure levels and true pressure grids.
         # If the shape has one dimension, we'll scale it up to act as a
@@ -426,10 +368,10 @@ class ECMWF(WeatherModel):
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         self._p = np.transpose(self._p)
-        self._t = np.transpose(self._t)
+        self._t = np.flip(np.transpose(self._t), axis = 2) # temps seems to be given from high to low elevation?
         self._q = np.transpose(self._q)
-        self._ys = np.transpose(self._lats)
-        self._xs = np.transpose(self._lons)
+        self._ys = np.transpose(_lats)
+        self._xs = np.transpose(_lons)
         self._zs = np.transpose(self._zs)
 
 #        # Also get the earth-centered coordinates
