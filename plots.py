@@ -52,6 +52,9 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         plt.colorbar(im, cax=cax)
 
 
+        if savefig:
+             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2))
+        return f
 
 
 def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
@@ -101,3 +104,6 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
 
+        if savefig:
+             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2))
+        return f
