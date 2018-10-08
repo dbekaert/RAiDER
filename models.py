@@ -134,7 +134,7 @@ class WeatherModel():
 
         # setup the plot
         from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
-        f = plt.figure(figsize = (8,6))
+        f = plt.figure(figsize = (10,6))
 
         # loop over each plot
         for ind, plot, title in zip(range(len(plots)), plots, titles):
@@ -147,8 +147,10 @@ class WeatherModel():
             plt.colorbar(im, cax=cax)
             sp.set_title(title)
 
+        f.subplots_adjust(hspace=0.4)
+
         if savefig:
-             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2))
+             plt.savefig('Weather_hgt{}_and_{}.pdf'.format(z1, z2), bbox_inches='tight')
         return f
 
             
