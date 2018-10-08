@@ -301,3 +301,11 @@ def _geo_to_ht(lats, hts, g0 = 9.80556):
 
     return h
 
+
+def padLower(invar):
+    '''
+    add a layer of data below the lowest current z-level at height zmin
+    '''
+    new_var = _least_nonzero(invar)
+    return np.concatenate((new_var[:,:,np.newaxis], invar), axis =2)
+
