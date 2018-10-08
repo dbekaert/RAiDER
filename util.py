@@ -269,3 +269,19 @@ def robmax(a):
         return max(a)
     except ValueError:
         return 'N/A'
+
+
+# NOTE: this function should be able to go away once all weather models
+# have been incorporated into the new implementation (object-based)
+def _geo_to_ht(self, hts):
+    """Convert geopotential height to altitude."""
+    # Convert geopotential to geometric height. This comes straight from
+    # TRAIN
+    # Map of g with latitude (I'm skeptical of this equation)
+    g_ll = self._get_g_ll()
+    Re = self._get_Re()
+
+    # Calculate Geometric Height, h
+    h = (hts*Re)/(g_ll/self._g0*Re - hts)
+
+    return h
