@@ -270,3 +270,34 @@ def robmax(a):
     except ValueError:
         return 'N/A'
 
+
+def _get_g_ll(lats):
+    '''
+    Compute the variation in gravity constant with latitude
+    '''
+    #TODO: verify these constants. In particular why is the reference g different from self._g0?
+    return 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
+
+def _get_Re(lats):
+    '''
+    Returns the ellipsoid as a fcn of latitude
+    '''
+    #TODO: verify constants, add to base class constants? 
+    Rmax = 6378137
+    Rmin = 6356752
+    return np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
+
+
+def _geo_to_ht(lats, hts, g0 = 9.80556):
+    """Convert geopotential height to altitude."""
+    # Convert geopotential to geometric height. This comes straight from
+    # TRAIN
+    # Map of g with latitude (I'm skeptical of this equation - Ray)
+    g_ll = _get_g_ll(lats)
+    Re = _get_Re(lats)
+
+    # Calculate Geometric Height, h
+    h = (hts*Re)/(g_ll/g0*Re - hts)
+
+    return h
+

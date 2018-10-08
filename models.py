@@ -42,9 +42,9 @@ class WeatherModel():
         self._xs = np.empty((1, 1, 1)) 
         self._ys = np.empty((1, 1, 1))
         self._zs = np.empty((1, 1, 1))
-        self._lats = np.empty((1, 1, 1))
-        self._lons = np.empty((1, 1, 1))
-        self._heights = np.empty((1, 1, 1))
+#        self._lats = np.empty((1, 1, 1))
+#        self._lons = np.empty((1, 1, 1))
+#        self._heights = np.empty((1, 1, 1))
         self._p = None
         self._q = None
         self._t = None
@@ -57,19 +57,19 @@ class WeatherModel():
     def __repr__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
-        string += 'Number of points in Lat/Lon = {}/{}\n'.format(*self._lats.shape[1:])
+        string += 'Number of points in Lat/Lon = {}/{}\n'.format(*self._xs.shape[:2])
         string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._xs.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projectino: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zref)
-        string += 'Minimum/Maximum latitude: {: 4.2f}/{: 4.2f}\n'\
-                  .format(robmin(self._lats), robmax(self._lats))
-        string += 'Minimum/Maximum longitude: {: 4.2f}/{: 4.2f}\n'\
-                  .format(robmin(self._lons), robmax(self._lons))
-        string += 'Minimum/Maximum heights: {: 10.2f}/{: 10.2f}\n'\
-                  .format(robmin(self._heights), robmax(self._heights))
+        string += 'Minimum/Maximum y (or latitude): {: 4.2f}/{: 4.2f}\n'\
+                  .format(robmin(self._xs), robmax(self._xs))
+        string += 'Minimum/Maximum x (or longitude): {: 4.2f}/{: 4.2f}\n'\
+                  .format(robmin(self._ys), robmax(self._ys))
+        string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
+                  .format(robmin(self._zs), robmax(self._zs))
         string += '=====================================\n'
         string += 'k1 = {}\n'.format(self._k1)
         string += 'k2 = {}\n'.format(self._k2)
@@ -104,8 +104,8 @@ class WeatherModel():
         plots.append(self._p[:,:,higher_ind])
         plots.append(self._e[:,:,higher_ind])
         plots.append(self._t[:,:,higher_ind])
-        surf_hgt = self._heights[:,:,lower_ind][0,0]
-        high_hgt = self._heights[:,:,higher_ind][0,0]
+        surf_hgt = self._zs[:,:,lower_ind][0,0]
+        high_hgt = self._zs[:,:,higher_ind][0,0]
 
         # titles
         titles = ('Surface P', 'Surface Q ({:5.1f} m)'.format(surf_hgt), 'Surface T', 'High P', 'High Q ({:5.1f} m)'.format(high_hgt), 'High T')
@@ -146,41 +146,13 @@ class WeatherModel():
     def load_weather(self, filename):
         pass
 
-    def _get_heights(self, geo_hgt, geo_ht_fill = np.nan):
+    def _get_heights(self, lats, geo_hgt, geo_ht_fill = np.nan):
         '''
         Transform geo heights to actual heights
         '''
         geo_ht_fix = np.where(geo_hgt!= geo_ht_fill, geo_hgt, np.nan)
-        self._heights = self._geo_to_ht(geo_ht_fix)
+        self._zs = util._geo_to_ht(lats, geo_ht_fix, self._g0)
 
-    def _geo_to_ht(self, hts):
-        """Convert geopotential height to altitude."""
-        # Convert geopotential to geometric height. This comes straight from
-        # TRAIN
-        # Map of g with latitude (I'm skeptical of this equation)
-        g_ll = self._get_g_ll()
-        Re = self._get_Re()
-    
-        # Calculate Geometric Height, h
-        h = (hts*Re)/(g_ll/self._g0*Re - hts)
-    
-        return h
-
-    def _get_g_ll(self):
-        '''
-        Compute the variation in gravity constant with latitude
-        '''
-        #TODO: verify these constants. In particular why is the reference g different from self._g0?
-        return 9.80616*(1 - 0.002637*util.cosd(2*self._lats) + 0.0000059*(util.cosd(2*self._lats))**2)
-
-    def _get_Re(self):
-        '''
-        Returns the ellipsoid as a fcn of latitude
-        '''
-        #TODO: verify constants, add to base class constants? 
-        Rmax = 6378137
-        Rmin = 6356752
-        return np.sqrt(1/(((util.cosd(self._lats)**2)/Rmax**2) + ((util.sind(self._lats)**2)/Rmin**2)))
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
@@ -208,10 +180,10 @@ class WeatherModel():
         return self._hydrostatic_refractivity
 
     def _adjust_grid(self):
-        if self._zmin < np.nanmin(self._heights):
+        if self._zmin < np.nanmin(self._zs):
             # add in a new layer at zmin
-            new_heights = np.zeros(self._heights.shape[:2]) + self._zmin
-            self._heights = np.concatenate((new_heights[:,:,np.newaxis], self._heights), axis = 2)
+            new_heights = np.zeros(self._zs.shape[:2]) + self._zmin
+            self._zs = np.concatenate((new_heights[:,:,np.newaxis], self._zs), axis = 2)
 
             # need to extrapolate the other variables now
             new_pressures = util._least_nonzero(self._p)
@@ -337,7 +309,7 @@ class WeatherModel():
 
     def getPoints(self):
         #TODO: Probably should re-implement to use x/y/z throughout, more generic
-        return self._lons,self._lats, self._heights
+        return self._xs,self._ys, self._zs
         #return self._xs, self._ys, self._zs
         
 
@@ -414,14 +386,14 @@ class ECMWF(WeatherModel):
                                      hgt.shape)
         self._lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
                                      hgt.shape)
-        self._get_heights(hgt)
+        self._get_heights(self._xs, hgt)
 
         # We want to support both pressure levels and true pressure grids.
         # If the shape has one dimension, we'll scale it up to act as a
         # grid, otherwise we'll leave it alone.
         if len(pres.shape) == 1:
             self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
-                                        self._heights.shape)
+                                        self._zs.shape)
         else:
             self._p = pres
 
@@ -429,9 +401,9 @@ class ECMWF(WeatherModel):
         self._p = np.transpose(self._p)
         self._t = np.transpose(self._t)
         self._q = np.transpose(self._q)
-        self._lats = np.transpose(self._lats)
-        self._lons = np.transpose(self._lons)
-        self._heights = np.transpose(self._heights)
+        self._ys = np.transpose(self._lats)
+        self._xs = np.transpose(self._lons)
+        self._zs = np.transpose(self._zs)
 
 #        # Also get the earth-centered coordinates
 #        self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
