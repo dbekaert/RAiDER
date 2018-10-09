@@ -93,6 +93,7 @@ class WeatherModel():
             return pqt_plot
         elif plotType=='wh':
             wh_plot = plots.plot_wh(self, savefig)
+            return wh_plot
         else:
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         
@@ -149,7 +150,7 @@ class WeatherModel():
         if self._zmin < np.nanmin(self._zs):
             # add in a new layer at zmin
             new_heights = np.zeros(self._zs.shape[:2]) + self._zmin
-            self._zs = np.concatenate((new_heights[:,:,np.newaxis], self._zs), axis = 2)
+            self._zs = np.concatenate((self._zs, new_heights[:,:,np.newaxis]), axis = 2)
 
             # since xs/ys (or lons/lats) are the same for all z, just add an
             # extra slice to match the new z shape
@@ -203,10 +204,11 @@ class WeatherModel():
         pressurelvs = np.zeros_like(geotoreturn)
         heighttoreturn = np.zeros_like(geotoreturn)
     
-        # surface pressure
+        # surface pressure: pressure at the surface!
+        # Note that we integrate from the ground up, so from the largest model level to 0
         sp = np.exp(lnsp)
     
-        #levelSize = len(self._t)
+        # t should be structured [z, y, x]
         levelSize = self._t.shape[0]
 
         if len(self._a) != levelSize + 1 or len(self._b) != levelSize + 1:
@@ -217,10 +219,11 @@ class WeatherModel():
     
         Ph_levplusone = self._a[levelSize] + (self._b[levelSize]*sp)
     
-        # Integrate up into the atmosphere from lowest level
+        # Integrate up into the atmosphere from *lowest level*
         z_h = 0 # initial value
         for lev, t_level, q_level in zip(
                 range(levelSize, 0, -1), self._t[::-1], self._q[::-1]):
+
             # lev is the level number 1-60, we need a corresponding index
             # into ts and qs
             ilevel = levelSize - lev
@@ -246,10 +249,11 @@ class WeatherModel():
             # z_f is the geopotential of this full level
             # integrate from previous (lower) half-level z_h to the full level
             z_f = z_h + TRd*alpha
-            heighttoreturn[ilevel] = z_f/self._g0
+            #heighttoreturn[ilevel] = z_f/self._g0
 
             # Geopotential (add in surface geopotential)
             geotoreturn[ilevel] = z_f + z
+            heighttoreturn[ilevel] = geotoreturn[ilevel]/self._g0
 
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
@@ -368,11 +372,12 @@ class ECMWF(WeatherModel):
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         self._p = np.transpose(self._p)
-        self._t = np.flip(np.transpose(self._t), axis = 2) # temps seems to be given from high to low elevation?
+        self._t = np.transpose(self._t)
         self._q = np.transpose(self._q)
         self._ys = np.transpose(_lats)
         self._xs = np.transpose(_lons)
-        self._zs = np.transpose(self._zs)
+        #TODO: Need to change/not hardcode this
+        self._zs = np.flip(np.transpose(self._zs), axis = 2)
 
 #        # Also get the earth-centered coordinates
 #        self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
