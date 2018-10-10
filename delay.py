@@ -530,6 +530,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
                 weather = weather_model # Need to maintain backwards compatibility at the moment
+                tp = weather.plot()
                 import pdb
                 pdb.set_trace()
             else:

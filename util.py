@@ -309,3 +309,26 @@ def padLower(invar):
     new_var = _least_nonzero(invar)
     return np.concatenate((new_var[:,:,np.newaxis], invar), axis =2)
 
+
+def testArr(arr, thresh, ttype):
+    '''
+    Helper function for checking heights
+    '''
+    if ttype=='g':
+        test = np.all(arr>thresh)
+    elif ttype =='l':
+        test = np.all(arr<thresh)
+    else:
+        raise RuntimeError('testArr: bad type')
+
+    return test
+
+def getMaxModelLevel(arr3D, thresh, ttype = 'l'):
+    '''
+    Returns the model level number to keep
+    '''
+    for ind, level in enumerate(arr3D.T):
+        if testArr(level, thresh, ttype):
+            return ind
+    return ind
+

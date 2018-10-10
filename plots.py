@@ -31,18 +31,20 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     p1, e1, t1 = intFcn(pts1)
     p2, e2, t2 = intFcn(pts2)
 
-    #intFcn.getInterpFcns(weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity())
+    # uncomment for debugging
+    #print(p1)
+    #print(p2)
 
     # Now get the data to plot
-    plots = [p1/1e5, e1, t1 - 273.15, p2/1e5, e2, t2 - 273.15]
+    plots = [p1/1e2, e1/1e2, t1 - 273.15, p2/1e2, e2/1e2, t2 - 273.15]
 
     # titles
-    titles = ('Surface P (bars)', 
-              'Surface E ({:5.1f} m)'.format(z1), 
-              'Surface T (C)', 
-              'High P (bars)', 
-              'High E ({:5.1f} m)'.format(z2), 
-              'High T (C)')
+    titles = ('P (hPa)', 
+              'E (hPa)'.format(z1), 
+              'T (C)', 
+              '', 
+              '',
+              '')
 
     # setup the plot
     f = plt.figure(figsize = (10,6))
@@ -57,23 +59,29 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
         sp.set_title(title)
+        if ind==1:
+            sp.set_ylabel('{} m'.format(z1))
+        if ind==4:
+            sp.set_ylabel('{} m'.format(z2))
 
-#    xind = 
-#    zdata = weatherObj._zs[xind,yind,:]
-#    sp = f.add_subplot(3,3,7)
-#    sp.plot(weatherObj._p[xind,yind,:]/1e5, zdata)
-#    sp.ylabel('Height (m)')
-#    sp.xlabel('Pressure (bars)')
-#    
-#    sp = f.add_subplot(3,3,8)
-#    sp.plot(weatherObj._e[xind,yind,:],zdata)
-#    sp.ylabel('Height (m)')
-#    sp.xlabel('E')
-#    
-#    sp = f.add_subplot(3,3,9)
-#    sp.plot(weatherObj._t[xind,yind,:]- 273.15, zdata)
-#    sp.ylabel('Height (m)')
-#    sp.xlabel('Temp (C)')
+    # add plots that show each variable with height
+    xind = int(np.floor(weatherObj._zs.shape[0]/2))
+    yind = int(np.floor(weatherObj._zs.shape[1]/2))
+    zdata = weatherObj._zs[xind,yind,:]/1000
+    sp = f.add_subplot(3,3,7)
+    sp.plot(weatherObj._p[xind,yind,:]/1e2, zdata)
+    sp.set_ylabel('Height (km)')
+    sp.set_xlabel('Pressure (hPa)')
+    
+    sp = f.add_subplot(3,3,8)
+    sp.plot(weatherObj._e[xind,yind,:],zdata)
+    sp.yaxis.set_ticklabels([])
+    sp.set_xlabel('E')
+    
+    sp = f.add_subplot(3,3,9)
+    sp.plot(weatherObj._t[xind,yind,:]- 273.15, zdata)
+    sp.yaxis.set_ticklabels([])
+    sp.set_xlabel('Temp (C)')
     
 
     if savefig:

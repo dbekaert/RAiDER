@@ -34,12 +34,13 @@ class WeatherModel():
         self._R_d = 287.053
         self._g0 = 9.80665 # gravity constant
         self._zmin = const._ZMIN # minimum integration height
-        self._zref = const._ZMAX # max integration height
+        self._zmax = const._ZMAX # max integration height
         self._llaproj = pyproj.Proj(proj='latlong')
         self._ecefproj = pyproj.Proj(proj='geocent')
         self._proj = None
 
         # setup data structures  
+        self._levels = []
         self._xs = np.empty((1, 1, 1)) 
         self._ys = np.empty((1, 1, 1))
         self._zs = np.empty((1, 1, 1))
@@ -64,7 +65,7 @@ class WeatherModel():
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projectino: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
-        string += 'ZMAX: {}\n'.format(self._zref)
+        string += 'ZMAX: {}\n'.format(self._zmax)
         string += 'Minimum/Maximum y (or latitude): {: 4.2f}/{: 4.2f}\n'\
                   .format(robmin(self._ys), robmax(self._ys))
         string += 'Minimum/Maximum x (or longitude): {: 4.2f}/{: 4.2f}\n'\
@@ -84,7 +85,7 @@ class WeatherModel():
         return str(string)
 
 
-    def plot(self, *args, plotType = 'pqt', savefig = True):
+    def plot(self, plotType = 'pqt', savefig = True):
         '''
         Plotting method. Valid plot types are 'pqt'
         '''
@@ -120,7 +121,6 @@ class WeatherModel():
         geo_ht_fix = np.where(geo_hgt!= geo_ht_fill, geo_hgt, np.nan)
         self._zs = util._geo_to_ht(lats, geo_ht_fix, self._g0)
 
-
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
         self._find_svp()
@@ -147,17 +147,23 @@ class WeatherModel():
         return self._hydrostatic_refractivity
 
     def _adjust_grid(self):
+        '''
+        This function pads the weather grid with a level at self._zmin, if 
+        it does not already go that low. It also removes levels that are 
+        above self._zmax, since they are not needed. 
+        '''
         if self._zmin < np.nanmin(self._zs):
-            # add in a new layer at zmin
+            # first add in a new layer at zmin
             new_heights = np.zeros(self._zs.shape[:2]) + self._zmin
-            self._zs = np.concatenate((self._zs, new_heights[:,:,np.newaxis]), axis = 2)
+            self._zs = np.concatenate(
+                       (self._zs, new_heights[:,:,np.newaxis]), axis = 2)
 
             # since xs/ys (or lons/lats) are the same for all z, just add an
             # extra slice to match the new z shape
             self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis], self._xs), axis = 2)
             self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis], self._ys), axis = 2)
 
-            # need to extrapolate the other variables now
+            # need to extrapolate the other variables down now
             self._p=util.padLower(self._p)
             self._t=util.padLower(self._t)
             self._q=util.padLower(self._q)
@@ -165,9 +171,25 @@ class WeatherModel():
             self._wet_refractivity=util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity=util.padLower(self._hydrostatic_refractivity)
 
+        # Now cut off all variables at the minimum model level needed to be completely above zmax
+        # -1 corrects for Python indexin
+        max_level_needed = util.getMaxModelLevel(self._zs, self._zmax, 'l') - 1
+        levInd = range(max_level_needed, len(self._levels) + 1)
+
+        self._zs = self._zs[...,levInd]
+        self._xs = self._xs[...,levInd]
+        self._ys = self._ys[...,levInd]
+        self._p = self._p[...,levInd]
+        self._q = self._q[...,levInd]
+        self._t = self._t[...,levInd]
+        self._e = self._e[...,levInd]
+        self._wet_refractivity = self._wet_refractivity[...,levInd]
+        self._hydrostatic_refractivity=self._hydrostatic_refractivity[...,levInd]
 
     def _find_svp(self):
-        """Calculate standard vapor presure."""
+        """
+        Calculate standard vapor presure. Should be model-specific
+        """
         # From TRAIN:
         # Could not find the wrf used equation as they appear to be
         # mixed with latent heat etc. Istead I used the equations used
@@ -181,35 +203,51 @@ class WeatherModel():
         # TODO: (Jeremy) - Need to fix/get the equation for the other 
         # weather model types. Right now this will be used for all models, 
         # except WRF, which is yet to be implemented in my new structure.
-        svpw = (6.1121
-                * np.exp((17.502*(self._t- 273.16))/(240.97 + self._t- 273.16)))
-        svpi = (6.1121
-                * np.exp((22.587*( self._t - 273.16))/(273.86 + self._t  - 273.16)))
-        tempbound1 = 273.16  # 0
-        tempbound2 = 250.16  # -23
+        t1 = 273.15 # O Celsius
+        t2 = 250.15 # -23 Celsius
+        
+        tref = self._t- t1
+        wgt = (self._t - t2)/(t1 - t2)
+        svpw = (6.1121 * np.exp((17.502*tref)/(240.97 + tref)))
+        svpi = (6.1121 * np.exp((22.587*tref)/(273.86 + tref)))
+#        tempbound1 = 273.16  # 0
+#        tempbound2 = 250.16  # -23
     
-        svp = svpw
-        wgt = (self._t - tempbound2)/(tempbound1 - tempbound2)
+#        svp = svpw
         svp = svpi + (svpw - svpi)*wgt**2
-        ix_bound1 =self._t > tempbound1
+        ix_bound1 =self._t > t1
         svp[ix_bound1] = svpw[ix_bound1]
-        ix_bound2 =self._t < tempbound2
+        ix_bound2 =self._t < t2
         svp[ix_bound2] = svpi[ix_bound2]
     
         self._svp = svp * 100
 
     
     def _calculategeoh(self, z, lnsp):
-        geotoreturn = np.zeros_like(self._t)
-        pressurelvs = np.zeros_like(geotoreturn)
-        heighttoreturn = np.zeros_like(geotoreturn)
+        '''
+        Function to calculate pressure, geopotential, and geopotential height
+        from the surface pressure and model levels provided by a weather model. 
+        The model levels are numbered from the highest eleveation to the lowest.
+        Inputs: 
+            self - weather model object with parameters a, b defined
+            z    - 3-D array of surface heights for the location(s) of interest
+            lnsp - log of the surface pressure
+        Outputs: 
+            geopotential - The geopotential in units of height times acceleration
+            pressurelvs  - The pressure at each of the model levels for each of 
+                           the input points
+            geoheight    - The geopotential heights
+        ''' 
+        geopotential = np.zeros_like(self._t)
+        pressurelvs = np.zeros_like(geopotential)
+        geoheight = np.zeros_like(geopotential)
     
         # surface pressure: pressure at the surface!
         # Note that we integrate from the ground up, so from the largest model level to 0
         sp = np.exp(lnsp)
     
         # t should be structured [z, y, x]
-        levelSize = self._t.shape[0]
+        levelSize = len(self._levels)
 
         if len(self._a) != levelSize + 1 or len(self._b) != levelSize + 1:
             raise ValueError(
@@ -226,7 +264,10 @@ class WeatherModel():
 
             # lev is the level number 1-60, we need a corresponding index
             # into ts and qs
-            ilevel = levelSize - lev
+            #ilevel = levelSize - lev # << this was Ray's original, but is a typo 
+            # because indexing like that results in pressure and height arrays that 
+            # are in the opposite orientation to the t/q arrays. 
+            ilevel = lev - 1
     
             # compute moist temperature
             t_level = t_level*(1 + 0.609133*q_level)
@@ -249,11 +290,11 @@ class WeatherModel():
             # z_f is the geopotential of this full level
             # integrate from previous (lower) half-level z_h to the full level
             z_f = z_h + TRd*alpha
-            #heighttoreturn[ilevel] = z_f/self._g0
+            #geoheight[ilevel] = z_f/self._g0
 
             # Geopotential (add in surface geopotential)
-            geotoreturn[ilevel] = z_f + z
-            heighttoreturn[ilevel] = geotoreturn[ilevel]/self._g0
+            geopotential[ilevel] = z_f + z
+            geoheight[ilevel] = geopotential[ilevel]/self._g0
 
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
@@ -261,7 +302,7 @@ class WeatherModel():
 
             Ph_levplusone = Ph_lev
 
-        return geotoreturn, pressurelvs, heighttoreturn
+        return geopotential, pressurelvs, geoheight
 
     def _get_ll_bounds(self, lats, lons, Nextra = 2):
         '''
@@ -319,31 +360,30 @@ class ECMWF(WeatherModel):
             z = f.variables['z'][0][0].copy()
             lnsp = f.variables['lnsp'][0][0].copy()
             t = f.variables['t'][0].copy()
-            q = f.variables['q'][0].copy()
+            qq = f.variables['q'][0].copy()
             lats = f.variables['latitude'][:].copy()
             lons = f.variables['longitude'][:].copy()
+            self._levels = f.variables['level'][:].copy()
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
             z = z[::-1]
             lnsp = lnsp[::-1]
             t = t[:, ::-1]
-            Q = q[:, ::-1]
+            Q = qq[:, ::-1]
             lats = lats[::-1]
         # Lons is usually ok, but we'll throw in a check to be safe
         if lons[0] > lons[1]:
             z = z[..., ::-1]
             lnsp = lnsp[..., ::-1]
             t = t[..., ::-1]
-            Q = q[..., ::-1]
+            Q = qq[..., ::-1]
             lons = lons[::-1]
 
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
-
-
         self._proj = pyproj.Proj(proj='latlong')
 
         self._lons = lons
@@ -376,8 +416,7 @@ class ECMWF(WeatherModel):
         self._q = np.transpose(self._q)
         self._ys = np.transpose(_lats)
         self._xs = np.transpose(_lons)
-        #TODO: Need to change/not hardcode this
-        self._zs = np.flip(np.transpose(self._zs), axis = 2)
+        self._zs = np.transpose(self._zs)
 
 #        # Also get the earth-centered coordinates
 #        self._xs, self._ys, self._zs = util.lla2ecef(self._lats.flatten(), 
@@ -471,7 +510,7 @@ class ERAI(ECMWF):
              4.9067070313e+003, 6.0180195313e+003, 7.3066328125e+003,
              8.7650546875e+003, 1.0376125000e+004, 1.2077445313e+004,
              1.3775324219e+004, 1.5379804688e+004, 1.6819472656e+004,
-             1.045183594e+004, 1.9027695313e+004, 1.9755109375e+004,
+             1.8045183594e+004, 1.9027695313e+004, 1.9755109375e+004,
              2.0222203125e+004, 2.0429863281e+004, 2.0384480469e+004,
              2.0097402344e+004, 1.9584328125e+004, 1.8864750000e+004,
              1.7961359375e+004, 1.6899468750e+004, 1.5706449219e+004,
