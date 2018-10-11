@@ -7,21 +7,25 @@ infinity.
 """
 
 
-import demdownload
 from osgeo import gdal
+gdal.UseExceptions()
+
+# standard imports
 import itertools
-import losreader
 import numpy as np
 import os
-import os.path
+import pyproj
 import tempfile
 import queue
 import threading
+
+# local imports
+import demdownload
+import losreader
+import interpolator as intrp
+import reader
 import util
 import wrf
-import reader
-
-gdal.UseExceptions()
 
 
 # Step in meters to use when integrating
@@ -69,19 +73,38 @@ def _get_steps(lengths):
     return steps
 
 
-def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = False):
-    """Perform computation common to hydrostatic and wet delay."""
+def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
+    '''
+    Returns look vectors when Zenith is used
+    '''
+    return (np.array((util.cosd(lats)*util.cosd(lons),
+                              util.cosd(lats)*util.sind(lons),
+                              util.sind(lats))).T
+                    * (zref - heights)[..., np.newaxis])
+
+
+def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose = False):
+    """
+    This function calculates the line-of-sight vectors, estimates the point-wise refractivity
+    index for each one, and then integrates to get the total delay in meters. The point-wise
+    delay is calculated by interpolating the weatherObj, which contains a weather model with
+    wet and hydrostatic refractivity at each weather model grid node, to the points along 
+    the ray. The refractivity is integrated along the ray to get the final delay. 
+    """
+    import interpolator as intprn
     # Deal with Zenith special value, and non-raytracing method
     if raytrace:
         correction = None
     else:
         correction = 1/util.cosd(look_vecs)
         look_vecs = Zenith
+
     if look_vecs is Zenith:
-        look_vecs = (np.array((util.cosd(lats)*util.cosd(lons),
-                               util.cosd(lats)*util.sind(lons),
-                               util.sind(lats))).T
-                     * (_ZREF - heights)[..., np.newaxis])
+        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
+
+    # Get the integration points along the look vectors
+    # First get the length of each look vector, get integration steps along 
+    # each, then get the unit vector pointing in the same direction
     lengths = _get_lengths(look_vecs)
     steps = _get_steps(lengths)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
@@ -115,13 +138,24 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
         print('_common_delay: Finished steps')
 
     positions_a = np.concatenate(positions_l)
+    xs, ys, zs = positions_a[:,0], positions_a[:,1], positions_a[:,2]
+    ecef = pyproj.Proj(proj='geocent')
+    newPts = np.stack(pyproj.transform(ecef, weatherObj.getProjection(), xs, ys, zs), axis = -1)
 
     if verbose:
         print('_common_delay: starting wet_delay calculation')
-    try:
-        wet_delays,temp, hum, pres, e = delay(positions_a)
-    except:
-        wet_delays = delay(positions_a)
+
+    intFcn= intrp.Interpolator()
+    intFcn.setPoints(*weatherObj.getPoints())
+    intFcn.setProjection(weatherObj.getProjection())
+    intFcn.getInterpFcns(weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity())
+
+    wet_pw, hydro_pw = intFcn(newPts)
+
+#    try:
+#        wet_delays,temp, hum, pres, e = delay(positions_a)
+#    except:
+#        wet_delays = delay(positions_a)
 
     # Compute starting indices
     indices = np.cumsum(steps)
@@ -130,24 +164,90 @@ def _common_delay(delay, lats, lons, heights, look_vecs, raytrace, verbose = Fal
     indices[0] = 0
 
     if verbose:
+        print('_common_delay: finished delay calculation')
         print('_common_delay: starting integration')
-    delays = np.zeros(lats.shape[0])
-    for i,length in enumerate(steps):
-        if length ==0:
-            continue
-        start = indices[i]
-        chunk = wet_delays[start:start + length]
-        t_points = t_points_l[i]
-        delays[i] = 1e-6 * np.trapz(chunk, t_points)
+
+    # this is the integration step
+    delays = [] 
+    for d in (wet_pw, hydro_pw):
+        delays.append(_get_delays(steps, t_points_l, d))
 
     if verbose:
         print('_common_delay: Finished integration')
 
     # Finally apply cosine correction if applicable
     if correction is not None:
-        delays *= correction
+        delays = [d*correction for d in delays]
 
     return delays
+
+
+def _get_delays(steps, t_points_l, wet_delays):
+    '''
+    This function gets the actual delays by integrating the delay at each node
+    '''
+
+    numFlag = False
+    try:
+        import dask
+    except ImportError:
+        #numFlag = True
+        pass
+
+    # Compute starting indices
+    indices = np.cumsum(steps)
+    # We want the first index to be 0, and the others shifted
+    indices = np.roll(indices, 1)
+    indices[0] = 0
+
+    # break up into chunks for integrating
+    chunks = []
+    for L,I in zip(steps, indices):
+        if L ==0:
+            chunks.append(np.zeros(1))
+            continue
+        chunks.append(wet_delays[I:I+L])
+
+    # integrate the delays to get overall delay
+    def int_fcn(x,y):
+       if x.size == 1:
+           return 0
+       else:
+           return 1e-6*np.trapz(x, y) 
+
+    # check for consistency
+    if len(chunks)!=len(t_points_l):
+        raise RuntimeError('_get_delays: "chunks" and "t_points_l" are not the same length')
+
+    # Do the integration, in parallel if possible
+    delays = []
+    if numFlag:
+        for chunk,T in zip(chunks, t_points_l):
+            delays.append(int_fcn(chunk, T))
+        return delays
+    else:
+        for chunk, T in zip(chunks, t_points_l):
+            d = dask.delayed(int_fcn)(chunk, T)
+            delays.append(d)
+        return dask.compute(delays)
+
+#    delays = np.zeros(lats.shape[0])
+#    for i,length in enumerate(steps):
+#        if length ==0:
+#            continue
+#        start = indices[i]
+#        chunk = wet_delays[start:start + length]
+#        t_points = t_points_l[i]
+#        delays[i] = 1e-6 * np.trapz(chunk, t_points)
+#
+#    if verbose:
+#        print('_common_delay: Finished integration')
+#
+#    # Finally apply cosine correction if applicable
+#    if correction is not None:
+#        delays *= correction
+#
+#    return delays
 
 
 def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
@@ -256,59 +356,10 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
 
     lats, lons, hts = np.moveaxis(llas, -1, 0)
 
-    if parallel:
-        # TODO: Need to specify a specific number of processors to use, not use all open
-        num_procs = os.cpu_count()
-        if verbose:
-            print('{} processors available'.format(num_procs))
-        os.nice(10)
-
-        hydro_procs = num_procs // 2
-        wet_procs = num_procs - hydro_procs
-
-        if verbose: 
-            print('delay_from_grid: using {} processors for hydro delay'.format(hydro_procs))
-            print('delay_from_grid: using {} processors for wet delay'.format(wet_procs))
-
-        # Divide up jobs into an appropriate number of pieces
-        hindices = np.linspace(0, len(llas), hydro_procs + 1, dtype=int)
-
-        if verbose: 
-            print('delay_from_grid: hindices: {}'.format(hindices))
-
-        # Build the jobs
-        hjobs = (('hydro', hindices[i], hindices[i + 1], verbose)
-                 for i in range(hydro_procs))
-        wjobs = (('wet', hindices[i], hindices[i + 1], verbose)
-                 for i in range(wet_procs))
-        jobs = itertools.chain(hjobs, wjobs)
-
-        # Parallel worker
-        def go(job):
-            job_type, start, end, verbose = job
-            if los is Zenith:
-                my_los = Zenith
-            else:
-                my_los = los[start:end]
-            if job_type == 'hydro':
-                return hydrostatic_delay(weather, lats[start:end],
-                                         lons[start:end], hts[start:end],
-                                         my_los, raytrace=raytrace, verbose=verbose)
-            if job_type == 'wet':
-                return wet_delay(weather, lats[start:end], lons[start:end],
-                                 hts[start:end], my_los, raytrace=raytrace, verbose = verbose)
-            raise ValueError('Unknown job type {}'.format(job_type))
-
-        # Execute the parallel worker
-        result = _parmap(go, jobs)
-
-        # Collect results
-        hydro = np.concatenate(result[:hydro_procs])
-        wet = np.concatenate(result[hydro_procs:])
-    else:
-        hydro = hydrostatic_delay(weather, lats, lons, hts, los,
-                                  raytrace=raytrace, verbose = verbose)
-        wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
+    # Call _common_delay to compute both the hydrostatic and wet delays
+    wet, hydro = _common_delay(weather, lats, lons, hts, los, raytrace = raytrace, verbose = verbose)
+#    hydro = hydrostatic_delay(weather, lats, lons, hts, los,
+#    wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
 
     # Restore shape
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
@@ -431,6 +482,11 @@ def tropo_delay(los = None, lat = None, lon = None,
         # They'll get set later with weather
         lats = lons = None
         latproj = lonproj = None
+#TODO: implement single point case? 
+#    elif isinstance(lat, float):
+#        lats = np.array([lat])
+#        lons = np.array([lon])
+#        latproj = lonproj = None
     else:
         lats, latproj = util.gdal_open(lat, returnProj = True)
         lons, lonproj = util.gdal_open(lon, returnProj = True)
@@ -457,7 +513,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     height_type, height_info = heights
     if verbose:
         print('Type of height: {}'.format(height_type))
-        print('Type of weather model: {}'.format(weather_type))
+        print('Type of weather model: \n {}'.format(weather_type))
         if weather_files is not None:
             print('{} weather files'.format(len(weather_files)))
         print('Weather format: {}'.format(weather_fmt))
@@ -478,7 +534,14 @@ def tropo_delay(los = None, lat = None, lon = None,
             if verbose:
                 f = os.path.join(out, 'weather_model.dat')
                 weather_model.fetch(lats, lons, time, f)
-                weather = weather_model.load(f)
+                weather_model.load(f)
+                weather = weather_model # Need to maintain backwards compatibility at the moment
+                print(weather)
+                try:
+                    util.pickle_dump(weather, 'weatherObj.dat')
+                except:
+                    pass
+                weather.plot()
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)

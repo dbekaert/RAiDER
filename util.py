@@ -114,23 +114,6 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     return los.reshape((3,) + real_shape)
 
 
-def geo_to_ht(lats, lons, hts):
-    """Convert geopotential height to altitude."""
-    # Convert geopotential to geometric height. This comes straight from
-    # TRAIN
-    g0 = 9.80665
-    # Map of g with latitude (I'm skeptical of this equation)
-    g = 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
-    Rmax = 6378137
-    Rmin = 6356752
-    Re = np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
-
-    # Calculate Geometric Height, h
-    h = (hts*Re)/(g/g0*Re - hts)
-
-    return h
-
-
 def toXYZ(lats, lons, hts):
     """Convert lat, lon, geopotential height to x, y, z in ECEF."""
     # Convert geopotential to geometric height. This comes straight from
@@ -208,3 +191,144 @@ def writeArrayToRaster(array, filename, fmt = 'ENVI'):
     ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
     ds.GetRasterBand(1).WriteArray(array)
     ds = None
+
+
+def round_date(date, precision):
+    import datetime
+    # First try rounding up
+    # Timedelta since the beginning of time
+    datedelta = datetime.datetime.min - date
+    # Round that timedelta to the specified precision
+    rem = datedelta % precision
+    # Add back to get date rounded up
+    round_up = date + rem
+
+    # Next try rounding down
+    datedelta = date - datetime.datetime.min
+    rem = datedelta % precision
+    round_down = date - rem
+
+    # It's not the most efficient to calculate both and then choose, but
+    # it's clear, and performance isn't critical here.
+    up_diff = round_up - date
+    down_diff = date - round_down
+
+    return round_up if up_diff < down_diff else round_down
+
+
+def _least_nonzero(a):
+    """Fill in a flat array with the lowest nonzero value.
+    
+    Useful for interpolation below the bottom of the weather model.
+    """
+    import numpy as np
+    out = np.full(a.shape[:2], np.nan)
+    xlim, ylim = out.shape
+    zlim = len(a)
+    for x in range(xlim):
+        for y in range(ylim):
+            for z in range(zlim):
+                val = a[z][x][y]
+                if not np.isnan(val):
+                    out[x][y] = val
+                    break
+    return out
+
+
+def sind(x):
+    """Return the sine of x when x is in degrees."""
+    return np.sin(np.radians(x))
+
+
+def cosd(x):
+    """Return the cosine of x when x is in degrees."""
+    return np.cos(np.radians(x))
+
+
+def tand(x):
+    """Return degree tangent."""
+    return np.tan(np.radians(x))
+
+
+def robmin(a):
+    '''
+    Get the minimum of an array, accounting for empty lists
+    '''
+    from numpy import nanmin as min
+    try:
+        return min(a)
+    except ValueError:
+        return 'N/A'
+
+def robmax(a):
+    '''
+    Get the minimum of an array, accounting for empty lists
+    '''
+    from numpy import nanmax as max
+    try:
+        return max(a)
+    except ValueError:
+        return 'N/A'
+
+
+def _get_g_ll(lats):
+    '''
+    Compute the variation in gravity constant with latitude
+    '''
+    #TODO: verify these constants. In particular why is the reference g different from self._g0?
+    return 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
+
+def _get_Re(lats):
+    '''
+    Returns the ellipsoid as a fcn of latitude
+    '''
+    #TODO: verify constants, add to base class constants? 
+    Rmax = 6378137
+    Rmin = 6356752
+    return np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
+
+
+def _geo_to_ht(lats, hts, g0 = 9.80556):
+    """Convert geopotential height to altitude."""
+    # Convert geopotential to geometric height. This comes straight from
+    # TRAIN
+    # Map of g with latitude (I'm skeptical of this equation - Ray)
+    g_ll = _get_g_ll(lats)
+    Re = _get_Re(lats)
+
+    # Calculate Geometric Height, h
+    h = (hts*Re)/(g_ll/g0*Re - hts)
+
+    return h
+
+
+def padLower(invar):
+    '''
+    add a layer of data below the lowest current z-level at height zmin
+    '''
+    new_var = _least_nonzero(invar)
+    return np.concatenate((new_var[:,:,np.newaxis], invar), axis =2)
+
+
+def testArr(arr, thresh, ttype):
+    '''
+    Helper function for checking heights
+    '''
+    if ttype=='g':
+        test = np.all(arr>thresh)
+    elif ttype =='l':
+        test = np.all(arr<thresh)
+    else:
+        raise RuntimeError('testArr: bad type')
+
+    return test
+
+def getMaxModelLevel(arr3D, thresh, ttype = 'l'):
+    '''
+    Returns the model level number to keep
+    '''
+    for ind, level in enumerate(arr3D.T):
+        if testArr(level, thresh, ttype):
+            return ind
+    return ind
+

@@ -49,6 +49,12 @@ class Model(reader.Model):
         return lons, lats, lla, t, q, z, lnsp
 
     @classmethod
+    def __repr__(self):
+       string = 'My class is: {}\n'.format(self.classname)
+       string += 'and my dataset is: {}'.format(self.dataset)
+       return string
+
+    @classmethod
     def get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                        lon_step, time, out):
         import ecmwfapi
@@ -101,7 +107,7 @@ class Model(reader.Model):
                 lat_min, lat_max, lat_res, lon_min, lon_max, lon_res, time,
                 out)
 
-
+    
 def round_date(date, precision):
     # First try rounding up
     # Timedelta since the beginning of time

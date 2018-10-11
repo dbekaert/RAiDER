@@ -1,0 +1,17 @@
+<VRTDataset rasterXSize="99" rasterYSize="783">
+  <SRS>GEOGCS["GCS_WGS_1984",DATUM["WGS_1984",SPHEROID["WGS_84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]]</SRS>
+  <GeoTransform>  0.0000000000000000e+00,  3.0752241845255747e-15,  5.0222222222222200e+01,  0.0000000000000000e+00,  2.0009195402298900e+02, -1.2252098551469642e-14</GeoTransform>
+  <Metadata>
+    <MDI key="Band_1">Band 1</MDI>
+  </Metadata>
+  <VRTRasterBand dataType="Float64" band="1">
+    <Description>Band 1</Description>
+    <SimpleSource>
+      <SourceFilename relativeToVRT="1">lat_alos.rdr</SourceFilename>
+      <SourceBand>1</SourceBand>
+      <SourceProperties RasterXSize="99" RasterYSize="783" DataType="Float64" BlockXSize="99" BlockYSize="1" />
+      <SrcRect xOff="0" yOff="0" xSize="99" ySize="783" />
+      <DstRect xOff="0" yOff="0" xSize="99" ySize="783" />
+    </SimpleSource>
+  </VRTRasterBand>
+</VRTDataset>

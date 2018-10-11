@@ -1,6 +1,7 @@
 from osgeo import gdal
 import numpy as np
 import scipy.interpolate
+from scipy.interpolate import RegularGridInterpolator as rgi
 import util
 
 gdal.UseExceptions()
@@ -12,28 +13,16 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
 
 def download_dem(lats, lons, save_flag= True):
     print('Getting the DEM')
-    minlon = np.nanmin(lons)
-    maxlon = np.nanmax(lons)
-    minlat = np.nanmin(lats)
-    maxlat = np.nanmax(lats)
-    # We'll download at a high resolution to minimize the losses during
-    # interpolation
-    lonsteps = lons.shape[0] * 5
-    latsteps = lats.shape[1] * 5
-    lonres = (maxlon - minlon) / lonsteps
-    latres = (maxlat - minlat) / latsteps
-
-    outRaster = '/vsimem/warpedDEM'
-
-    inRaster ='/vsicurl/{}'.format(_world_dem) 
+    minlon = np.nanmin(lons) - 0.02
+    maxlon = np.nanmax(lons) + 0.02
+    minlat = np.nanmin(lats) - 0.02
+    maxlat = np.nanmax(lats) + 0.02
 
     print('Beginning DEM download and warping')
-    wrpOpt = gdal.WarpOptions(outputBounds = (minlon, minlat,maxlon, maxlat), 
-                              xRes = lonres, yRes = latres)
+    outRaster = '/vsimem/warpedDEM'
+    inRaster ='/vsicurl/{}'.format(_world_dem) 
+    wrpOpt = gdal.WarpOptions(outputBounds = (minlon, minlat,maxlon, maxlat))
     gdal.Warp(outRaster, inRaster, options = wrpOpt)
-#    gdal.Warp(inRaster, outRaster, 
-#            options='-te {minlon} {minlat} {maxlon} {maxlat} '.format(minlat = minlat, minlon =minlon, maxlon = maxlon, maxlat = maxlat) +\
-#                    '-tr {lonres} {latres}'.format(lonres = lonres, latres = latres))
     print('DEM download finished')
 
     try:
@@ -41,34 +30,31 @@ def download_dem(lats, lons, save_flag= True):
     except:
         raise RuntimeError('demdownload: Cannot open the warped file')
     finally:
-        # Have to make sure the file gets cleaned up
         try:
             gdal.Unlink('/vsimem/warpedDEM')
         except:
             pass
 
-    # For some reason, GDAL writes the file top to bottom, so we'll flip
-    # it
+    #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
 
-    # Index into out as lat, lon
+    #TODO: do the projection in gdal itself
     print('Beginning interpolation')
+    xlats = np.linspace(minlat, maxlat, out.shape[0])
+    xlons = np.linspace(minlon, maxlon, out.shape[1])
+    interpolator = rgi(points = (xlats, xlons),values = out,
+                       method='linear', 
+                       bounds_error = False)
 
-    interpolator = scipy.interpolate.RegularGridInterpolator(
-            points = (np.linspace(minlat, maxlat, latsteps),
-                      np.linspace(minlon, maxlon, lonsteps)), 
-            values = out,
-            method='linear', 
-            bounds_error = False)
-
-    out_interpolated = interpolator(np.stack((lats, lons), axis=-1))
+    outInterp = interpolator(np.stack((lats, lons), axis=-1))
+#    outNew = np.reshape(out_interpolated, (len(lats), len(lons)))
 
     print('Interpolation finished')
 
     if save_flag:
         print('Saving DEM to disk')
         outRasterName = 'warpedDEM.dem'
-        util.writeArrayToRaster(out_interpolated, outRasterName)
+        util.writeArrayToRaster(outInterp, outRasterName)
         print('Finished saving DEM to disk')
 
-    return out_interpolated
+    return outInterp

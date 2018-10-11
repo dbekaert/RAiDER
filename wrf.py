@@ -7,6 +7,8 @@ import scipy.interpolate as interpolate
 import scipy.io.netcdf as netcdf
 import util
 
+from models import WeatherModel
+
 
 # NetCDF files have the ability to record their nodata value, but in the
 # particular NetCDF files that I'm reading, this field is left
@@ -21,6 +23,13 @@ k1 = 0.776 # [K/Pa]
 k2 = 0.233 # [K/Pa]
 k3 = 3.75e3 # [K^2/Pa]
 
+
+class WRF(WeatherModel):
+    '''
+    WRF class definition, based on the WeatherModel base class. 
+    '''
+    #TODO: finish implementing
+    pass
 
 def _read_netcdf(out, plev, scipy_interpolate, zmin):
     """Return a NetCDFModel given open netcdf files."""
