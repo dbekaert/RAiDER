@@ -23,7 +23,7 @@ class TimeTests(unittest.TestCase):
     scenario = 'scenario_4'
 
     # Zenith or LOS?
-    useZen = False
+    useZen = True
     #########################################
 
     # load the weather model type and date for the given scenario
