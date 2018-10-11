@@ -84,9 +84,9 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
 
 
 def _common_delay(weatherObj, lats, lons, heights, 
-look_vecs, raytrace, 
-stepSize = _STEP,
-verbose = False):
+                  look_vecs, raytrace, 
+                  stepSize = _STEP,
+                  verbose = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -109,34 +109,35 @@ verbose = False):
     # First get the length of each look vector, get integration steps along 
     # each, then get the unit vector pointing in the same direction
     lengths = _get_lengths(look_vecs)
-    steps = _get_steps(lengths)
+#    steps = _get_steps(lengths)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
     if verbose:
         print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
-        print('_common_delay: The number of steps is {}'.format(len(steps)))
+        print('_common_delay: The integration stepsize is {} m'.format(stepSize))
 
-    positions_l = list()
-    t_points_l = list()
-    for i, N in enumerate(steps):
+    positions_l, t_points_l,steps = [], [], []
+    #for i, N in enumerate(steps):
+    for i, L in enumerate(lengths):
         # Have to handle the case where there are invalid data
-        if N==0:
+        if L==0:
             t_points_l.append(np.empty((0,3)))
             positions_l.append(np.empty((0,3)))
+            steps.append(0)
             continue
         else:
 #            thisspace = np.linspace(0, lengths[i], N)
-            thisspace = np.arange(0, lengths[i], stepSize)
-
-        position = (start_positions[i]
+            thisspace = np.arange(0, L, stepSize)
+            t_points_l.append(thisspace)
+            steps.append(len(thisspace))
+            positions_l.append(start_positions[i]
                     + thisspace[..., np.newaxis]*scaled_look_vecs[i])
-        first_high_index = len(thisspace)#_too_high(position, _ZREF)
-        t_points_l.append(thisspace[:first_high_index])
-        positions_l.append(position[:first_high_index])
+#        first_high_index = len(thisspace)#_too_high(position, _ZREF)
+#        positions_l.append(position[:first_high_index])
 
         # Also correct the number of steps
-        steps[i] = first_high_index
+#        steps[i] = first_high_index
 
     if verbose:
         print('_common_delay: Finished steps')
@@ -227,7 +228,7 @@ def _get_delays(steps, t_points_l, wet_delays):
     delays = []
     if numFlag:
         for chunk,T in zip(chunks, t_points_l):
-            delays.append(int_fcn(chunk, T))
+            delays.append(int_fcn(T,chunk))
         return delays
     else:
         for chunk, T in zip(chunks, t_points_l):
