@@ -157,8 +157,6 @@ def _interp3D(xs, ys, zs, values, shape):
                                   values, axis = 2, 
                                   method='linear', pad = True)
     
-    import pdb
-    pdb.set_trace()
     # This assumes that the input data is in the correct projection; i.e.
     # the native weather grid projection
     xvalues = np.unique(xs)

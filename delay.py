@@ -158,14 +158,12 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: Starting interpolation')
         st = time.time()
 
-    import pdb
-    pdb.set_trace()
     # Define the interpolator
     intFcn= intprn.Interpolator()
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
     intFcn.getInterpFcns(weatherObj.getWetRefractivity(), 
-                         weatherObj.getHydroRefractivity(), interpType = 'rgi')
+                         weatherObj.getHydroRefractivity(), interpType = 'scipy')
 
     # call the interpolator on each ray
     wet_pw, hydro_pw = [], []
@@ -428,10 +426,11 @@ def tropo_delay(los = None, lat = None, lon = None,
     weather_fmt = weather['name']
 
     # For later
+    str1 = time.isoformat() + "_" if time is not None else ""
+    str2 = "z" if los is None else "s" 
+    str3 = 'td.{}'.format(outformat)
     hydroname, wetname = (
-        '{}_{}_'.format(weather_fmt, dtyp) + 
-        '{time.isoformat() + "_" if time is not None else ""}'
-        '{"z" if los is None else "s"}td.{outformat}'
+        '{}_{}_'.format(weather_fmt, dtyp) + str1 + str2 + str3
         for dtyp in ('hydro', 'wet'))
 
     hydro_file_name = os.path.join(out, hydroname)
@@ -446,11 +445,6 @@ def tropo_delay(los = None, lat = None, lon = None,
         # They'll get set later with weather
         lats = lons = None
         latproj = lonproj = None
-#TODO: implement single point case? 
-#    elif isinstance(lat, float):
-#        lats = np.array([lat])
-#        lons = np.array([lon])
-#        latproj = lonproj = None
     else:
         lats, latproj = util.gdal_open(lat, returnProj = True)
         lons, lonproj = util.gdal_open(lon, returnProj = True)
