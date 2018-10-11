@@ -125,43 +125,47 @@ class Interpolator:
         _interpolators = []
         for arg in args:
             _interpolators.append(
-                          _interp3D(self._xs,
-                                    self._ys, 
-                                    self._zs, 
-                                    self._argsList,
-                                    self._old_proj, 
-                                    self._new_proj,
-                                    zmin
-                                    )
+                          _interp3D(self._xs,self._ys, self._zs,arg, self._shape)
                                  )
         self._interp = _interpolators
 
 
-def _interp3D(xs, ys, zs, values_list, old_proj = None, new_proj = None, zmin = 0, zmax = None):
+def _interp3D(xs, ys, zs, values, shape):
     '''
     3-D interpolation on a non-uniform grid, where z is non-uniform but x, y are uniform
     '''
     from scipy.interpolate import RegularGridInterpolator as rgi
-    # interpolate uniformly in the z-direction
+
+    # First interpolate uniformly in the z-direction
+    flipflag = False
     Nfac = 10
-    num_levels = Nfac * zs.shape[2]
-    if zmax is None:
-        zmax = np.nanmax(zs)
-    dz = (zmax - zmin)/num_levels
-    nx, ny = xs.shape[:2]
-    new_zs = np.tile(zmin + dz*np.arange(num_levels), (nx,ny,1))
-    new_var = []
-    for var in vaues_list:
-        new_var.append(interp_along_axis(zs, new_zs, var, axis = 2, method='linear', pad = True))
+    NzLevels = Nfac * shape[2]
+    nx, ny = shape[:2]
+    zmax = np.nanmax(zs)
+    zmin = np.nanmin(zs)
+    zshaped = np.reshape(zs, shape)
+    # if zs are upside down, flip to interpolate vertically
+    if np.nanmean(zshaped[..., 0]) > np.nanmean(zshaped[...,-1]):
+        flipflag = True
+        zshaped = np.flip(zshaped, axis = 2)
+        values = np.flip(values, axis = 2)
+
+    dz = (zmax - zmin)/NzLevels
+    zvalues = zmin + dz*np.arange(NzLevels)
+    new_zs = np.tile(zvalues, (nx,ny,1))
+    new_var = interp_along_axis(zshaped, new_zs,
+                                  values, axis = 2, 
+                                  method='linear', pad = True)
     
+    import pdb
+    pdb.set_trace()
     # This assumes that the input data is in the correct projection; i.e.
     # the native weather grid projection
-    interps = []
-    for var in new_var:
-        interps.append(scipy.interpolate.RegularGridInterpolator((xs, ys, new_zs),
-                                                      var,
-                                                      bounds_error=False))
-    return interps
+    xvalues = np.unique(xs)
+    yvalues = np.unique(ys)
+    interp= rgi((xvalues, yvalues, zvalues), new_var,
+                           bounds_error=False, fill_value = np.nan)
+    return interp
 
 
 def _sane_interpolate(xs, ys, zs, values_list, old_proj, new_proj, zmin):
@@ -174,11 +178,11 @@ def _sane_interpolate(xs, ys, zs, values_list, old_proj, new_proj, zmin):
         import pdb
         pdb.set_trace()
 
-    num_levels = 2 * zs.shape[0]
+    NzLevels = 2 * zs.shape[0]
     # First, find the maximum height
     new_top = np.nanmax(zs)
 
-    new_zs = np.linspace(zmin, new_top, num_levels)
+    new_zs = np.linspace(zmin, new_top, NzLevels)
 
     inp_values = [np.zeros((len(new_zs),) + values.shape[1:])
                   for values in values_list]
@@ -360,7 +364,6 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
     if np.any(_newx[0] < _x[0]) or np.any(_newx[-1] > _x[-1]):
         print('Values outside the valid range will be filled in '\
               'with NaNs or the closest non-zero value (default)')
-
     if np.any(np.diff(_x, axis=0) < 0):
         raise ValueError('x should increase monotonically')
     if np.any(np.diff(_newx, axis=0) < 0):

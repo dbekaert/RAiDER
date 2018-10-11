@@ -23,7 +23,6 @@ import threading
 import constants as const
 import demdownload
 import losreader
-import interpolator as intrp
 import reader
 import util
 import wrf
@@ -95,6 +94,8 @@ def _common_delay(weatherObj, lats, lons, heights,
     the ray. The refractivity is integrated along the ray to get the final delay. 
     """
     import interpolator as intprn
+    import time
+
     # Deal with Zenith special value, and non-raytracing method
     if raytrace:
         correction = None
@@ -105,10 +106,17 @@ def _common_delay(weatherObj, lats, lons, heights,
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
 
+    
+    if verbose:
+        print('_common_delay: Starting look vector calculation')
+        st = time.time()
+
+    mask = np.isnan(heights)
     # Get the integration points along the look vectors
     # First get the length of each look vector, get integration steps along 
     # each, then get the unit vector pointing in the same direction
     lengths = _get_lengths(look_vecs)
+    lengths[mask] = np.nan
 #    steps = _get_steps(lengths)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
@@ -118,67 +126,70 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: The integration stepsize is {} m'.format(stepSize))
 
     positions_l, t_points_l,steps = [], [], []
-    #for i, N in enumerate(steps):
     for i, L in enumerate(lengths):
         # Have to handle the case where there are invalid data
-        if L==0:
-            t_points_l.append(np.empty((0,3)))
-            positions_l.append(np.empty((0,3)))
-            steps.append(0)
-            continue
-        else:
-#            thisspace = np.linspace(0, lengths[i], N)
+        try:
             thisspace = np.arange(0, L, stepSize)
-            t_points_l.append(thisspace)
-            steps.append(len(thisspace))
-            positions_l.append(start_positions[i]
+        except ValueError:
+            thisspace = np.array([])
+
+        t_points_l.append(thisspace)
+        steps.append(len(thisspace))
+        positions_l.append(start_positions[i]
                     + thisspace[..., np.newaxis]*scaled_look_vecs[i])
-#        first_high_index = len(thisspace)#_too_high(position, _ZREF)
-#        positions_l.append(position[:first_high_index])
-
-        # Also correct the number of steps
-#        steps[i] = first_high_index
-
     if verbose:
         print('_common_delay: Finished steps')
+        print('_common_delay: Re-projecting points into native weather model grid')
+        
 
-    positions_a = np.concatenate(positions_l)
-    xs, ys, zs = positions_a[:,0], positions_a[:,1], positions_a[:,2]
     ecef = pyproj.Proj(proj='geocent')
-    newPts = np.stack(pyproj.transform(ecef, weatherObj.getProjection(), xs, ys, zs), axis = -1)
+    newPts = []
+    for pnt in positions_l:
+        newPts.append(np.stack(pyproj.transform(ecef, 
+                                                weatherObj.getProjection(), 
+                                                pnt[:,0], pnt[:,1], pnt[:,2]), 
+                               axis = -1)
+                     )
 
     if verbose:
-        print('_common_delay: starting Interpolation')
+        print('_common_delay: Finished re-projecting')
+        ft = time.time()
+        print('Look vector calculation took {:4.2f} secs'.format(ft-st))
+        print('_common_delay: Starting interpolation')
+        st = time.time()
 
-    intFcn= intrp.Interpolator()
+    import pdb
+    pdb.set_trace()
+    # Define the interpolator
+    intFcn= intprn.Interpolator()
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
-    intFcn.getInterpFcns(weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity())
+    intFcn.getInterpFcns(weatherObj.getWetRefractivity(), 
+                         weatherObj.getHydroRefractivity(), interpType = 'rgi')
 
-    wet_pw, hydro_pw = intFcn(newPts)
-
-#    try:
-#        wet_delays,temp, hum, pres, e = delay(positions_a)
-#    except:
-#        wet_delays = delay(positions_a)
-
-    # Compute starting indices
-    indices = np.cumsum(steps)
-    # We want the first index to be 0, and the others shifted
-    indices = np.roll(indices, 1)
-    indices[0] = 0
+    # call the interpolator on each ray
+    wet_pw, hydro_pw = [], []
+    for pnt in newPts:
+        w, h = intFcn(pnt)
+        wet_pw.append(w)
+        hydro_pw.append(h)
 
     if verbose:
-        print('_common_delay: finished delay calculation')
+        print('_common_delay: Finished interpolation')
+        ft = time.time()
+        print('Interpolation took {:4.2f} secs'.format(ft-st))
+        print('_common_delay: finished point-wise delay calculations')
         print('_common_delay: starting integration')
+        st = time.time()
 
-    # this is the integration step
     delays = [] 
     for d in (wet_pw, hydro_pw):
-        delays.append(_get_delays(steps, t_points_l, d))
+        delays.append(_integrate_delays(stepSize, d))
 
     if verbose:
         print('_common_delay: Finished integration')
+        ft = time.time()
+        print('Integration took {:4.2f} secs'.format(ft-st))
 
     # Finally apply cosine correction if applicable
     if correction is not None:
@@ -187,72 +198,20 @@ def _common_delay(weatherObj, lats, lons, heights,
     return delays
 
 
-def _get_delays(steps, t_points_l, wet_delays):
+def _integrate_delays(stepSize, refr):
     '''
-    This function gets the actual delays by integrating the delay at each node
+    This function gets the actual delays by integrating the refractivity in 
+    each node. Refractivity is given in the 'refr' variable. 
     '''
-
-    numFlag = False
-    try:
-        import dask
-    except ImportError:
-        #numFlag = True
-        pass
-
-    # Compute starting indices
-    indices = np.cumsum(steps)
-    # We want the first index to be 0, and the others shifted
-    indices = np.roll(indices, 1)
-    indices[0] = 0
-
-    # break up into chunks for integrating
-    chunks = []
-    for L,I in zip(steps, indices):
-        if L ==0:
-            chunks.append(np.zeros(1))
-            continue
-        chunks.append(wet_delays[I:I+L])
 
     # integrate the delays to get overall delay
-    def int_fcn(x,y):
-       if x.size == 1:
-           return 0
-       else:
-           return 1e-6*np.trapz(x, y) 
+    def int_fcn(y, dx):
+        return 1e-6*dx*np.sum(y)
 
-    # check for consistency
-    if len(chunks)!=len(t_points_l):
-        raise RuntimeError('_get_delays: "chunks" and "t_points_l" are not the same length')
-
-    # Do the integration, in parallel if possible
     delays = []
-    if numFlag:
-        for chunk,T in zip(chunks, t_points_l):
-            delays.append(int_fcn(T,chunk))
-        return delays
-    else:
-        for chunk, T in zip(chunks, t_points_l):
-            d = dask.delayed(int_fcn)(chunk, T)
-            delays.append(d)
-        return dask.compute(delays)
-
-#    delays = np.zeros(lats.shape[0])
-#    for i,length in enumerate(steps):
-#        if length ==0:
-#            continue
-#        start = indices[i]
-#        chunk = wet_delays[start:start + length]
-#        t_points = t_points_l[i]
-#        delays[i] = 1e-6 * np.trapz(chunk, t_points)
-#
-#    if verbose:
-#        print('_common_delay: Finished integration')
-#
-#    # Finally apply cosine correction if applicable
-#    if correction is not None:
-#        delays *= correction
-#
-#    return delays
+    for ray in refr:
+        delays.append(int_fcn(ray, stepSize))
+    return delays
 
 
 def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
@@ -418,9 +377,9 @@ def _tropo_delay_with_values(los, lats, lons, hts,
     if (not hts.shape == lats.shape == lons.shape
             or los is not Zenith and los.shape[:-1] != hts.shape):
         raise ValueError(
-            'I need lats, lons, heights, and los to all be the same shape. '
-            f'lats had shape {lats.shape}, lons had shape {lons.shape}, '
-            'heights had shape {hts.shape}, and los had shape {los.shape}')
+         'I need lats, lons, heights, and los to all be the same shape. ' +
+         'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape)+
+         'heights had shape {}, and los had shape {}'.format(hts.shape,los.shape))
 
     if verbose: 
         print('_tropo_delay_with_values: called delay_from_grid')
@@ -470,9 +429,9 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     # For later
     hydroname, wetname = (
-        f'{weather_fmt}_{dtyp}_'
-        f'{time.isoformat() + "_" if time is not None else ""}'
-        f'{"z" if los is None else "s"}td.{outformat}'
+        '{}_{}_'.format(weather_fmt, dtyp) + 
+        '{time.isoformat() + "_" if time is not None else ""}'
+        '{"z" if los is None else "s"}td.{outformat}'
         for dtyp in ('hydro', 'wet'))
 
     hydro_file_name = os.path.join(out, hydroname)
