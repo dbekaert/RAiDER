@@ -1,0 +1,30 @@
+<PAMDataset>
+  <Metadata domain="IMAGE_STRUCTURE">
+    <MDI key="INTERLEAVE">BAND</MDI>
+  </Metadata>
+  <Metadata>
+    <MDI key="Band_1">Band 1</MDI>
+  </Metadata>
+  <Metadata domain="ENVI">
+    <MDI key="bands">1</MDI>
+    <MDI key="band_names">{Band 1}</MDI>
+    <MDI key="byte_order">0</MDI>
+    <MDI key="coordinate_system_string">{GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]]}</MDI>
+    <MDI key="data_type">5</MDI>
+    <MDI key="description">{lon_alos.rdr}</MDI>
+    <MDI key="file_type">ENVI Standard</MDI>
+    <MDI key="header_offset">0</MDI>
+    <MDI key="interleave">bsq</MDI>
+    <MDI key="lines">783</MDI>
+    <MDI key="samples">99</MDI>
+  </Metadata>
+  <PAMRasterBand band="1">
+    <Description>Band 1</Description>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">-99.04627686359</MDI>
+      <MDI key="STATISTICS_MEAN">-99.802679271537</MDI>
+      <MDI key="STATISTICS_MINIMUM">-100.58308440279</MDI>
+      <MDI key="STATISTICS_STDDEV">0.31548459801895</MDI>
+    </Metadata>
+  </PAMRasterBand>
+</PAMDataset>

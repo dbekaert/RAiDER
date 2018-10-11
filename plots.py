@@ -47,8 +47,7 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
               '')
 
     # setup the plot
-    f = plt.figure(figsize = (10,6))
-
+    f = plt.figure(figsize = (10,6)) 
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(3,3,ind + 1)
@@ -59,9 +58,9 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
         sp.set_title(title)
-        if ind==1:
+        if ind==0:
             sp.set_ylabel('{} m'.format(z1))
-        if ind==4:
+        if ind==3:
             sp.set_ylabel('{} m'.format(z2))
 
     # add plots that show each variable with height
@@ -83,6 +82,8 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     sp.yaxis.set_ticklabels([])
     sp.set_xlabel('Temp (C)')
     
+    plt.subplots_adjust(top=0.1, bottom=0.1, left=0.1, right=0.5, hspace=0.4,
+                    wspace=0.5)
 
     if savefig:
          plt.savefig('Weather_hgt{}_and_{}m.pdf'.format(z1, z2))

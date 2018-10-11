@@ -530,7 +530,12 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather_model.fetch(lats, lons, time, f)
                 weather_model.load(f)
                 weather = weather_model # Need to maintain backwards compatibility at the moment
-                tp = weather.plot()
+                print(weather)
+                try:
+                    util.pickle_dump(weather, 'weatherObj.dat')
+                except:
+                    pass
+                weather.plot()
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)

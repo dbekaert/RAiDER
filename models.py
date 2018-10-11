@@ -82,6 +82,8 @@ class WeatherModel():
         string += 'Class name: {}\n'.format(self._classname)
         string += 'Dataset: {}\n'.format(self._dataset)
         string += '=====================================\n'
+        string += 'A: {}\n'.format(self._a)
+        string += 'B: {}\n'.format(self._b)
         return str(string)
 
 
@@ -91,10 +93,10 @@ class WeatherModel():
         '''
         if plotType=='pqt':
             pqt_plot = plots.plot_pqt(self, savefig)
-            return pqt_plot
+            pqt_plot.show()
         elif plotType=='wh':
             wh_plot = plots.plot_wh(self, savefig)
-            return wh_plot
+            wh_plot.show()
         else:
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         
