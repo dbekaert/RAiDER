@@ -85,7 +85,11 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
 
 def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose = False):
     """
-    Perform computations common to hydrostatic and wet delay.
+    This function calculates the line-of-sight vectors, estimates the point-wise refractivity
+    index for each one, and then integrates to get the total delay in meters. The point-wise
+    delay is calculated by interpolating the weatherObj, which contains a weather model with
+    wet and hydrostatic refractivity at each weather model grid node, to the points along 
+    the ray. The refractivity is integrated along the ray to get the final delay. 
     """
     import interpolator as intprn
     # Deal with Zenith special value, and non-raytracing method
@@ -98,9 +102,11 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
 
+    # Get the integration points along the look vectors
+    # First get the length of each look vector, get integration steps along 
+    # each, then get the unit vector pointing in the same direction
     lengths = _get_lengths(look_vecs)
     steps = _get_steps(lengths)
-    #start_positions = np.array(self._xs, self._ys, self._zs).T
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
