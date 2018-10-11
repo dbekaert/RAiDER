@@ -20,6 +20,7 @@ import queue
 import threading
 
 # local imports
+import constants as const
 import demdownload
 import losreader
 import interpolator as intrp
@@ -29,10 +30,9 @@ import wrf
 
 
 # Step in meters to use when integrating
-_STEP = 15
-
+_STEP = const._STEP
 # Top of the troposphere
-_ZREF = util.zref
+_ZREF = const._ZMAX
 
 
 class Zenith:
@@ -57,7 +57,7 @@ def _too_high(positions, zref):
 
 def _get_lengths(look_vecs):
     '''
-    Returns the lengths of something
+    Returns the lengths of a vector or set of vectors
     '''
     lengths = np.linalg.norm(look_vecs, axis=-1)
     lengths[~np.isfinite(lengths)] = 0
@@ -83,7 +83,10 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                     * (zref - heights)[..., np.newaxis])
 
 
-def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose = False):
+def _common_delay(weatherObj, lats, lons, heights, 
+look_vecs, raytrace, 
+stepSize = _STEP,
+verbose = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -106,7 +109,7 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
     # First get the length of each look vector, get integration steps along 
     # each, then get the unit vector pointing in the same direction
     lengths = _get_lengths(look_vecs)
-    steps = _get_steps(lengths)
+#    steps = _get_steps(lengths)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
@@ -123,11 +126,12 @@ def _common_delay(weatherObj, lats, lons, heights, look_vecs, raytrace, verbose 
             positions_l.append(np.empty((0,3)))
             continue
         else:
-            thisspace = np.linspace(0, lengths[i], N)
+#            thisspace = np.linspace(0, lengths[i], N)
+            thisspace = np.arange(0, lengths[i], stepSize)
 
         position = (start_positions[i]
                     + thisspace[..., np.newaxis]*scaled_look_vecs[i])
-        first_high_index = _too_high(position, _ZREF)
+        first_high_index = len(thisspace)#_too_high(position, _ZREF)
         t_points_l.append(thisspace[:first_high_index])
         positions_l.append(position[:first_high_index])
 
