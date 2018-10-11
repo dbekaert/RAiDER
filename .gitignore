@@ -1,4 +1,7 @@
 *.swp
 __pycache__
 *.log
+test/ERA*
+*.dat
+*.pdf
 
