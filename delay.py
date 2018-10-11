@@ -109,7 +109,7 @@ verbose = False):
     # First get the length of each look vector, get integration steps along 
     # each, then get the unit vector pointing in the same direction
     lengths = _get_lengths(look_vecs)
-#    steps = _get_steps(lengths)
+    steps = _get_steps(lengths)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
@@ -147,7 +147,7 @@ verbose = False):
     newPts = np.stack(pyproj.transform(ecef, weatherObj.getProjection(), xs, ys, zs), axis = -1)
 
     if verbose:
-        print('_common_delay: starting wet_delay calculation')
+        print('_common_delay: starting Interpolation')
 
     intFcn= intrp.Interpolator()
     intFcn.setPoints(*weatherObj.getPoints())
@@ -528,6 +528,8 @@ def tropo_delay(los = None, lat = None, lon = None,
         # Let lats and lons to weather model nodes if necessary
         if lats is None:
             lats, lons = wrf.wm_nodes(*weather_files)
+    elif weather_type == 'pickle':
+        weather = util.pickle_load('weatherObj.dat')
     else:
         weather_model = weather_type
         if weather_files is None:

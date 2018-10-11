@@ -168,6 +168,9 @@ def gdal_open(fname, returnProj = False):
         return data, proj
 
 
+def pickle_load(f):
+    with open(f, 'rb') as fil:
+        return pickle.load(fil)
 
 def pickle_dump(o, f):
     with open(f, 'wb') as fil:
