@@ -47,14 +47,21 @@ def download_dem(lats, lons, save_flag= True):
                        bounds_error = False)
 
     outInterp = interpolator(np.stack((lats, lons), axis=-1))
-#    outNew = np.reshape(out_interpolated, (len(lats), len(lons)))
+
+    # Need to ensure that noData values are consistently handled and 
+    # can be passed on to GDAL
+    gdalNDV = 0
+    outInterp[np.isnan(outInterp)] = gdalNDV
+    outInterp[outInterp < -10000] = gdalNDV
 
     print('Interpolation finished')
 
     if save_flag:
         print('Saving DEM to disk')
         outRasterName = 'warpedDEM.dem'
-        util.writeArrayToRaster(outInterp, outRasterName)
+        util.writeArrayToRaster(outInterp, 
+                                outRasterName, 
+                                noDataValue = gdalNDV)
         print('Finished saving DEM to disk')
 
     return outInterp

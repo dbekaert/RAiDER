@@ -177,7 +177,7 @@ def pickle_dump(o, f):
         pickle.dump(o, fil)
 
 
-def writeArrayToRaster(array, filename, fmt = 'ENVI'):
+def writeArrayToRaster(array, filename, noDataValue = 0, fmt = 'ENVI'):
     # write a numpy array to a GDAL-readable raster
     import gdal
     import numpy as np
@@ -192,9 +192,11 @@ def writeArrayToRaster(array, filename, fmt = 'ENVI'):
 
     driver = gdal.GetDriverByName(fmt)
     ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
-    ds.GetRasterBand(1).WriteArray(array)
+    b1 = ds.GetRasterBand(1)
+    b1.WriteArray(array)
+    b1.SetNoDataValue(noDataValue)
     ds = None
-
+    b1 = None
 
 def round_date(date, precision):
     import datetime
