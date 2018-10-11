@@ -48,12 +48,15 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
 
     # setup the plot
     f = plt.figure(figsize = (10,6)) 
+    xind = int(np.floor(weatherObj._zs.shape[0]/2))
+    yind = int(np.floor(weatherObj._zs.shape[1]/2))
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(3,3,ind + 1)
         sp.xaxis.set_ticklabels([])
         sp.yaxis.set_ticklabels([])
         im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis')
+        sp.plot(xind, yind, 'ko', 'filled')
         divider = mal(sp)
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
@@ -64,8 +67,6 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
             sp.set_ylabel('{} m'.format(z2))
 
     # add plots that show each variable with height
-    xind = int(np.floor(weatherObj._zs.shape[0]/2))
-    yind = int(np.floor(weatherObj._zs.shape[1]/2))
     zdata = weatherObj._zs[xind,yind,:]/1000
     sp = f.add_subplot(3,3,7)
     sp.plot(weatherObj._p[xind,yind,:]/1e2, zdata)
@@ -73,17 +74,17 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     sp.set_xlabel('Pressure (hPa)')
     
     sp = f.add_subplot(3,3,8)
-    sp.plot(weatherObj._e[xind,yind,:],zdata)
+    sp.plot(weatherObj._e[xind,yind,:]/100,zdata)
     sp.yaxis.set_ticklabels([])
-    sp.set_xlabel('E')
+    sp.set_xlabel('E (hPa)')
     
     sp = f.add_subplot(3,3,9)
     sp.plot(weatherObj._t[xind,yind,:]- 273.15, zdata)
     sp.yaxis.set_ticklabels([])
     sp.set_xlabel('Temp (C)')
     
-    plt.subplots_adjust(top=0.1, bottom=0.1, left=0.1, right=0.5, hspace=0.4,
-                    wspace=0.5)
+    plt.subplots_adjust(top=0.95, bottom=0.1, left=0.05, right=0.95, hspace=0.05,
+                    wspace=0.3)
 
     if savefig:
          plt.savefig('Weather_hgt{}_and_{}m.pdf'.format(z1, z2))
