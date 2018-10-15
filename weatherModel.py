@@ -56,6 +56,7 @@ class WeatherModel():
         self._zs = np.empty((1, 1, 1))
         self._p = None
         self._q = None
+        self._rh = None
         self._t = None
         self._e = None
         self._wet_refractivity = None
@@ -100,18 +101,18 @@ class WeatherModel():
         '''
         pass
 
+    def load(self, *args):
+        '''
+        Calls the load_weather method. Each model class should define a load_weather 
+        method appropriate for that class. 'args' should be one or more filenames. 
+        '''
+        self.load_weather(*args)
+
     def load_weather(self, filename):
         '''
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-    def load(self, filename):
-        '''
-        Placeholder method. Each model class should define a load_weather method 
-        appropriate for that class. 
-        '''
-        self.load_weather(filename)
 
     def plot(self, plotType = 'pqt', savefig = True):
         '''
@@ -158,6 +159,11 @@ class WeatherModel():
         # We have q = w/(w + 1), so w = q/(1 - q)
         w = self._q/(1 - self._q)
         self._e = w*self._R_v*(self._p - self._svp)/self._R_d
+
+    def _find_e_from_rh(self, temp, rh):
+        """Calculate partial pressure of water vapor."""
+        self._find_svp()
+        self._e = self._rh/100 * self._svp
 
     def _get_wet_refractivity(self):
         '''

@@ -23,7 +23,10 @@ class ECMWF(WeatherModel):
 
     def load_weather(self, filename):
         '''
-        Consistent class method to be implemented across all weather model types
+        Consistent class method to be implemented across all weather model types. 
+        As a result of calling this method, all of the variables (x, y, z, p, q, 
+        t, wet_refractivity, hydrostatic refractivity, e) should be fully 
+        populated. 
         '''
         self._load_model_level(filename)
 
@@ -53,15 +56,12 @@ class ECMWF(WeatherModel):
             t = t[..., ::-1]
             Q = qq[..., ::-1]
             lons = lons[::-1]
-
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
         self._proj = pyproj.Proj(proj='latlong')
 
-        self._lons = lons
-        self._lats = lats
         self._t = t
         self._q = Q
 
