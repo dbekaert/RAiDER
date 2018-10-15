@@ -5,13 +5,13 @@
 2. Confirm your email, etc. 
 3. Install the public API key and client (https://cds.climate.copernicus.eu/api-how-to): 
    a. Copy the URL and API key from the webpage into a file in your home directory name ~/.cdsapirc 
-   b. Install the CDS API using conda (or pip). It is HIGHLY RECOMMENDED to do this within a designated virtual environment in conda. 
+   b. Install the CDS API using pip: pip install cdsapi. 
 4. You must accept the license for each product you wish to download: https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products
-5. 
+5. See the test_cdsapi.py script for details of the API. You can test that you can connect to the servers by running the test suite (described below). 
 
 
 ## Testing the code
-To test out the code, cd into the main directory (git_raytracing), which should contain the test/ folder and the Geometry/ folder. Run 
+To test out the code, cd into the main directory of the repository, which should contain the test/ folder and the Geometry/ folder. Run 
 
 cd test
 vi/nano/emacs test_scenario.py (whichever editor you like to use)
