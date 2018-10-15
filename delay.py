@@ -61,13 +61,13 @@ def _get_lengths(look_vecs):
     return lengths
 
 
-def _get_steps(lengths):
-    '''
-    Get the number of integration steps for each path
-    '''
-    steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
-    steps[steps < 0] = 0
-    return steps
+#def _get_steps(lengths):
+#    '''
+#    Get the number of integration steps for each path
+#    '''
+#    steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
+#    steps[steps < 0] = 0
+#    return steps
 
 
 def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
@@ -79,10 +79,57 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                               util.sind(lats))).T
                     * (zref - heights)[..., np.newaxis])
 
+def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
+    '''
+    Create the integration points for each ray path. 
+    ''' 
+    positions_l= []
+    for i, L in enumerate(lengths):
+        # Have to handle the case where there are invalid data
+        try:
+            thisspace = np.arange(0, L, stepSize)
+        except ValueError:
+            thisspace = np.array([])
 
+#        t_points_l.append(thisspace)
+#        steps.append(len(thisspace))
+        positions_l.append(start_positions[i]
+                    + thisspace[..., np.newaxis]*scaled_look_vecs[i])
+
+    return positions_l
+
+
+def _re_project(positions_list, proj):
+    '''
+    Re-project a list of rays into a different coordinate system
+    '''
+    ecef = pyproj.Proj(proj='geocent')
+    newPts = []
+    for pnt in positions_list:
+        newPts.append(np.stack(pyproj.transform(ecef, 
+                                                proj, 
+                                                pnt[:,0], pnt[:,1], pnt[:,2]), 
+                               axis = -1)
+                     )
+    return newPts
+
+
+def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
+    '''
+    Function to create and return an Interpolator object
+    '''
+    ifFun = intprn.Interpolator()
+    ifFun.setPoints(*weatherObj.getPoints())
+    ifFun.setProjection(weatherObj.getProjection())
+    if itype == 'wet':
+        ifFun.getInterpFcns(weatherObj.getWetRefractivity(),interpType)
+    elif itype = 'hydro':
+        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(),interpType)
+    return ifFun
+ 
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, raytrace, 
-                  stepSize = _STEP,
+                  stepSize = _STEP, intpType = 'rgi',
                   verbose = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
@@ -115,7 +162,6 @@ def _common_delay(weatherObj, lats, lons, heights,
     # each, then get the unit vector pointing in the same direction
     lengths = _get_lengths(look_vecs)
     lengths[mask] = np.nan
-#    steps = _get_steps(lengths)
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
@@ -123,31 +169,8 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
         print('_common_delay: The integration stepsize is {} m'.format(stepSize))
 
-    positions_l, t_points_l,steps = [], [], []
-    for i, L in enumerate(lengths):
-        # Have to handle the case where there are invalid data
-        try:
-            thisspace = np.arange(0, L, stepSize)
-        except ValueError:
-            thisspace = np.array([])
-
-        t_points_l.append(thisspace)
-        steps.append(len(thisspace))
-        positions_l.append(start_positions[i]
-                    + thisspace[..., np.newaxis]*scaled_look_vecs[i])
-    if verbose:
-        print('_common_delay: Finished steps')
-        print('_common_delay: Re-projecting points into native weather model grid')
-        
-
-    ecef = pyproj.Proj(proj='geocent')
-    newPts = []
-    for pnt in positions_l:
-        newPts.append(np.stack(pyproj.transform(ecef, 
-                                                weatherObj.getProjection(), 
-                                                pnt[:,0], pnt[:,1], pnt[:,2]), 
-                               axis = -1)
-                     )
+    positions_l= _get_rays(lengths, start_positions, scaled_look_vecs)
+    newPts = _re_project(positions_l, weatherObj.getProjection())
 
     if verbose:
         print('_common_delay: Finished re-projecting')
@@ -157,18 +180,15 @@ def _common_delay(weatherObj, lats, lons, heights,
         st = time.time()
 
     # Define the interpolator
-    intFcn= intprn.Interpolator()
-    intFcn.setPoints(*weatherObj.getPoints())
-    intFcn.setProjection(weatherObj.getProjection())
-    intFcn.getInterpFcns(weatherObj.getWetRefractivity(), 
-                         weatherObj.getHydroRefractivity(), interpType = 'rgi')
+    ifWet = getIntFcn(weatherObj,interpType = intpType)
+    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = intpType)
 
     # call the interpolator on each ray
     wet_pw, hydro_pw = [], []
     for pnt in newPts:
         w, h = intFcn(pnt)
-        wet_pw.append(w)
-        hydro_pw.append(h)
+        wet_pw.append(ifWet(pnt))
+        hydro_pw.append(ifHydro(pnt))
 
     if verbose:
         print('_common_delay: Finished interpolation')
