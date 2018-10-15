@@ -163,7 +163,7 @@ def _common_delay(weatherObj, lats, lons, heights,
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
     intFcn.getInterpFcns(weatherObj.getWetRefractivity(), 
-                         weatherObj.getHydroRefractivity(), interpType = 'scipy')
+                         weatherObj.getHydroRefractivity(), interpType = 'rgi')
 
     # call the interpolator on each ray
     wet_pw, hydro_pw = [], []
@@ -505,7 +505,8 @@ def tropo_delay(los = None, lat = None, lon = None,
             else:
                 with tempfile.NamedTemporaryFile() as f:
                     weather_model.fetch(lats, lons, time, f)
-                    weather = weather_model.load(f)
+                    weather_model.load(f)
+                    weather = weather_model
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)

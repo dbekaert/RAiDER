@@ -66,7 +66,7 @@ class TimeTests(unittest.TestCase):
                      time = self.test_time, 
                      out = self.outdir,
                      parallel=False, 
-                     verbose = True)
+                     verbose = False)
 
     
 #        self.assertTrue(np.allclose(testData, refData,equal_nan = True))
