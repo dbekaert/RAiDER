@@ -186,16 +186,16 @@ class ECMWF(WeatherModel):
             {"class": self._classname, 
             'dataset': self._dataset,
             "expver": "{}".format(self._expver),
-            "product_type':'reanalysis",
+            "product_type": "reanalysis",
             "{}".format(levType):levels,
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
             'variable':var,
             "stream": "oper",
             "type": "an",
-            "year": "{}".format(acqTime.year)
-            "month": "{}".format(acqTime.month)
-            "day": "{}".format(acqTime.day)
-            "time": "{}".format(datetime.datetime.strftime(acqTime.time(), '%H:%M')
+            "year": "{}".format(acqTime.year),
+            "month": "{}".format(acqTime.month),
+            "day": "{}".format(acqTime.day),
+            "time": "{}".format(datetime.datetime.strftime(acqTime.time(), '%H:%M')),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -203,7 +203,7 @@ class ECMWF(WeatherModel):
             "format": "netcdf"},
 #            "resol": "av", # not sure if this is needed?
             outname,    # target: the name of the output file.
-        })
+        )
 
 
 class ERAI(ECMWF):

@@ -160,7 +160,7 @@ class WeatherModel():
         w = self._q/(1 - self._q)
         self._e = w*self._R_v*(self._p - self._svp)/self._R_d
 
-    def _find_e_from_rh(self, temp, rh):
+    def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
         self._find_svp()
         self._e = self._rh/100 * self._svp

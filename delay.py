@@ -123,7 +123,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     ifFun.setProjection(weatherObj.getProjection())
     if itype == 'wet':
         ifFun.getInterpFcns(weatherObj.getWetRefractivity(),interpType)
-    elif itype = 'hydro':
+    elif itype == 'hydro':
         ifFun.getInterpFcns(weatherObj.getHydroRefractivity(),interpType)
     return ifFun
  
@@ -496,7 +496,10 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     if weather_type == 'wrf':
         import wrf
-        weather = wrf.load(*weather_files)
+        weather = wrf.WRF()
+        weather.load(*weather_files)
+        import pdb
+        pdb.set_trace()
 
         # Let lats and lons to weather model nodes if necessary
         if lats is None:

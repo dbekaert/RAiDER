@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.io.netcdf as netcdf
+import pyproj
 
 from weatherModel import WeatherModel
 
@@ -19,12 +20,6 @@ class WRF(WeatherModel):
         # Currently WRF is using RH instead of Q to get E
         self._humidityType = 'rh'
 
-        # Projection
-        # See http://www.pkrc.net/wrf-lambert.html
-        self._proj = pyproj.Proj(proj='lcc', lat_1=out.TRUELAT1,
-                             lat_2=out.TRUELAT2, lat_0=out.MOAD_CEN_LAT,
-                             lon_0=out.STAND_LON, a=6370, b=6370,
-                             towgs84=(0,0,0), no_defs=True)
 
 #    lla = pyproj.Proj(proj='latlong')
 #
@@ -45,7 +40,7 @@ class WRF(WeatherModel):
         try:
             self._get_wm_nodes(file1)
             self._read_netcdf(file2)
-        except:
+        except KeyError:
             self._get_wm_nodes(file2)
             self._read_netcdf(file1)
             
@@ -57,7 +52,7 @@ class WRF(WeatherModel):
         self._adjust_grid()
 
 
-    def _get_wm_nodes(nodeFile):
+    def _get_wm_nodes(self, nodeFile):
         with netcdf.netcdf_file(nodeFile, 'r', maskandscale=True) as outf:
             lats = outf.variables['XLAT'][0].copy() # Takes only the first date!
             lons = outf.variables['XLONG'][0].copy()
@@ -66,12 +61,10 @@ class WRF(WeatherModel):
         self._ys = lats
         self._xs = lons
 
-    def _read_netcdf(weatherFile, defNul = None):
+    def _read_netcdf(self, weatherFile, defNul = None):
         """
         Read weather variables from a netCDF file
         """
-        import pyproj
-    
         if defNul is None:
             defNul = np.nan
     
@@ -79,28 +72,52 @@ class WRF(WeatherModel):
         # TODO: extract partial pressure directly (q?)
         with netcdf.netcdf_file(weatherFile, 'r', maskandscale=True) as f:
             spvar = f.variables['P_PL']
-            temps = f.variables['T_PL']
-            humids = f.variables['RH_PL']
-            geoh = f.variables['GHT_PL']
-    
-        checkUnits(spvar.units.decode('utf-8'), 'pressure')
-        checkUnits(temps.units.decode('utf-8'), 'temperature')
-        checkUnits(humids.units.decode('utf-8'),'relative humidity') 
-        checkUnits(geoh.units.decode('utf-8'), 'geopotential') 
-    
-        sp = spvar[0].copy()
+            temp = f.variables['T_PL']
+            humid = f.variables['RH_PL']
+            geohvar = f.variables['GHT_PL']
 
-        # _FillValue is not always set, but when it is we want to read it
-        self._t = getNullValue(temps, defNullValue = defNul)
-        self._rh = getNullValue(humids, defNullValue = defNul)
-        self._zs= getNullValue(geoh, defNullValue = defNul)
-        pres = getNullValue(sp, defNullValue = defNul)
+            lon0 = f.STAND_LON.copy()
+            lat0 = f.MOAD_CEN_LAT.copy()
+            lat1 = f.TRUELAT1.copy()
+            lat2 = f.TRUELAT2.copy()
+    
+            checkUnits(spvar.units.decode('utf-8'), 'pressure')
+            checkUnits(temp.units.decode('utf-8'), 'temperature')
+            checkUnits(humid.units.decode('utf-8'),'relative humidity') 
+            checkUnits(geohvar.units.decode('utf-8'), 'geopotential') 
 
-        if len(pres.shape) == 1:
-            self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
+            # _FillValue is not always set, but when it is we want to read it
+            tNull = getNullValue(temp)
+            hNull = getNullValue(humid)
+            gNull = getNullValue(geohvar)
+            pNull = getNullValue(spvar)
+
+            sp = spvar[0].copy()
+            temps= temp[0].copy()
+            humids= humid[0].copy()
+            geoh= geohvar[0].copy()
+
+        # Projection
+        # See http://www.pkrc.net/wrf-lambert.html
+        self._proj = pyproj.Proj(proj='lcc', lat_1=lat1,
+                             lat_2=lat2, lat_0=lat0,
+                             lon_0=lon0, a=6370, b=6370,
+                             towgs84=(0,0,0), no_defs=True)
+
+        temps[temps==tNull] = np.nan
+        sp[sp==pNull] = np.nan
+        humids[humids==hNull] = np.nan
+        geoh[geoh==gNull] = np.nan
+
+        self._t = temps
+        self._rh= humids
+        self._zs= geoh
+
+        if len(sp.shape) == 1:
+            self._p = np.broadcast_to(sp[:, np.newaxis, np.newaxis],
                                         self._zs.shape)
         else:
-            self._p = pres
+            self._p = sp 
     
 
 class UnitTypeError(Exception):
@@ -117,11 +134,11 @@ def checkUnits(unitCheck, varName):
     '''
     Implement a check that the units are as expected
     '''
-    unitDict = {'pressure': 'Pa', 'temperature':'K', 'relative humidity': '%', 'Geopotential': 'm'}
+    unitDict = {'pressure': 'Pa', 'temperature':'K', 'relative humidity': '%', 'geopotential': 'm'}
     if unitCheck != unitDict[varName]:
         raise UnitTypeError(varName, unitCheck) 
 
-def getNullValue(var, nullVal = None):
+def getNullValue(var):
     '''
     Get the null (or fill) value if it exists, otherwise set the null value to defNullValue
     '''
@@ -132,16 +149,11 @@ def getNullValue(var, nullVal = None):
     _default_fill_value = -999
 
 
-    if nullVal is None:
-        nullVal = np.nan
-
     try:
         var_fill = var._FillValue
     except AttributeError:
         var_fill = _default_fill_value
 
-    var[var_fill] = nullVal
-
-    return var
+    return var_fill
     
 
