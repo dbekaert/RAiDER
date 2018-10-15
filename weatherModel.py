@@ -11,6 +11,14 @@ import plots
 import util
 from util import robmin, robmax
 
+
+class ValidDateError(Exception):
+    def __init___(self,valid_range, badtime):
+        msg = 'ERROR: Valid date range for this weather model is {}-{}\n'.format(*valid_range)
+        msg += 'and the requested date is {}.'.format(time)
+        Exception.__init__(self,msg)
+        self.badtime= badtime
+
 class WeatherModel():
     '''
     Implement a generic weather model for getting estimated SAR delays
@@ -29,6 +37,8 @@ class WeatherModel():
         self._classname = None 
         self._dataset = None
         self._model_level_type = 'model_levels'
+        self._valid_range = (datetime.date(1900,1,1),) # Tuple of min/max years where data is available. 
+        self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
 
         # Define fixed constants
         self._R_v = 461.524
@@ -98,6 +108,18 @@ class WeatherModel():
         else:
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         
+    def check(self, time):
+        '''
+        Checks the time against the lag time and valid date range for the given model type
+        '''
+        import time
+        if time<self._valid_range[0]:
+            raise ValidDateError(self._valid_range, time)
+        if self._valid_range[1] is not None: 
+            if self._valid_range[1] < time:
+                raise ValidDateError(self._valid_range, time)
+        if time > datetime.date.today() - self._lag_time:
+            raise ValidDateError(self._valid_range, time)
             
     def fetch(self, lats, lons, time, out):
         pass
