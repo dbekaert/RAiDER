@@ -33,10 +33,9 @@ class WeatherModel():
         self._b = []
         self._lon_res = None
         self._lat_res = None
-        self._pure_scipy_interp = False
         self._classname = None 
         self._dataset = None
-        self._model_level_type = 'model_levels'
+        self._model_level_type = 'ml'
         self._valid_range = (datetime.date(1900,1,1),) # Tuple of min/max years where data is available. 
         self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
 
@@ -95,6 +94,25 @@ class WeatherModel():
         return str(string)
 
 
+    def fetch(self, lats, lons, time, out):
+        '''
+        Placeholder method. Should be implemented in each weather model type class
+        '''
+        pass
+
+    def load_weather(self, filename):
+        '''
+        Placeholder method. Should be implemented in each weather model type class
+        '''
+        pass
+
+    def load(self, filename):
+        '''
+        Placeholder method. Each model class should define a load_weather method 
+        appropriate for that class. 
+        '''
+        self.load_weather(filename)
+
     def plot(self, plotType = 'pqt', savefig = True):
         '''
         Plotting method. Valid plot types are 'pqt'
@@ -121,20 +139,11 @@ class WeatherModel():
         if time > datetime.date.today() - self._lag_time:
             raise ValidDateError(self._valid_range, time)
             
-    def fetch(self, lats, lons, time, out):
-        pass
-
-    def load(self, filename):
-        self.load_weather(filename)
-
-    def loadInterp(self):
-        return self._getInterpFcn()
-
-    def setInterpMethod(self, use_pure_scipy = True):
-        self._pure_scipy_interp = use_pure_scipy        
-
-    def load_weather(self, filename):
-        pass
+    def setLevelType(self, levelType = 'ml'):
+        ''' 
+        Update the level type to use in fetching data from the weather models
+        '''
+        self._model_level_type = levelType
 
     def _get_heights(self, lats, geo_hgt, geo_ht_fill = np.nan):
         '''

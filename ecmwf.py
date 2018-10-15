@@ -17,9 +17,9 @@ class ECMWF(WeatherModel):
         self._k2 = 0.233 # [K/Pa]
         self._k3 = 3.75e3 # [K^2/Pa]
 
-        # model resolution
         self._lon_res = 0.2
         self._lat_res = 0.2
+
 
     def load_weather(self, filename):
         '''
@@ -160,11 +160,64 @@ class ECMWF(WeatherModel):
         })
 
 
+    def _get_from_cds(self, lat_min, lat_max, lat_step, lon_min, lon_max,
+                       lon_step, AcqTime, outname):
+        import cdsapi
+
+        pls = ['1','2','3','5','7','10','20','30','50','70','100','125','150','175','200','225','250','300','350','400','450','500','550','600','650','700','750','775','800','825','850','875','900','925','950','975','1000']
+        mls = list(range(137) + 1)
+
+        c = cdsapi.Client(verify=0)
+        #corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        if self._model_level_type == 'ml':
+            var = ['q','z','t']
+            levels = mls
+            levType = 'pressure_level'
+        else:
+            var = ['lnsp', 'q','z','t']
+            levels = pls
+            levType = 'model_level'
+        
+        bbox = [lat_max, lon_min, lat_min, lon_max]
+
+       
+       
+        c.retrieve('reanalysis-era5-pressure-levels',
+            {"class": self._classname, 
+            'dataset': self._dataset,
+            "expver": "{}".format(self._expver),
+            "product_type':'reanalysis",
+            "{}".format(levType):levels,
+            "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
+            'variable':var,
+            "stream": "oper",
+            "type": "an",
+            "year": "{}".format(acqTime.year)
+            "month": "{}".format(acqTime.month)
+            "day": "{}".format(acqTime.day)
+            "time": "{}".format(datetime.datetime.strftime(acqTime.time(), '%H:%M')
+            # step: With type=an, step is always "0". With type=fc, step can
+            # be any of "3/6/9/12".
+            "step": "0",
+            "area": bbox, 
+            "format": "netcdf"},
+#            "resol": "av", # not sure if this is needed?
+            outname,    # target: the name of the output file.
+        })
+
+
 class ERAI(ECMWF):
     # A and B parameters to calculate pressures for model levels,
     #  extracted from an ECMWF ERA-Interim GRIB file and then hardcoded here
     def __init__(self):
         ECMWF.__init__(self)
+        self._model_level_type = 'ml' # Default, pressure levels are 'pl'
+        self._classname = 'ei'
+        self._dataset = 'interim'
+
+        self._valid_range = (datetime.date(1950,1,1),) # Tuple of min/max years where data is available. 
+        self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
+
         self._a = [0.0000000000e+000, 2.0000000000e+001, 3.8425338745e+001,
              6.3647796631e+001, 9.5636962891e+001, 1.3448330688e+002,
              1.8058435059e+002, 2.3477905273e+002, 2.9849584961e+002,
@@ -208,15 +261,21 @@ class ERAI(ECMWF):
              9.8827010393e-001, 9.9401944876e-001, 9.9763011932e-001,
              1.0000000000e+000]
     
-        self._classname = 'ei'
-        self._dataset = 'interim'
-
 
 class ERA5(ECMWF):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
     def __init__(self):
         ECMWF.__init__(self)
+
+        self._model_level_type = 'ml' # Default, pressure levels are 'pl'
+        self._expver = '0001'
+        self._classname = 'ea'
+        self._dataset = 'era5'
+
+        self._valid_range = (datetime.date(1950,1,1),) # Tuple of min/max years where data is available. 
+        self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
+
         self._a = [0.000000,     2.000365,     3.102241,     4.666084,     6.827977,
              9.746966,     13.605424,    18.608931,    24.985718,    32.985710,
              42.879242,    54.955463,    69.520576,    86.895882,    107.415741,
@@ -245,6 +304,7 @@ class ERA5(ECMWF):
              1143.250000,  926.507813,   734.992188,   568.062500,   424.414063,
              302.476563,   202.484375,   122.101563,   62.781250,    22.835938,
              3.757813,     0.000000,     0.000000]
+
         self._b = [0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
              0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
              0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
@@ -266,7 +326,15 @@ class ERA5(ECMWF):
              0.949064, 0.956550, 0.963352, 0.969513, 0.975078, 0.980072, 0.984542,
              0.988500, 0.991984, 0.995003, 0.997630, 1.000000]
     
-        self._classname = 'ea'
-        self._dataset = 'era5'
+    def fetch(self, lats, lons, time, out, Nextra = 2):
+        '''
+        Fetch a weather model from ECMWF
+        '''
+        # bounding box plus a buffer
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
+        # execute the search at ECMWF
+        self._get_from_cds(
+                lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
+                out)
 
