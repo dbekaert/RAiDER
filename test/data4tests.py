@@ -1,19 +1,15 @@
 # types of models
-import models
-import erai
-import era5
+from ecmwf import ERAI, ERA5
 import merra2
 import wrf
 
 def load_weather_model(model_type):
     if model_type=='erai' or model_type == 'era5':
         if model_type =='erai':
-            model = models.ERAI()
-            #model = erai.Model
+            model = ERAI()
             name = 'ERA-I'
         elif model_type == 'era5':
-            model = models.ERA5()
-            #model = era5.Model
+            model = ERA5()
             name = 'ERA-5'
         wm = {'type': model, 'files': None,
                 'name': name}

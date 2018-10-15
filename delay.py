@@ -23,9 +23,7 @@ import threading
 import constants as const
 import demdownload
 import losreader
-import reader
 import util
-import wrf
 
 
 # Step in meters to use when integrating
@@ -477,6 +475,7 @@ def tropo_delay(los = None, lat = None, lon = None,
         print('Weather format: {}'.format(weather_fmt))
 
     if weather_type == 'wrf':
+        import wrf
         weather = wrf.load(*weather_files)
 
         # Let lats and lons to weather model nodes if necessary

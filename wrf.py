@@ -7,7 +7,7 @@ import scipy.interpolate as interpolate
 import scipy.io.netcdf as netcdf
 import util
 
-from models import WeatherModel
+from weatherModel import WeatherModel
 
 
 # NetCDF files have the ability to record their nodata value, but in the

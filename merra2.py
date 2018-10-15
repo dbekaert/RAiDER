@@ -1,20 +1,17 @@
-"""Reader for MERRA-2 model.
+from weatherModel import WeatherModel
 
-Only supports pressure levels right now, that may change someday.
-"""
+class MERRA2(WeatherModel):
+    """Reader for MERRA-2 model.
+    
+    Only supports pressure levels right now, that may change someday.
+    """
+    import urllib.request
+    import json
 
-import reader
-import numpy as np
-import scipy.io
-import pyproj
-import urllib.request
-import json
-import os.path
-
-
-class Model(reader.Model):
-    """MERRA-2 Model interface."""
-    @classmethod
+    _k1 = None
+    _k2 = None
+    _k3 = None
+  
     def fetch(self, lats, lons, time, out):
         """Fetch MERRA-2."""
         # TODO: This function doesn't work right now. I'm getting a 302
@@ -24,12 +21,14 @@ class Model(reader.Model):
         # this comment here.
         import pydap.client
         import pydap.cas.urs
+        import json
+        from scipy.io import netcdf as nc
 
-        lat_min = int(np.min(lats))
-        lat_max = int(np.max(lats) + 0.5)
-        lon_min = int(np.min(lons))
-        lon_max = int(np.max(lons) + 0.5)
-        url = ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I6NPANA.5.12.4/1980/01/MERRA2_100.inst6_3d_ana_Np.19800101.nc4')
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds()
+
+        url = ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/'\
+               'opendap/MERRA2/M2I6NPANA.5.12.4/1980/01/'\
+               'MERRA2_100.inst6_3d_ana_Np.19800101.nc4')
         config = os.path.expandvars(os.path.join('$HOME', '.urs-auth'))
         with open(config, 'r') as f:
             j = json.load(f)
@@ -44,7 +43,7 @@ class Model(reader.Model):
         # TODO: gotta figure out how to index as time
         timeNum = 0
 
-        with scipy.io.netcdf.netcdf_file(out, 'w') as f:
+        with nc.netcdf_file(out, 'w') as f:
             def index(ds):
                 return ds[timeNum][:][lat_min:lat_max][lon_min:lon_max]
             t = f.createVariable('T', float, [])
@@ -60,9 +59,9 @@ class Model(reader.Model):
             p = f.createVariable('lev', float, [])
             p[:] = dataset['lev'][:]
 
-    @classmethod
     def load_pressure_level(self, filename):
-        with scipy.io.netcdf.netcdf_file(
+        from scipy.io import netcdf as nc
+        with nc.netcdf_file(
                 filename, 'r', maskandscale=True) as f:
             lats = f.variables['lat'][:].copy()
             lons = f.variables['lon'][:].copy()
@@ -71,27 +70,29 @@ class Model(reader.Model):
             z = f.variables['H'][0].copy()
             p = f.variables['lev'][0].copy()
         proj = pyproj.Proj('lla')
-        return xs, ys, proj, t, q, z, p
+        return lats, lons, proj, t, q, z, p
 
-    @classmethod
     def weather_and_nodes(self, filename):
         return self.weather_and_nodes_from_pressure_levels(filename)
 
+    def weather_and_nodes_from_pressure_levels(self, filename):
+        pass
 
-def _url_builder(time, lat_min, lat_step, lat_max, lon_min, lon_step, lon_max):
-    if lon_max < 0:
-        lon_max += 360
-    if lon_min < 0:
-        lon_min += 360
-    if lon_min > lon_max:
-        lon_max, lon_min = lon_min, lon_max
-    timeStr = '[0]'  # TODO: change
-    latStr = f'[{lat_min}:{lat_step}:{lat_max}]'
-    lonStr = f'[{lon_min}:{lon_step}:{lon_max}]'  # TODO: wrap
-    lvs = '[0:1:41]'
-    combined = f'{timeStr}{lvs}{latStr}{lonStr}'
-    return ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/'
-            f'M2I6NPANA.5.12.4/{time.strftime("%Y/%m")}/'
-            f'MERRA2_100.inst6_3d_ana_Np.{time.strftime("%Y%m%d")}.nc4.nc?'
-            f'T{combined},H{combined},lat{latStr},lev{lvs},lon{lonStr},'
-            f'time{timeStr}')
+    def _url_builder(self, time, lat_min, lat_step, lat_max, lon_min, lon_step, lon_max):
+        if lon_max < 0:
+            lon_max += 360
+        if lon_min < 0:
+            lon_min += 360
+        if lon_min > lon_max:
+            lon_max, lon_min = lon_min, lon_max
+        timeStr = '[0]'  # TODO: change
+        latStr = '[{}:{}:{}]'.format(lat_min, lat_step, lat_max)
+        lonStr = '[{}:{}:{}]'.format(lon_min,lon_step, lon_max)  # TODO: wrap
+        lvs = '[0:1:41]'
+        combined = '{}{}{}{}'.format(timeStr, lvs, latStr, lonStr)
+        return ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/' +
+                'M2I6NPANA.5.12.4/{}/'.format(time.strftime("%Y/%m")) + 
+                'MERRA2_100.inst6_3d_ana_Np.{}.nc4.nc?'.format(time.strftime("%Y%m%d")) + 
+                'T{},H{},lat{},lev{},lon{},'.format(combined, combined, latStr, lvs, lonStr) + 
+                'time{}'.format(timeStr))
+

@@ -1,3 +1,16 @@
+# Raytracing-based Atmospheric Delay Estimation - RADE
+
+## Getting set up to use the code
+1. Create an account on the Copernicus servers here:  https://cds.climate.copernicus.eu/user
+2. Confirm your email, etc. 
+3. Install the public API key and client (https://cds.climate.copernicus.eu/api-how-to): 
+   a. Copy the URL and API key from the webpage into a file in your home directory name ~/.cdsapirc 
+   b. Install the CDS API using conda (or pip). It is HIGHLY RECOMMENDED to do this within a designated virtual environment in conda. 
+4. You must accept the license for each product you wish to download: https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products
+5. 
+
+
+## Testing the code
 To test out the code, cd into the main directory (git_raytracing), which should contain the test/ folder and the Geometry/ folder. Run 
 
 cd test
