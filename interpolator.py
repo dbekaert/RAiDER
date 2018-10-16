@@ -105,11 +105,14 @@ class Interpolator:
         scipy.  
         '''
         from scipy.interpolate import LinearNDInterpolator as lndi
+
         points = np.stack([self._xs, self._ys, self._zs], axis = -1)
         _interpolators = []
         for arg in args:
-            _interpolators.append(lndi(points, 
-                                      arg.flatten(), 
+            newArg = arg.flatten()
+            ix = np.isnan(newArg)
+            _interpolators.append(lndi(points[~ix], 
+                                      newArg[~ix], 
                                       fill_value = self._fill_value
                                       )
                                  )
@@ -153,8 +156,9 @@ def _interp3D(xs, ys, zs, values, shape):
     dz = (zmax - zmin)/NzLevels
     zvalues = zmin + dz*np.arange(NzLevels)
     new_zs = np.tile(zvalues, (nx,ny,1))
-    new_var = interp_along_axis(zshaped, new_zs,
-                                  values, axis = 2, 
+    ix = np.isnan(values)
+    new_var = interp_along_axis(zshaped[~ix], new_zs[~ix],
+                                  values[~ix], axis = 2, 
                                   method='linear', pad = True)
     
     # This assumes that the input data is in the correct projection; i.e.

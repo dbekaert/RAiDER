@@ -32,20 +32,29 @@ class WRF(WeatherModel):
             self._get_wm_nodes(file2)
             self._read_netcdf(file1)
             
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+        # WRF doesn't give us the coordinates of the points in the native projection, 
+        # only the coordinates in lat/long. Ray transformed these to the native 
+        # projection, then used an average to enforce a regular grid. It does not
+        # (should not) even matter for the interpolation, so perhaps eventually I'll 
+        # figure out how to skip this step. 
+        lla = pyproj.Proj(proj='latlong')
+        xs, ys = pyproj.transform(lla, self._proj, lons.flatten(), lats.flatten())
+        xs = xs.reshape(lons.shape)
+        ys = ys.reshape(lats.shape)
+
+        xs = np.mean(xs, axis=0)
+        ys = np.mean(ys, axis=1)
+
+        _xs = np.broadcast_to(xs[np.newaxis, np.newaxis, :],
                                      self._p.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+        _ys = np.broadcast_to(ys[np.newaxis, :, np.newaxis],
                                     self._p.shape)
-
-#        p2 = pyproj.Proj(proj='latlong')
-#        self._proj = p2
-
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         self._p = np.transpose(self._p)
         self._t = np.transpose(self._t)
         self._rh = np.transpose(self._rh)
-        self._ys = np.transpose(_lats)
-        self._xs = np.transpose(_lons)
+        self._ys = np.transpose(_ys)
+        self._xs = np.transpose(_xs)
         self._zs = np.transpose(self._zs)
 
         #TODO: Not sure if WRF provides this
@@ -59,9 +68,6 @@ class WRF(WeatherModel):
 
         lons[lons > 180] -= 360
         
-        lons = np.mean(lons, axis=0)
-        lats = np.mean(lats, axis=1)
-
         return lons, lats
 
 

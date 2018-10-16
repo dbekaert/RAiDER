@@ -108,8 +108,6 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     '''
     import interpolator as intprn
 
-    import pdb
-    pdb.set_trace()
     ifFun = intprn.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
@@ -122,7 +120,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
 
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, raytrace, 
-                  stepSize = _STEP, intpType = 'rgi',
+                  stepSize = _STEP, intpType = 'scipy',
                   verbose = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
