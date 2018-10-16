@@ -60,16 +60,6 @@ def _get_lengths(look_vecs):
     lengths[~np.isfinite(lengths)] = 0
     return lengths
 
-
-#def _get_steps(lengths):
-#    '''
-#    Get the number of integration steps for each path
-#    '''
-#    steps = np.array(np.ceil(lengths / _STEP), dtype=np.int64)
-#    steps[steps < 0] = 0
-#    return steps
-
-
 def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
     '''
     Returns look vectors when Zenith is used
@@ -91,8 +81,6 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
         except ValueError:
             thisspace = np.array([])
 
-#        t_points_l.append(thisspace)
-#        steps.append(len(thisspace))
         positions_l.append(start_positions[i]
                     + thisspace[..., np.newaxis]*scaled_look_vecs[i])
 
@@ -104,6 +92,8 @@ def _re_project(positions_list, proj):
     Re-project a list of rays into a different coordinate system
     '''
     ecef = pyproj.Proj(proj='geocent')
+    import pdb
+    pdb.set_trace()
     newPts = []
     for pnt in positions_list:
         newPts.append(np.stack(pyproj.transform(ecef, 
@@ -124,9 +114,9 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
     if itype == 'wet':
-        ifFun.getInterpFcns(weatherObj.getWetRefractivity(),interpType)
+        ifFun.getInterpFcns(weatherObj.getWetRefractivity(),interpType = interpType)
     elif itype == 'hydro':
-        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(),interpType)
+        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(),interpType = interpType)
     return ifFun
  
 
@@ -188,10 +178,13 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     # call the interpolator on each ray
     wet_pw, hydro_pw = [], []
-    for pnt in newPts:
-        w, h = intFcn(pnt)
-        wet_pw.append(ifWet(pnt))
-        hydro_pw.append(ifHydro(pnt))
+    for ray in newPts:
+        wdelays = ifWet(ray)
+        hdelays = ifHydro(ray)
+        wet_pw.append(wdelays[0])
+        hydro_pw.append(hdelays[0])
+        import pdb
+        pdb.set_trace()
 
     if verbose:
         print('_common_delay: Finished interpolation')
@@ -501,10 +494,10 @@ def tropo_delay(los = None, lat = None, lon = None,
         import wrf
         weather = wrf.WRF()
         weather.load(*weather_files)
-        import pdb
-        pdb.set_trace()
 
         # Let lats and lons to weather model nodes if necessary
+        #TODO: Need to fix the case where lats are None, because
+        # the weather model need not be in latlong projection
         if lats is None:
             lats, lons = wrf.wm_nodes(*weather_files)
     elif weather_type == 'pickle':
@@ -522,6 +515,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather_model.load(f)
                 weather = weather_model # Need to maintain backwards compatibility at the moment
                 print(weather)
+                weather.plot()
                 try:
                     util.pickle_dump(weather, 'weatherObj.dat')
                 except:

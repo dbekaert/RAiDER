@@ -12,9 +12,6 @@ class RunTests(unittest.TestCase):
     def test_get_lengths(self):
         self.assertTrue(np.allclose(d._get_lengths(self.td['look_vecs']), self.td['lengths']))
 
-    def test_get_steps(self):
-        self.assertTrue(np.allclose(d._get_steps(self.td['lengths']), self.td['steps']))
-
 if __name__=='__main__':
     unittest.main()
 

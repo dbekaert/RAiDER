@@ -21,18 +21,6 @@ class WRF(WeatherModel):
         self._humidityType = 'rh'
 
 
-#    lla = pyproj.Proj(proj='latlong')
-#
-#    xs, ys = pyproj.transform(lla, projection, lons.flatten(), lats.flatten())
-#    xs = xs.reshape(lats.shape)
-#    ys = ys.reshape(lons.shape)
-#
-#    # At this point, if all has gone well, xs has every column the same,
-#    # and ys has every row the same. Maybe they're not exactly the same
-#    # (due to rounding errors), so we'll average them.
-#    xs = np.mean(xs, axis=0)
-#    ys = np.mean(ys, axis=1)
-
     def load_weather(self, file1, file2):
         '''
         Consistent class method to be implemented across all weather model types
@@ -73,6 +61,7 @@ class WRF(WeatherModel):
 
         return lons, lats
 
+
     def _read_netcdf(self, weatherFile, defNul = None):
         """
         Read weather variables from a netCDF file
@@ -108,6 +97,11 @@ class WRF(WeatherModel):
             temps= temp[0].copy()
             humids= humid[0].copy()
             geoh= geohvar[0].copy()
+
+            spvar = None
+            temp = None
+            humid = None
+            geohvar = None
 
         # Projection
         # See http://www.pkrc.net/wrf-lambert.html

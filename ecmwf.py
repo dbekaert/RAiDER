@@ -1,4 +1,5 @@
 import datetime 
+import numpy as np
 import pyproj
 
 import util
@@ -94,9 +95,9 @@ class ECMWF(WeatherModel):
 
         # Flip all the axis so that zs are in order from bottom to top
         self._p = np.flip(self._p, axis = 2)
-        self._t = np.flip(self._p, axis = 2)
-        self._q = np.flip(self._p, axis = 2)
-        self._zs = np.flip(self._p, axis = 2)
+        self._t = np.flip(self._t, axis = 2)
+        self._q = np.flip(self._q, axis = 2)
+        self._zs = np.flip(self._zs, axis = 2)
 
 
 

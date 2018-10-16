@@ -85,7 +85,6 @@ class WeatherModel():
         string += 'k2 = {}\n'.format(self._k2)
         string += 'k3 = {}\n'.format(self._k3)
         string += 'Humidity type = {}\n'.format(self._humidityType)
-        string += 'Use pure scipy interpolation: {}\n'.format(self._pure_scipy_interp)
         string += '=====================================\n'
         string += 'Class name: {}\n'.format(self._classname)
         string += 'Dataset: {}\n'.format(self._dataset)
@@ -208,12 +207,12 @@ class WeatherModel():
             # first add in a new layer at zmin
             new_heights = np.zeros(self._zs.shape[:2]) + self._zmin
             self._zs = np.concatenate(
-                       (self._zs, new_heights[:,:,np.newaxis]), axis = 2)
+                       (new_heights[:,:,np.newaxis], self._zs), axis = 2)
 
             # since xs/ys (or lons/lats) are the same for all z, just add an
             # extra slice to match the new z shape
-            self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis], self._xs), axis = 2)
-            self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis], self._ys), axis = 2)
+            self._xs = np.concatenate((self._xs, self._xs[:,:,0][...,np.newaxis]), axis = 2)
+            self._ys = np.concatenate((self._ys, self._ys[:,:,0][...,np.newaxis]), axis = 2)
 
             # need to extrapolate the other variables down now
             if self._humidityType == 'q':
@@ -238,8 +237,6 @@ class WeatherModel():
         else:
             self._rh = self._rh[...,levInd]
 
-        import pdb
-        pdb.set_trace()
         self._zs = self._zs[...,levInd]
         self._xs = self._xs[...,levInd]
         self._ys = self._ys[...,levInd]
