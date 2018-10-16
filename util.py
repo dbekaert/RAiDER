@@ -310,7 +310,7 @@ def padLower(invar):
     add a layer of data below the lowest current z-level at height zmin
     '''
     new_var = _least_nonzero(invar)
-    return np.concatenate((invar,new_var[:,:,np.newaxis]), axis =2)
+    return np.concatenate((new_var[:,:,np.newaxis], invar), axis =2)
 
 
 def testArr(arr, thresh, ttype):

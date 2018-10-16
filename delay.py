@@ -92,8 +92,6 @@ def _re_project(positions_list, proj):
     Re-project a list of rays into a different coordinate system
     '''
     ecef = pyproj.Proj(proj='geocent')
-    import pdb
-    pdb.set_trace()
     newPts = []
     for pnt in positions_list:
         newPts.append(np.stack(pyproj.transform(ecef, 
@@ -183,8 +181,6 @@ def _common_delay(weatherObj, lats, lons, heights,
         hdelays = ifHydro(ray)
         wet_pw.append(wdelays[0])
         hydro_pw.append(hdelays[0])
-        import pdb
-        pdb.set_trace()
 
     if verbose:
         print('_common_delay: Finished interpolation')
@@ -515,7 +511,6 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather_model.load(f)
                 weather = weather_model # Need to maintain backwards compatibility at the moment
                 print(weather)
-                weather.plot()
                 try:
                     util.pickle_dump(weather, 'weatherObj.dat')
                 except:

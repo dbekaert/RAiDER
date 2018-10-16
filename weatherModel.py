@@ -211,8 +211,8 @@ class WeatherModel():
 
             # since xs/ys (or lons/lats) are the same for all z, just add an
             # extra slice to match the new z shape
-            self._xs = np.concatenate((self._xs, self._xs[:,:,0][...,np.newaxis]), axis = 2)
-            self._ys = np.concatenate((self._ys, self._ys[:,:,0][...,np.newaxis]), axis = 2)
+            self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis],self._xs), axis = 2)
+            self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis],self._ys), axis = 2)
 
             # need to extrapolate the other variables down now
             if self._humidityType == 'q':
@@ -226,10 +226,9 @@ class WeatherModel():
             self._wet_refractivity=util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity=util.padLower(self._hydrostatic_refractivity)
 
-        # Now cut off all variables at the minimum model level needed to be completely above zmax
-        # -1 corrects for Python indexing
-        max_level_needed = util.getMaxModelLevel(self._zs, self._zmax, 'l') - 1
-        levInd = range(max_level_needed, len(self._levels) + 1)
+        # Now remove any model level fully above zmax
+        max_level_needed = util.getMaxModelLevel(self._zs, self._zmax, 'g') 
+        levInd = range(0,max_level_needed + 1)
         
 
         if self._humidityType == 'q':
