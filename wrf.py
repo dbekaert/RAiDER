@@ -37,6 +37,9 @@ class WRF(WeatherModel):
         _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
                                     self._p.shape)
 
+#        p2 = pyproj.Proj(proj='latlong')
+#        self._proj = p2
+
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         self._p = np.transpose(self._p)
         self._t = np.transpose(self._t)
@@ -105,10 +108,11 @@ class WRF(WeatherModel):
 
         # Projection
         # See http://www.pkrc.net/wrf-lambert.html
-        self._proj = pyproj.Proj(proj='lcc', lat_1=lat1,
+        p1 = pyproj.Proj(proj='lcc', lat_1=lat1,
                              lat_2=lat2, lat_0=lat0,
                              lon_0=lon0, a=6370, b=6370,
                              towgs84=(0,0,0), no_defs=True)
+        self._proj = p1
 
         temps[temps==tNull] = np.nan
         sp[sp==pNull] = np.nan

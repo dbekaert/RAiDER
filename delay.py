@@ -108,6 +108,8 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     '''
     import interpolator as intprn
 
+    import pdb
+    pdb.set_trace()
     ifFun = intprn.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
