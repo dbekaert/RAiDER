@@ -92,19 +92,11 @@ class ECMWF(WeatherModel):
         self._xs = np.transpose(_lons)
         self._zs = np.transpose(self._zs)
 
-#        # Replace the non-useful values by NaN
-#        # TODO: replace np.where with dask.where
-#        self.t = np.where(self.t!= tempNoData, self.t, np.nan)
-#        self.q = np.where(self.q!= humidNoData, self.q, np.nan)
-#
-    
-        # compute e, wet delay, and hydrostatic delay
-        self._find_e_from_q()
-        self._get_wet_refractivity()
-        self._get_hydro_refractivity() 
-        
-        # adjust the grid based on the height data
-        self._adjust_grid()
+        # Flip all the axis so that zs are in order from bottom to top
+        self._p = np.flip(self._p, axis = 2)
+        self._t = np.flip(self._p, axis = 2)
+        self._q = np.flip(self._p, axis = 2)
+        self._zs = np.flip(self._p, axis = 2)
 
 
 

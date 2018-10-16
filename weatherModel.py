@@ -107,6 +107,12 @@ class WeatherModel():
         method appropriate for that class. 'args' should be one or more filenames. 
         '''
         self.load_weather(*args)
+        self._find_e()
+        self._get_wet_refractivity()
+        self._get_hydro_refractivity() 
+        
+        # adjust the grid based on the height data
+        self._adjust_grid()
 
     def load_weather(self, filename):
         '''
@@ -152,6 +158,15 @@ class WeatherModel():
         '''
         geo_ht_fix = np.where(geo_hgt!= geo_ht_fill, geo_hgt, np.nan)
         self._zs = util._geo_to_ht(lats, geo_ht_fix, self._g0)
+
+    def _find_e(self):
+        """Check the type of e-calculation needed"""
+        if self._humidityType=='rh':
+            self._find_e_from_rh()
+        elif self._humidityType=='q':
+            self._find_e_from_q()
+        else:
+            raise RuntimeError('Not a valid humidity type')
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""

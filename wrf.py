@@ -60,13 +60,6 @@ class WRF(WeatherModel):
         #TODO: Not sure if WRF provides this
         self._levels = list(range(self._zs.shape[2]))
 
-        self._find_e_from_rh()
-        self._get_wet_refractivity()
-        self._get_hydro_refractivity() 
-        
-        # adjust the grid based on the height data
-        self._adjust_grid()
-
 
     def _get_wm_nodes(self, nodeFile):
         with netcdf.netcdf_file(nodeFile, 'r', maskandscale=True) as outf:
@@ -138,9 +131,6 @@ class WRF(WeatherModel):
         else:
             self._p = sp 
     
-    # TODO: Need to adjust_grid for WRF because Zs' are given in the opposite order of ECMWF
-        self._adjust_grid()     
-
 
 class UnitTypeError(Exception):
     '''
