@@ -201,9 +201,13 @@ class WeatherModel():
             self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis], self._ys), axis = 2)
 
             # need to extrapolate the other variables down now
+            if self._humidityType == 'q':
+                self._q=util.padLower(self._q)
+            else:
+                self._rh=util.padLower(self._rh)
+
             self._p=util.padLower(self._p)
             self._t=util.padLower(self._t)
-            self._q=util.padLower(self._q)
             self._e=util.padLower(self._e)
             self._wet_refractivity=util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity=util.padLower(self._hydrostatic_refractivity)
@@ -212,12 +216,19 @@ class WeatherModel():
         # -1 corrects for Python indexing
         max_level_needed = util.getMaxModelLevel(self._zs, self._zmax, 'l') - 1
         levInd = range(max_level_needed, len(self._levels) + 1)
+        
 
+        if self._humidityType == 'q':
+            self._q = self._q[...,levInd]
+        else:
+            self._rh = self._rh[...,levInd]
+
+        import pdb
+        pdb.set_trace()
         self._zs = self._zs[...,levInd]
         self._xs = self._xs[...,levInd]
         self._ys = self._ys[...,levInd]
         self._p = self._p[...,levInd]
-        self._q = self._q[...,levInd]
         self._t = self._t[...,levInd]
         self._e = self._e[...,levInd]
         self._wet_refractivity = self._wet_refractivity[...,levInd]

@@ -118,6 +118,8 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     '''
     Function to create and return an Interpolator object
     '''
+    import interpolator as intprn
+
     ifFun = intprn.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
@@ -127,6 +129,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
         ifFun.getInterpFcns(weatherObj.getHydroRefractivity(),interpType)
     return ifFun
  
+
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, raytrace, 
                   stepSize = _STEP, intpType = 'rgi',
@@ -138,7 +141,6 @@ def _common_delay(weatherObj, lats, lons, heights,
     wet and hydrostatic refractivity at each weather model grid node, to the points along 
     the ray. The refractivity is integrated along the ray to get the final delay. 
     """
-    import interpolator as intprn
     import time
 
     # Deal with Zenith special value, and non-raytracing method
@@ -156,6 +158,7 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: Starting look vector calculation')
         st = time.time()
 
+    # TODO: check adding accuracy of last fraction of the point
     mask = np.isnan(heights)
     # Get the integration points along the look vectors
     # First get the length of each look vector, get integration steps along 
@@ -169,7 +172,7 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
         print('_common_delay: The integration stepsize is {} m'.format(stepSize))
 
-    positions_l= _get_rays(lengths, start_positions, scaled_look_vecs)
+    positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
     newPts = _re_project(positions_l, weatherObj.getProjection())
 
     if verbose:

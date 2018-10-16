@@ -9,6 +9,10 @@
 4. You must accept the license for each product you wish to download: https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products
 5. See the test_cdsapi.py script for details of the API. You can test that you can connect to the servers by running the test suite (described below). 
 
+## TODO: 
+Create a test script which makes the plot and does a sanity check
+Ensure that filenames have timestamp including time for multi-acquisitions per day
+
 
 ## Testing the code
 To test out the code, cd into the main directory of the repository, which should contain the test/ folder and the Geometry/ folder. Run 

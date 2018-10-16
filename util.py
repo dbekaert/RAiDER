@@ -226,14 +226,12 @@ def _least_nonzero(a):
     
     Useful for interpolation below the bottom of the weather model.
     """
-    import numpy as np
     out = np.full(a.shape[:2], np.nan)
-    xlim, ylim = out.shape
-    zlim = len(a)
+    xlim, ylim, zlim  = np.shape(a)
     for x in range(xlim):
         for y in range(ylim):
             for z in range(zlim):
-                val = a[z][x][y]
+                val = a[x][y][z]
                 if not np.isnan(val):
                     out[x][y] = val
                     break

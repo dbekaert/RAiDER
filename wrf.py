@@ -38,12 +38,28 @@ class WRF(WeatherModel):
         Consistent class method to be implemented across all weather model types
         '''
         try:
-            self._get_wm_nodes(file1)
+            lons, lats = self._get_wm_nodes(file1)
             self._read_netcdf(file2)
         except KeyError:
             self._get_wm_nodes(file2)
             self._read_netcdf(file1)
             
+        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+                                     self._p.shape)
+        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+                                    self._p.shape)
+
+        # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
+        self._p = np.transpose(self._p)
+        self._t = np.transpose(self._t)
+        self._rh = np.transpose(self._rh)
+        self._ys = np.transpose(_lats)
+        self._xs = np.transpose(_lons)
+        self._zs = np.transpose(self._zs)
+
+        #TODO: Not sure if WRF provides this
+        self._levels = list(range(self._zs.shape[2]))
+
         self._find_e_from_rh()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
@@ -58,8 +74,11 @@ class WRF(WeatherModel):
             lons = outf.variables['XLONG'][0].copy()
 
         lons[lons > 180] -= 360
-        self._ys = lats
-        self._xs = lons
+        
+        lons = np.mean(lons, axis=0)
+        lats = np.mean(lats, axis=1)
+
+        return lons, lats
 
     def _read_netcdf(self, weatherFile, defNul = None):
         """
@@ -114,11 +133,14 @@ class WRF(WeatherModel):
         self._zs= geoh
 
         if len(sp.shape) == 1:
-            self._p = np.broadcast_to(sp[:, np.newaxis, np.newaxis],
-                                        self._zs.shape)
+            self._p = np.broadcast_to(
+                         sp[:, np.newaxis, np.newaxis],self._zs.shape)
         else:
             self._p = sp 
     
+    # TODO: Need to adjust_grid for WRF because Zs' are given in the opposite order of ECMWF
+        self._adjust_grid()     
+
 
 class UnitTypeError(Exception):
     '''
