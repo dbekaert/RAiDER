@@ -569,10 +569,11 @@ def tropo_delay(los = None, lat = None, lon = None,
                     pass
                 weather.plot()
             else:
-                with tempfile.NamedTemporaryFile() as f:
-                    weather_model.fetch(lats, lons, time, f)
-                    weather_model.load(f)
-                    weather = weather_model
+                f = os.path.join(out, 'weather_model.dat')
+                #with tempfile.NamedTemporaryFile() as f:
+                weather_model.fetch(lats, lons, time, f)
+                weather_model.load(f)
+                weather = weather_model
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)
