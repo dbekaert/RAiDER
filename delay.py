@@ -181,7 +181,7 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: Finished re-projecting')
         ft = time.time()
         print('Look vector calculation took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Starting interpolation')
+        print('_common_delay: Staring Interpolation')
         st = time.time()
 
     # Define the interpolator
@@ -189,21 +189,46 @@ def _common_delay(weatherObj, lats, lons, heights,
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = intpType)
 
     # call the interpolator on each ray
-    wet_pw, hydro_pw = [], []
+    import dask 
+
+    def interpRayWet(ray):
+        return ifWet(ray)[0]
+    
+    def interpRayHydro(ray):
+        return ifHydro(ray)[0]
+
+    def batchWet(rayList):
+        wd = []
+        for ray in rayList:
+            wd.append(interpRayWet(ray))
+        return wd
+
+    def batchHydro(rayList):
+        hd = []
+        for ray in rayList:
+            hd.append(interpRayHydro(ray))
+        return hd
+
+    wet_pw, hydro_pw = [], [] 
     for ray in newPts:
-        wdelays = ifWet(ray)
-        hdelays = ifHydro(ray)
-        wet_pw.append(wdelays[0])
-        hydro_pw.append(hdelays[0])
+        wet_pw.append(interpRayWet(ray))
+    wet_pw = dask.compute(*wet_pw)
+
+    for ray in newPts:
+        hydro_pw.append(interpRayWet(ray))
+    hydro_pw = dask.compute(*hydro_pw)
 
     if verbose:
         print('_common_delay: Finished interpolation')
         ft = time.time()
         print('Interpolation took {:4.2f} secs'.format(ft-st))
+        print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(newPts)))
         print('_common_delay: finished point-wise delay calculations')
         print('_common_delay: starting integration')
         st = time.time()
 
+    import pdb
+    pdb.set_trace()
     delays = [] 
     for d in (wet_pw, hydro_pw):
         delays.append(_integrate_delays(stepSize, d))
@@ -228,7 +253,7 @@ def _integrate_delays(stepSize, refr):
 
     # integrate the delays to get overall delay
     def int_fcn(y, dx):
-        return 1e-6*dx*np.sum(y)
+        return 1e-6*dx*np.nansum(y)
 
     delays = []
     for ray in refr:

@@ -21,14 +21,11 @@ class Interpolator:
         self._getShape(xs, ys, zs)
         self._Npoints = 0
         self.setPoints(xs, ys, zs)
-        self._proj = old_proj
+        self._proj = proj
         self._fill_value = np.nan
         self._interp = []
         self._getBBox()
 
-        if new_proj is not None:
-            self.reProject(self._old_proj, self._new_proj)
-        
     def __call__(self, newX):
         '''
         Interpolate onto new coordinates
@@ -59,12 +56,14 @@ class Interpolator:
     def _getBBox(self):
         if len(self._xs) > 0:
             x1 = np.min(self._xs)
-            x1 = np.max(self._xs)
+            x2 = np.max(self._xs)
             y1 = np.min(self._ys)
-            y1 = np.max(self._ys)
+            y2 = np.max(self._ys)
             z1 = np.min(self._zs)
-            z1 = np.max(self._zs)
-        self._bbox = [(x1, y1, z1), (x2, y2, z2)]
+            z2 = np.max(self._zs)
+            self._bbox = [(x1, y1, z1), (x2, y2, z2)]
+        else:
+            self._bbox = None
 
     def setProjection(self, proj):
         ''' 
@@ -97,6 +96,7 @@ class Interpolator:
         self._xs = xs.flatten()
         self._ys = ys.flatten()
         self._zs = zs.flatten()
+        self._getBBox()
  
     def checkPoint(self, pnts):
         '''
@@ -109,10 +109,10 @@ class Interpolator:
           inBBox - an Mx1 numpy array of True/False
         '''
         xs, ys, zs = pnts[:,0], pnts[:,1], pnts[:,2]
-	ix = self._bbox[0][0] < xs < self._bbox[1][0]
-        iy = self._bbox[0][1] < xs < self._bbox[1][1]
-        iz = self._bbox[0][2] < xs < self._bbox[1][2]
-        inBBox = np.logical(ix + iy+iz)
+        ix = np.logical_and(np.less(self._bbox[0][0],xs), np.greater(self._bbox[1][0], xs))
+        iy = np.logical_and(np.less(self._bbox[0][1],ys), np.greater(self._bbox[1][1], ys))
+        iz = np.logical_and(np.less(self._bbox[0][2],zs), np.greater(self._bbox[1][2], zs))
+        inBBox = np.logical_and.reduce((ix,iy,iz))
         return inBBox
 
     def printPoints(self):
@@ -191,11 +191,10 @@ def _interp3D(xs, ys, zs, values, shape):
     zvalues = zmin + dz*np.arange(NzLevels)
     new_zs = np.tile(zvalues, (nx,ny,1))
     values = fillna3D(values)
-    
+
     new_var = interp_along_axis(zshaped, new_zs,
                                   values, axis = 2, 
                                   method='linear', pad = False)
-    
     # This assumes that the input data is in the correct projection; i.e.
     # the native weather grid projection
     xvalues = np.unique(xs)
@@ -333,7 +332,7 @@ def _least_nonzero(a):
 
 
 
-def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method='linear', pad = True):
+def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method='linear', pad = False):
     """ 
 
     ***
@@ -417,8 +416,7 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
     ind = [i for i in np.indices(_y.shape[1:])]
 
     # Allocate the output array
-    original_dims = _y.shape
-    newdims = list(original_dims)
+    newdims = list(_y.shape)
     newdims[0] = len(_newx)
     newy = np.zeros(newdims)
 
@@ -448,7 +446,7 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
         xj = (xi-x_lower)/(x_upper - x_lower)
 
         # Determine where there is a valid interpolation range
-        within_bounds = (_x[0, ...] < xi) & (xi < _x[-1, ...])
+        within_bounds = (_x[0, ...] <= xi) & (xi <= _x[-1, ...])
 
         if method == 'linear':
             f0, f1 = _y[[i_lower]+ind], _y[[i_upper]+ind]
@@ -468,15 +466,14 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
 
             new_data = np.where(within_bounds, a*xj**3 + b*xj**2 + c*xj + d, np.nan)
 
-
         else:
             raise ValueError("invalid interpolation method"
                              "(choose 'linear' or 'cubic')")
 
-    if pad:
-        newy[i, ...] = fillna(new_data)
-    else:
-        newy[i, ...] = new_data
+        if pad:
+            newy[i, ...] = fillna(new_data)
+        else:
+            newy[i, ...] = new_data
 
     if inverse:
         newy = newy[::-1, ...]
