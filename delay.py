@@ -185,43 +185,7 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: Staring Interpolation')
         st = time.time()
 
-    # Define the interpolator
-    ifWet = getIntFcn(weatherObj,interpType = intpType)
-    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = intpType)
-
-    # call the interpolator on each ray
-    def interpRayWet(ray):
-        return ifWet(ray)[0]
-    
-    def interpRayHydro(ray):
-        return ifHydro(ray)[0]
-    
-    @dask.delayed
-    def batchWet(rayList):
-        wd = []
-        for ray in rayList:
-            wd.append(interpRayWet(ray))
-        return wd
-    
-    @dask.delayed
-    def batchHydro(rayList):
-        hd = []
-        for ray in rayList:
-            hd.append(interpRayHydro(ray))
-        return hd
-
-
-    chunks = util.Chunk(newPts, 10)
-    wet_pw, hydro_pw = [], [] 
-    for chunk in chunks:
-        wet_pw.append(batchWet(chunk))
-    wetd= dask.compute(*wet_pw)
-    wet_pw = list(itertools.chain.from_iterable(wetd))
-
-    for chunk in chunks:
-        hydro_pw.append(batchHydro(chunk))
-    hydrod= dask.compute(*hydro_pw)
-    hydro_pw = list(itertools.chain.from_iterable(hydrod))
+    wet_pw, hydro_pw = _interpolate_delays(weatherObj, intpType, newPts)
 
     if verbose:
         print('_common_delay: Finished interpolation')
@@ -247,6 +211,52 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     return delays
 
+
+def _interpolate_delays(weatherObj, interpType, newPts):
+    '''
+    Interpolates the delay for the points in each ray for both 
+    the wet and hydrostatic delays
+    '''
+    # Define the interpolator
+    ifWet = getIntFcn(weatherObj,interpType = interpType)
+    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
+
+    # call the interpolator on each ray
+    def interpRayWet(ray):
+        return ifWet(ray)[0]
+    
+    def interpRayHydro(ray):
+        return ifHydro(ray)[0]
+    
+    @dask.delayed
+    def batchWet(rayList):
+        wd = []
+        for ray in rayList:
+            wd.append(interpRayWet(ray))
+        return wd
+    
+    @dask.delayed
+    def batchHydro(rayList):
+        hd = []
+        for ray in rayList:
+            hd.append(interpRayHydro(ray))
+        return hd
+
+
+    Nchunks = int(len(newPts)//1e6 + 1)
+    wet_pw, hydro_pw = [], [] 
+
+    for chunk in util.Chunk(newPts, Nchunks):
+        wet_pw.append(batchWet(chunk))
+    wetd= dask.compute(*wet_pw)
+    wet_pw = list(itertools.chain.from_iterable(wetd))
+
+    for chunk in util.Chunk(newPts, Nchunks):
+        hydro_pw.append(batchHydro(chunk))
+    hydrod= dask.compute(*hydro_pw)
+    hydro_pw = list(itertools.chain.from_iterable(hydrod))
+
+    return wet_pw, hydro_pw
 
 def _integrate_delays(stepSize, refr):
     '''
