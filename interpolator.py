@@ -158,14 +158,10 @@ def _interp3D(xs, ys, zs, values, shape):
     new_zs = np.tile(zvalues, (nx,ny,1))
     values = fillna3D(values)
     
-    import pdb
-    pdb.set_trace()
     new_var = interp_along_axis(zshaped, new_zs,
                                   values, axis = 2, 
-                                  method='linear', pad = True)
+                                  method='linear', pad = False)
     
-    import pdb
-    pdb.set_trace()
     # This assumes that the input data is in the correct projection; i.e.
     # the native weather grid projection
     xvalues = np.unique(xs)
@@ -425,7 +421,7 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
             A = f1 - f0
             B = f0
 
-            newy[i, ...] = np.where(within_bounds, A*xj+B, np.nan)
+            new_data = np.where(within_bounds, A*xj+B, np.nan)
 
         elif method=='cubic':
             f0, f1 = _y[[i_lower]+ind], _y[[i_upper]+ind]

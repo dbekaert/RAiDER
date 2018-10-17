@@ -127,6 +127,16 @@ class WRF(WeatherModel):
 
         self._t = temps
         self._rh= humids
+
+        # Zs are problematic because any z below the topography is nan. 
+        # For a temporary fix, I will assign any nan value to equal the 
+        # nanmean of that level. 
+        zmeans = np.nanmean(geoh, axis = (1,2))
+        nz, ny, nx = geoh.shape
+        Zmeans = np.tile(zmeans, (nx, ny, 1))
+        Zmeans = Zmeans.T
+        ix = np.isnan(geoh)
+        geoh[ix]= Zmeans[ix]
         self._zs= geoh
 
         if len(sp.shape) == 1:
