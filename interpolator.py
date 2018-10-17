@@ -13,18 +13,19 @@ class Interpolator:
 
     """
     #TODO: handle 1-D, 2-D cases correctly
-    def __init__(self, xs = None, ys = None, zs = None, old_proj = None, new_proj = None):
+    def __init__(self, xs = [], ys = [], zs = [], proj = None):
         """Initialize a NetCDFModel."""
-        self._xs = []
-        self._ys = []
-        self._zs = []
-        self._shape = None
+        self._xs = xs
+        self._ys = ys
+        self._zs = zs
+        self._getShape(xs, ys, zs)
         self._Npoints = 0
         self.setPoints(xs, ys, zs)
         self._proj = old_proj
         self._fill_value = np.nan
         self._interp = []
-        
+        self._getBBox()
+
         if new_proj is not None:
             self.reProject(self._old_proj, self._new_proj)
         
@@ -48,6 +49,22 @@ class Interpolator:
         string += 'Number of functions to interpolate: {}\n'.format(len(self._interp))
         string += '='*30 + '\n'
         return str(string)
+
+    def _getShape(self, xs, ys, zs):
+        try:
+            self._shape = max(xs.shape, ys.shape, zs.shape)
+        except AttributeError:
+            self._shape = (len(xs), len(ys), len(zs))
+
+    def _getBBox(self):
+        if len(self._xs) > 0:
+            x1 = np.min(self._xs)
+            x1 = np.max(self._xs)
+            y1 = np.min(self._ys)
+            y1 = np.max(self._ys)
+            z1 = np.min(self._zs)
+            z1 = np.max(self._zs)
+        self._bbox = [(x1, y1, z1), (x2, y2, z2)]
 
     def setProjection(self, proj):
         ''' 
@@ -75,11 +92,28 @@ class Interpolator:
         if isinstance(xs, list):
             xs,ys,zs = np.array(xs),np.array(ys),np.array(zs)
 
-        self._shape = max(xs.shape, ys.shape, zs.shape)
+        self._getShape(xs, ys, zs)
         self._Npoints = len(xs)
         self._xs = xs.flatten()
         self._ys = ys.flatten()
         self._zs = zs.flatten()
+ 
+    def checkPoint(self, pnts):
+        '''
+        Checks whether the given point is within the bounding box
+        represented by the bounds on x, y, and z. 
+        Inputs:
+          pnt    - should be an Mx3 numpy array (M number of points, 
+                   3 is the dimension. Should be ordered [x, y, z])
+        Outputs:
+          inBBox - an Mx1 numpy array of True/False
+        '''
+        xs, ys, zs = pnts[:,0], pnts[:,1], pnts[:,2]
+	ix = self._bbox[0][0] < xs < self._bbox[1][0]
+        iy = self._bbox[0][1] < xs < self._bbox[1][1]
+        iz = self._bbox[0][2] < xs < self._bbox[1][2]
+        inBBox = np.logical(ix + iy+iz)
+        return inBBox
 
     def printPoints(self):
         for pnt in zip(self._xs, self._ys, self._zs):
