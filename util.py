@@ -335,3 +335,25 @@ def getMaxModelLevel(arr3D, thresh, ttype = 'l'):
             return ind
     return ind
 
+
+def Chunk(iterable, n):
+    """ Split iterable into ``n`` iterables of similar size
+
+    Examples::
+        >>> l = [1, 2, 3, 4]
+        >>> list(chunked(l, 4))
+        [[1], [2], [3], [4]]
+
+        >>> l = [1, 2, 3]
+        >>> list(chunked(l, 4))
+        [[1], [2], [3], []]
+
+        >>> l = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        >>> list(chunked(l, 4))
+        [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
+
+    """
+    import math
+    chunksize = int(math.ceil(len(iterable) / n))
+    return (iterable[i * chunksize:i * chunksize + chunksize]
+            for i in range(n))

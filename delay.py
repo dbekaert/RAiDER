@@ -11,6 +11,7 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 # standard imports
+import dask 
 import itertools
 import numpy as np
 import os
@@ -189,34 +190,38 @@ def _common_delay(weatherObj, lats, lons, heights,
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = intpType)
 
     # call the interpolator on each ray
-    import dask 
-
     def interpRayWet(ray):
         return ifWet(ray)[0]
     
     def interpRayHydro(ray):
         return ifHydro(ray)[0]
-
+    
+    @dask.delayed
     def batchWet(rayList):
         wd = []
         for ray in rayList:
             wd.append(interpRayWet(ray))
         return wd
-
+    
+    @dask.delayed
     def batchHydro(rayList):
         hd = []
         for ray in rayList:
             hd.append(interpRayHydro(ray))
         return hd
 
-    wet_pw, hydro_pw = [], [] 
-    for ray in newPts:
-        wet_pw.append(interpRayWet(ray))
-    wet_pw = dask.compute(*wet_pw)
 
-    for ray in newPts:
-        hydro_pw.append(interpRayWet(ray))
-    hydro_pw = dask.compute(*hydro_pw)
+    chunks = util.Chunk(newPts, 10)
+    wet_pw, hydro_pw = [], [] 
+    for chunk in chunks:
+        wet_pw.append(batchWet(chunk))
+    wetd= dask.compute(*wet_pw)
+    wet_pw = list(itertools.chain.from_iterable(wetd))
+
+    for chunk in chunks:
+        hydro_pw.append(batchHydro(chunk))
+    hydrod= dask.compute(*hydro_pw)
+    hydro_pw = list(itertools.chain.from_iterable(hydrod))
 
     if verbose:
         print('_common_delay: Finished interpolation')
@@ -227,8 +232,6 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: starting integration')
         st = time.time()
 
-    import pdb
-    pdb.set_trace()
     delays = [] 
     for d in (wet_pw, hydro_pw):
         delays.append(_integrate_delays(stepSize, d))
