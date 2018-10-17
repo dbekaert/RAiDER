@@ -156,11 +156,16 @@ def _interp3D(xs, ys, zs, values, shape):
     dz = (zmax - zmin)/NzLevels
     zvalues = zmin + dz*np.arange(NzLevels)
     new_zs = np.tile(zvalues, (nx,ny,1))
-    ix = np.isnan(values)
-    new_var = interp_along_axis(zshaped[~ix], new_zs[~ix],
-                                  values[~ix], axis = 2, 
+    values = fillna3D(values)
+    
+    import pdb
+    pdb.set_trace()
+    new_var = interp_along_axis(zshaped, new_zs,
+                                  values, axis = 2, 
                                   method='linear', pad = True)
     
+    import pdb
+    pdb.set_trace()
     # This assumes that the input data is in the correct projection; i.e.
     # the native weather grid projection
     xvalues = np.unique(xs)
@@ -417,10 +422,10 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
 
         if method == 'linear':
             f0, f1 = _y[[i_lower]+ind], _y[[i_upper]+ind]
-            a = f1 - f0
-            b = f0
+            A = f1 - f0
+            B = f0
 
-            newy[i, ...] = np.where(within_bounds, a*xj+b, np.nan)
+            newy[i, ...] = np.where(within_bounds, A*xj+B, np.nan)
 
         elif method=='cubic':
             f0, f1 = _y[[i_lower]+ind], _y[[i_upper]+ind]
@@ -433,14 +438,15 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
 
             new_data = np.where(within_bounds, a*xj**3 + b*xj**2 + c*xj + d, np.nan)
 
-            if pad:
-                newy[i, ...] = fillna(new_data)
-            else:
-                newy[i, ...] = new_data
 
         else:
             raise ValueError("invalid interpolation method"
                              "(choose 'linear' or 'cubic')")
+
+    if pad:
+        newy[i, ...] = fillna(new_data)
+    else:
+        newy[i, ...] = new_data
 
     if inverse:
         newy = newy[::-1, ...]
@@ -451,7 +457,7 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
 
 def fillna(array):
     '''
-    Fcn to fill in NaNs in a 2-D array of interferometric phase
+    Fcn to fill in NaNs in a 2-D array using nearest neighbors
     '''
     from scipy.ndimage import distance_transform_edt as dte
 
@@ -459,4 +465,38 @@ def fillna(array):
     ind = dte(mask,return_distances=False,return_indices=True)
     new_array = array[tuple(ind)] 
     return new_array
+
+
+def fillna3D(array, axis = 2):
+    '''
+    Fcn to fill in NaNs in a 3D array by interpolating over one axis only
+    '''
+    # Need to handle each axis
+    narr = np.moveaxis(array, axis, 2)
+    shape = narr.shape
+    y = narr.flatten()
+
+    nans, x= nan_helper(y)
+    y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    newy = np.reshape(y, shape)
+    final = np.moveaxis(newy, 2, axis)
+    return final
+    
+
+def nan_helper(y):
+    """Helper to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1d numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+        >>> # linear interpolation of NaNs
+        >>> nans, x= nan_helper(y)
+        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+
+    return np.isnan(y), lambda z: z.nonzero()[0]
 

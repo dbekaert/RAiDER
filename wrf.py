@@ -34,14 +34,14 @@ class WRF(WeatherModel):
             
         # WRF doesn't give us the coordinates of the points in the native projection, 
         # only the coordinates in lat/long. Ray transformed these to the native 
-        # projection, then used an average to enforce a regular grid. It does not
-        # (should not) even matter for the interpolation, so perhaps eventually I'll 
-        # figure out how to skip this step. 
+        # projection, then used an average to enforce a regular grid. It does matter
+        # for the interpolation whether the grid is regular.
         lla = pyproj.Proj(proj='latlong')
         xs, ys = pyproj.transform(lla, self._proj, lons.flatten(), lats.flatten())
         xs = xs.reshape(lons.shape)
         ys = ys.reshape(lats.shape)
 
+        # Expected accuracy here is to two decimal places (five significant digits)
         xs = np.mean(xs, axis=0)
         ys = np.mean(ys, axis=1)
 

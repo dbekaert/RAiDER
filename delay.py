@@ -120,7 +120,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
 
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, raytrace, 
-                  stepSize = _STEP, intpType = 'scipy',
+                  stepSize = _STEP, intpType = 'rgi',
                   verbose = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
@@ -128,10 +128,23 @@ def _common_delay(weatherObj, lats, lons, heights,
     delay is calculated by interpolating the weatherObj, which contains a weather model with
     wet and hydrostatic refractivity at each weather model grid node, to the points along 
     the ray. The refractivity is integrated along the ray to get the final delay. 
-    """
-    import time
 
-    # Deal with Zenith special value, and non-raytracing method
+    Inputs: 
+     weatherObj - a weather model object
+     lats       - Grid of latitudes for each ground point
+     lons       - Grid of longitudes for each ground point
+     heights    - Grid of heights for each ground point
+     look_vecs  - Grid of look vectors (should be full-length) for each ground point
+     raytrace   - If True, will use the raytracing method, if False, will use the Zenith 
+                  + projection method
+     stepSize   - Integration step size in meters 
+     intpType   - Can be one of 'scipy': LinearNDInterpolator, or 'sane': _sane_interpolate. 
+                  Any other string will use the RegularGridInterpolate method
+
+    Outputs: 
+     delays     - A list containing the wet and hydrostatic delays for each ground point in 
+                  meters. 
+    """
     if raytrace:
         correction = None
     else:
@@ -143,6 +156,7 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     
     if verbose:
+        import time
         print('_common_delay: Starting look vector calculation')
         st = time.time()
 
