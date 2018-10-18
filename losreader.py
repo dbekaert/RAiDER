@@ -91,9 +91,9 @@ def read_txt_file(filename):
                 t_, x_, y_, z_, vx_, vy_, vz_ = line.split()
             except ValueError:
                 raise ValueError(
-                        f"I need {filename} to be a 7 column text file, with "
-                        "columns t, x, y, z, vx, vy, vz (Couldn't parse line "
-                        f"{repr(line)})")
+                        "I need {} to be a 7 column text file, with ".format(filename) + 
+                        "columns t, x, y, z, vx, vy, vz (Couldn't parse line " + 
+                        "{})".format(repr(line)))
             t.append(t_)
             x.append(x_)
             y.append(y_)
@@ -189,4 +189,4 @@ def infer_los(los, lats, lons, heights, zref):
     if los_type == 'los':
         incidence, heading = util.gdal_open(los_file)
         return los_to_lv(incidence, heading, lats, lons, heights, zref)
-    raise ValueError(f"Unsupported los type '{los_type}'")
+    raise ValueError("Unsupported los type '{}'".format(los_type))

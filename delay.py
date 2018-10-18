@@ -61,7 +61,9 @@ def _get_lengths(look_vecs):
     lengths[~np.isfinite(lengths)] = 0
     return lengths
 
+
 def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
+
     '''
     Returns look vectors when Zenith is used
     '''
@@ -258,6 +260,7 @@ def _interpolate_delays(weatherObj, interpType, newPts):
 
     return wet_pw, hydro_pw
 
+
 def _integrate_delays(stepSize, refr):
     '''
     This function gets the actual delays by integrating the refractivity in 
@@ -410,9 +413,9 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
     # reshape hydro and wet to. Plus, them being different sizes
     # indicates a definite user error.
     if not lats.shape == lons.shape == hts.shape:
-        raise ValueError(f'lat, lon, and ht should have the same shape, but '
-                         'instead lat had shape {lats.shape}, lon had shape '
-                         '{lons.shape}, and ht had shape {hts.shape}')
+        raise ValueError('lat, lon, and ht should have the same shape, but ' + 
+                         'instead lat had shape {}, lon had shape '.format(lats.shape) + 
+                         '{}, and ht had shape {}'.format(lons.shape,hts.shape))
 
     llas = np.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
     hydro, wet = delay_from_grid(weather, llas, los,
@@ -595,7 +598,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     elif height_type == 'download':
         hts = demdownload.download_dem(lats, lons)
     else:
-        raise ValueError(f'Unexpected height_type {repr(height_type)}')
+        raise ValueError('Unexpected height_type {}'.format(repr(height_type)))
 
     # Pretty different calculation depending on whether they specified a
     # list of heights or just a DEM
