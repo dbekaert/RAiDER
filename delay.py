@@ -112,7 +112,7 @@ def _re_project(positions_list, proj):
             nr.append(_transform(ray, op, np))
         return nr
     
-    Nchunks = int(len(positions_list)//5e4 + 1)
+    Nchunks = int(len(positions_list)//1e6 + 1)
     ecef = pyproj.Proj(proj='geocent')
 
     newPts = []
@@ -180,6 +180,7 @@ def _common_delay(weatherObj, lats, lons, heights,
     if verbose:
         import time
         print('_common_delay: Starting look vector calculation')
+        print('_common_delay: The integration stepsize is {} m'.format(stepSize))
         st = time.time()
 
     # TODO: check adding accuracy of last fraction of the point
@@ -192,15 +193,12 @@ def _common_delay(weatherObj, lats, lons, heights,
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
 
-    if verbose:
-        print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
-        print('_common_delay: The integration stepsize is {} m'.format(stepSize))
-
     positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
     newPts = _re_project(positions_l, weatherObj.getProjection())
 
     if verbose:
         print('_common_delay: Finished re-projecting')
+        print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
         ft = time.time()
         print('Look vector calculation took {:4.2f} secs'.format(ft-st))
         print('_common_delay: Staring Interpolation')
@@ -647,7 +645,7 @@ def tropo_delay(los = None, lat = None, lon = None,
             for f in set_geo_info:
                 f(hydro_ds)
             hydro_ds = None
-
+        
             wet_ds = drv.Create(
                 wet_file_name, total_wet.shape[2],
                 total_wet.shape[1], len(hts), gdal.GDT_Float64)
@@ -662,7 +660,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     else:
         hydro, wet = _tropo_delay_with_values(
             los, lats, lons, hts, weather, zref, time, parallel = parallel, verbose = verbose)
-
+    
         # Write the output file
         # TODO: maybe support other files than ENVI
         if outformat == 'hdf5':
