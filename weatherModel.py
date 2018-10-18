@@ -124,14 +124,14 @@ class WeatherModel():
         Plotting method. Valid plot types are 'pqt'
         '''
         if plotType=='pqt':
-            print(dir(plots))
-            pqt_plot = plots.plot_pqt(self, savefig)
-            pqt_plot.show()
+            plot = plots.plot_pqt(self, savefig)
+            plot.show()
         elif plotType=='wh':
-            wh_plot = plots.plot_wh(self, savefig)
-            wh_plot.show()
+            plot = plots.plot_wh(self, savefig)
+            plot.show()
         else:
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
+        return plot
         
     def check(self, time):
         '''

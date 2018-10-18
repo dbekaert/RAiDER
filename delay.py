@@ -590,7 +590,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                     util.pickle_dump(weather, 'weatherObj.dat')
                 except:
                     pass
-                weather.plot()
+                p = weather.plot()
             else:
                 f = os.path.join(out, 'weather_model.dat')
                 #with tempfile.NamedTemporaryFile() as f:
