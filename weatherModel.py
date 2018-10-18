@@ -7,7 +7,7 @@ import os
 
 # local imports
 import constants as const
-import plots
+import plotWeather as plots
 import util
 from util import robmin, robmax
 
@@ -124,6 +124,7 @@ class WeatherModel():
         Plotting method. Valid plot types are 'pqt'
         '''
         if plotType=='pqt':
+            print(dir(plots))
             pqt_plot = plots.plot_pqt(self, savefig)
             pqt_plot.show()
         elif plotType=='wh':
