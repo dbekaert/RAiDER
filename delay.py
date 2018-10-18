@@ -90,18 +90,37 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     return positions_l
 
 
+def _transform(ray, oldProj, newProj):
+    '''
+    Transform a ray from one coordinate system to another
+    '''
+    newRay = np.stack(
+                pyproj.transform(
+                      oldProj, newProj, ray[:,0], ray[:,1], ray[:,2])
+                      ,axis = -1)
+    return newRay
+
 def _re_project(positions_list, proj):
     '''
-    Re-project a list of rays into a different coordinate system
+    Re-project a list of rays in earth-centered coordinates into
+     a different coordinate system
     '''
+    @dask.delayed
+    def batch(rayList, op, np):
+        nr = []
+        for ray in rayList:
+            nr.append(_transform(ray, op, np))
+        return nr
+    
+    Nchunks = int(len(positions_list)//5e4 + 1)
     ecef = pyproj.Proj(proj='geocent')
+
     newPts = []
-    for pnt in positions_list:
-        newPts.append(np.stack(pyproj.transform(ecef, 
-                                                proj, 
-                                                pnt[:,0], pnt[:,1], pnt[:,2]), 
-                               axis = -1)
-                     )
+    for chunk in util.Chunk(positions_list, Nchunks):
+        newPts.append(batch(chunk, ecef, proj))
+    nR = dask.compute(*newPts)
+    newPts = list(itertools.chain.from_iterable(nR))
+
     return newPts
 
 
@@ -245,7 +264,8 @@ def _interpolate_delays(weatherObj, interpType, newPts):
         return hd
 
 
-    Nchunks = int(len(newPts)//1e6 + 1)
+    chunkSize = 3e6
+    Nchunks = int(len(newPts)//chunkSize + 1)
     wet_pw, hydro_pw = [], [] 
 
     for chunk in util.Chunk(newPts, Nchunks):
