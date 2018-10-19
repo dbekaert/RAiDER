@@ -77,15 +77,14 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     Create the integration points for each ray path. 
     ''' 
     positions_l= []
-    for i, L in enumerate(lengths):
+    for L, S, V in zip(lengths, start_positions, scaled_look_vecs):
         # Have to handle the case where there are invalid data
         try:
             thisspace = np.arange(0, L, stepSize)
         except ValueError:
             thisspace = np.array([])
 
-        positions_l.append(start_positions[i]
-                    + thisspace[..., np.newaxis]*scaled_look_vecs[i])
+        positions_l.append(S + thisspace[..., np.newaxis]*V)
 
     return positions_l
 
@@ -105,21 +104,9 @@ def _re_project(positions_list, proj):
     Re-project a list of rays in earth-centered coordinates into
      a different coordinate system
     '''
-    @dask.delayed
-    def batch(rayList, op, np):
-        nr = []
-        for ray in rayList:
-            nr.append(_transform(ray, op, np))
-        return nr
-    
-    Nchunks = int(len(positions_list)//1e6 + 1)
-    ecef = pyproj.Proj(proj='geocent')
-
     newPts = []
-    for chunk in util.Chunk(positions_list, Nchunks):
-        newPts.append(batch(chunk, ecef, proj))
-    nR = dask.compute(*newPts)
-    newPts = list(itertools.chain.from_iterable(nR))
+    for ray in positions_list:
+        newPts.append(_transform(ray, ecef, proj))
 
     return newPts
 
@@ -167,6 +154,8 @@ def _common_delay(weatherObj, lats, lons, heights,
      delays     - A list containing the wet and hydrostatic delays for each ground point in 
                   meters. 
     """
+    import dask.bag as db
+
     if raytrace:
         correction = None
     else:
@@ -192,18 +181,29 @@ def _common_delay(weatherObj, lats, lons, heights,
     lengths[mask] = np.nan
     start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
     scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
-
     positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
-    newPts = _re_project(positions_l, weatherObj.getProjection())
+
+    if verbose:
+        print('_common_delay: Finished _get_rays')
+        ft = time.time()
+        print('Ray initialization took {:4.2f} secs'.format(ft-st))
+        print('_common_delay: Staring _re_project')
+        st = time.time()
+
+    rayBag = db.from_sequence(positions_l, npartitions = 10)
+    ecef = pyproj.Proj(proj='geocent')
+    newPts = rayBag.map(_transform, ecef, weatherObj.getProjection()).compute()
 
     if verbose:
         print('_common_delay: Finished re-projecting')
         print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
         ft = time.time()
-        print('Look vector calculation took {:4.2f} secs'.format(ft-st))
+        print('Re-projecting took {:4.2f} secs'.format(ft-st))
         print('_common_delay: Staring Interpolation')
         st = time.time()
 
+    import pdb
+    pdb.set_trace()
     wet_pw, hydro_pw = _interpolate_delays(weatherObj, intpType, newPts)
 
     if verbose:
