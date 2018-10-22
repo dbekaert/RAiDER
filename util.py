@@ -140,7 +140,10 @@ def big_and(*args):
 def gdal_open(fname, returnProj = False):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
-    ds = gdal.Open(fname, gdal.GA_ReadOnly)
+    try:
+        ds = gdal.Open(fname, gdal.GA_ReadOnly)
+    except:
+        raise RuntimeError('File {} could not be opened'.format(fname))
     proj = ds.GetProjection()
 
     val = []

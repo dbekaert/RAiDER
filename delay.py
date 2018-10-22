@@ -99,17 +99,20 @@ def _transform(ray, oldProj, newProj):
                       ,axis = -1)
     return newRay
 
-def _re_project(positions_list, proj):
-    '''
-    Re-project a list of rays in earth-centered coordinates into
-     a different coordinate system
-    '''
-    newPts = []
-    for ray in positions_list:
-        newPts.append(_transform(ray, ecef, proj))
-
-    return newPts
-
+#def _re_project(positions_list, proj):
+#    '''
+#    Re-project a list of rays in earth-centered coordinates into
+#     a different coordinate system
+#    '''
+#    newPts = []
+#    for ray in positions_list:
+#        newPts.append(_transform(ray, ecef, proj))
+#
+#    return newPts
+#
+def _re_project(tup): 
+    newPnt = _transform(tup[0],tup[1], tup[2])
+    return newPnt
 
 def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     '''
@@ -129,8 +132,8 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
 
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, raytrace, 
-                  stepSize = _STEP, intpType = 'rgi',
-                  verbose = False):
+                  stepSize = _STEP, interpType = 'rgi',
+                  verbose = False, nproc = 8):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -155,6 +158,7 @@ def _common_delay(weatherObj, lats, lons, heights,
                   meters. 
     """
     import dask.bag as db
+    import multiprocessing as mp
 
     if raytrace:
         correction = None
@@ -187,24 +191,50 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: Finished _get_rays')
         ft = time.time()
         print('Ray initialization took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Staring _re_project')
+        print('_common_delay: Starting _re_project')
         st = time.time()
 
-    rayBag = db.from_sequence(positions_l, npartitions = 10)
+#    rayBag = db.from_sequence(positions_l)
     ecef = pyproj.Proj(proj='geocent')
-    newPts = rayBag.map(_transform, ecef, weatherObj.getProjection()).compute()
+    newProj = weatherObj.getProjection()
+    tups = [(x, ecef, newProj) for x in positions_l]
+
+    with mp.Pool(processes = nproc) as p:
+        newPts = p.map(_re_project, tups)
+    #newPts = list(map(f, positions_l))
 
     if verbose:
         print('_common_delay: Finished re-projecting')
         print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
         ft = time.time()
         print('Re-projecting took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Staring Interpolation')
+        print('_common_delay: Starting Interpolation')
         st = time.time()
 
-    import pdb
-    pdb.set_trace()
-    wet_pw, hydro_pw = _interpolate_delays(weatherObj, intpType, newPts)
+    # Define the interpolator
+    ifWet = getIntFcn(weatherObj,interpType =interpType)
+    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
+
+    # call the interpolator on each ray
+    def interpRayWet(ray):
+        return ifWet(ray)[0]
+    def interpRayHydro(ray):
+        return ifHydro(ray)[0]
+
+#    # Chunk the points. Want to keep the number of chunks to ~1000, because the 
+#    # interpolator gets duplicated across each chunk
+#    chunkedPnts = util.Chunk(newPts)
+#    wet_delays, hydro_delays = [], []
+#    for chunk in chunkedPnts:
+#        wet_delays.append(list(map(_interpolate_delays(interpRayWet, chunk))))
+#        hydro_delays.append(list(map(_interpolate_delays(interpRayHydro, chunk))))
+    
+    Npart = min(len(newPts)//100, 1000)
+    PntBag = db.from_sequence(newPts, npartitions=Npart)
+    wet_pw = PntBag.map(interpRayWet).compute()
+    hydro_pw = PntBag.map(interpRayHydro).compute()
+    
+    #wet_pw, hydro_pw = _interpolate_delays(weatherObj, intpType, newPts)
 
     if verbose:
         print('_common_delay: Finished interpolation')
@@ -231,52 +261,13 @@ def _common_delay(weatherObj, lats, lons, heights,
     return delays
 
 
-def _interpolate_delays(weatherObj, interpType, newPts):
+def _interpolate_delays(interpFun, Pts):
     '''
     Interpolates the delay for the points in each ray for both 
     the wet and hydrostatic delays
     '''
-    # Define the interpolator
-    ifWet = getIntFcn(weatherObj,interpType = interpType)
-    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
-
-    # call the interpolator on each ray
-    def interpRayWet(ray):
-        return ifWet(ray)[0]
-    
-    def interpRayHydro(ray):
-        return ifHydro(ray)[0]
-    
-    @dask.delayed
-    def batchWet(rayList):
-        wd = []
-        for ray in rayList:
-            wd.append(interpRayWet(ray))
-        return wd
-    
-    @dask.delayed
-    def batchHydro(rayList):
-        hd = []
-        for ray in rayList:
-            hd.append(interpRayHydro(ray))
-        return hd
-
-
-    chunkSize = 3e6
-    Nchunks = int(len(newPts)//chunkSize + 1)
-    wet_pw, hydro_pw = [], [] 
-
-    for chunk in util.Chunk(newPts, Nchunks):
-        wet_pw.append(batchWet(chunk))
-    wetd= dask.compute(*wet_pw)
-    wet_pw = list(itertools.chain.from_iterable(wetd))
-
-    for chunk in util.Chunk(newPts, Nchunks):
-        hydro_pw.append(batchHydro(chunk))
-    hydrod= dask.compute(*hydro_pw)
-    hydro_pw = list(itertools.chain.from_iterable(hydrod))
-
-    return wet_pw, hydro_pw
+    interpRes = list(map(interpFun, Pts))
+    return interpRes
 
 
 def _integrate_delays(stepSize, refr):
@@ -610,13 +601,16 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     # Height
     if height_type == 'dem':
-        hts = util.gdal_open(height_info)
-    elif height_type == 'lvs':
+        try:
+            hts = util.gdal_open(height_info)
+        except RuntimeError:
+            print('WARNING: File {} could not be opened, proceeding with DEM download'.format(height_info))
+            height_type=='download'
+    else height_type == 'lvs':
         hts = height_info
-    elif height_type == 'download':
+
+    if height_type == 'download':
         hts = demdownload.download_dem(lats, lons)
-    else:
-        raise ValueError('Unexpected height_type {}'.format(repr(height_type)))
 
     # Pretty different calculation depending on whether they specified a
     # list of heights or just a DEM
