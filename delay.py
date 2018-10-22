@@ -606,7 +606,7 @@ def tropo_delay(los = None, lat = None, lon = None,
         except RuntimeError:
             print('WARNING: File {} could not be opened, proceeding with DEM download'.format(height_info))
             height_type=='download'
-    else height_type == 'lvs':
+    elif height_type == 'lvs':
         hts = height_info
 
     if height_type == 'download':
