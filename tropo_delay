@@ -81,7 +81,7 @@ def read_date(s):
             continue
     if date is None:
         raise ValueError(
-            f'Unable to coerce {s} to a date. Try %Y-%m-%dT%H:%M:%S.%f%z')
+            'Unable to coerce {} to a date. Try %Y-%m-%dT%H:%M:%S.%f%z'.format(s))
 
     return date
 

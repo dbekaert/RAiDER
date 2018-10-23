@@ -482,7 +482,8 @@ def tropo_delay(los = None, lat = None, lon = None,
                 time = None,
                 outformat='ENVI', 
                 parallel=True,
-                verbose = False):
+                verbose = False, 
+                download_only = False):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
@@ -495,9 +496,13 @@ def tropo_delay(los = None, lat = None, lon = None,
         out = os.getcwd()
 
     # Make weather
+    wmName = 'weather_{}.dat'.format(time)
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
+
+    if verbose:
+        print('Weather Model Name: {}'.format(wmName))
 
     # For later
     str1 = time.isoformat() + "_" if time is not None else ""
@@ -550,6 +555,7 @@ def tropo_delay(los = None, lat = None, lon = None,
             print('{} weather files'.format(len(weather_files)))
         print('Weather format: {}'.format(weather_fmt))
 
+
     if weather_type == 'wrf':
         import wrf
         weather = wrf.WRF()
@@ -569,23 +575,21 @@ def tropo_delay(los = None, lat = None, lon = None,
                 raise ValueError(
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
+
+            f = os.path.join(out, wmName)
+            if not os.path.exists(f):
+                weather_model.fetch(lats, lons, time, f)
+            if download_only:
+                print('WARNING: download_only flag selected. I will only '\
+                      'download the weather'\
+                      ' model, without doing any further processing.')
+                return None, None
+
+            weather_model.load(f)
+            weather = weather_model
             if verbose:
-                f = os.path.join(out, 'weather_model.dat')
-                weather_model.fetch(lats, lons, time, f)
-                weather_model.load(f)
-                weather = weather_model # Need to maintain backwards compatibility at the moment
                 print(weather)
-                try:
-                    util.pickle_dump(weather, 'weatherObj.dat')
-                except:
-                    pass
                 p = weather.plot()
-            else:
-                f = os.path.join(out, 'weather_model.dat')
-                #with tempfile.NamedTemporaryFile() as f:
-                weather_model.fetch(lats, lons, time, f)
-                weather_model.load(f)
-                weather = weather_model
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)
@@ -598,6 +602,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 lla = pyproj.Proj(proj='latlong')
                 xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
                 lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
+
 
     # Height
     if height_type == 'dem':
