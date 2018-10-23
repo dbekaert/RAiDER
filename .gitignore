@@ -4,4 +4,4 @@ __pycache__
 test/ERA*
 *.dat
 *.pdf
-
+*.pyc

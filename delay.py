@@ -11,13 +11,14 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 # standard imports
+import datetime
 import dask 
 import itertools
 import numpy as np
 import os
 import pyproj
 import tempfile
-import queue
+#import queue
 import threading
 
 # local imports
@@ -213,7 +214,7 @@ def _common_delay(weatherObj, lats, lons, heights,
     # give very good  results, in that I'm getting only a factor of 3
     # speed-up for a lot of cores, but that's 1000 seconds faster for 
     # my smal region, so worth doing. 
-    Npart = min(len(newPts)//100 + 1, 1000)
+    Npart = min(len(newPts)//100 + 1, 400)
     PntBag = db.from_sequence(newPts, npartitions=Npart)
     wet_pw = PntBag.map(interpRayWet).compute()
     hydro_pw = PntBag.map(interpRayHydro).compute()
@@ -469,7 +470,7 @@ def tropo_delay(los = None, lat = None, lon = None,
         out = os.getcwd()
 
     # Make weather
-    wmName = 'weather_{}.dat'.format(time)
+    wmName = 'weather_{}.dat'.format(datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']

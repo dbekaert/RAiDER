@@ -119,7 +119,7 @@ class Interpolator:
         for pnt in zip(self._xs, self._ys, self._zs):
             print('{}\n'.format(pnt))
 
-    def getInterpFcns(self, *args, interpType= 'scipy', **kwargs):
+    def getInterpFcns(self, interpType = 'scipy', *args,  **kwargs):
         '''
         return of list of interpolators, corresponding to the list of 
         inputs arguments
@@ -165,6 +165,9 @@ class Interpolator:
                           _interp3D(self._xs,self._ys, self._zs,arg, self._shape)
                                  )
         self._interp = _interpolators
+
+    def _make_sane_interpolators(self, *args, **kwargs):
+        pass
 
 
 def _interp3D(xs, ys, zs, values, shape):

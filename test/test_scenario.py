@@ -21,7 +21,9 @@ class TimeTests(unittest.TestCase):
     # 3: 
     # 4: Small area, ERAI, los available
     # 5: Small area, WRF, los available
-    scenario = 'scenario_4'
+    scenario = 'scenario_0'
+
+    print('Running scenario {}'.format(scenario.split('_')[1]))
 
     # Zenith or LOS?
     useZen = True
@@ -67,7 +69,8 @@ class TimeTests(unittest.TestCase):
                      time = self.test_time, 
                      out = self.outdir,
                      parallel=False, 
-                     verbose = True)
+                     verbose = True, 
+                     download_only = True)
 
     
 #        self.assertTrue(np.allclose(testData, refData,equal_nan = True))

@@ -149,8 +149,8 @@ def infer_sv(los_file, lats, lons, heights):
         # as a shelve file, and throw whatever error that does, although
         # the message might be sometimes misleading.
         svs = read_shelve(los_file)
-    return state_to_los(*svs, lats, lons, heights)
-
+    LOSs = state_to_los(*svs, lats = lats, lons = lons, heights = heights)
+    return LOSs
 
 def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     # I'm looking at http://earthdef.caltech.edu/boards/4/topics/327

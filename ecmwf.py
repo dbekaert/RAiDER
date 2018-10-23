@@ -140,7 +140,7 @@ class ECMWF(WeatherModel):
             # time: With type=an, time can be any of
             # "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can
             # be any of "00:00:00/12:00:00",
-            "time": datetime.datetime.strftime(corrected_date, "%H:%M:%S"),
+            "time": datetime.time.strftime(corrected_date.time(), "%H:%M:%S"),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -154,31 +154,31 @@ class ECMWF(WeatherModel):
 
 
     def _get_from_cds(self, lat_min, lat_max, lat_step, lon_min, lon_max,
-                       lon_step, AcqTime, outname):
+                       lon_step, acqTime, outname):
         import cdsapi
 
         pls = ['1','2','3','5','7','10','20','30','50','70','100','125','150','175','200','225','250','300','350','400','450','500','550','600','650','700','750','775','800','825','850','875','900','925','950','975','1000']
-        mls = list(range(137) + 1)
+        mls = np.arange(137) + 1
 
         c = cdsapi.Client(verify=0)
         #corrected_date = util.round_date(time, datetime.timedelta(hours=6))
-        if self._model_level_type == 'ml':
+        if self._model_level_type == 'pl':
             var = ['q','z','t']
-            levels = mls
+            var = ['geopotential','relative_humidity','specific_humidity','temperature']
+            levels = pls
             levType = 'pressure_level'
         else:
             var = ['lnsp', 'q','z','t']
-            levels = pls
+            levels = mls
             levType = 'model_level'
         
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
        
-       
-        c.retrieve('reanalysis-era5-pressure-levels',
-            {"class": self._classname, 
-            'dataset': self._dataset,
-            "expver": "{}".format(self._expver),
+        dataDict = {
+            #"class": self._classname, 
+            #'dataset': self._dataset,
+            #"expver": "{}".format(self._expver),
             "product_type": "reanalysis",
             "{}".format(levType):levels,
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
@@ -188,15 +188,18 @@ class ECMWF(WeatherModel):
             "year": "{}".format(acqTime.year),
             "month": "{}".format(acqTime.month),
             "day": "{}".format(acqTime.day),
-            "time": "{}".format(datetime.datetime.strftime(acqTime.time(), '%H:%M')),
+            "time": "{}".format(datetime.time.strftime(acqTime.time(), '%H:%M')),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
             "area": bbox, 
-            "format": "netcdf"},
-#            "resol": "av", # not sure if this is needed?
-            outname,    # target: the name of the output file.
-        )
+            "format": "netcdf"}
+        print(dataDict)
+        import pdb
+        pdb.set_trace()
+
+
+        c.retrieve('reanalysis-era5-pressure-levels',dataDict,outname)
 
 
 class ERAI(ECMWF):
@@ -327,7 +330,10 @@ class ERA5(ECMWF):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at ECMWF
-        self._get_from_cds(
+        try:
+            self._get_from_cds(
                 lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
                 out)
+        except:
+            raise RuntimeError('Could not get the data')
 
