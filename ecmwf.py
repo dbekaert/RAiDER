@@ -261,7 +261,7 @@ class ERA5(ECMWF):
     def __init__(self):
         ECMWF.__init__(self)
 
-        self._model_level_type = 'ml' # Default, pressure levels are 'pl'
+        self._model_level_type = 'pl' # Default, pressure levels are 'pl'
         self._expver = '0001'
         self._classname = 'ea'
         self._dataset = 'era5'
