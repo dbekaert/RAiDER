@@ -470,10 +470,10 @@ def tropo_delay(los = None, lat = None, lon = None,
         out = os.getcwd()
 
     # Make weather
-    wmName = 'weather_{}.dat'.format(datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
+    wmName = '{}_{}.nc'.format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
 
     if verbose:
         print('Weather Model Name: {}'.format(wmName))
@@ -553,6 +553,8 @@ def tropo_delay(los = None, lat = None, lon = None,
             f = os.path.join(out, wmName)
             if not os.path.exists(f):
                 weather_model.fetch(lats, lons, time, f)
+            else:
+                print('WARNING: Weather model already exists, skipping download')
             if download_only:
                 print('WARNING: download_only flag selected. I will only '\
                       'download the weather'\

@@ -80,4 +80,82 @@ class ERA5(ECMWF):
         self._get_from_cds(
                 lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
                 out)
+    def load_weather(self, f):
+        self._load_pressure_level(f)
+
+    def _load_pressure_level(self, filename):
+        from scipy.io import netcdf as nc
+        with nc.netcdf_file(
+                filename, 'r', maskandscale=True) as f:
+            lats = f.variables['latitude'][:].copy()
+            lons = f.variables['longitude'][:].copy()
+            t = f.variables['t'][0].copy()
+            q = f.variables['q'][0].copy()
+            z = f.variables['z'][0].copy()
+            levels = f.variables['level'][:].copy()
+            #TODO: note that levels is pressure
+            #TODO: check ECMWF for variable ordering and test for consistency
+            # may need to email ECMWF people for clarity
+
+        # ECMWF appears to give me this backwards
+        if lats[0] > lats[1]:
+            z = z[::-1]
+            #lnsp = lnsp[::-1]
+            t = t[:, ::-1]
+            q = q[:, ::-1]
+            lats = lats[::-1]
+        # Lons is usually ok, but we'll throw in a check to be safe
+        if lons[0] > lons[1]:
+            z = z[..., ::-1]
+            #lnsp = lnsp[..., ::-1]
+            t = t[..., ::-1]
+            q = q[..., ::-1]
+            lons = lons[::-1]
+        # pyproj gets fussy if the latitude is wrong, plus our
+        # interpolator isn't clever enough to pick up on the fact that
+        # they are the same
+        lons[lons > 180] -= 360
+        self._proj = pyproj.Proj(proj='latlong')
+
+        self._t = t
+        self._q = q
+
+        # ? 
+        pres = levels
+        geo_hgt = z/9.8
+#        geo_hgt,pres,hgt = self._calculategeoh(z, lnsp)
+
+        # re-assign lons, lats to match heights
+        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+                                     geo_hgt.shape)
+        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+                                     geo_hgt.shape)
+
+        # correct heights for latitude
+        self._get_heights(_lats, geo_hgt)
+
+        # We want to support both pressure levels and true pressure grids.
+        # If the shape has one dimension, we'll scale it up to act as a
+        # grid, otherwise we'll leave it alone.
+        # TODO: see WRF
+        if len(pres.shape) == 1:
+            self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
+                                        self._zs.shape)
+        else:
+            self._p = pres
+
+        # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
+        self._p = np.transpose(self._p)
+        self._t = np.transpose(self._t)
+        self._q = np.transpose(self._q)
+        self._ys = np.transpose(_lats)
+        self._xs = np.transpose(_lons)
+        self._zs = np.transpose(self._zs)
+
+        # Flip all the axis so that zs are in order from bottom to top
+        self._p = np.flip(self._p, axis = 2)
+        self._t = np.flip(self._t, axis = 2)
+        self._q = np.flip(self._q, axis = 2)
+        self._zs = np.flip(self._zs, axis = 2)
+
 
