@@ -99,20 +99,11 @@ def _transform(ray, oldProj, newProj):
                       ,axis = -1)
     return newRay
 
-#def _re_project(positions_list, proj):
-#    '''
-#    Re-project a list of rays in earth-centered coordinates into
-#     a different coordinate system
-#    '''
-#    newPts = []
-#    for ray in positions_list:
-#        newPts.append(_transform(ray, ecef, proj))
-#
-#    return newPts
-#
+
 def _re_project(tup): 
     newPnt = _transform(tup[0],tup[1], tup[2])
     return newPnt
+
 
 def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     '''
@@ -194,14 +185,11 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: Starting _re_project')
         st = time.time()
 
-#    rayBag = db.from_sequence(positions_l)
     ecef = pyproj.Proj(proj='geocent')
     newProj = weatherObj.getProjection()
-    tups = [(x, ecef, newProj) for x in positions_l]
-
-    with mp.Pool(processes = nproc) as p:
-        newPts = p.map(_re_project, tups)
-    #newPts = list(map(f, positions_l))
+    def f(x):
+        return _transform(x, ecef, newProj)
+    newPts = list(map(f, positions_l))
 
     if verbose:
         print('_common_delay: Finished re-projecting')
@@ -221,21 +209,15 @@ def _common_delay(weatherObj, lats, lons, heights,
     def interpRayHydro(ray):
         return ifHydro(ray)[0]
 
-#    # Chunk the points. Want to keep the number of chunks to ~1000, because the 
-#    # interpolator gets duplicated across each chunk
-#    chunkedPnts = util.Chunk(newPts)
-#    wet_delays, hydro_delays = [], []
-#    for chunk in chunkedPnts:
-#        wet_delays.append(list(map(_interpolate_delays(interpRayWet, chunk))))
-#        hydro_delays.append(list(map(_interpolate_delays(interpRayHydro, chunk))))
-    
-    Npart = min(len(newPts)//100, 1000)
+    # Use dask to parallelize the interpolation. Unfortunately does not
+    # give very good  results, in that I'm getting only a factor of 3
+    # speed-up for a lot of cores, but that's 1000 seconds faster for 
+    # my smal region, so worth doing. 
+    Npart = min(len(newPts)//100 + 1, 1000)
     PntBag = db.from_sequence(newPts, npartitions=Npart)
     wet_pw = PntBag.map(interpRayWet).compute()
     hydro_pw = PntBag.map(interpRayHydro).compute()
     
-    #wet_pw, hydro_pw = _interpolate_delays(weatherObj, intpType, newPts)
-
     if verbose:
         print('_common_delay: Finished interpolation')
         ft = time.time()
@@ -259,15 +241,6 @@ def _common_delay(weatherObj, lats, lons, heights,
         delays = [d*correction for d in delays]
 
     return delays
-
-
-def _interpolate_delays(interpFun, Pts):
-    '''
-    Interpolates the delay for the points in each ray for both 
-    the wet and hydrostatic delays
-    '''
-    interpRes = list(map(interpFun, Pts))
-    return interpRes
 
 
 def _integrate_delays(stepSize, refr):
