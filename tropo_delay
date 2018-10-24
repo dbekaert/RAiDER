@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """
 usage: tropo_delay [-h] [--lineofsight LOS | --statevectors STATEVECTORS]
                    [--area LONG LAT]
@@ -114,12 +114,17 @@ def parse_args():
               'the orbit of the sensor'))
 
     # Area
-    p.add_argument(
+    area = p.add_mutually_exclusive_group()
+    area.add_argument(
         '--area', '-a', nargs=2,
         help=('GDAL-readable longitude and latitude files to specify the '
               'region over which to calculate delay. Delay will be '
               'calculated at weather model nodes if unspecified'),
         metavar=('LAT', 'LONG'))
+    area.add_argument(
+        '--bounding_box', '-bb', nargs=4,
+        help=('Bounding box, given as N W S E'),
+        metavar=('N', 'W', 'S', 'E'))
 
     # heights
     heights = p.add_mutually_exclusive_group()
@@ -195,6 +200,11 @@ def getTropoDelay():
     # Area
     if args.area is not None:
         lat, lon = args.area
+    elif args.bounding_box is not None:
+        import numpy as np
+        N,W,S,E = args.bounding_box
+        lat = np.array([float(N), float(S)])
+        lon = np.array([float(E), float(W)])
     else:
         lat = lon = None
 

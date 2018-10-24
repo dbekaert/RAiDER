@@ -473,7 +473,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
-    wmName = '{}_{}.nc'.format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+    wmName = os.path.join(out, '{}_{}.nc'.format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
     if verbose:
         print('Weather Model Name: {}'.format(wmName))
@@ -499,8 +499,13 @@ def tropo_delay(los = None, lat = None, lon = None,
         lats = lons = None
         latproj = lonproj = None
     else:
-        lats, latproj = util.gdal_open(lat, returnProj = True)
-        lons, lonproj = util.gdal_open(lon, returnProj = True)
+        try:
+            lats, latproj = util.gdal_open(lat, returnProj = True)
+            lons, lonproj = util.gdal_open(lon, returnProj = True)
+        except:
+            lats = lat
+            lons = lon
+            latproj = lonproj = None
 
     # set_geo_info should be a list of functions to call on the dataset,
     # and each will do some bit of work
@@ -524,10 +529,8 @@ def tropo_delay(los = None, lat = None, lon = None,
     height_type, height_info = heights
     if verbose:
         print('Type of height: {}'.format(height_type))
-        print('Type of weather model: \n {}'.format(weather_type))
         if weather_files is not None:
             print('{} weather files'.format(len(weather_files)))
-        print('Weather format: {}'.format(weather_fmt))
 
 
     if weather_type == 'wrf':

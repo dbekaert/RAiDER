@@ -165,7 +165,7 @@ class ECMWF(WeatherModel):
         if self._model_level_type == 'pl':
             var = ['q','z','t']
             var = ['geopotential','relative_humidity','specific_humidity','temperature']
-            levels = pls
+            levels = 'all'
             levType = 'pressure_level'
         else:
             var = ['lnsp', 'q','z','t']
@@ -195,9 +195,6 @@ class ECMWF(WeatherModel):
             "area": bbox, 
             "format": "netcdf"}
         print(dataDict)
-        import pdb
-        pdb.set_trace()
-
 
         c.retrieve('reanalysis-era5-pressure-levels',dataDict,outname)
 

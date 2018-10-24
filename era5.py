@@ -100,14 +100,12 @@ class ERA5(ECMWF):
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
             z = z[::-1]
-            #lnsp = lnsp[::-1]
             t = t[:, ::-1]
             q = q[:, ::-1]
             lats = lats[::-1]
         # Lons is usually ok, but we'll throw in a check to be safe
         if lons[0] > lons[1]:
             z = z[..., ::-1]
-            #lnsp = lnsp[..., ::-1]
             t = t[..., ::-1]
             q = q[..., ::-1]
             lons = lons[::-1]
@@ -122,8 +120,7 @@ class ERA5(ECMWF):
 
         # ? 
         pres = levels
-        geo_hgt = z/9.8
-#        geo_hgt,pres,hgt = self._calculategeoh(z, lnsp)
+        geo_hgt = z/self._g0
 
         # re-assign lons, lats to match heights
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
