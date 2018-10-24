@@ -21,7 +21,7 @@ class TimeTests(unittest.TestCase):
     # 3: 
     # 4: Small area, ERAI, los available
     # 5: Small area, WRF, los available
-    scenario = 'scenario_4'
+    scenario = 'scenario_7'
 
     # Zenith or LOS?
     useZen = True
