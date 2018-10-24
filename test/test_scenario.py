@@ -21,9 +21,7 @@ class TimeTests(unittest.TestCase):
     # 3: 
     # 4: Small area, ERAI, los available
     # 5: Small area, WRF, los available
-    scenario = 'scenario_0'
-
-    print('Running scenario {}'.format(scenario.split('_')[1]))
+    scenario = 'scenario_7'
 
     # Zenith or LOS?
     useZen = True
