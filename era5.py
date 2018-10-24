@@ -80,6 +80,7 @@ class ERA5(ECMWF):
         self._get_from_cds(
                 lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
                 out)
+
     def load_weather(self, f):
         self._load_pressure_level(f)
 
@@ -118,9 +119,9 @@ class ERA5(ECMWF):
         self._t = t
         self._q = q
 
-        # ? 
-        pres = levels
         geo_hgt = z/self._g0
+        import pdb
+        pdb.set_trace()
 
         # re-assign lons, lats to match heights
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
@@ -131,15 +132,8 @@ class ERA5(ECMWF):
         # correct heights for latitude
         self._get_heights(_lats, geo_hgt)
 
-        # We want to support both pressure levels and true pressure grids.
-        # If the shape has one dimension, we'll scale it up to act as a
-        # grid, otherwise we'll leave it alone.
-        # TODO: see WRF
-        if len(pres.shape) == 1:
-            self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
-                                        self._zs.shape)
-        else:
-            self._p = pres
+        self._p = np.broadcast_to(levels[:, np.newaxis, np.newaxis],
+                                  self._zs.shape)
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         self._p = np.transpose(self._p)

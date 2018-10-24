@@ -19,8 +19,11 @@ class TimeTests(unittest.TestCase):
     # 1: single point, WRF, download DEM 
     # 2: 
     # 3: 
-    # 4: Small area, ERAI, los available
+    # 4: Small area, ERAI
     # 5: Small area, WRF, los available
+    # 6: Small area, ERA5, early date, Zenith
+    # 7: Small area, ERA5, late date, Zenith
+    # 8: Small area, ERAI, late date, Zenith
     scenario = 'scenario_7'
 
     # Zenith or LOS?
@@ -68,7 +71,7 @@ class TimeTests(unittest.TestCase):
                      out = self.outdir,
                      parallel=False, 
                      verbose = True, 
-                     download_only = True)
+                     download_only = False)
 
     
 #        self.assertTrue(np.allclose(testData, refData,equal_nan = True))
