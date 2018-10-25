@@ -115,9 +115,9 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
     if itype == 'wet':
-        ifFun.getInterpFcns(weatherObj.getWetRefractivity(),interpType = interpType)
+        ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
     elif itype == 'hydro':
-        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(),interpType = interpType)
+        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
     return ifFun
  
 

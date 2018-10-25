@@ -11,6 +11,7 @@ class ERA5(ECMWF):
     def __init__(self):
         ECMWF.__init__(self)
 
+        self._humidityType = 'rh'
         self._model_level_type = 'pl' # Default, pressure levels are 'pl'
         self._expver = '0001'
         self._classname = 'ea'
@@ -92,8 +93,9 @@ class ERA5(ECMWF):
             lons = f.variables['longitude'][:].copy()
             t = f.variables['t'][0].copy()
             q = f.variables['q'][0].copy()
+            r = f.variables['r'][0].copy()
             z = f.variables['z'][0].copy()
-            levels = f.variables['level'][:].copy()
+            levels = f.variables['level'][:].copy()*100
             #TODO: note that levels is pressure
             #TODO: check ECMWF for variable ordering and test for consistency
             # may need to email ECMWF people for clarity
@@ -103,12 +105,14 @@ class ERA5(ECMWF):
             z = z[::-1]
             t = t[:, ::-1]
             q = q[:, ::-1]
+            r = r[:, ::-1]
             lats = lats[::-1]
         # Lons is usually ok, but we'll throw in a check to be safe
         if lons[0] > lons[1]:
             z = z[..., ::-1]
             t = t[..., ::-1]
             q = q[..., ::-1]
+            r = r[..., ::-1]
             lons = lons[::-1]
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
@@ -118,10 +122,9 @@ class ERA5(ECMWF):
 
         self._t = t
         self._q = q
+        self._rh = r
 
         geo_hgt = z/self._g0
-        import pdb
-        pdb.set_trace()
 
         # re-assign lons, lats to match heights
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
@@ -139,14 +142,14 @@ class ERA5(ECMWF):
         self._p = np.transpose(self._p)
         self._t = np.transpose(self._t)
         self._q = np.transpose(self._q)
+        self._rh = np.transpose(self._rh)
         self._ys = np.transpose(_lats)
         self._xs = np.transpose(_lons)
         self._zs = np.transpose(self._zs)
 
-        # Flip all the axis so that zs are in order from bottom to top
+        # For some reason z is opposite the others
         self._p = np.flip(self._p, axis = 2)
         self._t = np.flip(self._t, axis = 2)
         self._q = np.flip(self._q, axis = 2)
-        self._zs = np.flip(self._zs, axis = 2)
-
+        self._rh = np.flip(self._rh, axis = 2)
 
