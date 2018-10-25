@@ -172,6 +172,7 @@ def parse_args():
         default='ENVI')
 
     p.add_argument('--out', help='Output file directory', default='.')
+    p.add_argument('--model_location', help='Directory where weather model files are stored', default='.', dest='wmLoc')
 
     p.add_argument('--no_parallel', '-p', action='store_true',dest='no_parallel', default = False, help='Do not run operation in parallel? Default False. Recommend only True for verbose (debug) mode')
 
@@ -253,6 +254,7 @@ def getTropoDelay():
     outformat = args.outformat
     time = args.time
     out = args.out
+    wmLoc = args.wmLoc
 
     download_only = args.download_only
 
@@ -261,6 +263,7 @@ def getTropoDelay():
     delay.tropo_delay(los, lat, lon, heights, 
                       weathers, zref, 
                       out, 
+                      wmLoc, 
                       time, 
                       outformat, 
                       parallel=parallel, 

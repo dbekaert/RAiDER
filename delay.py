@@ -12,7 +12,6 @@ gdal.UseExceptions()
 
 # standard imports
 import datetime
-import dask 
 import itertools
 import numpy as np
 import os
@@ -453,6 +452,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 weather = None, 
                 zref = 15000, 
                 out = None, 
+                wmLoc = None, 
                 time = None,
                 outformat='ENVI', 
                 parallel=True,
@@ -468,12 +468,14 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     if out is None:
         out = os.getcwd()
+    if wmLoc is None:
+        wmLoc = out
 
     # Make weather
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
-    wmName = os.path.join(out, '{}_{}.nc'.format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
+    wmName = os.path.join(wmLoc, '{}_{}.nc'.format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
     if verbose:
         print('Weather Model Name: {}'.format(wmName))
