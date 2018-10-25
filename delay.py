@@ -72,19 +72,28 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                               util.sind(lats))).T
                     * (zref - heights)[..., np.newaxis])
 
+
+def _compute_ray(L, S, V):
+    '''
+    Compute and return points along a ray, given a total length, 
+    start position (in x,y,z) and a unit look vector.
+    '''
+    # Have to handle the case where there are invalid data
+    try:
+        thisspace = np.arange(0, L, stepSize)
+    except ValueError:
+        thisspace = np.array([])
+    ray = S + thisspace[..., np.newaxis]*V
+    return ray
+
+
 def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     '''
     Create the integration points for each ray path. 
     ''' 
     positions_l= []
     for L, S, V in zip(lengths, start_positions, scaled_look_vecs):
-        # Have to handle the case where there are invalid data
-        try:
-            thisspace = np.arange(0, L, stepSize)
-        except ValueError:
-            thisspace = np.array([])
-
-        positions_l.append(S + thisspace[..., np.newaxis]*V)
+        positions_l.append(_compute_ray(L, S, V))
 
     return positions_l
 
