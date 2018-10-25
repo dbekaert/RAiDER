@@ -73,7 +73,7 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                     * (zref - heights)[..., np.newaxis])
 
 
-def _compute_ray(L, S, V):
+def _compute_ray(L, S, V, stepSize):
     '''
     Compute and return points along a ray, given a total length, 
     start position (in x,y,z) and a unit look vector.
@@ -93,7 +93,7 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     ''' 
     positions_l= []
     for L, S, V in zip(lengths, start_positions, scaled_look_vecs):
-        positions_l.append(_compute_ray(L, S, V))
+        positions_l.append(_compute_ray(L, S, V, stepSize))
 
     return positions_l
 
@@ -600,7 +600,7 @@ def tropo_delay(los = None, lat = None, lon = None,
             hts = util.gdal_open(height_info)
         except RuntimeError:
             print('WARNING: File {} could not be opened, proceeding with DEM download'.format(height_info))
-            height_type=='download'
+            hts = demdownload.download_dem(lats, lons)
     elif height_type == 'lvs':
         hts = height_info
 
