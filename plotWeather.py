@@ -18,7 +18,7 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     intFcn= intrp.Interpolator()
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
-    intFcn.getInterpFcns(weatherObj._p, weatherObj._e, weatherObj._t)
+    intFcn.getInterpFcns(weatherObj._p, weatherObj._e, weatherObj._t, interType = 'scipy')
 
     # get the points needed
     x = weatherObj._xs[:,:,0]
@@ -48,8 +48,8 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
 
     # setup the plot
     f = plt.figure(figsize = (10,6)) 
-    xind = int(np.floor(weatherObj._zs.shape[0]/2))
-    yind = int(np.floor(weatherObj._zs.shape[1]/2))
+    xind = int(np.floor(weatherObj._xs.shape[0]/2))
+    yind = int(np.floor(weatherObj._ys.shape[1]/2))
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(3,3,ind + 1)
@@ -101,7 +101,7 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     intFcn= intrp.Interpolator()
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
-    intFcn.getInterpFcns(weatherObj._wet_refractivity, weatherObj._hydrostatic_refractivity)
+    intFcn.getInterpFcns(weatherObj._wet_refractivity, weatherObj._hydrostatic_refractivity, interType = 'scipy')
 
     # get the points needed
     x = weatherObj._xs[:,:,0]
@@ -113,8 +113,6 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
 
     w1, h1 = intFcn(pts1)
     w2, h2 = intFcn(pts2)
-
-    #intFcn.getInterpFcns(weatherObj.getWetRefractivity(), weatherObj.getHydroRefractivity())
 
     # Now get the data to plot
     plots = [w1, h1, w2, h2]

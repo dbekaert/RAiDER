@@ -119,7 +119,7 @@ class Interpolator:
         for pnt in zip(self._xs, self._ys, self._zs):
             print('{}\n'.format(pnt))
 
-    def getInterpFcns(self, interpType = 'scipy', *args,  **kwargs):
+    def getInterpFcns(self, *args, interpType = 'scipy', **kwargs):
         '''
         return of list of interpolators, corresponding to the list of 
         inputs arguments

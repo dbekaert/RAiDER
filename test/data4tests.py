@@ -1,5 +1,6 @@
 # types of models
-from ecmwf import ERAI, ERA5
+from erai import ERAI
+from era5 import ERA5
 import merra2
 import wrf
 
