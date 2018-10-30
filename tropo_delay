@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 usage: tropo_delay [-h] [--lineofsight LOS | --statevectors STATEVECTORS]
                    [--area LONG LAT]
@@ -45,7 +45,7 @@ import datetime
 import itertools
 import importlib
 import delay
-
+import pdb
 
 def read_date(s):
     """Read a date from a string in pseudo-ISO 8601 format."""
@@ -121,9 +121,11 @@ def parse_args():
               'region over which to calculate delay. Delay will be '
               'calculated at weather model nodes if unspecified'),
         metavar=('LAT', 'LONG'))
-    area.add_argument(
-        '--bounding_box', '-bb', nargs=4,
-        help=('Bounding box, given as N W S E'),
+
+    # model BBOX
+    p.add_argument(
+        '--modelBBOX', '-modelbb', nargs=4,
+        help='BBOX of the model to be downloaded, given as N W S E, if not givem defualts in following order: lon-lat derived BBOX, or full world',
         metavar=('N', 'W', 'S', 'E'))
 
     # heights
@@ -201,13 +203,16 @@ def getTropoDelay():
     # Area
     if args.area is not None:
         lat, lon = args.area
-    elif args.bounding_box is not None:
-        import numpy as np
-        N,W,S,E = args.bounding_box
-        lat = np.array([float(N), float(S)])
-        lon = np.array([float(E), float(W)])
     else:
         lat = lon = None
+
+    # MODEL bbox
+    if args.modelBBOX is not None:
+        import numpy as np
+        N,W,S,E = args.modelBBOX
+        modelBBOX = np.array([N,W,S,E],dtype='float64')
+    else:
+        modelBBOX = None
 
     # DEM
     if args.dem is not None:
@@ -257,7 +262,6 @@ def getTropoDelay():
     wmLoc = args.wmLoc
 
     download_only = args.download_only
-
     parallel = True if not args.no_parallel else False
     verbose = args.verbose
     delay.tropo_delay(los, lat, lon, heights, 
@@ -268,6 +272,7 @@ def getTropoDelay():
                       outformat, 
                       parallel=parallel, 
                       download_only = download_only,
+                      download_bbox = modelBBOX,
                       verbose = verbose)
 
 

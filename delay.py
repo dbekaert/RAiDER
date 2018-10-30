@@ -19,13 +19,13 @@ import pyproj
 import tempfile
 #import queue
 import threading
-
+import pdb
 # local imports
 import constants as const
 import demdownload
 import losreader
 import util
-
+import h5py
 
 # Step in meters to use when integrating
 _STEP = const._STEP
@@ -456,6 +456,26 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
+def output_format(outformat):
+    """
+        Reduce the outformat strings users can specifiy to a select consistent set that can be used for filename extensions.
+    """
+    # convert the outformat to lower letters
+    outformat = outformat.lower()
+
+    # capture few specific cases:
+    outformat_dict = {}
+    outformat_dict['hdf5'] = 'h5'
+    outformat_dict['hdf'] = 'h5'
+    outformat_dict['h5'] = 'h5'
+    outformat_dict['envi'] = 'envi'
+
+    try:
+        outformat = outformat_dict[outformat]
+    except:
+        raise NotImplemented
+    return outformat
+
 def tropo_delay(los = None, lat = None, lon = None, 
                 heights = None, 
                 weather = None, 
@@ -465,7 +485,8 @@ def tropo_delay(los = None, lat = None, lon = None,
                 time = None,
                 outformat='ENVI', 
                 parallel=True,
-                verbose = False, 
+                verbose = False,
+                download_bbox = None,
                 download_only = False):
     """Calculate troposphere delay from command-line arguments.
 
@@ -475,6 +496,10 @@ def tropo_delay(los = None, lat = None, lon = None,
     """
     import pyproj
 
+    # ensuring consistent file extensions
+    outformat = output_format(outformat)
+
+    # the output folder where data is downloaded and delays are stored, default is same location
     if out is None:
         out = os.getcwd()
     if wmLoc is None:
@@ -493,9 +518,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     str1 = time.isoformat() + "_" if time is not None else ""
     str2 = "z" if los is None else "s" 
     str3 = 'td.{}'.format(outformat)
-    hydroname, wetname = (
-        '{}_{}_'.format(weather_fmt, dtyp) + str1 + str2 + str3
-        for dtyp in ('hydro', 'wet'))
+    hydroname, wetname = ('{}_{}_'.format(weather_fmt, dtyp) + str1 + str2 + str3 for dtyp in ('hydro', 'wet'))
 
     hydro_file_name = os.path.join(out, hydroname)
     wet_file_name = os.path.join(out, wetname)
@@ -503,6 +526,8 @@ def tropo_delay(los = None, lat = None, lon = None,
     # set_geo_info should be a list of functions to call on the dataset,
     # and each will do some bit of work
     set_geo_info = list()
+
+
 
     # Lat, lon
     if lat is None:
@@ -529,8 +554,11 @@ def tropo_delay(los = None, lat = None, lon = None,
     # Is it ever possible that lats and lons will actually have embedded
     # projections?
     if latproj:
-        def geo_info(ds):
-            ds.SetProjection(latproj)
+        if outformat is not 'h5':
+            def geo_info(ds):
+                ds.SetProjection(latproj)
+        else:
+            geo_info = None
         set_geo_info.append(geo_info)
     elif lonproj:
         def geo_info(ds):
@@ -559,13 +587,18 @@ def tropo_delay(los = None, lat = None, lon = None,
     else:
         weather_model = weather_type
         if weather_files is None:
-            if lats is None:
-                raise ValueError(
-                    'Unable to infer lats and lons if you also want me to '
-                    'download the weather model')
 
             f = os.path.join(out, wmName)
             if not os.path.exists(f):
+                print("Need to parse the download bbox")
+                N = download_bbox[0]
+                W = download_bbox[1]
+                S = download_bbox[2]
+                E = download_bbox[3]
+
+                if download_bbox is not None:
+                    lats = np.array([S,N],dtype='float64')
+                    lons = np.array([W,E],dtype='float64')
                 weather_model.fetch(lats, lons, time, f)
             else:
                 print('WARNING: Weather model already exists, skipping download')
@@ -575,25 +608,42 @@ def tropo_delay(los = None, lat = None, lon = None,
                       ' model, without doing any further processing.')
                 return None, None
 
+            #pdb.set_trace()    
             weather_model.load(f)
             weather = weather_model
-            if verbose:
-                print(weather)
-                p = weather.plot()
-        else:
-            weather, xs, ys, proj = weather_model.weather_and_nodes(
-                weather_files)
-            if lats is None:
-                def geo_info(ds):
-                    ds.SetProjection(str(proj))
-                    ds.SetGeoTransform((xs[0], xs[1] - xs[0], 0, ys[0], 0,
-                                        ys[1] - ys[0]))
+
+            if verbose:                                                                                                              
+                 print(weather)
+                 p = weather.plot()
+
+        # use the weather model nodes in case the grid is not specififed
+        if lats is None:
+            # weather model projection
+            proj = weather_model.getProjection()
+            # weather model grid (3D cube= x,y,z)
+            xs = weather_model._xs 
+            ys = weather_model._ys
+            # only using the grid from one dimension as z is a replicate
+            xs = xs[:,:,0]
+            ys = ys[:,:,0]
+
+            # for geo transform make sure that we take right slice through the x and y grids
+            if len(np.unique(xs))==len(xs[:,0]):
+                xs_vector = xs[:,0]
+                ys_vector = np.transpose(ys[0,:])
+            elif len(np.unique(xs))==len(xs[0,:]):
+                ys_vector = ys[:,0]
+                xs_vector = np.transpose(xs[0,:])
+
+            # code up the default projectoon to be WGS84 for local processing/ delay calculation
+            lla = pyproj.Proj(proj='latlong', ellps='WGS84', datum='WGS84')
+            lons, lats = pyproj.transform(proj, lla,xs,ys)
+    
+            def geo_info(ds):
+                ds.SetProjection(str(proj))
+                ds.SetGeoTransform((xs_vector[0], xs_vector[1] - xs_vector[0], 0, ys_vector[0], 0, ys_vector[1] - ys_vector[0]))
                 set_geo_info.append(geo_info)
-                lla = pyproj.Proj(proj='latlong')
-                xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
-                lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
-
-
+    
     # Height
     if height_type == 'dem':
         try:
@@ -610,6 +660,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     # Pretty different calculation depending on whether they specified a
     # list of heights or just a DEM
     if height_type == 'lvs':
+        #pdb.set_trace()
         shape = (len(hts),) + lats.shape
         total_hydro = np.zeros(shape)
         total_wet = np.zeros(shape)
@@ -620,8 +671,69 @@ def tropo_delay(los = None, lat = None, lon = None,
             total_hydro[i] = hydro
             total_wet[i] = wet
 
-        if outformat == 'hdf5':
-            raise NotImplemented
+        if outformat == 'hdf5' or outformat=='h5' or outformat =='hdf':
+            if os.path.isfile(hydro_file_name):
+                os.remove(hydro_file_name)
+
+            # for hdf5 we will hard-code only the lon-lat grid for now
+            # for hdf and netcdf typically the dimensions are listed as z,y,x
+            # coordinates are provided as vectors for regular grids
+            
+            # hydro delay
+            hydro_ds = h5py.File(hydro_file_name,'w')
+            # generating hydro dataset
+            hdftotal_hydro = np.swapaxes(total_hydro,1,2)
+            dset = hydro_ds.create_dataset("hydro",data=hdftotal_hydro,fillvalue=0,compression="gzip")
+            dset.attrs["Description"]='Hydro delay in meters'
+            # generating lon lat dataset
+            if len(np.unique(lons))==len(lons[:,0]):
+                hdflons = lons[:,0]
+                hdflats = np.transpose(lats[0,:])
+                dset = hydro_ds.create_dataset("lons",data=hdflons,compression="gzip")
+                dset = hydro_ds.create_dataset("lats",data=hdflats,compression="gzip")
+            elif len(np.unique(lons))==len(lons[0,:]):
+                hdflons = np.transpose(lons[0,:])
+                hdflats = lats[:,0]
+                dset = hydro_ds.create_dataset("lons",data=hdflons,compression="gzip")
+                dset = hydro_ds.create_dataset("lats",data=hdflats,compression="gzip")
+            else:
+                dset = hydro_ds.create_dataset("lons_grid",data=lons,fillvalue=0,compression="gzip")
+                dset = hydro_ds.create_dataset("lats_grid",data=lats,fillvalue=0,compression="gzip")
+            # writing teh heights
+            dset = hydro_ds.create_dataset("heights",data=hts,compression="gzip")
+            # create the projection string
+            proj4= 'EPSG:{0}'.format(int(4326))
+            hydro_ds.create_dataset('projection', data=[proj4.encode('utf-8')], dtype='S200')
+            # close the file
+            hydro_ds.close()
+
+            # hydro delay
+            wet_ds = h5py.File(wet_file_name,'w')
+            # generating hydro dataset
+            hdftotal_wet = np.swapaxes(total_wet,1,2)
+            dset = wet_ds.create_dataset("wet",data=hdftotal_wet,fillvalue=0,compression="gzip")
+            dset.attrs["Description"]='Wet delay in meters'
+            # generating lon lat dataset
+            if len(np.unique(lons))==len(lons[:,0]):
+                hdflons = lons[:,0]
+                hdflats = np.transpose(lats[0,:])
+                dset = wet_ds.create_dataset("lons",data=hdflons,compression="gzip")
+                dset = wet_ds.create_dataset("lats",data=hdflats,compression="gzip")
+            elif len(np.unique(lons))==len(lons[0,:]):
+                hdflons = np.transpose(lons[0,:])
+                hdflats = lats[:,0]
+                dset = wet_ds.create_dataset("lons",data=hdflons,compression="gzip")
+                dset = wet_ds.create_dataset("lats",data=hdflats,compression="gzip")
+            else:
+                dset = wet_ds.create_dataset("lons_grid",data=lons,fillvalue=0,compression="gzip")
+                dset = wet_ds.create_dataset("lats_grid",data=lats,fillvalue=0,compression="gzip")
+            # writing the heights
+            dset = wet_ds.create_dataset("heights",data=hts,compression="gzip")
+            # create teh projection string                                                                    
+            wet_ds.create_dataset('projection', data=[proj4.encode('utf-8')], dtype='S200')
+            # close the file
+            wet_ds.close()
+
         else:
             drv = gdal.GetDriverByName(outformat)
             hydro_ds = drv.Create(
