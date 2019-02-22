@@ -11,20 +11,32 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, save_flag= True):
+def download_dem(lats, lons, save_flag= True, checkDEM = True):
     print('Getting the DEM')
+
+    # Insert check for DEM noData values
+    if checkDEM:
+        lats[lats==0.] = np.nan
+        lons[lons==0.] = np.nan
+
     minlon = np.nanmin(lons) - 0.02
     maxlon = np.nanmax(lons) + 0.02
     minlat = np.nanmin(lats) - 0.02
     maxlat = np.nanmax(lats) + 0.02
 
-    print('Beginning DEM download and warping')
+    # Specify filenames
     outRaster = '/vsimem/warpedDEM'
     inRaster ='/vsicurl/{}'.format(_world_dem) 
+
+    # Download and warp
+    print('Beginning DEM download and warping')
+    
     wrpOpt = gdal.WarpOptions(outputBounds = (minlon, minlat,maxlon, maxlat))
     gdal.Warp(outRaster, inRaster, options = wrpOpt)
+
     print('DEM download finished')
 
+    # Load the DEM data
     try:
         out = util.gdal_open(outRaster)
     except:

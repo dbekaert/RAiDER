@@ -87,13 +87,42 @@ def _compute_ray(L, S, V, stepSize):
     return ray
 
 
+def _helper(tup):
+    return _compute_ray(tup[0], tup[1], tup[2], tup[3])
+    #return _compute_ray(L, S, V, stepSize)
+
+def _get_rays_p(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 4):
+    import multiprocessing as mp
+
+    # setup for multiprocessing
+    data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
+
+    pool = mp.Pool(Nproc)
+    positions_l = pool.map(helper, data)
+    return positions_l
+
+
+def _get_rays_d(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 2):
+   import dask.bag as db
+   L = db.from_sequence(lengths)
+   S = db.from_sequence(start_positions)
+   Sv = db.from_sequence(scaled_look_vecs)
+   Ss = db.from_sequence([stepSize]*len(lengths))
+
+   # setup for multiprocessing
+   data = db.zip(L, S, Sv, Ss)
+
+   positions_l = db.map(helper, data)
+   return positions_l.compute()
+
+
 def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     '''
     Create the integration points for each ray path. 
     ''' 
     positions_l= []
     for L, S, V in zip(lengths, start_positions, scaled_look_vecs):
-        positions_l.append(_compute_ray(L, S, V, stepSize))
+        positions_l.append(_helper((L, S, V, stepSize)))
 
     return positions_l
 
@@ -169,7 +198,6 @@ def _common_delay(weatherObj, lats, lons, heights,
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
 
-    
     if verbose:
         import time
         print('_common_delay: Starting look vector calculation')
@@ -579,7 +607,7 @@ def tropo_delay(los = None, lat = None, lon = None,
             weather = weather_model
             if verbose:
                 print(weather)
-                p = weather.plot()
+                #p = weather.plot()
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)

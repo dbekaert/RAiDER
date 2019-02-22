@@ -71,7 +71,7 @@ class WeatherModel():
         string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._xs.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
-        string += 'Native projectino: {}\n'.format(self._proj)
+        string += 'Native projection: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zmax)
         string += 'Minimum/Maximum y (or latitude): {: 4.2f}/{: 4.2f}\n'\
