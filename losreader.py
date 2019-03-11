@@ -183,10 +183,18 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
 
 
 def infer_los(los, lats, lons, heights, zref):
+    '''
+    Helper function to deal with various LOS files supplied
+    '''
+
     los_type, los_file = los
+
     if los_type == 'sv':
         return infer_sv(los_file, lats, lons, heights)
+
     if los_type == 'los':
         incidence, heading = util.gdal_open(los_file)
-        return los_to_lv(incidence, heading, lats, lons, heights, zref)
+        LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
+        return LOS
+
     raise ValueError("Unsupported los type '{}'".format(los_type))
