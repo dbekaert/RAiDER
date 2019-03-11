@@ -19,6 +19,7 @@ import pyproj
 import tempfile
 #import queue
 import threading
+import sys
 
 # local imports
 import constants as const
@@ -72,19 +73,29 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                               util.sind(lats))).T
                     * (zref - heights)[..., np.newaxis])
 
+
+def _compute_ray(L, S, V):
+    '''
+    Compute and return points along a ray, given a total length, 
+    start position (in x,y,z) and a unit look vector.
+    '''
+    # Have to handle the case where there are invalid data
+    try:
+        thisspace = np.arange(0, L, stepSize)
+    except ValueError:
+        thisspace = np.array([])
+    ray = S + thisspace[..., np.newaxis]*V
+    return ray
+
+
 def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     '''
     Create the integration points for each ray path. 
     ''' 
     positions_l= []
-    for L, S, V in zip(lengths, start_positions, scaled_look_vecs):
-        # Have to handle the case where there are invalid data
-        try:
-            thisspace = np.arange(0, L, stepSize)
-        except ValueError:
-            thisspace = np.array([])
-
-        positions_l.append(S + thisspace[..., np.newaxis]*V)
+    rayData = zip(lengths, start_positions, scaled_look_vecs)
+    for L, S, V in rayData:
+        positions_l.append(_compute_ray(L, S, V))
 
     return positions_l
 
@@ -557,7 +568,11 @@ def tropo_delay(los = None, lat = None, lon = None,
 
             f = os.path.join(out, wmName)
             if not os.path.exists(f):
-                weather_model.fetch(lats, lons, time, f)
+                try:
+                   weather_model.fetch(lats, lons, time, f)
+                except:
+                   print('ERROR: Unable to download weather data')
+                   sys.exit(0)
             else:
                 print('WARNING: Weather model already exists, skipping download')
             if download_only:
