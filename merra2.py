@@ -11,6 +11,8 @@ class MERRA2(WeatherModel):
     _k1 = None
     _k2 = None
     _k3 = None
+
+    _Name = 'MERRA-2'
   
     def fetch(self, lats, lons, time, out):
         """Fetch MERRA-2."""

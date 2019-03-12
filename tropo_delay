@@ -226,7 +226,7 @@ def getTropoDelay():
                         'name': 'wrf'}
         else:
             p.error('Argument --wrfmodelfiles required with --model WRF')
-    elif args.model=='ERA5':
+    elif args.model=='ERA5' or args.model == 'ERA-5':
         from era5 import ERA5
         weathers = {'type': ERA5(), 'files':None, 'name':'ERA-5'}
     else:
@@ -255,20 +255,34 @@ def getTropoDelay():
     time = args.time
     out = args.out
     wmLoc = args.wmLoc
-
+    wmName = None
     download_only = args.download_only
-
     parallel = True if not args.no_parallel else False
+
     verbose = args.verbose
-    delay.tropo_delay(los, lat, lon, heights, 
-                      weathers, zref, 
+    if verbose: 
+       print('Starting to run the weather model calculation')
+       print('Time type: {}'.format(type(time)))
+       print('Time: {}'.format(time.strftime('%Y%m%d')))
+
+       print('Weather model file location: {}'.format(wmLoc))
+       print('Parallel is {}'.format(parallel))
+
+       print('Now running delay module from: {}'.format(delay.__file__))
+
+
+    delay.tropo_delay(los, lat, lon, 
+                      heights, 
+                      weathers, 
+                      zref, 
                       out, 
                       wmLoc, 
+                      wmName,
                       time, 
                       outformat, 
                       parallel=parallel, 
-                      download_only = download_only,
-                      verbose = verbose)
+                      verbose = verbose, 
+                      download_only = download_only)
 
 
 if __name__ == '__main__':

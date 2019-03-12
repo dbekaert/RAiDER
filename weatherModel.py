@@ -93,6 +93,8 @@ class WeatherModel():
         string += 'B: {}\n'.format(self._b)
         return str(string)
 
+    def Model(self):
+        return self._Name
 
     def fetch(self, lats, lons, time, out):
         '''

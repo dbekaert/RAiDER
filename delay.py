@@ -492,6 +492,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 zref = 15000, 
                 out = None, 
                 wmLoc = None, 
+                wmName = None,
                 time = None,
                 outformat='ENVI', 
                 parallel=True,
@@ -505,6 +506,13 @@ def tropo_delay(los = None, lat = None, lon = None,
     """
     import pyproj
 
+    if verbose:
+        print('Weather Model Name: {}'.format(wmName))
+        print('type of time: {}'.format(type(time)))
+        print('Location to put/get weather model file: {}'.format(wmLoc))
+        print('Download-only is {}'.format(download_only))
+        print('Will format weather model file to: {} format'.format(outformat))
+
     if out is None:
         out = os.getcwd()
     if wmLoc is None:
@@ -514,10 +522,15 @@ def tropo_delay(los = None, lat = None, lon = None,
     weather_type = weather['type']
     weather_files = weather['files']
     weather_fmt = weather['name']
-    wmName = os.path.join(wmLoc, '{}_{}.nc'.format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
-    if verbose:
-        print('Weather Model Name: {}'.format(wmName))
+    allowedWMTypes = ['ERA-I', 'ERA-5', 'MERRA-2', 'WRF']
+   # if weather_fmt not in allowedWMTypes:
+    raise RuntimeError('Weather model type not allowed/implemented')
+
+    # weather model file for storing the weather model
+    if wmName is None:
+        wmName = os.path.join(wmLoc, '{}_{}.nc'
+                   .format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
     # For later
     str1 = time.isoformat() + "_" if time is not None else ""

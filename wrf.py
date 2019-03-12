@@ -19,6 +19,7 @@ class WRF(WeatherModel):
     
         # Currently WRF is using RH instead of Q to get E
         self._humidityType = 'rh'
+        self._Name = 'WRF'
 
 
     def load_weather(self, file1, file2):

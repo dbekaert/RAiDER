@@ -13,6 +13,7 @@ class ERAI(ECMWF):
         self._model_level_type = 'ml' # Default, pressure levels are 'pl'
         self._classname = 'ei'
         self._dataset = 'interim'
+        self._Name = 'ERA-I'
 
         self._valid_range = (datetime.date(1950,1,1),) # Tuple of min/max years where data is available. 
         self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
