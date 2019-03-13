@@ -67,7 +67,7 @@ class WeatherModel():
     def __repr__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
-        string += 'Number of points in Lat/Lon = {}/{}\n'.format(*self._xs.shape[:2])
+        string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._xs.shape[:2])
         string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._xs.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
@@ -92,6 +92,13 @@ class WeatherModel():
         string += 'A: {}\n'.format(self._a)
         string += 'B: {}\n'.format(self._b)
         return str(string)
+
+    def plot(self, index):
+        import matplotlib.pyplot as plt
+        plt.plot(self._p[index, index, :], self._zs[index, index, :])
+        plt.xlabel('Pressure')
+        plt.ylabel('Z')
+        plt.show()
 
     def Model(self):
         return self._Name
@@ -382,7 +389,10 @@ class WeatherModel():
         return self._proj
 
     def getPoints(self):
-        return self._xs,self._ys, self._zs
+        return self._xs.copy(),self._ys.copy(), self._zs.copy()
+        
+    def getLL(self):
+        return self._ys[...,0].copy(), self._xs[...,0].copy()
         
 
 

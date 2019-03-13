@@ -10,6 +10,9 @@ import sys
 import util
 from weatherModel import WeatherModel
 
+def Model():
+    return HRRR()
+
 class HRRR(WeatherModel):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
@@ -68,9 +71,22 @@ class HRRR(WeatherModel):
         if download_only:
             self._download_pressure_levels(dateTime, filename, nProc = nProc)
         elif filename is not None:
-            self._load_pressure_levels(filename = filename)
+            #TODO: either implement a NETCDF version of this, or handle both HDF5 and NETCDF
+            f = filename.replace('.nc', '.hdf5')
+            try:
+                self._load_pressure_levels(filename = f)
+            except: 
+                self._download_pressure_levels(dateTime, f, nProc = nProc)
+                self._load_pressure_levels(filename = f)
         else:
             self._load_pressure_levels(dateTime, nProc = nProc)
+
+        self._find_e()
+        self._get_wet_refractivity()
+        self._get_hydro_refractivity() 
+        
+        # adjust the grid based on the height data
+        self._adjust_grid()
 
 
     def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
@@ -79,19 +95,68 @@ class HRRR(WeatherModel):
         points left in the model (because e.g. the ROI is outside the US), raise
         an exception. 
         '''
-        mask = (self._xs > lon_min) & (self._xs < lon_max) & (self._ys > lat_min) & (self._ys < lat_max)
 
-        # if there are on points left, raise exception
-        if np.sum(mask) == 0:
+        # Have to do some complicated stuff to get a nice square box without doing the whole US
+        self._xs = self._xs.swapaxes(0,1)
+        self._ys = self._ys.swapaxes(0,1)
+        self._zs = self._zs.swapaxes(0,1)
+        self._rh = self._rh.swapaxes(0,1)
+        self._p = self._t.swapaxes(0,1)
+        self._t = self._t.swapaxes(0,1)
+
+        mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
+        mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
+        mask2 = np.sum(mask1, axis = 0).astype('bool')
+        mask4 = np.sum(mask3, axis = 1).astype('bool')
+        NptsX = self._xs.shape[1]
+        NptsY = self._xs.shape[0]
+        lonRange = np.arange(0,NptsX)
+        latRange = np.arange(0,NptsY)
+        lonx = lonRange[mask2]
+        latx = latRange[mask4]
+        zx = np.arange(0, self._zs.shape[2])
+
+        # if there are no points left, raise exception
+        if np.sum(mask2) == 0 or np.sum(mask4)==0:
             raise RuntimeError('Region of interest is outside the region of the HRRR weather archive data')
 
         # otherwise subset the data
-        self._xs = self._xs[mask]
-        self._ys = self._ys[mask]
-        self._zs = self._zs[mask]
-        self._rh = self._rh[mask]
-        self._t  = self._t[mask]
-        self._p  = self._p[mask]
+        _xs = self._xs[np.ix_(latx,lonx, zx)]
+        _ys = self._ys[np.ix_(latx,lonx, zx)]
+        _zs = self._zs[np.ix_(latx,lonx, zx)]
+        _rh = self._rh[np.ix_(latx,lonx, zx)]
+        _t  = self._t[np.ix_(latx,lonx, zx)]
+        _p  = self._p[np.ix_(latx,lonx, zx)]
+
+
+#TODO: Will need to somehow handle the non-uniform grid for interpolation
+#        # Finally interpolate to a regular grid (need to avoid this in future)
+#        xbounds = (np.min(_xs), np.max(_xs))
+#        ybounds = (np.min(_ys), np.max(_ys))
+#        xstep = ystep = 0.03 # ~3 km grid spacing in degrees
+#        _xsN, _ysN = getNewXY(xbounds, ybounds, xstep, ystep)
+#        self._zs = interp2DLayers(_xs, _ys, _zs,_xsN, _ysN)
+#        self._rh = interp2DLayers(_xs, _ys, _rh,_xsN, _ysN)
+#        self._t  = interp2DLayers(_xs, _ys, _t, _xsN, _ysN)
+#        self._p  = interp2DLayers(_xs, _ys, _p, _xsN, _ysN)
+      
+        #self._wet_refractivity = interp2DLayers(_xs, _ys, _wrf, _xsN, _ysN)
+        #self._hydrostatic_refractivity = interp2DLayers(_xs, _ys, _hrf, _xsN, _ysN)
+#        self._xs = np.broadcast_to(_xs[..., np.newaxis],
+#                                     self._zs.shape)
+#        self._ys = np.broadcast_to(_ys[..., np.newaxis],
+#                                     self._zs.shape)
+
+        self._zs = _zs.copy()
+        self._ys = _ys.copy()
+        self._xs = _xs.copy()
+        self._rh = _rh.copy()
+        self._t  = _t.copy()
+        self._p  = _p.copy()
+
+        self._find_e_from_rh()
+        self._get_wet_refractivity()
+        self._get_hydro_refractivity() 
 
 
     def _download_pressure_levels(self, dateTime, filename, nProc = 16):
@@ -110,7 +175,7 @@ class HRRR(WeatherModel):
 
         # download the 'raw' data
         lats, lons, temps, rhs, z, pl = makeDataCubes(dateTime, nProc = nProc)
-        Npl = len(pl['Values'])
+        Npl = len(pl)
         Ny, Nx = lats.shape
 
         # save the data to an HDF5 file
@@ -120,7 +185,7 @@ class HRRR(WeatherModel):
 
             pld = f.create_dataset('Pressure_levels', (Npl, ), 'f')
             pld.attrs['help'] = 'Pressure levels'
-            pld[:] = np.array(pl['Values'])
+            pld[:] = np.array(pl)
 
             lat = f.create_dataset('lats', (Ny, Nx), 'f')
             lat.attrs['help'] = 'Latitude'
@@ -153,21 +218,14 @@ class HRRR(WeatherModel):
               doi: 10.1016/j.cageo.2017.08.005.
         '''
         if filename is not None:
-            lats, lons, temps, rhs, z, pl = self._load_pressure_levels_from_file(filename)
+            lats, lons, temps, rhs, geo_hgt, pl = self._load_pressure_levels_from_file(filename)
         else:
-            lats, lons, temps, rhs, z, pl = makeDataCubes(dateTime, nProc = nProc)
-
-        lons = lons.T
-        lats = lats.T
-        rhs  = np.swapaxes(rhs, 0, 1)
-        z    = np.swapaxes(z, 0, 1)
-        temps= np.swapaxes(temps, 0, 1)
+            lats, lons, temps, rhs, geo_hgt, pl = makeDataCubes(dateTime, nProc = nProc)
 
         lons[lons > 180] -= 360
         self._proj = pyproj.Proj(proj='latlong')
 
         # data cube format should be lons, lats, heights
-        geo_hgt = z/self._g0
         _lons = np.broadcast_to(lons[..., np.newaxis],
                                      geo_hgt.shape)
         _lats = np.broadcast_to(lats[..., np.newaxis],
@@ -184,6 +242,12 @@ class HRRR(WeatherModel):
 
         self._xs = _lons
         self._ys = _lats
+
+        # flip stuff around to match convention
+        self._p = np.flip(self._p, axis = 2)
+        self._t = np.flip(self._t, axis = 2)
+        self._zs = np.flip(self._zs, axis = 2)
+        self._rh = np.flip(self._rh, axis = 2)
 
 
     def _load_pressure_levels_from_file(self, fileName):
@@ -215,6 +279,8 @@ def makeDataCubes(dateTime = None, nProc = 16):
     rhList = getRH(dateTime, pl['Values'], nProc= nProc)
     zList = getZ(dateTime, pl['Values'], nProc= nProc)
 
+    pl = [convertmb2Pa(p) for p in pl['Values']]
+
     try:
        temps = stackList(tempList)
     except:
@@ -225,8 +291,11 @@ def makeDataCubes(dateTime = None, nProc = 16):
 
     lats, lons = getLatLonsFromList(zList)
 
-    return lats, lons, temps, rhs, zs, pl
+    return lats.T, lons.T, temps.swapaxes(0,1), rhs.swapaxes(0,1), zs.swapaxes(0,1), pl
 
+
+def convertmb2Pa(pres):
+    return 100*pres
 
 def getLatLonsFromList(List):
     return List[0]['lat'], List[0]['lon']
@@ -310,7 +379,7 @@ def get_hrrr_variable(DATE, variable,
                       field='sfc',
                       removeFile=True,
                       value_only=False,
-                      verbose=False,
+                      verbose=True,
                       outDIR='./'):
     """
     Uses cURL to grab the requested variable from a HRRR grib2 file in the
@@ -602,3 +671,35 @@ def get_hrrr_variable(DATE, variable,
                 'URL': grib2file}
 
 
+def interp2DLayers(xs, ys, values, xnew, ynew):
+    '''
+    Implement a 2D interpolator to transform the non-uniform
+    HRRR grid to a uniform lat-long grid. This should be updated
+    in future to be avoided. 
+    '''
+    from scipy.interpolate import griddata
+
+    newLayer = []
+    for layerNum, layer in enumerate(np.moveaxis(values, 2, 0)):
+        newVals = griddata((xs[..., layerNum].flatten(), ys[..., layerNum].flatten()), 
+                     layer.flatten(), 
+                     (xnew, ynew), 
+                     method = 'linear')
+        newLayer.append(newVals)
+
+    newVals = np.stack(newLayer, axis =2)
+
+    return newVals
+
+
+def getNewXY(xbounds, ybounds, xstep, ystep):
+    '''
+    Get new uniform X,Y values from the bounds
+    '''
+    xnew = np.arange(xbounds[0], xbounds[1], xstep)
+    ynew =  np.arange(ybounds[0], ybounds[1], ystep)
+    [X, Y] = np.meshgrid(xnew, ynew)
+    
+    return X, Y
+
+    

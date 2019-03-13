@@ -45,6 +45,21 @@ class Interpolator:
         string += 'Current Projection: {}\n'.format(self._proj.srs if self._proj.srs is not None else None)
         string += 'Number of functions to interpolate: {}\n'.format(len(self._interp))
         string += '='*30 + '\n'
+
+        s2 = '\n'
+        s2 += 'Lat/Lon bounding box: \n'
+        s2 += '\n'
+        s2 += '-------{:.2f}-------\n'.format(self._bbox[1][1])
+        s2 += '|                   |\n'
+        s2 += '|                   |\n'
+        s2 += '|                   |\n'
+        s2 += '{:.2f}         {:.2f}\n'.format(self._bbox[0][0], self._bbox[1][0])
+        s2 += '|                   |\n'
+        s2 += '|                   |\n'
+        s2 += '|                   |\n'
+        s2 += '-------{:.2f}-------\n'.format(self._bbox[0][1])
+        string += s2
+
         return str(string)
 
     def _getShape(self, xs, ys, zs):
@@ -202,7 +217,9 @@ def _interp3D(xs, ys, zs, values, shape):
     # the native weather grid projection
     xvalues = np.unique(xs)
     yvalues = np.unique(ys)
-    interp= rgi((xvalues, yvalues, zvalues), new_var,
+
+    # TODO: temporarily switch x, y values until can confirm
+    interp= rgi((yvalues,xvalues, zvalues), new_var,
                            bounds_error=False, fill_value = np.nan)
     return interp
 
@@ -404,8 +421,10 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method=
         print('Values outside the valid range will be filled in '\
               'with NaNs or the closest non-zero value (default)')
     if np.any(np.diff(_x, axis=0) < 0):
+        print(_x[:,0,0])
         raise ValueError('x should increase monotonically')
     if np.any(np.diff(_newx, axis=0) < 0):
+        print(newx)
         raise ValueError('newx should increase monotonically')
 
     # Cubic interpolation needs the gradient of y in addition to its values

@@ -58,6 +58,9 @@ def _get_lengths(look_vecs):
     '''
     Returns the lengths of a vector or set of vectors
     '''
+    if look_vecs is Zenith:
+        return _ZREF
+
     lengths = np.linalg.norm(look_vecs, axis=-1)
     lengths[~np.isfinite(lengths)] = 0
     return lengths
@@ -124,7 +127,7 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     positions_l= []
     rayData = zip(lengths, start_positions, scaled_look_vecs)
     for L, S, V in rayData:
-        positions_l.append(_compute_ray(L, S, V))
+        positions_l.append(_compute_ray(L, S, V, stepSize))
 
     return positions_l
 
@@ -154,6 +157,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
     ifFun = intprn.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
+
     if itype == 'wet':
         ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
     elif itype == 'hydro':
@@ -162,7 +166,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
  
 
 def _common_delay(weatherObj, lats, lons, heights, 
-                  look_vecs, raytrace, 
+                  look_vecs, 
                   stepSize = _STEP, interpType = 'rgi',
                   verbose = False, nproc = 8):
     """
@@ -190,15 +194,14 @@ def _common_delay(weatherObj, lats, lons, heights,
     """
     import dask.bag as db
     import multiprocessing as mp
-
-    if raytrace:
-        correction = None
-    else:
-        correction = 1/util.cosd(look_vecs)
-        look_vecs = Zenith
-
     if look_vecs is Zenith:
+        _,_,zs = weatherObj.getPoints()
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
+        wet_pw  = weatherObj.getWetRefractivity()
+        hydro_pw= weatherObj.getHydroRefractivity()
+        wet_delays = _integrateZenith(zs, wet_pw)
+        hydro_delays = _integrateZenith(zs, hydro_pw)
+        return wet_delays,hydro_delays
 
     if verbose:
         import time
@@ -252,34 +255,50 @@ def _common_delay(weatherObj, lats, lons, heights,
     # give very good  results, in that I'm getting only a factor of 3
     # speed-up for a lot of cores, but that's 1000 seconds faster for 
     # my smal region, so worth doing. 
-    Npart = min(len(newPts)//100 + 1, 400)
-    PntBag = db.from_sequence(newPts, npartitions=Npart)
-    wet_pw = PntBag.map(interpRayWet).compute()
-    hydro_pw = PntBag.map(interpRayHydro).compute()
-    
+
+    useDask = True
+    if useDask:
+        if verbose:
+            print('Beginning interpolation using Dask')
+        Npart = min(len(newPts)//100 + 1, 400)
+        PntBag = db.from_sequence(newPts, npartitions=Npart)
+        wet_pw = PntBag.map(interpRayWet).compute()
+        hydro_pw = PntBag.map(interpRayHydro).compute()
+    else:
+        if verbose:
+            print('Beginning interpolation without Dask')
+        wet_pw, hydro_pw = [], []
+        for pnt in newPts:
+            wet_pw.append(interpRayWet(pnt))
+            hydro_pw.append(interpRayHydro(pnt))
+        
+
     if verbose:
         print('_common_delay: Finished interpolation')
         ft = time.time()
         print('Interpolation took {:4.2f} secs'.format(ft-st))
         print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(newPts)))
         print('_common_delay: finished point-wise delay calculations')
-        print('_common_delay: starting integration')
-        st = time.time()
 
+    delays = _integrateLOS(stepSize, wet_pw, hydro_pw)
+
+    return delays
+
+
+def _integrateLOS(stepSize, wet_pw, hydro_pw):
     delays = [] 
     for d in (wet_pw, hydro_pw):
         delays.append(_integrate_delays(stepSize, d))
-
-    if verbose:
-        print('_common_delay: Finished integration')
-        ft = time.time()
-        print('Integration took {:4.2f} secs'.format(ft-st))
-
-    # Finally apply cosine correction if applicable
-    if correction is not None:
-        delays = [d*correction for d in delays]
-
     return delays
+
+
+def _integrateZenith(zs, pw):
+    return np.trapz(pw, zs, axis = 2)
+
+
+# integrate the delays to get overall delay
+def int_fcn(y, dx):
+    return 1e-6*dx*np.nansum(y)
 
 
 def _integrate_delays(stepSize, refr):
@@ -287,11 +306,6 @@ def _integrate_delays(stepSize, refr):
     This function gets the actual delays by integrating the refractivity in 
     each node. Refractivity is given in the 'refr' variable. 
     '''
-
-    # integrate the delays to get overall delay
-    def int_fcn(y, dx):
-        return 1e-6*dx*np.nansum(y)
-
     delays = []
     for ray in refr:
         delays.append(int_fcn(ray, stepSize))
@@ -305,7 +319,7 @@ def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = 
         print('wet_delay: Running _common_delay for weather.wet_delay')
 
     return _common_delay(weather.wet_delay, lats, lons, heights, look_vecs,
-                         raytrace, verbose)
+                         verbose)
 
 
 def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
@@ -315,7 +329,7 @@ def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True, ve
         print('hydrostatic_delay: Running _common_delay for weather.hydrostatic_delay')
 
     return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
-                         look_vecs, raytrace, verbose)
+                         look_vecs, verbose)
 
 
 def delay_over_area(weather, 
@@ -405,12 +419,13 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
     lats, lons, hts = np.moveaxis(llas, -1, 0)
 
     # Call _common_delay to compute both the hydrostatic and wet delays
-    wet, hydro = _common_delay(weather, lats, lons, hts, los, raytrace = raytrace, verbose = verbose)
+    wet, hydro = _common_delay(weather, lats, lons, hts, los, verbose = verbose)
 #    hydro = hydrostatic_delay(weather, lats, lons, hts, los,
 #    wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
 
     # Restore shape
-    hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
+    if los is not Zenith:
+        hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
 
     return hydro, wet
 
@@ -458,12 +473,17 @@ def _tropo_delay_with_values(los, lats, lons, hts,
         los = losreader.infer_los(los, lats, lons, hts, zref)
 
     # We want to test if any shapes are different
-    if (not hts.shape == lats.shape == lons.shape
-            or los is not Zenith and los.shape[:-1] != hts.shape):
+    test1 = hts.shape == lats.shape == lons.shape
+    try:
+        test = los.shape[:-1] != hts.shape
+    except:
+        test2 = los is not Zenith
+
+    if not test1 or test2:
         raise ValueError(
          'I need lats, lons, heights, and los to all be the same shape. ' +
          'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape)+
-         'heights had shape {}, and los had shape {}'.format(hts.shape,los.shape))
+         'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
     if verbose: 
         print('_tropo_delay_with_values: called delay_from_grid')
@@ -523,9 +543,9 @@ def tropo_delay(los = None, lat = None, lon = None,
     weather_files = weather['files']
     weather_fmt = weather['name']
 
-    allowedWMTypes = ['ERA-I', 'ERA-5', 'MERRA-2', 'WRF']
-   # if weather_fmt not in allowedWMTypes:
-    raise RuntimeError('Weather model type not allowed/implemented')
+    allowedWMTypes = ['ERA-I', 'ERA-5', 'MERRA-2', 'WRF', 'HRRR', 'pickle']
+    if weather_fmt not in allowedWMTypes:
+        raise RuntimeError('Weather model {} not allowed/implemented'.format(weather_fmt))
 
     # weather model file for storing the weather model
     if wmName is None:
@@ -560,6 +580,7 @@ def tropo_delay(los = None, lat = None, lon = None,
             lats = lat
             lons = lon
             latproj = lonproj = None
+            lon = lat = None
 
     # set_geo_info should be a list of functions to call on the dataset,
     # and each will do some bit of work
@@ -598,7 +619,7 @@ def tropo_delay(los = None, lat = None, lon = None,
         if lats is None:
             lats, lons = wrf.wm_nodes(*weather_files)
     elif weather_type == 'pickle':
-        weather = util.pickle_load('weatherObj.dat')
+        weather = util.pickle_load(weather_files)
     else:
         weather_model = weather_type
         if weather_files is None:
@@ -611,8 +632,9 @@ def tropo_delay(los = None, lat = None, lon = None,
             if not os.path.exists(f):
                 try:
                    weather_model.fetch(lats, lons, time, f)
-                except:
+                except Exception as e:
                    print('ERROR: Unable to download weather data')
+                   print('Exception encountered: {}'.format(e))
                    sys.exit(0)
             else:
                 print('WARNING: Weather model already exists, skipping download')
@@ -624,9 +646,6 @@ def tropo_delay(los = None, lat = None, lon = None,
 
             weather_model.load(f)
             weather = weather_model
-            if verbose:
-                print(weather)
-                #p = weather.plot()
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)
@@ -639,6 +658,25 @@ def tropo_delay(los = None, lat = None, lon = None,
                 lla = pyproj.Proj(proj='latlong')
                 xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
                 lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
+
+    if weather_type != 'pickle':
+        try:
+            import pickle
+            with open('pickledHRRR.pik', 'wb') as f:
+                pickle.dump(weather, f)
+        except:
+            print('Tried to pickle the weather model, could not')
+
+
+    lons,lats = weather.getLL() 
+    lla = weather.getProjection()
+    if verbose:
+        print(type(weather))
+        print(weather._xs.shape)
+        print(weather)
+        #p = weather.plot(p)
+    import pdb
+    pdb.set_trace()
 
 
     # Height

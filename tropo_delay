@@ -146,6 +146,10 @@ def parse_args():
         '--model',
         help='Weather model to use',
         default='ERA-I')
+    p.add_argument(
+        '--pickleFile',
+        help='Pickle file to load',
+        default=None)
 
     wrf = p.add_argument_group(
         title='WRF',
@@ -229,6 +233,9 @@ def getTropoDelay():
     elif args.model=='ERA5' or args.model == 'ERA-5':
         from era5 import ERA5
         weathers = {'type': ERA5(), 'files':None, 'name':'ERA-5'}
+    elif args.model=='pickle':
+        import pickle
+        weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
     else:
         model_module_name = mangle_model_to_module(args.model)
         try:
@@ -237,7 +244,7 @@ def getTropoDelay():
             p.error("Couldn't find a module named {}, ".format(repr(model_module_name))+
                     "needed to load weather model {}".format(repr(args.model)))
         if args.wmnetcdf is not None:
-            weathers = {'type': model_module.Model, 'files': args.wmnetcdf,
+            weathers = {'type': model_module.Model(), 'files': args.wmnetcdf,
                         'name': args.model}
         elif args.time is None:
             p.error('Must specify one of --wmnetcdf or --time (so I can '
@@ -246,7 +253,7 @@ def getTropoDelay():
             p.error('Must specify one of --wmnetcdf or --area (so I can '
                     'figure out what to download)')
         else:
-            weathers = {'type': model_module.Model, 'files': None,
+            weathers = {'type': model_module.Model(), 'files': None,
                         'name': args.model}
 
     # zref
