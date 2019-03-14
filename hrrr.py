@@ -101,7 +101,7 @@ class HRRR(WeatherModel):
         self._ys = self._ys.swapaxes(0,1)
         self._zs = self._zs.swapaxes(0,1)
         self._rh = self._rh.swapaxes(0,1)
-        self._p = self._t.swapaxes(0,1)
+        self._p = self._p.swapaxes(0,1)
         self._t = self._t.swapaxes(0,1)
 
         mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
@@ -239,7 +239,6 @@ class HRRR(WeatherModel):
 
         self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
                                   self._zs.shape)
-
         self._xs = _lons
         self._ys = _lats
 

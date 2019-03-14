@@ -293,7 +293,7 @@ def _integrateLOS(stepSize, wet_pw, hydro_pw):
 
 
 def _integrateZenith(zs, pw):
-    return np.trapz(pw, zs, axis = 2)
+    return 1e-6*np.trapz(pw, zs, axis = 2)
 
 
 # integrate the delays to get overall delay
@@ -516,6 +516,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 time = None,
                 outformat='ENVI', 
                 parallel=True,
+                writeLL = True,
                 verbose = False, 
                 download_only = False):
     """Calculate troposphere delay from command-line arguments.
@@ -668,15 +669,24 @@ def tropo_delay(los = None, lat = None, lon = None,
             print('Tried to pickle the weather model, could not')
 
 
-    lons,lats = weather.getLL() 
+    # must be done even if it already exists
+    lats,lons = weather.getLL() 
+
+    if writeLL: 
+       import util
+       lonFileName = '{}_Lon_{}.dat'.format(weather_fmt, 
+                         datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+       latFileName = '{}_Lat_{}.dat'.format(weather_fmt, 
+                         datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+       util.writeArrayToRaster(lons, lonFileName)
+       util.writeArrayToRaster(lats, latFileName)
+
     lla = weather.getProjection()
     if verbose:
         print(type(weather))
         print(weather._xs.shape)
         print(weather)
         #p = weather.plot(p)
-    import pdb
-    pdb.set_trace()
 
 
     # Height
