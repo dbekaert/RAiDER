@@ -426,8 +426,10 @@ def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose =
 #    wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
 
     # Restore shape
-    if los is not Zenith:
+    try:
         hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
+    except:
+        pass
 
     return hydro, wet
 
@@ -477,7 +479,7 @@ def _tropo_delay_with_values(los, lats, lons, hts,
     # We want to test if any shapes are different
     test1 = hts.shape == lats.shape == lons.shape
     try:
-        test = los.shape[:-1] != hts.shape
+        test2 = los.shape[:-1] != hts.shape
     except:
         test2 = los is not Zenith
 
