@@ -195,13 +195,13 @@ def _common_delay(weatherObj, lats, lons, heights,
     import dask.bag as db
     import multiprocessing as mp
     if look_vecs is Zenith:
-        _,_,zs = weatherObj.getPoints()
+#        _,_,zs = weatherObj.getPoints()
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
-        wet_pw  = weatherObj.getWetRefractivity()
-        hydro_pw= weatherObj.getHydroRefractivity()
-        wet_delays = _integrateZenith(zs, wet_pw)
-        hydro_delays = _integrateZenith(zs, hydro_pw)
-        return wet_delays,hydro_delays
+#        wet_pw  = weatherObj.getWetRefractivity()
+#        hydro_pw= weatherObj.getHydroRefractivity()
+#        wet_delays = _integrateZenith(zs, wet_pw)
+#        hydro_delays = _integrateZenith(zs, hydro_pw)
+#        return wet_delays,hydro_delays
 
     if verbose:
         import time
@@ -242,6 +242,8 @@ def _common_delay(weatherObj, lats, lons, heights,
         st = time.time()
 
     # Define the interpolator
+    import pdb
+    pdb.set_trace()
     ifWet = getIntFcn(weatherObj,interpType =interpType)
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
 
@@ -672,6 +674,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     # must be done even if it already exists
     lats,lons = weather.getLL() 
 
+    writeLL = False
     if writeLL: 
        import util
        lonFileName = '{}_Lon_{}.dat'.format(weather_fmt, 
@@ -688,10 +691,10 @@ def tropo_delay(los = None, lat = None, lon = None,
         print(weather)
         #p = weather.plot(p)
 
-
     # Height
     if height_type == 'dem':
         try:
+            import util
             hts = util.gdal_open(height_info)
         except RuntimeError:
             print('WARNING: File {} could not be opened, proceeding with DEM download'.format(height_info))

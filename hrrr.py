@@ -42,6 +42,16 @@ class HRRR(WeatherModel):
         self._Name = 'HRRR'
 
 
+#        lon0 = f.STAND_LON.copy()
+#        lat0 = f.MOAD_CEN_LAT.copy()
+#        lat1 = f.TRUELAT1.copy()
+#        lat2 = f.TRUELAT2.copy()
+#                             lat_2=lat2, lat_0=lat0,
+#                             lon_0=lon0, a=6370, b=6370,
+#                             towgs84=(0,0,0), no_defs=True)
+#        self._proj = p1
+
+
     def load(self, filename = None):
         if self._p is not None:
             pass 
