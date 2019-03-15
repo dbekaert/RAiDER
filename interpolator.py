@@ -70,12 +70,12 @@ class Interpolator:
 
     def _getBBox(self):
         if len(self._xs) > 0:
-            x1 = np.min(self._xs)
-            x2 = np.max(self._xs)
-            y1 = np.min(self._ys)
-            y2 = np.max(self._ys)
-            z1 = np.min(self._zs)
-            z2 = np.max(self._zs)
+            x1 = np.nanmin(self._xs)
+            x2 = np.nanmax(self._xs)
+            y1 = np.nanmin(self._ys)
+            y2 = np.nanmax(self._ys)
+            z1 = np.nanmin(self._zs)
+            z2 = np.nanmax(self._zs)
             self._bbox = [(x1, y1, z1), (x2, y2, z2)]
         else:
             self._bbox = None
@@ -86,13 +86,13 @@ class Interpolator:
         '''
         self._proj = proj
  
-    def reProject(self, new_proj):
-        '''
-        Project a set of points into a different coordinate system.
-        old_proj and new_proj should be pyproj projection objects. 
-        '''
-        self._xs, self._ys, self._zs = pyproj.transform(self._proj,new_proj, self._xs, self._ys, self._zs)
-        self._proj = new_proj
+#    def reProject(self, new_proj):
+#        '''
+#        Project a set of points into a different coordinate system.
+#        old_proj and new_proj should be pyproj projection objects. 
+#        '''
+#        self._xs, self._ys, self._zs = pyproj.transform(self._proj,new_proj, self._xs, self._ys, self._zs)
+#        self._proj = new_proj
 
     def setPoints(self, xs, ys, zs):
         '''

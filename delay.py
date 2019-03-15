@@ -148,7 +148,7 @@ def _re_project(tup):
     return newPnt
 
 
-def getIntFcn(weatherObj, itype = 'wet', interpType = 'rgi'):
+def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     '''
     Function to create and return an Interpolator object
     '''
@@ -232,6 +232,7 @@ def _common_delay(weatherObj, lats, lons, heights,
     def f(x):
         return _transform(x, ecef, newProj)
     newPts = list(map(f, positions_l))
+    newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
 
     if verbose:
         print('_common_delay: Finished re-projecting')
@@ -242,39 +243,45 @@ def _common_delay(weatherObj, lats, lons, heights,
         st = time.time()
 
     # Define the interpolator
-    import pdb
-    pdb.set_trace()
+    #interpType = 'scipy'
     ifWet = getIntFcn(weatherObj,interpType =interpType)
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
-
-    # call the interpolator on each ray
-    def interpRayWet(ray):
-        return ifWet(ray)[0]
-    def interpRayHydro(ray):
-        return ifHydro(ray)[0]
 
     # Use dask to parallelize the interpolation. Unfortunately does not
     # give very good  results, in that I'm getting only a factor of 3
     # speed-up for a lot of cores, but that's 1000 seconds faster for 
     # my smal region, so worth doing. 
 
-    useDask = True
+    useDask =False
     if useDask:
         if verbose:
             print('Beginning interpolation using Dask')
         Npart = min(len(newPts)//100 + 1, 400)
         PntBag = db.from_sequence(newPts, npartitions=Npart)
-        wet_pw = PntBag.map(interpRayWet).compute()
-        hydro_pw = PntBag.map(interpRayHydro).compute()
+        wet_pw = PntBag.map(interpRay).compute()
+        hydro_pw = PntBag.map(interpRay).compute()
     else:
         if verbose:
             print('Beginning interpolation without Dask')
-        wet_pw, hydro_pw = [], []
-        for pnt in newPts:
-            wet_pw.append(interpRayWet(pnt))
-            hydro_pw.append(interpRayHydro(pnt))
-        
+        import multiprocessing as mp
+        pool = mp.Pool(12)
+        inp1 = zip([ifWet]*len(newPts), newPts)
+        inp2 = zip([ifHydro]*len(newPts), newPts)
 
+        wet_pw = pool.map(interpRay,inp1)
+        hydro_pw = pool.map(interpRay, inp2)
+
+ #       wet_pw, hydro_pw = [], []
+ #       count = 0
+ #       for pnt in newPts:
+ #           wet_pw.append(interpRay((ifWet, pnt)))
+ #           hydro_pw.append(interpRay((ifHydro, pnt)))
+ #           count = count+1
+ ##           if count > len(newPts)/2:
+ #               import pdb
+ #               pdb.set_trace()
+       
+  
     if verbose:
         print('_common_delay: Finished interpolation')
         ft = time.time()
@@ -285,6 +292,12 @@ def _common_delay(weatherObj, lats, lons, heights,
     delays = _integrateLOS(stepSize, wet_pw, hydro_pw)
 
     return delays
+
+
+# call the interpolator on each ray
+def interpRay(tup):
+    fcn, ray = tup
+    return fcn(ray)[0]
 
 
 def _integrateLOS(stepSize, wet_pw, hydro_pw):
@@ -530,6 +543,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     file.
     """
     import pyproj
+    import util
 
     if verbose:
         print('Weather Model Name: {}'.format(wmName))
@@ -582,6 +596,10 @@ def tropo_delay(los = None, lat = None, lon = None,
             lats, latproj = util.gdal_open(lat, returnProj = True)
             lons, lonproj = util.gdal_open(lon, returnProj = True)
         except:
+            print('Could not open lat/lon files, assuming that they are numbers')
+            print('Lat: {}'.format(lat))
+            import time
+            time.sleep(10)
             lats = lat
             lons = lon
             latproj = lonproj = None
@@ -674,11 +692,15 @@ def tropo_delay(los = None, lat = None, lon = None,
 
 
     # must be done even if it already exists
-    lats,lons = weather.getLL() 
+    try:
+        lats[2,3]
+    except:
+        if verbose:
+            print('Pulling in the native weather model projection')
+        lats,lons = weather.getLL() 
 
     writeLL = False
     if writeLL: 
-       import util
        lonFileName = '{}_Lon_{}.dat'.format(weather_fmt, 
                          datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
        latFileName = '{}_Lat_{}.dat'.format(weather_fmt, 
@@ -696,7 +718,6 @@ def tropo_delay(los = None, lat = None, lon = None,
     # Height
     if height_type == 'dem':
         try:
-            import util
             hts = util.gdal_open(height_info)
         except RuntimeError:
             print('WARNING: File {} could not be opened, proceeding with DEM download'.format(height_info))

@@ -67,7 +67,7 @@ class HRRR(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at the HRRR archive (see documentation below)
-        self.load_weather(time, out, download_only = False, nProc = self._Nproc)
+        self.load_weather(dateTime = time, filename = out, download_only = False, nProc = self._Nproc)
         self._restrict_model(lat_min, lat_max, lon_min, lon_max)
 
 
@@ -138,32 +138,30 @@ class HRRR(WeatherModel):
         _t  = self._t[np.ix_(latx,lonx, zx)]
         _p  = self._p[np.ix_(latx,lonx, zx)]
 
-
 #TODO: Will need to somehow handle the non-uniform grid for interpolation
-#        # Finally interpolate to a regular grid (need to avoid this in future)
-#        xbounds = (np.min(_xs), np.max(_xs))
-#        ybounds = (np.min(_ys), np.max(_ys))
-#        xstep = ystep = 0.03 # ~3 km grid spacing in degrees
-#        _xsN, _ysN = getNewXY(xbounds, ybounds, xstep, ystep)
-#        self._zs = interp2DLayers(_xs, _ys, _zs,_xsN, _ysN)
-#        self._rh = interp2DLayers(_xs, _ys, _rh,_xsN, _ysN)
-#        self._t  = interp2DLayers(_xs, _ys, _t, _xsN, _ysN)
-#        self._p  = interp2DLayers(_xs, _ys, _p, _xsN, _ysN)
-      
-        #self._wet_refractivity = interp2DLayers(_xs, _ys, _wrf, _xsN, _ysN)
-        #self._hydrostatic_refractivity = interp2DLayers(_xs, _ys, _hrf, _xsN, _ysN)
-#        self._xs = np.broadcast_to(_xs[..., np.newaxis],
-#                                     self._zs.shape)
-#        self._ys = np.broadcast_to(_ys[..., np.newaxis],
-#                                     self._zs.shape)
+        # Finally interpolate to a regular grid (need to avoid this in future)
+        xbounds = (np.min(_xs), np.max(_xs))
+        ybounds = (np.min(_ys), np.max(_ys))
+        xstep = ystep = 0.03 # ~3 km grid spacing in degrees
+        _xsN, _ysN = getNewXY(xbounds, ybounds, xstep, ystep)
+        self._zs = interp2DLayers(_xs, _ys, _zs,_xsN, _ysN)
+        self._rh = interp2DLayers(_xs, _ys, _rh,_xsN, _ysN)
+        self._t  = interp2DLayers(_xs, _ys, _t, _xsN, _ysN)
+        self._p  = interp2DLayers(_xs, _ys, _p, _xsN, _ysN)
+     
+       #self._wet_refractivity = interp2DLayers(_xs, _ys, _wrf, _xsN, _ysN)
+       #self._hydrostatic_refractivity = interp2DLayers(_xs, _ys, _hrf, _xsN, _ysN)
+        self._xs = np.broadcast_to(_xsN[..., np.newaxis],
+                                     self._zs.shape)
+        self._ys = np.broadcast_to(_ysN[..., np.newaxis],
+                                     self._zs.shape)
 
-        self._zs = _zs.copy()
-        self._ys = _ys.copy()
-        self._xs = _xs.copy()
-        self._rh = _rh.copy()
-        self._t  = _t.copy()
-        self._p  = _p.copy()
-
+#        self._zs = _zs.copy()
+#        self._ys = _ys.copy()
+#        self._xs = _xs.copy()
+#        self._rh = _rh.copy()
+#        self._t  = _t.copy()
+#        self._p  = _p.copy()
         self._find_e_from_rh()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
@@ -680,23 +678,35 @@ def get_hrrr_variable(DATE, variable,
                 'URL': grib2file}
 
 
+def interp2D(tup):
+    from scipy.interpolate import griddata
+
+    xs, ys, values, xnew, ynew = tup
+    new = griddata((xs, ys),values, (xnew, ynew), method = 'linear')
+    return new
+
 def interp2DLayers(xs, ys, values, xnew, ynew):
     '''
     Implement a 2D interpolator to transform the non-uniform
     HRRR grid to a uniform lat-long grid. This should be updated
     in future to be avoided. 
     '''
-    from scipy.interpolate import griddata
+    print('Interpolating to a uniform grid in 2D')
+    import multiprocessing as mp
 
-    newLayer = []
+    # set up the parallel interpolation
+    tupList = []
     for layerNum, layer in enumerate(np.moveaxis(values, 2, 0)):
-        newVals = griddata((xs[..., layerNum].flatten(), ys[..., layerNum].flatten()), 
-                     layer.flatten(), 
-                     (xnew, ynew), 
-                     method = 'linear')
-        newLayer.append(newVals)
+        tup = (xs[..., layerNum].flatten(), ys[..., layerNum].flatten(),
+               layer.flatten(),xnew, ynew)
+        tupList.append(tup)
 
-    newVals = np.stack(newLayer, axis =2)
+    pool = mp.Pool(12)
+    newLayers = pool.map(interp2D, tupList)
+ #   newLayers = []
+ #   for tup in tupList:
+ #       newLayers.append(interp2D(tup))
+    newVals = np.stack(newLayers, axis =2)
 
     return newVals
 
