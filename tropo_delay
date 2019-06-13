@@ -182,6 +182,8 @@ def parse_args():
 
     p.add_argument('--download_only', action='store_true',dest='download_only', default = False, help='Download weather model only without processing? Default False')
 
+    p.add_argument('--writeLatLonFile', '-w', action='store_true',dest='writeLLFile', default = False, help='Write weather model lat/lons to file? Default False')
+
     p.add_argument('--verbose', '-v', action='store_true',dest='verbose', default = False, help='Run in verbose (debug) mode? Default False')
 
     return p.parse_args(), p
@@ -265,6 +267,7 @@ def getTropoDelay():
     wmName = None
     download_only = args.download_only
     parallel = True if not args.no_parallel else False
+    writeLL = args.writeLLFile
 
     verbose = args.verbose
     if verbose: 
@@ -288,6 +291,7 @@ def getTropoDelay():
                       time, 
                       outformat, 
                       parallel=parallel, 
+                      writeLL = writeLL,
                       verbose = verbose, 
                       download_only = download_only)
 

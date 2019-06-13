@@ -146,7 +146,8 @@ def _transform(ray, oldProj, newProj):
 def _re_project(tup): 
     newPnt = _transform(tup[0],tup[1], tup[2])
     return newPnt
-
+def f(x):
+    return _transform(x, ecef, newProj)
 
 def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     '''
@@ -168,7 +169,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, 
                   stepSize = _STEP, interpType = 'rgi',
-                  verbose = False, nproc = 8):
+                  verbose = False, nproc = 8, useDask = True):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -195,13 +196,13 @@ def _common_delay(weatherObj, lats, lons, heights,
     import dask.bag as db
     import multiprocessing as mp
     if look_vecs is Zenith:
-#        _,_,zs = weatherObj.getPoints()
+        _,_,zs = weatherObj.getPoints()
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
-#        wet_pw  = weatherObj.getWetRefractivity()
-#        hydro_pw= weatherObj.getHydroRefractivity()
-#        wet_delays = _integrateZenith(zs, wet_pw)
-#        hydro_delays = _integrateZenith(zs, hydro_pw)
-#        return wet_delays,hydro_delays
+        wet_pw  = weatherObj.getWetRefractivity()
+        hydro_pw= weatherObj.getHydroRefractivity()
+        wet_delays = _integrateZenith(zs, wet_pw)
+        hydro_delays = _integrateZenith(zs, hydro_pw)
+        return wet_delays,hydro_delays
 
     if verbose:
         import time
@@ -229,9 +230,18 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     ecef = pyproj.Proj(proj='geocent')
     newProj = weatherObj.getProjection()
-    def f(x):
-        return _transform(x, ecef, newProj)
-    newPts = list(map(f, positions_l))
+    if useDask:
+        if verbose:
+            print('Beginning re-projection using Dask')
+        Npart = min(len(positions_l)//100 + 1, 1000)
+        bag = [(pos, ecef, newProj) for pos in positions_l]
+        PntBag = db.from_sequence(bag, npartitions=Npart)
+        newPts = PntBag.map(_re_project).compute()
+    else:
+        if verbose:
+            print('Beginning re-projection without Dask')
+        newPts = list(map(f, positions_l))
+
     newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
 
     if verbose:
@@ -252,11 +262,10 @@ def _common_delay(weatherObj, lats, lons, heights,
     # speed-up for a lot of cores, but that's 1000 seconds faster for 
     # my smal region, so worth doing. 
 
-    useDask =False
     if useDask:
         if verbose:
             print('Beginning interpolation using Dask')
-        Npart = min(len(newPts)//100 + 1, 400)
+        Npart = min(len(newPts)//100 + 1, 1000)
         PntBag = db.from_sequence(newPts, npartitions=Npart)
         wet_pw = PntBag.map(interpRay).compute()
         hydro_pw = PntBag.map(interpRay).compute()
@@ -292,6 +301,39 @@ def _common_delay(weatherObj, lats, lons, heights,
     delays = _integrateLOS(stepSize, wet_pw, hydro_pw)
 
     return delays
+
+def deep_getsizeof(o, ids): 
+   '''Find the memory footprint of a Python object
+   
+   This is a recursive function that drills down a Python object graph
+   like a dictionary holding nested dictionaries with lists of lists
+   and tuples and sets.
+   
+   The sys.getsizeof function does a shallow size of only. It counts each
+   object inside a container as pointer only regardless of how big it
+   really is.
+   
+   :param o: the object
+   :param ids:
+   :return:
+   '''
+   from collections import Mapping, Container 
+   from sys import getsizeof
+   
+   d = deep_getsizeof
+   if id(o) in ids:
+       return 0
+   
+   r = getsizeof(o)
+   ids.add(id(o))
+   
+   if isinstance(o, Mapping):
+       return r + sum(d(k, ids) + d(v, ids) for k, v in o.iteritems())
+   
+   if isinstance(o, Container):
+       return r + sum(d(x, ids) for x in o)
+   
+   return r
 
 
 # call the interpolator on each ray
@@ -533,7 +575,7 @@ def tropo_delay(los = None, lat = None, lon = None,
                 time = None,
                 outformat='ENVI', 
                 parallel=True,
-                writeLL = True,
+                writeLL = False,
                 verbose = False, 
                 download_only = False):
     """Calculate troposphere delay from command-line arguments.
@@ -598,8 +640,8 @@ def tropo_delay(los = None, lat = None, lon = None,
         except:
             print('Could not open lat/lon files, assuming that they are numbers')
             print('Lat: {}'.format(lat))
-            import time
-            time.sleep(10)
+            import time as Time
+            Time.sleep(10)
             lats = lat
             lons = lon
             latproj = lonproj = None
@@ -691,7 +733,7 @@ def tropo_delay(los = None, lat = None, lon = None,
             print('Tried to pickle the weather model, could not')
 
 
-    # must be done even if it already exists
+    # TODO: Need to implement a better check
     try:
         lats[2,3]
     except:
@@ -699,14 +741,13 @@ def tropo_delay(los = None, lat = None, lon = None,
             print('Pulling in the native weather model projection')
         lats,lons = weather.getLL() 
 
-    writeLL = False
     if writeLL: 
        lonFileName = '{}_Lon_{}.dat'.format(weather_fmt, 
                          datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
        latFileName = '{}_Lat_{}.dat'.format(weather_fmt, 
                          datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-       util.writeArrayToRaster(lons, lonFileName)
-       util.writeArrayToRaster(lats, latFileName)
+       util.writeArrayToRaster(weather._xs[...,0], lonFileName)
+       util.writeArrayToRaster(weather._ys[...,0], latFileName)
 
     lla = weather.getProjection()
     if verbose:

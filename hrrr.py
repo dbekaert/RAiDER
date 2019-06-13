@@ -86,7 +86,7 @@ class HRRR(WeatherModel):
             try:
                 self._load_pressure_levels(filename = f)
             except: 
-                self._download_pressure_levels(dateTime, f, nProc = nProc)
+                self._download_pressure_levels(dateTime, filename=f, nProc = nProc)
                 self._load_pressure_levels(filename = f)
         else:
             self._load_pressure_levels(dateTime, nProc = nProc)
@@ -139,29 +139,29 @@ class HRRR(WeatherModel):
         _p  = self._p[np.ix_(latx,lonx, zx)]
 
 #TODO: Will need to somehow handle the non-uniform grid for interpolation
-        # Finally interpolate to a regular grid (need to avoid this in future)
-        xbounds = (np.min(_xs), np.max(_xs))
-        ybounds = (np.min(_ys), np.max(_ys))
-        xstep = ystep = 0.03 # ~3 km grid spacing in degrees
-        _xsN, _ysN = getNewXY(xbounds, ybounds, xstep, ystep)
-        self._zs = interp2DLayers(_xs, _ys, _zs,_xsN, _ysN)
-        self._rh = interp2DLayers(_xs, _ys, _rh,_xsN, _ysN)
-        self._t  = interp2DLayers(_xs, _ys, _t, _xsN, _ysN)
-        self._p  = interp2DLayers(_xs, _ys, _p, _xsN, _ysN)
-     
-       #self._wet_refractivity = interp2DLayers(_xs, _ys, _wrf, _xsN, _ysN)
-       #self._hydrostatic_refractivity = interp2DLayers(_xs, _ys, _hrf, _xsN, _ysN)
-        self._xs = np.broadcast_to(_xsN[..., np.newaxis],
-                                     self._zs.shape)
-        self._ys = np.broadcast_to(_ysN[..., np.newaxis],
-                                     self._zs.shape)
+#        # Finally interpolate to a regular grid (need to avoid this in future)
+#        xbounds = (np.min(_xs), np.max(_xs))
+#        ybounds = (np.min(_ys), np.max(_ys))
+#        xstep = ystep = 0.03 # ~3 km grid spacing in degrees
+#        _xsN, _ysN = getNewXY(xbounds, ybounds, xstep, ystep)
+#        self._zs = interp2DLayers(_xs, _ys, _zs,_xsN, _ysN)
+#        self._rh = interp2DLayers(_xs, _ys, _rh,_xsN, _ysN)
+#        self._t  = interp2DLayers(_xs, _ys, _t, _xsN, _ysN)
+#        self._p  = interp2DLayers(_xs, _ys, _p, _xsN, _ysN)
+#     
+#       #self._wet_refractivity = interp2DLayers(_xs, _ys, _wrf, _xsN, _ysN)
+#       #self._hydrostatic_refractivity = interp2DLayers(_xs, _ys, _hrf, _xsN, _ysN)
+#        self._xs = np.broadcast_to(_xsN[..., np.newaxis],
+#                                     self._zs.shape)
+#        self._ys = np.broadcast_to(_ysN[..., np.newaxis],
+#                                     self._zs.shape)
 
-#        self._zs = _zs.copy()
-#        self._ys = _ys.copy()
-#        self._xs = _xs.copy()
-#        self._rh = _rh.copy()
-#        self._t  = _t.copy()
-#        self._p  = _p.copy()
+        self._zs = _zs.copy()
+        self._ys = _ys.copy()
+        self._xs = _xs.copy()
+        self._rh = _rh.copy()
+        self._t  = _t.copy()
+        self._p  = _p.copy()
         self._find_e_from_rh()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
@@ -225,9 +225,9 @@ class HRRR(WeatherModel):
               Computers and Geosciences. 109, 43-50. 
               doi: 10.1016/j.cageo.2017.08.005.
         '''
-        if filename is not None:
+        try:
             lats, lons, temps, rhs, geo_hgt, pl = self._load_pressure_levels_from_file(filename)
-        else:
+        except:
             lats, lons, temps, rhs, geo_hgt, pl = makeDataCubes(dateTime, nProc = nProc)
 
         lons[lons > 180] -= 360
