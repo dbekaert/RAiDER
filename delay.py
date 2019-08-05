@@ -39,21 +39,6 @@ class Zenith:
     pass
 
 
-def _too_high(positions, zref):
-    """Find index of first position higher than zref.
-
-    This is useful when we're trying to cut off integration at the top
-    of the troposphere. I calculate the list of all points, then use
-    this function to compute the first index above the troposphere, then
-    I can cut the list down to just the important points.
-    """
-    positions_ecef = np.moveaxis(positions, -1, 0)
-    positions_lla = np.stack(util.ecef2lla(*positions_ecef))
-    high_indices = np.where(positions_lla[2] > zref)[0]
-    first_high_index = high_indices[0] if high_indices.size else len(positions)
-    return first_high_index
-
-
 def _get_lengths(look_vecs):
     '''
     Returns the lengths of a vector or set of vectors
@@ -196,8 +181,21 @@ def _common_delay(weatherObj, lats, lons, heights,
      delays     - A list containing the wet and hydrostatic delays for each ground point in 
                   meters. 
     """
-    import dask.bag as db
-    import multiprocessing as mp
+
+    # If the number of points to interpolate are low, don't parallelize
+    if np.prod(lats.shape) < parThresh:
+       useDask = False
+       nproc = 1
+
+    # Determine if/what type of parallization to use
+    if useDask:
+       import dask.bag as db
+    elif nproc > 1:
+       import multiprocessing as mp
+    else:
+       pass
+
+    # If weather model nodes only are desired, the calculation is very quick
     if look_vecs is Zenith:
         _,_,zs = weatherObj.getPoints()
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
@@ -213,8 +211,9 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: The integration stepsize is {} m'.format(stepSize))
         st = time.time()
 
-    # TODO: check adding accuracy of last fraction of the point
+    # Otherwise, set off on the interpolation road
     mask = np.isnan(heights)
+
     # Get the integration points along the look vectors
     # First get the length of each look vector, get integration steps along 
     # each, then get the unit vector pointing in the same direction
@@ -255,16 +254,11 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('_common_delay: Starting Interpolation')
         st = time.time()
 
-    # Define the interpolator
-    #interpType = 'scipy'
+    # Define the interpolator objects
     ifWet = getIntFcn(weatherObj,interpType =interpType)
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
 
-    # Use dask to parallelize the interpolation. Unfortunately does not
-    # give very good  results, in that I'm getting only a factor of 3
-    # speed-up for a lot of cores, but that's 1000 seconds faster for 
-    # my smal region, so worth doing. 
-
+    # Depending on parallelization, do the interpolation
     if useDask:
         if verbose:
             print('Beginning interpolation using Dask')
@@ -272,7 +266,7 @@ def _common_delay(weatherObj, lats, lons, heights,
         PntBag = db.from_sequence(newPts, npartitions=Npart)
         wet_pw = PntBag.map(interpRay).compute()
         hydro_pw = PntBag.map(interpRay).compute()
-    else:
+    elif nproc > 1:
         if verbose:
             print('Beginning interpolation without Dask')
         import multiprocessing as mp
@@ -282,16 +276,13 @@ def _common_delay(weatherObj, lats, lons, heights,
 
         wet_pw = pool.map(interpRay,inp1)
         hydro_pw = pool.map(interpRay, inp2)
-
- #       wet_pw, hydro_pw = [], []
- #       count = 0
- #       for pnt in newPts:
- #           wet_pw.append(interpRay((ifWet, pnt)))
- #           hydro_pw.append(interpRay((ifHydro, pnt)))
- #           count = count+1
- ##           if count > len(newPts)/2:
- #               import pdb
- #               pdb.set_trace()
+    else:
+        wet_pw, hydro_pw = [], []
+        count = 0
+        for pnt in newPts:
+            wet_pw.append(interpRay((ifWet, pnt)))
+            hydro_pw.append(interpRay((ifHydro, pnt)))
+            count = count+1
        
   
     if verbose:
@@ -301,42 +292,10 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(newPts)))
         print('_common_delay: finished point-wise delay calculations')
 
+    # intergrate the point-wise delays to get total slant delay
     delays = _integrateLOS(stepSize, wet_pw, hydro_pw)
 
     return delays
-
-def deep_getsizeof(o, ids): 
-   '''Find the memory footprint of a Python object
-   
-   This is a recursive function that drills down a Python object graph
-   like a dictionary holding nested dictionaries with lists of lists
-   and tuples and sets.
-   
-   The sys.getsizeof function does a shallow size of only. It counts each
-   object inside a container as pointer only regardless of how big it
-   really is.
-   
-   :param o: the object
-   :param ids:
-   :return:
-   '''
-   from collections import Mapping, Container 
-   from sys import getsizeof
-   
-   d = deep_getsizeof
-   if id(o) in ids:
-       return 0
-   
-   r = getsizeof(o)
-   ids.add(id(o))
-   
-   if isinstance(o, Mapping):
-       return r + sum(d(k, ids) + d(v, ids) for k, v in o.iteritems())
-   
-   if isinstance(o, Container):
-       return r + sum(d(x, ids) for x in o)
-   
-   return r
 
 
 # call the interpolator on each ray
@@ -356,11 +315,6 @@ def _integrateZenith(zs, pw):
     return 1e-6*np.trapz(pw, zs, axis = 2)
 
 
-# integrate the delays to get overall delay
-def int_fcn(y, dx):
-    return 1e-6*dx*np.nansum(y)
-
-
 def _integrate_delays(stepSize, refr):
     '''
     This function gets the actual delays by integrating the refractivity in 
@@ -370,6 +324,11 @@ def _integrate_delays(stepSize, refr):
     for ray in refr:
         delays.append(int_fcn(ray, stepSize))
     return delays
+
+
+# integrate the delays to get overall delay
+def int_fcn(y, dx):
+    return 1e-6*dx*np.nansum(y)
 
 
 def delay_over_area(weather, 
@@ -397,35 +356,6 @@ def delay_over_area(weather,
         print('delay_over_area: running delay_from_grid')
 
     return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
-
-
-def _parmap(f, i):
-    """Execute f on elements of i in parallel."""
-    # Queue of jobs
-    q = queue.Queue()
-    # Space for answers
-    answers = list()
-    for idx, x in enumerate(i):
-        q.put((idx, x))
-        answers.append(None)
-
-    def go():
-        while True:
-            try:
-                i, elem = q.get_nowait()
-            except queue.Empty:
-                break
-            answers[i] = f(elem)
-
-    threads = [threading.Thread(target=go) for _ in range(os.cpu_count())]
-
-    for thread in threads:
-        thread.start()
-
-    for thread in threads:
-        thread.join()
-
-    return answers
 
 
 def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose = False):
