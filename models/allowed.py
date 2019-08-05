@@ -15,7 +15,7 @@ def AllowedModels():
     return allowedModels
 
 
-def checkModel(modelName):
+def checkIfImplemented(modelName):
     '''
     Check whether the input model name has been implemented
     '''

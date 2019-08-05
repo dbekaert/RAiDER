@@ -505,7 +505,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     _tropo_delay_with_values. Then we'll write the output to the output
     file.
     """
-    from models.allowed import checkModel
+    from models.allowed import checkIfImplemented
     from datetime import datetime as dt
 
     if verbose:
@@ -522,18 +522,11 @@ def tropo_delay(los = None, lat = None, lon = None,
     weather_type = weather['type']
     weather_files = weather['files']
     weather_model_name = weather['name']
-    checkModel(weather_model_name)
+    checkIfImplemented(weather_model_name)
     
     # For later
-    str1 = time.isoformat() + "_" if time is not None else ""
-    str2 = "z" if los is None else "s" 
-    str3 = 'td.{}'.format(outformat)
-    hydroname, wetname = (
-        '{}_{}_'.format(weather_model_name, dtyp) + str1 + str2 + str3
-        for dtyp in ('hydro', 'wet'))
-
-    hydro_file_name = os.path.join(out, hydroname)
-    wet_file_name = os.path.join(out, wetname)
+    wet_file_name, hydro_file_name = util.makeDelayFileNames(time, 
+                                         los,outformat, weather_model_name, out)
 
     # set_geo_info should be a list of functions to call on the dataset,
     # and each will do some bit of work

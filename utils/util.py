@@ -360,3 +360,19 @@ def Chunk(iterable, n):
     chunksize = int(math.ceil(len(iterable) / n))
     return (iterable[i * chunksize:i * chunksize + chunksize]
             for i in range(n))
+
+
+def makeDelayFileNames(time, los,outformat, weather_model_name, out):
+    '''
+    return names for the wet and hydrostatic delays
+    '''
+    str1 = time.isoformat() + "_" if time is not None else ""
+    str2 = "z" if los is None else "s" 
+    str3 = 'td.{}'.format(outformat)
+    hydroname, wetname = (
+        '{}_{}_'.format(weather_model_name, dtyp) + str1 + str2 + str3
+        for dtyp in ('hydro', 'wet'))
+
+    hydro_file_name = os.path.join(out, hydroname)
+    wet_file_name = os.path.join(out, wetname)
+    return wet_file_name, hydro_file_name
