@@ -506,12 +506,13 @@ def tropo_delay(los = None, lat = None, lon = None,
         out = os.getcwd()
 
     # ensure inputs are numpy arrays or None
-    [lat, lon, los, heights] = util.enforceNumpyArray(lat, lon, los, heights)
+    [lats, lons, los, hgts] = util.enforceNumpyArray(lat, lon, los, heights)
 
     # Make weather
     weather_type,weather_files,weather_model_name = 
                weather['type'],weather['files'],weather['name']
     checkIfImplemented(weather_model_name)
+    util.check4LatLon(weather_files, lats)
     
     # For later
     wet_file_name, hydro_file_name = util.makeDelayFileNames(time, 
@@ -537,11 +538,6 @@ def tropo_delay(los = None, lat = None, lon = None,
         weather = util.pickle_load(weather_files)
     else:
         weather_model = weather_type
-        if weather_files is None:
-            if lats is None:
-                raise ValueError(
-                    'Unable to infer lats and lons if you also want me to '
-                    'download the weather model')
 
             # output file for storing the weather model
             weather_model = util.downloadWMFile(weather_model, out)
@@ -561,30 +557,8 @@ def tropo_delay(los = None, lat = None, lon = None,
                 xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
                 lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
 
-    if weather_type != 'pickle':
-        try:
-            import pickle
-            with open('pickledHRRR.pik', 'wb') as f:
-                pickle.dump(weather, f)
-        except:
-            print('Tried to pickle the weather model, could not')
-
-
-    # TODO: Need to implement a better check
-    try:
-        lats[2,3]
-    except:
-        if verbose:
-            print('Pulling in the native weather model projection')
-        lats,lons = weather.getLL() 
-
-    if writeLL: 
-       lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
-                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-       latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
-                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-       util.writeArrayToRaster(weather._xs[...,0], lonFileName)
-       util.writeArrayToRaster(weather._ys[...,0], latFileName)
+    if lats is None:
+       lats,lons = weather.getLL() 
 
     lla = weather.getProjection()
     if verbose:

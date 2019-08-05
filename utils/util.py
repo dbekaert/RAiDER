@@ -395,3 +395,24 @@ def checkArg(arg):
           raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
 
 
+def check4LatLon(weather_files, lats):
+    '''
+    Check that either lats or weather_files are not None
+    '''
+    if weather_files is None and lats is None:
+       raise ValueError('Unable to infer lats and lons if ' +
+                        'you also want me to download the weather model')
+
+def writeLL(lats, lons, weather_model_name, out):
+    '''
+    If the weather model grid nodes are used, write the lat/lon values
+    out to a file
+    '''
+    lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
+                      dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+    latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
+                      dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+    util.writeArrayToRaster(lons, os.path.join(out, lonFileName))
+    util.writeArrayToRaster(lats, os.path.join(out, latFileName))
+
+
