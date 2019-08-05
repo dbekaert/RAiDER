@@ -4,7 +4,6 @@
 from osgeo import gdal
 import numpy as np
 import pickle
-import pyproj
 import os
 
 gdal.UseExceptions()
@@ -30,6 +29,7 @@ def tand(x):
 
 
 def lla2ecef(lat, lon, height):
+    import pyproj
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
 
@@ -37,6 +37,7 @@ def lla2ecef(lat, lon, height):
 
 
 def ecef2lla(x, y, z):
+    import pyproj
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
     lon, lat, height = pyproj.transform(ecef, lla, x, y, z)
@@ -61,6 +62,7 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
 
 
 def lla2lambert(lat, lon, height=None):
+    import pyproj
     lla = pyproj.Proj(proj='latlong')
     lambert = pyproj.Proj(
             '+proj=lcc +lat_1=30.0 +lat_2=60.0 +lat_0=18.500015 +lon_0=-100.2 '
@@ -403,6 +405,12 @@ def check4LatLon(weather_files, lats):
        raise ValueError('Unable to infer lats and lons if ' +
                         'you also want me to download the weather model')
 
+def mkdir(dirName):
+    try:
+       os.mkdir(dirName)
+    except FileExistsError: 
+       pass
+
 def writeLL(lats, lons, weather_model_name, out):
     '''
     If the weather model grid nodes are used, write the lat/lon values
@@ -412,7 +420,10 @@ def writeLL(lats, lons, weather_model_name, out):
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-    util.writeArrayToRaster(lons, os.path.join(out, lonFileName))
-    util.writeArrayToRaster(lats, os.path.join(out, latFileName))
+
+    mkdir('geom')
+
+    util.writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
+    util.writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
 
 

@@ -559,6 +559,7 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     if lats is None:
        lats,lons = weather.getLL() 
+       util.writeLL(lats, lons, weather_model_name, out)
 
     lla = weather.getProjection()
     if verbose:
@@ -569,10 +570,6 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     # Pretty different calculation depending on whether they specified a
     # list of heights or just a DEM
-    if height_type == 'lvs':
-        shape = (len(hts),) + lats.shape
-        total_hydro = np.zeros(shape)
-        total_wet = np.zeros(shape)
         for i, ht in enumerate(hts):
             hydro, wet = _tropo_delay_with_values(
                 los, lats, lons, np.broadcast_to(ht, lats.shape), weather,
@@ -580,55 +577,9 @@ def tropo_delay(los = None, lat = None, lon = None,
             total_hydro[i] = hydro
             total_wet[i] = wet
 
-        if outformat == 'hdf5':
-            raise NotImplemented
-        else:
-            drv = gdal.GetDriverByName(outformat)
-            hydro_ds = drv.Create(
-                hydro_file_name, total_hydro.shape[2],
-                total_hydro.shape[1], len(hts), gdal.GDT_Float64)
-            for lvl, (hydro, ht) in enumerate(zip(total_hydro, hts), start=1):
-                band = hydro_ds.GetRasterBand(lvl)
-                band.SetDescription(str(ht))
-                band.WriteArray(hydro)
-            for f in set_geo_info:
-                f(hydro_ds)
-            hydro_ds = None
-        
-            wet_ds = drv.Create(
-                wet_file_name, total_wet.shape[2],
-                total_wet.shape[1], len(hts), gdal.GDT_Float64)
-            for lvl, (wet, ht) in enumerate(zip(total_wet, hts), start=1):
-                band = wet_ds.GetRasterBand(lvl)
-                band.SetDescription(str(ht))
-                band.WriteArray(wet)
-            for f in set_geo_info:
-                f(wet_ds)
-            wet_ds = None
-
     else:
-        raise NotImplemented
         hydro, wet = _tropo_delay_with_values(los, lats, lons, hts, weather, zref, time, raytrace, parallel, verbose)
-    
-        # Write the output file
-        # TODO: maybe support other files than ENVI
-        if outformat == 'hdf5':
-            raise NotImplemented
-        else:
-            drv = gdal.GetDriverByName(outformat)
-            hydro_ds = drv.Create(
-                hydro_file_name, hydro.shape[1], hydro.shape[0],
-                1, gdal.GDT_Float64)
-            hydro_ds.GetRasterBand(1).WriteArray(hydro)
-            for f in set_geo_info:
-                f(hydro_ds)
-            hydro_ds = None
-            wet_ds = drv.Create(
-                wet_file_name, wet.shape[1], wet.shape[0], 1,
-                gdal.GDT_Float64)
-            wet_ds.GetRasterBand(1).WriteArray(wet)
-            for f in set_geo_info:
-                f(wet_ds)
-            wet_ds = None
 
-    return hydro_file_name, wet_file_name
+
+    return wet, hydro
+    
