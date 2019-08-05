@@ -27,64 +27,30 @@ import losreader
 import util
 
 
-def tropo_delay(los = None, lat = None, lon = None, 
-                heights = None, 
-                weather = None, 
-                zref = 15000, 
-                out = None, 
-                time = None,
-                outformat='ENVI', 
-                parallel=True,
-                verbose = False):
-    """Calculate troposphere delay from command-line arguments.
+def downloadWMFile(weather_model_name, time, outLoc, verbose = False):
+    '''
+    Check whether the output weather model exists, and 
+    if not, download it.
+    '''
+    f = os.path.join(outLoc, 'weather_files', 
+        '{}_{}.nc'.format(weather_model_name, 
+         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
-    We do a little bit of preprocessing, then call
-    _tropo_delay_with_values. Then we'll write the output to the output
-    file.
-    """
-    if out is None:
-        out = os.getcwd()
+    if verbose: 
+       print('Storing weather model at: {}'.format(f))
 
-    # Make weather
-    weather_type = weather['type']
-    weather_files = weather['files']
-    weather_fmt = weather['name']
-
-    # Lat, lon
-    if lat is None:
-        # They'll get set later with weather
-        lats = lons = None
-        latproj = lonproj = None
+    if not os.path.exists(f):
+        try:
+           weather_model.fetch(lats, lons, time, f)
+        except Exception as e:
+           print('ERROR: Unable to download weather data')
+           print('Exception encountered: {}'.format(e))
+           sys.exit(0)
     else:
-        lats, latproj = util.gdal_open(lat, returnProj = True)
-        lons, lonproj = util.gdal_open(lon, returnProj = True)
+        print('WARNING: Weather model already exists, skipping download')
+    if download_only:
+        print('WARNING: download_only flag selected. I will only '\
+              'download the weather'\
+              ' model, without doing any further processing.')
+        return None, None
 
-    if weather_type == 'wrf':
-        import wrf
-        weather = wrf.WRF()
-        weather.load(*weather_files)
-
-        # Let lats and lons to weather model nodes if necessary
-        #TODO: Need to fix the case where lats are None, because
-        # the weather model need not be in latlong projection
-        if lats is None:
-            lats, lons = wrf.wm_nodes(*weather_files)
-    elif weather_type == 'pickle':
-        weather = util.pickle_load('weatherObj.dat')
-    else:
-        weather_model = weather_type
-        if weather_files is None:
-            if lats is None:
-                raise ValueError(
-                    'Unable to infer lats and lons if you also want me to '
-                    'download the weather model')
-            if verbose:
-                f = os.path.join(out, 'weather_model.dat')
-                weather_model.fetch(lats, lons, time, f)
-                weather_model.load(f)
-                weather = weather_model # Need to maintain backwards compatibility at the moment
-                print(weather)
-                p = weather.plot()
-
-
-    return hydro_file_name, wet_file_name
