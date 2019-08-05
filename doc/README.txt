@@ -11,31 +11,6 @@
 
 ## TODO: 
 Create a test script which makes the plot and does a sanity check
-Ensure that filenames have timestamp including time for multi-acquisitions per day
-
-
-## Testing the code
-To test out the code, cd into the main directory of the repository, which should contain the test/ folder and the Geometry/ folder. Run 
-
-cd test
-vi/nano/emacs test_scenario.py (whichever editor you like to use)
-
-Then choose one of the scenarios to test run. scenario_0 uses ERA-I and is a single point, scenario_5 uses WRF and is a small region, etc. 
-You can then run 
-
-cd ..
-python -m unittest
-
-and the code will run that scenario in debug mode, which should produce a 
-pdf plot of the weather model at 500 and 15000 meters, along with the 
-weather model in a pickled object called weatherObj.dat. If the test 
-completes successfully there will be a set of files in the test/ folder 
-containing the estimated delay in meters in ENVI-format files. You can run
-
-gdal2isce_xml.py -i <filename>
-mdx.py <filename>
-
-to convert the files to ISCE-readable format and view them. 
 
 
 ##############################
@@ -68,4 +43,33 @@ python3 /home/fattahi/tools/ray_tracing/raytracing_current/Geometry/cython/setup
 import Geo2rdr
 
 5- Look at an example in the test directory
+
+
+##############################
+######### Testing  ###########
+##############################
+
+To test out the code, cd into the main directory of the repository, which should contain the test/ folder and the Geometry/ folder. Run the following: 
+
+*Step 1: Select the test
+cd test
+vi/nano/emacs test_scenario.py (whichever editor you like to use)
+
+Then choose one of the scenarios to test run. scenario_0 uses ERA-I and is a single point, scenario_5 uses WRF and is a small region, etc. 
+You can then run 
+
+cd ..
+python -m unittest
+
+and the code will run that scenario in debug mode, which should produce a 
+pdf plot of the weather model at 500 and 15000 meters, along with the 
+weather model in a pickled object called weatherObj.dat. If the test 
+completes successfully there will be a set of files in the test/ folder 
+containing the estimated delay in meters in ENVI-format files. You can run
+
+gdal2isce_xml.py -i <filename>
+mdx.py <filename>
+
+to convert the files to ISCE-readable format and view them. 
+
 
