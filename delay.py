@@ -357,50 +357,6 @@ def delay_over_area(weather,
     return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
 
 
-def delay_from_grid(weather, llas, los, parallel=False, raytrace=True, verbose = False):
-    """Calculate delay on every point in a list.
-
-    weather is the weather object, llas is a list of lat, lon, ht points
-    at which to calculate delay, and los an array of line-of-sight
-    vectors at each point. Pass parallel=True if you want to have real
-    speed. If raytrace=True, we'll do raytracing, if raytrace=False,
-    we'll do projection.
-    """
-
-    # Save the shape so we can restore later, but flatten to make it
-    # easier to think about
-    real_shape = llas.shape[:-1]
-    llas = llas.reshape(-1, 3)
-    # los can either be a bunch of vectors or a bunch of scalars. If
-    # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
-    if verbose: 
-        if los is Zenith:
-           print("LOS is Zenith")
-        else:
-           print('LOS is not Zenith')
-
-    if los is not Zenith:
-        if raytrace:
-            los = los.reshape(-1, 3)
-        else:
-            los = los.flatten()
-
-    lats, lons, hts = np.moveaxis(llas, -1, 0)
-
-    # Call _common_delay to compute both the hydrostatic and wet delays
-    wet, hydro = _common_delay(weather, lats, lons, hts, los, verbose = verbose)
-#    hydro = hydrostatic_delay(weather, lats, lons, hts, los,
-#    wet = wet_delay(weather, lats, lons, hts, los, raytrace=raytrace, verbose = verbose)
-
-    # Restore shape
-    try:
-        hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
-    except:
-        pass
-
-    return hydro, wet
-
-
 def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
                      raytrace=True, verbose = False):
     """Read location information from files and calculate delay."""
@@ -428,41 +384,6 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
     hydro, wet = delay_from_grid(weather, llas, los,
                                  parallel=parallel, raytrace=raytrace, verbose = verbose)
     hydro, wet = np.stack((hydro, wet)).reshape((2,) + lats.shape)
-    return hydro, wet
-
-
-def _tropo_delay_with_values(los, lats, lons, hts, 
-                             weather, zref, 
-                             time, 
-                             raytrace = True,
-                             parallel = True, verbose = False):
-    """Calculate troposphere delay from processed command-line arguments."""
-    # LOS
-    if los is None:
-        los = Zenith
-    else:
-        los = losreader.infer_los(los, lats, lons, hts, zref)
-
-    # We want to test if any shapes are different
-    test1 = hts.shape == lats.shape == lons.shape
-    try:
-        test2 = los.shape[:-1] != hts.shape
-    except:
-        test2 = los is not Zenith
-
-    if not test1 or test2:
-        raise ValueError(
-         'I need lats, lons, heights, and los to all be the same shape. ' +
-         'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape)+
-         'heights had shape {}, and los was not Zenith'.format(hts.shape))
-
-    if verbose: 
-        print('_tropo_delay_with_values: called delay_from_grid')
-
-    # Do the calculation
-    llas = np.stack((lats, lons, hts), axis=-1)
-    hydro, wet = delay_from_grid(weather, llas, los, parallel=parallel,
-                                 raytrace=raytrace, verbose = verbose)
     return hydro, wet
 
 
@@ -559,27 +480,39 @@ def tropo_delay(los = None, lat = None, lon = None,
 
     if lats is None:
        lats,lons = weather.getLL() 
-       util.writeLL(lats, lons, weather_model_name, out)
+       lla = weather.getProjection()
+       util.writeLL(lats, lons,lla, weather_model_name, out)
 
-    lla = weather.getProjection()
     if verbose:
         print(type(weather))
         print(weather._xs.shape)
         print(weather)
         #p = weather.plot(p)
 
-    # Pretty different calculation depending on whether they specified a
-    # list of heights or just a DEM
-        for i, ht in enumerate(hts):
-            hydro, wet = _tropo_delay_with_values(
-                los, lats, lons, np.broadcast_to(ht, lats.shape), weather,
-                zref, time, parallel=parallel, verbose = verbose)
-            total_hydro[i] = hydro
-            total_wet[i] = wet
-
+    # LOS check
+    if los is None:
+        los = Zenith
     else:
-        hydro, wet = _tropo_delay_with_values(los, lats, lons, hts, weather, zref, time, raytrace, parallel, verbose)
+        los = losreader.infer_los(los, lats, lons, hts, zref)
 
+    util.checkShapes(los, lats, lons, hgts)
+    util.checkLOS(los, raytrace, np.prod(lats.shape))
+
+    # Save the shape so we can restore later, but flatten to make it
+    # easier to think about
+    llas = np.stack((lats, lons, hts), axis=-1)
+    real_shape = llas.shape[:-1]
+    llas = llas.reshape(-1, 3)
+    lats, lons, hts = np.moveaxis(llas, -1, 0)
+
+    # Call _common_delay to compute the hydrostatic and wet delays
+    wet, hydro = _common_delay(weather, lats, lons, hts, los, verbose = verbose)
+
+    # Restore shape
+    try:
+        hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
+    except:
+        pass
 
     return wet, hydro
     

@@ -182,7 +182,7 @@ def pickle_dump(o, f):
         pickle.dump(o, fil)
 
 
-def writeArrayToRaster(array, filename, noDataValue = 0, fmt = 'ENVI'):
+def writeArrayToRaster(array, filename, noDataValue = 0, fmt = 'ENVI', proj = None, gt = None):
     # write a numpy array to a GDAL-readable raster
     import gdal
     import numpy as np
@@ -197,6 +197,10 @@ def writeArrayToRaster(array, filename, noDataValue = 0, fmt = 'ENVI'):
 
     driver = gdal.GetDriverByName(fmt)
     ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
+    if proj is not None:
+       ds.SetProjection(proj)
+    if gt is not None:
+       ds.SetGeoTransform(gt)
     b1 = ds.GetRasterBand(1)
     b1.WriteArray(array)
     b1.SetNoDataValue(noDataValue)
@@ -411,7 +415,7 @@ def mkdir(dirName):
     except FileExistsError: 
        pass
 
-def writeLL(lats, lons, weather_model_name, out):
+def writeLL(lats, lons, llProj, weather_model_name, out):
     '''
     If the weather model grid nodes are used, write the lat/lon values
     out to a file
@@ -423,7 +427,46 @@ def writeLL(lats, lons, weather_model_name, out):
 
     mkdir('geom')
 
-    util.writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
-    util.writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
+    writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName), proj = llProj)
+    writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName), proj = llProj)
 
+
+def checkShapes(los, lats, lons, hgts):
+    '''
+    Make sure that by the time the code reaches here, we have a
+    consistent set of line-of-sight and position data. 
+    '''
+    test1 = hgts.shape == lats.shape == lons.shape
+    try:
+        test2 = los.shape[:-1] != hts.shape
+    except:
+        test2 = los is not Zenith
+
+    if not test1 or test2:
+        raise ValueError(
+         'I need lats, lons, heights, and los to all be the same shape. ' +
+         'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape)+
+         'heights had shape {}, and los was not Zenith'.format(hts.shape))
+
+
+def checkLOS(los, raytrace, Npts):
+    '''
+    Check that los is either: 
+       (1) Zenith,
+       (2) a set of scalar values of the same size as the number 
+           of points, which represent the projection value), or
+       (3) a set of vectors, same number as the number of points. 
+     '''
+    # los can either be a bunch of vectors or a bunch of scalars. If
+    # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
+    if los is not Zenith:
+        if raytrace:
+            los = los.reshape(-1, 3)
+        else:
+            los = los.flatten()
+
+    if los is not Zenith and los.shape[0] != Npts:
+       raise RuntimeError('Found {} line-of-sight values and only {} points'
+                           .format(los.shape[0], Npts))
+    return los
 
