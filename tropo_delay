@@ -281,19 +281,15 @@ def getTropoDelay():
        print('Now running delay module from: {}'.format(delay.__file__))
 
 
-    delay.tropo_delay(los, lat, lon, 
-                      heights, 
-                      weathers, 
-                      zref, 
-                      out, 
-                      wmLoc, 
-                      wmName,
-                      time, 
-                      outformat, 
-                      parallel=parallel, 
-                      writeLL = writeLL,
-                      verbose = verbose, 
-                      download_only = download_only)
+    wetDelay, hyrdoDelay = delay.tropo_delay(los, lat, lon, heights, 
+                      weathers, zref, out, wmLoc, wmName,
+                      time, outformat, 
+                      parallel=parallel, writeLL = writeLL,
+                      verbose = verbose, download_only = download_only)
+
+    # For later
+    wet_file_name, hydro_file_name = util.makeDelayFileNames(time, 
+                                         los,outformat, weather_model_name, out)
 
 
 if __name__ == '__main__':

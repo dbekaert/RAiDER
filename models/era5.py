@@ -97,9 +97,6 @@ class ERA5(ECMWF):
             r = f.variables['r'][0].copy()
             z = f.variables['z'][0].copy()
             levels = f.variables['level'][:].copy()*100
-            #TODO: note that levels is pressure
-            #TODO: check ECMWF for variable ordering and test for consistency
-            # may need to email ECMWF people for clarity
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:

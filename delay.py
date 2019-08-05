@@ -430,41 +430,48 @@ def tropo_delay(los = None, lat = None, lon = None,
     [lats, lons, los, hgts] = util.enforceNumpyArray(lat, lon, los, heights)
 
     # Make weather
-    weather_type,weather_files,weather_model_name = 
+    weather_model, weather_files, weather_model_name = 
                weather['type'],weather['files'],weather['name']
     checkIfImplemented(weather_model_name)
     util.check4LatLon(weather_files, lats)
-    
-    # For later
-    wet_file_name, hydro_file_name = util.makeDelayFileNames(time, 
-                                         los,outformat, weather_model_name, out)
 
-    if verbose:
-        print('Type of height: {}'.format(height_type))
-        if weather_files is not None:
-            print('{} weather files'.format(len(weather_files)))
+    # check whether weather model files are supplied
+    if weather_files is None:
+       download_flag, f = downloadWMFile(weather_model.Model(), time, outLoc, verbose)
 
+    # if no weather model files supplied, check the standard location
+    if download_flag:
+        try:
+           weather_model.fetch(lats, lons, time, f)
+        except Exception as e:
+           print('ERROR: Unable to download weather data')
+           print('Exception encountered: {}'.format(e))
+           sys.exit(0)
+ 
+        # exit on download if download_only requested
+        if download_only:
+            print('WARNING: download_only flag selected. I will only '\
+                  'download the weather model, '\
+                  ' without doing any further processing.')
+            return None, None
 
-    if weather_type == 'wrf':
-        import wrf
-        weather = wrf.WRF()
-        weather.load(*weather_files)
-
-        # Let lats and lons to weather model nodes if necessary
-        #TODO: Need to fix the case where lats are None, because
-        # the weather model need not be in latlong projection
-        if lats is None:
-            lats, lons = wrf.wm_nodes(*weather_files)
-    elif weather_type == 'pickle':
+    # Handle special cases of WRF, pickle
+    # TODO: Need to eliminate all special cases in this function
+    if weather_files is not None:
+       weather.load(*weather_files)
+       download_flag = False
+        if weather_model_name == 'wrf':
+            # Let lats and lons to weather model nodes if necessary
+            #TODO: Need to fix the case where lats are None, because
+            # the weather model need not be in latlong projection
+            if lats is None:
+                lats, lons = wrf.wm_nodes(*weather_files)
+    elif weather_model_name == 'pickle':
         weather = util.pickle_load(weather_files)
     else:
-        weather_model = weather_type
-
-            # output file for storing the weather model
-            weather_model = util.downloadWMFile(weather_model, out)
-
-            weather_model.load(f)
-            weather = weather_model
+        # output file for storing the weather model
+        weather_model.load(f)
+        weather = weather_model
         else:
             weather, xs, ys, proj = weather_model.weather_and_nodes(
                 weather_files)
@@ -478,14 +485,13 @@ def tropo_delay(los = None, lat = None, lon = None,
                 xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
                 lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
 
+
     if lats is None:
        lats,lons = weather.getLL() 
        lla = weather.getProjection()
        util.writeLL(lats, lons,lla, weather_model_name, out)
 
     if verbose:
-        print(type(weather))
-        print(weather._xs.shape)
         print(weather)
         #p = weather.plot(p)
 
