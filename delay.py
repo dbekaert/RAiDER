@@ -11,15 +11,14 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 # standard imports
-import datetime
 import itertools
 import numpy as np
 import os
 import pyproj
-import tempfile
 #import queue
 import threading
 import sys
+
 
 # local imports
 import utils.constants as const
@@ -478,13 +477,22 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
+def enforceNumpyArray(*args):
+    '''
+    Enforce that a set of arguments are all numpy arrays. 
+    Raise an error on failure.
+    '''
+    try:
+       return [np.array(a) for a in args]
+    except:
+       raise RuntimeError('enforceNumpyArray: Cannot covert all arguments to numpy arrays')
+
+
 def tropo_delay(los = None, lat = None, lon = None, 
                 heights = None, 
                 weather = None, 
                 zref = 15000, 
                 out = None, 
-                wmLoc = None, 
-                wmName = None,
                 time = None,
                 outformat='ENVI', 
                 parallel=True,
@@ -497,41 +505,31 @@ def tropo_delay(los = None, lat = None, lon = None,
     _tropo_delay_with_values. Then we'll write the output to the output
     file.
     """
-    import pyproj
-    import util
+    from models.allowed import checkModel
+    from datetime import datetime as dt
 
     if verbose:
-        print('Weather Model Name: {}'.format(wmName))
         print('type of time: {}'.format(type(time)))
-        print('Location to put/get weather model file: {}'.format(wmLoc))
         print('Download-only is {}'.format(download_only))
         print('Will format weather model file to: {} format'.format(outformat))
 
+    [los, lat, lon, heights] = enforceNumpyArray(los, lat, lon, heights)
+   
     if out is None:
         out = os.getcwd()
-    if wmLoc is None:
-        wmLoc = out
 
     # Make weather
     weather_type = weather['type']
     weather_files = weather['files']
-    weather_fmt = weather['name']
-
-    allowedWMTypes = ['ERA-I', 'ERA-5', 'MERRA-2', 'WRF', 'HRRR', 'pickle']
-    if weather_fmt not in allowedWMTypes:
-        raise RuntimeError('Weather model {} not allowed/implemented'.format(weather_fmt))
-
-    # weather model file for storing the weather model
-    if wmName is None:
-        wmName = os.path.join(wmLoc, '{}_{}.nc'
-                   .format(weather_fmt, datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
-
+    weather_model_name = weather['name']
+    checkModel(weather_model_name)
+    
     # For later
     str1 = time.isoformat() + "_" if time is not None else ""
     str2 = "z" if los is None else "s" 
     str3 = 'td.{}'.format(outformat)
     hydroname, wetname = (
-        '{}_{}_'.format(weather_fmt, dtyp) + str1 + str2 + str3
+        '{}_{}_'.format(weather_model_name, dtyp) + str1 + str2 + str3
         for dtyp in ('hydro', 'wet'))
 
     hydro_file_name = os.path.join(out, hydroname)
@@ -606,7 +604,13 @@ def tropo_delay(los = None, lat = None, lon = None,
                     'Unable to infer lats and lons if you also want me to '
                     'download the weather model')
 
-            f = os.path.join(out, wmName)
+            # output file for storing the weather model
+            f = os.path.join(out, 'weather_files', 
+                '{}_{}.nc'.format(weather_model_name, 
+                 dt.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
+            if verbose: 
+               print('Storing weather model at: {}'.format(f))
+
             if not os.path.exists(f):
                 try:
                    weather_model.fetch(lats, lons, time, f)
@@ -655,10 +659,10 @@ def tropo_delay(los = None, lat = None, lon = None,
         lats,lons = weather.getLL() 
 
     if writeLL: 
-       lonFileName = '{}_Lon_{}.dat'.format(weather_fmt, 
-                         datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-       latFileName = '{}_Lat_{}.dat'.format(weather_fmt, 
-                         datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+       lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
+                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+       latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
+                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
        util.writeArrayToRaster(weather._xs[...,0], lonFileName)
        util.writeArrayToRaster(weather._ys[...,0], latFileName)
 
