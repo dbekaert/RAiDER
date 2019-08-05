@@ -455,10 +455,14 @@ def tropo_delay(los = None, lat = None, lon = None,
                   ' without doing any further processing.')
             return None, None
 
+#    if weather_type == 'wrf':
+#        import wrf
+#        weather = wrf.WRF()
+#        weather.load(*weather_files)
     # Handle special cases of WRF, pickle
     # TODO: Need to eliminate all special cases in this function
     if weather_files is not None:
-       weather.load(*weather_files)
+       weather_model.load(*weather_files)
        download_flag = False
         if weather_model_name == 'wrf':
             # Let lats and lons to weather model nodes if necessary
@@ -471,19 +475,6 @@ def tropo_delay(los = None, lat = None, lon = None,
     else:
         # output file for storing the weather model
         weather_model.load(f)
-        weather = weather_model
-        else:
-            weather, xs, ys, proj = weather_model.weather_and_nodes(
-                weather_files)
-            if lats is None:
-                def geo_info(ds):
-                    ds.SetProjection(str(proj))
-                    ds.SetGeoTransform((xs[0], xs[1] - xs[0], 0, ys[0], 0,
-                                        ys[1] - ys[0]))
-                set_geo_info.append(geo_info)
-                lla = pyproj.Proj(proj='latlong')
-                xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
-                lons, lats = pyproj.transform(proj, lla, xgrid, ygrid)
 
 
     if lats is None:
