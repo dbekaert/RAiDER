@@ -233,7 +233,7 @@ def getTropoDelay():
         else:
             p.error('Argument --wrfmodelfiles required with --model WRF')
     elif args.model=='ERA5' or args.model == 'ERA-5':
-        from era5 import ERA5
+        from models.era5 import ERA5
         weathers = {'type': ERA5(), 'files':None, 'name':'ERA-5'}
     elif args.model=='pickle':
         import pickle

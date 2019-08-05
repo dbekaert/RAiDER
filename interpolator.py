@@ -2,7 +2,7 @@
 
 import numpy as np
 import pyproj
-import util
+from utils import util
 
 class Interpolator:
     """

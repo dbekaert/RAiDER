@@ -22,10 +22,10 @@ import threading
 import sys
 
 # local imports
-import constants as const
-import demdownload
-import losreader
-import util
+import utils.constants as const
+import utils.demdownload as dld
+import utils.losreader as losreader
+import utils.util as util
 
 
 # Step in meters to use when integrating
@@ -147,6 +147,7 @@ def _re_project(tup):
     newPnt = _transform(tup[0],tup[1], tup[2])
     return newPnt
 def f(x):
+    ecef = pyproj.Proj(proj='geocent')
     return _transform(x, ecef, newProj)
 
 def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
@@ -169,7 +170,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, 
                   stepSize = _STEP, interpType = 'rgi',
-                  verbose = False, nproc = 8, useDask = True):
+                  verbose = False, nproc = 8, useDask = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -188,6 +189,8 @@ def _common_delay(weatherObj, lats, lons, heights,
      stepSize   - Integration step size in meters 
      intpType   - Can be one of 'scipy': LinearNDInterpolator, or 'sane': _sane_interpolate. 
                   Any other string will use the RegularGridInterpolate method
+     nproc      - Number of parallel processes to use if useDask is True
+     useDask    - use Dask to parallelize ray calculation
 
     Outputs: 
      delays     - A list containing the wet and hydrostatic delays for each ground point in 
@@ -367,26 +370,6 @@ def _integrate_delays(stepSize, refr):
     for ray in refr:
         delays.append(int_fcn(ray, stepSize))
     return delays
-
-
-def wet_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
-    """Compute wet delay along the look vector."""
-
-    if verbose:
-        print('wet_delay: Running _common_delay for weather.wet_delay')
-
-    return _common_delay(weather.wet_delay, lats, lons, heights, look_vecs,
-                         verbose)
-
-
-def hydrostatic_delay(weather, lats, lons, heights, look_vecs, raytrace=True, verbose = False):
-    """Compute hydrostatic delay along the look vector."""
-
-    if verbose:
-        print('hydrostatic_delay: Running _common_delay for weather.hydrostatic_delay')
-
-    return _common_delay(weather.hydrostatic_delay, lats, lons, heights,
-                         look_vecs, verbose)
 
 
 def delay_over_area(weather, 
@@ -762,12 +745,12 @@ def tropo_delay(los = None, lat = None, lon = None,
             hts = util.gdal_open(height_info)
         except RuntimeError:
             print('WARNING: File {} could not be opened, proceeding with DEM download'.format(height_info))
-            hts = demdownload.download_dem(lats, lons)
+            hts = dld.download_dem(lats, lons)
     elif height_type == 'lvs':
         hts = height_info
 
     if height_type == 'download':
-        hts = demdownload.download_dem(lats, lons)
+        hts = dld.download_dem(lats, lons)
 
     # Pretty different calculation depending on whether they specified a
     # list of heights or just a DEM
@@ -809,8 +792,8 @@ def tropo_delay(los = None, lat = None, lon = None,
             wet_ds = None
 
     else:
-        hydro, wet = _tropo_delay_with_values(
-            los, lats, lons, hts, weather, zref, time, parallel = parallel, verbose = verbose)
+        raise NotImplemented
+        hydro, wet = _tropo_delay_with_values(los, lats, lons, hts, weather, zref, time, raytrace, parallel, verbose)
     
         # Write the output file
         # TODO: maybe support other files than ENVI
