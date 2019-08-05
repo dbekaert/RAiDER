@@ -477,17 +477,6 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
-def enforceNumpyArray(*args):
-    '''
-    Enforce that a set of arguments are all numpy arrays. 
-    Raise an error on failure.
-    '''
-    try:
-       return [np.array(a) for a in args]
-    except:
-       raise RuntimeError('enforceNumpyArray: Cannot covert all arguments to numpy arrays')
-
-
 def tropo_delay(los = None, lat = None, lon = None, 
                 heights = None, 
                 weather = None, 
@@ -513,64 +502,21 @@ def tropo_delay(los = None, lat = None, lon = None,
         print('Download-only is {}'.format(download_only))
         print('Will format weather model file to: {} format'.format(outformat))
 
-    [los, lat, lon, heights] = enforceNumpyArray(los, lat, lon, heights)
-   
     if out is None:
         out = os.getcwd()
 
+    # ensure inputs are numpy arrays or None
+    [lat, lon, los, heights] = util.enforceNumpyArray(lat, lon, los, heights)
+
     # Make weather
-    weather_type = weather['type']
-    weather_files = weather['files']
-    weather_model_name = weather['name']
+    weather_type,weather_files,weather_model_name = 
+               weather['type'],weather['files'],weather['name']
     checkIfImplemented(weather_model_name)
     
     # For later
     wet_file_name, hydro_file_name = util.makeDelayFileNames(time, 
                                          los,outformat, weather_model_name, out)
 
-    # set_geo_info should be a list of functions to call on the dataset,
-    # and each will do some bit of work
-    set_geo_info = list()
-
-    # Lat, lon
-    if lat is None:
-        # They'll get set later with weather
-        lats = lons = None
-        latproj = lonproj = None
-    else:
-        try:
-            lats, latproj = util.gdal_open(lat, returnProj = True)
-            lons, lonproj = util.gdal_open(lon, returnProj = True)
-        except:
-            print('Could not open lat/lon files, assuming that they are numbers')
-            print('Lat: {}'.format(lat))
-            import time as Time
-            Time.sleep(10)
-            lats = lat
-            lons = lon
-            latproj = lonproj = None
-            lon = lat = None
-
-    # set_geo_info should be a list of functions to call on the dataset,
-    # and each will do some bit of work
-    set_geo_info = list()
-    if lat is not None:
-        def geo_info(ds):
-            ds.SetMetadata({'X_DATASET': os.path.abspath(lat), 'X_BAND': '1',
-                            'Y_DATASET': os.path.abspath(lon), 'Y_BAND': '1'})
-        set_geo_info.append(geo_info)
-    # Is it ever possible that lats and lons will actually have embedded
-    # projections?
-    if latproj:
-        def geo_info(ds):
-            ds.SetProjection(latproj)
-        set_geo_info.append(geo_info)
-    elif lonproj:
-        def geo_info(ds):
-            ds.SetProjection(lonproj)
-        set_geo_info.append(geo_info)
-
-    height_type, height_info = heights
     if verbose:
         print('Type of height: {}'.format(height_type))
         if weather_files is not None:
@@ -646,19 +592,6 @@ def tropo_delay(los = None, lat = None, lon = None,
         print(weather._xs.shape)
         print(weather)
         #p = weather.plot(p)
-
-    # Height
-    if height_type == 'dem':
-        try:
-            hts = util.gdal_open(height_info)
-        except RuntimeError:
-            print('WARNING: File {} could not be opened, proceeding with DEM download'.format(height_info))
-            hts = dld.download_dem(lats, lons)
-    elif height_type == 'lvs':
-        hts = height_info
-
-    if height_type == 'download':
-        hts = dld.download_dem(lats, lons)
 
     # Pretty different calculation depending on whether they specified a
     # list of heights or just a DEM

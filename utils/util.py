@@ -376,3 +376,22 @@ def makeDelayFileNames(time, los,outformat, weather_model_name, out):
     hydro_file_name = os.path.join(out, hydroname)
     wet_file_name = os.path.join(out, wetname)
     return wet_file_name, hydro_file_name
+
+
+def enforceNumpyArray(*args):
+    '''
+    Enforce that a set of arguments are all numpy arrays. 
+    Raise an error on failure.
+    '''
+    return [checkArg(a) for a in args]
+
+def checkArg(arg):
+    if arg is None:
+       return None
+    else:
+       try:
+          return np.array(a)
+       except:
+          raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
+
+
