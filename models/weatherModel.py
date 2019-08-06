@@ -6,10 +6,10 @@ import pyproj
 import os
 
 # local imports
-import constants as const
-import plotWeather as plots
-import util
-from util import robmin, robmax
+import util.constants as const
+import models.plotWeather as plots
+import utils.util as util
+from utils.util import robmin, robmax
 
 
 class ValidDateError(Exception):
