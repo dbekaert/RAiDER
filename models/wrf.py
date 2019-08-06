@@ -5,6 +5,15 @@ import pyproj
 from weatherModel import WeatherModel
 
 
+## Need to incorporate this snippet into this part of the code. 
+## was formally in delay.py
+#if weather_model_name == 'wrf':
+#    # Let lats and lons to weather model nodes if necessary
+#    #TODO: Need to fix the case where lats are None, because
+#    # the weather model need not be in latlong projection
+#    if lats is None:
+#        lats, lons = wrf.wm_nodes(*weather_files)
+#
 class WRF(WeatherModel):
     '''
     WRF class definition, based on the WeatherModel base class. 

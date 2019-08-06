@@ -330,6 +330,8 @@ def int_fcn(y, dx):
     return 1e-6*dx*np.nansum(y)
 
 
+#TODO: the following three fcns are unclear if/how they are needed. 
+# likely need to see how they work with tropo_delay
 def delay_over_area(weather, 
                     lat_min, lat_max, lat_res, 
                     lon_min, lon_max, lon_res, 
@@ -359,7 +361,9 @@ def delay_over_area(weather,
 
 def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
                      raytrace=True, verbose = False):
-    """Read location information from files and calculate delay."""
+    """
+    Read location information from files and calculate delay.
+    """
     lats = util.gdal_open(lat)
     lons = util.gdal_open(lon)
     hts = util.gdal_open(ht)
@@ -393,6 +397,7 @@ def get_weather_and_nodes(model, filename, zmin=None):
     We use the module.load method to load the weather model file, but
     we'll also create a weather model object for it.
     """
+    # TODO: Need to check how this fcn will fit into the new framework
     xs, ys, proj, t, q, z, lnsp = model.load(filename)
     return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
             xs, ys, proj)
@@ -455,43 +460,33 @@ def tropo_delay(los = None, lat = None, lon = None,
                   ' without doing any further processing.')
             return None, None
 
-#    if weather_type == 'wrf':
-#        import wrf
-#        weather = wrf.WRF()
-#        weather.load(*weather_files)
-    # Handle special cases of WRF, pickle
-    # TODO: Need to eliminate all special cases in this function
+
+    # Load the weather model data
     if weather_files is not None:
        weather_model.load(*weather_files)
        download_flag = False
-        if weather_model_name == 'wrf':
-            # Let lats and lons to weather model nodes if necessary
-            #TODO: Need to fix the case where lats are None, because
-            # the weather model need not be in latlong projection
-            if lats is None:
-                lats, lons = wrf.wm_nodes(*weather_files)
     elif weather_model_name == 'pickle':
         weather = util.pickle_load(weather_files)
     else:
         # output file for storing the weather model
         weather_model.load(f)
+    if verbose:
+        print(weather)
+        #p = weather.plot(p)
 
 
+    # Pull the lat/lon data if using the weather model 
     if lats is None:
        lats,lons = weather.getLL() 
        lla = weather.getProjection()
        util.writeLL(lats, lons,lla, weather_model_name, out)
 
-    if verbose:
-        print(weather)
-        #p = weather.plot(p)
 
-    # LOS check
+    # LOS check and load
     if los is None:
         los = Zenith
     else:
         los = losreader.infer_los(los, lats, lons, hts, zref)
-
     util.checkShapes(los, lats, lons, hgts)
     util.checkLOS(los, raytrace, np.prod(lats.shape))
 
