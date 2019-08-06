@@ -6,7 +6,7 @@ import pyproj
 import os
 
 # local imports
-import util.constants as const
+import utils.constants as const
 import models.plotWeather as plots
 import utils.util as util
 from utils.util import robmin, robmax

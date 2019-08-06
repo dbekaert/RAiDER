@@ -236,15 +236,12 @@ def getTropoDelay():
 
     # Argument checking
     los, lat, lon, heights, weather_model, zref, outformat, \
-         time, out, download_only, parallel = checkArgs(args, p)
-
-    import pdb; pdb.set_trace()
+         time, out, download_only, parallel, verbose = checkArgs(args, p)
 
     if verbose: 
        print('Starting to run the weather model calculation')
        print('Time type: {}'.format(type(time)))
        print('Time: {}'.format(time.strftime('%Y%m%d')))
-       print('Weather model file location: {}'.format(wmLoc))
        print('Parallel is {}'.format(parallel))
 
     lats, lons, hgts = llr.readLLH(lat, lon, heights)

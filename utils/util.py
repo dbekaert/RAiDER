@@ -384,23 +384,6 @@ def makeDelayFileNames(time, los,outformat, weather_model_name, out):
     return wet_file_name, hydro_file_name
 
 
-def enforceNumpyArray(*args):
-    '''
-    Enforce that a set of arguments are all numpy arrays. 
-    Raise an error on failure.
-    '''
-    return [checkArg(a) for a in args]
-
-def checkArg(arg):
-    if arg is None:
-       return None
-    else:
-       try:
-          return np.array(a)
-       except:
-          raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
-
-
 def check4LatLon(weather_files, lats):
     '''
     Check that either lats or weather_files are not None
@@ -556,9 +539,9 @@ def checkArgs(args, p):
     out = args.out
     download_only = args.download_only
     parallel = True if not args.no_parallel else False
-
     verbose = args.verbose
-    return los, lat, lon, heights, weathers, zref, outformat, time, out, download_only, parallel
+
+    return los, lat, lon, heights, weathers, zref, outformat, time, out, download_only, parallel, verbose
 
 
 def readLLFromStationFile(fname):

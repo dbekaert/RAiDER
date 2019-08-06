@@ -76,3 +76,23 @@ def setGeoInfo(lat, lon, latproj, lonproj):
 
     return set_geo_info
 
+
+def enforceNumpyArray(*args):
+    '''
+    Enforce that a set of arguments are all numpy arrays. 
+    Raise an error on failure.
+    '''
+    return [checkArg(a) for a in args]
+
+def checkArg(arg):
+
+    if arg is None:
+       return None
+    else:
+       import numpy as np
+       try:
+          return np.array(arg)
+       except:
+          raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
+
+
