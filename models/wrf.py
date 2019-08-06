@@ -124,9 +124,10 @@ class WRF(WeatherModel):
 
         # Projection
         # See http://www.pkrc.net/wrf-lambert.html
+        earthRadius = 6370e3  # <- note Ray had a bug here
         p1 = pyproj.Proj(proj='lcc', lat_1=lat1,
                              lat_2=lat2, lat_0=lat0,
-                             lon_0=lon0, a=6370, b=6370,
+                             lon_0=lon0, a=earthRadius, b=earthRadius,
                              towgs84=(0,0,0), no_defs=True)
         self._proj = p1
 

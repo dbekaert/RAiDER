@@ -41,15 +41,21 @@ class HRRR(WeatherModel):
         self._Nproc = 1
         self._Name = 'HRRR'
 
+        # Projection
+        # See https://github.com/blaylockbk/pyBKB_v2/blob/master/demos/HRRR_earthRelative_vs_gridRelative_winds.ipynb and code lower down
+        # '262.5:38.5:38.5:38.5 237.280472:1799:3000.00 21.138123:1059:3000.00'
+        # 'lov:latin1:latin2:latd lon1:nx:dx lat1:ny:dy'
+        # LCC parameters
+        lon0 = 262.5
+        lat0 = 38.5
+        lat1 = 38.5
+        lat2 = 38.5
+        p1 = pyproj.Proj(proj='lcc', lat_1=lat1,
+                             lat_2=lat2, lat_0=lat0,
+                             lon_0=lon0, a=6370, b=6370,
+                             towgs84=(0,0,0), no_defs=True)
+        self._proj = p1
 
-#        lon0 = f.STAND_LON.copy()
-#        lat0 = f.MOAD_CEN_LAT.copy()
-#        lat1 = f.TRUELAT1.copy()
-#        lat2 = f.TRUELAT2.copy()
-#                             lat_2=lat2, lat_0=lat0,
-#                             lon_0=lon0, a=6370, b=6370,
-#                             towgs84=(0,0,0), no_defs=True)
-#        self._proj = p1
 
 
     def load(self, filename = None):
@@ -384,7 +390,7 @@ def get_hrrr_variable(DATE, variable,
                       fxx=0,
                       model='hrrr',
                       field='sfc',
-                      removeFile=True,
+                      removeFile=False,
                       value_only=False,
                       verbose=True,
                       outDIR='./'):
@@ -554,6 +560,7 @@ def get_hrrr_variable(DATE, variable,
         except:
             idxpage = urllib.request.urlopen(fileidx)
 
+        import pdb; pdb.set_trace()
         lines = [t.decode('utf-8') for t in idxpage.readlines()]
 
         ## 1) Find the byte range for the requested variable. First find where
