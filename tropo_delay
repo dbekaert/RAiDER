@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 """
 usage: tropo_delay [-h] [--lineofsight LOS | --statevectors STATEVECTORS]
-                   [--area LONG LAT]
-                   [--dem DEM | --heightlvs HEIGHTLVS [HEIGHTLVS ...]]
-                   [--time TIME] [--model MODEL] [--wrfmodelfiles OUT PLEV]
-                   [--wmnetcdf WMNETCDF] [--zref ZREF] [--out OUT]
+                   [--area LAT LONG | --bounding_box N W S E | --station_file STATION_FILE]
+                   [--dem DEM | --heightlvs HEIGHTLVS [HEIGHTLVS ...]] --time
+                   TIME [--model MODEL] [--pickleFile PICKLEFILE]
+                   [--wrfmodelfiles OUT PLEV] [--wmnetcdf WMNETCDF]
+                   [--zref ZREF] [--outformat OUTFORMAT] [--out OUT]
+                   [--model_location WMLOC] [--no_parallel] [--download_only]
+                   [--verbose]
 
 Calculate tropospheric delay from a weather model
 
@@ -15,10 +18,15 @@ optional arguments:
   --statevectors STATEVECTORS, -s STATEVECTORS
                         An ISCE XML or shelve file containing state vectors
                         specifying the orbit of the sensor
-  --area LONG LAT, -a LONG LAT
+  --area LAT LONG, -a LAT LONG
                         GDAL-readable longitude and latitude files to specify
                         the region over which to calculate delay. Delay will
                         be calculated at weather model nodes if unspecified
+  --bounding_box N W S E, -bb N W S E
+                        Bounding box, given as N W S E
+  --station_file STATION_FILE
+                        CSV file containing a list of stations, with at least the
+                        columns "Lat" and "Lon"
   --dem DEM, -d DEM     DEM file. DEM will be downloaded if not specified
   --heightlvs HEIGHTLVS [HEIGHTLVS ...]
                         Delay will be calculated at each of these heights
@@ -26,11 +34,23 @@ optional arguments:
   --time TIME           Fetch weather model data at this (ISO 8601 format)
                         time
   --model MODEL         Weather model to use
+  --pickleFile PICKLEFILE
+                        Pickle file to load
   --wmnetcdf WMNETCDF   Weather model netcdf file. Should have q, t, z, lnsp
                         as variables
   --zref ZREF, -z ZREF  Height limit when integrating (meters) (default:
                         15000)
+  --outformat OUTFORMAT
+                        Output file format; GDAL-compatible for DEM, HDF5 for
+                        height levels (default: ENVI)
   --out OUT             Output file directory
+  --model_location WMLOC
+                        Directory where weather model files are stored
+  --no_parallel, -p     Do not run operation in parallel? Default False.
+                        Recommend only True for verbose (debug) mode
+  --download_only       Download weather model only without processing?
+                        Default False
+  --verbose, -v         Run in verbose (debug) mode? Default False
 
 WRF:
   Arguments for when --model WRF is specified
@@ -43,7 +63,6 @@ WRF:
 import argparse
 import datetime
 import itertools
-import importlib
 import delay
 
 
@@ -86,21 +105,15 @@ def read_date(s):
     return date
 
 
-def mangle_model_to_module(model_name):
-    """Turn an arbitrary string into a module name.
-
-    Takes as input a model name, which hopefully looks like ERA-I, and
-    converts it to a module name, which will look like erai. I doesn't
-    always produce a valid module name, but that's not the goal. The
-    goal is just to handle common cases.
-    """
-    return model_name.lower().replace('-', '')
-
-
 def parse_args():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         description='Calculate tropospheric delay from a weather model')
+
+    p.add_argument(
+        '--time',
+        help='Fetch weather model data at this (ISO 8601 format) time',
+        type=read_date, required=True)
 
     # Line of sight
     los = p.add_mutually_exclusive_group()
@@ -127,7 +140,7 @@ def parse_args():
         metavar=('N', 'W', 'S', 'E'))
     area.add_argument(
         '--station_file',default = None, type=str,
-        help=('File containing a list of stations, with at least '
+        help=('CSV file containing a list of stations, with at least '
               'the columns "Lat" and "Lon"'))
 
     # heights
@@ -142,10 +155,6 @@ def parse_args():
         nargs='+', type=float)
 
     # Weather model
-    p.add_argument(
-        '--time',
-        help='Fetch weather model data at this (ISO 8601 format) time',
-        type=read_date, required=True)
     p.add_argument(
         '--model',
         help='Weather model to use',
@@ -190,6 +199,7 @@ def parse_args():
 
     return p.parse_args(), p
 
+
 def writeDelays(wetDelay, hydroDelay, time, los, 
                 out, outformat, weather_model_name, 
                 proj = None, gt = None):
@@ -226,7 +236,9 @@ def getTropoDelay():
 
     # Argument checking
     los, lat, lon, heights, weather_model, zref, outformat, \
-         time, out, download_only, parallel = checkArgs(args)
+         time, out, download_only, parallel = checkArgs(args, p)
+
+    import pdb; pdb.set_trace()
 
     if verbose: 
        print('Starting to run the weather model calculation')
@@ -236,12 +248,15 @@ def getTropoDelay():
        print('Parallel is {}'.format(parallel))
 
     lats, lons, hgts = llr.readLLH(lat, lon, heights)
+    import pdb; pdb.set_trace()
 
     if los is None:
         los = Zenith
     else:
         import utils.losreader as losr
         los = losr.infer_los(los, lats, lons, hgts, zref)
+
+    import pdb; pdb.set_trace()
 
     wetDelay, hyrdoDelay = \
        delay.tropo_delay(time, los, lat, lon, hgts, 

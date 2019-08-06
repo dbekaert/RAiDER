@@ -471,11 +471,13 @@ def checkLOS(los, raytrace, Npts):
     return los
 
 
-def checkArgs(args):
+def checkArgs(args, p):
     '''
     Helper fcn for checking argument compatibility and returns the 
     correct variables
     '''
+    import models
+
     if args.heightlvs is not None and args.outformat != 'hdf5':
        raise ValueError('HDF5 must be used with height levels')
     if args.area is None and args.bounding_box is None and args.weather_files is None:
@@ -530,6 +532,7 @@ def checkArgs(args):
     else:
         model_module_name = mangle_model_to_module(args.model)
         try:
+            import importlib
             model_module = importlib.import_module(model_module_name)
         except ImportError:
             p.error("Couldn't find a module named {}, ".format(repr(model_module_name))+
@@ -576,3 +579,14 @@ def readLLFromStationFile(fname):
        return lats, lons
 
        
+def mangle_model_to_module(model_name):
+    """Turn an arbitrary string into a module name.
+
+    Takes as input a model name, which hopefully looks like ERA-I, and
+    converts it to a module name, which will look like erai. I doesn't
+    always produce a valid module name, but that's not the goal. The
+    goal is just to handle common cases.
+    """
+    return 'models.' + model_name.lower().replace('-', '')
+
+

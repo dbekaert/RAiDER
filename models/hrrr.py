@@ -8,7 +8,7 @@ import re
 import sys
 
 import util
-from weatherModel import WeatherModel
+from models.weatherModel import WeatherModel
 
 def Model():
     return HRRR()

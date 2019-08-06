@@ -3,7 +3,7 @@ import numpy as np
 import pyproj
 
 import util
-from weatherModel import WeatherModel
+from models.weatherModel import WeatherModel
 
 class ECMWF(WeatherModel):
     '''

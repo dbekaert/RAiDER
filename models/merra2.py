@@ -1,4 +1,4 @@
-from weatherModel import WeatherModel
+from models.weatherModel import WeatherModel
 
 class MERRA2(WeatherModel):
     """Reader for MERRA-2 model.
