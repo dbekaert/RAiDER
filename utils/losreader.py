@@ -2,7 +2,7 @@ import numpy as np
 
 import os.path
 import shelve
-import util
+import utils.util as util
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
@@ -190,11 +190,12 @@ def infer_los(los, lats, lons, heights, zref):
     los_type, los_file = los
 
     if los_type == 'sv':
-        return infer_sv(los_file, lats, lons, heights)
+        LOS = infer_sv(los_file, lats, lons, heights)
 
     if los_type == 'los':
         incidence, heading = util.gdal_open(los_file)
         LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
-        return LOS
+
+    return LOS
 
     raise ValueError("Unsupported los type '{}'".format(los_type))

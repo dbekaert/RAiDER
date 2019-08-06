@@ -107,16 +107,16 @@ def parse_args():
     los.add_argument(
         '--lineofsight', '-l',
         help='GDAL-readable line-of-sight file',
-        metavar='LOS')
+        metavar='LOS', default=None)
     los.add_argument(
-        '--statevectors', '-s',
+        '--statevectors', '-s', default=None,
         help=('An ISCE XML or shelve file containing state vectors specifying '
               'the orbit of the sensor'))
 
     # Area
     area = p.add_mutually_exclusive_group()
     area.add_argument(
-        '--area', '-a', nargs=2,
+        '--area', '-a', nargs=2,default = None,
         help=('GDAL-readable longitude and latitude files to specify the '
               'region over which to calculate delay. Delay will be '
               'calculated at weather model nodes if unspecified'),
@@ -125,14 +125,18 @@ def parse_args():
         '--bounding_box', '-bb', nargs=4,
         help=('Bounding box, given as N W S E'),
         metavar=('N', 'W', 'S', 'E'))
+    area.add_argument(
+        '--station_file',default = None, type=str,
+        help=('File containing a list of stations, with at least '
+              'the columns "Lat" and "Lon"'))
 
     # heights
     heights = p.add_mutually_exclusive_group()
     heights.add_argument(
-        '--dem', '-d',
+        '--dem', '-d', default=None,
         help='DEM file. DEM will be downloaded if not specified')
     heights.add_argument(
-        '--heightlvs',
+        '--heightlvs', default=None,
         help=('Delay will be calculated at each of these heights across '
               'all of the specified area'),
         nargs='+', type=float)
@@ -141,11 +145,11 @@ def parse_args():
     p.add_argument(
         '--time',
         help='Fetch weather model data at this (ISO 8601 format) time',
-        type=read_date)
+        type=read_date, required=True)
     p.add_argument(
         '--model',
         help='Weather model to use',
-        default='ERA-I')
+        default='ERA-5')
     p.add_argument(
         '--pickleFile',
         help='Pickle file to load',
@@ -172,21 +176,42 @@ def parse_args():
         type=int, default=15000)
 
     p.add_argument(
-        '--outformat', help='GDAL format for output files (default: ENVI)',
+        '--outformat', help='Output file format; GDAL-compatible for DEM, HDF5 for height levels (default: ENVI)',
         default='ENVI')
 
     p.add_argument('--out', help='Output file directory', default='.')
-    p.add_argument('--model_location', help='Directory where weather model files are stored', default='.', dest='wmLoc')
+    p.add_argument('--model_location', help='Directory where weather model files are stored', default='./weather_files/', dest='wmLoc')
 
     p.add_argument('--no_parallel', '-p', action='store_true',dest='no_parallel', default = False, help='Do not run operation in parallel? Default False. Recommend only True for verbose (debug) mode')
 
     p.add_argument('--download_only', action='store_true',dest='download_only', default = False, help='Download weather model only without processing? Default False')
 
-    p.add_argument('--writeLatLonFile', '-w', action='store_true',dest='writeLLFile', default = False, help='Write weather model lat/lons to file? Default False')
-
     p.add_argument('--verbose', '-v', action='store_true',dest='verbose', default = False, help='Run in verbose (debug) mode? Default False')
 
     return p.parse_args(), p
+
+def writeDelays(wetDelay, hydroDelay, time, los, 
+                out, outformat, weather_model_name, 
+                proj = None, gt = None):
+    '''
+    Write the delay numpy arrays to files in the format specified 
+    '''
+    import numpy as np
+
+    # Use zero for nodata
+    wetDelay[np.isnan(wetDelay)] = 0.
+    hydroDelay[np.isnan(hydroDelay)] = 0.
+
+    # For later
+    wetFilename, hydroFilename = \
+          util.makeDelayFileNames(time, los, outformat, 
+                                  weather_model_name, out)
+
+    writeArrayToRaster(wetDelay, wetFilename, noDataValue = 0., 
+                       fmt = outformat, proj = proj, gt = gt)
+    writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = 0., 
+                       fmt = outformat, proj = proj, gt = gt)
+
 
 
 def getTropoDelay():
@@ -194,103 +219,39 @@ def getTropoDelay():
 
     We'll parse arguments and call delay.py.
     """
+    from utils.util import checkArgs
+    import utils.llreader as llr
+
     args, p = parse_args()
 
-    # Line of sight
-    if args.lineofsight is not None:
-        los = ('los', args.lineofsight)
-    elif args.statevectors is not None:
-        los = ('sv', args.statevectors)
-    else:
-        los = None
+    # Argument checking
+    los, lat, lon, heights, weather_model, zref, outformat, \
+         time, out, download_only, parallel = checkArgs(args)
 
-    # Area
-    if args.area is not None:
-        lat, lon = args.area
-    elif args.bounding_box is not None:
-        import numpy as np
-        N,W,S,E = args.bounding_box
-        lat = np.array([float(N), float(S)])
-        lon = np.array([float(E), float(W)])
-    else:
-        lat = lon = None
-
-    # DEM
-    if args.dem is not None:
-        heights = ('dem', args.dem)
-    elif args.heightlvs is not None:
-        heights = ('lvs', args.heightlvs)
-    else:
-        heights = ('download', None)
-
-    # Weather
-    if args.model == 'WRF':
-        if args.wmnetcdf is not None:
-            p.error('Argument --wmnetcdf invalid with --model WRF')
-        if args.wrfmodelfiles is not None:
-            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
-                        'name': 'wrf'}
-        else:
-            p.error('Argument --wrfmodelfiles required with --model WRF')
-    elif args.model=='ERA5' or args.model == 'ERA-5':
-        from models.era5 import ERA5
-        weathers = {'type': ERA5(), 'files':None, 'name':'ERA-5'}
-    elif args.model=='pickle':
-        import pickle
-        weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
-    else:
-        model_module_name = mangle_model_to_module(args.model)
-        try:
-            model_module = importlib.import_module(model_module_name)
-        except ImportError:
-            p.error("Couldn't find a module named {}, ".format(repr(model_module_name))+
-                    "needed to load weather model {}".format(repr(args.model)))
-        if args.wmnetcdf is not None:
-            weathers = {'type': model_module.Model(), 'files': args.wmnetcdf,
-                        'name': args.model}
-        elif args.time is None:
-            p.error('Must specify one of --wmnetcdf or --time (so I can '
-                    'figure out what to download)')
-        elif lat is None:
-            p.error('Must specify one of --wmnetcdf or --area (so I can '
-                    'figure out what to download)')
-        else:
-            weathers = {'type': model_module.Model(), 'files': None,
-                        'name': args.model}
-
-    # zref
-    zref = args.zref
-    outformat = args.outformat
-    time = args.time
-    out = args.out
-    wmLoc = args.wmLoc
-    wmName = None
-    download_only = args.download_only
-    parallel = True if not args.no_parallel else False
-    writeLL = args.writeLLFile
-
-    verbose = args.verbose
     if verbose: 
        print('Starting to run the weather model calculation')
        print('Time type: {}'.format(type(time)))
        print('Time: {}'.format(time.strftime('%Y%m%d')))
-
        print('Weather model file location: {}'.format(wmLoc))
        print('Parallel is {}'.format(parallel))
 
-       print('Now running delay module from: {}'.format(delay.__file__))
+    lats, lons, hgts = llr.readLLH(lat, lon, heights)
 
+    if los is None:
+        los = Zenith
+    else:
+        import utils.losreader as losr
+        los = losr.infer_los(los, lats, lons, hgts, zref)
 
-    wetDelay, hyrdoDelay = delay.tropo_delay(los, lat, lon, heights, 
-                      weathers, zref, out, wmLoc, wmName,
-                      time, outformat, 
-                      parallel=parallel, writeLL = writeLL,
-                      verbose = verbose, download_only = download_only)
+    wetDelay, hyrdoDelay = \
+       delay.tropo_delay(time, los, lat, lon, hgts, 
+                         weather_model, zref, out,
+                         parallel=parallel, verbose = verbose, 
+                         download_only = download_only)
 
-    # For later
-    wet_file_name, hydro_file_name = util.makeDelayFileNames(time, 
-                                         los,outformat, weather_model_name, out)
-
+    writeDelays(wetDelay, hydroDelay, time, los,
+                out, outformat, weather_model['name'],
+                proj = None, gt = None)
 
 if __name__ == '__main__':
     getTropoDelay()

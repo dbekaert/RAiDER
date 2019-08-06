@@ -4,3 +4,8 @@ _STEP = 15    # integration step size in meters
 
 _g0 = 9.80665
 
+class Zenith:
+    """Special value indicating a look vector of "zenith"."""
+    pass
+
+

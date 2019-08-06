@@ -25,17 +25,12 @@ import utils.constants as const
 import utils.demdownload as dld
 import utils.losreader as losreader
 import utils.util as util
-
+from utils.constants import Zenith
 
 # Step in meters to use when integrating
 _STEP = const._STEP
 # Top of the troposphere
 _ZREF = const._ZMAX
-
-
-class Zenith:
-    """Special value indicating a look vector of "zenith"."""
-    pass
 
 
 def _get_lengths(look_vecs):
@@ -152,7 +147,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
  
 
 def _common_delay(weatherObj, lats, lons, heights, 
-                  look_vecs, 
+                  look_vecs, zref = None,
                   stepSize = _STEP, interpType = 'rgi',
                   verbose = False, nproc = 8, useDask = False):
     """
@@ -194,10 +189,13 @@ def _common_delay(weatherObj, lats, lons, heights,
     else:
        pass
 
+    if zref is None:
+       zref = _ZREF
+
     # If weather model nodes only are desired, the calculation is very quick
     if look_vecs is Zenith:
         _,_,zs = weatherObj.getPoints()
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = _ZREF)
+        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
         wet_pw  = weatherObj.getWetRefractivity()
         hydro_pw= weatherObj.getHydroRefractivity()
         wet_delays = _integrateZenith(zs, wet_pw)
@@ -359,11 +357,14 @@ def delay_over_area(weather,
     return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
 
 
-def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
+def delay_from_files(weather, lat, lon, ht, zref = None, parallel=False, los=Zenith,
                      raytrace=True, verbose = False):
     """
     Read location information from files and calculate delay.
     """
+    if zref is None:
+       zref = _ZREF
+
     lats = util.gdal_open(lat)
     lons = util.gdal_open(lon)
     hts = util.gdal_open(ht)
@@ -372,7 +373,7 @@ def delay_from_files(weather, lat, lon, ht, parallel=False, los=Zenith,
         incidence, heading = util.gdal_open(los)
         if raytrace:
             los = losreader.los_to_lv(
-                incidence, heading, lats, lons, hts, _ZREF).reshape(-1, 3)
+                incidence, heading, lats, lons, hts, zref).reshape(-1, 3)
         else:
             los = incidence.flatten()
 
@@ -403,17 +404,10 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
-def tropo_delay(los = None, lat = None, lon = None, 
-                heights = None, 
-                weather = None, 
-                zref = 15000, 
-                out = None, 
-                time = None,
-                outformat='ENVI', 
-                parallel=True,
-                writeLL = False,
-                verbose = False, 
-                download_only = False):
+def tropo_delay(time, 
+                los = None, lat = None, lon = None, heights = None, 
+                weather = None, zref = 15000, out = None, 
+                parallel=True,verbose = False, download_only = False):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
@@ -426,7 +420,6 @@ def tropo_delay(los = None, lat = None, lon = None,
     if verbose:
         print('type of time: {}'.format(type(time)))
         print('Download-only is {}'.format(download_only))
-        print('Will format weather model file to: {} format'.format(outformat))
 
     if out is None:
         out = os.getcwd()
@@ -435,7 +428,7 @@ def tropo_delay(los = None, lat = None, lon = None,
     [lats, lons, los, hgts] = util.enforceNumpyArray(lat, lon, los, heights)
 
     # Make weather
-    weather_model, weather_files, weather_model_name = 
+    weather_model, weather_files, weather_model_name = \
                weather['type'],weather['files'],weather['name']
     checkIfImplemented(weather_model_name)
     util.check4LatLon(weather_files, lats)
@@ -483,22 +476,24 @@ def tropo_delay(los = None, lat = None, lon = None,
 
 
     # LOS check and load
-    if los is None:
-        los = Zenith
-    else:
-        los = losreader.infer_los(los, lats, lons, hts, zref)
     util.checkShapes(los, lats, lons, hgts)
     util.checkLOS(los, raytrace, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it
     # easier to think about
-    llas = np.stack((lats, lons, hts), axis=-1)
+    llas = np.stack((lats, lons, hgts), axis=-1)
     real_shape = llas.shape[:-1]
     llas = llas.reshape(-1, 3)
-    lats, lons, hts = np.moveaxis(llas, -1, 0)
+    lats, lons, hgts = np.moveaxis(llas, -1, 0)
 
     # Call _common_delay to compute the hydrostatic and wet delays
-    wet, hydro = _common_delay(weather, lats, lons, hts, los, verbose = verbose)
+    if parallel:
+       useDask = True
+       nproc = 16
+    else:
+       nproc = 1
+    wet, hydro = _common_delay(weather, lats, lons, hgts, los, zref = zref,\
+                  nproc = nproc, useDask = useDask, verbose = verbose)
 
     # Restore shape
     try:
@@ -507,4 +502,5 @@ def tropo_delay(los = None, lat = None, lon = None,
         pass
 
     return wet, hydro
+
     
