@@ -142,7 +142,8 @@ class Interpolator:
         if interpType=='scipy':
             self._make_scipy_interpolators(*args)
         elif interpType=='_sane':
-            self._make_sane_interpolators(*args)
+            raise NotImplemented
+            #self._make_sane_interpolators(*args)
         else:
             self._make_3D_interpolators(*args)
 
@@ -206,7 +207,10 @@ def _interp3D(xs, ys, zs, values, shape):
         values = np.flip(values, axis = 2)
 
     dz = (zmax - zmin)/NzLevels
+
+    # TODO: change to use mean height levels
     zvalues = zmin + dz*np.arange(NzLevels)
+
     new_zs = np.tile(zvalues, (nx,ny,1))
     values = fillna3D(values)
 
@@ -223,135 +227,7 @@ def _interp3D(xs, ys, zs, values, shape):
                            bounds_error=False, fill_value = np.nan)
     return interp
 
-
-def _sane_interpolate(xs, ys, zs, values_list, old_proj, new_proj, zmin):
-    '''
-    do some interpolation
-    '''
-    # just a check for the consistency with Ray's old code: 
-    ecef = pyproj.Proj(proj='geocent')
-    if old_proj != ecef:
-        import pdb
-        pdb.set_trace()
-
-    NzLevels = 2 * zs.shape[0]
-    # First, find the maximum height
-    new_top = np.nanmax(zs)
-
-    new_zs = np.linspace(zmin, new_top, NzLevels)
-
-    inp_values = [np.zeros((len(new_zs),) + values.shape[1:])
-                  for values in values_list]
-
-    # TODO: do without a for loop
-    for iv in range(len(values_list)):
-        for x in range(values_list[iv].shape[1]):
-            for y in range(values_list[iv].shape[2]):
-                not_nan = np.logical_not(np.isnan(zs[:, x, y]))
-                inp_values[iv][:, x, y] = scipy.interpolate.griddata(
-                        zs[:, x, y][not_nan],
-                        values_list[iv][:, x, y][not_nan],
-                        new_zs,
-                        method='cubic')
-        inp_values[iv] = _propagate_down(inp_values[iv])
-
-    interps = list()
-    for iv in range(len(values_list)):
-        # Indexing as height, ys, xs is a bit confusing, but it'll error
-        # if the sizes don't match, so we can be sure it's the correct
-        # order.
-        f = scipy.interpolate.RegularGridInterpolator((new_zs, ys, xs),
-                                                      inp_values[iv],
-                                                      bounds_error=False)
-
-        # Python has some weird behavior here, eh?
-        def ggo(interp):
-            def go(pts):
-                xs, ys, zs = np.moveaxis(pts, -1, 0)
-                a, b, c = pyproj.transform(old_proj, new_proj, xs, ys, zs)
-                # Again we index as ys, xs
-                llas = np.stack((c, b, a), axis=-1)
-                return interp(llas)
-            return go
-        interps.append(ggo(f))
-
-    return interps
-
-
-def _just_pull_down(a, direction=-1):
-    """Pull real values down to cover NaNs
-
-    a might contain some NaNs which live under real values. We replace
-    those NaNs with actual values. a must be a 3D array.
-    """
-    out = a.copy()
-    z, x, y = out.shape
-    for i in range(x):
-        for j in range(y):
-            held = None
-            if direction == 1:
-                r = range(z)
-            elif direction == -1:
-                r = range(z - 1, -1, -1)
-            else:
-                raise ValueError(
-                        'Unsupported direction. direction should be 1 or -1')
-            for k in r:
-                val = out[k][i][j]
-                if np.isnan(val) and held is not None:
-                    out[k][i][j] = held
-                elif not np.isnan(val):
-                    held = val
-    return out
-
-
-def _propagate_down(a):
-    """Try to fill in NaN values in a."""
-    out = np.zeros_like(a)
-    z, x, y = a.shape
-    xs = np.arange(x)
-    ys = np.arange(y)
-    xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
-    points = np.stack((xgrid, ygrid), axis=-1)
-    for i in range(z):
-        nans = np.isnan(a[i])
-        nonnan = np.logical_not(nans)
-        inpts = points[nonnan]
-        apts = a[i][nonnan]
-        outpoints = points.reshape(-1, 2)
-        try:
-            ans = scipy.interpolate.griddata(inpts, apts, outpoints,
-                                             method='nearest')
-        except ValueError:
-            # Likely there aren't any (non-nan) values here, but we'll
-            # copy over the whole thing to be safe.
-            ans = a[i]
-        out[i] = ans.reshape(out[i].shape)
-    # I honestly have no idea if this will work
-    return _just_pull_down(out)
-
-
-# Minimum z (height) value on the earth
-
-def _least_nonzero(a):
-    """Fill in a flat array with the lowest nonzero value.
-    
-    Useful for interpolation below the bottom of the weather model.
-    """
-    out = np.full(a.shape[1:], np.nan)
-    xlim, ylim = out.shape
-    zlim = len(a)
-    for x in range(xlim):
-        for y in range(ylim):
-            for z in range(zlim):
-                val = a[z][x][y]
-                if not np.isnan(val):
-                    out[x][y] = val
-                    break
-    return out
-
-
-
+# TODO: Check whether running parallel_apply_along_axis with interp1D will work instead of this
 def interp_along_axis(oldCoord, newCoord, data, axis = 2, inverse=False, method='linear', pad = False):
     """ 
 
@@ -548,4 +424,133 @@ def nan_helper(y):
     """
 
     return np.isnan(y), lambda z: z.nonzero()[0]
+
+
+def _sane_interpolate(xs, ys, zs, values_list, old_proj, new_proj, zmin):
+    '''
+    do some interpolation
+    '''
+    # just a check for the consistency with Ray's old code: 
+    ecef = pyproj.Proj(proj='geocent')
+    if old_proj != ecef:
+        import pdb
+        pdb.set_trace()
+
+    NzLevels = 2 * zs.shape[0]
+    # First, find the maximum height
+    new_top = np.nanmax(zs)
+
+    new_zs = np.linspace(zmin, new_top, NzLevels)
+
+    inp_values = [np.zeros((len(new_zs),) + values.shape[1:])
+                  for values in values_list]
+
+    # TODO: do without a for loop
+    for iv in range(len(values_list)):
+        for x in range(values_list[iv].shape[1]):
+            for y in range(values_list[iv].shape[2]):
+                not_nan = np.logical_not(np.isnan(zs[:, x, y]))
+                inp_values[iv][:, x, y] = scipy.interpolate.griddata(
+                        zs[:, x, y][not_nan],
+                        values_list[iv][:, x, y][not_nan],
+                        new_zs,
+                        method='cubic')
+        inp_values[iv] = _propagate_down(inp_values[iv])
+
+    interps = list()
+    for iv in range(len(values_list)):
+        # Indexing as height, ys, xs is a bit confusing, but it'll error
+        # if the sizes don't match, so we can be sure it's the correct
+        # order.
+        f = scipy.interpolate.RegularGridInterpolator((new_zs, ys, xs),
+                                                      inp_values[iv],
+                                                      bounds_error=False)
+
+        # Python has some weird behavior here, eh?
+        def ggo(interp):
+            def go(pts):
+                xs, ys, zs = np.moveaxis(pts, -1, 0)
+                a, b, c = pyproj.transform(old_proj, new_proj, xs, ys, zs)
+                # Again we index as ys, xs
+                llas = np.stack((c, b, a), axis=-1)
+                return interp(llas)
+            return go
+        interps.append(ggo(f))
+
+    return interps
+
+
+def _just_pull_down(a, direction=-1):
+    """Pull real values down to cover NaNs
+
+    a might contain some NaNs which live under real values. We replace
+    those NaNs with actual values. a must be a 3D array.
+    """
+    out = a.copy()
+    z, x, y = out.shape
+    for i in range(x):
+        for j in range(y):
+            held = None
+            if direction == 1:
+                r = range(z)
+            elif direction == -1:
+                r = range(z - 1, -1, -1)
+            else:
+                raise ValueError(
+                        'Unsupported direction. direction should be 1 or -1')
+            for k in r:
+                val = out[k][i][j]
+                if np.isnan(val) and held is not None:
+                    out[k][i][j] = held
+                elif not np.isnan(val):
+                    held = val
+    return out
+
+
+def _propagate_down(a):
+    """Try to fill in NaN values in a."""
+    out = np.zeros_like(a)
+    z, x, y = a.shape
+    xs = np.arange(x)
+    ys = np.arange(y)
+    xgrid, ygrid = np.meshgrid(xs, ys, indexing='ij')
+    points = np.stack((xgrid, ygrid), axis=-1)
+    for i in range(z):
+        nans = np.isnan(a[i])
+        nonnan = np.logical_not(nans)
+        inpts = points[nonnan]
+        apts = a[i][nonnan]
+        outpoints = points.reshape(-1, 2)
+        try:
+            ans = scipy.interpolate.griddata(inpts, apts, outpoints,
+                                             method='nearest')
+        except ValueError:
+            # Likely there aren't any (non-nan) values here, but we'll
+            # copy over the whole thing to be safe.
+            ans = a[i]
+        out[i] = ans.reshape(out[i].shape)
+    # I honestly have no idea if this will work
+    return _just_pull_down(out)
+
+
+# Minimum z (height) value on the earth
+
+def _least_nonzero(a):
+    """Fill in a flat array with the lowest nonzero value.
+    
+    Useful for interpolation below the bottom of the weather model.
+    """
+    out = np.full(a.shape[1:], np.nan)
+    xlim, ylim = out.shape
+    zlim = len(a)
+    for x in range(xlim):
+        for y in range(ylim):
+            for z in range(zlim):
+                val = a[z][x][y]
+                if not np.isnan(val):
+                    out[x][y] = val
+                    break
+    return out
+
+
 
