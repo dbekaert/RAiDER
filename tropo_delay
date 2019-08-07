@@ -189,7 +189,6 @@ def parse_args():
         default='ENVI')
 
     p.add_argument('--out', help='Output file directory', default='.')
-    p.add_argument('--model_location', help='Directory where weather model files are stored', default='./weather_files/', dest='wmLoc')
 
     p.add_argument('--no_parallel', '-p', action='store_true',dest='no_parallel', default = False, help='Do not run operation in parallel? Default False. Recommend only True for verbose (debug) mode')
 
@@ -207,6 +206,7 @@ def writeDelays(wetDelay, hydroDelay, time, los,
     Write the delay numpy arrays to files in the format specified 
     '''
     import numpy as np
+    from utils.util import makeDelayFileNames as mdf, writeArrayToRaster as watr
 
     # Use zero for nodata
     wetDelay[np.isnan(wetDelay)] = 0.
@@ -214,12 +214,11 @@ def writeDelays(wetDelay, hydroDelay, time, los,
 
     # For later
     wetFilename, hydroFilename = \
-          util.makeDelayFileNames(time, los, outformat, 
-                                  weather_model_name, out)
+          mdf(time, los, outformat, weather_model_name, out)
 
-    writeArrayToRaster(wetDelay, wetFilename, noDataValue = 0., 
+    watr(wetDelay, wetFilename, noDataValue = 0., 
                        fmt = outformat, proj = proj, gt = gt)
-    writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = 0., 
+    watr(hydroDelay, hydroFilename, noDataValue = 0., 
                        fmt = outformat, proj = proj, gt = gt)
 
 
@@ -229,7 +228,7 @@ def getTropoDelay():
 
     We'll parse arguments and call delay.py.
     """
-    from utils.util import checkArgs
+    from utils.util import checkArgs, mkdir
     import utils.llreader as llr
 
     args, p = parse_args()
@@ -238,25 +237,19 @@ def getTropoDelay():
     los, lat, lon, heights, weather_model, zref, outformat, \
          time, out, download_only, parallel, verbose = checkArgs(args, p)
 
+    mkdir(os.path.join(out, 'geom'))
+    mkdir(os.path.join(out, 'weather_files'))
+
     if verbose: 
        print('Starting to run the weather model calculation')
        print('Time type: {}'.format(type(time)))
        print('Time: {}'.format(time.strftime('%Y%m%d')))
        print('Parallel is {}'.format(parallel))
 
-    lats, lons, hgts = llr.readLLH(lat, lon, heights)
-    import pdb; pdb.set_trace()
+    lats, lons= llr.readLL(lat, lon)
 
-    if los is None:
-        los = Zenith
-    else:
-        import utils.losreader as losr
-        los = losr.infer_los(los, lats, lons, hgts, zref)
-
-    import pdb; pdb.set_trace()
-
-    wetDelay, hyrdoDelay = \
-       delay.tropo_delay(time, los, lat, lon, hgts, 
+    wetDelay, hydroDelay = \
+       delay.tropo_delay(time, los, lats, lons, heights, 
                          weather_model, zref, out,
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)

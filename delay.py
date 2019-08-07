@@ -26,6 +26,7 @@ import utils.demdownload as dld
 import utils.losreader as losreader
 import utils.util as util
 from utils.constants import Zenith
+from utils.downloadWM import downloadWMFile as dwf
 
 # Step in meters to use when integrating
 _STEP = const._STEP
@@ -175,6 +176,7 @@ def _common_delay(weatherObj, lats, lons, heights,
      delays     - A list containing the wet and hydrostatic delays for each ground point in 
                   meters. 
     """
+    parThresh = 1e4
 
     # If the number of points to interpolate are low, don't parallelize
     if np.prod(lats.shape) < parThresh:
@@ -404,8 +406,7 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 
-def tropo_delay(time, 
-                los = None, lat = None, lon = None, heights = None, 
+def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 
                 weather = None, zref = 15000, out = None, 
                 parallel=True,verbose = False, download_only = False):
     """Calculate troposphere delay from command-line arguments.
@@ -416,6 +417,7 @@ def tropo_delay(time,
     """
     from models.allowed import checkIfImplemented
     from datetime import datetime as dt
+    from utils.llreader import getHeights
 
     if verbose:
         print('type of time: {}'.format(type(time)))
@@ -424,18 +426,14 @@ def tropo_delay(time,
     if out is None:
         out = os.getcwd()
 
-    # ensure inputs are numpy arrays or None
-    [lats, lons, los, hgts] = util.enforceNumpyArray(lat, lon, los, heights)
-
     # Make weather
     weather_model, weather_files, weather_model_name = \
                weather['type'],weather['files'],weather['name']
     checkIfImplemented(weather_model_name)
-    util.check4LatLon(weather_files, lats)
 
     # check whether weather model files are supplied
     if weather_files is None:
-       download_flag, f = downloadWMFile(weather_model.Model(), time, outLoc, verbose)
+       download_flag, f = dwf(weather_model.Model(), time, out, verbose)
 
     # if no weather model files supplied, check the standard location
     if download_flag:
@@ -459,23 +457,39 @@ def tropo_delay(time,
        weather_model.load(*weather_files)
        download_flag = False
     elif weather_model_name == 'pickle':
-        weather = util.pickle_load(weather_files)
+        weather_model = util.pickle_load(weather_files)
     else:
         # output file for storing the weather model
         weather_model.load(f)
     if verbose:
-        print(weather)
+        print(weather_model)
         #p = weather.plot(p)
 
 
     # Pull the lat/lon data if using the weather model 
-    if lats is None:
-       lats,lons = weather.getLL() 
-       lla = weather.getProjection()
-       util.writeLL(lats, lons,lla, weather_model_name, out)
-
+    if lats is None or len(lats)==2:
+       lats,lons = weather_model.getLL() 
+       lla = weather_model.getProjection()
+       util.writeLL(time, lats, lons,lla, weather_model_name, out)
+ 
+    # Pull the DEM
+    demLoc = os.path.join(out, 'geom')
+    lats, lons, hgts = getHeights(lats, lons,heights, demLoc)
 
     # LOS check and load
+    if los is None:
+        los = Zenith
+    elif los is Zenith:
+        pass
+    else:
+        import utils.losreader as losr
+        los = losr.infer_los(los, lats, lons, hgts, zref)
+
+    if los is Zenith:
+       raytrace = True
+    else:
+       raytrace = True
+       
     util.checkShapes(los, lats, lons, hgts)
     util.checkLOS(los, raytrace, np.prod(lats.shape))
 
@@ -491,8 +505,9 @@ def tropo_delay(time,
        useDask = True
        nproc = 16
     else:
+       useDask = False
        nproc = 1
-    wet, hydro = _common_delay(weather, lats, lons, hgts, los, zref = zref,\
+    wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,\
                   nproc = nproc, useDask = useDask, verbose = verbose)
 
     # Restore shape

@@ -384,25 +384,18 @@ def makeDelayFileNames(time, los,outformat, weather_model_name, out):
     return wet_file_name, hydro_file_name
 
 
-def check4LatLon(weather_files, lats):
-    '''
-    Check that either lats or weather_files are not None
-    '''
-    if weather_files is None and lats is None:
-       raise ValueError('Unable to infer lats and lons if ' +
-                        'you also want me to download the weather model')
-
 def mkdir(dirName):
     try:
        os.mkdir(dirName)
     except FileExistsError: 
        pass
 
-def writeLL(lats, lons, llProj, weather_model_name, out):
+def writeLL(time, lats, lons, llProj, weather_model_name, out):
     '''
     If the weather model grid nodes are used, write the lat/lon values
     out to a file
     '''
+    from datetime import datetime as dt
     lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
@@ -410,8 +403,8 @@ def writeLL(lats, lons, llProj, weather_model_name, out):
 
     mkdir('geom')
 
-    writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName), proj = llProj)
-    writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName), proj = llProj)
+    writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
+    writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
 
 
 def checkShapes(los, lats, lons, hgts):
@@ -419,6 +412,7 @@ def checkShapes(los, lats, lons, hgts):
     Make sure that by the time the code reaches here, we have a
     consistent set of line-of-sight and position data. 
     '''
+    from utils.constants import Zenith
     test1 = hgts.shape == lats.shape == lons.shape
     try:
         test2 = los.shape[:-1] != hts.shape
@@ -440,6 +434,7 @@ def checkLOS(los, raytrace, Npts):
            of points, which represent the projection value), or
        (3) a set of vectors, same number as the number of points. 
      '''
+    from utils.constants import Zenith
     # los can either be a bunch of vectors or a bunch of scalars. If
     # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
     if los is not Zenith:

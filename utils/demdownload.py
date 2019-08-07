@@ -1,7 +1,9 @@
 from osgeo import gdal
 import numpy as np
+import os
 import scipy.interpolate
 from scipy.interpolate import RegularGridInterpolator as rgi
+
 import utils.util as util
 
 gdal.UseExceptions()
@@ -11,7 +13,18 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, save_flag= True, checkDEM = True):
+def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
+    '''
+    Download a DEM if one is not already present. 
+    '''
+    gdalNDV = 0
+    outRasterName = os.path.join(outLoc, 'warpedDEM.dem')
+    if os.path.exists(outRasterName):
+       print('WARNING: DEM already exists in {}, will not overwite'.format(outLoc))
+       hgts = util.gdal_open(outRasterName)
+       hgts[hgts==0.] = np.nan
+       return hgts
+
     print('Getting the DEM')
 
     # Insert check for DEM noData values
@@ -62,7 +75,6 @@ def download_dem(lats, lons, save_flag= True, checkDEM = True):
 
     # Need to ensure that noData values are consistently handled and 
     # can be passed on to GDAL
-    gdalNDV = 0
     outInterp[np.isnan(outInterp)] = gdalNDV
     outInterp[outInterp < -10000] = gdalNDV
 
@@ -70,7 +82,6 @@ def download_dem(lats, lons, save_flag= True, checkDEM = True):
 
     if save_flag:
         print('Saving DEM to disk')
-        outRasterName = 'warpedDEM.dem'
         util.writeArrayToRaster(outInterp, 
                                 outRasterName, 
                                 noDataValue = gdalNDV)

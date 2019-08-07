@@ -360,7 +360,7 @@ def worker(tup):
     return res
 
 
-def parfetch(dateTime, varNames, fieldName = 'prs', numProc = 16):
+def parfetch(dateTime, varNames, fieldName = 'prs', numProc = 1):
     import multiprocessing as mp
 
     tupList = [(dateTime, var, fieldName) for var in varNames]
@@ -512,6 +512,7 @@ def get_hrrr_variable(DATE, variable,
         grib2file = 'https://pando-rgw01.chpc.utah.edu/%s/%s/%s/%s.t%02dz.wrf%sf%02d.grib2' \
                     % (model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
         fileidx = grib2file+'.idx'
+        import pdb; pdb.set_trace()
     else:
         # Get operational HRRR from NOMADS
         if model == 'hrrr':
@@ -560,7 +561,6 @@ def get_hrrr_variable(DATE, variable,
         except:
             idxpage = urllib.request.urlopen(fileidx)
 
-        import pdb; pdb.set_trace()
         lines = [t.decode('utf-8') for t in idxpage.readlines()]
 
         ## 1) Find the byte range for the requested variable. First find where

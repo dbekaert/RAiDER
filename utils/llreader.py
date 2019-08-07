@@ -1,7 +1,7 @@
 
 import utils.demdownload as dld
 
-def readLLH(lat, lon, heights):
+def readLL(lat, lon):
     '''
     Parse lat/lon/height inputs and return 
     the appropriate outputs
@@ -25,6 +25,10 @@ def readLLH(lat, lon, heights):
 
     [lats, lons] = enforceNumpyArray(lats, lons)
 
+    return lats, lons
+
+
+def getHeights(lats, lons,heights, demLoc):
     # Height
     height_type, height_info = heights
     if height_type == 'dem':
@@ -33,7 +37,7 @@ def readLLH(lat, lon, heights):
         except RuntimeError:
             print('WARNING: File {} could not be opened. \n')
             print('Proceeding with DEM download'.format(height_info))
-            hts = dld.download_dem(lats, lons)
+            hts = dld.download_dem(lats, lons, demLoc)
     elif height_type == 'lvs':
         hts = height_info
         latlist, lonlist, hgtlist = [], [], []
@@ -46,7 +50,7 @@ def readLLH(lat, lon, heights):
         hts = np.array(hgtlist)
         
     if height_type == 'download':
-        hts = dld.download_dem(lats, lons)
+        hts = dld.download_dem(lats, lons, demLoc)
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 
