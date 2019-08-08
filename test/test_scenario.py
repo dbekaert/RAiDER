@@ -74,6 +74,7 @@ class TimeTests(unittest.TestCase):
                      download_only = False)
 
     
+#   should have appropriate check here
 #        self.assertTrue(np.allclose(testData, refData,equal_nan = True))
         self.assertTrue(True)
 
