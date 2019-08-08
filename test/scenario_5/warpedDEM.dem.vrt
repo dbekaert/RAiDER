@@ -1,0 +1,9 @@
+<VRTDataset rasterXSize="226" rasterYSize="45">
+    <VRTRasterBand band="1" dataType="Float32" subClass="VRTRawRasterBand">
+        <SourceFilename relativeToVRT="1">warpedDEM.dem</SourceFilename>
+        <ByteOrder>LSB</ByteOrder>
+        <ImageOffset>0</ImageOffset>
+        <PixelOffset>4</PixelOffset>
+        <LineOffset>904</LineOffset>
+    </VRTRasterBand>
+</VRTDataset>
