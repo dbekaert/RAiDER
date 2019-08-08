@@ -63,6 +63,9 @@ WRF:
 import argparse
 import datetime
 import itertools
+import os
+
+# Local imports
 import delay
 
 
@@ -233,12 +236,12 @@ def getTropoDelay():
 
     args, p = parse_args()
 
+    mkdir(os.path.join(args.out, 'geom'))
+    mkdir(os.path.join(args.out, 'weather_files'))
+
     # Argument checking
     los, lat, lon, heights, weather_model, zref, outformat, \
          time, out, download_only, parallel, verbose = checkArgs(args, p)
-
-    mkdir(os.path.join(out, 'geom'))
-    mkdir(os.path.join(out, 'weather_files'))
 
     if verbose: 
        print('Starting to run the weather model calculation')

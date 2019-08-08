@@ -474,6 +474,8 @@ def checkArgs(args, p):
     # Area
     if args.area is not None:
         lat, lon = args.area
+        gdal_trans(lat, os.path.join(args.out, 'geom', os.path.split(lat)[-1]), 'VRT')
+        gdal_trans(lon, os.path.join(args.out, 'geom', os.path.split(lon)[-1]), 'VRT')
     elif args.bounding_box is not None:
         N,W,S,E = args.bounding_box
         lat = np.array([float(N), float(S)])
@@ -568,3 +570,15 @@ def mangle_model_to_module(model_name):
     return 'models.' + model_name.lower().replace('-', '')
 
 
+def gdal_trans(f1, f2, fmt = 'VRT'):
+    '''
+    translate a file from one location to another using GDAL
+    '''
+    ds1 = gdal.Open(f1)
+    if ds1 is None:
+        raise RuntimeError('Could not open the file {}'.format(f1))
+    ds2 = gdal.Translate(f2, ds1, format = fmt)
+    if ds2 is None:
+        raise RuntimeError('Could not translate the file {} to {}'.format(f1, f2))
+    ds1 = None
+    ds2 = None
