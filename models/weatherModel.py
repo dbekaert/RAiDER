@@ -109,7 +109,7 @@ class WeatherModel():
         '''
         pass
 
-    def load(self, *args):
+    def load(self, *args, lats = None, lons = None):
         '''
         Calls the load_weather method. Each model class should define a load_weather 
         method appropriate for that class. 'args' should be one or more filenames. 
@@ -120,7 +120,7 @@ class WeatherModel():
         self._get_hydro_refractivity() 
         
         # adjust the grid based on the height data
-        self._adjust_grid()
+        self._adjust_grid(lats, lons)
 
     def load_weather(self, filename):
         '''
@@ -207,7 +207,7 @@ class WeatherModel():
     def getHydroRefractivity(self):
         return self._hydrostatic_refractivity
 
-    def _adjust_grid(self):
+    def _adjust_grid(self, lats, lons):
         '''
         This function pads the weather grid with a level at self._zmin, if 
         it does not already go that low. It also removes levels that are 
@@ -254,6 +254,59 @@ class WeatherModel():
         self._e = self._e[...,levInd]
         self._wet_refractivity = self._wet_refractivity[...,levInd]
         self._hydrostatic_refractivity=self._hydrostatic_refractivity[...,levInd]
+
+        if lats is not None:
+           in_extent = self._getExtent(lats, lons)
+           self_extent = self._getExtent(self._ys, self._xs)
+           if self._isOutside(in_extent, self_extent):
+              raise RuntimeError('The weather model passed does not cover all of the \n \
+                                 input points; you need to download a larger area.')
+           self._trimExtent(in_extent) 
+
+
+    def _getExtent(self,lats, lons):
+        '''
+        get the bounding box around a set of lats/lons
+        '''
+        return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+
+
+    def _isOutside(self, extent1, extent2):
+        '''
+        Determine whether any of extent1  lies outside extent2
+        extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
+        '''
+        t1 = extent1[0] < extent2[0]
+        t2 = extent1[1] > extent2[1]
+        t3 = extent1[2] < extent2[2]
+        t4 = extent1[3] > extent2[3]
+        if np.any([t1, t2, t3, t4]):
+           return True
+        return False
+
+
+    def _trimExtent(self,extent):
+        '''
+        get the bounding box around a set of lats/lons
+        '''
+        mask = (self._ys[:,:,0] > extent[0]) & (self._ys[:,:,0] < extent[1]) & \
+               (self._xs[:,:,0] > extent[2]) & (self._xs[:,:,0] < extent[3])
+        ma1 = np.sum(mask, axis = 1).astype('bool')
+        ma2 = np.sum(mask, axis = 0).astype('bool')
+        index1 = np.arange(len(ma1))[ma1][0]
+        index2 = np.arange(len(ma1))[ma1][-1]
+        index3 = np.arange(len(ma2))[ma2][0]
+        index4 = np.arange(len(ma2))[ma2][-1] + 1
+        self._xs                       = self._xs[index1:index2,index3:index4,:]
+        self._ys                       = self._ys[index1:index2,index3:index4,...]
+        self._zs                       = self._zs[index1:index2,index3:index4,...]
+        self._p                        = self._p[index1:index2,index3:index4,...]
+        self._q                        = self._q[index1:index2,index3:index4,...]
+        self._rh                       = self._rh[index1:index2,index3:index4,...]
+        self._t                        = self._t[index1:index2,index3:index4,...]
+        self._e                        = self._e[index1:index2,index3:index4,...]
+        self._wet_refractivity         = self._wet_refractivity[index1:index2,index3:index4,...]
+        self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2,index3:index4,:]
 
 
     def _find_svp(self):

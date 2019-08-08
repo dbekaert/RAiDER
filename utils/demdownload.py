@@ -18,13 +18,6 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
     Download a DEM if one is not already present. 
     '''
     gdalNDV = 0
-    outRasterName = os.path.join(outLoc, 'warpedDEM.dem')
-    if os.path.exists(outRasterName):
-       print('WARNING: DEM already exists in {}, will not overwite'.format(outLoc))
-       hgts = util.gdal_open(outRasterName)
-       hgts[hgts==0.] = np.nan
-       return hgts
-
     print('Getting the DEM')
 
     # Insert check for DEM noData values
@@ -36,6 +29,22 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
     maxlon = np.nanmax(lons) + 0.02
     minlat = np.nanmin(lats) - 0.02
     maxlat = np.nanmax(lats) + 0.02
+
+    # Make sure the DEM hasn't already been downloaded
+    outRasterName = os.path.join(outLoc, 'warpedDEM.dem' \
+                                   .format(minlat, maxlat, minlon, maxlon))
+ 
+    if os.path.exists(outRasterName):
+       import pdb; pdb.set_trace()
+       print('WARNING: DEM already exists in {}, checking extents'.format(outLoc))
+       hgts = util.gdal_open(outRasterName)
+       if util.isOutside(util.getExtent(lats), util.getExtent(hgts)):
+          raise RuntimeError('Existing DEM does not cover the area of the input \n \
+                              lat/lon points; either move the DEM, delete it, or \n \
+                              change the inputs.')
+       hgts[hgts==0.] = np.nan
+       return hgts
+
 
     # Specify filenames
     outRaster = '/vsimem/warpedDEM'
@@ -82,9 +91,14 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
 
     if save_flag:
         print('Saving DEM to disk')
-        util.writeArrayToRaster(outInterp, 
+        if outInterp.ndim==2:
+            util.writeArrayToRaster(outInterp, 
                                 outRasterName, 
                                 noDataValue = gdalNDV)
+        elif outInterp.ndim==1:
+            util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)
+        else:
+            import pdb; pdb.set_trace()
         print('Finished saving DEM to disk')
 
     return outInterp

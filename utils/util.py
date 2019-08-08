@@ -207,6 +207,18 @@ def writeArrayToRaster(array, filename, noDataValue = 0, fmt = 'ENVI', proj = No
     ds = None
     b1 = None
 
+
+def writeArrayToFile(lats, lons, array, filename, noDataValue = -9999):
+    '''
+    Write a single-dim array of values to a file
+    '''
+    array[np.isnan(array)] = noDataValue
+    with open(filename, 'w') as f:
+       f.write('Lat,Lon,DEM_hgt_m\n')
+       for l, L, a in zip(lats, lons, array):
+           f.write('{},{},{}\n'.format(l, L, a))
+    
+
 def round_date(date, precision):
     import datetime
     # First try rounding up
@@ -458,9 +470,10 @@ def checkArgs(args, p):
 
     if args.heightlvs is not None and args.outformat != 'hdf5':
        raise ValueError('HDF5 must be used with height levels')
-    if args.area is None and args.bounding_box is None and args.weather_files is None:
+    if args.area is None and args.bounding_box is None and args.wmnetcdf is None and args.station_file is None:
        raise ValueError('You must specify one of the following: \n \
-             (1) lat/lon files, (2) bounding box, (3) weather model files. ')
+             (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \
+             (4) station file containing Lat and Lon columns')
 
     # Line of sight
     if args.lineofsight is not None:
@@ -481,8 +494,7 @@ def checkArgs(args, p):
         lat = np.array([float(N), float(S)])
         lon = np.array([float(E), float(W)])
     elif args.station_file is not None:
-        from utils.util import readLLFromStationFile as rf
-        lat, lon = rf(args.station_file)
+        lat, lon = readLLFromStationFile(args.station_file)
     else:
         lat = lon = None
 
@@ -531,11 +543,30 @@ def checkArgs(args, p):
                         'name': args.model}
     # zref
     zref = args.zref
-    outformat = args.outformat
+    
+    # output file format
+    if args.heightlvs is not None: 
+       if args.outformat.lower() != 'hdf5':
+          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
+       outformat = 'hdf5'
+    elif args.station_file is not None:
+       if args.outformat.lower() != 'netcdf':
+          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
+       outformat = 'netcdf'
+    else:
+       if args.outformat.lower() == 'hdf5':
+          print("WARNING: output require raster output file; changing outformat to ENVI")
+          outformat = 'ENVI'
+       else:
+          outformat = args.outformat.lower()
+
+    # parallelization
+    parallel = True if not args.no_parallel else False
+
+    # other
     time = args.time
     out = args.out
     download_only = args.download_only
-    parallel = True if not args.no_parallel else False
     verbose = args.verbose
 
     return los, lat, lon, heights, weathers, zref, outformat, time, out, download_only, parallel, verbose
@@ -552,7 +583,9 @@ def readLLFromStationFile(fname):
     except:
        lats, lons = [], []
        with open(fname, 'r') as f:
-          for line in f: 
+          for i, line in enumerate(f): 
+              if i == 0:
+                 continue
               lat, lon = [float(f) for f in line.split(',')[1:3]]
               lats.append(lat)
               lons.append(lon)
@@ -582,3 +615,26 @@ def gdal_trans(f1, f2, fmt = 'VRT'):
         raise RuntimeError('Could not translate the file {} to {}'.format(f1, f2))
     ds1 = None
     ds2 = None
+
+
+def isOutside(extent1, extent2):
+    '''
+    Determine whether any of extent1  lies outside extent2
+    extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
+    '''
+    t1 = extent1[0] < extent2[0]
+    t2 = extent1[1] > extent2[1]
+    t3 = extent1[2] < extent2[2]
+    t4 = extent1[3] > extent2[3]
+    if np.any([t1, t2, t3, t4]):
+       return True
+    return False
+
+
+def getExtent(lats, lons):
+    '''
+    get the bounding box around a set of lats/lons
+    '''
+    return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+
+

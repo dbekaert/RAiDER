@@ -142,7 +142,7 @@ def parse_args():
         help=('Bounding box, given as N W S E'),
         metavar=('N', 'W', 'S', 'E'))
     area.add_argument(
-        '--station_file',default = None, type=str,
+        '--station_file',default = None, type=str, dest='station_file',
         help=('CSV file containing a list of stations, with at least '
               'the columns "Lat" and "Lon"'))
 

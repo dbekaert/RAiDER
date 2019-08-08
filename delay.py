@@ -412,8 +412,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
-    _tropo_delay_with_values. Then we'll write the output to the output
-    file.
+    _common_delay. 
     """
     from models.allowed import checkIfImplemented
     from datetime import datetime as dt
@@ -460,7 +459,9 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
         weather_model = util.pickle_load(weather_files)
     else:
         # output file for storing the weather model
-        weather_model.load(f)
+        #weather_model.load(f)
+        weather_model.load(f, lats = lats, lons = lons) # <-- this will trim the weather model to the lat/lon extents
+        import pdb; pdb.set_trace()
     if verbose:
         print(weather_model)
         #p = weather.plot(p)
@@ -471,6 +472,11 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
        lats,lons = weather_model.getLL() 
        lla = weather_model.getProjection()
        util.writeLL(time, lats, lons,lla, weather_model_name, out)
+
+    # check for compatilibility of the weather model locations and the input
+    if util.isOutside(util.getExtent(lats, lons), util.getExtent(*weather_model.getLL())):
+       print('WARNING: some of the requested points are outside of the existing \
+             weather model; these will end up as NaNs')
  
     # Pull the DEM
     demLoc = os.path.join(out, 'geom')
