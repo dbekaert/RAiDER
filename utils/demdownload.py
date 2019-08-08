@@ -37,9 +37,9 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     outRasterName = os.path.join(outLoc, outName) 
  
     if os.path.exists(outRasterName):
-       print('WARNING: DEM already exists in {}, checking extents'.format(outLoc))
+       print('WARNING: DEM already exists in {}, checking shape'.format(outLoc))
        hgts = util.gdal_open(outRasterName)
-       if util.isOutside(util.getExtent(lats, lons), util.getExtent(outRasterName)):
+       if hgts.shape != lats.shape:
           raise RuntimeError('Existing DEM does not cover the area of the input \n \
                               lat/lon points; either move the DEM, delete it, or \n \
                               change the inputs.')
@@ -95,17 +95,7 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
         print('Saving DEM to disk')
         if outInterp.ndim==2:
 
-            # Set the projection
-            from osgeo import osr
-            proj = osr.SpatialReference()
-            proj.ImportFromEPSG(4326)
-
-            # Set the geotransform
-            gt = (minlon, pixWidth, 0, minlat, 0, -pixHeight)
-
-            util.writeArrayToRaster(outInterp, 
-                                outRasterName, noDataValue = gdalNDV, 
-                                proj = proj.ExportToWkt(), gt = gt)
+            util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
 
         elif outInterp.ndim==1:
             util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)

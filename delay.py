@@ -478,10 +478,14 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
              weather model; these will end up as NaNs')
  
     # Pull the DEM
+    if verbose: 
+       print('Beginning DEM calculation')
     demLoc = os.path.join(out, 'geom')
     lats, lons, hgts = getHeights(lats, lons,heights, demLoc)
 
     # LOS check and load
+    if verbose: 
+       print('Beginning LOS calculation')
     if los is None:
         los = Zenith
     elif los is Zenith:
@@ -505,6 +509,8 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     llas = llas.reshape(-1, 3)
     lats, lons, hgts = np.moveaxis(llas, -1, 0)
 
+    if verbose: 
+       print('Beginning delay calculation')
     # Call _common_delay to compute the hydrostatic and wet delays
     if parallel:
        useDask = True
@@ -514,6 +520,8 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
        nproc = 1
     wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,\
                   nproc = nproc, useDask = useDask, verbose = verbose)
+    if verbose: 
+       print('Finished delay calculation')
 
     # Restore shape
     try:

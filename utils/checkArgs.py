@@ -34,12 +34,18 @@ def checkArgs(args, p):
                           dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
         gdal_trans(lat, os.path.join(args.out, 'geom', latFileName), 'VRT')
         gdal_trans(lon, os.path.join(args.out, 'geom', lonFileName), 'VRT')
+
     elif args.bounding_box is not None:
         N,W,S,E = args.bounding_box
         lat = np.array([float(N), float(S)])
         lon = np.array([float(E), float(W)])
+
+        if (lat[0] == lat[1]) | (lon[0]==lon[1]):
+           raise RuntimeError('You have passed a zero-size bounding box: {}'.format(args.bounding_box))
+
     elif args.station_file is not None:
         lat, lon = readLLFromStationFile(args.station_file)
+
     else:
         lat = lon = None
 
