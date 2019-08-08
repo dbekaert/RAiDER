@@ -1,27 +1,33 @@
 
 import utils.demdownload as dld
 
-def readLL(lat, lon):
+def readLL(lat, lon, flag):
     '''
     Parse lat/lon/height inputs and return 
     the appropriate outputs
     '''
     # Lats/Lons
-    if lat is None:
+    if flag is None:
         # They'll get set later with weather
         lats = lons = None
         latproj = lonproj = None
+    elif flag=='files':
+        # If they are files, open them
+        lats, latproj = util.gdal_open(lat, returnProj = True)
+        lons, lonproj = util.gdal_open(lon, returnProj = True)
+    elif flag=='bounding_box': 
+        # assume that they are numbers/list/numpy array
+        lats = lat
+        lons = lon
+        latproj = lonproj = None
+        lon = lat = None
+    elif flag=='station_list':
+        lats = lat
+        lons = lon
+        latproj = lonproj = None
+        lon = lat = None
     else:
-        try:
-            # If they are files, open them
-            lats, latproj = util.gdal_open(lat, returnProj = True)
-            lons, lonproj = util.gdal_open(lon, returnProj = True)
-        except:
-            # assume that they are numbers/list/numpy array
-            lats = lat
-            lons = lon
-            latproj = lonproj = None
-            lon = lat = None
+        raise RuntimeError('readLL: unknown flag')
 
     [lats, lons] = enforceNumpyArray(lats, lons)
 

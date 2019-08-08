@@ -1,6 +1,7 @@
-from osgeo import gdal
+import glob
 import numpy as np
 import os
+from osgeo import gdal
 import scipy.interpolate
 from scipy.interpolate import RegularGridInterpolator as rgi
 
@@ -13,7 +14,7 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
+def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem'):
     '''
     Download a DEM if one is not already present. 
     '''
@@ -29,16 +30,16 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
     maxlon = np.nanmax(lons) + 0.02
     minlat = np.nanmin(lats) - 0.02
     maxlat = np.nanmax(lats) + 0.02
+    pixWidth = (maxlon - minlon)/lats.shape[1]
+    pixHeight = (maxlat - minlat)/lats.shape[1]
 
     # Make sure the DEM hasn't already been downloaded
-    outRasterName = os.path.join(outLoc, 'warpedDEM.dem' \
-                                   .format(minlat, maxlat, minlon, maxlon))
+    outRasterName = os.path.join(outLoc, outName) 
  
     if os.path.exists(outRasterName):
-       import pdb; pdb.set_trace()
        print('WARNING: DEM already exists in {}, checking extents'.format(outLoc))
        hgts = util.gdal_open(outRasterName)
-       if util.isOutside(util.getExtent(lats), util.getExtent(hgts)):
+       if util.isOutside(util.getExtent(lats, lons), util.getExtent(outRasterName)):
           raise RuntimeError('Existing DEM does not cover the area of the input \n \
                               lat/lon points; either move the DEM, delete it, or \n \
                               change the inputs.')
@@ -47,20 +48,20 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
 
 
     # Specify filenames
-    outRaster = '/vsimem/warpedDEM'
+    memRaster = '/vsimem/warpedDEM'
     inRaster ='/vsicurl/{}'.format(_world_dem) 
 
     # Download and warp
     print('Beginning DEM download and warping')
     
     wrpOpt = gdal.WarpOptions(outputBounds = (minlon, minlat,maxlon, maxlat))
-    gdal.Warp(outRaster, inRaster, options = wrpOpt)
+    gdal.Warp(memRaster, inRaster, options = wrpOpt)
 
     print('DEM download finished')
 
     # Load the DEM data
     try:
-        out = util.gdal_open(outRaster)
+        out = util.gdal_open(memRaster)
     except:
         raise RuntimeError('demdownload: Cannot open the warped file')
     finally:
@@ -72,10 +73,11 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
     #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
 
-    #TODO: do the projection in gdal itself
     print('Beginning interpolation')
-    xlats = np.linspace(minlat, maxlat, out.shape[0])
-    xlons = np.linspace(minlon, maxlon, out.shape[1])
+    nPixLat = out.shape[0]
+    nPixLon = out.shape[1]
+    xlats = np.linspace(minlat, maxlat, nPixLat)
+    xlons = np.linspace(minlon, maxlon, nPixLon)
     interpolator = rgi(points = (xlats, xlons),values = out,
                        method='linear', 
                        bounds_error = False)
@@ -92,13 +94,23 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True):
     if save_flag:
         print('Saving DEM to disk')
         if outInterp.ndim==2:
+
+            # Set the projection
+            from osgeo import osr
+            proj = osr.SpatialReference()
+            proj.ImportFromEPSG(4326)
+
+            # Set the geotransform
+            gt = (minlon, pixWidth, 0, minlat, 0, -pixHeight)
+
             util.writeArrayToRaster(outInterp, 
-                                outRasterName, 
-                                noDataValue = gdalNDV)
+                                outRasterName, noDataValue = gdalNDV, 
+                                proj = proj.ExportToWkt(), gt = gt)
+
         elif outInterp.ndim==1:
             util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)
         else:
-            import pdb; pdb.set_trace()
+            raise RuntimeError('Why is the DEM 3-dimensional?')
         print('Finished saving DEM to disk')
 
     return outInterp

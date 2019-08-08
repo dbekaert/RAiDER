@@ -1,0 +1,20 @@
+name: raytracing
+channels:
+ - anaconda
+ - conda-forge
+dependencies:
+ - python=3
+ - cartopy
+ - cdsapi
+ - cmake
+ - dask
+ - gcc
+ - h5py
+ - krb5
+ - matplotlib
+ - numpy
+ - pygdal
+ - pyproj
+ - pygrib
+ - scipy
+

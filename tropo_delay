@@ -231,7 +231,8 @@ def getTropoDelay():
 
     We'll parse arguments and call delay.py.
     """
-    from utils.util import checkArgs, mkdir
+    from utils.util import mkdir
+    from utils.checkArgs import checkArgs
     import utils.llreader as llr
 
     args, p = parse_args()
@@ -240,7 +241,7 @@ def getTropoDelay():
     mkdir(os.path.join(args.out, 'weather_files'))
 
     # Argument checking
-    los, lat, lon, heights, weather_model, zref, outformat, \
+    los, lat, lon, heights, flag, weather_model, zref, outformat, \
          time, out, download_only, parallel, verbose = checkArgs(args, p)
 
     if verbose: 
@@ -249,7 +250,7 @@ def getTropoDelay():
        print('Time: {}'.format(time.strftime('%Y%m%d')))
        print('Parallel is {}'.format(parallel))
 
-    lats, lons= llr.readLL(lat, lon)
+    lats, lons= llr.readLL(lat, lon, flag)
 
     wetDelay, hydroDelay = \
        delay.tropo_delay(time, los, lats, lons, heights, 

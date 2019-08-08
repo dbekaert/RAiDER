@@ -418,6 +418,8 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
     writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
     writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
 
+    return latFileName, lonFileName
+
 
 def checkShapes(los, lats, lons, hgts):
     '''
@@ -460,116 +462,6 @@ def checkLOS(los, raytrace, Npts):
                            .format(los.shape[0], Npts))
     return los
 
-
-def checkArgs(args, p):
-    '''
-    Helper fcn for checking argument compatibility and returns the 
-    correct variables
-    '''
-    import models
-
-    if args.heightlvs is not None and args.outformat != 'hdf5':
-       raise ValueError('HDF5 must be used with height levels')
-    if args.area is None and args.bounding_box is None and args.wmnetcdf is None and args.station_file is None:
-       raise ValueError('You must specify one of the following: \n \
-             (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \
-             (4) station file containing Lat and Lon columns')
-
-    # Line of sight
-    if args.lineofsight is not None:
-        los = ('los', args.lineofsight)
-    elif args.statevectors is not None:
-        los = ('sv', args.statevectors)
-    else:
-        from utils.constants import Zenith
-        los = Zenith
-
-    # Area
-    if args.area is not None:
-        lat, lon = args.area
-        gdal_trans(lat, os.path.join(args.out, 'geom', os.path.split(lat)[-1]), 'VRT')
-        gdal_trans(lon, os.path.join(args.out, 'geom', os.path.split(lon)[-1]), 'VRT')
-    elif args.bounding_box is not None:
-        N,W,S,E = args.bounding_box
-        lat = np.array([float(N), float(S)])
-        lon = np.array([float(E), float(W)])
-    elif args.station_file is not None:
-        lat, lon = readLLFromStationFile(args.station_file)
-    else:
-        lat = lon = None
-
-    # DEM
-    if args.dem is not None:
-        heights = ('dem', args.dem)
-    elif args.heightlvs is not None:
-        heights = ('lvs', args.heightlvs)
-    else:
-        heights = ('download', None)
-
-    # Weather
-    if args.model == 'WRF':
-        if args.wmnetcdf is not None:
-            p.error('Argument --wmnetcdf invalid with --model WRF')
-        if args.wrfmodelfiles is not None:
-            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
-                        'name': 'wrf'}
-        else:
-            p.error('Argument --wrfmodelfiles required with --model WRF')
-    elif args.model=='ERA5' or args.model == 'ERA-5':
-        from models.era5 import ERA5
-        weathers = {'type': ERA5(), 'files':None, 'name':'ERA-5'}
-    elif args.model=='pickle':
-        import pickle
-        weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
-    else:
-        model_module_name = mangle_model_to_module(args.model)
-        try:
-            import importlib
-            model_module = importlib.import_module(model_module_name)
-        except ImportError:
-            p.error("Couldn't find a module named {}, ".format(repr(model_module_name))+
-                    "needed to load weather model {}".format(repr(args.model)))
-        if args.wmnetcdf is not None:
-            weathers = {'type': model_module.Model(), 'files': args.wmnetcdf,
-                        'name': args.model}
-        elif args.time is None:
-            p.error('Must specify one of --wmnetcdf or --time (so I can '
-                    'figure out what to download)')
-        elif lat is None:
-            p.error('Must specify one of --wmnetcdf or --area (so I can '
-                    'figure out what to download)')
-        else:
-            weathers = {'type': model_module.Model(), 'files': None,
-                        'name': args.model}
-    # zref
-    zref = args.zref
-    
-    # output file format
-    if args.heightlvs is not None: 
-       if args.outformat.lower() != 'hdf5':
-          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
-       outformat = 'hdf5'
-    elif args.station_file is not None:
-       if args.outformat.lower() != 'netcdf':
-          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
-       outformat = 'netcdf'
-    else:
-       if args.outformat.lower() == 'hdf5':
-          print("WARNING: output require raster output file; changing outformat to ENVI")
-          outformat = 'ENVI'
-       else:
-          outformat = args.outformat.lower()
-
-    # parallelization
-    parallel = True if not args.no_parallel else False
-
-    # other
-    time = args.time
-    out = args.out
-    download_only = args.download_only
-    verbose = args.verbose
-
-    return los, lat, lon, heights, weathers, zref, outformat, time, out, download_only, parallel, verbose
 
 
 def readLLFromStationFile(fname):
@@ -631,10 +523,37 @@ def isOutside(extent1, extent2):
     return False
 
 
-def getExtent(lats, lons):
+def getExtent(lats, lons=None):
     '''
     get the bounding box around a set of lats/lons
     '''
-    return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+    if lons is None:
+        ds   = gdal.Open(lats, gdal.GA_ReadOnly)
+        trans    = ds.GetGeoTransform()
+        # W E S N
+        extent   = [trans[0], trans[0] + ds.RasterXSize * trans[1],
+                    trans[3] + ds.RasterYSize*trans[5], trans[3]]
+        if shrink is not None:
+            delW, delE, delS, delN = shrink
+            extent = [extent[0] + delW, extent[1] - delE, extent[2] + delS, extent[3] - delN]
+        del ds
+        return extent
+       
+    else:
+       return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
 
+
+def setLLds(infile, latfile, lonfile):
+    '''
+    Use a lat/lon file to set the x/y coordinates of infile
+    ''' 
+    from osgeo import gdal, osr
+    ds = gdal.Open(infile, gdal.GA_ReadOnly)
+    ds.SetMetadata({'X_DATASET': os.path.abspath(latfile), 'X_BAND': '1',
+                    'Y_DATASET': os.path.abspath(lonfile), 'Y_BAND': '1'})
+
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    ds.SetProjection(srs.ExportToWkt())
+    del ds 
 
