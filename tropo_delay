@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 usage: tropo_delay [-h] [--lineofsight LOS | --statevectors STATEVECTORS]
                    [--area LAT LONG | --bounding_box N W S E | --station_file STATION_FILE]
@@ -67,7 +67,7 @@ import os
 
 # Local imports
 import delay
-
+import pdb
 
 def read_date(s):
     """Read a date from a string in pseudo-ISO 8601 format."""
@@ -137,9 +137,11 @@ def parse_args():
               'region over which to calculate delay. Delay will be '
               'calculated at weather model nodes if unspecified'),
         metavar=('LAT', 'LONG'))
-    area.add_argument(
-        '--bounding_box', '-bb', nargs=4,
-        help=('Bounding box, given as N W S E'),
+
+    # model BBOX
+    p.add_argument(
+        '--modelBBOX', '-modelbb', nargs=4,
+        help='BBOX of the model to be downloaded, given as N W S E, if not givem defualts in following order: lon-lat derived BBOX, or full world',
         metavar=('N', 'W', 'S', 'E'))
     area.add_argument(
         '--station_file',default = None, type=str, dest='station_file',

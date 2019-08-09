@@ -131,3 +131,24 @@ def checkArgs(args, p):
 
     return los, lat, lon, heights, flag, weathers, zref, outformat, time, out, download_only, parallel, verbose
 
+
+def output_format(outformat):
+    """
+        Reduce the outformat strings users can specifiy to a select consistent set that can be used for filename extensions.
+    """
+    # convert the outformat to lower letters
+    outformat = outformat.lower()
+
+    # capture few specific cases:
+    outformat_dict = {}
+    outformat_dict['hdf5'] = 'h5'
+    outformat_dict['hdf'] = 'h5'
+    outformat_dict['h5'] = 'h5'
+    outformat_dict['envi'] = 'envi'
+
+    try:
+        outformat = outformat_dict[outformat]
+    except:
+        raise NotImplemented
+    return outformat
+

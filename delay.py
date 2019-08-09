@@ -27,6 +27,7 @@ import utils.losreader as losreader
 import utils.util as util
 from utils.constants import Zenith
 from utils.downloadWM import downloadWMFile as dwf
+import h5py
 
 # Step in meters to use when integrating
 _STEP = const._STEP
@@ -405,7 +406,6 @@ def get_weather_and_nodes(model, filename, zmin=None):
     return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
             xs, ys, proj)
 
-
 def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 
                 weather = None, zref = 15000, out = None, 
                 parallel=True,verbose = False, download_only = False):
@@ -422,6 +422,10 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
         print('type of time: {}'.format(type(time)))
         print('Download-only is {}'.format(download_only))
 
+    # ensuring consistent file extensions
+    outformat = output_format(outformat)
+
+    # the output folder where data is downloaded and delays are stored, default is same location
     if out is None:
         out = os.getcwd()
 
@@ -462,9 +466,8 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
         #weather_model.load(f)
         weather_model.load(f, lats = lats, lons = lons) # <-- this will trim the weather model to the lat/lon extents
     if verbose:
-        print(weather_model)
+        print('Weather Model Name: {}'.format(wmName))
         #p = weather.plot(p)
-
 
     # Pull the lat/lon data if using the weather model 
     if lats is None or len(lats)==2:

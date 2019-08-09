@@ -76,9 +76,11 @@ def setGeoInfo(lat, lon, latproj, lonproj):
     # Is it ever possible that lats and lons will actually have embedded
     # projections?
     if latproj:
-        def geo_info(ds):
-            ds.SetProjection(latproj)
-        set_geo_info.append(geo_info)
+        if outformat is not 'h5':
+            def geo_info(ds):
+                ds.SetProjection(latproj)
+        else:
+            geo_info = None
     elif lonproj:
         def geo_info(ds):
             ds.SetProjection(lonproj)
