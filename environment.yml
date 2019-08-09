@@ -7,6 +7,7 @@ name: RAiDER
 channels:
  - defaults
  - conda-forge
+ - anaconda
 dependencies:
  - python=3
  - cartopy
@@ -18,7 +19,7 @@ dependencies:
  - krb5
  - matplotlib
  - numpy
- - pygdal
+ - gdal>=3.0
  - pyproj
  - pygrib
  - scipy
