@@ -101,7 +101,7 @@ TODO
 * Raymond Hogenson
 * [_other community members_](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/graphs/contributors)
 
-We welcome community contributions. For instructions see [here](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/blob/master/CONTRIBUTING.md.
+We welcome community contributions. For instructions see [here](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/blob/master/CONTRIBUTING.md).
 
 
 
