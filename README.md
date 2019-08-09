@@ -56,7 +56,7 @@ Below we outline the different steps for setting up the RAiDER while leveraging 
 
 ```
 git clone https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER.git
-conda env create -f ./environment.yml
+conda env create -f ./RAiDER/environment.yml
 conda activate RAiDER
 ```
 
