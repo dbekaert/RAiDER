@@ -1,7 +1,7 @@
-*.swp
-__pycache__
-*.log
-test/ERA*
-*.dat
-*.pdf
 *.pyc
+*~
+*.swp
+*.DS_Store
+__pycache__
+.ipynb_checkpoints
+build
