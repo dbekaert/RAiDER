@@ -1,42 +1,57 @@
 #!/usr/bin/env python3
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: David Bekaert & Piyush Agram
+# Author: David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 from distutils.core import setup, Extension
+import numpy
+from Cython.Build import cythonize
 import os
 
+# Paths to code requiring compilation
+print('Installing RAiDER')
 
-# Path where relax third party is download to
-# Note Min-Cost-Flow-Class has its own liscence agreement, users to ensure proper use of third party license agreements.
-relaxPath='tools/thirdParty/Min-Cost-Flow-Class'
+## geometry extension
+obj_files = ['geometry']
+geometry_dir='tools/bindings/geometry'
+geometry_lib_dir = 'build'
 
-# If third party package is found compile as well
-if os.path.isdir(relaxPath):
-    print('Installing ARIA-tools with support for RelaxIV')
-    module1 = Extension('ARIAtools.demo', sources = ['tools/bindings/relaxIVdriver.cpp',
-                                                     'tools/bindings/unwcompmodule.cpp',
-                                                     os.path.join(relaxPath,'RelaxIV/RelaxIV.C')], include_dirs=['tools/include' ,os.path.join(relaxPath,'MCFClass'),os.path.join(relaxPath,'OPTUtils'),os.path.join(relaxPath,'RelaxIV')])
+# geometry source files
+geometry_source_files = [os.path.join(geometry_dir,"cpp/classes", f, f+'.cc') for f in obj_files]
+geometry_source_files = geometry_source_files + [os.path.join(geometry_dir,'cython/Geo2rdr/Geo2rdr.pyx')]
+# geometry classes
+cls_dirs = [os.path.join(geometry_dir, "cpp/classes/Geometry"),
+            os.path.join(geometry_dir, "cpp/classes/Orbit"),
+            os.path.join(geometry_dir, "cpp/classes/Utility")]
 
-    setup (name = 'ARIAtools',
-           version = '1.0',
-           description = 'This is the ARIA tools package with RelaxIV support',
-           ext_modules = [module1],
-           packages=['ARIAtools'],
-           package_dir={'ARIAtools': 'tools/ARIAtools'},
-           scripts=['tools/bin/ariaPlot.py','tools/bin/ariaDownload.py','tools/bin/ariaExtract.py','tools/bin/ariaTSsetup.py'])
-else:
-    # Third party package RelaxIV not found
-    print('Installing ARIA-tools without support for RelaxIV')
+# Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
+os.environ["CC"] = 'g++'
+os.environ["CXX"] = 'g++'
 
-    setup (name = 'ARIAtools',
-           version = '1.0',
-           description = 'This is the ARIA tools package without RelaxIV support',
-           packages=['ARIAtools'],
-           package_dir={'ARIAtools': 'tools/ARIAtools'},
-           scripts=['tools/bin/ariaPlot.py','tools/bin/ariaDownload.py','tools/bin/ariaExtract.py','tools/bin/ariaTSsetup.py'])
+"""
+extensions = [Extension(name="RAiDER.demo", sources=geometry_source_files,
+                        include_dirs=[numpy.get_include()] + cls_dirs,
+                        extra_compile_args=['-std=c++11'],
+                        extra_link_args=['-lm'],
+                        library_dirs=[geometry_lib_dir],
+                        libraries=['geometry'],
+                        language="c++")]
+"""
+    
+extensions = [Extension(name="RAiDER.demo", sources=geometry_source_files,
+                        include_dirs=[numpy.get_include()] + cls_dirs,
+                        language="c++")]
+
+setup (name = 'RAiDER',
+       version = '1.0',
+       description = 'This is the RAiDER package',
+       ext_modules = cythonize(extensions, nthreads=8),
+       packages=['RAiDER'],
+       package_dir={'RAiDER': 'tools/RAiDER'},
+       scripts=['tools/bin/raiderDelay.py'])
+
 
