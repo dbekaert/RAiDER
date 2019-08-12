@@ -68,7 +68,7 @@ extensions = [
      Extension(
        name="Geo2rdr",
        sources=srcFiles(),
-       include_dirs=[numpy.get_include()] + clsDirs(), 
+       include_dirs=[np.get_include()] + clsDirs(), 
        extra_compile_args=['-std=c++11'],
        extra_link_args=['-lm'],
        library_dirs=[GEOMETRY_LIB_DIR],
