@@ -99,6 +99,7 @@ TODO
 * David Bekaert
 * Jeremy Maurer
 * Raymond Hogenson
+* Heresh Fattahi
 * [_other community members_](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/graphs/contributors)
 
 We welcome community contributions. For instructions see [here](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/blob/master/CONTRIBUTING.md).
