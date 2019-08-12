@@ -51,7 +51,7 @@ setup (name = 'RAiDER',
        description = 'This is the RAiDER package',
        ext_modules = cythonize(extensions, nthreads=8),
        packages=['RAiDER'],
-       package_dir={'RAiDER': 'tools/RAiDER','RAiDER': 'tools/RAiDER/models'},
+       package_dir={'RAiDER': 'tools/RAiDER','RAiDER.models': 'tools/RAiDER/models'},
        scripts=['tools/bin/raiderDelay.py'])
 
 
