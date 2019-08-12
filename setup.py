@@ -7,7 +7,8 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from distutils.core import setup, Extension
+from distutils.core import setup
+from distutils.extension import Extension
 import numpy as np
 from Cython.Build import cythonize
 import os
@@ -23,18 +24,27 @@ def getVersion():
         return "0.0.0a1"
 
 
-## geometry extension
-obj_files = ['geometry']
-geometry_dir='tools/bindings/geometry'
-geometry_lib_dir = 'build'
+def srcFiles():
+   # geometry extension
+   GEOMETRY_DIR = "tools/bindings/geometry/"
+   GEOMETRY_LIB_DIR = "build" 
+   obj_files = ['geometry']
 
-# geometry source files
-geometry_source_files = [os.path.join(geometry_dir,"cpp/classes", f, f+'.cc') for f in obj_files]
-geometry_source_files = geometry_source_files + [os.path.join(geometry_dir,'cython/Geo2rdr/Geo2rdr.pyx')]
-# geometry classes
-cls_dirs = [os.path.join(geometry_dir, "cpp/classes/Geometry"),
-            os.path.join(geometry_dir, "cpp/classes/Orbit"),
-            os.path.join(geometry_dir, "cpp/classes/Utility")]
+   # geometry source files
+   geometry_source_files = [os.path.join(GEOMETRY_DIR,"cpp/classes", f, f+'.cc') for f in obj_files]
+   geometry_source_files = geometry_source_files + [os.path.join(GEOMETRY_DIR,'cython/Geo2rdr/Geo2rdr.pyx')]
+
+   return geometry_source_files
+
+
+def clsDirs():
+   # geometry classes
+   cls_dirs = [os.path.join(GEOMETRY_DIR, "cpp/classes/Geometry"), 
+               os.path.join(GEOMETRY_DIR, "cpp/classes/Orbit"),
+               os.path.join(GEOMETRY_DIR, "cpp/classes/Utility")]
+
+   return cls_dirs
+
 
 # Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
 os.environ["CC"] = 'g++'
@@ -53,35 +63,26 @@ extensions = [Extension(name="RAiDER.extension", sources=geometry_source_files,
                         include_dirs=[np.get_include()] + cls_dirs,
                         language="c++")]
 """
-extensions = [Extension(name="RAiDER.extension", sources=geometry_source_files,
-                        include_dirs=[np.get_include()] + cls_dirs]
+extensions = [
+     Extension(
+       name="Geo2rdr",
+       sources=srcFiles(),
+       include_dirs=[numpy.get_include()] + clsDirs(), 
+       extra_compile_args=['-std=c++11'],
+       extra_link_args=['-lm'],
+       library_dirs=[GEOMETRY_LIB_DIR],
+       libraries=['geometry'],
+       language="c++")
+]
 
 setup (name = 'RAiDER',
        version = '1.0',
        description = 'This is the RAiDER package',
        cmdclass={'build_ext': Cython.Build.build_ext},
-       ext_modules = cythonize(extensions, nthreads=8),
+       ext_modules = cythonize(extensions, quiet = True,nthreads=8),
        zip_safe=False,
-#       setup_requires=['numpy>=1.0', 'cython>=0.24.1'],
-#       install_requires=['numpy>=1.0', 'nose>=0.11', 'cython>=0.24.1'],
        packages=['RAiDER', 'RAiDER.models', 'RAiDER.geometry'],
        package_dir={'RAiDER': 'tools/RAiDER','RAiDER.models': 'tools/RAiDER/models', 'RAiDER.geometry': 'tools/bindings/geometry/'},
        scripts=['tools/bin/raiderDelay.py'])
 
-'''
-
-setup(
-    package_dir={'pycydemo': 'pycydemo'},
-    packages=['pycydemo', 'pycydemo.tests'],
-    ext_modules=[Extension(
-        'pycydemo.extension',
-        sources=['pycydemo/extension.pyx'],
-        include_dirs=[np.get_include()],
-    )],
-    zip_safe=False,
-    setup_requires=['numpy>=1.0', 'cython>=0.24.1'],
-    install_requires=['numpy>=1.0', 'nose>=0.11', 'cython>=0.24.1'],
-)
-
-'''
 
