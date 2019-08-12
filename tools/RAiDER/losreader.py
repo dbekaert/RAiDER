@@ -10,7 +10,7 @@
 import numpy as np
 import os.path
 import shelve
-import RAiDER.util as util
+import util
 
 
 

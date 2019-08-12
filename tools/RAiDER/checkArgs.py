@@ -9,7 +9,7 @@
 
 import numpy as np
 import os
-from RAiDER.util import gdal_trans
+import gdal_trans
 
 def checkArgs(args, p):
     '''
