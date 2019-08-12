@@ -34,9 +34,9 @@ append-path    LD_LIBRARY_PATH  /home/fattahi/tools/ray_tracing/build
 
 3- inside your build directory run the following command:
 
-cmake .  /home/fattahi/tools/ray_tracing/raytracing_current/Geometry/cpp/ 
+cmake .  $src_dir/Geometry/cpp/ 
 make
-python3 /home/fattahi/tools/ray_tracing/raytracing_current/Geometry/cython/setup.py build_ext -b /home/fattahi/tools/ray_tracing/build
+python3 $src_dir/Geometry/cython/setup.py build_ext -b /home/fattahi/tools/ray_tracing/build
 
 4- Now you should be able to call the geometry module from python e.g.:
 
