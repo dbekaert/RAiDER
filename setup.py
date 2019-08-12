@@ -34,7 +34,7 @@ def getVersion():
 
 def srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR):
    # geometry extension
-   obj_files = ['geometry']
+   obj_files = ['Geometry', 'Orbit', 'Utility']
 
    # geometry source files
    geometry_source_files = [os.path.join(GEOMETRY_DIR,"cpp/classes", f, f+'.cc') for f in obj_files]
