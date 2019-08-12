@@ -426,7 +426,7 @@ def checkShapes(los, lats, lons, hgts):
     Make sure that by the time the code reaches here, we have a
     consistent set of line-of-sight and position data. 
     '''
-    from utils.constants import Zenith
+    from RAiDER.constants import Zenith
     test1 = hgts.shape == lats.shape == lons.shape
     try:
         test2 = los.shape[:-1] != hts.shape
@@ -448,7 +448,7 @@ def checkLOS(los, raytrace, Npts):
            of points, which represent the projection value), or
        (3) a set of vectors, same number as the number of points. 
      '''
-    from utils.constants import Zenith
+    from RAiDER.constants import Zenith
     # los can either be a bunch of vectors or a bunch of scalars. If
     # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
     if los is not Zenith:

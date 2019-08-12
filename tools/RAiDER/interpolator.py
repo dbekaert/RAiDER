@@ -1,8 +1,18 @@
+#!/usr/bin/env python3
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged.
+#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 """Helper utilities for file readers."""
 
 import numpy as np
 import pyproj
-from utils import util
+import RAiDER.util as util
+
 
 class Interpolator:
     """

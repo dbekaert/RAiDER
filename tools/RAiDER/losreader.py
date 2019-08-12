@@ -1,8 +1,17 @@
-import numpy as np
+#!/usr/bin/env python3
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged.
+#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import numpy as np
 import os.path
 import shelve
-import utils.util as util
+import RAiDER.util as util
+
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):

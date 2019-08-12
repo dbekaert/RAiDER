@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged.
+#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 import glob
 import numpy as np
 import os
@@ -5,8 +14,7 @@ from osgeo import gdal
 import scipy.interpolate
 from scipy.interpolate import RegularGridInterpolator as rgi
 
-import utils.util as util
-
+import RAiDER.util as util
 gdal.UseExceptions()
 
 

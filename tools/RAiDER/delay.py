@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged.
+#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 """Compute the delay from a point to the transmitter.
 
 Dry and hydrostatic delays are calculated in separate functions.
@@ -15,19 +24,17 @@ import itertools
 import numpy as np
 import os
 import pyproj
-#import queue
 import threading
 import sys
-
+import h5py
 
 # local imports
-import utils.constants as const
-import utils.demdownload as dld
-import utils.losreader as losreader
-import utils.util as util
-from utils.constants import Zenith
-from utils.downloadWM import downloadWMFile as dwf
-import h5py
+import RAiDER.constants as const
+from RAiDER.constants import Zenith
+import RAiDER.demdownload as dld
+import RAiDER.losreader as losreader
+import RAiDER.util as util
+from RAiDER.downloadWM import downloadWMFile as dwf
 
 # Step in meters to use when integrating
 _STEP = const._STEP
@@ -416,7 +423,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     """
     from models.allowed import checkIfImplemented
     from datetime import datetime as dt
-    from utils.llreader import getHeights
+    from RAiDER.llreader import getHeights
 
     if verbose:
         print('type of time: {}'.format(type(time)))
