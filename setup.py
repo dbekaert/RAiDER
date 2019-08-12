@@ -80,7 +80,6 @@ extensions = [
 setup (name = 'RAiDER',
        version = '1.0',
        description = 'This is the RAiDER package',
-       cmdclass={'build_ext': Cython.Build.build_ext},
        ext_modules = cythonize(extensions, quiet = True,nthreads=8),
        zip_safe=False,
        packages=['RAiDER', 'RAiDER.models', 'RAiDER.geometry'],
