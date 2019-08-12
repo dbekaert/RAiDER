@@ -67,7 +67,7 @@ def makeCPP(geom_dir):
     os.chdir('..')
     #cmake .  $src_dir/Geometry/cpp/ 
     #make
-    #python3 $src_dir/Geometry/cython/setup.py build_ext -b /home/fattahi/tools/ray_tracing/build
+    #python3 $src_dir/Geometry/cython/setup.py build_ext -b $src_dir/build
 
 
 def mkdir(dirName):
@@ -79,19 +79,6 @@ def mkdir(dirName):
    os.mkdir(dirName)
 
 
-"""
-extensions = [Extension(name="RAiDER.demo", sources=geometry_source_files,
-                        include_dirs=[np.get_include()] + cls_dirs,
-                        extra_compile_args=['-std=c++11'],
-                        extra_link_args=['-lm'],
-                        library_dirs=[geometry_lib_dir],
-                        libraries=['geometry'],
-                        language="c++")]
-    
-extensions = [Extension(name="RAiDER.extension", sources=geometry_source_files,
-                        include_dirs=[np.get_include()] + cls_dirs,
-                        language="c++")]
-"""
 extensions = [
      Extension(
        name="Geo2rdr",
