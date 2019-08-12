@@ -13,6 +13,14 @@ import numpy as np
 from Cython.Build import cythonize
 import os
 
+# Parameter defs
+GEOMETRY_DIR = "tools/bindings/geometry/"
+GEOMETRY_LIB_DIR = "build" 
+
+# Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
+os.environ["CC"] = 'g++'
+os.environ["CXX"] = 'g++'
+
 
 def getVersion():
     '''
@@ -24,11 +32,8 @@ def getVersion():
        except IOError:
           return "0.0.0a1"
 
-
-def srcFiles():
+def srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR):
    # geometry extension
-   GEOMETRY_DIR = "tools/bindings/geometry/"
-   GEOMETRY_LIB_DIR = "build" 
    obj_files = ['geometry']
 
    # geometry source files
@@ -38,19 +43,14 @@ def srcFiles():
    return geometry_source_files
 
 
-def clsDirs():
+def clsDirs(GEOMETRY_DIR):
    # geometry classes
-   GEOMETRY_DIR = "tools/bindings/geometry/"
    cls_dirs = [os.path.join(GEOMETRY_DIR, "cpp/classes/Geometry"), 
                os.path.join(GEOMETRY_DIR, "cpp/classes/Orbit"),
                os.path.join(GEOMETRY_DIR, "cpp/classes/Utility")]
 
    return cls_dirs
 
-
-# Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
-os.environ["CC"] = 'g++'
-os.environ["CXX"] = 'g++'
 
 """
 extensions = [Extension(name="RAiDER.demo", sources=geometry_source_files,
@@ -68,8 +68,8 @@ extensions = [Extension(name="RAiDER.extension", sources=geometry_source_files,
 extensions = [
      Extension(
        name="Geo2rdr",
-       sources=srcFiles(),
-       include_dirs=[np.get_include()] + clsDirs(), 
+       sources=srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR),
+       include_dirs=[np.get_include()] + clsDirs(GEOMETRY_DIR), 
        extra_compile_args=['-std=c++11'],
        extra_link_args=['-lm'],
        library_dirs=[GEOMETRY_LIB_DIR],
