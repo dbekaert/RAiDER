@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged.
+#
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 """
 usage: tropo_delay [-h] [--lineofsight LOS | --statevectors STATEVECTORS]
                    [--area LAT LONG | --bounding_box N W S E | --station_file STATION_FILE]
@@ -66,7 +74,7 @@ import itertools
 import os
 
 # Local imports
-import delay
+from RAiDER import delay
 import pdb
 
 def read_date(s):
