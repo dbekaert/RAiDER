@@ -23,6 +23,7 @@ from Cython.Build import cythonize
 
 # Parameter defs
 GEOMETRY_DIR = "tools/bindings/geometry/"
+CPP_SRC_DIR = GEOMETRY_DIR + '/cpp/'
 GEOMETRY_LIB_DIR = "build" 
 NTHREADS = 8
 
@@ -148,7 +149,7 @@ setup (name = 'RAiDER',
        description = 'This is the RAiDER package',
        packages=['RAiDER', 'RAiDER.models', 'RAiDER.geometry'],
        package_dir={'RAiDER': 'tools/RAiDER','RAiDER.models': 'tools/RAiDER/models', 'RAiDER.geometry': 'tools/bindings/geometry/'},
-       cmdclass=dict(build_ext=CMakeBuild),
+       cmdclass=dict(build_ext=CMakeBuild(CPP_SRC_DIR),
        #ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
        ext_modules = [CMakeExtension(srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR)[0])],
        scripts=['tools/bin/raiderDelay.py'])
