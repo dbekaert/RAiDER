@@ -219,7 +219,7 @@ def writeDelays(wetDelay, hydroDelay, time, los,
     Write the delay numpy arrays to files in the format specified 
     '''
     import numpy as np
-    from utils.util import makeDelayFileNames as mdf, writeArrayToRaster as watr
+    from RAiDER.util import makeDelayFileNames as mdf, writeArrayToRaster as watr
 
     # Use zero for nodata
     wetDelay[np.isnan(wetDelay)] = 0.
@@ -241,9 +241,9 @@ def getTropoDelay():
 
     We'll parse arguments and call delay.py.
     """
-    from utils.util import mkdir
-    from utils.checkArgs import checkArgs
-    import utils.llreader as llr
+    from RAiDER.util import mkdir
+    from RAiDER.checkArgs import checkArgs
+    import RAiDER.llreader as llr
 
     args, p = parse_args()
 
