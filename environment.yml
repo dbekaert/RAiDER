@@ -5,11 +5,11 @@
 # exit   environment : conda deactivate
 name: RAiDER
 channels:
- - defaults
  - conda-forge
  - anaconda
+ - defaults
 dependencies:
- - python=3
+ - python>=3
  - cartopy
  - cdsapi
  - cmake
@@ -20,6 +20,10 @@ dependencies:
  - matplotlib
  - numpy
  - gdal>=3.0
+ - libgdal
  - pyproj
  - pygrib
  - scipy
+ - cython
+ - jupyterlab
+ - jupyter_contrib_nbextensions
