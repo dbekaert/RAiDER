@@ -8,15 +8,8 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
 import os
-import platform
-import re
-import subprocess
-import sys
-import sysconfig
+import subprocess as subp
 
-from distutils.version import LooseVersion
-from setuptools import setup, Extension
-from setuptools.command.build_ext import build_ext
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Build import cythonize
@@ -28,7 +21,7 @@ GEOMETRY_LIB_DIR = "build"
 NTHREADS = 8
 
 # Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
-os.environ["CC"] = 'g++'
+os.environ["CC"] = 'gcc'
 os.environ["CXX"] = 'g++'
 
 
@@ -62,61 +55,28 @@ def clsDirs(GEOMETRY_DIR):
    return cls_dirs
 
 
-class CMakeExtension(Extension):
-    def __init__(self, name, sourcedir=''):
-        Extension.__init__(self, name, sources=[])
-        self.sourcedir = os.path.abspath(sourcedir)
+def makeCPP(geom_dir):
+    '''
+    Run cmake with appropriate args to compile the geometry module
+    '''
+    cwd = os.getcwd()
+    mkdir('build')
+    os.chdir('build')
+    subp.call(['cmake', '.', '..' + os.sep + geom_dir + 'cpp'])
+    subp.call(['make'])
+    os.chdir('..')
+    #cmake .  $src_dir/Geometry/cpp/ 
+    #make
+    #python3 $src_dir/Geometry/cython/setup.py build_ext -b /home/fattahi/tools/ray_tracing/build
 
 
-class CMakeBuild(build_ext):
-    def run(self):
-        try:
-            out = subprocess.check_output(['cmake', '--version'])
-        except OSError:
-            raise RuntimeError(
-                "CMake must be installed to build the following extensions: " +
-                ", ".join(e.name for e in self.extensions))
-
-        if platform.system() == "Windows":
-            cmake_version = LooseVersion(re.search(r'version\s*([\d.]+)',
-                                         out.decode()).group(1))
-            if cmake_version < '3.1.0':
-                raise RuntimeError("CMake >= 3.1.0 is required on Windows")
-
-        for ext in self.extensions:
-            self.build_extension(ext)
-
-    def build_extension(self, ext):
-        extdir = os.path.abspath(
-            os.path.dirname(self.get_ext_fullpath(ext.name)))
-        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
-                      '-DPYTHON_EXECUTABLE=' + sys.executable]
-
-        cfg = 'Debug' if self.debug else 'Release'
-        build_args = ['--config', cfg]
-
-        if platform.system() == "Windows":
-            cmake_args += ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(
-                cfg.upper(),
-                extdir)]
-            if sys.maxsize > 2**32:
-                cmake_args += ['-A', 'x64']
-            build_args += ['--', '/m']
-        else:
-            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
-            build_args += ['--', '-j2']
-
-        env = os.environ.copy()
-        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(
-            env.get('CXXFLAGS', ''),
-            self.distribution.get_version())
-        if not os.path.exists(self.build_temp):
-            os.makedirs(self.build_temp)
-        subprocess.check_call(['cmake', ext.sourcedir] + cmake_args,
-                              cwd=self.build_temp, env=env)
-        subprocess.check_call(['cmake', '--build', '.'] + build_args,
-                              cwd=self.build_temp)
-        print()  # Add an empty line for cleaner output
+def mkdir(dirName):
+   import shutil
+   try:
+      shutil.rmtree(dirName)
+   except:
+      pass 
+   os.mkdir(dirName)
 
 
 """
@@ -144,14 +104,17 @@ extensions = [
        language="c++")
 ]
 
+makeCPP(GEOMETRY_DIR)
+
 setup (name = 'RAiDER',
        version = '1.0',
        description = 'This is the RAiDER package',
-       packages=['RAiDER', 'RAiDER.models', 'RAiDER.geometry'],
-       package_dir={'RAiDER': 'tools/RAiDER','RAiDER.models': 'tools/RAiDER/models', 'RAiDER.geometry': 'tools/bindings/geometry/'},
-       cmdclass=dict(build_ext=CMakeBuild(CPP_SRC_DIR),
-       #ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
-       ext_modules = [CMakeExtension(srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR)[0])],
+       package_dir={'tools': 'tools',
+                    'RAiDER': 'tools/RAiDER',
+                    'RAiDER.models': 'tools/RAiDER/models'},
+       packages=['tools', 'RAiDER', 'RAiDER.models'],
+       #packages=[''],
+       ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
        scripts=['tools/bin/raiderDelay.py'])
 
 
