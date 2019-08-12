@@ -150,7 +150,7 @@ setup (name = 'RAiDER',
        package_dir={'RAiDER': 'tools/RAiDER','RAiDER.models': 'tools/RAiDER/models', 'RAiDER.geometry': 'tools/bindings/geometry/'},
        cmdclass=dict(build_ext=CMakeBuild),
        #ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
-       ext_modules = [CMakeExtension(srcFiles()[0])],
+       ext_modules = [CMakeExtension(srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR)[0])],
        scripts=['tools/bin/raiderDelay.py'])
 
 
