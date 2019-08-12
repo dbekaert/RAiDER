@@ -19,9 +19,10 @@ def getVersion():
     Load the version from a text file
     '''
     with open('version.txt', 'r') as f:
-        return f.read().split('=')[-1].replace('\'', '').strip()
-    except IOError:
-        return "0.0.0a1"
+       try:
+          return f.read().split('=')[-1].replace('\'', '').strip()
+       except IOError:
+          return "0.0.0a1"
 
 
 def srcFiles():
