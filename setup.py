@@ -40,6 +40,7 @@ def srcFiles():
 
 def clsDirs():
    # geometry classes
+   GEOMETRY_DIR = "tools/bindings/geometry/"
    cls_dirs = [os.path.join(GEOMETRY_DIR, "cpp/classes/Geometry"), 
                os.path.join(GEOMETRY_DIR, "cpp/classes/Orbit"),
                os.path.join(GEOMETRY_DIR, "cpp/classes/Utility")]
