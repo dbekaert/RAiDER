@@ -8,22 +8,23 @@ channels:
  - conda-forge
  - anaconda
  - defaults
- - psi4
 dependencies:
  - python>=3
  - cartopy
  - cdsapi
- - gcc
+ - cfgrib
  - cmake
+ - cython
  - dask
+ - gcc
+ - gdal>=3.0
  - h5py
+ - jupyterlab
  - krb5
+ - libgdal
  - matplotlib
  - numpy
- - gdal>=3.0
- - libgdal
- - pyproj
  - pygrib
+ - pyproj
  - scipy
- - cython
- - jupyterlab
+ - xarray
