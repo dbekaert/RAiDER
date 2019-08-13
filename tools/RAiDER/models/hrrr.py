@@ -384,6 +384,34 @@ def checkDateTime(dateTime):
     return dateTime
 
 
+def download_hrrr_file(DATE, model, field = 'prs', outDir = None, verbose = False):
+    ''' 
+    Download a HRRR model
+    ''' 
+    import requests
+
+    fxx = '00'
+    if outDir is None:
+       outDir = os.getcwd()
+    outfile = '{}_{}_{}_f00.grib2'.format(model, DATE.strftime('%Y%m%d_%H%M%S'), field)
+    writeLoc = os.path.join(outDir, outfile)
+
+    grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{:02d}.grib2' \
+                    .format(model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
+
+    if verbose:
+       print('Downloading {} to {}'.format(grib2file, writeLoc))
+
+    r = requests.get(grib2file)
+    with open(writeLoc, 'wb') as f:
+       f.write(r.content)
+
+    if verbose:
+       print('Success!')
+
+
+    
+
 # the following function is modified from the repository at 
 # https://github.com/blaylockbk/pyBKB_v2/tree/master/BB_downloads
 def get_hrrr_variable(DATE, variable,
@@ -512,7 +540,6 @@ def get_hrrr_variable(DATE, variable,
         grib2file = 'https://pando-rgw01.chpc.utah.edu/%s/%s/%s/%s.t%02dz.wrf%sf%02d.grib2' \
                     % (model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
         fileidx = grib2file+'.idx'
-        import pdb; pdb.set_trace()
     else:
         # Get operational HRRR from NOMADS
         if model == 'hrrr':
