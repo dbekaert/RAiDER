@@ -23,6 +23,8 @@ NTHREADS = 8
 # Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
 os.environ["CC"] = 'gcc'
 os.environ["CXX"] = 'g++'
+os.environ["GEOMETRY_DIR"] = GEOMETRY_DIR
+os.environ["GEOMETRY_LIB_DIR"] = GEOMETRY_LIB_DIR
 
 
 def getVersion():
@@ -34,6 +36,7 @@ def getVersion():
           return f.read().split('=')[-1].replace('\'', '').strip()
        except IOError:
           return "0.0.0a1"
+
 
 def srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR):
    # geometry extension
