@@ -44,11 +44,8 @@ _ZREF = const._ZMAX
 
 def _get_lengths(look_vecs):
     '''
-    Returns the lengths of a vector or set of vectors
+    Returns the lengths of a vector or set of vectors, fast
     '''
-    if look_vecs is Zenith:
-        return _ZREF
-
     lengths = np.linalg.norm(look_vecs, axis=-1)
     lengths[~np.isfinite(lengths)] = 0
     return lengths
@@ -68,9 +65,11 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
 def _compute_ray(L, S, V, stepSize):
     '''
     Compute and return points along a ray, given a total length, 
-    start position (in x,y,z) and a unit look vector.
+    start position (in x,y,z), a unit look vector V, and the 
+    stepSize.
     '''
     # Have to handle the case where there are invalid data
+    # TODO: cythonize this? 
     try:
         thisspace = np.arange(0, L, stepSize)
     except ValueError:
@@ -112,6 +111,7 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
     '''
     Create the integration points for each ray path. 
     ''' 
+    # might be able to cythonize this!
     positions_l= []
     rayData = zip(lengths, start_positions, scaled_look_vecs)
     for L, S, V in rayData:
@@ -153,7 +153,29 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     elif itype == 'hydro':
         ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
     return ifFun
+
+
+def sortSP(arr):
+    '''
+    Return an array that has been sorted progressively by 
+    each axis, beginning with the first
+    Input:
+      arr  - an Nx(2 or 3) array containing a set of N points in 2D or 3D space
+    Output:
+      xSorted  - an Nx(2 or 3) array containing the sorted points
+    '''
+    ySorted = arr[arr[:,1].argsort()]
+    xSorted = ySorted[ySorted[:,0].argsort()]
+    return xSorted
  
+
+def reproject(inlat, inlon, inhgt, inProj, outProj):
+    '''
+    reproject a set of lat/lon/hgts to a new coordinate system
+    '''
+    import pyproj
+    return np.array(pyproj.transform(inProj, outProj, lon, lat, height)).T
+
 
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, zref = None, useWeatherNodes = False,
@@ -227,13 +249,19 @@ def _common_delay(weatherObj, lats, lons, heights,
         # Get the integration points along the look vectors
         # First get the length of each look vector, get integration steps along 
         # each, then get the unit vector pointing in the same direction
-
-        # TODO: can move _get_lengths to cython?
-        lengths = _get_lengths(look_vecs)
+        if look_vecs is Zenith:
+            lengths = np.array([_ZREF]*len(look_vecs))
+        else:
+            lengths = _get_lengths(look_vecs)
         lengths[mask] = np.nan
 
+        # TODO: make lla an optional input to the fcn? 
+        ecef = pyproj.Proj(proj='geocent')
+        lla = pyproj.Proj(proj='latlong')
         # this calculation takes a long time
-        start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
+        start_positions = reproject(lats, lons, heights, lla, ecef)
+        # TODO: Check that start_positions is an array of Nx3 size
+        start_positions = sortSP(start_positions)
 
         # cythonize these lines?
         scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
@@ -248,7 +276,6 @@ def _common_delay(weatherObj, lats, lons, heights,
     
         # TODO: Problem: This part could be parallelized, but Dask is slow. 
         # perhaps should use multiprocessing or cythonize some fcns?
-        ecef = pyproj.Proj(proj='geocent')
         newProj = weatherObj.getProjection()
         if useDask:
             if verbose:
@@ -273,13 +300,14 @@ def _common_delay(weatherObj, lats, lons, heights,
             print('_common_delay: Starting Interpolation')
             st = time.time()
 
-    # Define the interpolator objects
-    # Neither of these require the rays yet!
-    ifWet = getIntFcn(weatherObj,interpType =interpType)
-    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
+    # chunk the rays
+    rayChunkIndices = list(range(len(start_positions)))
+    chunks = np.array_split(rayChunkIndices, nChunks)
+    bags = []
+    for chunk in chunks:
+       bags.append(newPts[chunk])
+    
 
-    # Depending on parallelization, do the interpolation
-    # TODO: Here is where the chunking would take place
     if useDask:
         if verbose:
             print('Beginning interpolation using Dask')
