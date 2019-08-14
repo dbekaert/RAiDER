@@ -71,14 +71,16 @@ class HRRR(WeatherModel):
         Fetch weather model data from HRRR
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        bounds = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at the HRRR archive (see documentation below)
-        self.load_weather(dateTime = time, filename = out, download_only = False, nProc = self._Nproc)
-        self._restrict_model(lat_min, lat_max, lon_min, lon_max)
+        self.load_weather(dateTime = time, filename = out, download_only = False, 
+                            nProc = self._Nproc, bounds = bounds)
 
 
-    def load_weather(self, dateTime = None, filename = None, download_only = False, nProc = 16):
+    def load_weather(self, dateTime = None, filename = None, 
+                        download_only = False, nProc = 16, verbose = False, 
+                        bounds = None):
         '''
         Consistent class method to be implemented across all weather model types. 
         As a result of calling this method, all of the variables (x, y, z, p, q, 
@@ -86,7 +88,7 @@ class HRRR(WeatherModel):
         populated. 
         '''
         self._load_pressure_levels(dateTime, filename, nProc = nProc, outDir = outDir, 
-                                    verbose = verbose, download_only = download_only)
+                                    verbose = verbose)
 #        if download_only:
 #            self._load_pressure_levels(dateTime, filename, nProc = nProc, outDir = outDir, verbose = verbose)
 #        elif filename is not None:
@@ -98,6 +100,10 @@ class HRRR(WeatherModel):
 #        else:
 #            self._load_pressure_levels(dateTime, nProc = nProc)
 
+        if bounds is not None:
+           lat_min, lat_max, lon_min, lon_max = bounds
+           self._restrict_model(lat_min, lat_max, lon_min, lon_max)
+
         self._find_e()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
@@ -105,73 +111,6 @@ class HRRR(WeatherModel):
         # adjust the grid based on the height data
         self._adjust_grid()
 
-
-    def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
-        '''
-        Restrict the HRRR model to the region of interest (ROI). If there are no 
-        points left in the model (because e.g. the ROI is outside the US), raise
-        an exception. 
-        '''
-
-        # Have to do some complicated stuff to get a nice square box without doing the whole US
-        self._xs = self._xs.swapaxes(0,1)
-        self._ys = self._ys.swapaxes(0,1)
-        self._zs = self._zs.swapaxes(0,1)
-        self._rh = self._rh.swapaxes(0,1)
-        self._p = self._p.swapaxes(0,1)
-        self._t = self._t.swapaxes(0,1)
-
-        mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
-        mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
-        mask2 = np.sum(mask1, axis = 0).astype('bool')
-        mask4 = np.sum(mask3, axis = 1).astype('bool')
-        NptsX = self._xs.shape[1]
-        NptsY = self._xs.shape[0]
-        lonRange = np.arange(0,NptsX)
-        latRange = np.arange(0,NptsY)
-        lonx = lonRange[mask2]
-        latx = latRange[mask4]
-        zx = np.arange(0, self._zs.shape[2])
-
-        # if there are no points left, raise exception
-        if np.sum(mask2) == 0 or np.sum(mask4)==0:
-            raise RuntimeError('Region of interest is outside the region of the HRRR weather archive data')
-
-        # otherwise subset the data
-        _xs = self._xs[np.ix_(latx,lonx, zx)]
-        _ys = self._ys[np.ix_(latx,lonx, zx)]
-        _zs = self._zs[np.ix_(latx,lonx, zx)]
-        _rh = self._rh[np.ix_(latx,lonx, zx)]
-        _t  = self._t[np.ix_(latx,lonx, zx)]
-        _p  = self._p[np.ix_(latx,lonx, zx)]
-
-#TODO: Will need to somehow handle the non-uniform grid for interpolation
-#        # Finally interpolate to a regular grid (need to avoid this in future)
-#        xbounds = (np.min(_xs), np.max(_xs))
-#        ybounds = (np.min(_ys), np.max(_ys))
-#        xstep = ystep = 0.03 # ~3 km grid spacing in degrees
-#        _xsN, _ysN = getNewXY(xbounds, ybounds, xstep, ystep)
-#        self._zs = interp2DLayers(_xs, _ys, _zs,_xsN, _ysN)
-#        self._rh = interp2DLayers(_xs, _ys, _rh,_xsN, _ysN)
-#        self._t  = interp2DLayers(_xs, _ys, _t, _xsN, _ysN)
-#        self._p  = interp2DLayers(_xs, _ys, _p, _xsN, _ysN)
-#     
-#       #self._wet_refractivity = interp2DLayers(_xs, _ys, _wrf, _xsN, _ysN)
-#       #self._hydrostatic_refractivity = interp2DLayers(_xs, _ys, _hrf, _xsN, _ysN)
-#        self._xs = np.broadcast_to(_xsN[..., np.newaxis],
-#                                     self._zs.shape)
-#        self._ys = np.broadcast_to(_ysN[..., np.newaxis],
-#                                     self._zs.shape)
-
-        self._zs = _zs.copy()
-        self._ys = _ys.copy()
-        self._xs = _xs.copy()
-        self._rh = _rh.copy()
-        self._t  = _t.copy()
-        self._p  = _p.copy()
-        self._find_e_from_rh()
-        self._get_wet_refractivity()
-        self._get_hydro_refractivity() 
 
 
     def _write2HDF5(self, filename, dateTime, verbose = False):
