@@ -156,7 +156,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
  
 
 def _common_delay(weatherObj, lats, lons, heights, 
-                  look_vecs, zref = None,
+                  look_vecs, zref = None, useWeatherNodes = False,
                   stepSize = _STEP, interpType = 'rgi',
                   verbose = False, nproc = 8, useDask = False):
     """
@@ -203,7 +203,7 @@ def _common_delay(weatherObj, lats, lons, heights,
        zref = _ZREF
 
     # If weather model nodes only are desired, the calculation is very quick
-    if look_vecs is Zenith:
+    if look_vecs is Zenith and useWeatherNodes:
         _,_,zs = weatherObj.getPoints()
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
         wet_pw  = weatherObj.getWetRefractivity()
@@ -211,61 +211,75 @@ def _common_delay(weatherObj, lats, lons, heights,
         wet_delays = _integrateZenith(zs, wet_pw)
         hydro_delays = _integrateZenith(zs, hydro_pw)
         return wet_delays,hydro_delays
-
-    if verbose:
-        import time
-        print('_common_delay: Starting look vector calculation')
-        print('_common_delay: The integration stepsize is {} m'.format(stepSize))
-        st = time.time()
-
-    # Otherwise, set off on the interpolation road
-    mask = np.isnan(heights)
-
-    # Get the integration points along the look vectors
-    # First get the length of each look vector, get integration steps along 
-    # each, then get the unit vector pointing in the same direction
-    lengths = _get_lengths(look_vecs)
-    lengths[mask] = np.nan
-    start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
-    scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
-    positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
-
-    if verbose:
-        print('_common_delay: Finished _get_rays')
-        ft = time.time()
-        print('Ray initialization took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Starting _re_project')
-        st = time.time()
-
-    ecef = pyproj.Proj(proj='geocent')
-    newProj = weatherObj.getProjection()
-    if useDask:
-        if verbose:
-            print('Beginning re-projection using Dask')
-        Npart = min(len(positions_l)//100 + 1, 1000)
-        bag = [(pos, ecef, newProj) for pos in positions_l]
-        PntBag = db.from_sequence(bag, npartitions=Npart)
-        newPts = PntBag.map(_re_project).compute()
+    elif look_vecs is Zenith:
+        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
     else:
         if verbose:
-            print('Beginning re-projection without Dask')
-        newPts = list(map(f, positions_l))
+            # TODO: remove time statements after code is finished
+            import time
+            print('_common_delay: Starting look vector calculation')
+            print('_common_delay: The integration stepsize is {} m'.format(stepSize))
+            st = time.time()
+    
+        # Otherwise, set off on the interpolation road
+        mask = np.isnan(heights)
+    
+        # Get the integration points along the look vectors
+        # First get the length of each look vector, get integration steps along 
+        # each, then get the unit vector pointing in the same direction
 
-    newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
+        # TODO: can move _get_lengths to cython?
+        lengths = _get_lengths(look_vecs)
+        lengths[mask] = np.nan
 
-    if verbose:
-        print('_common_delay: Finished re-projecting')
-        print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
-        ft = time.time()
-        print('Re-projecting took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Starting Interpolation')
-        st = time.time()
+        # this calculation takes a long time
+        start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
+
+        # cythonize these lines?
+        scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
+        positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
+    
+        if verbose:
+            print('_common_delay: Finished _get_rays')
+            ft = time.time()
+            print('Ray initialization took {:4.2f} secs'.format(ft-st))
+            print('_common_delay: Starting _re_project')
+            st = time.time()
+    
+        # TODO: Problem: This part could be parallelized, but Dask is slow. 
+        # perhaps should use multiprocessing or cythonize some fcns?
+        ecef = pyproj.Proj(proj='geocent')
+        newProj = weatherObj.getProjection()
+        if useDask:
+            if verbose:
+                print('Beginning re-projection using Dask')
+            Npart = min(len(positions_l)//100 + 1, 1000)
+            bag = [(pos, ecef, newProj) for pos in positions_l]
+            PntBag = db.from_sequence(bag, npartitions=Npart)
+            newPts = PntBag.map(_re_project).compute()
+        else:
+            if verbose:
+                print('Beginning re-projection without Dask')
+            newPts = list(map(f, positions_l))
+    
+        # TODO: not sure how long this takes but looks inefficient
+        newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
+    
+        if verbose:
+            print('_common_delay: Finished re-projecting')
+            print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
+            ft = time.time()
+            print('Re-projecting took {:4.2f} secs'.format(ft-st))
+            print('_common_delay: Starting Interpolation')
+            st = time.time()
 
     # Define the interpolator objects
+    # Neither of these require the rays yet!
     ifWet = getIntFcn(weatherObj,interpType =interpType)
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
 
     # Depending on parallelization, do the interpolation
+    # TODO: Here is where the chunking would take place
     if useDask:
         if verbose:
             print('Beginning interpolation using Dask')
