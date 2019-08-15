@@ -32,7 +32,7 @@ from Cython.Build import cythonize
 # Parameter defs
 GEOMETRY_DIR = "tools/bindings/geometry/"
 CPP_SRC_DIR = GEOMETRY_DIR + '/cpp/'
-GEOMETRY_LIB_DIR = "build" 
+GEOMETRY_LIB_DIR = "./build" 
 NTHREADS = 8
 
 # Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
@@ -53,10 +53,6 @@ def getVersion():
           return "0.0.0a1"
 
 
-def delayFiles(DELAY_DIR):
-   src_files = [os.path.join(DELAY_DIR, 'get_rays.pyx')]
-   return src_files
-
 def geomFiles(GEOMETRY_DIR):
    # geometry extension
    obj_files = ['Geometry']
@@ -72,7 +68,6 @@ def clsDirs(GEOMETRY_DIR):
    # geometry classes
    cls_dirs = [os.path.join(GEOMETRY_DIR, "cpp/classes/Geometry"), 
                os.path.join(GEOMETRY_DIR, "cpp/classes/Orbit"),
-               GEOMETRY_LIB_DIR,
                os.path.join(GEOMETRY_DIR, "cpp/classes/Utility")]
 
    return cls_dirs
@@ -111,13 +106,7 @@ extensions = [
        extra_link_args=['-lm'],
        library_dirs=[GEOMETRY_LIB_DIR],
        libraries=['geometry'],
-       language="c++"
-     )
-     Extension(
-       name="get_rays", 
-       include_dirs=[np.get_include()], 
-       sources=(delayFiles(DELAY_DIR)),
-       extra_compile_args=['-std=c++11'],
+       depends=["./tools/bindings/geometry/cpp/classes/Geometry/Geometry.h"],
        language="c++"
      )
 ]
