@@ -99,13 +99,9 @@ def _transform(ray, oldProj, newProj):
                       ,axis = -1)
     return newRay
 
-
 def _re_project(tup): 
     newPnt = _transform(tup[0],tup[1], tup[2])
     return newPnt
-def f(x):
-    ecef = pyproj.Proj(proj='geocent')
-    return _transform(x, ecef, newProj)
 
 def sortSP(arr):
     '''
@@ -128,6 +124,36 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     import pyproj
     return np.array(pyproj.transform(inProj, outProj, lon, lat, height)).T
 
+def getGroundPositionECEF(lats, lons, hgts):
+    '''
+    Compute the ground position of each pixel in ECEF reference frame
+    ''' 
+    ecef = pyproj.Proj(proj='geocent')
+    lla = pyproj.Proj(proj='latlong')
+    start_positions = reproject(lats, lons, heights, lla, ecef)
+    start_positions = sortSP(start_positions)
+    return start_positions
+
+
+def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
+    '''
+    Get the look vector stretching from the ground pixel to the point
+    at the top of the atmosphere, either (1) at zenith, or (2) towards
+    the RADAR satellite (for line-of-sight calculation)
+    '''
+    if look_vecs is Zenith:
+        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
+        lengths = _ZREF*np.ones(len(look_vecs))
+    else:
+        mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+        lengths = _get_lengths(look_vecs)
+        lengths[mask] = np.nan
+    return lengths
+
+
+def getUnitLVs(look_vecs, lengths):
+    return look_vecs / lengths[..., np.newaxis]
+
 
 def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, setupSize = _STEP, verbose = False):
     '''
@@ -138,71 +164,47 @@ def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, setupSi
         print('calculate_rays: Starting look vector calculation')
         print('The integration stepsize is {} m'.format(stepSize))
     
-    if look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-        lengths = np.array([_ZREF]*len(look_vecs))
-    else:
-        # Otherwise, set off on the interpolation road
-        mask = np.isnan(heights)
-    
-        # Get the integration points along the look vectors
-        # First get the length of each look vector, get integration steps along 
-        # each, then get the unit vector pointing in the same direction
-        lengths = _get_lengths(look_vecs)
-        lengths[mask] = np.nan
+    # get the raypath unit vectors and lengths for doing the interpolation 
+    lv_len = getLookVectorLength(look_vecs, lats, lons, heights, zref)
+    lv_scaled = getUnitLVs(look_vecs, lv_len) 
 
-    scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
+    # This projects the ground pixels into earth-centered, earth-fixed coordinate 
+    # system and sorts by position
+    start_positions = getGroundPositionECEF(lats, lons, hgts)
 
-
-    # TODO: make lla an optional input to the fcn? 
-    ecef = pyproj.Proj(proj='geocent')
-    lla = pyproj.Proj(proj='latlong')
-    # this calculation takes a long time
-    start_positions = reproject(lats, lons, heights, lla, ecef)
-    # TODO: Check that start_positions is an array of Nx3 size
-    start_positions = sortSP(start_positions)
-
-    # cythonize these lines?
+    # This returns the list of rays
+    # TODO: make this not a list. 
+    # Why is a list used instead of a numpy array? It is because every ray has a
+    # different length, and some rays have zero length (i.e. the points over
+    # water). However, it would be MUCH more efficient to do this as a single 
+    # pyproj call, rather than having to send each ray individually. For right 
+    # now we bite the bullet.
     positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
-    
-    if verbose:
-        print('_common_delay: Finished _get_rays')
-        ft = time.time()
-        print('Ray initialization took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Starting _re_project')
-        st = time.time()
 
-     TODO: Problem: This part could be parallelized, but Dask is slow. 
-        # perhaps should use multiprocessing or cythonize some fcns?
-        newProj = weatherObj.getProjection()
-        if useDask:
-            if verbose:
-                print('Beginning re-projection using Dask')
-            Npart = min(len(positions_l)//100 + 1, 1000)
-            bag = [(pos, ecef, newProj) for pos in positions_l]
-            PntBag = db.from_sequence(bag, npartitions=Npart)
-            newPts = PntBag.map(_re_project).compute()
-        else:
-            if verbose:
-                print('Beginning re-projection without Dask')
-            newPts = list(map(f, positions_l))
-
-        # TODO: not sure how long this takes but looks inefficient
-        newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
-
+    # Now to interpolate, we have to re-project each ray into the coordinate 
+    # system used by the weather model.  --> this is inefficient as is
+    newProj = weatherObj.getProjection()
+    if useDask:
         if verbose:
-            print('_common_delay: Finished re-projecting')
-            print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
-            ft = time.time()
-            print('Re-projecting took {:4.2f} secs'.format(ft-st))
-            print('_common_delay: Starting Interpolation')
-            st = time.time()     
+            print('Beginning re-projection using Dask')
+        Npart = min(len(positions_l)//100 + 1, 1000)
+        bag = [(pos, ecef, newProj) for pos in positions_l]
+        PntBag = db.from_sequence(bag, npartitions=Npart)
+        newPts = PntBag.map(_re_project).compute()
+    else:
+        if verbose:
+            print('Beginning re-projection without Dask')
+        newPts = list(map(f, positions_l))
+
+    # TODO: not sure how long this takes but looks inefficient
+    newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
 
 
-    # chunk the rays
-    rayChunkIndices = list(range(len(start_positions)))
-    chunks = np.array_split(rayChunkIndices, nChunks)
-    bags = []
-    for chunk in chunks:
-       bags.append(newPts[chunk])
-
+     # TODO: implement chunking for efficient interpolation?
+#    # chunk the rays
+#    rayChunkIndices = list(range(len(start_positions)))
+#    chunks = np.array_split(rayChunkIndices, nChunks)
+#    bags = []
+#    for chunk in chunks:
+#       bags.append(newPts[chunk])
+#
