@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: David Bekaert
+# Author: David Bekaert, Jeremy Maurer, and Piyush Agram
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
@@ -31,7 +31,7 @@ from Cython.Build import cythonize
 
 # Parameter defs
 GEOMETRY_DIR = "tools/bindings/geometry/"
-BUILD_DIR = os.path.join(GEOMETRY_DIR)
+BUILD_DIR = os.path.join(GEOMETRY_DIR)   # <- ideally this should be ./build/ or at least ./tools/bindings/geometry/build
 GEOMETRY_LIB_DIR = "tools/bindings/geometry/" 
 NTHREADS = 8
 
@@ -40,17 +40,6 @@ os.environ["CC"] = 'gcc'
 os.environ["CXX"] = 'g++'
 os.environ["GEOMETRY_DIR"] = GEOMETRY_DIR
 os.environ["GEOMETRY_LIB_DIR"] = GEOMETRY_LIB_DIR
-
-
-def getVersion():
-    '''
-    Load the version from a text file
-    '''
-    with open('version.txt', 'r') as f:
-       try:
-          return f.read().split('=')[-1].replace('\'', '').strip()
-       except IOError:
-          return "0.0.0a1"
 
 
 def geomFiles(GEOMETRY_DIR):
@@ -68,7 +57,6 @@ def clsDirs(GEOMETRY_DIR):
    # geometry classes
    cls_dirs = [os.path.join(GEOMETRY_DIR, "cpp/classes/Geometry"), 
                os.path.join(GEOMETRY_DIR, "cpp/classes/Orbit"),
-               GEOMETRY_LIB_DIR,
                os.path.join(GEOMETRY_DIR, "cpp/classes/Utility")]
 
    return cls_dirs
@@ -83,7 +71,6 @@ def makeCPP(geom_dir):
     subp.call(['cmake', '.', 'cpp'])
     subp.call(['make'])
     os.chdir(cwd)
-
 
 extensions = [
      Extension(
@@ -106,10 +93,7 @@ setup (name = 'RAiDER',
        description = 'This is the RAiDER package',
        package_dir={'tools': 'tools',
                     'RAiDER': 'tools/RAiDER',
-                    'geometry': 'build',
                     'RAiDER.models': 'tools/RAiDER/models'},
-       packages=['tools', 'RAiDER', 'RAiDER.models', 'geometry'],
+       packages=['tools', 'RAiDER', 'RAiDER.models'],
        ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
        scripts=['tools/bin/raiderDelay.py'])
-
-
