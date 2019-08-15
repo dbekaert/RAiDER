@@ -57,7 +57,7 @@ def delayFiles(DELAY_DIR):
    src_files = [os.path.join(DELAY_DIR, 'get_rays.pyx')]
    return src_files
 
-def srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR):
+def geomFiles(GEOMETRY_DIR):
    # geometry extension
    obj_files = ['Geometry']
 
@@ -72,6 +72,7 @@ def clsDirs(GEOMETRY_DIR):
    # geometry classes
    cls_dirs = [os.path.join(GEOMETRY_DIR, "cpp/classes/Geometry"), 
                os.path.join(GEOMETRY_DIR, "cpp/classes/Orbit"),
+               GEOMETRY_LIB_DIR,
                os.path.join(GEOMETRY_DIR, "cpp/classes/Utility")]
 
    return cls_dirs
@@ -104,7 +105,7 @@ def mkdir(dirName):
 extensions = [
      Extension(
        name="Geo2rdr",
-       sources=srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR),
+       sources=geomFiles(GEOMETRY_DIR),
        include_dirs=[np.get_include()] + clsDirs(GEOMETRY_DIR), 
        extra_compile_args=['-std=c++11'],
        extra_link_args=['-lm'],
@@ -128,8 +129,9 @@ setup (name = 'RAiDER',
        description = 'This is the RAiDER package',
        package_dir={'tools': 'tools',
                     'RAiDER': 'tools/RAiDER',
+                    'geometry': 'build',
                     'RAiDER.models': 'tools/RAiDER/models'},
-       packages=['tools', 'RAiDER', 'RAiDER.models'],
+       packages=['tools', 'RAiDER', 'RAiDER.models', 'geometry'],
        #packages=[''],
        ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
        scripts=['tools/bin/raiderDelay.py'])
