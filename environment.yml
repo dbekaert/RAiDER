@@ -10,7 +10,6 @@ channels:
  - defaults
 dependencies:
  - python>=3
- - cartopy
  - cdsapi
  - cfgrib
  - cmake
