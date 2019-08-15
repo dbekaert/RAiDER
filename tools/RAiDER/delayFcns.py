@@ -14,24 +14,15 @@ Calculated rays from the ground to the top of the atmosphere
 Currently we take samples every _STEP meters.
 """
 
-from osgeo import gdal
-gdal.UseExceptions()
-
 # standard imports
-import itertools
 import numpy as np
 import os
 import pyproj
-import threading
-import sys
-import h5py
 
 # local imports
 import constants as const
 from constants import Zenith
-import demdownload as dld
-import losreader as losreader
-import util as util
+import util
 
 # Step in meters to use when integrating
 _STEP = const._STEP
@@ -74,59 +65,26 @@ def _get_lengths(look_vecs):
     return lengths
 
 
-def _compute_ray(L, S, V, stepSize):
-    '''
-    Compute and return points along a ray, given a total length, 
-    start position (in x,y,z), a unit look vector V, and the 
-    stepSize.
-    '''
-    # Have to handle the case where there are invalid data
-    # TODO: cythonize this? 
-    try:
-        thisspace = np.arange(0, L, stepSize)
-    except ValueError:
-        thisspace = np.array([])
-    ray = S + thisspace[..., np.newaxis]*V
-    return ray
-
-
-def _helper(tup):
+def _ray_helper(tup):
+    from get_rays import compute_ray as _compute_ray
     return _compute_ray(tup[0], tup[1], tup[2], tup[3])
-    #return _compute_ray(L, S, V, stepSize)
-
-def _get_rays_p(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 4):
-    import multiprocessing as mp
-
-    # setup for multiprocessing
-    data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
-
-    pool = mp.Pool(Nproc)
-    positions_l = pool.map(helper, data)
-    return positions_l
-
-def _get_rays_d(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 2):
-   import dask.bag as db
-   L = db.from_sequence(lengths)
-   S = db.from_sequence(start_positions)
-   Sv = db.from_sequence(scaled_look_vecs)
-   Ss = db.from_sequence([stepSize]*len(lengths))
-
-   # setup for multiprocessing
-   data = db.zip(L, S, Sv, Ss)
-
-   positions_l = db.map(helper, data)
-   return positions_l.compute()
 
 
-def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
+def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = None):
     '''
     Create the integration points for each ray path. 
     '''
-    # might be able to cythonize this!
-    positions_l= []
-    rayData = zip(lengths, start_positions, scaled_look_vecs)
-    for L, S, V in rayData:
-        positions_l.append(_compute_ray(L, S, V, stepSize))
+    data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
+    if len(lengths)<1e6:
+       positions_l= []
+       for tup in rayData:
+           positions_l.append(_ray_helper(tup))
+    else:
+       import multiprocessing as mp
+       if Nproc is None:
+          Nproc =mp.cpu_count()*3//4
+       pool = mp.Pool()
+       positions_l = pool.map(_ray_helper, data)
 
     return positions_l
 

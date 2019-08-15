@@ -6,6 +6,21 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+'''
+A note about setup and installation of this module:
+This package uses GDAL and g++, both of which can be tricky to set up correctly.
+GDAL in particular will often break after installing a new program
+If you receive error messages such as the following: 
+ImportError: ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/../../../libstdc++.so.6: version `CXXABI_1.3.9' not found (required by ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/ft2font.cpython-37m-x86_64-linux-gnu.so)
+or
+ImportError: libtiledb.so.1.6.0: cannot open shared object file: No such file or directory
+or
+***cmake: /u/kriek1/maurer/software/anaconda3/envs/RAiDER/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.20' not found (required by cmake)***
+
+try running the following commands within your RAiDER conda environment:
+conda update --force-install libstdcxx-ng
+conda update --force-install gdal libgdal
+'''
 import numpy as np
 import os
 import subprocess as subp
@@ -37,6 +52,10 @@ def getVersion():
        except IOError:
           return "0.0.0a1"
 
+
+def delayFiles(DELAY_DIR):
+   src_files = [os.path.join(DELAY_DIR, 'get_rays.pyx')]
+   return src_files
 
 def srcFiles(GEOMETRY_DIR, GEOMETRY_LIB_DIR):
    # geometry extension
@@ -91,7 +110,15 @@ extensions = [
        extra_link_args=['-lm'],
        library_dirs=[GEOMETRY_LIB_DIR],
        libraries=['geometry'],
-       language="c++")
+       language="c++"
+     )
+     Extension(
+       name="get_rays", 
+       include_dirs=[np.get_include()], 
+       sources=(delayFiles(DELAY_DIR)),
+       extra_compile_args=['-std=c++11'],
+       language="c++"
+     )
 ]
 
 makeCPP(GEOMETRY_DIR)
