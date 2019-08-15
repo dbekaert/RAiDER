@@ -31,8 +31,8 @@ from Cython.Build import cythonize
 
 # Parameter defs
 GEOMETRY_DIR = "tools/bindings/geometry/"
-CPP_SRC_DIR = GEOMETRY_DIR + '/cpp/'
-GEOMETRY_LIB_DIR = "./build" 
+BUILD_DIR = os.path.join(GEOMETRY_DIR)
+GEOMETRY_LIB_DIR = "tools/bindings/geometry/" 
 NTHREADS = 8
 
 # Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
@@ -78,11 +78,12 @@ def makeCPP(geom_dir):
     Run cmake with appropriate args to compile the geometry module
     '''
     cwd = os.getcwd()
-    mkdir('build')
-    os.chdir('build')
-    subp.call(['cmake', '.', '..' + os.sep + geom_dir + 'cpp'])
+    #mkdir('build')
+    os.chdir(BUILD_DIR)
+    #subp.call(['cmake', '.', '..' + os.sep + geom_dir + 'cpp'])
+    subp.call(['cmake', '.', 'cpp'])
     subp.call(['make'])
-    os.chdir('..')
+    os.chdir(cwd)
     #cmake .  $src_dir/Geometry/cpp/ 
     #make
     #python3 $src_dir/Geometry/cython/setup.py build_ext -b $src_dir/build
@@ -118,9 +119,8 @@ setup (name = 'RAiDER',
        description = 'This is the RAiDER package',
        package_dir={'tools': 'tools',
                     'RAiDER': 'tools/RAiDER',
-                    'geometry': 'build',
                     'RAiDER.models': 'tools/RAiDER/models'},
-       packages=['tools', 'RAiDER', 'RAiDER.models', 'geometry'],
+       packages=['tools', 'RAiDER', 'RAiDER.models'],
        #packages=[''],
        ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
        scripts=['tools/bin/raiderDelay.py'])
