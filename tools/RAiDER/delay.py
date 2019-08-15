@@ -15,7 +15,6 @@ inaccuracies or inefficiencies, and we no longer can integrate to
 infinity.
 """
 
-
 from osgeo import gdal
 gdal.UseExceptions()
 
@@ -40,141 +39,6 @@ from downloadWM import downloadWMFile as dwf
 _STEP = const._STEP
 # Top of the troposphere
 _ZREF = const._ZMAX
-
-
-def _get_lengths(look_vecs):
-    '''
-    Returns the lengths of a vector or set of vectors, fast
-    '''
-    lengths = np.linalg.norm(look_vecs, axis=-1)
-    lengths[~np.isfinite(lengths)] = 0
-    return lengths
-
-
-def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
-
-    '''
-    Returns look vectors when Zenith is used
-    '''
-    return (np.array((util.cosd(lats)*util.cosd(lons),
-                              util.cosd(lats)*util.sind(lons),
-                              util.sind(lats))).T
-                    * (zref - heights)[..., np.newaxis])
-
-
-def _compute_ray(L, S, V, stepSize):
-    '''
-    Compute and return points along a ray, given a total length, 
-    start position (in x,y,z), a unit look vector V, and the 
-    stepSize.
-    '''
-    # Have to handle the case where there are invalid data
-    # TODO: cythonize this? 
-    try:
-        thisspace = np.arange(0, L, stepSize)
-    except ValueError:
-        thisspace = np.array([])
-    ray = S + thisspace[..., np.newaxis]*V
-    return ray
-
-
-def _helper(tup):
-    return _compute_ray(tup[0], tup[1], tup[2], tup[3])
-    #return _compute_ray(L, S, V, stepSize)
-
-def _get_rays_p(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 4):
-    import multiprocessing as mp
-
-    # setup for multiprocessing
-    data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
-
-    pool = mp.Pool(Nproc)
-    positions_l = pool.map(helper, data)
-    return positions_l
-
-
-def _get_rays_d(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 2):
-   import dask.bag as db
-   L = db.from_sequence(lengths)
-   S = db.from_sequence(start_positions)
-   Sv = db.from_sequence(scaled_look_vecs)
-   Ss = db.from_sequence([stepSize]*len(lengths))
-
-   # setup for multiprocessing
-   data = db.zip(L, S, Sv, Ss)
-
-   positions_l = db.map(helper, data)
-   return positions_l.compute()
-
-
-def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
-    '''
-    Create the integration points for each ray path. 
-    ''' 
-    # might be able to cythonize this!
-    positions_l= []
-    rayData = zip(lengths, start_positions, scaled_look_vecs)
-    for L, S, V in rayData:
-        positions_l.append(_compute_ray(L, S, V, stepSize))
-
-    return positions_l
-
-
-def _transform(ray, oldProj, newProj):
-    '''
-    Transform a ray from one coordinate system to another
-    '''
-    newRay = np.stack(
-                pyproj.transform(
-                      oldProj, newProj, ray[:,0], ray[:,1], ray[:,2])
-                      ,axis = -1)
-    return newRay
-
-
-def _re_project(tup): 
-    newPnt = _transform(tup[0],tup[1], tup[2])
-    return newPnt
-def f(x):
-    ecef = pyproj.Proj(proj='geocent')
-    return _transform(x, ecef, newProj)
-
-def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
-    '''
-    Function to create and return an Interpolator object
-    '''
-    import interpolator as intprn
-
-    ifFun = intprn.Interpolator()
-    ifFun.setPoints(*weatherObj.getPoints())
-    ifFun.setProjection(weatherObj.getProjection())
-
-    if itype == 'wet':
-        ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
-    elif itype == 'hydro':
-        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
-    return ifFun
-
-
-def sortSP(arr):
-    '''
-    Return an array that has been sorted progressively by 
-    each axis, beginning with the first
-    Input:
-      arr  - an Nx(2 or 3) array containing a set of N points in 2D or 3D space
-    Output:
-      xSorted  - an Nx(2 or 3) array containing the sorted points
-    '''
-    ySorted = arr[arr[:,1].argsort()]
-    xSorted = ySorted[ySorted[:,0].argsort()]
-    return xSorted
- 
-
-def reproject(inlat, inlon, inhgt, inProj, outProj):
-    '''
-    reproject a set of lat/lon/hgts to a new coordinate system
-    '''
-    import pyproj
-    return np.array(pyproj.transform(inProj, outProj, lon, lat, height)).T
 
 
 def _common_delay(weatherObj, lats, lons, heights, 
@@ -221,9 +85,6 @@ def _common_delay(weatherObj, lats, lons, heights,
     else:
        pass
 
-    if zref is None:
-       zref = _ZREF
-
     # If weather model nodes only are desired, the calculation is very quick
     if look_vecs is Zenith and useWeatherNodes:
         _,_,zs = weatherObj.getPoints()
@@ -233,80 +94,6 @@ def _common_delay(weatherObj, lats, lons, heights,
         wet_delays = _integrateZenith(zs, wet_pw)
         hydro_delays = _integrateZenith(zs, hydro_pw)
         return wet_delays,hydro_delays
-    elif look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-    else:
-        if verbose:
-            # TODO: remove time statements after code is finished
-            import time
-            print('_common_delay: Starting look vector calculation')
-            print('_common_delay: The integration stepsize is {} m'.format(stepSize))
-            st = time.time()
-    
-        # Otherwise, set off on the interpolation road
-        mask = np.isnan(heights)
-    
-        # Get the integration points along the look vectors
-        # First get the length of each look vector, get integration steps along 
-        # each, then get the unit vector pointing in the same direction
-        if look_vecs is Zenith:
-            lengths = np.array([_ZREF]*len(look_vecs))
-        else:
-            lengths = _get_lengths(look_vecs)
-        lengths[mask] = np.nan
-
-        # TODO: make lla an optional input to the fcn? 
-        ecef = pyproj.Proj(proj='geocent')
-        lla = pyproj.Proj(proj='latlong')
-        # this calculation takes a long time
-        start_positions = reproject(lats, lons, heights, lla, ecef)
-        # TODO: Check that start_positions is an array of Nx3 size
-        start_positions = sortSP(start_positions)
-
-        # cythonize these lines?
-        scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
-        positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
-    
-        if verbose:
-            print('_common_delay: Finished _get_rays')
-            ft = time.time()
-            print('Ray initialization took {:4.2f} secs'.format(ft-st))
-            print('_common_delay: Starting _re_project')
-            st = time.time()
-    
-        # TODO: Problem: This part could be parallelized, but Dask is slow. 
-        # perhaps should use multiprocessing or cythonize some fcns?
-        newProj = weatherObj.getProjection()
-        if useDask:
-            if verbose:
-                print('Beginning re-projection using Dask')
-            Npart = min(len(positions_l)//100 + 1, 1000)
-            bag = [(pos, ecef, newProj) for pos in positions_l]
-            PntBag = db.from_sequence(bag, npartitions=Npart)
-            newPts = PntBag.map(_re_project).compute()
-        else:
-            if verbose:
-                print('Beginning re-projection without Dask')
-            newPts = list(map(f, positions_l))
-    
-        # TODO: not sure how long this takes but looks inefficient
-        newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
-    
-        if verbose:
-            print('_common_delay: Finished re-projecting')
-            print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
-            ft = time.time()
-            print('Re-projecting took {:4.2f} secs'.format(ft-st))
-            print('_common_delay: Starting Interpolation')
-            st = time.time()
-
-    # chunk the rays
-    rayChunkIndices = list(range(len(start_positions)))
-    chunks = np.array_split(rayChunkIndices, nChunks)
-    bags = []
-    for chunk in chunks:
-       bags.append(newPts[chunk])
-    
 
     if useDask:
         if verbose:
@@ -345,6 +132,23 @@ def _common_delay(weatherObj, lats, lons, heights,
     delays = _integrateLOS(stepSize, wet_pw, hydro_pw)
 
     return delays
+
+
+def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
+    '''
+    Function to create and return an Interpolator object
+    '''
+    import interpolator as intprn
+
+    ifFun = intprn.Interpolator()
+    ifFun.setPoints(*weatherObj.getPoints())
+    ifFun.setProjection(weatherObj.getProjection())
+
+    if itype == 'wet':
+        ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
+    elif itype == 'hydro':
+        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
+    return ifFun
 
 
 # call the interpolator on each ray
