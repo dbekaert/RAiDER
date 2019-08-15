@@ -31,8 +31,8 @@ from Cython.Build import cythonize
 
 # Parameter defs
 GEOMETRY_DIR = "tools/bindings/geometry/"
-CPP_SRC_DIR = GEOMETRY_DIR + '/cpp/'
-GEOMETRY_LIB_DIR = "build" 
+BUILD_DIR = os.path.join(GEOMETRY_DIR)
+GEOMETRY_LIB_DIR = "tools/bindings/geometry/" 
 NTHREADS = 8
 
 # Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
@@ -52,10 +52,6 @@ def getVersion():
        except IOError:
           return "0.0.0a1"
 
-
-def delayFiles(DELAY_DIR):
-   src_files = [os.path.join(DELAY_DIR, 'get_rays.pyx')]
-   return src_files
 
 def geomFiles(GEOMETRY_DIR):
    # geometry extension
@@ -83,23 +79,10 @@ def makeCPP(geom_dir):
     Run cmake with appropriate args to compile the geometry module
     '''
     cwd = os.getcwd()
-    mkdir('build')
-    os.chdir('build')
-    subp.call(['cmake', '.', '..' + os.sep + geom_dir + 'cpp'])
+    os.chdir(BUILD_DIR)
+    subp.call(['cmake', '.', 'cpp'])
     subp.call(['make'])
-    os.chdir('..')
-    #cmake .  $src_dir/Geometry/cpp/ 
-    #make
-    #python3 $src_dir/Geometry/cython/setup.py build_ext -b $src_dir/build
-
-
-def mkdir(dirName):
-   import shutil
-   try:
-      shutil.rmtree(dirName)
-   except:
-      pass 
-   os.mkdir(dirName)
+    os.chdir(cwd)
 
 
 extensions = [
@@ -111,13 +94,7 @@ extensions = [
        extra_link_args=['-lm'],
        library_dirs=[GEOMETRY_LIB_DIR],
        libraries=['geometry'],
-       language="c++"
-     )
-     Extension(
-       name="get_rays", 
-       include_dirs=[np.get_include()], 
-       sources=(delayFiles(DELAY_DIR)),
-       extra_compile_args=['-std=c++11'],
+       depends=["./tools/bindings/geometry/cpp/classes/Geometry/Geometry.h"],
        language="c++"
      )
 ]
@@ -132,7 +109,6 @@ setup (name = 'RAiDER',
                     'geometry': 'build',
                     'RAiDER.models': 'tools/RAiDER/models'},
        packages=['tools', 'RAiDER', 'RAiDER.models', 'geometry'],
-       #packages=[''],
        ext_modules = cythonize(extensions, quiet = True,nthreads=NTHREADS),
        scripts=['tools/bin/raiderDelay.py'])
 
