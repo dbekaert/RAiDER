@@ -66,8 +66,23 @@ def _get_lengths(look_vecs):
 
 
 def _ray_helper(tup):
-    from get_rays import compute_ray as _compute_ray
     return _compute_ray(tup[0], tup[1], tup[2], tup[3])
+
+
+def _compute_ray(L, S, V, stepSize):
+    '''
+    Compute and return points along a ray, given a total length, 
+    start position (in x,y,z), a unit look vector V, and the 
+    stepSize.
+    '''
+    # Have to handle the case where there are invalid data
+    # TODO: cythonize this? 
+    try:
+        thisspace = np.arange(0, L, stepSize)
+    except ValueError:
+        thisspace = np.array([])
+    ray = S + thisspace[..., np.newaxis]*V
+    return ray
 
 
 def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = None):
