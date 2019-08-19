@@ -35,6 +35,12 @@ GEOMETRY_DIR = os.path.join(CWD, "tools/bindings/geometry")
 CPP_DIR = os.path.join(GEOMETRY_DIR, "cpp/classes")
 CYTHON_DIR = os.path.join(GEOMETRY_DIR, "cython/Geo2rdr")
 
+def getVersion():
+    with open('version.txt', 'r') as f:
+         version = f.read().split("=")[-1].replace("'",'').strip()
+    return version
+
+
 extensions = [
      Extension(
        name="Geo2rdr",
@@ -51,7 +57,7 @@ extensions = [
 ]
 
 setup (name = 'RAiDER',
-       version = '1.0',
+       version = getVersion(),
        description = 'This is the RAiDER package',
        package_dir={'tools': 'tools',
                     'RAiDER': 'tools/RAiDER',
