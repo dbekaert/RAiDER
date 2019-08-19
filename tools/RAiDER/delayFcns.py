@@ -22,7 +22,7 @@ import pyproj
 # local imports
 import RAiDER.constants as const
 from RAiDER.constants import Zenith
-import RAiDER.util
+import RAiDER.util as util
 
 # Step in meters to use when integrating
 _STEP = const._STEP

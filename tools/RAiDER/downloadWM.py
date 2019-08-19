@@ -13,7 +13,7 @@ import os
 from datetime import datetime as dt
 
 # local imports
-import RAiDER.util
+import RAiDER.util as util
 
 
 def downloadWMFile(weather_model_name, time, outLoc, verbose = False):

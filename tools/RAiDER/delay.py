@@ -25,7 +25,7 @@ import RAiDER.constants as const
 from RAiDER.constants import Zenith
 import RAiDER.demdownload as dld
 import RAiDER.losreader as losreader
-import RAiDER.util
+import RAiDER.util as util
 from RAiDER.downloadWM import downloadWMFile as dwf
 
 # Step in meters to use when integrating

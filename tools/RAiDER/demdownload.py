@@ -14,7 +14,7 @@ from osgeo import gdal
 import scipy.interpolate
 from scipy.interpolate import RegularGridInterpolator as rgi
 
-import RAiDER.util
+import RAiDER.util as util
 gdal.UseExceptions()
 
 
