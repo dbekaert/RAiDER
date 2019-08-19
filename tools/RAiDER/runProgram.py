@@ -64,9 +64,14 @@ import argparse
 import datetime
 import itertools
 import os
+import numpy as np
 
 # Local imports
 from RAiDER import delay
+from RAiDER.util import makeDelayFileNames as mdf, writeArrayToRaster as watr, mkdir
+from RAiDER.checkArgs import checkArgs
+import RAiDER.llreader as llr
+
 
 def read_date(s):
     """Read a date from a string in pseudo-ISO 8601 format."""
@@ -209,8 +214,6 @@ def writeDelays(wetDelay, hydroDelay, time, los,
     '''
     Write the delay numpy arrays to files in the format specified 
     '''
-    import numpy as np
-    from RAiDER.util import makeDelayFileNames as mdf, writeArrayToRaster as watr
 
     # Use zero for nodata
     wetDelay[np.isnan(wetDelay)] = 0.
@@ -231,10 +234,6 @@ def main():
 
     We'll parse arguments and call delay.py.
     """
-    from RAiDER.util import mkdir
-    from RAiDER.checkArgs import checkArgs
-    import RAiDER.llreader as llr
-
     args, p = parse_args()
 
     mkdir(os.path.join(args.out, 'geom'))
