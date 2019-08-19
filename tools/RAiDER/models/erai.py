@@ -3,7 +3,7 @@ import numpy as np
 import pyproj
 
 import util
-from ecmwf import ECMWF
+from models.ecmwf import ECMWF
 
 class ERAI(ECMWF):
     # A and B parameters to calculate pressures for model levels,

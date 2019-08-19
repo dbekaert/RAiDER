@@ -7,7 +7,7 @@ import pyproj
 import re
 import sys
 
-import utils.util as util
+import util
 from models.weatherModel import WeatherModel
 
 def Model():

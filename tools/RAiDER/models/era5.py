@@ -3,7 +3,7 @@ import numpy as np
 import pyproj
 
 import util
-from ecmwf import ECMWF
+from models.ecmwf import ECMWF
 
 class ERA5(ECMWF):
     # I took this from

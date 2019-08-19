@@ -98,7 +98,7 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = None
        import multiprocessing as mp
        if Nproc is None:
           Nproc =mp.cpu_count()*3//4
-       pool = mp.Pool()
+       pool = mp.Pool(Nproc)
        positions_l = pool.map(_ray_helper, data)
 
     return positions_l

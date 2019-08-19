@@ -9,7 +9,7 @@
 
 import numpy as np
 import os
-import gdal_trans
+from util import gdal_trans
 
 def checkArgs(args, p):
     '''
