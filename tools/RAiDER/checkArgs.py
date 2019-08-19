@@ -101,6 +101,12 @@ def checkArgs(args, p):
         else:
             weathers = {'type': model_module.Model(), 'files': None,
                         'name': args.model}
+
+    if args.wmLoc is not None:
+       wmLoc = args.wmLoc
+    else:
+       wmLoc = os.path.join(args.out, 'weather_files')
+
     # zref
     zref = args.zref
     
@@ -138,7 +144,7 @@ def checkArgs(args, p):
     else: 
        flag = None
 
-    return los, lat, lon, heights, flag, weathers, zref, outformat, time, out, download_only, parallel, verbose
+    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose
 
 
 def output_format(outformat):

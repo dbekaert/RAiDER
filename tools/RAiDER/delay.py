@@ -252,7 +252,7 @@ def get_weather_and_nodes(model, filename, zmin=None):
             xs, ys, proj)
 
 def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 
-                weather = None, zref = 15000, out = None, 
+                weather = None, wmFileLoc = None, zref = 15000, out = None, 
                 parallel=True,verbose = False, download_only = False):
     """Calculate troposphere delay from command-line arguments.
 
@@ -266,6 +266,10 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     if verbose:
         print('type of time: {}'.format(type(time)))
         print('Download-only is {}'.format(download_only))
+
+    # location of the weather model files
+    if wmFileLoc is None:
+       wmFileLoc = os.path.join(out, 'weather_files')
 
     # ensuring consistent file extensions
     outformat = output_format(outformat)
@@ -281,7 +285,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
 
     # check whether weather model files are supplied
     if weather_files is None:
-       download_flag, f = dwf(weather_model.Model(), time, out, verbose)
+       download_flag, f = dwf(weather_model.Model(), time, wmFileLoc, verbose)
 
     # if no weather model files supplied, check the standard location
     if download_flag:

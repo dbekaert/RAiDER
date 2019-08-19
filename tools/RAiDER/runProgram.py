@@ -101,6 +101,10 @@ def parse_args():
         help='Weather model to use',
         default='ERA-5')
     p.add_argument(
+        '--weatherModelFileLocation', '-w', dest='wmLoc',
+        help='Directory location of/to write weather model files',
+        default='weather_files')
+    p.add_argument(
         '--pickleFile',
         help='Pickle file to load',
         default=None)
@@ -172,7 +176,7 @@ def main():
     mkdir(os.path.join(args.out, 'weather_files'))
 
     # Argument checking
-    los, lat, lon, heights, flag, weather_model, zref, outformat, \
+    los, lat, lon, heights, flag, weather_model, wmLoc, zref, outformat, \
          time, out, download_only, parallel, verbose = checkArgs(args, p)
 
     if verbose: 
@@ -185,7 +189,7 @@ def main():
 
     wetDelay, hydroDelay = \
        delay.tropo_delay(time, los, lats, lons, heights, 
-                         weather_model, zref, out,
+                         weather_model, wmLoc, zref, out,
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)
 

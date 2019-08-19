@@ -22,7 +22,7 @@ def downloadWMFile(weather_model_name, time, outLoc, verbose = False):
     if not, download it.
     '''
     util.mkdir('weather_files')
-    f = os.path.join(outLoc, 'weather_files', 
+    f = os.path.join(outLoc, 
         '{}_{}.nc'.format(weather_model_name,
          dt.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
