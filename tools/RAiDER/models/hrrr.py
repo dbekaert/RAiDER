@@ -7,7 +7,7 @@ import pyproj
 import re
 import sys
 
-import util
+import RAiDER.util as util
 from models.weatherModel import WeatherModel
 
 def Model():

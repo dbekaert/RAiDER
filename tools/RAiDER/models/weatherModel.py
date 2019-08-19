@@ -8,8 +8,8 @@ import os
 # local imports
 import constants as const
 import models.plotWeather as plots
-import util 
-from util import robmin, robmax
+import RAiDER.util as util
+from RAiDER.util import robmin, robmax
 
 
 class ValidDateError(Exception):
