@@ -1,73 +1,4 @@
-
-"""
-usage: tropo_delay [-h] [--lineofsight LOS | --statevectors STATEVECTORS]
-                   [--area LAT LONG | --bounding_box N W S E | --station_file STATION_FILE]
-                   [--dem DEM | --heightlvs HEIGHTLVS [HEIGHTLVS ...]] --time
-                   TIME [--model MODEL] [--pickleFile PICKLEFILE]
-                   [--wrfmodelfiles OUT PLEV] [--wmnetcdf WMNETCDF]
-                   [--zref ZREF] [--outformat OUTFORMAT] [--out OUT]
-                   [--model_location WMLOC] [--no_parallel] [--download_only]
-                   [--verbose]
-
-Calculate tropospheric delay from a weather model
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --lineofsight LOS, -l LOS
-                        GDAL-readable line-of-sight file
-  --statevectors STATEVECTORS, -s STATEVECTORS
-                        An ISCE XML or shelve file containing state vectors
-                        specifying the orbit of the sensor
-  --area LAT LONG, -a LAT LONG
-                        GDAL-readable longitude and latitude files to specify
-                        the region over which to calculate delay. Delay will
-                        be calculated at weather model nodes if unspecified
-  --bounding_box N W S E, -bb N W S E
-                        Bounding box, given as N W S E
-  --station_file STATION_FILE
-                        CSV file containing a list of stations, with at least the
-                        columns "Lat" and "Lon"
-  --dem DEM, -d DEM     DEM file. DEM will be downloaded if not specified
-  --heightlvs HEIGHTLVS [HEIGHTLVS ...]
-                        Delay will be calculated at each of these heights
-                        across all of the specified area
-  --time TIME           Fetch weather model data at this (ISO 8601 format)
-                        time
-  --model MODEL         Weather model to use
-  --pickleFile PICKLEFILE
-                        Pickle file to load
-  --wmnetcdf WMNETCDF   Weather model netcdf file. Should have q, t, z, lnsp
-                        as variables
-  --zref ZREF, -z ZREF  Height limit when integrating (meters) (default:
-                        15000)
-  --outformat OUTFORMAT
-                        Output file format; GDAL-compatible for DEM, HDF5 for
-                        height levels (default: ENVI)
-  --out OUT             Output file directory
-  --model_location WMLOC
-                        Directory where weather model files are stored
-  --no_parallel, -p     Do not run operation in parallel? Default False.
-                        Recommend only True for verbose (debug) mode
-  --download_only       Download weather model only without processing?
-                        Default False
-  --verbose, -v         Run in verbose (debug) mode? Default False
-
-WRF:
-  Arguments for when --model WRF is specified
-
-  --wrfmodelfiles OUT PLEV
-                        WRF model files
-"""
-
-
-import argparse
-import datetime
-import itertools
-import os
-import numpy as np
-
-# Local imports
-from RAiDER import delay
+import RAiDER.delay as delay
 from RAiDER.util import makeDelayFileNames as mdf, writeArrayToRaster as watr, mkdir
 from RAiDER.checkArgs import checkArgs
 import RAiDER.llreader as llr
@@ -114,6 +45,7 @@ def read_date(s):
 
 def parse_args():
     """Parse command line arguments using argparse."""
+    import argparse
     p = argparse.ArgumentParser(
         description='Calculate tropospheric delay from a weather model')
 

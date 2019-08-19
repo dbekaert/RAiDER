@@ -62,6 +62,7 @@ conda activate RAiDER
 
 We have included a setup.py script which allows for easy compilation and installation of dependencies (c-code), as well as setting up the RAiDER package itself (python and command line tools).
 ```
+CC=gcc CXX=g++ python3 setup.py build
 CC=gcc CXX=g++ python setup.py install
 ```
 
