@@ -59,4 +59,3 @@ setup (name = 'RAiDER',
        packages=['tools', 'RAiDER', 'RAiDER.models'],
        ext_modules = cythonize(extensions, quiet = True),
        scripts=['tools/bin/raiderDelay.py'])
-
