@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 import pyproj
 
-import util
+import RAiDER.util as util
 from models.weatherModel import WeatherModel
 
 class ECMWF(WeatherModel):

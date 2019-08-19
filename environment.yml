@@ -10,20 +10,20 @@ channels:
  - defaults
 dependencies:
  - python>=3
- - cartopy
  - cdsapi
+ - cfgrib
  - cmake
+ - cython
  - dask
  - gcc
+ - gdal>=3.0
  - h5py
+ - jupyterlab
  - krb5
+ - libgdal
  - matplotlib
  - numpy
- - gdal>=3.0
- - libgdal
- - pyproj
  - pygrib
+ - pyproj=1.9.6 # 2.1.0 should also be ok
  - scipy
- - cython
- - jupyterlab
- - jupyter_contrib_nbextensions
+ - xarray

@@ -6,10 +6,10 @@ import pyproj
 import os
 
 # local imports
-import utils.constants as const
+import constants as const
 import models.plotWeather as plots
-import utils.util as util
-from utils.util import robmin, robmax
+import RAiDER.util as util
+from RAiDER.util import robmin, robmax
 
 
 class ValidDateError(Exception):
@@ -447,5 +447,55 @@ class WeatherModel():
     def getLL(self):
         return self._ys[...,0].copy(), self._xs[...,0].copy()
         
+    def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
+        '''
+        Restrict the weather model to the region of interest (ROI). If there are no 
+        points left in the model (because e.g. the ROI is outside the US), raise
+        an exception. 
+        '''
 
+        # Have to do some complicated stuff to get a nice square box without doing the whole US
+        self._xs = self._xs.swapaxes(0,1)
+        self._ys = self._ys.swapaxes(0,1)
+        self._zs = self._zs.swapaxes(0,1)
+        self._p = self._p.swapaxes(0,1)
+        self._t = self._t.swapaxes(0,1)
+
+        mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
+        mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
+        mask2 = np.sum(mask1, axis = 0).astype('bool')
+        mask4 = np.sum(mask3, axis = 1).astype('bool')
+        NptsX = self._xs.shape[1]
+        NptsY = self._xs.shape[0]
+        lonRange = np.arange(0,NptsX)
+        latRange = np.arange(0,NptsY)
+        lonx = lonRange[mask2]
+        latx = latRange[mask4]
+        zx = np.arange(0, self._zs.shape[2])
+
+        # if there are no points left, raise exception
+        if np.sum(mask2) == 0 or np.sum(mask4)==0:
+            raise RuntimeError('Region of interest is outside the region of the HRRR weather archive data')
+
+        # otherwise subset the data
+        _xs = self._xs[np.ix_(latx,lonx, zx)]
+        _ys = self._ys[np.ix_(latx,lonx, zx)]
+        _zs = self._zs[np.ix_(latx,lonx, zx)]
+        _t  = self._t[np.ix_(latx,lonx, zx)]
+        _p  = self._p[np.ix_(latx,lonx, zx)]
+
+        self._zs = _zs.copy()
+        self._ys = _ys.copy()
+        self._xs = _xs.copy()
+        self._t  = _t.copy()
+        self._p  = _p.copy()
+
+        if self._humidityType =='rh':
+           self._rh = self._rh.swapaxes(0,1)
+           _rh = self._rh[np.ix_(latx,lonx, zx)]
+           self._rh = _rh.copy()
+        elif self._humidityType =='q':
+           self._q = self._rh.swapaxes(0,1)
+           _q = self._rh[np.ix_(latx,lonx, zx)]
+           self._q = _q.copy()
 

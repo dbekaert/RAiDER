@@ -7,7 +7,7 @@ import pyproj
 import re
 import sys
 
-import utils.util as util
+import RAiDER.util as util
 from models.weatherModel import WeatherModel
 
 def Model():
@@ -20,7 +20,7 @@ class HRRR(WeatherModel):
         # initialize a weather model
         WeatherModel.__init__(self)
 
-        self._humidityType = 'rh'
+        self._humidityType = 'q'
         self._model_level_type = 'pl' # Default, pressure levels are 'pl'
         self._expver = '0001'
         self._classname = 'hrrr'
@@ -40,6 +40,7 @@ class HRRR(WeatherModel):
 
         self._Nproc = 1
         self._Name = 'HRRR'
+        self._Npl = 0
 
         # Projection
         # See https://github.com/blaylockbk/pyBKB_v2/blob/master/demos/HRRR_earthRelative_vs_gridRelative_winds.ipynb and code lower down
@@ -70,32 +71,38 @@ class HRRR(WeatherModel):
         Fetch weather model data from HRRR
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        bounds = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at the HRRR archive (see documentation below)
-        self.load_weather(dateTime = time, filename = out, download_only = False, nProc = self._Nproc)
-        self._restrict_model(lat_min, lat_max, lon_min, lon_max)
+        self.load_weather(dateTime = time, filename = out, download_only = False, 
+                            nProc = self._Nproc, bounds = bounds)
 
 
-    def load_weather(self, dateTime = None, filename = None, download_only = False, nProc = 16):
+    def load_weather(self, dateTime = None, filename = None, 
+                        download_only = False, nProc = 16, verbose = False, 
+                        bounds = None):
         '''
         Consistent class method to be implemented across all weather model types. 
         As a result of calling this method, all of the variables (x, y, z, p, q, 
         t, wet_refractivity, hydrostatic refractivity, e) should be fully 
         populated. 
         '''
-        if download_only:
-            self._download_pressure_levels(dateTime, filename, nProc = nProc)
-        elif filename is not None:
-            #TODO: either implement a NETCDF version of this, or handle both HDF5 and NETCDF
-            f = filename.replace('.nc', '.hdf5')
-            try:
-                self._load_pressure_levels(filename = f)
-            except: 
-                self._download_pressure_levels(dateTime, filename=f, nProc = nProc)
-                self._load_pressure_levels(filename = f)
-        else:
-            self._load_pressure_levels(dateTime, nProc = nProc)
+        self._load_pressure_levels(dateTime, filename, nProc = nProc, outDir = outDir, 
+                                    verbose = verbose)
+#        if download_only:
+#            self._load_pressure_levels(dateTime, filename, nProc = nProc, outDir = outDir, verbose = verbose)
+#        elif filename is not None:
+#            try:
+#                self._load_pressure_levels(filename = f)
+#            except: 
+#                self._download_pressure_levels(dateTime, filename=f, nProc = nProc)
+#                self._load_pressure_levels(filename = f)
+#        else:
+#            self._load_pressure_levels(dateTime, nProc = nProc)
+
+        if bounds is not None:
+           lat_min, lat_max, lon_min, lon_max = bounds
+           self._restrict_model(lat_min, lat_max, lon_min, lon_max)
 
         self._find_e()
         self._get_wet_refractivity()
@@ -105,75 +112,8 @@ class HRRR(WeatherModel):
         self._adjust_grid()
 
 
-    def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
-        '''
-        Restrict the HRRR model to the region of interest (ROI). If there are no 
-        points left in the model (because e.g. the ROI is outside the US), raise
-        an exception. 
-        '''
 
-        # Have to do some complicated stuff to get a nice square box without doing the whole US
-        self._xs = self._xs.swapaxes(0,1)
-        self._ys = self._ys.swapaxes(0,1)
-        self._zs = self._zs.swapaxes(0,1)
-        self._rh = self._rh.swapaxes(0,1)
-        self._p = self._p.swapaxes(0,1)
-        self._t = self._t.swapaxes(0,1)
-
-        mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
-        mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
-        mask2 = np.sum(mask1, axis = 0).astype('bool')
-        mask4 = np.sum(mask3, axis = 1).astype('bool')
-        NptsX = self._xs.shape[1]
-        NptsY = self._xs.shape[0]
-        lonRange = np.arange(0,NptsX)
-        latRange = np.arange(0,NptsY)
-        lonx = lonRange[mask2]
-        latx = latRange[mask4]
-        zx = np.arange(0, self._zs.shape[2])
-
-        # if there are no points left, raise exception
-        if np.sum(mask2) == 0 or np.sum(mask4)==0:
-            raise RuntimeError('Region of interest is outside the region of the HRRR weather archive data')
-
-        # otherwise subset the data
-        _xs = self._xs[np.ix_(latx,lonx, zx)]
-        _ys = self._ys[np.ix_(latx,lonx, zx)]
-        _zs = self._zs[np.ix_(latx,lonx, zx)]
-        _rh = self._rh[np.ix_(latx,lonx, zx)]
-        _t  = self._t[np.ix_(latx,lonx, zx)]
-        _p  = self._p[np.ix_(latx,lonx, zx)]
-
-#TODO: Will need to somehow handle the non-uniform grid for interpolation
-#        # Finally interpolate to a regular grid (need to avoid this in future)
-#        xbounds = (np.min(_xs), np.max(_xs))
-#        ybounds = (np.min(_ys), np.max(_ys))
-#        xstep = ystep = 0.03 # ~3 km grid spacing in degrees
-#        _xsN, _ysN = getNewXY(xbounds, ybounds, xstep, ystep)
-#        self._zs = interp2DLayers(_xs, _ys, _zs,_xsN, _ysN)
-#        self._rh = interp2DLayers(_xs, _ys, _rh,_xsN, _ysN)
-#        self._t  = interp2DLayers(_xs, _ys, _t, _xsN, _ysN)
-#        self._p  = interp2DLayers(_xs, _ys, _p, _xsN, _ysN)
-#     
-#       #self._wet_refractivity = interp2DLayers(_xs, _ys, _wrf, _xsN, _ysN)
-#       #self._hydrostatic_refractivity = interp2DLayers(_xs, _ys, _hrf, _xsN, _ysN)
-#        self._xs = np.broadcast_to(_xsN[..., np.newaxis],
-#                                     self._zs.shape)
-#        self._ys = np.broadcast_to(_ysN[..., np.newaxis],
-#                                     self._zs.shape)
-
-        self._zs = _zs.copy()
-        self._ys = _ys.copy()
-        self._xs = _xs.copy()
-        self._rh = _rh.copy()
-        self._t  = _t.copy()
-        self._p  = _p.copy()
-        self._find_e_from_rh()
-        self._get_wet_refractivity()
-        self._get_hydro_refractivity() 
-
-
-    def _download_pressure_levels(self, dateTime, filename, nProc = 16):
+    def _write2HDF5(self, filename, dateTime, verbose = False):
         '''
         Save data from the HRRR archive: doi: 10.7278/S5JQ0Z5B,
         citation: 
@@ -184,13 +124,10 @@ class HRRR(WeatherModel):
         '''
         import h5py
 
-        if filename is  None:
-            filename = 'hrrr_{}.hdf5'.format(dateTime.strftime('%Y%m%d'))
+        if verbose:
+           print('Writing weather model data to HDF5 file {}'.format(filename))
 
-        # download the 'raw' data
-        lats, lons, temps, rhs, z, pl = makeDataCubes(dateTime, nProc = nProc)
-        Npl = len(pl)
-        Ny, Nx = lats.shape
+        (Nx, Ny, Npl) = self._ys.shape
 
         # save the data to an HDF5 file
         today = datetime.datetime.today().date()
@@ -199,30 +136,39 @@ class HRRR(WeatherModel):
 
             pld = f.create_dataset('Pressure_levels', (Npl, ), 'f')
             pld.attrs['help'] = 'Pressure levels'
-            pld[:] = np.array(pl)
+            pld[:] = np.array(self._pl)
 
-            lat = f.create_dataset('lats', (Ny, Nx), 'f')
+            p = f.create_dataset('Pressure', (Ny, Nx, Npl), 'f')
+            p.attrs['help'] = 'pressure grid'
+            p[:] = self._p
+
+            lat = f.create_dataset('lats', (Ny, Nx, Npl), 'f')
             lat.attrs['help'] = 'Latitude'
-            lat[:] = lats
+            lat[:] = self._ys 
 
-            lon = f.create_dataset('lons', (Ny, Nx), 'f')
+            lon = f.create_dataset('lons', (Ny, Nx, Npl), 'f')
             lon.attrs['help'] = 'Longitude'
-            lon[:] = lons
+            lon[:] = self._xs
 
             temp = f.create_dataset('Temperature', (Ny, Nx, Npl), 'f')
             temp.attrs['help'] = 'Temperature'
-            temp[:] = temps
+            temp[:] = self._t
 
-            rh = f.create_dataset('Relative_humidity', (Ny, Nx, Npl), 'f')
-            rh.attrs['help'] = 'Relative humidity %'
-            rh[:] = rhs
+            q = f.create_dataset('Specific_humidity', (Ny, Nx, Npl), 'f')
+            q.attrs['help'] = 'Specific humidity'
+            q[:] = self._q
 
             zs = f.create_dataset('Geopotential_height', (Ny, Nx, Npl), 'f')
             zs.attrs['help'] = 'geopotential heights'
-            zs[:] = z 
+            zs[:] = self._zs
 
 
-    def _load_pressure_levels(self, dateTime = None, filename = None, nProc = 16):
+        if verbose:
+           print('Finished writing weather model data to file')
+
+
+    def _load_pressure_levels(self, dateTime = None, filename = None, 
+                              nProc = 16, outDir = None, verbose = False):
         '''
         Directly load the data from the HRRR archive: doi: 10.7278/S5JQ0Z5B,
         citation: 
@@ -231,13 +177,21 @@ class HRRR(WeatherModel):
               Computers and Geosciences. 109, 43-50. 
               doi: 10.1016/j.cageo.2017.08.005.
         '''
-        try:
-            lats, lons, temps, rhs, geo_hgt, pl = self._load_pressure_levels_from_file(filename)
-        except:
-            lats, lons, temps, rhs, geo_hgt, pl = makeDataCubes(dateTime, nProc = nProc)
+        if outDir is None:
+            outDir = os.getcwd()
+        if filename is  None:
+            filename = os.path.join(outDir, 'hrrr_{}.hdf5'.format(dateTime.strftime('%Y%m%d_%H%M%S')))
+
+        if os.path.exists(filename):
+           self._ys, self._xs, self._t, self._q, self._zs, self._p = _load_pressure_levels_from_file(fileName)
+           return
+
+        lats, lons, temps, qs, geo_hgt, pl = makeDataCubes(dateTime, nProc = nProc, 
+                                                  outDir = outDir, verbose = verbose)
+        Npl = len(pl)
+        Ny, Nx = lats.shape
 
         lons[lons > 180] -= 360
-        self._proj = pyproj.Proj(proj='latlong')
 
         # data cube format should be lons, lats, heights
         _lons = np.broadcast_to(lons[..., np.newaxis],
@@ -249,7 +203,7 @@ class HRRR(WeatherModel):
         self._get_heights(_lats, geo_hgt)
 
         self._t = temps
-        self._rh = rhs
+        self._q = qs
 
         self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
                                   self._zs.shape)
@@ -260,7 +214,9 @@ class HRRR(WeatherModel):
         self._p = np.flip(self._p, axis = 2)
         self._t = np.flip(self._t, axis = 2)
         self._zs = np.flip(self._zs, axis = 2)
-        self._rh = np.flip(self._rh, axis = 2)
+        self._q = np.flip(self._q, axis = 2)
+
+        self._write2HDF5(filename)
 
 
     def _load_pressure_levels_from_file(self, fileName):
@@ -271,40 +227,42 @@ class HRRR(WeatherModel):
 
         # load the data
         with h5py.File(fileName, 'r') as f:
-            pl = f['Pressure_levels'].value.copy()
+            p = f['Pressure'].value.copy()
             z = f['Geopotential_height'].value.copy()
             lats = f['lats'].value.copy()
             lons = f['lons'].value.copy()
-            rh = f['Relative_humidity'].value.copy()
+            q = f['Specific humidity'].value.copy()
             t = f['Temperature'].value.copy()
 
-        return lats, lons, t, rh, z, pl
+        return lats, lons, t, q, z, pl
         
 
-def makeDataCubes(dateTime = None, nProc = 16):
+def makeDataCubes(dateTime = None, outDir = None, nProc = 16, verbose = False):
     '''
     Create a cube of data representing temperature and relative humidity 
     at specified pressure levels    
     '''
     pl = getPresLevels()
-
-    tempList = getTemps(dateTime, pl['Values'], nProc= nProc)
-    rhList = getRH(dateTime, pl['Values'], nProc= nProc)
-    zList = getZ(dateTime, pl['Values'], nProc= nProc)
-
     pl = [convertmb2Pa(p) for p in pl['Values']]
 
-    try:
-       temps = stackList(tempList)
-    except:
-       raise RuntimeError('makeDataCubes: Something likely went wrong with the file download')
+    outName = download_hrrr_file(dateTime, 'hrrr', field = 'prs', outDir = outDir, verbose = verbose)
+#    tempList = getTemps(dateTime, pl['Values'], nProc= nProc)
+#    rhList = getRH(dateTime, pl['Values'], nProc= nProc)
+#    zList = getZ(dateTime, pl['Values'], nProc= nProc)
 
-    rhs = stackList(rhList)
-    zs = stackList(zList)
+#    try:
+#       temps = stackList(tempList)
+#    except:
+#       raise RuntimeError('makeDataCubes: Something likely went wrong with the file download')
+#
+#    rhs = stackList(rhList)
+#    zs = stackList(zList)
 
-    lats, lons = getLatLonsFromList(zList)
+#    lats, lons = getLatLonsFromList(zList)
 
-    return lats.T, lons.T, temps.swapaxes(0,1), rhs.swapaxes(0,1), zs.swapaxes(0,1), pl
+    t, z, q, lats, lons = pull_hrrr_data(outName, verbose = False)
+
+    return lats.T, lons.T, t.moveaxes([2, 1, 0]), q.moveaxes([2, 1, 0]), z.moveaxes([2, 1, 0]), pl
 
 
 def convertmb2Pa(pres):
@@ -383,6 +341,55 @@ def checkDateTime(dateTime):
         dateTime = datetime.datetime(2016, 12, 5, 6)
     return dateTime
 
+
+def pull_hrrr_data(filename, verbose = False):
+    '''
+    Get the variables from a HRRR grib2 file
+    '''
+    from cfgrib.xarray_store import open_dataset 
+
+    # open the dataset and pull the data
+    ds = open_dataset(filename, backend_kwargs={'filter_by_keys': {'typeOfLevel': 'isobaricInhPa'}})
+    t = ds['t'].values.copy()
+    z = ds['gh'].values.copy()
+    q = ds['q'].values.copy()
+
+    lats = ds['t'].latitude.values.copy()
+    lons = ds['t'].longitude.values.copy()
+
+    del ds
+
+    return t, z, q, lats, lons
+
+
+def download_hrrr_file(DATE, model, field = 'prs', outDir = None, verbose = False):
+    ''' 
+    Download a HRRR model
+    ''' 
+    import requests
+
+    fxx = '00'
+    if outDir is None:
+       outDir = os.getcwd()
+    outfile = '{}_{}_{}_f00.grib2'.format(model, DATE.strftime('%Y%m%d_%H%M%S'), field)
+    writeLoc = os.path.join(outDir, outfile)
+
+    grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{:02d}.grib2' \
+                    .format(model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
+
+    if verbose:
+       print('Downloading {} to {}'.format(grib2file, writeLoc))
+
+    r = requests.get(grib2file)
+    with open(writeLoc, 'wb') as f:
+       f.write(r.content)
+
+    if verbose:
+       print('Success!')
+
+    return writeLoc
+
+    
 
 # the following function is modified from the repository at 
 # https://github.com/blaylockbk/pyBKB_v2/tree/master/BB_downloads
@@ -512,7 +519,6 @@ def get_hrrr_variable(DATE, variable,
         grib2file = 'https://pando-rgw01.chpc.utah.edu/%s/%s/%s/%s.t%02dz.wrf%sf%02d.grib2' \
                     % (model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
         fileidx = grib2file+'.idx'
-        import pdb; pdb.set_trace()
     else:
         # Get operational HRRR from NOMADS
         if model == 'hrrr':

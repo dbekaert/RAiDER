@@ -30,3 +30,5 @@
 9. CDS API temporary URLs are "suspicious" and blocked by JPL firewalls; currently no work-around
 10.dummy-check for bounding box if dem, weather file exists
 11. Do we want to be able to support non-regular lat/lon grids? Cubes can handle it but not 2D rasters right now
+
+12. With the build/installation setup, Python puts the imports into site-packages. This means if you make a change to something you may need to re-build the whole package (not hard). 

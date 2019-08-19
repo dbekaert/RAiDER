@@ -1,57 +1,68 @@
 #!/usr/bin/env python3
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: David Bekaert
+# Author: David Bekaert, Jeremy Maurer, and Piyush Agram
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-from distutils.core import setup, Extension
-import numpy
-from Cython.Build import cythonize
+'''
+A note about setup and installation of this module:
+This package uses GDAL and g++, both of which can be tricky to set up correctly.
+GDAL in particular will often break after installing a new program
+If you receive error messages such as the following: 
+ImportError: ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/../../../libstdc++.so.6: version `CXXABI_1.3.9' not found (required by ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/ft2font.cpython-37m-x86_64-linux-gnu.so)
+or
+ImportError: libtiledb.so.1.6.0: cannot open shared object file: No such file or directory
+or
+***cmake: /u/kriek1/maurer/software/anaconda3/envs/RAiDER/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.20' not found (required by cmake)***
+try running the following commands within your RAiDER conda environment:
+conda update --force-install libstdcxx-ng
+conda update --force-install gdal libgdal
+'''
+import numpy as np
 import os
+import glob
+import subprocess as subp
 
-# Paths to code requiring compilation
-print('Installing RAiDER')
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Build import cythonize
 
-## geometry extension
-obj_files = ['geometry']
-geometry_dir='tools/bindings/geometry'
-geometry_lib_dir = 'build'
+# Parameter defs
+CWD = os.getcwd()
+GEOMETRY_DIR = os.path.join(CWD, "tools/bindings/geometry")
+CPP_DIR = os.path.join(GEOMETRY_DIR, "cpp/classes")
+CYTHON_DIR = os.path.join(GEOMETRY_DIR, "cython/Geo2rdr")
 
-# geometry source files
-geometry_source_files = [os.path.join(geometry_dir,"cpp/classes", f, f+'.cc') for f in obj_files]
-geometry_source_files = geometry_source_files + [os.path.join(geometry_dir,'cython/Geo2rdr/Geo2rdr.pyx')]
-# geometry classes
-cls_dirs = [os.path.join(geometry_dir, "cpp/classes/Geometry"),
-            os.path.join(geometry_dir, "cpp/classes/Orbit"),
-            os.path.join(geometry_dir, "cpp/classes/Utility")]
+def getVersion():
+    with open('version.txt', 'r') as f:
+         version = f.read().split("=")[-1].replace("'",'').strip()
+    return version
 
-# Pin the os.env variables for the compiler to be g++ (otherwise it calls gcc which throws warnings)
-os.environ["CC"] = 'g++'
-os.environ["CXX"] = 'g++'
 
-"""
-extensions = [Extension(name="RAiDER.demo", sources=geometry_source_files,
-                        include_dirs=[numpy.get_include()] + cls_dirs,
-                        extra_compile_args=['-std=c++11'],
-                        extra_link_args=['-lm'],
-                        library_dirs=[geometry_lib_dir],
-                        libraries=['geometry'],
-                        language="c++")]
-"""
-    
-extensions = [Extension(name="RAiDER.demo", sources=geometry_source_files,
-                        include_dirs=[numpy.get_include()] + cls_dirs,
-                        language="c++")]
+extensions = [
+     Extension(
+       name="Geo2rdr",
+       sources= glob.glob(os.path.join(CPP_DIR, "*/*.cc")) + 
+                glob.glob(os.path.join(CYTHON_DIR, "*.pyx")), 
+       include_dirs=[np.get_include()] + 
+                    [os.path.join(CPP_DIR, "Geometry"),
+                     os.path.join(CPP_DIR, "Utility"), 
+                     os.path.join(CPP_DIR, "Orbit")],
+       extra_compile_args=['-std=c++11'],
+       extra_link_args=['-lm'],
+       language="c++"
+     )
+]
 
 setup (name = 'RAiDER',
-       version = '1.0',
+       version = getVersion(),
        description = 'This is the RAiDER package',
-       ext_modules = cythonize(extensions, nthreads=8),
-       packages=['RAiDER'],
-       package_dir={'RAiDER': 'tools/RAiDER','RAiDER.models': 'tools/RAiDER/models'},
+       package_dir={'tools': 'tools',
+                    'RAiDER': 'tools/RAiDER',
+                    'RAiDER.models': 'tools/RAiDER/models'},
+       packages=['tools', 'RAiDER', 'RAiDER.models'],
+       ext_modules = cythonize(extensions, quiet = True),
        scripts=['tools/bin/raiderDelay.py'])
-
 

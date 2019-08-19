@@ -28,6 +28,14 @@ def tand(x):
     return np.tan(np.radians(x))
 
 
+def reproject(inlat, inlon, inhgt, inProj, outProj):
+    '''
+    reproject a set of lat/lon/hgts to a new coordinate system
+    '''
+    import pyproj
+    return pyproj.transform(inProj, outProj, lon, lat, height)
+    
+
 def lla2ecef(lat, lon, height):
     import pyproj
     ecef = pyproj.Proj(proj='geocent')

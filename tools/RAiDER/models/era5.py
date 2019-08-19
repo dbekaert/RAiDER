@@ -2,8 +2,8 @@ import datetime
 import numpy as np
 import pyproj
 
-import util
-from ecmwf import ECMWF
+import RAiDER.util as util
+from models.ecmwf import ECMWF
 
 class ERA5(ECMWF):
     # I took this from
