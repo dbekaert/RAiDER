@@ -67,7 +67,6 @@ import os
 
 # Local imports
 from RAiDER import delay
-import pdb
 
 def read_date(s):
     """Read a date from a string in pseudo-ISO 8601 format."""

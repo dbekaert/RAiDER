@@ -20,9 +20,9 @@ import os
 import pyproj
 
 # local imports
-import constants as const
-from constants import Zenith
-import util
+import RAiDER.constants as const
+from RAiDER.constants import Zenith
+import RAiDER.util
 
 # Step in meters to use when integrating
 _STEP = const._STEP

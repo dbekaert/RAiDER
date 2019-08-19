@@ -11,7 +11,7 @@
 
 import numpy as np
 import pyproj
-import util
+import RAiDER.util
 
 
 class Interpolator:

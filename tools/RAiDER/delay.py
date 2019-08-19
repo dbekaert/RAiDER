@@ -15,30 +15,22 @@ inaccuracies or inefficiencies, and we no longer can integrate to
 infinity.
 """
 
-from osgeo import gdal
-gdal.UseExceptions()
-
 # standard imports
-import itertools
 import numpy as np
 import os
-import pyproj
-import threading
 import sys
-import h5py
 
 # local imports
-import constants as const
-from constants import Zenith
-import demdownload as dld
-import losreader as losreader
-import util as util
-from downloadWM import downloadWMFile as dwf
+import RAiDER.constants as const
+from RAiDER.constants import Zenith
+import RAiDER.demdownload as dld
+import RAiDER.losreader as losreader
+import RAiDER.util
+from RAiDER.downloadWM import downloadWMFile as dwf
 
 # Step in meters to use when integrating
-_STEP = const._STEP
-# Top of the troposphere
 _ZREF = const._ZMAX
+_STEP= const._STEP
 
 
 def _common_delay(weatherObj, lats, lons, heights, 

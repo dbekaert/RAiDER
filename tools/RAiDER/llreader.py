@@ -7,7 +7,7 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-import demdownload as dld
+import RAiDER.demdownload as dld
 
 def readLL(lat, lon, flag):
     '''
