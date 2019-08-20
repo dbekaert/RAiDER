@@ -471,38 +471,6 @@ def checkLOS(los, raytrace, Npts):
     return los
 
 
-
-def readLLFromStationFile(fname):
-    '''
-    Helper fcn for checking argument compatibility
-    '''
-    try:
-       import pandas as pd
-       stats = pd.read_csv(fname)
-       return stats['Lat'].values,stats['Lon'].values
-    except:
-       lats, lons = [], []
-       with open(fname, 'r') as f:
-          for i, line in enumerate(f): 
-              if i == 0:
-                 continue
-              lat, lon = [float(f) for f in line.split(',')[1:3]]
-              lats.append(lat)
-              lons.append(lon)
-       return lats, lons
-
-       
-def mangle_model_to_module(model_name):
-    """Turn an arbitrary string into a module name.
-
-    Takes as input a model name, which hopefully looks like ERA-I, and
-    converts it to a module name, which will look like erai. I doesn't
-    always produce a valid module name, but that's not the goal. The
-    goal is just to handle common cases.
-    """
-    return 'models.' + model_name.lower().replace('-', '')
-
-
 def gdal_trans(f1, f2, fmt = 'VRT'):
     '''
     translate a file from one location to another using GDAL

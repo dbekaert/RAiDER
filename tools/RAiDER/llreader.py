@@ -6,36 +6,43 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import numpy as np
 
 import RAiDER.demdownload as dld
 
-def readLL(lat, lon, flag):
+def readLL(*args):
     '''
     Parse lat/lon/height inputs and return 
     the appropriate outputs
     '''
+    if len(args)==2:
+       flag='files'
+    elif len(args)==4:
+       flag='bounding_box'
+    elif len(args)==1:
+       flag = 'station_list'
+    else:
+       raise RuntimeError('llreader: Cannot parse args')
+
     # Lats/Lons
-    if flag is None:
-        # They'll get set later with weather
-        lats = lons = None
-        latproj = lonproj = None
-    elif flag=='files':
+    if flag=='files':
         # If they are files, open them
+        lat, lon = args
         lats, latproj = util.gdal_open(lat, returnProj = True)
         lons, lonproj = util.gdal_open(lon, returnProj = True)
     elif flag=='bounding_box': 
-        # assume that they are numbers/list/numpy array
-        lats = lat
-        lons = lon
-        latproj = lonproj = None
-        lon = lat = None
+        N,W,S,E = args 
+        lats = np.array([float(N), float(S)])
+        lons = np.array([float(E), float(W)])
+        latproj = lonproj = 'EPSG:4326'
     elif flag=='station_list':
-        lats = lat
-        lons = lon
-        latproj = lonproj = None
-        lon = lat = None
+        lats, lons = readLLFromStationFile(*args)
+        latproj = lonproj = 'EPSG:4326'
     else:
-        raise RuntimeError('readLL: unknown flag')
+        # They'll get set later with weather
+        lats = lons = None
+        latproj = lonproj = None
+        #raise RuntimeError('readLL: unknown flag')
 
     [lats, lons] = enforceNumpyArray(lats, lons)
 
@@ -116,3 +123,23 @@ def checkArg(arg):
           raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
 
 
+def readLLFromStationFile(fname):
+    '''
+    Helper fcn for checking argument compatibility
+    '''
+    try:
+       import pandas as pd
+       stats = pd.read_csv(fname)
+       return stats['Lat'].values,stats['Lon'].values
+    except:
+       lats, lons = [], []
+       with open(fname, 'r') as f:
+          for i, line in enumerate(f): 
+              if i == 0:
+                 continue
+              lat, lon = [float(f) for f in line.split(',')[1:3]]
+              lats.append(lat)
+              lons.append(lon)
+       return lats, lons
+
+       

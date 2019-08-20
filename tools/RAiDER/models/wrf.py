@@ -2,7 +2,7 @@ import numpy as np
 import scipy.io.netcdf as netcdf
 import pyproj
 
-from models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel
 
 
 ## Need to incorporate this snippet into this part of the code. 

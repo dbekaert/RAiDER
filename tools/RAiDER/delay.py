@@ -259,7 +259,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     We do a little bit of preprocessing, then call
     _common_delay. 
     """
-    from models.allowed import checkIfImplemented
+    from RAiDER.models.allowed import checkIfImplemented
     from datetime import datetime as dt
     from RAiDER.llreader import getHeights
 

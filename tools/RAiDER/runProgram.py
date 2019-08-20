@@ -1,3 +1,5 @@
+import os
+
 import RAiDER.delay as delay
 from RAiDER.util import makeDelayFileNames as mdf, writeArrayToRaster as watr, mkdir
 from RAiDER.checkArgs import checkArgs
@@ -5,7 +7,11 @@ import RAiDER.llreader as llr
 
 
 def read_date(s):
-    """Read a date from a string in pseudo-ISO 8601 format."""
+    """
+    Read a date from a string in pseudo-ISO 8601 format.
+    """
+    import datetime
+    import itertools
     year_formats = (
         '%Y-%m-%d',
         '%Y%m%d',
@@ -75,9 +81,9 @@ def parse_args():
         metavar=('LAT', 'LONG'))
 
     # model BBOX
-    p.add_argument(
-        '--modelBBOX', '-modelbb', nargs=4,
-        help='BBOX of the model to be downloaded, given as N W S E, if not givem defualts in following order: lon-lat derived BBOX, or full world',
+    area.add_argument(
+        '--modelBBOX', '-modelbb', nargs=4, dest='bounding_box',
+        help='BBOX of the model to be downloaded, given as N W S E, if not given defaults in following order: lon-lat derived BBOX, or full world',
         metavar=('N', 'W', 'S', 'E'))
     area.add_argument(
         '--station_file',default = None, type=str, dest='station_file',
@@ -96,18 +102,24 @@ def parse_args():
         nargs='+', type=float)
 
     # Weather model
-    p.add_argument(
+    wm = p.add_mutually_exclusive_group()
+    wm.add_argument(
         '--model',
         help='Weather model to use',
         default='ERA-5')
+    wm.add_argument(
+        '--pickleFile',
+        help='Pickle file to load',
+        default=None)
+    wm.add_argument(
+        '--wmnetcdf',
+        help=('Weather model netcdf file. Should have q, t, z, lnsp as '
+              'variables'))
+
     p.add_argument(
         '--weatherModelFileLocation', '-w', dest='wmLoc',
         help='Directory location of/to write weather model files',
         default='weather_files')
-    p.add_argument(
-        '--pickleFile',
-        help='Pickle file to load',
-        default=None)
 
     wrf = p.add_argument_group(
         title='WRF',
@@ -117,11 +129,6 @@ def parse_args():
         help='WRF model files',
         metavar=('OUT', 'PLEV'))
 
-    p.add_argument(
-        '--wmnetcdf',
-        help=('Weather model netcdf file. Should have q, t, z, lnsp as '
-              'variables'))
-
     # Height max
     p.add_argument(
         '--zref', '-z',
@@ -130,8 +137,8 @@ def parse_args():
         type=int, default=15000)
 
     p.add_argument(
-        '--outformat', help='Output file format; GDAL-compatible for DEM, HDF5 for height levels (default: ENVI)',
-        default='ENVI')
+        '--outformat', help='Output file format; GDAL-compatible for DEM, HDF5 for height levels',
+        default=None)
 
     p.add_argument('--out', help='Output file directory', default='.')
 
