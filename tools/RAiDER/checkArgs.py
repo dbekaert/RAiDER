@@ -82,7 +82,7 @@ def checkArgs(args, p):
         import pickle
         weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
     else:
-        model_module_name = mangle_model_to_module(args.model)
+        model_module_name, module_obj = modelName2Module(args.model)
         try:
             import importlib
             model_module = importlib.import_module(model_module_name)
