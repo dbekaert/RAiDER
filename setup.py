@@ -43,7 +43,7 @@ def getVersion():
 
 extensions = [
      Extension(
-       name="Geo2rdr",
+       name="RAiDER.Geo2rdr",
        sources= glob.glob(os.path.join(CPP_DIR, "*/*.cc")) + 
                 glob.glob(os.path.join(CYTHON_DIR, "*.pyx")), 
        include_dirs=[np.get_include()] + 
