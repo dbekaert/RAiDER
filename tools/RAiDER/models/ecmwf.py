@@ -3,7 +3,7 @@ import numpy as np
 import pyproj
 
 import RAiDER.util as util
-from models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel
 
 class ECMWF(WeatherModel):
     '''

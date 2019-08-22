@@ -6,8 +6,8 @@ import pyproj
 import os
 
 # local imports
-import constants as const
-import models.plotWeather as plots
+import RAiDER.constants as const
+import RAiDER.models.plotWeather as plots
 import RAiDER.util as util
 from RAiDER.util import robmin, robmax
 
@@ -102,6 +102,8 @@ class WeatherModel():
 
     def Model(self):
         return self._Name
+    def ModelObj(self):
+        return self
 
     def fetch(self, lats, lons, time, out):
         '''
