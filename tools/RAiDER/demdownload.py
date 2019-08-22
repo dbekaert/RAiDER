@@ -7,15 +7,16 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+from osgeo import gdal
+gdal.UseExceptions()
+
 import glob
 import numpy as np
 import os
-from osgeo import gdal
 import scipy.interpolate
 from scipy.interpolate import RegularGridInterpolator as rgi
 
 import RAiDER.util as util
-gdal.UseExceptions()
 
 
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
