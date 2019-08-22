@@ -10,13 +10,35 @@
 import numpy as np
 import os
 from RAiDER.util import gdal_trans
+from RAiDER.llreader import readLL
+
+def modelName2Module(model_name):
+    """Turn an arbitrary string into a module name.
+
+    Takes as input a model name, which hopefully looks like ERA-I, and
+    converts it to a module name, which will look like erai. I doesn't
+    always produce a valid module name, but that's not the goal. The
+    goal is just to handle common cases.
+    Inputs: 
+       model_name  - Name of an allowed weather model (e.g., 'era-5')
+    Outputs: 
+       module_name - Name of the module 
+       wmObject    - callable, weather model object
+    """
+    import importlib
+    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
+    model_module = importlib.import_module(module_name)
+    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
+    return module_name,wmObject 
+
 
 def checkArgs(args, p):
     '''
     Helper fcn for checking argument compatibility and returns the 
     correct variables
     '''
-    import models
+    from datetime import datetime as dt
+    import RAiDER.models.allowed as am
 
     if args.heightlvs is not None and args.outformat != 'hdf5':
        raise ValueError('HDF5 must be used with height levels')
@@ -24,6 +46,13 @@ def checkArgs(args, p):
        raise ValueError('You must specify one of the following: \n \
              (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \
              (4) station file containing Lat and Lon columns')
+    if args.time is None and args.wmnetcdf is None:
+       p.error('You must specify either the weather model file (--wmnetcdf) or time (--time)')
+    if args.model not in am.AllowedModels():
+       raise NotImplementedError('Model {} is not an implemented model type'.format(args.model))
+    if args.model == 'WRF' and args.wrfmodelfiles is None:
+       p.error('Argument --wrfmodelfiles required with --model WRF')
+
 
     # Line of sight
     if args.lineofsight is not None:
@@ -31,32 +60,29 @@ def checkArgs(args, p):
     elif args.statevectors is not None:
         los = ('sv', args.statevectors)
     else:
-        from utils.constants import Zenith
+        from RAiDER.constants import Zenith
         los = Zenith
 
     # Area
     if args.area is not None:
-        lat, lon = args.area
-        lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
-                          dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-        latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
-                          dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-        gdal_trans(lat, os.path.join(args.out, 'geom', latFileName), 'VRT')
-        gdal_trans(lon, os.path.join(args.out, 'geom', lonFileName), 'VRT')
-
+        lat, lon = readLL(*args.area)
     elif args.bounding_box is not None:
-        N,W,S,E = args.bounding_box
-        lat = np.array([float(N), float(S)])
-        lon = np.array([float(E), float(W)])
-
-        if (lat[0] == lat[1]) | (lon[0]==lon[1]):
-           raise RuntimeError('You have passed a zero-size bounding box: {}'.format(args.bounding_box))
-
+        lat, lon = readLL(*args.bounding_box)
     elif args.station_file is not None:
-        lat, lon = readLLFromStationFile(args.station_file)
-
+        lat, lon = readLL(args.station_file)
     else:
         lat = lon = None
+
+    # write the lats/lons to a local file
+    lonFileName = '{}_Lon_{}.dat'.format(args.model.lower().replace('-',''), 
+                      dt.strftime(args.time, '%Y_%m_%d_T%H_%M_%S'))
+    latFileName = '{}_Lat_{}.dat'.format(args.model.lower().replace('-',''), 
+                      dt.strftime(args.time, '%Y_%m_%d_T%H_%M_%S'))
+
+    #TODO
+    #gdal_trans(lat, os.path.join(args.out, 'geom', latFileName), 'VRT')
+    #gdal_trans(lon, os.path.join(args.out, 'geom', lonFileName), 'VRT')
+
 
     # DEM
     if args.dem is not None:
@@ -67,40 +93,19 @@ def checkArgs(args, p):
         heights = ('download', None)
 
     # Weather
+    model_module_name, model_obj = modelName2Module(args.model)
     if args.model == 'WRF':
-        if args.wmnetcdf is not None:
-            p.error('Argument --wmnetcdf invalid with --model WRF')
-        if args.wrfmodelfiles is not None:
-            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
-                        'name': 'wrf'}
-        else:
-            p.error('Argument --wrfmodelfiles required with --model WRF')
-    elif args.model=='ERA5' or args.model == 'ERA-5':
-        from models.era5 import ERA5
-        weathers = {'type': ERA5(), 'files':None, 'name':'ERA-5'}
+       weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
+                   'name': 'wrf'}
     elif args.model=='pickle':
         import pickle
         weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
+    elif args.wmnetcdf is not None:
+        weathers = {'type': model_obj(), 'files': args.wmnetcdf,
+                    'name': args.model}
     else:
-        model_module_name = mangle_model_to_module(args.model)
-        try:
-            import importlib
-            model_module = importlib.import_module(model_module_name)
-        except ImportError:
-            p.error("Couldn't find a module named {}, ".format(repr(model_module_name))+
-                    "needed to load weather model {}".format(repr(args.model)))
-        if args.wmnetcdf is not None:
-            weathers = {'type': model_module.Model(), 'files': args.wmnetcdf,
-                        'name': args.model}
-        elif args.time is None:
-            p.error('Must specify one of --wmnetcdf or --time (so I can '
-                    'figure out what to download)')
-        elif lat is None:
-            p.error('Must specify one of --wmnetcdf or --area (so I can '
-                    'figure out what to download)')
-        else:
-            weathers = {'type': model_module.Model(), 'files': None,
-                        'name': args.model}
+        weathers = {'type': model_obj(), 'files': None,
+                    'name': args.model}
 
     if args.wmLoc is not None:
        wmLoc = args.wmLoc
@@ -111,6 +116,15 @@ def checkArgs(args, p):
     zref = args.zref
     
     # output file format
+    if args.outformat is None:
+       if args.heightlvs is not None: 
+          args.outformat = 'hdf5'
+       elif args.station_file is not None: 
+          args.outformat = 'netcdf'
+       else:
+          args.outformat = 'ENVI'
+   
+
     if args.heightlvs is not None: 
        if args.outformat.lower() != 'hdf5':
           print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
