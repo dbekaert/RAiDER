@@ -92,6 +92,7 @@ def _common_delay(weatherObj, lats, lons, heights,
     newPts = [df._transform(ray, ecef, newProj) for ray in rays]
 
     # Define the interpolator objects
+    import pdb; pdb.set_trace()
     ifWet = getIntFcn(weatherObj,interpType =interpType)
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
 
@@ -336,7 +337,6 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
        util.writeLL(time, lats, lons,lla, weather_model_name, out)
     
     # check for compatilibility of the weather model locations and the input
-    import pdb; pdb.set_trace()
     if util.isOutside(util.getExtent(lats, lons), util.getExtent(*weather_model.getLL())):
        print('WARNING: some of the requested points are outside of the existing \
              weather model; these will end up as NaNs')

@@ -93,16 +93,16 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
                        bounds_error = False)
 
     outInterp = interpolator(np.stack((lats, lons), axis=-1))
-
-    # Need to ensure that noData values are consistently handled and 
-    # can be passed on to GDAL
-    outInterp[np.isnan(outInterp)] = gdalNDV
-    outInterp[outInterp < -10000] = gdalNDV
+    import pdb; pdb.set_trace()
 
     print('Interpolation finished')
 
     if save_flag:
         print('Saving DEM to disk')
+        # Need to ensure that noData values are consistently handled and 
+        # can be passed on to GDAL
+        outInterp[np.isnan(outInterp)] = gdalNDV
+        outInterp[outInterp < -10000] = gdalNDV
         if outInterp.ndim==2:
             util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
         elif outInterp.ndim==1:
@@ -112,3 +112,4 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
         print('Finished saving DEM to disk')
 
     return outInterp
+
