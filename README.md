@@ -62,11 +62,10 @@ conda activate RAiDER
 
 We have included a setup.py script which allows for easy compilation and installation of dependencies (c-code), as well as setting up the RAiDER package itself (python and command line tools).
 ```
-CC=gcc CXX=g++ python3 setup.py build
 CC=gcc CXX=g++ python setup.py install
 ```
 
-If not using the setup.py, users should ensure RAiDER and dependencies are included on their PATH and PYTHONPATH. For c-shell this can be done as follows (replace "RAiDERREPO" to the location where you have cloned the RAiDER repository):
+If not using the setup.py, users should ensure RAiDER and dependencies are included on their PATH and PYTHONPATH, and the Geometry module is compiled such it can be imported as Raider.Geo2rdr. For c-shell this can be done as follows (replace "RAiDERREPO" to the location where you have cloned the RAiDER repository):
 ```
 setenv PYTHONPATH $PYTHONPATH:/RAiDERREPO/tools/RAiDER
 set PATH $PATH:'/RAiDERREPO/tools/bin'
