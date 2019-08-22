@@ -12,17 +12,24 @@ import os
 from RAiDER.util import gdal_trans
 from RAiDER.llreader import readLL
 
-def mangle_model_to_module(model_name):
+def modelName2Module(model_name):
     """Turn an arbitrary string into a module name.
 
     Takes as input a model name, which hopefully looks like ERA-I, and
     converts it to a module name, which will look like erai. I doesn't
     always produce a valid module name, but that's not the goal. The
     goal is just to handle common cases.
+    Inputs: 
+       model_name  - Name of an allowed weather model (e.g., 'era-5')
+    Outputs: 
+       module_name - Name of the module 
+       wmObject    - callable, weather model object
     """
+    import importlib
     module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
-    object_name = module_name + '.' + model_name.upper().replace('-', '')
-    return module_name, object_name
+    model_module = importlib.import_module(module_name)
+    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
+    return module_name,wmObject 
 
 
 def checkArgs(args, p):
@@ -31,6 +38,7 @@ def checkArgs(args, p):
     correct variables
     '''
     from datetime import datetime as dt
+    import RAiDER.models.allowed as am
 
     if args.heightlvs is not None and args.outformat != 'hdf5':
        raise ValueError('HDF5 must be used with height levels')
@@ -38,6 +46,13 @@ def checkArgs(args, p):
        raise ValueError('You must specify one of the following: \n \
              (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \
              (4) station file containing Lat and Lon columns')
+    if args.time is None and args.wmnetcdf is None:
+       p.error('You must specify either the weather model file (--wmnetcdf) or time (--time)')
+    if args.model not in am.AllowedModels():
+       raise NotImplementedError('Model {} is not an implemented model type'.format(args.model))
+    if args.model == 'WRF' and args.wrfmodelfiles is None:
+       p.error('Argument --wrfmodelfiles required with --model WRF')
+
 
     # Line of sight
     if args.lineofsight is not None:
@@ -57,9 +72,6 @@ def checkArgs(args, p):
         lat, lon = readLL(args.station_file)
     else:
         lat = lon = None
-
-    if (lat[0] == lat[1]) | (lon[0]==lon[1]):
-       raise RuntimeError('You have passed a zero-size bounding box: {}'.format(args.bounding_box))
 
     # write the lats/lons to a local file
     lonFileName = '{}_Lon_{}.dat'.format(args.model.lower().replace('-',''), 
@@ -81,40 +93,19 @@ def checkArgs(args, p):
         heights = ('download', None)
 
     # Weather
+    model_module_name, model_obj = modelName2Module(args.model)
     if args.model == 'WRF':
-        if args.wmnetcdf is not None:
-            p.error('Argument --wmnetcdf invalid with --model WRF')
-        if args.wrfmodelfiles is not None:
-            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
-                        'name': 'wrf'}
-        else:
-            p.error('Argument --wrfmodelfiles required with --model WRF')
+       weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
+                   'name': 'wrf'}
     elif args.model=='pickle':
         import pickle
         weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
+    elif args.wmnetcdf is not None:
+        weathers = {'type': model_obj(), 'files': args.wmnetcdf,
+                    'name': args.model}
     else:
-        import RAiDER.models.allowed as am
-        if args.model not in am.AllowedModels():
-           raise NotImplementedError('Model {} is not an implemented model type'.format(args.model))
-        model_module_name, model_obj = mangle_model_to_module(args.model)
-        try:
-            import importlib
-            model_module = importlib.import_module(model_module_name)
-        except ImportError:
-            p.error("Couldn't find a module named {}, ".format(repr(model_module_name))+
-                    "needed to load weather model {}".format(repr(args.model)))
-        if args.wmnetcdf is not None:
-            weathers = {'type': model_module + model_obj + '()', 'files': args.wmnetcdf,
-                        'name': args.model}
-        elif args.time is None:
-            p.error('Must specify one of --wmnetcdf or --time (so I can '
-                    'figure out what to download)')
-        elif lat is None:
-            p.error('Must specify one of --wmnetcdf or --area (so I can '
-                    'figure out what to download)')
-        else:
-            weathers = {'type': model_module.(), 'files': None,
-                        'name': args.model}
+        weathers = {'type': model_obj(), 'files': None,
+                    'name': args.model}
 
     if args.wmLoc is not None:
        wmLoc = args.wmLoc

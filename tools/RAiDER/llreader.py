@@ -7,8 +7,10 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
+import os
 
 import RAiDER.demdownload as dld
+import RAiDER.util as util
 
 def readLL(*args):
     '''
@@ -35,6 +37,9 @@ def readLL(*args):
         lats = np.array([float(N), float(S)])
         lons = np.array([float(E), float(W)])
         latproj = lonproj = 'EPSG:4326'
+        if (lats[0] == lats[1]) | (lons[0]==lons[1]):
+           raise RuntimeError('You have passed a zero-size bounding box: {}'
+                               .format(args.bounding_box))
     elif flag=='station_list':
         lats, lons = readLLFromStationFile(*args)
         latproj = lonproj = 'EPSG:4326'
@@ -49,26 +54,31 @@ def readLL(*args):
     return lats, lons
 
 
-def getHeights(lats, lons,heights, demLoc):
+def getHeights(lats, lons,heights, demLoc, demFlag = 'dem'):
     # Height
     height_type, height_info = heights
     if height_type == 'dem':
+      try:
+        hts = util.gdal_open(os.path.join(demLoc, height_info))
+      except RuntimeError:
         try:
-            hts = util.gdal_open(height_info)
-        except RuntimeError:
-            print('WARNING: File {} could not be opened. \n')
-            print('Proceeding with DEM download'.format(height_info))
-            hts = dld.download_dem(lats, lons, demLoc)
+          import pandas as pd
+          data = pd.read_csv(os.path.join(demLoc, 'warpedDEM.dem'))
+          hts = data['DEM_hgt_m'].values
+        except:
+          print('WARNING: File {} could not be opened. \n')
+          print('Proceeding with DEM download'.format(height_info))
+          height_type = 'download'
     elif height_type == 'lvs':
-        hts = height_info
-        latlist, lonlist, hgtlist = [], [], []
-        for ht in hts:
-           latlist.append(lats.flatten())
-           lonlist.append(lons.flatten())
-           hgtlist.append(np.array([ht]*length(lats.flatten())))
-        lats = np.array(latlist)
-        lons = np.array(lonlist)
-        hts = np.array(hgtlist)
+      hts = height_info
+      latlist, lonlist, hgtlist = [], [], []
+      for ht in hts:
+         latlist.append(lats.flatten())
+         lonlist.append(lons.flatten())
+         hgtlist.append(np.array([ht]*length(lats.flatten())))
+      lats = np.array(latlist)
+      lons = np.array(lonlist)
+      hts = np.array(hgtlist)
         
     if height_type == 'download':
         hts = dld.download_dem(lats, lons, demLoc)

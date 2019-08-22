@@ -1,7 +1,8 @@
 import os
+import numpy as np
 
 import RAiDER.delay as delay
-from RAiDER.util import makeDelayFileNames as mdf, writeArrayToRaster as watr, mkdir
+from RAiDER.util import makeDelayFileNames as mdf, mkdir
 from RAiDER.checkArgs import checkArgs
 import RAiDER.llreader as llr
 
@@ -151,24 +152,32 @@ def parse_args():
     return p.parse_args(), p
 
 
-def writeDelays(wetDelay, hydroDelay, time, los, 
+def writeDelays(flag, wetDelay, hydroDelay, time, los, 
                 out, outformat, weather_model_name, 
                 proj = None, gt = None):
     '''
     Write the delay numpy arrays to files in the format specified 
     '''
+    ndv = 0. # no-data value
 
     # Use zero for nodata
-    wetDelay[np.isnan(wetDelay)] = 0.
-    hydroDelay[np.isnan(hydroDelay)] = 0.
+    wetDelay[np.isnan(wetDelay)] = ndv
+    hydroDelay[np.isnan(hydroDelay)] = ndv
 
-    # For later
+    # Do different things, depending on the type of input
+    
     wetFilename, hydroFilename = \
           mdf(time, los, outformat, weather_model_name, out)
 
-    watr(wetDelay, wetFilename, noDataValue = 0., 
+    if flag=='station_file':
+       from RAiDER.util import writeResultsToNETCDF as w2nc
+       w2nc(wetDelay, wetFilename, noDataValue = ndv, 
+                       fmt=outformat, proj=proj, gt=gt)
+    else:
+       from RAiDER.util import writeArrayToRaster as watr
+       watr(wetDelay, wetFilename, noDataValue = ndv, 
                        fmt = outformat, proj = proj, gt = gt)
-    watr(hydroDelay, hydroFilename, noDataValue = 0., 
+       watr(hydroDelay, hydroFilename, noDataValue = ndv, 
                        fmt = outformat, proj = proj, gt = gt)
 
 
@@ -183,7 +192,7 @@ def main():
     mkdir(os.path.join(args.out, 'weather_files'))
 
     # Argument checking
-    los, lat, lon, heights, flag, weather_model, wmLoc, zref, outformat, \
+    los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
          time, out, download_only, parallel, verbose = checkArgs(args, p)
 
     if verbose: 
@@ -192,15 +201,13 @@ def main():
        print('Time: {}'.format(time.strftime('%Y%m%d')))
        print('Parallel is {}'.format(parallel))
 
-    lats, lons= llr.readLL(lat, lon, flag)
-
     wetDelay, hydroDelay = \
        delay.tropo_delay(time, los, lats, lons, heights, 
                          weather_model, wmLoc, zref, out,
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)
 
-    writeDelays(wetDelay, hydroDelay, time, los,
+    writeDelays(flag, wetDelay, hydroDelay, time, los,
                 out, outformat, weather_model['name'],
                 proj = None, gt = None)
 

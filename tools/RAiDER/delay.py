@@ -21,16 +21,11 @@ import os
 import sys
 
 # local imports
-import RAiDER.constants as const
-from RAiDER.constants import Zenith
-import RAiDER.demdownload as dld
+from RAiDER.constants import Zenith, _ZMAX, _STEP
 import RAiDER.losreader as losreader
 import RAiDER.util as util
 from RAiDER.downloadWM import downloadWMFile as dwf
-
-# Step in meters to use when integrating
-_ZREF = const._ZMAX
-_STEP= const._STEP
+import RAiDER.delayFcns as df
 
 
 def _common_delay(weatherObj, lats, lons, heights, 
@@ -62,7 +57,10 @@ def _common_delay(weatherObj, lats, lons, heights,
      delays     - A list containing the wet and hydrostatic delays for each ground point in 
                   meters. 
     """
-    parThresh = 1e4
+    if verbose:
+       import time as timing
+
+    parThresh = 1e5
 
     # If the number of points to interpolate are low, don't parallelize
     if np.prod(lats.shape) < parThresh:
@@ -87,16 +85,26 @@ def _common_delay(weatherObj, lats, lons, heights,
         hydro_delays = _integrateZenith(zs, hydro_pw)
         return wet_delays,hydro_delays
 
+    rays, ecef = df.calculate_rays(lats, lons, heights, look_vecs, 
+                     zref = zref, stepSize = stepSize, verbose=verbose)
+
+    newProj = weatherObj.getProjection()
+    newPts = [df._transform(ray, ecef, newProj) for ray in rays]
+
+    # Define the interpolator objects
+    ifWet = getIntFcn(weatherObj,interpType =interpType)
+    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
+
+    if verbose:
+        print('Beginning interpolation of each ray')
+        st = timing.time()
+
     if useDask:
-        if verbose:
-            print('Beginning interpolation using Dask')
         Npart = min(len(newPts)//100 + 1, 1000)
         PntBag = db.from_sequence(newPts, npartitions=Npart)
         wet_pw = PntBag.map(interpRay).compute()
         hydro_pw = PntBag.map(interpRay).compute()
     elif nproc > 1:
-        if verbose:
-            print('Beginning interpolation without Dask')
         import multiprocessing as mp
         pool = mp.Pool(12)
         inp1 = zip([ifWet]*len(newPts), newPts)
@@ -115,7 +123,7 @@ def _common_delay(weatherObj, lats, lons, heights,
   
     if verbose:
         print('_common_delay: Finished interpolation')
-        ft = time.time()
+        ft = timing.time()
         print('Interpolation took {:4.2f} secs'.format(ft-st))
         print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(newPts)))
         print('_common_delay: finished point-wise delay calculations')
@@ -130,16 +138,16 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     '''
     Function to create and return an Interpolator object
     '''
-    import interpolator as intprn
+    import RAiDER.interpolator as intprn
 
     ifFun = intprn.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
 
     if itype == 'wet':
-        ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
+        ifFun.getInterpFcns(weatherObj.getWetRefractivity().filled(fill_value=np.nan), interpType = interpType)
     elif itype == 'hydro':
-        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
+        ifFun.getInterpFcns(weatherObj.getHydroRefractivity().filled(fill_value=np.nan), interpType = interpType)
     return ifFun
 
 
@@ -251,6 +259,7 @@ def get_weather_and_nodes(model, filename, zmin=None):
     return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
             xs, ys, proj)
 
+
 def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 
                 weather = None, wmFileLoc = None, zref = 15000, out = None, 
                 parallel=True,verbose = False, download_only = False):
@@ -272,7 +281,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
        wmFileLoc = os.path.join(out, 'weather_files')
 
     # ensuring consistent file extensions
-    outformat = output_format(outformat)
+    #outformat = output_format(outformat)
 
     # the output folder where data is downloaded and delays are stored, default is same location
     if out is None:
@@ -313,9 +322,11 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     else:
         # output file for storing the weather model
         #weather_model.load(f)
-        weather_model.load(f, lats = lats, lons = lons) # <-- this will trim the weather model to the lat/lon extents
+        weather_model.load(f, lats = lats, lons = lons)
+
+    # weather model name
     if verbose:
-        print('Weather Model Name: {}'.format(wmName))
+        print('Weather Model Name: {}'.format(weather_model.Model()))
         #p = weather.plot(p)
 
     # Pull the lat/lon data if using the weather model 
@@ -347,7 +358,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
         los = losr.infer_los(los, lats, lons, hgts, zref)
 
     if los is Zenith:
-       raytrace = True
+       raytrace = False
     else:
        raytrace = True
        

@@ -28,6 +28,7 @@ class Interpolator:
         self._xs = xs
         self._ys = ys
         self._zs = zs
+        self._zlevels = None
         self._getShape(xs, ys, zs)
         self._Npoints = 0
         self.setPoints(xs, ys, zs)
@@ -110,6 +111,12 @@ class Interpolator:
 
         self._getShape(xs, ys, zs)
         self._Npoints = len(xs)
+        
+        try:
+            self._zlevels = np.nanmean(zs, axis=(0,1))
+        except:
+            pass
+
         self._xs = xs.flatten()
         self._ys = ys.flatten()
         self._zs = zs.flatten()
@@ -177,7 +184,7 @@ class Interpolator:
         _interpolators = []
         for arg in args:
             _interpolators.append(
-                          _interp3D(self._xs,self._ys, self._zs,arg, self._shape)
+                          _interp3D(self._xs,self._ys, self._zs,arg, self._zlevels, self._shape)
                                  )
         self._interp = _interpolators
 
@@ -185,7 +192,7 @@ class Interpolator:
         pass
 
 
-def _interp3D(xs, ys, zs, values, shape = None):
+def _interp3D(xs, ys, zs, values, zlevels, shape = None):
     '''
     3-D interpolation on a non-uniform grid, where z is non-uniform but x, y are uniform
     '''
@@ -211,9 +218,9 @@ def _interp3D(xs, ys, zs, values, shape = None):
 #    dz = (zmax - zmin)/NzLevels
 
     # TODO: requires zs increase along the 2-axis  
-    zvalues = np.nanmean(zs, axis=(0,1))
+#    zvalues = np.nanmean(zs, axis=(0,1))
 
-    new_zs = np.tile(zvalues, (nx,ny,1))
+    new_zs = np.tile(zlevels, (nx,ny,1))
     values = fillna3D(values)
 
     new_var = interp_along_axis(zshaped, new_zs,
@@ -225,7 +232,7 @@ def _interp3D(xs, ys, zs, values, shape = None):
     yvalues = np.unique(ys)
 
     # TODO: temporarily switch x, y values until can confirm
-    interp= rgi((yvalues,xvalues, zvalues), new_var,
+    interp= rgi((yvalues,xvalues, zlevels), new_var,
                            bounds_error=False, fill_value = np.nan)
     return interp
 
@@ -239,7 +246,8 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, pad = False):
     Jeremy Maurer
     '''
     stackedData = np.concatenate([oldCoord, newCoord, data], axis = axis)
-    out = util.parallel_apply_along_array(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
+    out = util.parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
+    
     return out
 
 

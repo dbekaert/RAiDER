@@ -22,11 +22,10 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem'):
+def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem', gdalNDV = 0):
     '''
     Download a DEM if one is not already present. 
     '''
-    gdalNDV = 0
     print('Getting the DEM')
 
     # Insert check for DEM noData values
@@ -38,8 +37,6 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     maxlon = np.nanmax(lons) + 0.02
     minlat = np.nanmin(lats) - 0.02
     maxlat = np.nanmax(lats) + 0.02
-    pixWidth = (maxlon - minlon)/lats.shape[1]
-    pixHeight = (maxlat - minlat)/lats.shape[1]
 
     # Make sure the DEM hasn't already been downloaded
     outRasterName = os.path.join(outLoc, outName) 
@@ -102,9 +99,7 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     if save_flag:
         print('Saving DEM to disk')
         if outInterp.ndim==2:
-
             util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
-
         elif outInterp.ndim==1:
             util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)
         else:
