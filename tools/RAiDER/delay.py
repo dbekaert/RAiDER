@@ -336,6 +336,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
        util.writeLL(time, lats, lons,lla, weather_model_name, out)
     
     # check for compatilibility of the weather model locations and the input
+    import pdb; pdb.set_trace()
     if util.isOutside(util.getExtent(lats, lons), util.getExtent(*weather_model.getLL())):
        print('WARNING: some of the requested points are outside of the existing \
              weather model; these will end up as NaNs')
