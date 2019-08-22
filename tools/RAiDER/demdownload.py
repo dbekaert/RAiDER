@@ -22,7 +22,7 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem', gdalNDV = 0):
+def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem'):
     '''
     Download a DEM if one is not already present. 
     '''
@@ -55,6 +55,10 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     # Specify filenames
     memRaster = '/vsimem/warpedDEM'
     inRaster ='/vsicurl/{}'.format(_world_dem) 
+
+    ds = gdal.Open(inRaster)
+    gdalNDV = ds.GetRasterBand(1).GetNoDataValue()
+    del ds
 
     # Download and warp
     print('Beginning DEM download and warping')
