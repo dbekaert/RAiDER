@@ -8,6 +8,7 @@ import unittest
 
 import RAiDER.llreader
 import RAiDER.util
+import RAiDER.delay
 
 class TimeTests(unittest.TestCase):
 
@@ -70,7 +71,7 @@ class TimeTests(unittest.TestCase):
     # test error messaging
     def test_tropo_smallArea(self):
         wetDelay, hydroDelay = \
-            delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.hts,
+            RAiDER.delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.hts,
                   self.wm(), self.wmLoc, self.zref, self.out,
                   parallel=False, verbose = True,
                   download_only = False)
