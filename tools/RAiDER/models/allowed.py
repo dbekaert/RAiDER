@@ -4,13 +4,13 @@ def AllowedModels():
     return a list of the implemented model types
     '''
     allowedModels = [
-      'ERA-5',
-      'ERA-I',
-      'MERRA-2',
+      'ERA5',
+      'ERAI',
+      'MERRA2',
       'WRF',
       'HRRR',
-      'pickle',
-      'grib']
+      'PICKLE',
+      'GRIB']
 
     return allowedModels
 
@@ -21,6 +21,6 @@ def checkIfImplemented(modelName):
     '''
     allowedWMTypes = AllowedModels()
     if modelName not in allowedWMTypes:
-        raise RuntimeError('Weather model {} not allowed/implemented'.format(weather_fmt))
+        raise RuntimeError('Weather model {} not allowed/implemented'.format(modelName))
 
 
