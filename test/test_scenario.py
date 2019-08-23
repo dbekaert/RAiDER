@@ -30,8 +30,8 @@ class TimeTests(unittest.TestCase):
     #########################################
 
     # load the weather model type and date for the given scenario
-    outdir = os.getcwd() + '/test/'
-    basedir = outdir + '/{}/'.format(scenario)
+    outdir = os.path.join(os.getcwd(),'test')
+    basedir = os.path.join(outdir, '{}'.format(scenario))
     lines=[]
     with open(os.path.join(basedir, 'wmtype'), 'r') as f:
         for line in f:
@@ -39,11 +39,12 @@ class TimeTests(unittest.TestCase):
     wmtype = lines[0]
     test_time = datetime.datetime.strptime(lines[1], '%Y%m%d%H%M%S')
     flag = lines[-1]
+    test_file = os.path.join(basedir,'weather_model_data.csv')
 
     # get the data for the scenario
     if flag == 'station_file':
        filename = os.path.join(basedir, 'station_file.txt')
-       [lats, lons] = llreader.readLL(filename)
+       [lats, lons] = RAiDER.llreader.readLL(filename)
     else:
        latfile = os.path.join(basedir, 'lat.rdr')
        lonfile = os.path.join(basedir,'lon.rdr')
@@ -51,35 +52,42 @@ class TimeTests(unittest.TestCase):
        [lats, lons] = RAiDER.llreader.readLL(latfile, lonfile)
 
     # DEM
-    demfile = os.path.join(basedir,'warpedDEM.dem')
+    demfile = os.path.join(basedir,'geom')
     wmLoc = os.path.join(basedir, 'weather_files')
     RAiDER.util.mkdir(wmLoc)
     if os.path.exists(demfile):
         heights = ('dem', demfile)
     else:
         heights = ('download', None)
-    lats, lons, hts = RAiDER.llreader.getHeights(lats, lons,heights, demfile)
 
     if useZen:
         los = None
     else:
         los = ('los', losfile)
 
+    zref = 15000
+    out = '.'
+
     # load the weather model
     model_name, wm = RAiDER.util.modelName2Module(wmtype)
+    weather = {'type': wm(), 'files': None,
+                'name': wmtype}
 
     # test error messaging
-    def test_tropo_smallArea(self):
+    def test_tropoSmallArea(self):
         wetDelay, hydroDelay = \
-            RAiDER.delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.hts,
-                  self.wm(), self.wmLoc, self.zref, self.out,
+            RAiDER.delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.heights,
+                  self.weather, self.wmLoc, self.zref, self.out,
                   parallel=False, verbose = True,
                   download_only = False)
         totalDelayEst = wetDelay+hydroDelay
-        delayDF = pd.read_csv('weather_model_data.csv')
+        delayDF = pd.read_csv(self.test_file)
         totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)
-        self.assertTrue(totalDelay==totalDelayEst)
+        self.assertTrue(np.allclose(totalDelay,totalDelayEst))
 
+def main():
+    unittest.main()
+   
 if __name__=='__main__':
 
     unittest.main()

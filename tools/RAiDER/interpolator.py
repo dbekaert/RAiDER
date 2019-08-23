@@ -247,7 +247,10 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, pad = False):
     Jeremy Maurer
     '''
     stackedData = np.concatenate([oldCoord, newCoord, data], axis = axis)
-    out = util.parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
+    try:
+       out = util.parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
+    except: 
+       out = np.apply_along_axis(interpVector, axis=axis,arr=stackedData, Nx=oldCoord.shape[axis])
     
     return out
 

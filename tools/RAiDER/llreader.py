@@ -54,9 +54,13 @@ def readLL(*args):
     return lats, lons
 
 
-def getHeights(lats, lons,heights, demLoc, demFlag = 'dem'):
+def getHeights(lats, lons,heights, demLoc = None, demFlag = 'dem'):
     # Height
+    if demLoc is None:
+       demLoc = os.getcwd()
+
     height_type, height_info = heights
+
     if height_type == 'dem':
       try:
         hts = util.gdal_open(os.path.join(demLoc, height_info))

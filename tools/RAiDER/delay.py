@@ -273,8 +273,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     # Pull the DEM
     if verbose: 
        print('Beginning DEM calculation')
-    demLoc = os.path.join(out, 'geom')
-    lats, lons, hgts = getHeights(lats, lons,heights, demLoc)
+    lats, lons, hgts = getHeights(lats, lons,heights)
 
     # LOS check and load
     if verbose: 
