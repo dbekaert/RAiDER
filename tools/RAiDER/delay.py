@@ -78,7 +78,7 @@ def _common_delay(weatherObj, lats, lons, heights,
     # If weather model nodes only are desired, the calculation is very quick
     if look_vecs is Zenith and useWeatherNodes:
         _,_,zs = weatherObj.getPoints()
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
+        look_vecs = df._getZenithLookVecs(lats, lons, heights, zref = zref)
         wet_pw  = weatherObj.getWetRefractivity()
         hydro_pw= weatherObj.getHydroRefractivity()
         wet_delays = _integrateZenith(zs, wet_pw)
@@ -146,7 +146,6 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     ifFun = intprn.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
-    import pdb; pdb.set_trace()
 
     if itype == 'wet':
         ifFun.getInterpFcns(weatherObj.getWetRefractivity().filled(fill_value=np.nan), interpType = interpType)
@@ -259,9 +258,12 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
 
     # Pull the lat/lon data if using the weather model 
     if lats is None or len(lats)==2:
+       uwn = True
        lats,lons = weather_model.getLL() 
        lla = weather_model.getProjection()
        util.writeLL(time, lats, lons,lla, weather_model_name, out)
+    else:
+       uwn = False
     
     # check for compatilibility of the weather model locations and the input
     if util.isOutside(util.getExtent(lats, lons), util.getExtent(*weather_model.getLL())):
@@ -310,7 +312,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
        useDask = False
        nproc = 1
     wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,\
-                  nproc = nproc, useDask = useDask, verbose = verbose)
+                  useWeatherNodes = uwn, nproc = nproc, useDask = useDask, verbose = verbose)
     if verbose: 
        print('Finished delay calculation')
 

@@ -11,7 +11,7 @@ class ERA5(ECMWF):
     def __init__(self):
         ECMWF.__init__(self)
 
-        self._humidityType = 'rh'
+        self._humidityType = 'q'
         self._model_level_type = 'pl' # Default, pressure levels are 'pl'
         self._expver = '0001'
         self._classname = 'ea'
