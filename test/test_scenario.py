@@ -1,21 +1,19 @@
 # Unit and other tests
 import datetime
-import glob
-from osgeo import gdal
+import gdal
 import numpy as np
-import traceback
 import os
+import pandas as pd
 import unittest
 
-import delay
-import util
-from . import data4tests as d4t
+import RAiDER.llreader
+import RAiDER.util
 
 class TimeTests(unittest.TestCase):
 
     #########################################
     # Scenario to use: 
-    # 0: single point, ERAI, download DEM 
+    # 0: single point, fixed data
     # 1: single point, WRF, download DEM 
     # 2: 
     # 3: 
@@ -24,7 +22,7 @@ class TimeTests(unittest.TestCase):
     # 6: Small area, ERA5, early date, Zenith
     # 7: Small area, ERA5, late date, Zenith
     # 8: Small area, ERAI, late date, Zenith
-    scenario = 'scenario_7'
+    scenario = 'scenario_0'
 
     # Zenith or LOS?
     useZen = True
@@ -39,17 +37,27 @@ class TimeTests(unittest.TestCase):
             lines.append(line.strip())
     wmtype = lines[0]
     test_time = datetime.datetime.strptime(lines[1], '%Y%m%d%H%M%S')
+    flag = lines[-1]
 
     # get the data for the scenario
-    latfile = os.path.join(basedir, 'lat.rdr')
-    lonfile = os.path.join(basedir,'lon.rdr')
-    losfile = os.path.join(basedir,'los.rdr')
-    demfile = os.path.join(basedir,'warpedDEM.dem')
+    if flag == 'station_file':
+       filename = os.path.join(basedir, 'station_file.txt')
+       [lats, lons] = llreader.readLL(filename)
+    else:
+       latfile = os.path.join(basedir, 'lat.rdr')
+       lonfile = os.path.join(basedir,'lon.rdr')
+       losfile = os.path.join(basedir,'los.rdr')
+       [lats, lons] = RAiDER.llreader.readLL(latfile, lonfile)
 
+    # DEM
+    demfile = os.path.join(basedir,'warpedDEM.dem')
+    wmLoc = os.path.join(basedir, 'weather_files')
+    RAiDER.util.mkdir(wmLoc)
     if os.path.exists(demfile):
         heights = ('dem', demfile)
     else:
         heights = ('download', None)
+    lats, lons, hts = RAiDER.llreader.getHeights(lats, lons,heights, demfile)
 
     if useZen:
         los = None
@@ -57,27 +65,21 @@ class TimeTests(unittest.TestCase):
         los = ('los', losfile)
 
     # load the weather model
-    wm = d4t.load_weather_model(wmtype)
+    model_name, wm = RAiDER.util.modelName2Module(wmtype)
 
     # test error messaging
     def test_tropo_smallArea(self):
-        delay.tropo_delay(los = self.los, 
-                     lat = self.latfile, 
-                     lon = self.lonfile, 
-                     heights = self.heights,
-                     weather = self.wm, 
-                     zref = 15000,
-                     time = self.test_time, 
-                     out = self.outdir,
-                     parallel=False, 
-                     verbose = True, 
-                     download_only = False)
-
-    
-#   should have appropriate check here
-#        self.assertTrue(np.allclose(testData, refData,equal_nan = True))
-        self.assertTrue(True)
+        wetDelay, hydroDelay = \
+            delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.hts,
+                  self.wm(), self.wmLoc, self.zref, self.out,
+                  parallel=False, verbose = True,
+                  download_only = False)
+        totalDelayEst = wetDelay+hydroDelay
+        delayDF = pd.read_csv('weather_model_data.csv')
+        totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)
+        self.assertTrue(totalDelay==totalDelayEst)
 
 if __name__=='__main__':
 
     unittest.main()
+
