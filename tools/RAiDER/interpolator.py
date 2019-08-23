@@ -29,6 +29,7 @@ class Interpolator:
         self._ys = ys
         self._zs = zs
         self._zlevels = None
+        self._values = None
         self._getShape(xs, ys, zs)
         self._Npoints = 0
         self.setPoints(xs, ys, zs)
@@ -231,7 +232,7 @@ def _interp3D(xs, ys, zs, values, zlevels, shape = None):
     xvalues = np.unique(xs)
     yvalues = np.unique(ys)
 
-    # TODO: temporarily switch x, y values until can confirm
+    # TODO: is it preferable to have lats first? 
     interp= rgi((yvalues,xvalues, zlevels), new_var,
                            bounds_error=False, fill_value = np.nan)
     return interp

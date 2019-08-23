@@ -7,15 +7,16 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+from osgeo import gdal
+gdal.UseExceptions()
+
 import glob
 import numpy as np
 import os
-from osgeo import gdal
 import scipy.interpolate
 from scipy.interpolate import RegularGridInterpolator as rgi
 
 import RAiDER.util as util
-gdal.UseExceptions()
 
 
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
@@ -93,15 +94,14 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
 
     outInterp = interpolator(np.stack((lats, lons), axis=-1))
 
-    # Need to ensure that noData values are consistently handled and 
-    # can be passed on to GDAL
-    outInterp[np.isnan(outInterp)] = gdalNDV
-    outInterp[outInterp < -10000] = gdalNDV
-
     print('Interpolation finished')
 
     if save_flag:
         print('Saving DEM to disk')
+        # Need to ensure that noData values are consistently handled and 
+        # can be passed on to GDAL
+        outInterp[np.isnan(outInterp)] = gdalNDV
+        outInterp[outInterp < -10000] = gdalNDV
         if outInterp.ndim==2:
             util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
         elif outInterp.ndim==1:
@@ -111,3 +111,4 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
         print('Finished saving DEM to disk')
 
     return outInterp
+

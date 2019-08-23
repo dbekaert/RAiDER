@@ -90,6 +90,9 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     newProj = weatherObj.getProjection()
     newPts = [df._transform(ray, ecef, newProj) for ray in rays]
+    rays = []
+    for pnt in newPts:
+       rays.append(np.array([pnt[:,1], pnt[:,0], pnt[:,2]]).T)
 
     # Define the interpolator objects
     ifWet = getIntFcn(weatherObj,interpType =interpType)
@@ -115,9 +118,9 @@ def _common_delay(weatherObj, lats, lons, heights,
     else:
         wet_pw, hydro_pw = [], []
         count = 0
-        for pnt in newPts:
-            wet_pw.append(interpRay((ifWet, pnt)))
-            hydro_pw.append(interpRay((ifHydro, pnt)))
+        for ray in rays:
+            wet_pw.append(interpRay((ifWet, ray)))
+            hydro_pw.append(interpRay((ifHydro, ray)))
             count = count+1
        
   
