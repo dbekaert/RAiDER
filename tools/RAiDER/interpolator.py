@@ -232,7 +232,7 @@ def _interp3D(xs, ys, zs, values, zlevels, shape = None):
     xvalues = np.unique(xs)
     yvalues = np.unique(ys)
 
-    # TODO: xvalues, yvalues were SWITCHED in their order, need to verify this always works
+    # TODO: is it preferable to have lats first? 
     interp= rgi((yvalues,xvalues, zlevels), new_var,
                            bounds_error=False, fill_value = np.nan)
     return interp
