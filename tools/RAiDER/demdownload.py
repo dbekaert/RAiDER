@@ -93,7 +93,6 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
                        bounds_error = False)
 
     outInterp = interpolator(np.stack((lats, lons), axis=-1))
-    import pdb; pdb.set_trace()
 
     print('Interpolation finished')
 

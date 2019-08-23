@@ -107,7 +107,6 @@ class ECMWF(WeatherModel):
         '''
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
-        import pdb; pdb.set_trace()
 
         # execute the search at ECMWF
         self._get_from_ecmwf(
