@@ -189,9 +189,23 @@ def pickle_dump(o, f):
     with open(f, 'wb') as fil:
         pickle.dump(o, fil)
 
+def writeResultsToNETCDF(array, filename, noDataValue = 0., fmt='NETCDF', proj= None, gt = None):
+    '''
+    write a 1-D array to a NETCDF5 file
+    '''
+    #TODO: This is a dummy placeholder until the correct NETCDF file writing is put in place
+    with open(filename, 'w') as f:
+       for val in array:
+           if np.isnan(val):
+              val = noDataValue
+           f.write('{}\n'.format(val))
+    print('Finished writing data to {}'.format(filename))
+    
 
-def writeArrayToRaster(array, filename, noDataValue = 0, fmt = 'ENVI', proj = None, gt = None):
-    # write a numpy array to a GDAL-readable raster
+def writeArrayToRaster(array, filename, noDataValue = 0., fmt = 'ENVI', proj = None, gt = None):
+    '''
+    write a numpy array to a GDAL-readable raster
+    '''
     import gdal
     import numpy as np
     array_shp = np.shape(array)
@@ -471,7 +485,6 @@ def checkLOS(los, raytrace, Npts):
     return los
 
 
-
 def readLLFromStationFile(fname):
     '''
     Helper fcn for checking argument compatibility
@@ -571,4 +584,57 @@ def setLLds(infile, latfile, lonfile):
     srs.ImportFromEPSG(4326)
     ds.SetProjection(srs.ExportToWkt())
     del ds 
+
+
+def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
+    """
+    Like numpy.apply_along_axis(), but takes advantage of multiple
+    cores.
+    
+    This function and the one below (unpacking_apply_along_axis) were
+    copied from 
+    https://stackoverflow.com/questions/45526700/easy-parallelization-of-numpy-apply-along-axis
+    """        
+    # Effective axis where apply_along_axis() will be applied by each
+    # worker (any non-zero axis number would work, so as to allow the use
+    # of `np.array_split()`, which is only done on axis 0):
+    import multiprocessing as mp
+    import numpy as np
+
+    effective_axis = 1 if axis == 0 else axis
+    if effective_axis != axis:
+        arr = arr.swapaxes(axis, effective_axis)
+
+    # Chunks for the mapping (only a few chunks):
+    Nchunks = mp.cpu_count()*3//4
+    sub_arrs = np.array_split(arr, Nchunks)
+    chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
+              for sub_arr in sub_arrs]
+
+    pool = mp.Pool()
+    individual_results = pool.map(unpacking_apply_along_axis, chunks)
+    # Freeing the workers:
+    pool.close()
+    pool.join()
+#    individual_results = map(unpacking_apply_along_axis, chunks)
+
+    conc_results = np.concatenate(individual_results)
+    ordered_results = conc_results.swapaxes(effective_axis, axis)
+
+    return ordered_results
+
+def unpacking_apply_along_axis(tup):
+    """
+    Like numpy.apply_along_axis(), but and with arguments in a tuple
+    instead.
+
+    This function is useful with multiprocessing.Pool().map(): (1)
+    map() only handles functions that take a single argument, and (2)
+    this function can generally be imported from a module, as required
+    by map().
+    """
+    import numpy as np
+    func1d, axis, arr, arg, kwarg = tup
+    results = np.apply_along_axis(func1d, axis, arr, *arg, **kwarg)
+    return results
 

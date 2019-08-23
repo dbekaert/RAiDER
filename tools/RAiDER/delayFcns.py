@@ -92,7 +92,7 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = None
     data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
     if len(lengths)<1e6:
        positions_l= []
-       for tup in rayData:
+       for tup in data:
            positions_l.append(_ray_helper(tup))
     else:
        import multiprocessing as mp
@@ -114,9 +114,11 @@ def _transform(ray, oldProj, newProj):
                       ,axis = -1)
     return newRay
 
+
 def _re_project(tup): 
     newPnt = _transform(tup[0],tup[1], tup[2])
     return newPnt
+
 
 def sortSP(arr):
     '''
@@ -137,15 +139,14 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
     import pyproj
-    return np.array(pyproj.transform(inProj, outProj, lon, lat, height)).T
+    return np.array(pyproj.transform(inProj, outProj, inlon, inlat, inhgt)).T
 
-def getGroundPositionECEF(lats, lons, hgts):
+
+def getGroundPositionECEF(lats, lons, hgts, oldProj, newProj):
     '''
     Compute the ground position of each pixel in ECEF reference frame
     ''' 
-    ecef = pyproj.Proj(proj='geocent')
-    lla = pyproj.Proj(proj='latlong')
-    start_positions = reproject(lats, lons, heights, lla, ecef)
+    start_positions = reproject(lats, lons, hgts, oldProj,newProj)
     start_positions = sortSP(start_positions)
     return start_positions
 
@@ -158,19 +159,19 @@ def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
     '''
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-        lengths = _ZREF*np.ones(len(look_vecs))
+        lengths = zref*np.ones(len(look_vecs))
     else:
         mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
         lengths = _get_lengths(look_vecs)
         lengths[mask] = np.nan
-    return lengths
+    return look_vecs, lengths
 
 
 def getUnitLVs(look_vecs, lengths):
     return look_vecs / lengths[..., np.newaxis]
 
 
-def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, setupSize = _STEP, verbose = False):
+def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, stepSize = _STEP, verbose = False):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the 
     top of the atmosphere, using either a set of look vectors or the zenith
@@ -180,12 +181,14 @@ def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, setupSi
         print('The integration stepsize is {} m'.format(stepSize))
     
     # get the raypath unit vectors and lengths for doing the interpolation 
-    lv_len = getLookVectorLength(look_vecs, lats, lons, heights, zref)
-    lv_scaled = getUnitLVs(look_vecs, lv_len) 
+    look_vecs, lengths = getLookVectorLength(look_vecs, lats, lons, heights, zref)
+    scaled_look_vecs = getUnitLVs(look_vecs, lengths) 
 
     # This projects the ground pixels into earth-centered, earth-fixed coordinate 
     # system and sorts by position
-    start_positions = getGroundPositionECEF(lats, lons, hgts)
+    ecef = pyproj.Proj(proj='geocent')
+    lla = pyproj.Proj(proj='latlong')
+    start_positions = getGroundPositionECEF(lats, lons, heights, lla, ecef)
 
     # This returns the list of rays
     # TODO: make this not a list. 
@@ -194,25 +197,27 @@ def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, setupSi
     # water). However, it would be MUCH more efficient to do this as a single 
     # pyproj call, rather than having to send each ray individually. For right 
     # now we bite the bullet.
-    positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
+    rays = _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
 
-    # Now to interpolate, we have to re-project each ray into the coordinate 
-    # system used by the weather model.  --> this is inefficient as is
-    newProj = weatherObj.getProjection()
-    if useDask:
-        if verbose:
-            print('Beginning re-projection using Dask')
-        Npart = min(len(positions_l)//100 + 1, 1000)
-        bag = [(pos, ecef, newProj) for pos in positions_l]
-        PntBag = db.from_sequence(bag, npartitions=Npart)
-        newPts = PntBag.map(_re_project).compute()
-    else:
-        if verbose:
-            print('Beginning re-projection without Dask')
-        newPts = list(map(f, positions_l))
+    return rays, ecef 
 
-    # TODO: not sure how long this takes but looks inefficient
-    newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
+
+#    # Now to interpolate, we have to re-project each ray into the coordinate 
+#    # system used by the weather model.  --> this is inefficient as is
+#    if useDask:
+#        if verbose:
+#            print('Beginning re-projection using Dask')
+#        Npart = min(len(positions_l)//100 + 1, 1000)
+#        bag = [(pos, ecef, newProj) for pos in positions_l]
+#        PntBag = db.from_sequence(bag, npartitions=Npart)
+#        newPts = PntBag.map(_re_project).compute()
+#    else:
+#        if verbose:
+#            print('Beginning re-projection without Dask')
+#        newPts = list(map(f, positions_l))
+#
+#    # TODO: not sure how long this takes but looks inefficient
+#    newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
 
 
      # TODO: implement chunking for efficient interpolation?

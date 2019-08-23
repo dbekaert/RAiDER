@@ -6,62 +6,79 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import numpy as np
+import os
 
 import RAiDER.demdownload as dld
+import RAiDER.util as util
 
-def readLL(lat, lon, flag):
+def readLL(*args):
     '''
     Parse lat/lon/height inputs and return 
     the appropriate outputs
     '''
+    if len(args)==2:
+       flag='files'
+    elif len(args)==4:
+       flag='bounding_box'
+    elif len(args)==1:
+       flag = 'station_list'
+    else:
+       raise RuntimeError('llreader: Cannot parse args')
+
     # Lats/Lons
-    if flag is None:
-        # They'll get set later with weather
-        lats = lons = None
-        latproj = lonproj = None
-    elif flag=='files':
+    if flag=='files':
         # If they are files, open them
+        lat, lon = args
         lats, latproj = util.gdal_open(lat, returnProj = True)
         lons, lonproj = util.gdal_open(lon, returnProj = True)
     elif flag=='bounding_box': 
-        # assume that they are numbers/list/numpy array
-        lats = lat
-        lons = lon
-        latproj = lonproj = None
-        lon = lat = None
+        N,W,S,E = args 
+        lats = np.array([float(N), float(S)])
+        lons = np.array([float(E), float(W)])
+        latproj = lonproj = 'EPSG:4326'
+        if (lats[0] == lats[1]) | (lons[0]==lons[1]):
+           raise RuntimeError('You have passed a zero-size bounding box: {}'
+                               .format(args.bounding_box))
     elif flag=='station_list':
-        lats = lat
-        lons = lon
-        latproj = lonproj = None
-        lon = lat = None
+        lats, lons = readLLFromStationFile(*args)
+        latproj = lonproj = 'EPSG:4326'
     else:
-        raise RuntimeError('readLL: unknown flag')
+        # They'll get set later with weather
+        lats = lons = None
+        latproj = lonproj = None
+        #raise RuntimeError('readLL: unknown flag')
 
     [lats, lons] = enforceNumpyArray(lats, lons)
 
     return lats, lons
 
 
-def getHeights(lats, lons,heights, demLoc):
+def getHeights(lats, lons,heights, demLoc, demFlag = 'dem'):
     # Height
     height_type, height_info = heights
     if height_type == 'dem':
+      try:
+        hts = util.gdal_open(os.path.join(demLoc, height_info))
+      except RuntimeError:
         try:
-            hts = util.gdal_open(height_info)
-        except RuntimeError:
-            print('WARNING: File {} could not be opened. \n')
-            print('Proceeding with DEM download'.format(height_info))
-            hts = dld.download_dem(lats, lons, demLoc)
+          import pandas as pd
+          data = pd.read_csv(os.path.join(demLoc, 'warpedDEM.dem'))
+          hts = data['DEM_hgt_m'].values
+        except:
+          print('WARNING: File {} could not be opened. \n')
+          print('Proceeding with DEM download'.format(height_info))
+          height_type = 'download'
     elif height_type == 'lvs':
-        hts = height_info
-        latlist, lonlist, hgtlist = [], [], []
-        for ht in hts:
-           latlist.append(lats.flatten())
-           lonlist.append(lons.flatten())
-           hgtlist.append(np.array([ht]*length(lats.flatten())))
-        lats = np.array(latlist)
-        lons = np.array(lonlist)
-        hts = np.array(hgtlist)
+      hts = height_info
+      latlist, lonlist, hgtlist = [], [], []
+      for ht in hts:
+         latlist.append(lats.flatten())
+         lonlist.append(lons.flatten())
+         hgtlist.append(np.array([ht]*length(lats.flatten())))
+      lats = np.array(latlist)
+      lons = np.array(lonlist)
+      hts = np.array(hgtlist)
         
     if height_type == 'download':
         hts = dld.download_dem(lats, lons, demLoc)
@@ -116,3 +133,23 @@ def checkArg(arg):
           raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
 
 
+def readLLFromStationFile(fname):
+    '''
+    Helper fcn for checking argument compatibility
+    '''
+    try:
+       import pandas as pd
+       stats = pd.read_csv(fname)
+       return stats['Lat'].values,stats['Lon'].values
+    except:
+       lats, lons = [], []
+       with open(fname, 'r') as f:
+          for i, line in enumerate(f): 
+              if i == 0:
+                 continue
+              lat, lon = [float(f) for f in line.split(',')[1:3]]
+              lats.append(lat)
+              lons.append(lon)
+       return lats, lons
+
+       

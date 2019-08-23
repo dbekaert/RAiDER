@@ -26,7 +26,6 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     '''
     Download a DEM if one is not already present. 
     '''
-    gdalNDV = 0
     print('Getting the DEM')
 
     # Insert check for DEM noData values
@@ -38,8 +37,6 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     maxlon = np.nanmax(lons) + 0.02
     minlat = np.nanmin(lats) - 0.02
     maxlat = np.nanmax(lats) + 0.02
-    pixWidth = (maxlon - minlon)/lats.shape[1]
-    pixHeight = (maxlat - minlat)/lats.shape[1]
 
     # Make sure the DEM hasn't already been downloaded
     outRasterName = os.path.join(outLoc, outName) 
@@ -58,6 +55,10 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     # Specify filenames
     memRaster = '/vsimem/warpedDEM'
     inRaster ='/vsicurl/{}'.format(_world_dem) 
+
+    ds = gdal.Open(inRaster)
+    gdalNDV = ds.GetRasterBand(1).GetNoDataValue()
+    del ds
 
     # Download and warp
     print('Beginning DEM download and warping')
@@ -102,9 +103,7 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     if save_flag:
         print('Saving DEM to disk')
         if outInterp.ndim==2:
-
             util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
-
         elif outInterp.ndim==1:
             util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)
         else:

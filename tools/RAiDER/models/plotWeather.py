@@ -7,7 +7,7 @@ from this class.
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
 import numpy as np
-import interpolator as intrp
+import RAiDER.interpolator as intrp
 
 def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     '''

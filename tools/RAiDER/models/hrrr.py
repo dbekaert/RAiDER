@@ -8,7 +8,7 @@ import re
 import sys
 
 import RAiDER.util as util
-from models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel
 
 def Model():
     return HRRR()

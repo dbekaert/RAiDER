@@ -3,7 +3,7 @@ import numpy as np
 import pyproj
 
 import RAiDER.util as util
-from models.ecmwf import ECMWF
+from RAiDER.models.ecmwf import ECMWF
 
 class ERA5(ECMWF):
     # I took this from
