@@ -263,7 +263,10 @@ class WeatherModel():
            if self._isOutside(in_extent, self_extent):
               raise RuntimeError('The weather model passed does not cover all of the \n \
                                  input points; you need to download a larger area.')
-           self._trimExtent(in_extent) 
+           try:
+              self._trimExtent(in_extent) 
+           except:
+              pass
 
 
     def _getExtent(self,lats, lons):
