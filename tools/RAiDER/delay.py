@@ -146,6 +146,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     ifFun = intprn.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
+    import pdb; pdb.set_trace()
 
     if itype == 'wet':
         ifFun.getInterpFcns(weatherObj.getWetRefractivity().filled(fill_value=np.nan), interpType = interpType)
@@ -185,82 +186,6 @@ def _integrate_delays(stepSize, refr):
 # integrate the delays to get overall delay
 def int_fcn(y, dx):
     return 1e-6*dx*np.nansum(y)
-
-
-#TODO: the following three fcns are unclear if/how they are needed. 
-# likely need to see how they work with tropo_delay
-def delay_over_area(weather, 
-                    lat_min, lat_max, lat_res, 
-                    lon_min, lon_max, lon_res, 
-                    ht_min, ht_max, ht_res, 
-                    los=Zenith, 
-                    parallel = True, verbose = False):
-    """Calculate (in parallel) the delays over an area."""
-    lats = np.arange(lat_min, lat_max, lat_res)
-    lons = np.arange(lon_min, lon_max, lon_res)
-    hts = np.arange(ht_min, ht_max, ht_res)
-
-    if verbose:
-        print('delay_over_area: Size of lats: {}'.format(np.shape(lats)))
-        print('delay_over_area: Size of lons: {}'.format(np.shape(lons)))
-        print('delay_over_area: Size of hts: {}'.format(np.shape(hts)))
-
-    # It's the cartesian product (thanks StackOverflow)
-    llas = np.array(np.meshgrid(lats, lons, hts)).T.reshape(-1, 3)
-    if verbose:
-        print('delay_over_area: Size of llas: {}'.format(np.shape(llas)))
-
-    if verbose:
-        print('delay_over_area: running delay_from_grid')
-
-    return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
-
-
-def delay_from_files(weather, lat, lon, ht, zref = None, parallel=False, los=Zenith,
-                     raytrace=True, verbose = False):
-    """
-    Read location information from files and calculate delay.
-    """
-    if zref is None:
-       zref = _ZREF
-
-    lats = util.gdal_open(lat)
-    lons = util.gdal_open(lon)
-    hts = util.gdal_open(ht)
-
-    if los is not Zenith:
-        incidence, heading = util.gdal_open(los)
-        if raytrace:
-            los = losreader.los_to_lv(
-                incidence, heading, lats, lons, hts, zref).reshape(-1, 3)
-        else:
-            los = incidence.flatten()
-
-    # We need the three to be the same shape so that we know what to
-    # reshape hydro and wet to. Plus, them being different sizes
-    # indicates a definite user error.
-    if not lats.shape == lons.shape == hts.shape:
-        raise ValueError('lat, lon, and ht should have the same shape, but ' + 
-                         'instead lat had shape {}, lon had shape '.format(lats.shape) + 
-                         '{}, and ht had shape {}'.format(lons.shape,hts.shape))
-
-    llas = np.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
-    hydro, wet = delay_from_grid(weather, llas, los,
-                                 parallel=parallel, raytrace=raytrace, verbose = verbose)
-    hydro, wet = np.stack((hydro, wet)).reshape((2,) + lats.shape)
-    return hydro, wet
-
-
-def get_weather_and_nodes(model, filename, zmin=None):
-    """Look up weather information from a model and file.
-
-    We use the module.load method to load the weather model file, but
-    we'll also create a weather model object for it.
-    """
-    # TODO: Need to check how this fcn will fit into the new framework
-    xs, ys, proj, t, q, z, lnsp = model.load(filename)
-    return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
-            xs, ys, proj)
 
 
 def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 

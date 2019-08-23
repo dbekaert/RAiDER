@@ -1,0 +1,2 @@
+ID,Lat,Lon,Hgt_m
+TEST,20,-100,0
