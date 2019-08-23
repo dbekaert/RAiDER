@@ -217,7 +217,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     # Make weather
     weather_model, weather_files, weather_model_name = \
                weather['type'],weather['files'],weather['name']
-    checkIfImplemented(weather_model_name)
+    checkIfImplemented(weather_model_name.upper().replace('-',''))
 
     # check whether weather model files are supplied
     if weather_files is None:
