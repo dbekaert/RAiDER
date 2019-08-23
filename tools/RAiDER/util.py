@@ -189,16 +189,17 @@ def pickle_dump(o, f):
     with open(f, 'wb') as fil:
         pickle.dump(o, fil)
 
-def writeResultsToNETCDF(array, filename, noDataValue = 0., fmt='NETCDF', proj= None, gt = None):
+def writeResultsToNETCDF(lats, lons, array, filename, noDataValue = 0., fmt='NETCDF', proj= None, gt = None):
     '''
     write a 1-D array to a NETCDF5 file
     '''
     #TODO: This is a dummy placeholder until the correct NETCDF file writing is put in place
     with open(filename, 'w') as f:
-       for val in array:
+       f.write('Lat, Lon, Delay (m)\n')
+       for lat, lon, val in zip(lats, lons, array):
            if np.isnan(val):
               val = noDataValue
-           f.write('{}\n'.format(val))
+           f.write('{},{},{}\n'.format(lat, lon, val))
     print('Finished writing data to {}'.format(filename))
     
 

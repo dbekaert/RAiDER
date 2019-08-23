@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 import RAiDER.delay as delay
-from RAiDER.util import makeDelayFileNames as mdf, mkdir
+import RAiDER.util
 from RAiDER.checkArgs import checkArgs
 import RAiDER.llreader as llr
 
@@ -152,32 +152,28 @@ def parse_args():
     return p.parse_args(), p
 
 
-def writeDelays(flag, wetDelay, hydroDelay, time, los, 
+def writeDelays(flag, wetDelay, hydroDelay, time, los, lats, lons,
                 out, outformat, weather_model_name, 
-                proj = None, gt = None):
+                proj = None, gt = None, ndv = 0.):
     '''
     Write the delay numpy arrays to files in the format specified 
     '''
-    ndv = 0. # no-data value
-
-    # Use zero for nodata
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
 
-    # Do different things, depending on the type of input
-    
     wetFilename, hydroFilename = \
-          mdf(time, los, outformat, weather_model_name, out)
+       RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
 
+    # Do different things, depending on the type of input
     if flag=='station_file':
-       from RAiDER.util import writeResultsToNETCDF as w2nc
-       w2nc(wetDelay, wetFilename, noDataValue = ndv, 
+       RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv, 
+                       fmt=outformat, proj=proj, gt=gt)
+       RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv, 
                        fmt=outformat, proj=proj, gt=gt)
     else:
-       from RAiDER.util import writeArrayToRaster as watr
-       watr(wetDelay, wetFilename, noDataValue = ndv, 
+       RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv, 
                        fmt = outformat, proj = proj, gt = gt)
-       watr(hydroDelay, hydroFilename, noDataValue = ndv, 
+       RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv, 
                        fmt = outformat, proj = proj, gt = gt)
 
 
@@ -188,8 +184,8 @@ def main():
     """
     args, p = parse_args()
 
-    mkdir(os.path.join(args.out, 'geom'))
-    mkdir(os.path.join(args.out, 'weather_files'))
+    RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
+    RAiDER.util.mkdir(os.path.join(args.out, 'weather_files'))
 
     # Argument checking
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
@@ -207,7 +203,7 @@ def main():
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)
 
-    writeDelays(flag, wetDelay, hydroDelay, time, los,
+    writeDelays(flag, wetDelay, hydroDelay, time, los, lats, lons,
                 out, outformat, weather_model['name'],
                 proj = None, gt = None)
 

@@ -76,7 +76,6 @@ def _compute_ray(L, S, V, stepSize):
     stepSize.
     '''
     # Have to handle the case where there are invalid data
-    # TODO: cythonize this? 
     try:
         thisspace = np.arange(0, L, stepSize)
     except ValueError:
@@ -89,6 +88,7 @@ def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = None
     '''
     Create the integration points for each ray path. 
     '''
+    # TODO: cythonize this? -> I don't think this can be cythonized because of the lists
     data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
     if len(lengths)<1e6:
        positions_l= []
