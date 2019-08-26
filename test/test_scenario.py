@@ -82,7 +82,9 @@ class TimeTests(unittest.TestCase):
                   download_only = False)
         totalDelayEst = wetDelay+hydroDelay
         delayDF = pd.read_csv(self.test_file)
-        totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)
+        totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)/1e6
+        print('Need to get rid of weather file calc in this test and replace with dummy data')
+        print('Test delay = {}, true delay = {}'.format(totalDelayEst, totalDelay))
         self.assertTrue(np.allclose(totalDelay,totalDelayEst))
 
 def main():
