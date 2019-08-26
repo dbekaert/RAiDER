@@ -222,6 +222,7 @@ def _interp3D(xs, ys, zs, values, zlevels, shape = None):
 #    zvalues = np.nanmean(zs, axis=(0,1))
 
     new_zs = np.tile(zlevels, (nx,ny,1))
+    old_values = values.copy()
     values = fillna3D(values)
 
     new_var = interp_along_axis(zshaped, new_zs,
@@ -246,7 +247,7 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, pad = False):
 
     Jeremy Maurer
     '''
-    stackedData = np.concatenate([oldCoord, newCoord, data], axis = axis)
+    stackedData = np.concatenate([oldCoord, data, newCoord], axis = axis)
     try:
        out = util.parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
     except: 
