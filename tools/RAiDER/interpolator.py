@@ -222,7 +222,6 @@ def _interp3D(xs, ys, zs, values, zlevels, shape = None):
 #    zvalues = np.nanmean(zs, axis=(0,1))
 
     new_zs = np.tile(zlevels, (nx,ny,1))
-    old_values = values.copy()
     values = fillna3D(values)
 
     new_var = interp_along_axis(zshaped, new_zs,
