@@ -168,7 +168,7 @@ def _integrateLOS(stepSize, wet_pw, hydro_pw):
 
 
 def _integrateZenith(zs, pw):
-    return 1e-6*np.trapz(pw, zs, axis = 2)
+    return 1e-6*np.trapz(pw, zs, axis = -1)
 
 
 def _integrate_delays(stepSize, refr):
@@ -310,6 +310,16 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     else:
        useDask = False
        nproc = 1
+
+    # If the verbose option is called, write out the weather model to a pickle file
+    if verbose:
+       print('Saving weather model object to pickle file')
+       import pickle
+       pickleFilename = os.path.join(out, 'pickledWeatherModel.pik')
+       with open(pickleFilename, 'wb') as f:
+            pickle.dump(weather_model, f)
+
+    # Call _common_delay
     wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,\
                   useWeatherNodes = uwn, nproc = nproc, useDask = useDask, verbose = verbose)
     if verbose: 
