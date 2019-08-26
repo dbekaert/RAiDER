@@ -52,13 +52,13 @@ class TimeTests(unittest.TestCase):
        [lats, lons] = RAiDER.llreader.readLL(latfile, lonfile)
 
     # DEM
-    demfile = os.path.join(basedir,'geom')
+    demfile = os.path.join(basedir,'geom', 'warpedDEM.dem')
     wmLoc = os.path.join(basedir, 'weather_files')
     RAiDER.util.mkdir(wmLoc)
     if os.path.exists(demfile):
         heights = ('dem', demfile)
     else:
-        heights = ('download', None)
+        heights = ('download', demfile)
 
     if useZen:
         los = None
@@ -83,7 +83,6 @@ class TimeTests(unittest.TestCase):
         totalDelayEst = wetDelay+hydroDelay
         delayDF = pd.read_csv(self.test_file)
         totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)/1e6
-        print('Need to get rid of weather file calc in this test and replace with dummy data')
         print('Test delay = {}, true delay = {}'.format(totalDelayEst, totalDelay))
         self.assertTrue(np.allclose(totalDelay,totalDelayEst))
 
