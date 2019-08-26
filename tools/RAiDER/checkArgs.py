@@ -70,7 +70,7 @@ def checkArgs(args, p):
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
     else:
-        heights = ('download', None)
+        heights = ('download', 'geom/warpedDEM.dem')
 
     # Weather
     model_module_name, model_obj = RAiDER.util.modelName2Module(args.model)

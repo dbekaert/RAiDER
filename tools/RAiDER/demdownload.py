@@ -23,7 +23,7 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem'):
+def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem'):
     '''
     Download a DEM if one is not already present. 
     '''
@@ -40,10 +40,13 @@ def download_dem(lats, lons, outLoc, save_flag= True, checkDEM = True, outName =
     maxlat = np.nanmax(lats) + 0.02
 
     # Make sure the DEM hasn't already been downloaded
-    outRasterName = os.path.join(outLoc, outName) 
+    if outLoc is not None:
+       outRasterName = os.path.join(outLoc, outName) 
+    else:
+       outRasterName = outName
  
     if os.path.exists(outRasterName):
-       print('WARNING: DEM already exists in {}, checking shape'.format(outLoc))
+       print('WARNING: DEM already exists in {}, checking shape'.format(os.path.base(outRasterName)))
        hgts = util.gdal_open(outRasterName)
        if hgts.shape != lats.shape:
           raise RuntimeError('Existing DEM does not cover the area of the input \n \
