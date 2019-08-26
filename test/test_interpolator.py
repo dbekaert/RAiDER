@@ -18,12 +18,30 @@ class FcnTests(unittest.TestCase):
 
     x = np.linspace(0,10,100)
     y = x.copy()
-    zlevels = np.array([-1, 1, 3, 5, 10, 20])
-    z = zlevels + np.random.rand(6)
+    #zlevels = np.array([-1, 1, 3, 5, 10, 20])
+    zlevels =  np.arange(-1, 21, 1)
+    #z = zlevels + np.random.rand(len(zlevels))
+    z = zlevels 
     [xs, ys, zs] = np.meshgrid(x, y, z)
     def F(x, y, z):
       return np.sin(x)*np.cos(y)*(0.1*z - 5)
     values = F(*np.meshgrid(x, y, z, indexing='ij', sparse=True))
+    nanindex = np.array([[3, 2, 2],
+                         [0, 0, 4],
+                         [3, 0, 0],
+                         [2, 4, 3],
+                         [1, 0, 1],
+                         [3, 0, 3],
+                         [2, 1, 1],
+                         [0, 2, 1],
+                         [2, 1, 3],
+                         [3, 0, 3]])
+    nanIndex = np.zeros(values.shape)
+    valuesWNans = values.copy()
+    for k in range(nanindex.shape[0]):
+       valuesWNans[nanindex[k,0], nanindex[k,1], nanindex[k,2]] = np.nan
+       nanIndex[nanindex[k,0], nanindex[k,1], nanindex[k,2]] = 1
+    nanIndex = nanIndex.astype('bool')
 
     testPoint1 = np.array([5, 5, 5])
     testPoint2 = np.array([4.5, 0.5, 15.0])
@@ -46,6 +64,12 @@ class FcnTests(unittest.TestCase):
     def test_interp3D_2(self):
         f = RAiDER.interpolator._interp3D(self.xs, self.ys, self.zs, self.values, self.zlevels)
         self.assertTrue((np.abs(f(self.testPoint2) - self.trueValue2) < 0.01)[0])
+    def test_fillna3D(self):
+        final = RAiDER.interpolator.fillna3D(self.valuesWNans)
+        denom = np.abs(self.values[self.nanIndex])
+        error = np.abs(final[self.nanIndex] - self.values[self.nanIndex])/np.where(denom==0, 1, denom)
+        self.assertTrue(np.mean(error)<0.1)
+
 
 def main():
     unittest.main()

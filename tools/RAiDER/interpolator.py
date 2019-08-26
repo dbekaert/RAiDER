@@ -270,23 +270,20 @@ def interpVector(vec, Nx):
     return f(xnew)
 
 
-def fillna3D(array, axis = 2):
+def fillna3D(array, axis = -1):
     '''
     Fcn to fill in NaNs in a 3D array by interpolating over one axis only
     '''
     # Need to handle each axis
-    narr = np.moveaxis(array, axis, 2)
+    narr = np.moveaxis(array, axis, -1)
     shape = narr.shape
     y = narr.flatten()
 
-    nans, x= nan_helper(y)
-    y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    test_nan = np.isnan(y)
+    finder = lambda z: z.nonzero()[0]
+    
+    y[test_nan]= np.interp(finder(test_nan), finder(~test_nan), y[~test_nan])
     newy = np.reshape(y, shape)
-    final = np.moveaxis(newy, 2, axis)
+    final = np.moveaxis(newy, -1, axis)
     return final
     
-
-def nan_helper(y):
-    return np.isnan(y), lambda z: z.nonzero()[0]
-
-
