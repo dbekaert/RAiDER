@@ -60,6 +60,12 @@ def _get_lengths(look_vecs):
        lengths     - an Nx1 numpy array containing the absolute distance in 
                      meters of the top of the atmosphere from the ground pnt. 
     '''
+    if look_vecs.ndim==1:
+       if len(look_vecs)!=3:
+          raise RuntimeError('look_vecs must be Nx3') 
+    if look_vecs.shape[1]!=3:
+       raise RuntimeError('look_vecs must be Nx3')
+
     lengths = np.linalg.norm(look_vecs, axis=-1)
     lengths[~np.isfinite(lengths)] = 0
     return lengths

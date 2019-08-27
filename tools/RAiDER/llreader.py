@@ -54,20 +54,24 @@ def readLL(*args):
     return lats, lons
 
 
-def getHeights(lats, lons,heights, demLoc, demFlag = 'dem'):
-    # Height
-    height_type, height_info = heights
+def getHeights(lats, lons,heights, demFlag = 'dem'):
+    '''
+    Fcn to return heights from a DEM, either one that already exists
+    or will download one if needed.
+    '''
+    height_type, demFilename = heights
+
     if height_type == 'dem':
       try:
-        hts = util.gdal_open(os.path.join(demLoc, height_info))
+        hts = util.gdal_open(demFilename)
       except RuntimeError:
         try:
           import pandas as pd
-          data = pd.read_csv(os.path.join(demLoc, 'warpedDEM.dem'))
+          data = pd.read_csv(demFilename)
           hts = data['DEM_hgt_m'].values
         except:
-          print('WARNING: File {} could not be opened. \n')
-          print('Proceeding with DEM download'.format(height_info))
+          print('WARNING: File {} could not be opened. \n'.format(demFilename))
+          print('Proceeding with DEM download')
           height_type = 'download'
     elif height_type == 'lvs':
       hts = height_info
@@ -81,7 +85,7 @@ def getHeights(lats, lons,heights, demLoc, demFlag = 'dem'):
       hts = np.array(hgtlist)
         
     if height_type == 'download':
-        hts = dld.download_dem(lats, lons, demLoc)
+        hts = dld.download_dem(lats, lons, outName = demFilename)
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 
