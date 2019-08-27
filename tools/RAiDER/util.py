@@ -33,7 +33,7 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
     import pyproj
-    return pyproj.transform(inProj, outProj, lon, lat, height)
+    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt)
     
 
 def lla2ecef(lat, lon, height):
@@ -282,21 +282,6 @@ def _least_nonzero(a):
     return out
 
 
-def sind(x):
-    """Return the sine of x when x is in degrees."""
-    return np.sin(np.radians(x))
-
-
-def cosd(x):
-    """Return the cosine of x when x is in degrees."""
-    return np.cos(np.radians(x))
-
-
-def tand(x):
-    """Return degree tangent."""
-    return np.tan(np.radians(x))
-
-
 def robmin(a):
     '''
     Get the minimum of an array, accounting for empty lists
@@ -370,6 +355,7 @@ def testArr(arr, thresh, ttype):
 
     return test
 
+
 def getMaxModelLevel(arr3D, thresh, ttype = 'l'):
     '''
     Returns the model level number to keep
@@ -425,6 +411,7 @@ def mkdir(dirName):
     except FileExistsError: 
        pass
 
+
 def writeLL(time, lats, lons, llProj, weather_model_name, out):
     '''
     If the weather model grid nodes are used, write the lat/lon values
@@ -435,7 +422,6 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-
     mkdir('geom')
 
     writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
@@ -444,13 +430,13 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
     return latFileName, lonFileName
 
 
-def checkShapes(los, lats, lons, hgts):
+def checkShapes(los, lats, lons, hts):
     '''
     Make sure that by the time the code reaches here, we have a
     consistent set of line-of-sight and position data. 
     '''
     from RAiDER.constants import Zenith
-    test1 = hgts.shape == lats.shape == lons.shape
+    test1 = hts.shape == lats.shape == lons.shape
     try:
         test2 = los.shape[:-1] != hts.shape
     except:
@@ -486,26 +472,6 @@ def checkLOS(los, raytrace, Npts):
     return los
 
 
-def readLLFromStationFile(fname):
-    '''
-    Helper fcn for checking argument compatibility
-    '''
-    try:
-       import pandas as pd
-       stats = pd.read_csv(fname)
-       return stats['Lat'].values,stats['Lon'].values
-    except:
-       lats, lons = [], []
-       with open(fname, 'r') as f:
-          for i, line in enumerate(f): 
-              if i == 0:
-                 continue
-              lat, lon = [float(f) for f in line.split(',')[1:3]]
-              lats.append(lat)
-              lons.append(lon)
-       return lats, lons
-
-       
 def modelName2Module(model_name):
     """Turn an arbitrary string into a module name.
     Takes as input a model name, which hopefully looks like ERA-I, and
@@ -523,6 +489,7 @@ def modelName2Module(model_name):
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name,wmObject 
+
 
 def gdal_trans(f1, f2, fmt = 'VRT'):
     '''
@@ -552,7 +519,7 @@ def isOutside(extent1, extent2):
     return False
 
 
-def getExtent(lats, lons=None):
+def getExtent(lats, lons=None, shrink = 1):
     '''
     get the bounding box around a set of lats/lons
     '''
@@ -624,6 +591,7 @@ def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
 
     return ordered_results
 
+
 def unpacking_apply_along_axis(tup):
     """
     Like numpy.apply_along_axis(), but and with arguments in a tuple
@@ -638,25 +606,3 @@ def unpacking_apply_along_axis(tup):
     func1d, axis, arr, arg, kwarg = tup
     results = np.apply_along_axis(func1d, axis, arr, *arg, **kwarg)
     return results
-
-
-def modelName2Module(model_name):
-    """Turn an arbitrary string into a module name.
-
-    Takes as input a model name, which hopefully looks like ERA-I, and
-    converts it to a module name, which will look like erai. I doesn't
-    always produce a valid module name, but that's not the goal. The
-    goal is just to handle common cases.
-    Inputs: 
-       model_name  - Name of an allowed weather model (e.g., 'era-5')
-    Outputs: 
-       module_name - Name of the module 
-       wmObject    - callable, weather model object
-    """
-    import importlib
-    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
-    model_module = importlib.import_module(module_name)
-    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name,wmObject 
-
-

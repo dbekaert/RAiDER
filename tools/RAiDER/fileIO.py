@@ -65,6 +65,7 @@ def writeWeatherLevelsToFile(totalhydro, totalwet, outFormat, hydro_file_name, w
        else:
            dset = wet_ds.create_dataset("lons_grid",data=lons,fillvalue=0,compression="gzip")
            dset = wet_ds.create_dataset("lats_grid",data=lats,fillvalue=0,compression="gzip")
+
        # writing the heights
        dset = wet_ds.create_dataset("heights",data=hts,compression="gzip")
        # create teh projection string                                                                    

@@ -11,4 +11,3 @@ from RAiDER.runProgram import main
 
 if __name__ == '__main__':
     main()
-

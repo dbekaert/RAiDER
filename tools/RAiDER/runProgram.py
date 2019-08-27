@@ -4,7 +4,6 @@ import numpy as np
 import RAiDER.delay as delay
 import RAiDER.util
 from RAiDER.checkArgs import checkArgs
-import RAiDER.llreader as llr
 
 
 def read_date(s):
@@ -156,24 +155,24 @@ def writeDelays(flag, wetDelay, hydroDelay, time, los, lats, lons,
                 out, outformat, weather_model_name, 
                 proj = None, gt = None, ndv = 0.):
     '''
-    Write the delay numpy arrays to files in the format specified 
+    Write the delay numpy arrays to files in the format specified
     '''
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
 
     wetFilename, hydroFilename = \
-       RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
+        RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
 
     # Do different things, depending on the type of input
     if flag=='station_file':
-       RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv, 
+        RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
-       RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv, 
+        RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
     else:
-       RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv, 
+        RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
-       RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv, 
+        RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
 
 

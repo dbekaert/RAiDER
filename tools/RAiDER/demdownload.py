@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
-# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
-# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
-# RESERVED. United States Government Sponsorship acknowledged.
-#
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-from osgeo import gdal
-gdal.UseExceptions()
-
-import glob
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 
+#  Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+#  Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+#  RESERVED. United States Government Sponsorship acknowledged.
+# 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import gdal
 import numpy as np
 import os
-import scipy.interpolate
 from scipy.interpolate import RegularGridInterpolator as rgi
 
 import RAiDER.util as util
-
 
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
@@ -41,19 +35,19 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
 
     # Make sure the DEM hasn't already been downloaded
     if outLoc is not None:
-       outRasterName = os.path.join(outLoc, outName) 
+        outRasterName = os.path.join(outLoc, outName) 
     else:
-       outRasterName = outName
+        outRasterName = outName
  
     if os.path.exists(outRasterName):
-       print('WARNING: DEM already exists in {}, checking shape'.format(os.path.base(outRasterName)))
-       hgts = util.gdal_open(outRasterName)
-       if hgts.shape != lats.shape:
-          raise RuntimeError('Existing DEM does not cover the area of the input \n \
+        print('WARNING: DEM already exists in {}, checking shape'.format(os.path.base(outRasterName)))
+        hgts = util.gdal_open(outRasterName)
+        if hgts.shape != lats.shape:
+            raise RuntimeError('Existing DEM does not cover the area of the input \n \
                               lat/lon points; either move the DEM, delete it, or \n \
                               change the inputs.')
-       hgts[hgts==0.] = np.nan
-       return hgts
+        hgts[hgts==0.] = np.nan
+        return hgts
 
 
     # Specify filenames
@@ -73,15 +67,7 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
     print('DEM download finished')
 
     # Load the DEM data
-    try:
-        out = util.gdal_open(memRaster)
-    except:
-        raise RuntimeError('demdownload: Cannot open the warped file')
-    finally:
-        try:
-            gdal.Unlink('/vsimem/warpedDEM')
-        except:
-            pass
+    out = util.gdal_open(memRaster)
 
     #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
@@ -114,4 +100,3 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
         print('Finished saving DEM to disk')
 
     return outInterp
-

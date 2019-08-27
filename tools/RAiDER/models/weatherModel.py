@@ -120,7 +120,7 @@ class WeatherModel():
         self._find_e()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
-        
+
         # adjust the grid based on the height data
         self._adjust_grid(lats, lons)
 
@@ -143,7 +143,7 @@ class WeatherModel():
         else:
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         return plot
-        
+
     def check(self, time):
         '''
         Checks the time against the lag time and valid date range for the given model type
@@ -196,7 +196,7 @@ class WeatherModel():
         Calculate the wet delay from pressure, temperature, and e
         '''
         self._wet_refractivity = self._k2*self._e/self._t+ self._k3*self._e/self._t**2
-        
+
     def _get_hydro_refractivity(self):
         '''
         Calculate the hydrostatic delay from pressure and temperature
@@ -205,7 +205,7 @@ class WeatherModel():
 
     def getWetRefractivity(self):
         return self._wet_refractivity
-        
+
     def getHydroRefractivity(self):
         return self._hydrostatic_refractivity
 
@@ -258,23 +258,21 @@ class WeatherModel():
         self._hydrostatic_refractivity=self._hydrostatic_refractivity[...,levInd]
 
         if lats is not None:
-           in_extent = self._getExtent(lats, lons)
-           self_extent = self._getExtent(self._ys, self._xs)
-           if self._isOutside(in_extent, self_extent):
-              raise RuntimeError('The weather model passed does not cover all of the \n \
-                                 input points; you need to download a larger area.')
-           try:
-              self._trimExtent(in_extent) 
-           except:
-              pass
-
+            in_extent = self._getExtent(lats, lons)
+            self_extent = self._getExtent(self._ys, self._xs)
+            if self._isOutside(in_extent, self_extent):
+                raise RuntimeError('The weather model passed does not cover all of the \n \
+                                  input points; you need to download a larger area.')
+            try:
+                self._trimExtent(in_extent) 
+            except:
+                pass
 
     def _getExtent(self,lats, lons):
         '''
         get the bounding box around a set of lats/lons
         '''
         return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
-
 
     def _isOutside(self, extent1, extent2):
         '''
@@ -288,7 +286,6 @@ class WeatherModel():
         if np.any([t1, t2, t3, t4]):
            return True
         return False
-
 
     def _trimExtent(self,extent):
         '''
@@ -393,7 +390,7 @@ class WeatherModel():
             # because indexing like that results in pressure and height arrays that 
             # are in the opposite orientation to the t/q arrays. 
             ilevel = lev - 1
-    
+
             # compute moist temperature
             t_level = t_level*(1 + 0.609133*q_level)
     
@@ -443,7 +440,7 @@ class WeatherModel():
     def getProjection(self):
         '''
         Returns the native weather projection, which should be a pyproj object
-        ''' 
+        '''
         return self._proj
 
     def getPoints(self):
@@ -459,7 +456,8 @@ class WeatherModel():
         an exception. 
         '''
 
-        # Have to do some complicated stuff to get a nice square box without doing the whole US
+        # Have to do some complicated stuff to get a nice square box 
+        # without doing the whole US
         self._xs = self._xs.swapaxes(0,1)
         self._ys = self._ys.swapaxes(0,1)
         self._zs = self._zs.swapaxes(0,1)
@@ -468,8 +466,8 @@ class WeatherModel():
 
         mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
         mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
-        mask2 = np.sum(mask1, axis = 0).astype('bool')
-        mask4 = np.sum(mask3, axis = 1).astype('bool')
+        mask2 = np.sum(mask1, axis=0).astype('bool')
+        mask4 = np.sum(mask3, axis=1).astype('bool')
         NptsX = self._xs.shape[1]
         NptsY = self._xs.shape[0]
         lonRange = np.arange(0,NptsX)
@@ -479,8 +477,9 @@ class WeatherModel():
         zx = np.arange(0, self._zs.shape[2])
 
         # if there are no points left, raise exception
-        if np.sum(mask2) == 0 or np.sum(mask4)==0:
-            raise RuntimeError('Region of interest is outside the region of the HRRR weather archive data')
+        if np.sum(mask2) == 0 or np.sum(mask4) == 0:
+            raise RuntimeError('Region of interest is outside the region of the HRRR'+
+                                'weather archive data')
 
         # otherwise subset the data
         _xs = self._xs[np.ix_(latx,lonx, zx)]
@@ -496,11 +495,10 @@ class WeatherModel():
         self._p  = _p.copy()
 
         if self._humidityType =='rh':
-           self._rh = self._rh.swapaxes(0,1)
-           _rh = self._rh[np.ix_(latx,lonx, zx)]
-           self._rh = _rh.copy()
+            self._rh = self._rh.swapaxes(0,1)
+            _rh = self._rh[np.ix_(latx,lonx, zx)]
+            self._rh = _rh.copy()
         elif self._humidityType =='q':
-           self._q = self._rh.swapaxes(0,1)
-           _q = self._rh[np.ix_(latx,lonx, zx)]
-           self._q = _q.copy()
-
+            self._q = self._rh.swapaxes(0,1)
+            _q = self._rh[np.ix_(latx,lonx, zx)]
+            self._q = _q.copy()

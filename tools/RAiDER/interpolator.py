@@ -7,10 +7,7 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-"""Helper utilities for file readers."""
-
 import numpy as np
-import pyproj
 import RAiDER.util as util
 
 
@@ -203,26 +200,18 @@ def _interp3D(xs, ys, zs, values, zlevels, shape = None):
        shape = max(xs.shape, ys.shape, zs.shape)
 
     # First interpolate uniformly in the z-direction
-#    flipflag = False
-#    Nfac = 10
-#    NzLevels = Nfac * shape[2]
     nx, ny = shape[:2]
-    zmax = np.nanmax(zs)
-    zmin = np.nanmin(zs)
     zshaped = np.reshape(zs, shape)
+
     # if zs are upside down, flip to interpolate vertically
     if np.nanmean(zshaped[..., 0]) > np.nanmean(zshaped[...,-1]):
-#        flipflag = True
         zshaped = np.flip(zshaped, axis = 2)
         values = np.flip(values, axis = 2)
 
-#    dz = (zmax - zmin)/NzLevels
-
     # TODO: requires zs increase along the 2-axis  
-#    zvalues = np.nanmean(zs, axis=(0,1))
+    # zvalues = np.nanmean(zs, axis=(0,1))
 
     new_zs = np.tile(zlevels, (nx,ny,1))
-    old_values = values.copy()
     values = fillna3D(values)
 
     new_var = interp_along_axis(zshaped, new_zs,

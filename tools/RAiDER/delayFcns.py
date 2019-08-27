@@ -1,33 +1,15 @@
 #!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
-Calculated rays from the ground to the top of the atmosphere
-(or more precisely, to a reference height zref). 
-
-Currently we take samples every _STEP meters.
-"""
-
-# standard imports
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
-import os
 import pyproj
 
-# local imports
-import RAiDER.constants as const
-from RAiDER.constants import Zenith
-import RAiDER.util as util
-
-# Step in meters to use when integrating
-_STEP = const._STEP
-# Default top of the atmosphere
-_ZREF = const._ZMAX
+from RAiDER.constants import Zenith, _ZREF, _STEP
 
 
 def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
@@ -42,10 +24,10 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                            The vectors give the zenith ray paths for 
                            each of the points to the top of the atmosphere. 
     '''
-    zenLookVecs = (np.array((util.cosd(lats)*util.cosd(lons),
-                              util.cosd(lats)*util.sind(lons),
-                              util.sind(lats))).T
-                    * (zref - heights)[..., np.newaxis])
+    e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
+    n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
+    u = np.sin(np.radians(lats))
+    zenLookVecs = (np.array((e,n,u)).T*(zref - heights)[..., np.newaxis])
     return zenLookVecs
 
 

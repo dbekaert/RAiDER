@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""Compute the delay from a point to the transmitter.
-
-Dry and hydrostatic delays are calculated in separate functions.
-Currently we take samples every _STEP meters, which causes either
-inaccuracies or inefficiencies, and we no longer can integrate to
-infinity.
-"""
-
-# standard imports
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
 import os
 import sys
 
 # local imports
-from RAiDER.constants import Zenith, _ZMAX, _STEP
-import RAiDER.losreader as losreader
+from RAiDER.constants import Zenith,_STEP
 import RAiDER.util as util
 from RAiDER.downloadWM import downloadWMFile as dwf
 import RAiDER.delayFcns as df
@@ -197,7 +186,6 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     _common_delay. 
     """
     from RAiDER.models.allowed import checkIfImplemented
-    from datetime import datetime as dt
     from RAiDER.llreader import getHeights
 
     if verbose:
@@ -206,7 +194,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
 
     # location of the weather model files
     if wmFileLoc is None:
-       wmFileLoc = os.path.join(out, 'weather_files')
+        wmFileLoc = os.path.join(out, 'weather_files')
 
     # ensuring consistent file extensions
     #outformat = output_format(outformat)
@@ -222,26 +210,25 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
 
     # check whether weather model files are supplied
     if weather_files is None:
-       download_flag, f = dwf(weather_model.Model(), time, wmFileLoc, verbose)
+        download_flag, f = dwf(weather_model.Model(), time, wmFileLoc, verbose)
     else:
-       download_flag = False
+        download_flag = False
 
     # if no weather model files supplied, check the standard location
     if download_flag:
         try:
-           weather_model.fetch(lats, lons, time, f)
+            weather_model.fetch(lats, lons, time, f)
         except Exception as e:
-           print('ERROR: Unable to download weather data')
-           print('Exception encountered: {}'.format(e))
-           sys.exit(0)
+            print('ERROR: Unable to download weather data')
+            print('Exception encountered: {}'.format(e))
+            sys.exit(0)
  
         # exit on download if download_only requested
         if download_only:
-            print('WARNING: download_only flag selected. I will only '\
-                  'download the weather model, '\
+            print('WARNING: download_only flag selected. I will only '
+                  'download the weather model, '
                   ' without doing any further processing.')
             return None, None
-
 
     # Load the weather model data
     if weather_model_name == 'pickle':
@@ -270,8 +257,8 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     
     # check for compatilibility of the weather model locations and the input
     if util.isOutside(util.getExtent(lats, lons), util.getExtent(*weather_model.getLL())):
-       print('WARNING: some of the requested points are outside of the existing \
-             weather model; these will end up as NaNs')
+       print('WARNING: some of the requested points are outside of the existing' +
+             'weather model; these will end up as NaNs')
  
     # Pull the DEM
     if verbose: 
@@ -290,9 +277,9 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
         los = losr.infer_los(los, lats, lons, hgts, zref)
 
     if los is Zenith:
-       raytrace = False
+        raytrace = False
     else:
-       raytrace = True
+        raytrace = True
        
     util.checkShapes(los, lats, lons, hgts)
     util.checkLOS(los, raytrace, np.prod(lats.shape))
@@ -305,28 +292,28 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     lats, lons, hgts = np.moveaxis(llas, -1, 0)
 
     if verbose: 
-       print('Beginning delay calculation')
+        print('Beginning delay calculation')
     # Call _common_delay to compute the hydrostatic and wet delays
     if parallel:
-       useDask = True
-       nproc = 16
+        useDask = True
+        nproc = 16
     else:
-       useDask = False
-       nproc = 1
+        useDask = False
+        nproc = 1
 
     # If the verbose option is called, write out the weather model to a pickle file
     if verbose:
-       print('Saving weather model object to pickle file')
-       import pickle
-       pickleFilename = os.path.join(out, 'pickledWeatherModel.pik')
-       with open(pickleFilename, 'wb') as f:
-            pickle.dump(weather_model, f)
+        print('Saving weather model object to pickle file')
+        import pickle
+        pickleFilename = os.path.join(out, 'pickledWeatherModel.pik')
+        with open(pickleFilename, 'wb') as f:
+           pickle.dump(weather_model, f)
 
     # Call _common_delay
-    wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,\
+    wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,
                   useWeatherNodes = uwn, nproc = nproc, useDask = useDask, verbose = verbose)
     if verbose: 
-       print('Finished delay calculation')
+        print('Finished delay calculation')
 
     # Restore shape
     try:
@@ -335,5 +322,3 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
         pass
 
     return wet, hydro
-
-    

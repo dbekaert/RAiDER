@@ -3,6 +3,7 @@
 # Author: Jeremy Maurer, building on a prior code by Ray
 # Copyright 2018
 
+
 def makeVRT(filename, dtype = 'Float32'):
     '''
     Use an RSC file to create a GDAL-compatible VRT file for opening GACOS weather model files
