@@ -163,7 +163,7 @@ class ECMWF(WeatherModel):
         c = cdsapi.Client(verify=0)
         #corrected_date = util.round_date(time, datetime.timedelta(hours=6))
         if self._model_level_type == 'pl':
-            var = ['q','z','t']
+#            var = ['q','z','t']
             var = ['geopotential','relative_humidity','specific_humidity','temperature']
             levels = 'all'
             levType = 'pressure_level'

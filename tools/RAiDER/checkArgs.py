@@ -12,26 +12,6 @@ import os
 from RAiDER.util import gdal_trans
 from RAiDER.llreader import readLL
 
-def modelName2Module(model_name):
-    """Turn an arbitrary string into a module name.
-
-    Takes as input a model name, which hopefully looks like ERA-I, and
-    converts it to a module name, which will look like erai. I doesn't
-    always produce a valid module name, but that's not the goal. The
-    goal is just to handle common cases.
-    Inputs: 
-       model_name  - Name of an allowed weather model (e.g., 'era-5')
-    Outputs: 
-       module_name - Name of the module 
-       wmObject    - callable, weather model object
-    """
-    import importlib
-    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
-    model_module = importlib.import_module(module_name)
-    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name,wmObject 
-
-
 def checkArgs(args, p):
     '''
     Helper fcn for checking argument compatibility and returns the 
@@ -90,10 +70,10 @@ def checkArgs(args, p):
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
     else:
-        heights = ('download', None)
+        heights = ('download', 'geom/warpedDEM.dem')
 
     # Weather
-    model_module_name, model_obj = modelName2Module(args.model)
+    model_module_name, model_obj = RAiDER.util.modelName2Module(args.model)
     if args.model == 'WRF':
        weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
                    'name': 'wrf'}

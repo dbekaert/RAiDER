@@ -639,3 +639,24 @@ def unpacking_apply_along_axis(tup):
     results = np.apply_along_axis(func1d, axis, arr, *arg, **kwarg)
     return results
 
+
+def modelName2Module(model_name):
+    """Turn an arbitrary string into a module name.
+
+    Takes as input a model name, which hopefully looks like ERA-I, and
+    converts it to a module name, which will look like erai. I doesn't
+    always produce a valid module name, but that's not the goal. The
+    goal is just to handle common cases.
+    Inputs: 
+       model_name  - Name of an allowed weather model (e.g., 'era-5')
+    Outputs: 
+       module_name - Name of the module 
+       wmObject    - callable, weather model object
+    """
+    import importlib
+    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
+    model_module = importlib.import_module(module_name)
+    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
+    return module_name,wmObject 
+
+
