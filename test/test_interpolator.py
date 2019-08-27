@@ -26,6 +26,7 @@ class FcnTests(unittest.TestCase):
     def F(x, y, z):
       return np.sin(x)*np.cos(y)*(0.1*z - 5)
     values = F(*np.meshgrid(x, y, z, indexing='ij', sparse=True))
+
     nanindex = np.array([[3, 2, 2],
                          [0, 0, 4],
                          [3, 0, 0],
@@ -54,6 +55,12 @@ class FcnTests(unittest.TestCase):
         3.5       ,  4.5       ])
     truev1 = np.array([ 0.42073549,  0.87538421,  0.52520872, -0.30784124, -0.85786338])
 
+    # test interp_along_axis
+    z = np.tile(np.arange(100)[...,np.newaxis], (5,1,5)).swapaxes(1,2)
+    zvals = 0.3*z - 12.75
+    newz = np.tile(np.array([1.5, 9.9, 15, 23.278, 39.99, 50.1])[...,np.newaxis], (5,1,5)).swapaxes(1,2)
+    corz = 0.3*newz - 12.75
+
     # test error messaging
     def test_interpVector(self):
         out =RAiDER.interpolator.interpVector(self.tv1, 6)
@@ -69,6 +76,10 @@ class FcnTests(unittest.TestCase):
         denom = np.abs(self.values[self.nanIndex])
         error = np.abs(final[self.nanIndex] - self.values[self.nanIndex])/np.where(denom==0, 1, denom)
         self.assertTrue(np.mean(error)<0.1)
+    def test_interp_along_axis(self):
+        out = RAiDER.interpolator.interp_along_axis(self.z, self.newz, self.zvals, axis = 2)
+        self.assertTrue(np.allclose(self.corz, out))
+  
 
 
 def main():

@@ -241,8 +241,7 @@ def _interp3D(xs, ys, zs, values, zlevels, shape = None):
 
 def interp_along_axis(oldCoord, newCoord, data, axis = 2, pad = False):
     '''
-    Interpolate vertical profiles of 3-D data, e.g. of atmospheric 
-    variables using vectorized numpy operations. This function 
+    Interpolate an array of 3-D data along one axis. This function 
     assumes that the x-xoordinate increases monotonically.
 
     Jeremy Maurer

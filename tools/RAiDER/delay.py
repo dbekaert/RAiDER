@@ -122,6 +122,7 @@ def _common_delay(weatherObj, lats, lons, heights,
             wet_pw.append(interpRay((ifWet, ray)))
             hydro_pw.append(interpRay((ifHydro, ray)))
             count = count+1
+        stepSize = ray[1,2] - ray[0,2]
        
   
     if verbose:
@@ -222,6 +223,8 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     # check whether weather model files are supplied
     if weather_files is None:
        download_flag, f = dwf(weather_model.Model(), time, wmFileLoc, verbose)
+    else:
+       download_flag = False
 
     # if no weather model files supplied, check the standard location
     if download_flag:
@@ -241,11 +244,11 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
 
 
     # Load the weather model data
-    if weather_files is not None:
+    if weather_model_name == 'pickle':
+        weather_model = util.pickle_load(weather_files)
+    elif weather_files is not None:
        weather_model.load(*weather_files)
        download_flag = False
-    elif weather_model_name == 'pickle':
-        weather_model = util.pickle_load(weather_files)
     else:
         # output file for storing the weather model
         #weather_model.load(f)

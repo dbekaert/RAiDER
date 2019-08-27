@@ -4,6 +4,7 @@ import gdal
 import numpy as np
 import os
 import pandas as pd
+import pickle
 import unittest
 
 import RAiDER.llreader
@@ -69,12 +70,17 @@ class TimeTests(unittest.TestCase):
     out = '.'
 
     # load the weather model
-    model_name, wm = RAiDER.util.modelName2Module(wmtype)
-    weather = {'type': wm(), 'files': None,
+    try:
+       model_name, wm = RAiDER.util.modelName2Module(wmtype)
+       weather = {'type': wm(), 'files': None,
                 'name': wmtype}
+    except:
+       weather = {'type': 'pickle', 'files': os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik'),
+                'name': 'pickle'}
+
 
     # test error messaging
-    @unittest.skip("skipping full model test until all other unit tests pass")
+    #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_tropoSmallArea(self):
         wetDelay, hydroDelay = \
             RAiDER.delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.heights,
@@ -82,10 +88,19 @@ class TimeTests(unittest.TestCase):
                   parallel=False, verbose = True,
                   download_only = False)
         totalDelayEst = wetDelay+hydroDelay
-        delayDF = pd.read_csv(self.test_file)
-        totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)/1e6
-        print('Test delay = {}, true delay = {}'.format(totalDelayEst, totalDelay))
-        self.assertTrue(np.allclose(totalDelay,totalDelayEst))
+
+        # get the true delay from the weather model
+        picklefile = os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik')
+        with open(picklefile, 'rb') as f:
+            wm = pickle.load(f)
+        wrf = wm._wet_refractivity[1,1,:]
+        hrf = wm._hydrostatic_refractivity[1,1,:]
+        zs = wm._zs[1,1,:]
+        mask = zs > 2907
+        totalDelay = 1e-6*(np.trapz(wrf[mask], zs[mask]) + np.trapz(hrf[mask], zs[mask])) 
+        #delayDF = pd.read_csv(self.test_file)
+        #totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)/1e6
+        self.assertTrue(np.abs(totalDelay - totalDelayEst) < 0.001)
 
 def main():
     unittest.main()
