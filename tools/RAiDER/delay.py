@@ -12,9 +12,12 @@ import sys
 
 # local imports
 from RAiDER.constants import Zenith,_STEP
-import RAiDER.util as util
-from RAiDER.downloadWM import downloadWMFile as dwf
-import RAiDER.delayFcns as df
+import RAiDER.util
+import RAiDER.downloadWM
+import RAiDER.delayFcns
+import RAiDER.llreader
+import RAiDER.models.allowed
+import RAiDER.interpolator
 
 
 def _common_delay(weatherObj, lats, lons, heights, 
@@ -67,18 +70,18 @@ def _common_delay(weatherObj, lats, lons, heights,
     # If weather model nodes only are desired, the calculation is very quick
     if look_vecs is Zenith and useWeatherNodes:
         _,_,zs = weatherObj.getPoints()
-        look_vecs = df._getZenithLookVecs(lats, lons, heights, zref = zref)
+        look_vecs = RAiDER.delayFcns._getZenithLookVecs(lats, lons, heights, zref = zref)
         wet_pw  = weatherObj.getWetRefractivity()
         hydro_pw= weatherObj.getHydroRefractivity()
         wet_delays = _integrateZenith(zs, wet_pw)
         hydro_delays = _integrateZenith(zs, hydro_pw)
         return wet_delays,hydro_delays
 
-    rays, ecef = df.calculate_rays(lats, lons, heights, look_vecs, 
+    rays, ecef = RAiDER.delayFcns.calculate_rays(lats, lons, heights, look_vecs, 
                      zref = zref, stepSize = stepSize, verbose=verbose)
 
     newProj = weatherObj.getProjection()
-    newPts = [df._transform(ray, ecef, newProj) for ray in rays]
+    newPts = [RAiDER.delayFcns._transform(ray, ecef, newProj) for ray in rays]
     rays = []
     for pnt in newPts:
        rays.append(np.array([pnt[:,1], pnt[:,0], pnt[:,2]]).T)
@@ -131,9 +134,7 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     '''
     Function to create and return an Interpolator object
     '''
-    import RAiDER.interpolator as intprn
-
-    ifFun = intprn.Interpolator()
+    ifFun = RAiDER.interpolator.Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
 
@@ -185,8 +186,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     We do a little bit of preprocessing, then call
     _common_delay. 
     """
-    from RAiDER.models.allowed import checkIfImplemented
-    from RAiDER.llreader import getHeights
+    import RAiDER
 
     if verbose:
         print('type of time: {}'.format(type(time)))
@@ -206,11 +206,11 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     # Make weather
     weather_model, weather_files, weather_model_name = \
                weather['type'],weather['files'],weather['name']
-    checkIfImplemented(weather_model_name.upper().replace('-',''))
+    RAiDER.models.allowed.checkIfImplemented(weather_model_name.upper().replace('-',''))
 
     # check whether weather model files are supplied
     if weather_files is None:
-        download_flag, f = dwf(weather_model.Model(), time, wmFileLoc, verbose)
+        download_flag, f = RAiDER.downloadWM.downloadWMFile(weather_model.Model(), time, wmFileLoc, verbose)
     else:
         download_flag = False
 
@@ -232,10 +232,10 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
 
     # Load the weather model data
     if weather_model_name == 'pickle':
-        weather_model = util.pickle_load(weather_files)
+        weather_model = RAiDER.util.pickle_load(weather_files)
     elif weather_files is not None:
-       weather_model.load(*weather_files)
-       download_flag = False
+        weather_model.load(*weather_files)
+        download_flag = False
     else:
         # output file for storing the weather model
         #weather_model.load(f)
@@ -244,45 +244,46 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     # weather model name
     if verbose:
         print('Weather Model Name: {}'.format(weather_model.Model()))
+        print(weather_model)
         #p = weather.plot(p)
 
     # Pull the lat/lon data if using the weather model 
     if lats is None or len(lats)==2:
-       uwn = True
-       lats,lons = weather_model.getLL() 
-       lla = weather_model.getProjection()
-       util.writeLL(time, lats, lons,lla, weather_model_name, out)
+        uwn = True
+        lats,lons = weather_model.getLL() 
+        lla = weather_model.getProjection()
+        RAiDER.util.writeLL(time, lats, lons,lla, weather_model_name, out)
     else:
-       uwn = False
+        uwn = False
     
     # check for compatilibility of the weather model locations and the input
-    if util.isOutside(util.getExtent(lats, lons), util.getExtent(*weather_model.getLL())):
-       print('WARNING: some of the requested points are outside of the existing' +
+    if RAiDER.util.isOutside(RAiDER.util.getExtent(lats, lons), RAiDER.util.getExtent(*weather_model.getLL())):
+        print('WARNING: some of the requested points are outside of the existing' +
              'weather model; these will end up as NaNs')
  
     # Pull the DEM
     if verbose: 
-       print('Beginning DEM calculation')
-    lats, lons, hgts = getHeights(lats, lons,heights)
+        print('Beginning DEM calculation')
+    lats, lons, hgts = RAiDER.llreader.getHeights(lats, lons,heights)
 
     # LOS check and load
     if verbose: 
-       print('Beginning LOS calculation')
+        print('Beginning LOS calculation')
     if los is None:
         los = Zenith
     elif los is Zenith:
         pass
     else:
-        import utils.losreader as losr
-        los = losr.infer_los(los, lats, lons, hgts, zref)
+        import RAiDER.losreader
+        los = RAiDER.losreader.infer_los(los, lats, lons, hgts, zref)
 
     if los is Zenith:
         raytrace = False
     else:
         raytrace = True
        
-    util.checkShapes(los, lats, lons, hgts)
-    util.checkLOS(los, raytrace, np.prod(lats.shape))
+    RAiDER.util.checkShapes(los, lats, lons, hgts)
+    RAiDER.util.checkLOS(los, raytrace, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it
     # easier to think about
@@ -310,6 +311,26 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
            pickle.dump(weather_model, f)
 
     # Call _common_delay
+    if verbose:
+       print('Lats shape is {}'.format(lats.shape))
+       print('lat/lon box is {}/{}/{}/{} (SNWE)'
+              .format(np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)))
+       print('Type of LOS is {}'.format([los if type(los) is type else type(los)][0]))
+       print('Height range is {0:.2f}-{0:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
+       print('Reference z-value (max z for integration) is {} m'.format(zref))
+       print('Number of processors to use: {}'.format(nproc))
+       print('Using weather nodes only? (true/false): {}'.format(uwn))
+       print('Weather model: {}'.format(weather_model.Model()))
+       print('Number of weather model nodes: {}'.format(np.prod(weather_model.getWetRefractivity().shape)))
+       print('Shape of weather model: {}'.format(weather_model.getWetRefractivity().shape))
+       print('Bounds of the weather model: {}/{}/{}/{} (SNWE)'
+              .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys), 
+                     np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)))
+       print('Mean value of the wet refractivity: {}'
+              .format(np.nanmean(weather_model.getWetRefractivity())))
+       print('Mean value of the hydrostatic refractivity: {}'
+              .format(np.nanmean(weather_model.getHydroRefractivity())))
+
     wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,
                   useWeatherNodes = uwn, nproc = nproc, useDask = useDask, verbose = verbose)
     if verbose: 

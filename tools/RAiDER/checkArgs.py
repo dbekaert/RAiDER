@@ -44,11 +44,11 @@ def checkArgs(args, p):
 
     # Area
     if args.area is not None:
-        lat, lon, latproj, lonproj = readLL(*args.area)
+        lat, lon, latproj, lonproj = RAiDER.llreader.readLL(*args.area)
     elif args.bounding_box is not None:
-        lat, lon, latproj, lonproj = readLL(*args.bounding_box)
+        lat, lon, latproj, lonproj = RAiDER.llreader.readLL(*args.bounding_box)
     elif args.station_file is not None:
-        lat, lon, latproj, lonproj = readLL(args.station_file)
+        lat, lon, latproj, lonproj = RAiDER.llreader.readLL(args.station_file)
     else:
         lat = lon = None
 

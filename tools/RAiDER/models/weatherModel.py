@@ -44,7 +44,7 @@ class WeatherModel():
         self._R_d = 287.053
         self._g0 = const._g0 # gravity constant
         self._zmin = const._ZMIN # minimum integration height
-        self._zmax = const._ZMAX # max integration height
+        self._zmax = const._ZREF # max integration height
         self._llaproj = pyproj.Proj(proj='latlong')
         self._ecefproj = pyproj.Proj(proj='geocent')
         self._proj = None

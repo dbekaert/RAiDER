@@ -11,13 +11,13 @@ import numpy as np
 import os
 from scipy.interpolate import RegularGridInterpolator as rgi
 
-import RAiDER.util as util
+import RAiDER.util
 
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem'):
+def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem', ndv = 0.):
     '''
     Download a DEM if one is not already present. 
     '''
@@ -40,13 +40,17 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
         outRasterName = outName
  
     if os.path.exists(outRasterName):
-        print('WARNING: DEM already exists in {}, checking shape'.format(os.path.base(outRasterName)))
-        hgts = util.gdal_open(outRasterName)
-        if hgts.shape != lats.shape:
-            raise RuntimeError('Existing DEM does not cover the area of the input \n \
+        print('WARNING: DEM already exists in {}, checking shape'.format(os.path.dirname(outRasterName)))
+        try:
+            hgts = RAiDER.util.gdal_open(outRasterName)
+            if hgts.shape != lats.shape:
+                raise RuntimeError('Existing DEM does not cover the area of the input \n \
                               lat/lon points; either move the DEM, delete it, or \n \
                               change the inputs.')
-        hgts[hgts==0.] = np.nan
+        except RuntimeError:
+            hgts = RAiDER.util.read_hgt_file(outRasterName)
+             
+        hgts[hgts==ndv] = np.nan
         return hgts
 
 
@@ -67,7 +71,7 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
     print('DEM download finished')
 
     # Load the DEM data
-    out = util.gdal_open(memRaster)
+    out = RAiDER.util.gdal_open(memRaster)
 
     #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
@@ -92,9 +96,9 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
         outInterp[np.isnan(outInterp)] = gdalNDV
         outInterp[outInterp < -10000] = gdalNDV
         if outInterp.ndim==2:
-            util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
+            RAiDER.util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
         elif outInterp.ndim==1:
-            util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)
+            RAiDER.util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
         print('Finished saving DEM to disk')

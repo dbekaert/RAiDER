@@ -1,7 +1,7 @@
 import os
 import numpy as np
 
-import RAiDER.delay as delay
+import RAiDER.delay
 import RAiDER.util
 from RAiDER.checkArgs import checkArgs
 
@@ -197,7 +197,7 @@ def main():
        print('Parallel is {}'.format(parallel))
 
     wetDelay, hydroDelay = \
-       delay.tropo_delay(time, los, lats, lons, heights, 
+       RAiDER.delay.tropo_delay(time, los, lats, lons, heights, 
                          weather_model, wmLoc, zref, out,
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)

@@ -606,3 +606,12 @@ def unpacking_apply_along_axis(tup):
     func1d, axis, arr, arg, kwarg = tup
     results = np.apply_along_axis(func1d, axis, arr, *arg, **kwarg)
     return results
+
+def read_hgt_file(filename):
+    '''
+    Read height data from a comma-delimited file
+    '''
+    import pandas as pd
+    data = pd.read_csv(filename)
+    hgts = data['DEM_hgt_m'].values
+    return hgts
