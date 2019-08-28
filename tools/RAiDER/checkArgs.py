@@ -10,8 +10,8 @@
 from datetime import datetime
 import os
 
-import RAiDER.llreader
-import RAiDER.models.allowed
+from RAiDER.llreader import readLL
+from RAiDER.models.allowed import AllowedModels
 import RAiDER.util
 
 
@@ -30,7 +30,7 @@ def checkArgs(args, p):
              (4) station file containing Lat and Lon columns')
     if args.time is None and args.wmnetcdf is None:
        p.error('You must specify either the weather model file (--wmnetcdf) or time (--time)')
-    if args.model not in RAiDER.models.allowed.AllowedModels():
+    if args.model not in AllowedModels():
        raise NotImplementedError('Model {} is not an implemented model type'.format(args.model))
     if args.model == 'WRF' and args.wrfmodelfiles is None:
        p.error('Argument --wrfmodelfiles required with --model WRF')
@@ -56,9 +56,9 @@ def checkArgs(args, p):
 
     # Area
     if args.area is not None:
-        lat, lon, latproj, lonproj = RAiDER.llreader.readLL(*args.area)
+        lat, lon, latproj, lonproj = readLL(*args.area)
     elif args.bounding_box is not None:
-        lat, lon, latproj, lonproj = RAiDER.llreader.readLL(*args.bounding_box)
+        lat, lon, latproj, lonproj = readLL(*args.bounding_box)
     elif args.station_file is not None:
         lat, lon, latproj, lonproj = RAiDER.llreader.readLL(args.station_file)
     else:

@@ -8,7 +8,7 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import numpy as np
-import RAiDER.util as util
+from RAiDER.util import parallel_apply_along_axis
 
 
 class Interpolator:
@@ -237,7 +237,7 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, pad = False):
     '''
     stackedData = np.concatenate([oldCoord, data, newCoord], axis = axis)
     try:
-       out = util.parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
+       out = parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
     except: 
        out = np.apply_along_axis(interpVector, axis=axis,arr=stackedData, Nx=oldCoord.shape[axis])
     

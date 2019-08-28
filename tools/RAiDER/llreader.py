@@ -9,8 +9,8 @@
 import numpy as np
 import os
 
-import RAiDER.demdownload
-import RAiDER.util
+from RAiDER.demdownload import download_dem
+from RAiDER.util import gdal_open
 
 def readLL(*args):
     '''
@@ -30,8 +30,8 @@ def readLL(*args):
     if flag=='files':
         # If they are files, open them
         lat, lon = args
-        lats, latproj = RAiDER.util.gdal_open(lat, returnProj = True)
-        lons, lonproj = RAiDER.util.gdal_open(lon, returnProj = True)
+        lats, latproj = gdal_open(lat, returnProj = True)
+        lons, lonproj = gdal_open(lon, returnProj = True)
     elif flag=='bounding_box':
         N,W,S,E = args
         lats = np.array([float(N), float(S)])
@@ -63,7 +63,7 @@ def getHeights(lats, lons,heights, demFlag = 'dem'):
 
     if height_type == 'dem':
       try:
-          hts = RAiDER.util.gdal_open(demFilename)
+          hts = gdal_open(demFilename)
       except:
           print('WARNING: File {} could not be opened. \n'.format(demFilename))
           print('Proceeding with DEM download')
@@ -85,12 +85,12 @@ def getHeights(lats, lons,heights, demFlag = 'dem'):
         data = pd.read_csv(demFilename)
         lats = data['Lat'].values
         lons = data['Lon'].values
-        hts = RAiDER.demdownload.download_dem(lats, lons, outName = demFilename, save_flag = 'merge')
+        hts = download_dem(lats, lons, outName = demFilename, save_flag = 'merge')
     else:
         height_type = 'download'
         
     if height_type == 'download':
-        hts = RAiDER.demdownload.download_dem(lats, lons, outName = os.path.abspath(demFilename))
+        hts = download_dem(lats, lons, outName = os.path.abspath(demFilename))
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 

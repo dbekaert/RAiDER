@@ -1,9 +1,7 @@
 import os
 import numpy as np
 
-import RAiDER.delay
 import RAiDER.util
-from RAiDER.checkArgs import checkArgs
 
 
 def read_date(s):
@@ -194,6 +192,8 @@ def main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     """
     raiderDelay main function.
     """
+    from RAiDER.delay import tropo_delay
+
     if verbose: 
        print('Starting to run the weather model calculation')
        print('Time type: {}'.format(type(time)))
@@ -201,7 +201,7 @@ def main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
        print('Parallel is {}'.format(parallel))
 
     wetDelay, hydroDelay = \
-       RAiDER.delay.tropo_delay(time, los, lats, lons, heights, 
+       tropo_delay(time, los, lats, lons, heights, 
                          weather_model, wmLoc, zref, out,
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)
@@ -216,6 +216,8 @@ def parseCMD():
     Parse command-line arguments and pass to main
     We'll parse arguments and call delay.py.
     """
+    from RAiDER.checkArgs import checkArgs
+
     args, p = parse_args()
 
     RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
