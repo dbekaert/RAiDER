@@ -10,19 +10,10 @@ import numpy as np
 import os
 import sys
 
-# local imports
-from RAiDER.constants import Zenith,_STEP
-import RAiDER.util
-import RAiDER.downloadWM
-import RAiDER.delayFcns
-import RAiDER.llreader
-import RAiDER.models.allowed
-import RAiDER.interpolator
-
 
 def _common_delay(weatherObj, lats, lons, heights, 
                   look_vecs, zref = None, useWeatherNodes = False,
-                  stepSize = _STEP, interpType = 'rgi',
+                  stepSize = None, interpType = 'rgi',
                   verbose = False, nproc = 8, useDask = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
@@ -49,6 +40,12 @@ def _common_delay(weatherObj, lats, lons, heights,
      delays     - A list containing the wet and hydrostatic delays for each ground point in 
                   meters. 
     """
+    import RAiDER.interpolator
+    from RAiDER.constants import Zenith,_STEP
+    import RAiDER.delayFcns
+    if stepSize is None:
+       stepSize = _STEP
+
     if verbose:
        import time as timing
 
@@ -211,6 +208,7 @@ def reprojectRays(rays, oldProj, newProj):
     Reproject rays into the weather model projection, then rearrange to 
     match the weather model ordering. Rays are assumed to be in ECEF.
     '''
+    import RAiDER.delayFcns
     newPts = [RAiDER.delayFcns._transform(ray, oldProj, newProj) for ray in rays]
     return newPts
 
@@ -233,7 +231,10 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     We do a little bit of preprocessing, then call
     _common_delay. 
     """
-    import RAiDER
+    import RAiDER.util
+    import RAiDER.models.allowed
+    import RAiDER.downloadWM
+    import RAiDER.llreader
 
     if verbose:
         print('type of time: {}'.format(type(time)))
