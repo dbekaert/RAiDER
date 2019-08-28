@@ -7,7 +7,7 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from RAiDER.runProgram import main
+from RAiDER.runProgram import parseCMD
 
 if __name__ == '__main__':
     parseCMD()

@@ -10,10 +10,12 @@ import numpy as np
 import os
 import sys
 
+from RAiDER.constants import Zenith,_STEP,_ZREF
+
 
 def _common_delay(weatherObj, lats, lons, heights, 
-                  look_vecs, zref = None, useWeatherNodes = False,
-                  stepSize = None, interpType = 'rgi',
+                  look_vecs, zref = _ZREF, useWeatherNodes = False,
+                  stepSize = _STEP, interpType = 'rgi',
                   verbose = False, nproc = 8, useDask = False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
@@ -40,11 +42,7 @@ def _common_delay(weatherObj, lats, lons, heights,
      delays     - A list containing the wet and hydrostatic delays for each ground point in 
                   meters. 
     """
-    import RAiDER.interpolator
-    from RAiDER.constants import Zenith,_STEP
     import RAiDER.delayFcns
-    if stepSize is None:
-       stepSize = _STEP
 
     if verbose:
        import time as timing
@@ -159,7 +157,9 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     '''
     Function to create and return an Interpolator object
     '''
-    ifFun = RAiDER.interpolator.Interpolator()
+    from RAiDER.interpolator import Interpolator
+
+    ifFun = Interpolator()
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
 
@@ -208,8 +208,8 @@ def reprojectRays(rays, oldProj, newProj):
     Reproject rays into the weather model projection, then rearrange to 
     match the weather model ordering. Rays are assumed to be in ECEF.
     '''
-    import RAiDER.delayFcns
-    newPts = [RAiDER.delayFcns._transform(ray, oldProj, newProj) for ray in rays]
+    from RAiDER.delayFcns import _transform
+    newPts = [_transform(ray, oldProj, newProj) for ray in rays]
     return newPts
 
 
@@ -231,10 +231,10 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     We do a little bit of preprocessing, then call
     _common_delay. 
     """
+    from RAiDER.models.allowed import checkIfImplemented
+    from RAiDER.downloadWM import downloadWMFile
+    from RAiDER.llreader import getHeights 
     import RAiDER.util
-    import RAiDER.models.allowed
-    import RAiDER.downloadWM
-    import RAiDER.llreader
 
     if verbose:
         print('type of time: {}'.format(type(time)))
@@ -254,11 +254,11 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     # Make weather
     weather_model, weather_files, weather_model_name = \
                weather['type'],weather['files'],weather['name']
-    RAiDER.models.allowed.checkIfImplemented(weather_model_name.upper().replace('-',''))
+    checkIfImplemented(weather_model_name.upper().replace('-',''))
 
     # check whether weather model files are supplied
     if weather_files is None:
-        download_flag, f = RAiDER.downloadWM.downloadWMFile(weather_model.Model(), time, wmFileLoc, verbose)
+        download_flag, f = downloadWMFile(weather_model.Model(), time, wmFileLoc, verbose)
     else:
         download_flag = False
 
@@ -312,7 +312,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     # Pull the DEM
     if verbose: 
         print('Beginning DEM calculation')
-    lats, lons, hgts = RAiDER.llreader.getHeights(lats, lons,heights)
+    lats, lons, hgts = getHeights(lats, lons,heights)
 
     # LOS check and load
     if verbose: 
@@ -390,4 +390,5 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     except:
         pass
 
+    import pdb; pdb.set_trace()
     return wet, hydro
