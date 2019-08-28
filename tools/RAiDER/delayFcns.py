@@ -66,7 +66,7 @@ def _compute_ray(L, S, V, stepSize):
     # Have to handle the case where there are invalid data
     # TODO: cythonize this? 
     try:
-        thisspace = np.arange(0, L, stepSize)
+        thisspace = np.arange(0, L+stepSize, stepSize)
     except ValueError:
         thisspace = np.array([])
     ray = S + thisspace[..., np.newaxis]*V
@@ -147,16 +147,18 @@ def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
     '''
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-        lengths = zref*np.ones(len(look_vecs))
-    else:
-        mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
-        lengths = _get_lengths(look_vecs)
-        lengths[mask] = np.nan
+
+    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+    lengths = _get_lengths(look_vecs)
+    lengths[mask] = np.nan
     return look_vecs, lengths
 
 
 def getUnitLVs(look_vecs, lengths):
-    return look_vecs / lengths[..., np.newaxis]
+    #TODO: implement unittest for this together with getLookVectorLength. Was
+    # allowing non-unit vectors to pass
+    slvs = look_vecs / lengths[..., np.newaxis]
+    return slvs
 
 
 def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, stepSize = _STEP, verbose = False):

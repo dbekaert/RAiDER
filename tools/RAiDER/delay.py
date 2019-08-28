@@ -77,18 +77,39 @@ def _common_delay(weatherObj, lats, lons, heights,
         hydro_delays = _integrateZenith(zs, hydro_pw)
         return wet_delays,hydro_delays
 
+    if verbose:
+        print('Beginning ray calculation')
+        print('ZREF = {}'.format(zref))
+        print('stepSize = {}'.format(stepSize))
+        print('# of rays = {}'.format(len(lats)))
+
     rays, ecef = RAiDER.delayFcns.calculate_rays(lats, lons, heights, look_vecs, 
                      zref = zref, stepSize = stepSize, verbose=verbose)
 
-    newProj = weatherObj.getProjection()
-    newPts = [RAiDER.delayFcns._transform(ray, ecef, newProj) for ray in rays]
-    rays = []
-    for pnt in newPts:
-       rays.append(np.array([pnt[:,1], pnt[:,0], pnt[:,2]]).T)
+    if verbose:
+        print('First ten points along first ray: {}'.format(rays[0][:10,:]))
+        print('First ten points along last ray: {}'.format(rays[-1][:10,:]))
+
+    wmProj = weatherObj.getProjection()
+    newRays = reprojectRays(rays, ecef, wmProj)
+    rays = orderForInterp(newRays)
+
+    if verbose:
+        print('Finished ray calculation')
+        print('First ten points along first ray: {}'.format(rays[0][:10,:]))
+        print('First ten points along last ray: {}'.format(rays[-1][:10,:]))
+        try:
+            print('NaN check: {}'.format(['PASSED' if np.sum(np.isnan(rays[0]))==0 else 'FAILED'][0]))
+        except:
+            print('Ray 1 has length 0')
 
     # Define the interpolator objects
     ifWet = getIntFcn(weatherObj,interpType =interpType)
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
+
+    if verbose:
+       print('Wet interpolator bounding box: {}'.format(ifWet._bbox))
+       print('Hydrostatic interpolator bounding box: {}'.format(ifHydro._bbox))
 
     if verbose:
         print('Beginning interpolation of each ray')
@@ -114,18 +135,25 @@ def _common_delay(weatherObj, lats, lons, heights,
             wet_pw.append(interpRay((ifWet, ray)))
             hydro_pw.append(interpRay((ifHydro, ray)))
             count = count+1
-        stepSize = ray[1,2] - ray[0,2]
-       
-  
+
     if verbose:
-        print('_common_delay: Finished interpolation')
         ft = timing.time()
+        print('_common_delay: Finished interpolation')
         print('Interpolation took {:4.2f} secs'.format(ft-st))
-        print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(newPts)))
+        print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(rays)))
         print('_common_delay: finished point-wise delay calculations')
+        print('First ten points along last ray: {}'.format(ray[:10,:]))
+        print('First ten points interpolated wet delay: {}'.format(wet_pw[-1][:10]))
+        print('First ten points interpolated hydrostatic delay: {}'.format(hydro_pw[-1][:10]))
+        print('New stepSize = {}'.format(stepSize))
 
     # intergrate the point-wise delays to get total slant delay
     delays = _integrateLOS(stepSize, wet_pw, hydro_pw)
+ 
+    if verbose:
+        print('Finished integration')
+        print('First ten wet delay estimates: {}'.format(delays[0][:10]))
+        print('First ten hydrostatic delay estimates: {}'.format(delays[1][:10]))
 
     return delays
 
@@ -176,6 +204,25 @@ def _integrate_delays(stepSize, refr):
 # integrate the delays to get overall delay
 def int_fcn(y, dx):
     return 1e-6*dx*np.nansum(y)
+
+
+def reprojectRays(rays, oldProj, newProj):
+    '''
+    Reproject rays into the weather model projection, then rearrange to 
+    match the weather model ordering. Rays are assumed to be in ECEF.
+    '''
+    newPts = [RAiDER.delayFcns._transform(ray, oldProj, newProj) for ray in rays]
+    return newPts
+
+
+def orderForInterp(inRays):
+    '''
+    re-order a set of rays to match the interpolator ordering
+    '''
+    rays = []
+    for pnt in inRays:
+        rays.append(np.array([pnt[:,1], pnt[:,0], pnt[:,2]]).T)
+    return rays
 
 
 def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 
