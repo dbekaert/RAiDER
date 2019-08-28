@@ -71,6 +71,7 @@ def checkArgs(args, p):
         lat = lon = None
 
     # Weather
+    weather_model_name = args.model.upper().replace('-','')
     model_module_name, model_obj = RAiDER.util.modelName2Module(args.model)
     if args.model == 'WRF':
        weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
@@ -101,7 +102,7 @@ def checkArgs(args, p):
         # copy the input file to the output location for editing
         import pandas as pd
         indf = pd.read_csv(args.station_file)
-        indf.to_csv(wetFilename)
+        indf.to_csv(wetFilename, index=False)
     else:
         wetFilename, hydroFilename = \
             RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)

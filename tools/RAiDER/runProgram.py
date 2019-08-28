@@ -171,7 +171,7 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
         df['totalDelay'] = wetDelay + hydroDelay
-        df.to_csv(wetFilename)
+        df.to_csv(wetFilename, index=False)
 
     elif flag=='netcdf':
         RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
