@@ -23,8 +23,9 @@ class FcnTests(unittest.TestCase):
 
     lats = np.array([15.0, 15.5, 16.0, 16.5, 17.5, -40, 60, 90])
     lons = np.array([-100.0, -100.4, -91.2, 45.0, 0., -100,-100, -100])
-    hgts = np.array([0, 1000, 10000, 0, 0, 0, 0, 0])
+    hgts = np.array([0., 1000., 10000., 0., 0., 0., 0., 0.])
     zref = 15000
+    
     zlvsTrue = np.array([[-2.51596889e+03, -1.42687686e+04,  3.88228568e+03],
        [-2.43535244e+03, -1.32691919e+04,  3.74133727e+03],
        [-1.00655730e+02, -4.80525438e+03,  1.37818678e+03],
@@ -36,7 +37,8 @@ class FcnTests(unittest.TestCase):
 
     vec1 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12]])
     vec2 = np.array([0, 0, 1])
-    rayTrue = np.stack([np.zeros(1000), np.zeros(1000), np.arange(0, 100, 0.1)], axis= 1)
+    rayTrue = np.stack([np.zeros(1001), np.zeros(1001), np.arange(0, 100.1, 0.1)], axis= 1)
+    trueLengths = zref - hgts
 
     testArr1 = np.array([[10, 9, 8], [9, 9, 9], [1, 1, 1], [0, 0, 0.1], [1, 1, 2], [0, 0, 1]])
     testSort = np.array([[0, 0, 0.1], [0, 0, 1],[1, 1, 1], [1, 1, 2],[9, 9, 9], [10, 9, 8]])
@@ -70,7 +72,7 @@ class FcnTests(unittest.TestCase):
         self.assertTrue(np.allclose(lv,np.array([0, 0, 1])))
     def test_getLookVectorLength(self):
         lvs, lengths = RAiDER.delayFcns.getLookVectorLength(Zenith, self.lats, self.lons, self.hgts, self.zref)
-        self.assertTrue(np.allclose(lengths, self.zref))
+        self.assertTrue(np.allclose(lengths, self.trueLengths))
         self.assertTrue(np.allclose(np.round(lvs, 4), self.zlvsTrue))
 
         
