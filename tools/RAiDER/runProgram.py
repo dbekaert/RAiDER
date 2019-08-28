@@ -151,24 +151,36 @@ def parse_args():
     return p.parse_args(), p
 
 
-def writeDelays(flag, wetDelay, hydroDelay, time, los, lats, lons,
-                out, outformat, weather_model_name, 
+def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                outformat, wetFilename, hydroFilename, 
                 proj = None, gt = None, ndv = 0.):
     '''
     Write the delay numpy arrays to files in the format specified
     '''
+
+    # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
-
-    wetFilename, hydroFilename = \
-        RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
-
+   
     # Do different things, depending on the type of input
     if flag=='station_file':
+        import pandas as pd
+        df = pd.read_csv(wetFilename)
+
+        # quick check for consistency
+        assert(np.all(np.abs(lats - df['Lat']) < 0.01))
+
+        df['wetDelay'] = wetDelay
+        df['hydroDelay'] = hydroDelay
+        df['totalDelay'] = wetDelay + hydroDelay
+        df.to_csv(wetFilename)
+
+    elif flag=='netcdf':
         RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
         RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
+
     else:
         RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
@@ -188,7 +200,8 @@ def main():
 
     # Argument checking
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
-         time, out, download_only, parallel, verbose = checkArgs(args, p)
+         time, out, download_only, parallel, verbose, \
+         wetFilename, hydroFilename = checkArgs(args, p)
 
     if verbose: 
        print('Starting to run the weather model calculation')
@@ -202,7 +215,6 @@ def main():
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)
 
-    writeDelays(flag, wetDelay, hydroDelay, time, los, lats, lons,
-                out, outformat, weather_model['name'],
-                proj = None, gt = None)
-
+    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                outformat, wetFilename, hydroFilename,
+                proj = None, gt = None, ndv = 0.)

@@ -17,7 +17,8 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
-def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, outName = 'warpedDEM.dem', ndv = 0.):
+def download_dem(lats, lons, outLoc = None, save_flag= 'new', checkDEM = True, 
+                  outName = 'warpedDEM.dem', ndv = 0.):
     '''
     Download a DEM if one is not already present. 
     '''
@@ -25,8 +26,8 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
 
     # Insert check for DEM noData values
     if checkDEM:
-        lats[lats==0.] = np.nan
-        lons[lons==0.] = np.nan
+        lats[lats==ndv] = np.nan
+        lons[lons==ndv] = np.nan
 
     minlon = np.nanmin(lons) - 0.02
     maxlon = np.nanmax(lons) + 0.02
@@ -89,18 +90,23 @@ def download_dem(lats, lons, outLoc = None, save_flag= True, checkDEM = True, ou
 
     print('Interpolation finished')
 
-    if save_flag:
+    if save_flag=='new':
         print('Saving DEM to disk')
         # Need to ensure that noData values are consistently handled and 
         # can be passed on to GDAL
-        outInterp[np.isnan(outInterp)] = gdalNDV
-        outInterp[outInterp < -10000] = gdalNDV
+        outInterp[np.isnan(outInterp)] = ndv
         if outInterp.ndim==2:
             RAiDER.util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
         elif outInterp.ndim==1:
-            RAiDER.util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = -9999)
+            RAiDER.util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = ndv)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
-        print('Finished saving DEM to disk')
+    elif save_flag=='merge':
+       import pandas as pd
+       df = pd.read_csv(outRasterName)
+       df['Hgt_m'] = outInterp
+       df.to_csv(outRasterName)
+    else:
+       pass
 
     return outInterp

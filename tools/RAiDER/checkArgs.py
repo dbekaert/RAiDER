@@ -20,6 +20,8 @@ def checkArgs(args, p):
     Helper fcn for checking argument compatibility and returns the
     correct variables
     '''
+
+    # Argument checking
     if args.heightlvs is not None and args.outformat != 'hdf5':
        raise ValueError('HDF5 must be used with height levels')
     if args.area is None and args.bounding_box is None and args.wmnetcdf is None and args.station_file is None:
@@ -33,7 +35,17 @@ def checkArgs(args, p):
     if args.model == 'WRF' and args.wrfmodelfiles is None:
        p.error('Argument --wrfmodelfiles required with --model WRF')
 
-    # Line of sight
+    # flag depending on the type of input
+    if args.area is not None:
+        flag = 'files'
+    elif args.bounding_box is not None:
+        flag = 'bounding_box'
+    elif args.station_file is not None:
+        flag = 'station_file'
+    else: 
+        flag = None
+
+    # Line of sight calc
     if args.lineofsight is not None:
         los = ('los', args.lineofsight)
     elif args.statevectors is not None:
@@ -57,6 +69,8 @@ def checkArgs(args, p):
         heights = ('dem', args.dem)
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
+    elif flag=='station_file':
+        heights = ('merge', args.station_file)
     else:
         heights = ('download', 'geom/warpedDEM.dem')
 
@@ -115,16 +129,15 @@ def checkArgs(args, p):
     download_only = args.download_only
     verbose = args.verbose
 
-    if args.area is not None:
-       flag = 'files'
-    elif args.bounding_box is not None:
-       flag = 'bounding_box'
-    elif args.station_file is not None:
-       flag = 'station_file'
-    else: 
-       flag = None
+    # output filenames
+    if flag == 'station_file':
+        wetFilename, hydroFilename = args.station_file, args.station_file
+    else:
+        wetFilename, hydroFilename = \
+            RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
 
-    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose
+
+    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose, wetFilename, hydroFilename
 
 
 def output_format(outformat):

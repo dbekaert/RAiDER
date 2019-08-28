@@ -63,16 +63,12 @@ def getHeights(lats, lons,heights, demFlag = 'dem'):
 
     if height_type == 'dem':
       try:
-        hts = RAiDER.util.gdal_open(demFilename)
-      except RuntimeError:
-        try:
-          import pandas as pd
-          data = pd.read_csv(demFilename)
-          hts = data['DEM_hgt_m'].values
-        except:
+          hts = RAiDER.util.gdal_open(demFilename)
+      except:
           print('WARNING: File {} could not be opened. \n'.format(demFilename))
           print('Proceeding with DEM download')
           height_type = 'download'
+
     elif height_type == 'lvs':
         hts = demFilename
         latlist, lonlist, hgtlist = [], [], []
@@ -83,9 +79,18 @@ def getHeights(lats, lons,heights, demFlag = 'dem'):
         lats = np.array(latlist)
         lons = np.array(lonlist)
         hts = np.array(hgtlist)
+
+    elif height_type == 'merge':
+        import pandas as pd
+        data = pd.read_csv(demFilename)
+        lats = data['Lat'].values
+        lons = data['Lon'].values
+        hts = RAiDER.demdownload.download_dem(lats, lons, outName = demFilename, save_flag = 'merge')
+    else:
+        height_type = 'download'
         
     if height_type == 'download':
-        hts = RAiDER.demdownload.download_dem(lats, lons, outName = demFilename)
+        hts = RAiDER.demdownload.download_dem(lats, lons, outName = os.path.abspath(demFilename))
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 

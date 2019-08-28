@@ -237,7 +237,7 @@ def writeArrayToFile(lats, lons, array, filename, noDataValue = -9999):
     '''
     array[np.isnan(array)] = noDataValue
     with open(filename, 'w') as f:
-       f.write('Lat,Lon,DEM_hgt_m\n')
+       f.write('Lat,Lon,Hgt_m\n')
        for l, L, a in zip(lats, lons, array):
            f.write('{},{},{}\n'.format(l, L, a))
     
@@ -613,5 +613,5 @@ def read_hgt_file(filename):
     '''
     import pandas as pd
     data = pd.read_csv(filename)
-    hgts = data['DEM_hgt_m'].values
+    hgts = data['Hgt_m'].values
     return hgts
