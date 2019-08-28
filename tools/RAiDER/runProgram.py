@@ -188,21 +188,12 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                        fmt = outformat, proj = proj, gt = gt)
 
 
-def main():
-    """tropo_delay main function.
-
-    We'll parse arguments and call delay.py.
+def main(los, lats, lons, heights, flag, weather_model, wmLoc, zref, 
+         outformat, time, out, download_only, parallel, verbose, 
+         wetFilename, hydroFilename):
     """
-    args, p = parse_args()
-
-    RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
-    RAiDER.util.mkdir(os.path.join(args.out, 'weather_files'))
-
-    # Argument checking
-    los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
-         time, out, download_only, parallel, verbose, \
-         wetFilename, hydroFilename = checkArgs(args, p)
-
+    raiderDelay main function.
+    """
     if verbose: 
        print('Starting to run the weather model calculation')
        print('Time type: {}'.format(type(time)))
@@ -218,3 +209,23 @@ def main():
     writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                 outformat, wetFilename, hydroFilename,
                 proj = None, gt = None, ndv = 0.)
+
+
+def parseCMD():
+    """
+    Parse command-line arguments and pass to main
+    We'll parse arguments and call delay.py.
+    """
+    args, p = parse_args()
+
+    RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
+    RAiDER.util.mkdir(os.path.join(args.out, 'weather_files'))
+
+    # Argument checking
+    los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
+         time, out, download_only, parallel, verbose, \
+         wetFilename, hydroFilename = checkArgs(args, p)
+
+    main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
+         outformat, time, out, download_only, parallel, verbose,
+         wetFilename, hydroFilename)
