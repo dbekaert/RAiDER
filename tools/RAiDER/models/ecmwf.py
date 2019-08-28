@@ -1,9 +1,10 @@
-import datetime 
+import datetime
 import numpy as np
 import pyproj
 
 import RAiDER.util as util
 from RAiDER.models.weatherModel import WeatherModel
+
 
 class ECMWF(WeatherModel):
     '''
@@ -14,13 +15,12 @@ class ECMWF(WeatherModel):
         WeatherModel.__init__(self)
 
         # model constants
-        self._k1 = 0.776  # [K/Pa]
-        self._k2 = 0.233 # [K/Pa]
-        self._k3 = 3.75e3 # [K^2/Pa]
+        self._k1 = 0.776   # [K/Pa]
+        self._k2 = 0.233   # [K/Pa]
+        self._k3 = 3.75e3  # [K^2/Pa]
 
         self._lon_res = 0.2
         self._lat_res = 0.2
-
 
     def load_weather(self, filename):
         '''
@@ -99,8 +99,6 @@ class ECMWF(WeatherModel):
         self._q = np.flip(self._q, axis = 2)
         self._zs = np.flip(self._zs, axis = 2)
 
-
-
     def fetch(self, lats, lons, time, out, Nextra = 2):
         '''
         Fetch a weather model from ECMWF
@@ -112,7 +110,6 @@ class ECMWF(WeatherModel):
         self._get_from_ecmwf(
                 lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
                 out)
-
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                        lon_step, time, out):
@@ -152,7 +149,6 @@ class ECMWF(WeatherModel):
             "target": out,    # target: the name of the output file.
         })
 
-
     def _get_from_cds(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                        lon_step, acqTime, outname):
         import cdsapi
@@ -163,7 +159,6 @@ class ECMWF(WeatherModel):
         c = cdsapi.Client(verify=0)
         #corrected_date = util.round_date(time, datetime.timedelta(hours=6))
         if self._model_level_type == 'pl':
-#            var = ['q','z','t']
             var = ['geopotential','relative_humidity','specific_humidity','temperature']
             levels = 'all'
             levType = 'pressure_level'
@@ -176,9 +171,9 @@ class ECMWF(WeatherModel):
 
        
         dataDict = {
-            #"class": self._classname, 
-            #'dataset': self._dataset,
-            #"expver": "{}".format(self._expver),
+            # 'class': self._classname, 
+            # 'dataset': self._dataset,
+            # "expver": "{}".format(self._expver),
             "product_type": "reanalysis",
             "{}".format(levType):levels,
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
@@ -197,5 +192,3 @@ class ECMWF(WeatherModel):
         print(dataDict)
 
         c.retrieve('reanalysis-era5-pressure-levels',dataDict,outname)
-
-

@@ -1,17 +1,33 @@
 #!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
-# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
-# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
-# RESERVED. United States Government Sponsorship acknowledged.
-#
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 
+#  Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+#  Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+#  RESERVED. United States Government Sponsorship acknowledged.
+# 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import numpy as np
 import os.path
 import shelve
 import RAiDER.util as util
 
+
+class ProductManager(Configurable):
+    '''
+    TODO: docstring
+    '''
+    family = 'productmanager'
+    def __init__(self,family='', name=''):
+        super(ProductManager, self).__init__(family if family else  self.__class__.family, name=name)
+        
+    def dumpProduct(self,obj,filename):
+        self._instance = obj
+        self.dump(filename)
+        
+    def loadProduct(self,filename):
+        self.load(filename)
+        return self._instance
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
@@ -58,9 +74,9 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
 
 def read_shelve(filename):
-    import isce
-    import iscesys.Component.ProductManager
-
+    '''
+    TODO: docstring
+    '''
     with shelve.open(filename, 'r') as db:
         obj = db['frame']
 
@@ -115,10 +131,8 @@ def read_txt_file(filename):
 
 
 def read_xml_file(filename):
-    import isce
-    import iscesys.Component.ProductManager
 
-    pm = iscesys.Component.ProductManager.ProductManager()
+    pm = ProductManager()
     pm.configure()
 
     obj = pm.loadProduct(filename)
@@ -161,6 +175,7 @@ def infer_sv(los_file, lats, lons, heights):
     LOSs = state_to_los(*svs, lats = lats, lons = lons, heights = heights)
     return LOSs
 
+
 def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     # I'm looking at http://earthdef.caltech.edu/boards/4/topics/327
     a_0 = incidence
@@ -183,8 +198,7 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
             east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
             lons.flatten(), heights.flatten())
 
-    los = (np.stack((x, y, z), axis=-1)
-           - np.stack(util.lla2ecef(
+    los = (np.stack((x, y, z), axis=-1) - np.stack(util.lla2ecef(
                lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
     los = los.reshape(east.shape + (3,))
 

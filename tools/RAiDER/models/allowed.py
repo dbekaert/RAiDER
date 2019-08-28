@@ -23,4 +23,3 @@ def checkIfImplemented(modelName):
     if modelName not in allowedWMTypes:
         raise RuntimeError('Weather model {} not allowed/implemented'.format(modelName))
 
-

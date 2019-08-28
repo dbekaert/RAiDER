@@ -1,33 +1,15 @@
 #!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-"""
-Calculated rays from the ground to the top of the atmosphere
-(or more precisely, to a reference height zref). 
-
-Currently we take samples every _STEP meters.
-"""
-
-# standard imports
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
-import os
 import pyproj
 
-# local imports
-import RAiDER.constants as const
-from RAiDER.constants import Zenith
-import RAiDER.util as util
-
-# Step in meters to use when integrating
-_STEP = const._STEP
-# Default top of the atmosphere
-_ZREF = const._ZMAX
+from RAiDER.constants import Zenith, _ZREF, _STEP
 
 
 def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
@@ -42,10 +24,10 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                            The vectors give the zenith ray paths for 
                            each of the points to the top of the atmosphere. 
     '''
-    zenLookVecs = (np.array((util.cosd(lats)*util.cosd(lons),
-                              util.cosd(lats)*util.sind(lons),
-                              util.sind(lats))).T
-                    * (zref - heights)[..., np.newaxis])
+    e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
+    n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
+    u = np.sin(np.radians(lats))
+    zenLookVecs = (np.array((e,n,u)).T*(zref - heights)[..., np.newaxis])
     return zenLookVecs
 
 
@@ -84,7 +66,7 @@ def _compute_ray(L, S, V, stepSize):
     # Have to handle the case where there are invalid data
     # TODO: cythonize this? 
     try:
-        thisspace = np.arange(0, L, stepSize)
+        thisspace = np.arange(0, L+stepSize, stepSize)
     except ValueError:
         thisspace = np.array([])
     ray = S + thisspace[..., np.newaxis]*V
@@ -165,16 +147,18 @@ def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
     '''
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-        lengths = zref*np.ones(len(look_vecs))
-    else:
-        mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
-        lengths = _get_lengths(look_vecs)
-        lengths[mask] = np.nan
+
+    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+    lengths = _get_lengths(look_vecs)
+    lengths[mask] = np.nan
     return look_vecs, lengths
 
 
 def getUnitLVs(look_vecs, lengths):
-    return look_vecs / lengths[..., np.newaxis]
+    #TODO: implement unittest for this together with getLookVectorLength. Was
+    # allowing non-unit vectors to pass
+    slvs = look_vecs / lengths[..., np.newaxis]
+    return slvs
 
 
 def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, stepSize = _STEP, verbose = False):

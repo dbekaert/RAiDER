@@ -1,10 +1,7 @@
 import os
 import numpy as np
 
-import RAiDER.delay as delay
 import RAiDER.util
-from RAiDER.checkArgs import checkArgs
-import RAiDER.llreader as llr
 
 
 def read_date(s):
@@ -152,44 +149,50 @@ def parse_args():
     return p.parse_args(), p
 
 
-def writeDelays(flag, wetDelay, hydroDelay, time, los, lats, lons,
-                out, outformat, weather_model_name, 
+def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                outformat, wetFilename, hydroFilename, 
                 proj = None, gt = None, ndv = 0.):
     '''
-    Write the delay numpy arrays to files in the format specified 
+    Write the delay numpy arrays to files in the format specified
     '''
+
+    # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
-
-    wetFilename, hydroFilename = \
-       RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
-
+   
     # Do different things, depending on the type of input
     if flag=='station_file':
-       RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv, 
+        import pandas as pd
+        df = pd.read_csv(wetFilename)
+
+        # quick check for consistency
+        assert(np.all(np.abs(lats - df['Lat']) < 0.01))
+
+        df['wetDelay'] = wetDelay
+        df['hydroDelay'] = hydroDelay
+        df['totalDelay'] = wetDelay + hydroDelay
+        df.to_csv(wetFilename)
+
+    elif flag=='netcdf':
+        RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
-       RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv, 
+        RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
+
     else:
-       RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv, 
+        RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
-       RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv, 
+        RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
 
 
-def main():
-    """tropo_delay main function.
-
-    We'll parse arguments and call delay.py.
+def main(los, lats, lons, heights, flag, weather_model, wmLoc, zref, 
+         outformat, time, out, download_only, parallel, verbose, 
+         wetFilename, hydroFilename):
     """
-    args, p = parse_args()
-
-    RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
-    RAiDER.util.mkdir(os.path.join(args.out, 'weather_files'))
-
-    # Argument checking
-    los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
-         time, out, download_only, parallel, verbose = checkArgs(args, p)
+    raiderDelay main function.
+    """
+    from RAiDER.delay import tropo_delay
 
     if verbose: 
        print('Starting to run the weather model calculation')
@@ -198,12 +201,33 @@ def main():
        print('Parallel is {}'.format(parallel))
 
     wetDelay, hydroDelay = \
-       delay.tropo_delay(time, los, lats, lons, heights, 
+       tropo_delay(time, los, lats, lons, heights, 
                          weather_model, wmLoc, zref, out,
                          parallel=parallel, verbose = verbose, 
                          download_only = download_only)
 
-    writeDelays(flag, wetDelay, hydroDelay, time, los, lats, lons,
-                out, outformat, weather_model['name'],
-                proj = None, gt = None)
+    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                outformat, wetFilename, hydroFilename,
+                proj = None, gt = None, ndv = 0.)
 
+
+def parseCMD():
+    """
+    Parse command-line arguments and pass to main
+    We'll parse arguments and call delay.py.
+    """
+    from RAiDER.checkArgs import checkArgs
+
+    args, p = parse_args()
+
+    RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
+    RAiDER.util.mkdir(os.path.join(args.out, 'weather_files'))
+
+    # Argument checking
+    los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
+         time, out, download_only, parallel, verbose, \
+         wetFilename, hydroFilename = checkArgs(args, p)
+
+    main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
+         outformat, time, out, download_only, parallel, verbose,
+         wetFilename, hydroFilename)

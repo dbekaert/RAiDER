@@ -1,9 +1,9 @@
-import datetime 
+import datetime
 import numpy as np
 import pyproj
 
-import RAiDER.util as util
 from RAiDER.models.ecmwf import ECMWF
+
 
 class ERA5(ECMWF):
     # I took this from
@@ -159,4 +159,3 @@ class ERA5(ECMWF):
         self._t = np.flip(self._t, axis = 2)
         self._q = np.flip(self._q, axis = 2)
         self._rh = np.flip(self._rh, axis = 2)
-

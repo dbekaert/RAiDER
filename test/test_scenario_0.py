@@ -45,7 +45,7 @@ class TimeTests(unittest.TestCase):
     # get the data for the scenario
     if flag == 'station_file':
        filename = os.path.join(basedir, 'station_file.txt')
-       [lats, lons] = RAiDER.llreader.readLL(filename)
+       [lats, lons, latproj, lonproj] = RAiDER.llreader.readLL(filename)
     else:
        latfile = os.path.join(basedir, 'lat.rdr')
        lonfile = os.path.join(basedir,'lon.rdr')

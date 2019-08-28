@@ -1,25 +1,27 @@
 #!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
-#
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-import numpy as np
+from datetime import datetime
 import os
-from RAiDER.util import gdal_trans
+
 from RAiDER.llreader import readLL
+from RAiDER.models.allowed import AllowedModels
+import RAiDER.util
+
 
 def checkArgs(args, p):
     '''
-    Helper fcn for checking argument compatibility and returns the 
+    Helper fcn for checking argument compatibility and returns the
     correct variables
     '''
-    from datetime import datetime as dt
-    import RAiDER.models.allowed as am
 
+    # Argument checking
     if args.heightlvs is not None and args.outformat != 'hdf5':
        raise ValueError('HDF5 must be used with height levels')
     if args.area is None and args.bounding_box is None and args.wmnetcdf is None and args.station_file is None:
@@ -28,13 +30,22 @@ def checkArgs(args, p):
              (4) station file containing Lat and Lon columns')
     if args.time is None and args.wmnetcdf is None:
        p.error('You must specify either the weather model file (--wmnetcdf) or time (--time)')
-    if args.model not in am.AllowedModels():
+    if args.model not in AllowedModels():
        raise NotImplementedError('Model {} is not an implemented model type'.format(args.model))
     if args.model == 'WRF' and args.wrfmodelfiles is None:
        p.error('Argument --wrfmodelfiles required with --model WRF')
 
+    # flag depending on the type of input
+    if args.area is not None:
+        flag = 'files'
+    elif args.bounding_box is not None:
+        flag = 'bounding_box'
+    elif args.station_file is not None:
+        flag = 'station_file'
+    else: 
+        flag = None
 
-    # Line of sight
+    # Line of sight calc
     if args.lineofsight is not None:
         los = ('los', args.lineofsight)
     elif args.statevectors is not None:
@@ -45,30 +56,21 @@ def checkArgs(args, p):
 
     # Area
     if args.area is not None:
-        lat, lon = readLL(*args.area)
+        lat, lon, latproj, lonproj = readLL(*args.area)
     elif args.bounding_box is not None:
-        lat, lon = readLL(*args.bounding_box)
+        lat, lon, latproj, lonproj = readLL(*args.bounding_box)
     elif args.station_file is not None:
-        lat, lon = readLL(args.station_file)
+        lat, lon, latproj, lonproj = RAiDER.llreader.readLL(args.station_file)
     else:
         lat = lon = None
-
-    # write the lats/lons to a local file
-    lonFileName = '{}_Lon_{}.dat'.format(args.model.lower().replace('-',''), 
-                      dt.strftime(args.time, '%Y_%m_%d_T%H_%M_%S'))
-    latFileName = '{}_Lat_{}.dat'.format(args.model.lower().replace('-',''), 
-                      dt.strftime(args.time, '%Y_%m_%d_T%H_%M_%S'))
-
-    #TODO
-    #gdal_trans(lat, os.path.join(args.out, 'geom', latFileName), 'VRT')
-    #gdal_trans(lon, os.path.join(args.out, 'geom', lonFileName), 'VRT')
-
 
     # DEM
     if args.dem is not None:
         heights = ('dem', args.dem)
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
+    elif flag=='station_file':
+        heights = ('merge', args.station_file)
     else:
         heights = ('download', 'geom/warpedDEM.dem')
 
@@ -78,7 +80,6 @@ def checkArgs(args, p):
        weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
                    'name': 'wrf'}
     elif args.model=='pickle':
-        import pickle
         weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
     elif args.wmnetcdf is not None:
         weathers = {'type': model_obj(), 'files': args.wmnetcdf,
@@ -103,7 +104,6 @@ def checkArgs(args, p):
           args.outformat = 'netcdf'
        else:
           args.outformat = 'ENVI'
-   
 
     if args.heightlvs is not None: 
        if args.outformat.lower() != 'hdf5':
@@ -129,16 +129,15 @@ def checkArgs(args, p):
     download_only = args.download_only
     verbose = args.verbose
 
-    if args.area is not None:
-       flag = 'files'
-    elif args.bounding_box is not None:
-       flag = 'bounding_box'
-    elif args.station_file is not None:
-       flag = 'station_file'
-    else: 
-       flag = None
+    # output filenames
+    if flag == 'station_file':
+        wetFilename, hydroFilename = args.station_file, args.station_file
+    else:
+        wetFilename, hydroFilename = \
+            RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
 
-    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose
+
+    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose, wetFilename, hydroFilename
 
 
 def output_format(outformat):
@@ -158,6 +157,5 @@ def output_format(outformat):
     try:
         outformat = outformat_dict[outformat]
     except:
-        raise NotImplemented
+        raise NotImplementedError
     return outformat
-
