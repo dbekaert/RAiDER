@@ -390,5 +390,4 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     except:
         pass
 
-    import pdb; pdb.set_trace()
     return wet, hydro
