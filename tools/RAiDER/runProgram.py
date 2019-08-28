@@ -220,9 +220,6 @@ def parseCMD():
 
     args, p = parse_args()
 
-    RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
-    RAiDER.util.mkdir(os.path.join(args.out, 'weather_files'))
-
     # Argument checking
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
          time, out, download_only, parallel, verbose, \
