@@ -45,6 +45,12 @@ def checkArgs(args, p):
     else: 
         flag = None
 
+    # other
+    time = args.time
+    out = args.out
+    download_only = args.download_only
+    verbose = args.verbose
+
     # Line of sight calc
     if args.lineofsight is not None:
         los = ('los', args.lineofsight)
@@ -64,16 +70,6 @@ def checkArgs(args, p):
     else:
         lat = lon = None
 
-    # DEM
-    if args.dem is not None:
-        heights = ('dem', args.dem)
-    elif args.heightlvs is not None:
-        heights = ('lvs', args.heightlvs)
-    elif flag=='station_file':
-        heights = ('merge', args.station_file)
-    else:
-        heights = ('download', 'geom/warpedDEM.dem')
-
     # Weather
     model_module_name, model_obj = RAiDER.util.modelName2Module(args.model)
     if args.model == 'WRF':
@@ -88,14 +84,6 @@ def checkArgs(args, p):
         weathers = {'type': model_obj(), 'files': None,
                     'name': args.model}
 
-    if args.wmLoc is not None:
-       wmLoc = args.wmLoc
-    else:
-       wmLoc = os.path.join(args.out, 'weather_files')
-
-    # zref
-    zref = args.zref
-    
     # output file format
     if args.outformat is None:
        if args.heightlvs is not None: 
@@ -105,6 +93,37 @@ def checkArgs(args, p):
        else:
           args.outformat = 'ENVI'
 
+    # output filenames
+    if flag == 'station_file':
+        wetFilename = os.path.join(out, '{}_Delay_{}.csv'.format(weather_model_name, time.strftime('%Y%m%dT%H%M%S')))
+        hydroFilename = wetFilename
+
+        # copy the input file to the output location for editing
+        import pandas as pd
+        indf = pd.read_csv(args.station_file)
+        indf.to_csv(wetFilename)
+    else:
+        wetFilename, hydroFilename = \
+            RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
+
+    # DEM
+    if args.dem is not None:
+        heights = ('dem', args.dem)
+    elif args.heightlvs is not None:
+        heights = ('lvs', args.heightlvs)
+    elif flag=='station_file':
+        heights = ('merge', wetFilename)
+    else:
+        heights = ('download', 'geom/warpedDEM.dem')
+
+    if args.wmLoc is not None:
+       wmLoc = args.wmLoc
+    else:
+       wmLoc = os.path.join(args.out, 'weather_files')
+
+    # zref
+    zref = args.zref
+    
     if args.heightlvs is not None: 
        if args.outformat.lower() != 'hdf5':
           print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
@@ -122,20 +141,6 @@ def checkArgs(args, p):
 
     # parallelization
     parallel = True if not args.no_parallel else False
-
-    # other
-    time = args.time
-    out = args.out
-    download_only = args.download_only
-    verbose = args.verbose
-
-    # output filenames
-    if flag == 'station_file':
-        wetFilename, hydroFilename = args.station_file, args.station_file
-    else:
-        wetFilename, hydroFilename = \
-            RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
-
 
     return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose, wetFilename, hydroFilename
 
