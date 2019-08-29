@@ -24,6 +24,7 @@ dependencies:
  - libgdal
  - matplotlib
  - numpy
+ - pandas
  - pygrib
  - pyproj=1.9.6|>=2.1.0
  - scipy
