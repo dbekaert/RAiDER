@@ -17,8 +17,8 @@ ImportError: libtiledb.so.1.6.0: cannot open shared object file: No such file or
 or
 ***cmake: /u/kriek1/maurer/software/anaconda3/envs/RAiDER/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.20' not found (required by cmake)***
 try running the following commands within your RAiDER conda environment:
-conda update --force-install libstdcxx-ng
-conda update --force-install gdal libgdal
+conda update --force-reinstall libstdcxx-ng
+conda update --force-reinstall gdal libgdal
 '''
 import numpy as np
 import os
