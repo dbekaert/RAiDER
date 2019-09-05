@@ -11,8 +11,8 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 
 1. [Software Dependencies](#software-dependencies)
 2. [Installation](#installation)
-3. [Running RAiDER](#running-raider)
 - [Common Issues](#problems)
+3. [Running RAiDER](#running-raider)
 4. [Documentation](#documentation)
 5. [Citation](#citation)
 6. [Contributors and community contributions](#contributors)
