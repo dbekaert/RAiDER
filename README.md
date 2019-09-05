@@ -12,7 +12,7 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 1. [Software Dependencies](#software-dependencies)
 2. [Installation](#installation)
 3. [Running RAiDER](#running-raider)
-- [dummy](#dummy)
+- [Common Issues](#problems)
 4. [Documentation](#documentation)
 5. [Citation](#citation)
 6. [Contributors and community contributions](#contributors)
@@ -80,8 +80,26 @@ The following pages might be of use to those trying to build third party package
 
 The RAiDER scripts are highly modulized in Python and therefore allows for building your own processing workflow. Below, we show how to call some of the functionality. For detailed documentation, examples, and Jupyter notebooks see the [RAiDER-docs repository](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER-docs). We welcome contributions of other examples on how to leverage the RAiDER  (see [here](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/blob/master/CONTRIBUTING.md) for instructions).
 
-### dummy
-EXAMPLE TODO
+### Common Issues 
+
+This package uses GDAL and g++, both of which can be tricky to set up correctly.
+GDAL in particular will often break after installing a new program
+If you receive error messages such as the following: 
+
+ImportError: ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/../../../libstdc++.so.6: version `CXXABI_1.3.9' not found (required by ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/ft2font.cpython-37m-x86_64-linux-gnu.so)
+
+or
+
+ImportError: libtiledb.so.1.6.0: cannot open shared object file: No such file or directory
+
+or
+
+***cmake: ~/anaconda3/envs/RAiDER/bin/../lib/libstdc++.so.6: version `GLIBCXX_3.4.20' not found (required by cmake)***
+
+try running the following commands within your RAiDER conda environment:
+conda update --force-reinstall libstdcxx-ng
+conda update --force-reinstall gdal libgdal
+
 
 
 ------
@@ -102,6 +120,4 @@ TODO
 * [_other community members_](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/graphs/contributors)
 
 We welcome community contributions. For instructions see [here](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/blob/master/CONTRIBUTING.md).
-
-
 

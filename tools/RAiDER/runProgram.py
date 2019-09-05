@@ -171,7 +171,7 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
         df['totalDelay'] = wetDelay + hydroDelay
-        df.to_csv(wetFilename)
+        df.to_csv(wetFilename, index=False)
 
     elif flag=='netcdf':
         RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
@@ -219,9 +219,6 @@ def parseCMD():
     from RAiDER.checkArgs import checkArgs
 
     args, p = parse_args()
-
-    RAiDER.util.mkdir(os.path.join(args.out, 'geom'))
-    RAiDER.util.mkdir(os.path.join(args.out, 'weather_files'))
 
     # Argument checking
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
