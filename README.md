@@ -11,8 +11,9 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 
 1. [Software Dependencies](#software-dependencies)
 2. [Installation](#installation)
-3. [Running RAiDER](#running-raider)
+- [Other installation options](#installopts)
 - [Common Issues](#problems)
+3. [Running RAiDER](#running-raider)
 4. [Documentation](#documentation)
 5. [Citation](#citation)
 6. [Contributors and community contributions](#contributors)
@@ -62,7 +63,8 @@ conda activate RAiDER
 
 We have included a setup.py script which allows for easy compilation and installation of dependencies (c-code), as well as setting up the RAiDER package itself (python and command line tools).
 ```
-CC=gcc CXX=g++ python setup.py install
+python setup.py build
+python setup.py install
 ```
 
 If not using the setup.py, users should ensure RAiDER and dependencies are included on their PATH and PYTHONPATH, and the Geometry module is compiled such it can be imported as Raider.Geo2rdr. For c-shell this can be done as follows (replace "RAiDERREPO" to the location where you have cloned the RAiDER repository):
@@ -74,11 +76,6 @@ set PATH $PATH:'/RAiDERREPO/tools/bin'
 
 ### Other installation options
 The following pages might be of use to those trying to build third party packages from source.
-
-------
-## Running RAiDER
-
-The RAiDER scripts are highly modulized in Python and therefore allows for building your own processing workflow. Below, we show how to call some of the functionality. For detailed documentation, examples, and Jupyter notebooks see the [RAiDER-docs repository](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER-docs). We welcome contributions of other examples on how to leverage the RAiDER  (see [here](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/blob/master/CONTRIBUTING.md) for instructions).
 
 ### Common Issues 
 
@@ -99,6 +96,12 @@ or
 try running the following commands within your RAiDER conda environment:
 conda update --force-reinstall libstdcxx-ng
 conda update --force-reinstall gdal libgdal
+
+
+------
+## Running RAiDER
+
+The RAiDER scripts are highly modulized in Python and therefore allows for building your own processing workflow. Below, we show how to call some of the functionality. For detailed documentation, examples, and Jupyter notebooks see the [RAiDER-docs repository](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER-docs). We welcome contributions of other examples on how to leverage the RAiDER  (see [here](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/blob/master/CONTRIBUTING.md) for instructions).
 
 
 
