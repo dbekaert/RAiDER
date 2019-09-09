@@ -133,7 +133,7 @@ def parse_args():
         '--zref', '-z',
         help=('Height limit when integrating (meters) '
               '(default: %(default)s)'),
-        type=int, default=consts._ZREF)
+        type=int, default=_ZREF)
 
     p.add_argument(
         '--outformat', help='Output file format; GDAL-compatible for DEM, HDF5 for height levels',
