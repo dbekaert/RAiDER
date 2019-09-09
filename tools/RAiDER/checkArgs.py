@@ -94,9 +94,12 @@ def checkArgs(args, p):
        else:
           args.outformat = 'ENVI'
 
+    # zref
+    zref = args.zref
+
     # output filenames
     if flag == 'station_file':
-        wetFilename = os.path.join(out, '{}_Delay_{}.csv'.format(weather_model_name, time.strftime('%Y%m%dT%H%M%S')))
+        wetFilename = os.path.join(out, '{}_Delay_{}_Zmax{}.csv'.format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
         hydroFilename = wetFilename
 
         # copy the input file to the output location for editing
@@ -122,9 +125,6 @@ def checkArgs(args, p):
     else:
        wmLoc = os.path.join(args.out, 'weather_files')
 
-    # zref
-    zref = args.zref
-    
     if args.heightlvs is not None: 
        if args.outformat.lower() != 'hdf5':
           print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
