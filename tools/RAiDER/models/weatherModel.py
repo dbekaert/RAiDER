@@ -93,6 +93,13 @@ class WeatherModel():
         string += 'B: {}\n'.format(self._b)
         return str(string)
 
+    def plot(self, index):
+        import matplotlib.pyplot as plt
+        plt.plot(self._p[index, index, :], self._zs[index, index, :])
+        plt.xlabel('Pressure')
+        plt.ylabel('Z')
+        plt.show()
+
     def Model(self):
         return self._Name
     def ModelObj(self):
@@ -123,14 +130,16 @@ class WeatherModel():
         '''
         pass
 
-    def plot(self, plotType = 'wh', savefig = False):
+    def plot(self, plotType = 'pqt', savefig = True):
         '''
         Plotting method. Valid plot types are 'pqt'
         '''
         if plotType=='pqt':
             plot = plots.plot_pqt(self, savefig)
+            plot.show()
         elif plotType=='wh':
             plot = plots.plot_wh(self, savefig)
+            plot.show()
         else:
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         return plot

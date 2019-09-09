@@ -155,6 +155,7 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
     '''
     Write the delay numpy arrays to files in the format specified
     '''
+
     # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv

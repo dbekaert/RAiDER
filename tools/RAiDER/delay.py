@@ -293,10 +293,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     if verbose:
         print('Weather Model Name: {}'.format(weather_model.Model()))
         print(weather_model)
-        p = weather_model.plot('wh')
-        p.show()
-        p = weather_model.plot('pqt')
-        p.show()
+        #p = weather.plot(p)
 
     # Pull the lat/lon data if using the weather model 
     if lats is None or len(lats)==2:
