@@ -229,25 +229,6 @@ class WeatherModel():
             self._wet_refractivity=util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity=util.padLower(self._hydrostatic_refractivity)
 
-        # Now remove any model level fully above zmax
-#        max_level_needed = util.getMaxModelLevel(self._zs, self._zmax, 'g') 
-#        levInd = range(0,max_level_needed + 1)
-        
-
-#        if self._humidityType == 'q':
-#            self._q = self._q[...,levInd]
-#        else:
-#            self._rh = self._rh[...,levInd]
-#
-#        self._zs = self._zs[...,levInd]
-#        self._xs = self._xs[...,levInd]
-#        self._ys = self._ys[...,levInd]
-#        self._p = self._p[...,levInd]
-#        self._t = self._t[...,levInd]
-#        self._e = self._e[...,levInd]
-#        self._wet_refractivity = self._wet_refractivity[...,levInd]
-#        self._hydrostatic_refractivity=self._hydrostatic_refractivity[...,levInd]
-
         if lats is not None:
             in_extent = self._getExtent(lats, lons)
             self_extent = self._getExtent(self._ys, self._xs)
