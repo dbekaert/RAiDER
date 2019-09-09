@@ -31,20 +31,9 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     p1, e1, t1 = intFcn(pts1)
     p2, e2, t2 = intFcn(pts2)
 
-    # uncomment for debugging
-    #print(p1)
-    #print(p2)
-
     # Now get the data to plot
     plots = [p1/1e2, e1/1e2, t1 - 273.15, p2/1e2, e2/1e2, t2 - 273.15]
-
-    # titles
-    titles = ('P (hPa)', 
-              'E (hPa)'.format(z1), 
-              'T (C)', 
-              '', 
-              '',
-              '')
+    titles = ('P (hPa)', 'E (hPa)'.format(z1), 'T (C)', '', '','')
 
     # setup the plot
     f = plt.figure(figsize = (10,6)) 
@@ -56,8 +45,11 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         if ind != 2:
             sp.xaxis.set_ticklabels([])
             sp.yaxis.set_ticklabels([])
-        im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis', extent=(np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)), origin='lower')
-        sp.plot(xind, yind, 'ko', 'filled')
+        im = sp.imshow(np.reshape(plot, x.shape), 
+                       cmap='viridis', 
+                       extent=(np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)), 
+                       origin='lower')
+        sp.plot(x[xind, yind],y[xind, yind], 'ko', 'filled')
         divider = mal(sp)
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
