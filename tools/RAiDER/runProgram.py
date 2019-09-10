@@ -169,6 +169,7 @@ def main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     raiderDelay main function.
     """
     from RAiDER.delay import tropo_delay
+    from RAiDER.llreader import getHeights 
 
     if verbose: 
        print('Starting to run the weather model calculation')
@@ -199,8 +200,15 @@ def parseCMD():
     # Argument checking
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
          times, out, download_only, parallel, verbose, \
-         wetFilename, hydroFilename = checkArgs(args, p)
+         wetNames, hydroNames= checkArgs(args, p)
 
-    main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
-         outformat, time, out, download_only, parallel, verbose,
-         wetFilename, hydroFilename)
+    # Pull the DEM
+    if verbose: 
+        print('Beginning DEM calculation')
+    lats, lons, hgts = getHeights(lats, lons,heights)
+
+    # Loop over each datetime and compute the delay
+    for t, wfn, hfn in zip(times, wetNames, hydroNames):
+        main(los, lats, lons, hgts, flag, weather_model, wmLoc, zref,
+             outformat, t, out, download_only, parallel, verbose, wfn, hfn)
+

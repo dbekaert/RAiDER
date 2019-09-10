@@ -82,10 +82,11 @@ def getHeights(lats, lons,heights, demFlag = 'dem'):
 
     elif height_type == 'merge':
         import pandas as pd
-        data = pd.read_csv(demFilename)
-        lats = data['Lat'].values
-        lons = data['Lon'].values
-        hts = download_dem(lats, lons, outName = demFilename, save_flag = 'merge')
+        for f in demFilename:
+            data = pd.read_csv(f)
+            lats = data['Lat'].values
+            lons = data['Lon'].values
+            hts = download_dem(lats, lons, outName = demFilename, save_flag = 'merge')
     else:
         height_type = 'download'
         

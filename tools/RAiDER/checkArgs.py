@@ -122,7 +122,7 @@ def checkArgs(args, p):
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
     elif flag=='station_file':
-        heights = ('merge', wetFilename)
+        heights = ('merge', wetNames)
     else:
         heights = ('download', 'geom/warpedDEM.dem')
 
@@ -149,7 +149,7 @@ def checkArgs(args, p):
     # parallelization
     parallel = True if not args.no_parallel else False
 
-    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose, wetFilename, hydroFilename
+    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, parallel, verbose, wetNames, hydroNames
 
 
 def output_format(outformat):
