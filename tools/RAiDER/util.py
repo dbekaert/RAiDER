@@ -615,3 +615,71 @@ def read_hgt_file(filename):
     data = pd.read_csv(filename)
     hgts = data['Hgt_m'].values
     return hgts
+
+
+def parse_date(s):
+    """
+    Parse a date from a string in pseudo-ISO 8601 format.
+    """
+    import datetime
+    import itertools
+    year_formats = (
+        '%Y-%m-%d',
+        '%Y%m%d'
+    )
+    date = None
+    for yf in year_formats:
+        try:
+            date = datetime.datetime.strptime(s, yf)
+        except ValueError:
+            continue
+             
+    if date is None:
+        raise ValueError(
+            'Unable to coerce {} to a date. Try %Y-%m-%d'.format(s))
+
+    return date
+
+
+def parse_time(t):
+    '''
+    Parse an input time (required to be ISO 8601)
+    '''
+    time_formats = (
+        '',
+        'T%H:%M:%S.%f',
+        'T%H%M%S.%f',
+        '%H%M%S.%f',
+        'T%H:%M:%S',
+        '%H:%M:%S',
+        'T%H%M%S',
+        '%H%M%S',
+        'T%H:%M',
+        'T%H%M',
+        '%H:%M',
+        'T%H',
+    )
+    timezone_formats = (
+        '',
+        'Z',
+        '%z',
+    )
+    all_formats = map(
+        ''.join,
+        itertools.product(time_formats, timezone_formats))
+
+    time = None
+    for tf in all_formats:
+        try:
+            time = datetime.datetime.strptime(t, tf).time()
+        except ValueError:
+            continue
+             
+    if time is None:
+        raise ValueError(
+            'Unable to coerce {} to a time. Try T%H:%M:%S'.format(t))
+
+    return time
+
+
+

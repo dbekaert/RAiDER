@@ -2,50 +2,21 @@ import os
 import numpy as np
 
 import RAiDER.util
+from RAiDER.util import parse_date, parse_time
 from RAiDER.constants import _ZREF
 
-
 def read_date(s):
-    """
-    Read a date from a string in pseudo-ISO 8601 format.
-    """
+    '''
+    Read and parse an input date or datestring
+    '''
     import datetime
-    import itertools
-    year_formats = (
-        '%Y-%m-%d',
-        '%Y%m%d',
-        '%Y-%m',
-        '%Y',  # I don't think anyone would ever want just a year
-    )
-    time_formats = (
-        '',
-        'T%H:%M:%S.%f',
-        'T%H:%M:%S',
-        'T%H%M%S.%f',
-        'T%H%M%S',
-        'T%H:%M',
-        'T%H%M',
-        'T%H',
-    )
-    timezone_formats = (
-        '',
-        'Z',
-        '%z',
-    )
-    all_formats = map(
-        ''.join,
-        itertools.product(year_formats, time_formats, timezone_formats))
-    date = None
-    for date_format in all_formats:
-        try:
-            date = datetime.datetime.strptime(s, date_format)
-        except ValueError:
-            continue
-    if date is None:
-        raise ValueError(
-            'Unable to coerce {} to a date. Try %Y-%m-%dT%H:%M:%S.%f%z'.format(s))
-
-    return date
+    try:
+        date1, date2 = [parse_date(d) for d in s.split(',')]
+        dateList = [date1 + k*datetime.timdelta(days=1) for k in range((date2 - date1).days+1)]
+        return dateList
+    except ValueError:
+        date = parse_date(s)
+        return [date]
 
 
 def parse_args():
@@ -54,10 +25,14 @@ def parse_args():
     p = argparse.ArgumentParser(
         description='Calculate tropospheric delay from a weather model')
 
-    p.add_argument(
-        '--time',
-        help='Fetch weather model data at this (ISO 8601 format) time',
+    time.add_argument(
+        '--date',dest='dateList',
+        help='Fetch weather model data for a given date or date range.\nCan be a single date or a comma-separated list of two dates (earlier, later) in the ISO 8601 format',
         type=read_date, required=True)
+    time.add_argument(
+        '--time', dest = 'time',
+        help='Fetch weather model data at this (ISO 8601 format) time of day',
+        type=parse_time, required=True)
 
     # Line of sight
     los = p.add_mutually_exclusive_group()
@@ -223,7 +198,7 @@ def parseCMD():
 
     # Argument checking
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
-         time, out, download_only, parallel, verbose, \
+         times, out, download_only, parallel, verbose, \
          wetFilename, hydroFilename = checkArgs(args, p)
 
     main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
