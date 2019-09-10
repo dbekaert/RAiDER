@@ -645,6 +645,8 @@ def parse_time(t):
     '''
     Parse an input time (required to be ISO 8601)
     '''
+    import datetime
+    import itertools
     time_formats = (
         '',
         'T%H:%M:%S.%f',
@@ -671,7 +673,7 @@ def parse_time(t):
     time = None
     for tf in all_formats:
         try:
-            time = datetime.datetime.strptime(t, tf).time()
+            time = datetime.datetime.strptime(t, tf) - datetime.datetime(1900,1,1)
         except ValueError:
             continue
              

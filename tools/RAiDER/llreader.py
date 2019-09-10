@@ -86,7 +86,7 @@ def getHeights(lats, lons,heights, demFlag = 'dem'):
             data = pd.read_csv(f)
             lats = data['Lat'].values
             lons = data['Lon'].values
-            hts = download_dem(lats, lons, outName = demFilename, save_flag = 'merge')
+            hts = download_dem(lats, lons, outName = f, save_flag = 'merge')
     else:
         height_type = 'download'
         
