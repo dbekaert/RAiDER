@@ -153,3 +153,28 @@
 #            xs, ys, proj)
 #
 #
+
+# Below was a part of weatherModel.py and used to restrict the model in Z
+# I took it out because there are not that many levels above and seems easier to 
+# keep them all then try to put in a cutoff
+
+
+        # Now remove any model level fully above zmax
+#        max_level_needed = util.getMaxModelLevel(self._zs, self._zmax, 'g') 
+#        levInd = range(0,max_level_needed + 1)
+        
+
+#        if self._humidityType == 'q':
+#            self._q = self._q[...,levInd]
+#        else:
+#            self._rh = self._rh[...,levInd]
+#
+#        self._zs = self._zs[...,levInd]
+#        self._xs = self._xs[...,levInd]
+#        self._ys = self._ys[...,levInd]
+#        self._p = self._p[...,levInd]
+#        self._t = self._t[...,levInd]
+#        self._e = self._e[...,levInd]
+#        self._wet_refractivity = self._wet_refractivity[...,levInd]
+#        self._hydrostatic_refractivity=self._hydrostatic_refractivity[...,levInd]
+

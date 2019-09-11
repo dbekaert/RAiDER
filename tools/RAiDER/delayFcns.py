@@ -135,7 +135,7 @@ def getGroundPositionECEF(lats, lons, hgts, oldProj, newProj):
     Compute the ground position of each pixel in ECEF reference frame
     ''' 
     start_positions = reproject(lats, lons, hgts, oldProj,newProj)
-    start_positions = sortSP(start_positions)
+    #start_positions = sortSP(start_positions)
     return start_positions
 
 

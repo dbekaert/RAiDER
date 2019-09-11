@@ -2,6 +2,7 @@ import os
 import numpy as np
 
 import RAiDER.util
+from RAiDER.constants import _ZREF
 
 
 def read_date(s):
@@ -132,7 +133,7 @@ def parse_args():
         '--zref', '-z',
         help=('Height limit when integrating (meters) '
               '(default: %(default)s)'),
-        type=int, default=15000)
+        type=int, default=_ZREF)
 
     p.add_argument(
         '--outformat', help='Output file format; GDAL-compatible for DEM, HDF5 for height levels',
