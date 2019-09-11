@@ -11,7 +11,15 @@ import numpy as np
 import os.path
 import shelve
 import RAiDER.util as util
+from RAiDER.constants import _ZREF, Zenith
 
+
+class Configurable():
+    '''
+    Is this needed? 
+    '''
+    def __init__(self):
+        pass
 
 class ProductManager(Configurable):
     '''
@@ -222,3 +230,51 @@ def infer_los(los, lats, lons, heights, zref):
     return LOS
 
     raise ValueError("Unsupported los type '{}'".format(los_type))
+
+
+def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
+
+    '''
+    Returns look vectors when Zenith is used. 
+    Inputs: 
+       lats/lons/heights - Nx1 numpy arrays of points. 
+       zref              - float, integration height in meters
+    Outputs: 
+       zenLookVecs       - an Nx3 numpy array with the look vectors.
+                           The vectors give the zenith ray paths for 
+                           each of the points to the top of the atmosphere. 
+    '''
+    e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
+    n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
+    u = np.sin(np.radians(lats))
+    zenLookVecs = (np.array((e,n,u)).T*(zref - heights)[..., np.newaxis])
+    return zenLookVecs
+
+
+def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
+    '''
+    If the input look vectors are specified as Zenith, compute and return the
+    look vectors. Otherwise, check that the look_vecs shape makes sense. 
+    '''
+    if look_vecs is None:
+        look_vecs= Zenith
+
+    if look_vecs is Zenith:
+        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
+    else:
+        look_vecs = infer_los(look_vecs, lats, lons, heights, zref)
+
+    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+    look_vecs[mask,:] = np.nan
+
+    # check size
+    if look_vecs.ndim==1:
+       if len(look_vecs)!=3:
+          raise RuntimeError('look_vecs must be Nx3') 
+    if look_vecs.shape[-1]!=3:
+       raise RuntimeError('look_vecs must be Nx3')
+
+    return look_vecs
+
+
+
