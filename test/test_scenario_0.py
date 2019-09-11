@@ -7,7 +7,7 @@ import pandas as pd
 import pickle
 import unittest
 
-import RAiDER.llreader
+from RAiDER.llreader import readLL, getHeights
 import RAiDER.util
 import RAiDER.delay
 
@@ -45,12 +45,12 @@ class TimeTests(unittest.TestCase):
     # get the data for the scenario
     if flag == 'station_file':
        filename = os.path.join(basedir, 'station_file.txt')
-       [lats, lons, latproj, lonproj] = RAiDER.llreader.readLL(filename)
+       [lats, lons, latproj, lonproj] = readLL(filename)
     else:
        latfile = os.path.join(basedir, 'lat.rdr')
        lonfile = os.path.join(basedir,'lon.rdr')
        losfile = os.path.join(basedir,'los.rdr')
-       [lats, lons] = RAiDER.llreader.readLL(latfile, lonfile)
+       [lats, lons] = readLL(latfile, lonfile)
 
     # DEM
     demfile = os.path.join(basedir,'geom', 'warpedDEM.dem')
@@ -60,6 +60,8 @@ class TimeTests(unittest.TestCase):
         heights = ('dem', demfile)
     else:
         heights = ('download', demfile)
+
+    lats, lons, hgts = getHeights(lats, lons,heights)
 
     if useZen:
         los = None
@@ -83,7 +85,7 @@ class TimeTests(unittest.TestCase):
     #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_tropoSmallArea(self):
         wetDelay, hydroDelay = \
-            RAiDER.delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.heights,
+            RAiDER.delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.hgts,
                   self.weather, self.wmLoc, self.zref, self.out,
                   parallel=False, verbose = True,
                   download_only = False)

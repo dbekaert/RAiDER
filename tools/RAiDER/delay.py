@@ -223,7 +223,7 @@ def orderForInterp(inRays):
     return rays
 
 
-def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 
+def tropo_delay(time, los = None, lats = None, lons = None, hgts = None, 
                 weather = None, wmFileLoc = None, zref = 15000, out = None, 
                 parallel=True,verbose = False, download_only = False):
     """Calculate troposphere delay from command-line arguments.
@@ -233,7 +233,6 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
     """
     from RAiDER.models.allowed import checkIfImplemented
     from RAiDER.downloadWM import downloadWMFile
-    from RAiDER.llreader import getHeights 
     import RAiDER.util
 
     if verbose:
@@ -309,11 +308,6 @@ def tropo_delay(time, los = None, lats = None, lons = None, heights = None,
         print('WARNING: some of the requested points are outside of the existing' +
              'weather model; these will end up as NaNs')
  
-    # Pull the DEM
-    if verbose: 
-        print('Beginning DEM calculation')
-    lats, lons, hgts = getHeights(lats, lons,heights)
-
     # LOS check and load
     if verbose: 
         print('Beginning LOS calculation')

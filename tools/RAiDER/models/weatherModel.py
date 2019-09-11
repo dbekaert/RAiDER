@@ -242,6 +242,8 @@ class WeatherModel():
             in_extent = self._getExtent(lats, lons)
             self_extent = self._getExtent(self._ys, self._xs)
             if self._isOutside(in_extent, self_extent):
+                print('Extent of the input lats/lons is: {}'.format(in_extent))
+                print('Extent of the weather model is: {}'.format(self_extent))
                 raise RuntimeError('The weather model passed does not cover all of the \n \
                                   input points; you need to download a larger area.')
             try:
