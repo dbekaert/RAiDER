@@ -66,7 +66,7 @@ def checkArgs(args, p):
         lat, lon, latproj, lonproj = RAiDER.llreader.readLL(args.station_file)
     else:
         lat = lon = None
-    if (np.any(lat < -90)) | (np.any(lat>90)):
+    if (min(lat) < -90) | (max(lat)>90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Weather
