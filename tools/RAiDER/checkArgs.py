@@ -66,6 +66,7 @@ def checkArgs(args, p):
         lat, lon, latproj, lonproj = RAiDER.llreader.readLL(args.station_file)
     else:
         lat = lon = None
+    from numpy import min, max
     if (min(lat) < -90) | (max(lat)>90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
@@ -92,6 +93,8 @@ def checkArgs(args, p):
           args.outformat = 'netcdf'
        else:
           args.outformat = 'ENVI'
+    else:
+       outformat = args.outformat
 
     # zref
     zref = args.zref
