@@ -251,28 +251,6 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
     return zenLookVecs
 
 
-def _get_lengths(look_vecs):
-    '''
-    Returns the lengths of a vector or set of vectors, fast. 
-    Inputs: 
-       looks_vecs  - an Nx3 numpy array containing look vectors with absolute
-                     lengths; i.e., the absolute position of the top of the
-                     atmosphere. 
-    Outputs: 
-       lengths     - an Nx1 numpy array containing the absolute distance in 
-                     meters of the top of the atmosphere from the ground pnt. 
-    '''
-    if look_vecs.ndim==1:
-       if len(look_vecs)!=3:
-          raise RuntimeError('look_vecs must be Nx3') 
-    if look_vecs.shape[-1]!=3:
-       raise RuntimeError('look_vecs must be Nx3')
-
-    lengths = np.linalg.norm(look_vecs, axis=-1)
-    lengths[~np.isfinite(lengths)] = 0
-    return lengths
-
-
 def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     '''
     If the input look vectors are specified as Zenith, compute and return the
@@ -288,6 +266,9 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
         look_vecs = infer_los(look_vecs, lats, lons, heights, zref)
         raytrace = True
 
+    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+    look_vecs[mask,:] = np.nan
+
     # check size
     if look_vecs.ndim==1:
        if len(look_vecs)!=3:
@@ -297,28 +278,5 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
 
     return look_vecs
 
-
-def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
-    '''
-    Get the look vector stretching from the ground pixel to the point
-    at the top of the atmosphere, either (1) at zenith, or (2) towards
-    the RADAR satellite (for line-of-sight calculation)
-    '''
-    if look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-
-    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
-    lengths = _get_lengths(look_vecs)
-    lengths[mask] = np.nan
-    return look_vecs, lengths
-
-
-def getUnitLVs(look_vecs, lengths):
-    '''
-    Return a set of look vectors normalized by their lengths
-    '''
-    lengths = getLookVectorLength(look_vecs)
-    slvs = look_vecs / lengths[..., np.newaxis]
-    return slvs
 
 

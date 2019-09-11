@@ -29,9 +29,8 @@ def _common_delay(weatherObj, lats, lons, heights,
      lats       - Grid of latitudes for each ground point
      lons       - Grid of longitudes for each ground point
      heights    - Grid of heights for each ground point
-     look_vecs  - Grid of look vectors (should be full-length) for each ground point
-     raytrace   - If True, will use the raytracing method, if False, will use the Zenith 
-                  + projection method
+     look_vecs  - Grid of look vectors streching from ground point to sensor (cut off at zref)
+     raytrace   - If True, will use the raytracing method, if False, will return zenith delays
      stepSize   - Integration step size in meters 
      intpType   - Can be one of 'scipy': LinearNDInterpolator, or 'sane': _sane_interpolate. 
                   Any other string will use the RegularGridInterpolate method
@@ -64,9 +63,8 @@ def _common_delay(weatherObj, lats, lons, heights,
        pass
 
     # If weather model nodes only are desired, the calculation is very quick
-    if look_vecs is Zenith and useWeatherNodes:
+    if not raytrace and useWeatherNodes:
         _,_,zs = weatherObj.getPoints()
-        look_vecs = RAiDER.delayFcns._getZenithLookVecs(lats, lons, heights, zref = zref)
         wet_pw  = weatherObj.getWetRefractivity()
         hydro_pw= weatherObj.getHydroRefractivity()
         wet_delays = _integrateZenith(zs, wet_pw)
@@ -234,6 +232,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
     """
     from RAiDER.models.allowed import checkIfImplemented
     from RAiDER.downloadWM import downloadWMFile
+    from RAiDER.losreader import getLookVectors
     import RAiDER.util
 
     if verbose:
@@ -309,10 +308,11 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
         print('WARNING: some of the requested points are outside of the existing' +
              'weather model; these will end up as NaNs')
  
-    # LOS check and load
+    # Convert the line-of-sight inputs to look vectors
     if verbose: 
         print('Beginning LOS calculation')
     los = getLookVectors(los, lats, lons, heights, zref = _ZREF)
+
 
        
     RAiDER.util.checkShapes(los, lats, lons, hgts)
