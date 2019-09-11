@@ -206,7 +206,6 @@ def parseCMD():
     if verbose: 
         print('Beginning DEM calculation')
     lats, lons, hgts = getHeights(lats, lons,heights)
-    import pdb; pdb.set_trace()
 
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
