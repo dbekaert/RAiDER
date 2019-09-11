@@ -45,7 +45,8 @@ def _common_delay(weatherObj, lats, lons, heights,
     import RAiDER.delayFcns
 
     if verbose:
-       import time as timing
+        import time as timing
+        st = timing.time()
 
     parThresh = 1e5
 
@@ -91,6 +92,8 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     if verbose:
         print('Finished ray calculation')
+        ft = timing.time()
+        print('Ray-tracing preliminaries took {:4.2f} secs'.format(ft-st))
         print('First ten points along first ray: {}'.format(rays[0][:10,:]))
         print('First ten points along last ray: {}'.format(rays[-1][:10,:]))
         try:
@@ -103,10 +106,8 @@ def _common_delay(weatherObj, lats, lons, heights,
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
 
     if verbose:
-       print('Wet interpolator bounding box: {}'.format(ifWet._bbox))
-       print('Hydrostatic interpolator bounding box: {}'.format(ifHydro._bbox))
-
-    if verbose:
+        print('Wet interpolator bounding box: {}'.format(ifWet._bbox))
+        print('Hydrostatic interpolator bounding box: {}'.format(ifHydro._bbox))
         print('Beginning interpolation of each ray')
         st = timing.time()
 
@@ -333,6 +334,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
     real_shape = llas.shape[:-1]
     llas = llas.reshape(-1, 3)
     lats, lons, hgts = np.moveaxis(llas, -1, 0)
+    los = los.reshape((np.prod(los.shape[:-1]), los.shape[-1]))
 
     if verbose: 
         print('Beginning delay calculation')

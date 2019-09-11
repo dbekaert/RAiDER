@@ -45,7 +45,7 @@ def _get_lengths(look_vecs):
     if look_vecs.ndim==1:
        if len(look_vecs)!=3:
           raise RuntimeError('look_vecs must be Nx3') 
-    if look_vecs.shape[1]!=3:
+    if look_vecs.shape[-1]!=3:
        raise RuntimeError('look_vecs must be Nx3')
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
@@ -155,8 +155,6 @@ def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
 
 
 def getUnitLVs(look_vecs, lengths):
-    #TODO: implement unittest for this together with getLookVectorLength. Was
-    # allowing non-unit vectors to pass
     slvs = look_vecs / lengths[..., np.newaxis]
     return slvs
 

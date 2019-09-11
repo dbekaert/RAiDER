@@ -13,6 +13,13 @@ import shelve
 import RAiDER.util as util
 
 
+class Configurable():
+    '''
+    Is this needed? 
+    '''
+    def __init__(self):
+        pass
+
 class ProductManager(Configurable):
     '''
     TODO: docstring
