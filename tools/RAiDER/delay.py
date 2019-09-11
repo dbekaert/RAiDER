@@ -312,18 +312,8 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
     # LOS check and load
     if verbose: 
         print('Beginning LOS calculation')
-    if los is None:
-        los = Zenith
-    elif los is Zenith:
-        pass
-    else:
-        import RAiDER.losreader
-        los = RAiDER.losreader.infer_los(los, lats, lons, hgts, zref)
+    los = getLookVectors(los, lats, lons, heights, zref = _ZREF)
 
-    if los is Zenith:
-        raytrace = False
-    else:
-        raytrace = True
        
     RAiDER.util.checkShapes(los, lats, lons, hgts)
     RAiDER.util.checkLOS(los, raytrace, np.prod(lats.shape))

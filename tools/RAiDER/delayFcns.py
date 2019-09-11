@@ -155,6 +155,10 @@ def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
 
 
 def getUnitLVs(look_vecs, lengths):
+    '''
+    Return a set of look vectors normalized by their lengths
+    '''
+    lengths = getLookVectorLength(look_vecs)
     slvs = look_vecs / lengths[..., np.newaxis]
     return slvs
 
@@ -169,8 +173,7 @@ def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, stepSiz
         print('The integration stepsize is {} m'.format(stepSize))
     
     # get the raypath unit vectors and lengths for doing the interpolation 
-    look_vecs, lengths = getLookVectorLength(look_vecs, lats, lons, heights, zref)
-    scaled_look_vecs = getUnitLVs(look_vecs, lengths) 
+    scaled_look_vecs = getUnitLVs(look_vecs) 
 
     # This projects the ground pixels into earth-centered, earth-fixed coordinate 
     # system and sorts by position

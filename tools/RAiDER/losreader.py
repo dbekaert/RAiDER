@@ -11,6 +11,7 @@ import numpy as np
 import os.path
 import shelve
 import RAiDER.util as util
+from RAiDER.constants import _ZREF
 
 
 class Configurable():
@@ -229,3 +230,30 @@ def infer_los(los, lats, lons, heights, zref):
     return LOS
 
     raise ValueError("Unsupported los type '{}'".format(los_type))
+
+
+def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
+    '''
+    If the input look vectors are specified as Zenith, compute and return the
+    look vectors. Otherwise, check that the look_vecs shape makes sense. 
+    '''
+    if look_vecs is None:
+        los = Zenith
+
+    if look_vecs is Zenith:
+        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
+        raytrace = False
+    else:
+        look_vecs = infer_los(look_vecs, lats, lons, heights, zref)
+        raytrace = True
+
+    # check size
+    if look_vecs.ndim==1:
+       if len(look_vecs)!=3:
+          raise RuntimeError('look_vecs must be Nx3') 
+    if look_vecs.shape[-1]!=3:
+       raise RuntimeError('look_vecs must be Nx3')
+
+    return look_vecs
+
+
