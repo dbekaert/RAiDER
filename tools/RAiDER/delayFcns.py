@@ -9,7 +9,7 @@
 import numpy as np
 import pyproj
 
-from RAiDER.constants import Zenith, _ZREF, _STEP
+from RAiDER.constants import _STEP
 
 
 def _ray_helper(tup):
@@ -116,7 +116,12 @@ def _get_lengths(look_vecs):
        raise RuntimeError('look_vecs must be Nx3')
 
     lengths = np.linalg.norm(look_vecs, axis=-1)
-    lengths[~np.isfinite(lengths)] = 0
+    try:
+        lengths[~np.isfinite(lengths)] = 0
+    except TypeError:
+        if ~np.isfinite(lengths):
+            lengths = 0
+
     return lengths
 
 
@@ -132,8 +137,6 @@ def calculate_rays(lats, lons, heights, look_vecs, stepSize = _STEP, verbose = F
     # get the lengths of each ray for doing the interpolation 
     scaled_look_vecs, lengths = getUnitLVs(look_vecs) 
 
-    return scaled_look_vecs
-    
     # This projects the ground pixels into earth-centered, earth-fixed coordinate 
     # system and sorts by position
     ecef = pyproj.Proj(proj='geocent')

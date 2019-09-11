@@ -449,7 +449,7 @@ def checkShapes(los, lats, lons, hts):
          'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
-def checkLOS(los, raytrace, Npts):
+def checkLOS(los, Npts):
     '''
     Check that los is either: 
        (1) Zenith,
@@ -458,13 +458,9 @@ def checkLOS(los, raytrace, Npts):
        (3) a set of vectors, same number as the number of points. 
      '''
     from RAiDER.constants import Zenith
-    # los can either be a bunch of vectors or a bunch of scalars. If
-    # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
+    # los is a bunch of vectors or Zenith
     if los is not Zenith:
-        if raytrace:
-            los = los.reshape(-1, 3)
-        else:
-            los = los.flatten()
+       los = los.reshape(-1, 3)
 
     if los is not Zenith and los.shape[0] != Npts:
        raise RuntimeError('Found {} line-of-sight values and only {} points'

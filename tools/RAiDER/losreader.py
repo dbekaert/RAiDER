@@ -11,7 +11,7 @@ import numpy as np
 import os.path
 import shelve
 import RAiDER.util as util
-from RAiDER.constants import _ZREF
+from RAiDER.constants import _ZREF, Zenith
 
 
 class Configurable():
@@ -257,14 +257,12 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     look vectors. Otherwise, check that the look_vecs shape makes sense. 
     '''
     if look_vecs is None:
-        los = Zenith
+        look_vecs= Zenith
 
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-        raytrace = False
     else:
         look_vecs = infer_los(look_vecs, lats, lons, heights, zref)
-        raytrace = True
 
     mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
     look_vecs[mask,:] = np.nan

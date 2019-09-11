@@ -10,7 +10,7 @@ import numpy as np
 import os
 import sys
 
-from RAiDER.constants import Zenith,_STEP,_ZREF
+from RAiDER.constants import _STEP,_ZREF
 
 
 def _common_delay(weatherObj, lats, lons, heights, 
@@ -30,7 +30,6 @@ def _common_delay(weatherObj, lats, lons, heights,
      lons       - Grid of longitudes for each ground point
      heights    - Grid of heights for each ground point
      look_vecs  - Grid of look vectors streching from ground point to sensor (cut off at zref)
-     raytrace   - If True, will use the raytracing method, if False, will return zenith delays
      stepSize   - Integration step size in meters 
      intpType   - Can be one of 'scipy': LinearNDInterpolator, or 'sane': _sane_interpolate. 
                   Any other string will use the RegularGridInterpolate method
@@ -63,7 +62,7 @@ def _common_delay(weatherObj, lats, lons, heights,
        pass
 
     # If weather model nodes only are desired, the calculation is very quick
-    if not raytrace and useWeatherNodes:
+    if useWeatherNodes:
         _,_,zs = weatherObj.getPoints()
         wet_pw  = weatherObj.getWetRefractivity()
         hydro_pw= weatherObj.getHydroRefractivity()
@@ -78,7 +77,7 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('# of rays = {}'.format(len(lats)))
 
     rays, ecef = RAiDER.delayFcns.calculate_rays(lats, lons, heights, look_vecs, 
-                     zref = zref, stepSize = stepSize, verbose=verbose)
+                     stepSize = stepSize, verbose=verbose)
 
     if verbose:
         print('First ten points along first ray: {}'.format(rays[0][:10,:]))
@@ -309,14 +308,10 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
              'weather model; these will end up as NaNs')
  
     # Convert the line-of-sight inputs to look vectors
-    if verbose: 
-        print('Beginning LOS calculation')
-    los = getLookVectors(los, lats, lons, heights, zref = _ZREF)
-
-
+    los = getLookVectors(los, lats, lons, hgts, zref)
        
     RAiDER.util.checkShapes(los, lats, lons, hgts)
-    RAiDER.util.checkLOS(los, raytrace, np.prod(lats.shape))
+    RAiDER.util.checkLOS(los, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it
     # easier to think about
