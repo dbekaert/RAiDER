@@ -54,8 +54,6 @@ class HRRR(WeatherModel):
                              towgs84=(0,0,0), no_defs=True)
         self._proj = p1
 
-
-
     def load(self, filename = None):
         if self._p is not None:
             pass 
