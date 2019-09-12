@@ -13,7 +13,7 @@ import sys
 from RAiDER.constants import _STEP,_ZREF
 
 
-def _common_delay(weatherObj, lats, lons, heights, 
+def interpolateDelay(weatherObj, lats, lons, heights, 
                   look_vecs, zref = _ZREF, useWeatherNodes = False,
                   stepSize = _STEP, interpType = 'rgi',
                   verbose = False, nproc = 8, useDask = False):
@@ -131,10 +131,10 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     if verbose:
         ft = timing.time()
-        print('_common_delay: Finished interpolation')
+        print('interpolateDelay: Finished interpolation')
         print('Interpolation took {:4.2f} secs'.format(ft-st))
         print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(rays)))
-        print('_common_delay: finished point-wise delay calculations')
+        print('interpolateDelay: finished point-wise delay calculations')
         print('First ten points along last ray: {}'.format(ray[:10,:]))
         print('First ten points interpolated wet delay: {}'.format(wet_pw[-1][:10]))
         print('First ten points interpolated hydrostatic delay: {}'.format(hydro_pw[-1][:10]))
@@ -221,97 +221,17 @@ def orderForInterp(inRays):
     return rays
 
 
-def tropo_delay(time, los = None, lats = None, lons = None, hgts = None, 
-                weather = None, wmFileLoc = None, zref = 15000, out = None, 
-                parallel=True,verbose = False, download_only = False):
+def computeDelay(los, lats, lons, hgts, weather_model, zref = _ZREF, 
+                out = None, parallel=True,verbose = False):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
-    _common_delay. 
+    interpolateDelay. 
     """
-    from RAiDER.models.allowed import checkIfImplemented
-    from RAiDER.downloadWM import downloadWMFile
-    from RAiDER.losreader import getLookVectors
-    import RAiDER.util
+    from RAiDER.util import checkShapes, checkLOS
 
-    if verbose:
-        print('type of time: {}'.format(type(time)))
-        print('Download-only is {}'.format(download_only))
-
-    # location of the weather model files
-    if wmFileLoc is None:
-        wmFileLoc = os.path.join(out, 'weather_files')
-
-    # ensuring consistent file extensions
-    #outformat = output_format(outformat)
-
-    # the output folder where data is downloaded and delays are stored, default is same location
-    if out is None:
-        out = os.getcwd()
-
-    # Make weather
-    weather_model, weather_files, weather_model_name = \
-               weather['type'],weather['files'],weather['name']
-    checkIfImplemented(weather_model_name.upper().replace('-',''))
-
-    # check whether weather model files are supplied
-    if weather_files is None:
-        download_flag, f = downloadWMFile(weather_model.Model(), time, wmFileLoc, verbose)
-    else:
-        download_flag = False
-
-    # if no weather model files supplied, check the standard location
-    if download_flag:
-        try:
-            weather_model.fetch(lats, lons, time, f)
-        except Exception as e:
-            print('ERROR: Unable to download weather data')
-            print('Exception encountered: {}'.format(e))
-            sys.exit(0)
- 
-        # exit on download if download_only requested
-        if download_only:
-            print('WARNING: download_only flag selected. I will only '
-                  'download the weather model, '
-                  ' without doing any further processing.')
-            return None, None
-
-    # Load the weather model data
-    if weather_model_name == 'pickle':
-        weather_model = RAiDER.util.pickle_load(weather_files)
-    elif weather_files is not None:
-        weather_model.load(*weather_files)
-        download_flag = False
-    else:
-        # output file for storing the weather model
-        #weather_model.load(f)
-        weather_model.load(f, lats = lats, lons = lons)
-
-    # weather model name
-    if verbose:
-        print('Weather Model Name: {}'.format(weather_model.Model()))
-        print(weather_model)
-        #p = weather.plot(p)
-
-    # Pull the lat/lon data if using the weather model 
-    if lats is None or len(lats)==2:
-        uwn = True
-        lats,lons = weather_model.getLL() 
-        lla = weather_model.getProjection()
-        RAiDER.util.writeLL(time, lats, lons,lla, weather_model_name, out)
-    else:
-        uwn = False
-    
-    # check for compatilibility of the weather model locations and the input
-    if RAiDER.util.isOutside(RAiDER.util.getExtent(lats, lons), RAiDER.util.getExtent(*weather_model.getLL())):
-        print('WARNING: some of the requested points are outside of the existing' +
-             'weather model; these will end up as NaNs')
- 
-    # Convert the line-of-sight inputs to look vectors
-    los = getLookVectors(los, lats, lons, hgts, zref)
-       
-    RAiDER.util.checkShapes(los, lats, lons, hgts)
-    RAiDER.util.checkLOS(los, np.prod(lats.shape))
+    checkShapes(los, lats, lons, hgts)
+    checkLOS(los, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it
     # easier to think about
@@ -323,7 +243,8 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
 
     if verbose: 
         print('Beginning delay calculation')
-    # Call _common_delay to compute the hydrostatic and wet delays
+
+    # Call interpolateDelay to compute the hydrostatic and wet delays
     if parallel:
         useDask = True
         nproc = 16
@@ -331,36 +252,18 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
         useDask = False
         nproc = 1
 
-    # If the verbose option is called, write out the weather model to a pickle file
-    if verbose:
-        print('Saving weather model object to pickle file')
-        import pickle
-        pickleFilename = os.path.join(out, 'pickledWeatherModel.pik')
-        with open(pickleFilename, 'wb') as f:
-           pickle.dump(weather_model, f)
-
-    # Call _common_delay
+    # Call interpolateDelay
     if verbose:
        print('Lats shape is {}'.format(lats.shape))
        print('lat/lon box is {}/{}/{}/{} (SNWE)'
               .format(np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)))
-       print('Type of LOS is {}'.format([los if type(los) is type else type(los)][0]))
-       print('Height range is {0:.2f}-{0:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
+       print('DEM height range is {0:.2f}-{0:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
        print('Reference z-value (max z for integration) is {} m'.format(zref))
        print('Number of processors to use: {}'.format(nproc))
        print('Using weather nodes only? (true/false): {}'.format(uwn))
        print('Weather model: {}'.format(weather_model.Model()))
-       print('Number of weather model nodes: {}'.format(np.prod(weather_model.getWetRefractivity().shape)))
-       print('Shape of weather model: {}'.format(weather_model.getWetRefractivity().shape))
-       print('Bounds of the weather model: {}/{}/{}/{} (SNWE)'
-              .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys), 
-                     np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)))
-       print('Mean value of the wet refractivity: {}'
-              .format(np.nanmean(weather_model.getWetRefractivity())))
-       print('Mean value of the hydrostatic refractivity: {}'
-              .format(np.nanmean(weather_model.getHydroRefractivity())))
 
-    wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,
+    wet, hydro = interpolateDelay(weather_model, lats, lons, hgts, los, zref = zref,
                   useWeatherNodes = uwn, nproc = nproc, useDask = useDask, verbose = verbose)
     if verbose: 
         print('Finished delay calculation')
@@ -372,3 +275,51 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
         pass
 
     return wet, hydro
+
+
+def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
+         outformat, time, out, download_only, parallel, verbose,
+         wetFilename, hydroFilename):
+    """
+    raiderDelay main function.
+    """
+    from RAiDER.util import writeDelays
+    from RAiDER.losreader import getLookVectors
+    from RAiDER.processWM import prepareWeatherModel
+
+    if verbose:
+        print('Starting to run the weather model calculation')
+        print('Time type: {}'.format(type(time)))
+        print('Time: {}'.format(time.strftime('%Y%m%d')))
+        print('Parallel is {}'.format(parallel))
+
+    # location of the weather model files
+    if verbose:
+        print('Beginning weather model pre-processing')
+        print('Download-only is {}'.format(download_only))
+    if wmLoc is None:
+        wmLoc = os.path.join(out, 'weather_files')
+    lats, lons, weather_model = prepareWeatherModel(lats, lons, time, weather,
+                        wmFileLoc, verbose=verbose, download_only=download_only)
+
+    # Pull the DEM.
+    if verbose:
+        print('Beginning DEM calculation')
+    lats, lons, hgts = getHeights(lats, lons,heights)
+
+    if verbose:
+        print('Beginning DEM calculation')
+    # Convert the line-of-sight inputs to look vectors
+    los = getLookVectors(los, lats, lons, hgts, zref)
+
+    wetDelay, hydroDelay = \
+       computeDelay(time, los, lats, lons, heights,
+                         weather_model, wmLoc, zref, out,
+                         parallel=parallel, verbose = verbose,
+                         download_only = download_only)
+
+    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                outformat, wetFilename, hydroFilename,
+                proj = None, gt = None, ndv = 0.)
+
+    return wetDelay, hydroDelay

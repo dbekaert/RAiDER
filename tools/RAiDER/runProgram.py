@@ -125,66 +125,6 @@ def parse_args():
     return p.parse_args(), p
 
 
-def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                outformat, wetFilename, hydroFilename, 
-                proj = None, gt = None, ndv = 0.):
-    '''
-    Write the delay numpy arrays to files in the format specified
-    '''
-
-    # Need to consistently handle noDataValues
-    wetDelay[np.isnan(wetDelay)] = ndv
-    hydroDelay[np.isnan(hydroDelay)] = ndv
-   
-    # Do different things, depending on the type of input
-    if flag=='station_file':
-        import pandas as pd
-        df = pd.read_csv(wetFilename)
-
-        # quick check for consistency
-        assert(np.all(np.abs(lats - df['Lat']) < 0.01))
-
-        df['wetDelay'] = wetDelay
-        df['hydroDelay'] = hydroDelay
-        df['totalDelay'] = wetDelay + hydroDelay
-        df.to_csv(wetFilename, index=False)
-
-    elif flag=='netcdf':
-        RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-        RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-
-    else:
-        RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
-                       fmt = outformat, proj = proj, gt = gt)
-        RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
-                       fmt = outformat, proj = proj, gt = gt)
-
-
-def main(los, lats, lons, heights, flag, weather_model, wmLoc, zref, 
-         outformat, time, out, download_only, parallel, verbose, 
-         wetFilename, hydroFilename):
-    """
-    raiderDelay main function.
-    """
-    from RAiDER.delay import tropo_delay
-
-    if verbose: 
-       print('Starting to run the weather model calculation')
-       print('Time type: {}'.format(type(time)))
-       print('Time: {}'.format(time.strftime('%Y%m%d')))
-       print('Parallel is {}'.format(parallel))
-
-    wetDelay, hydroDelay = \
-       tropo_delay(time, los, lats, lons, heights, 
-                         weather_model, wmLoc, zref, out,
-                         parallel=parallel, verbose = verbose, 
-                         download_only = download_only)
-
-    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                outformat, wetFilename, hydroFilename,
-                proj = None, gt = None, ndv = 0.)
 
 
 def parseCMD():
@@ -201,11 +141,6 @@ def parseCMD():
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
          times, out, download_only, parallel, verbose, \
          wetNames, hydroNames= checkArgs(args, p)
-
-    # Pull the DEM
-    if verbose: 
-        print('Beginning DEM calculation')
-    lats, lons, hgts = getHeights(lats, lons,heights)
 
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):

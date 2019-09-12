@@ -45,6 +45,8 @@ def checkArgs(args, p):
 
     # other
     out = args.out
+    if out is None:
+        out = os.getcwd()
     download_only = args.download_only
     verbose = args.verbose
 
@@ -95,6 +97,8 @@ def checkArgs(args, p):
           args.outformat = 'ENVI'
     else:
        outformat = args.outformat
+    # ensuring consistent file extensions
+    #outformat = output_format(outformat)
 
     # zref
     zref = args.zref
