@@ -208,7 +208,7 @@ class HRRR(WeatherModel):
         self._zs = np.flip(self._zs, axis = 2)
         self._q = np.flip(self._q, axis = 2)
 
-        self._write2HDF5(filename)
+        self._write2HDF5(filename, dateTime)
 
     def _load_pressure_levels_from_file(self, fileName):
         '''
@@ -234,7 +234,7 @@ def makeDataCubes(dateTime = None, outDir = None, nProc = 16, verbose = False):
     at specified pressure levels    
     '''
     pl = getPresLevels()
-    pl = [convertmb2Pa(p) for p in pl['Values']]
+    pl = np.array([convertmb2Pa(p) for p in pl['Values']])
 
     outName = download_hrrr_file(dateTime, 'hrrr', field = 'prs', outDir = outDir, verbose = verbose)
 #    tempList = getTemps(dateTime, pl['Values'], nProc= nProc)
@@ -253,14 +253,16 @@ def makeDataCubes(dateTime = None, outDir = None, nProc = 16, verbose = False):
 
     t, z, q, lats, lons = pull_hrrr_data(outName, verbose = False)
 
-    return lats.T, lons.T, t.moveaxes([2, 1, 0]), q.moveaxes([2, 1, 0]), z.moveaxes([2, 1, 0]), pl
+    return lats.T, lons.T, np.moveaxis(t, [0,1,2], [2, 1, 0]), np.moveaxis(q, [0,1,2], [2, 1, 0]), np.moveaxis(z, [0,1,2], [2, 1, 0]), pl
 
 
 def convertmb2Pa(pres):
     return 100*pres
 
+
 def getLatLonsFromList(List):
     return List[0]['lat'], List[0]['lon']
+
 
 def stackList(List):
     '''
@@ -365,7 +367,7 @@ def download_hrrr_file(DATE, model, field = 'prs', outDir = None, verbose = Fals
     outfile = '{}_{}_{}_f00.grib2'.format(model, DATE.strftime('%Y%m%d_%H%M%S'), field)
     writeLoc = os.path.join(outDir, outfile)
 
-    grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{:02d}.grib2' \
+    grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{}.grib2' \
                     .format(model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
 
     if verbose:
