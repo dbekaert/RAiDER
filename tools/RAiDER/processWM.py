@@ -79,6 +79,13 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = Fals
         #weather_model.load(f)
         weather_model.load(f, lats = lats, lons = lons)
 
+    # Pull the lat/lon data if using the weather model 
+    if lats is None or len(lats)==2:
+        uwn = True
+        lats,lons = weather_model.getLL() 
+        lla = weather_model.getProjection()
+        RAiDER.util.writeLL(time, lats, lons,lla, weather_model_name, out)
+
     # weather model name
     if verbose:
         print('Number of weather model nodes: {}'.format(np.prod(weather_model.getWetRefractivity().shape)))
@@ -86,6 +93,8 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = Fals
         print('Bounds of the weather model: {}/{}/{}/{} (SNWE)'
                .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys), 
                       np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)))
+        print('Using weather nodes only? (true/false): {}'.format(uwn))
+        print('Weather model: {}'.format(weather_model.Model()))
         print('Mean value of the wet refractivity: {}'
                .format(np.nanmean(weather_model.getWetRefractivity())))
         print('Mean value of the hydrostatic refractivity: {}'
@@ -103,12 +112,5 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = Fals
         p = weather.plot(p, 'pqt')
         p.savefig(os.path.join(out, 'pqt_plot.pdf'))
 
-    # Pull the lat/lon data if using the weather model 
-    if lats is None or len(lats)==2:
-        uwn = True
-        lats,lons = weather_model.getLL() 
-        lla = weather_model.getProjection()
-        RAiDER.util.writeLL(time, lats, lons,lla, weather_model_name, out)
-
-    return weather_model, lats, lons
+    return weather_model, lats, lons, uwn
 

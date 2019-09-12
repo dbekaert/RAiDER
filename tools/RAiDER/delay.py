@@ -254,17 +254,15 @@ def computeDelay(los, lats, lons, hgts, weather_model, zref = _ZREF,
 
     # Call interpolateDelay
     if verbose:
-       print('Lats shape is {}'.format(lats.shape))
-       print('lat/lon box is {}/{}/{}/{} (SNWE)'
-              .format(np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)))
-       print('DEM height range is {0:.2f}-{0:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
-       print('Reference z-value (max z for integration) is {} m'.format(zref))
-       print('Number of processors to use: {}'.format(nproc))
-       print('Using weather nodes only? (true/false): {}'.format(uwn))
-       print('Weather model: {}'.format(weather_model.Model()))
+        print('Lats shape is {}'.format(lats.shape))
+        print('lat/lon box is {}/{}/{}/{} (SNWE)'
+               .format(np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)))
+        print('DEM height range is {0:.2f}-{0:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
+        print('Reference z-value (max z for integration) is {} m'.format(zref))
+        print('Number of processors to use: {}'.format(nproc))
 
     wet, hydro = interpolateDelay(weather_model, lats, lons, hgts, los, zref = zref,
-                  useWeatherNodes = uwn, nproc = nproc, useDask = useDask, verbose = verbose)
+                  useWeatherNodes = False, nproc = nproc, useDask = useDask, verbose = verbose)
     if verbose: 
         print('Finished delay calculation')
 
@@ -309,15 +307,13 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     lats, lons, hgts = getHeights(lats, lons,heights)
 
     if verbose:
-        print('Beginning DEM calculation')
+        print('Beginning line-of-sight calculation')
     # Convert the line-of-sight inputs to look vectors
     los = getLookVectors(los, lats, lons, hgts, zref)
 
     wetDelay, hydroDelay = \
-       computeDelay(time, los, lats, lons, heights,
-                         weather_model, wmLoc, zref, out,
-                         parallel=parallel, verbose = verbose,
-                         download_only = download_only)
+       computeDelay(los, lats, lons, heights,weather_model, zref, out,
+                         parallel=parallel, verbose = verbose)
 
     writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                 outformat, wetFilename, hydroFilename,
