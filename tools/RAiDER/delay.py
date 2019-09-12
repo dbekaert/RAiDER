@@ -298,17 +298,17 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         print('Download-only is {}'.format(download_only))
     if wmLoc is None:
         wmLoc = os.path.join(out, 'weather_files')
-    lats, lons, weather_model = prepareWeatherModel(lats, lons, time, weather,
-                        wmFileLoc, verbose=verbose, download_only=download_only)
+    lats, lons, weather_model = prepareWeatherModel(weather, wmFileLoc, out, lats=lats,  
+                        lons=lons, time=time, verbose=verbose, download_only=download_only)
 
     # Pull the DEM.
     if verbose:
         print('Beginning DEM calculation')
     lats, lons, hgts = getHeights(lats, lons,heights)
 
+    # Convert the line-of-sight inputs to look vectors
     if verbose:
         print('Beginning line-of-sight calculation')
-    # Convert the line-of-sight inputs to look vectors
     los = getLookVectors(los, lats, lons, hgts, zref)
 
     wetDelay, hydroDelay = \

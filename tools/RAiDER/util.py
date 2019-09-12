@@ -717,3 +717,17 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                        fmt = outformat, proj = proj, gt = gt)
 
 
+def getTimeFromFile(filename):
+    '''
+    Parse a filename to get a date-time
+    '''
+    import datetime
+    import re
+    fmt = '%Y_%m_%d_T%H_%M_%S'
+    p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
+    try:
+        out = p.search(filename).group()
+        return datetime.datetime.strptime(out, fmt)
+    except:
+        raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
+

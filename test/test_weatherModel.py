@@ -1,6 +1,7 @@
 # Unit and other tests
 import datetime
 import gdal
+import glob
 import math
 import numpy as np
 import os
@@ -8,12 +9,10 @@ from scipy.interpolate import LinearNDInterpolator as lndi
 import pickle
 import unittest
 
-import RAiDER.llreader
-import RAiDER.util
-import RAiDER.delay
-import RAiDER.delayFcns
-
+from RAiDER.util import modelName2Module, writeLL
+from RAiDER.processWM import prepareWeatherModel
 from RAiDER.constants import Zenith
+
 
 class WMTests(unittest.TestCase):
 
@@ -26,6 +25,18 @@ class WMTests(unittest.TestCase):
     zs = wm._zs[1,1,:]
     zref = 15000
     stepSize = 10
+
+    lat_box = np.array([16, 18])
+    lon_box = np.array([-103, -100])
+    time = datetime.datetime(2018,1,1)
+    model_module_name, model_obj = modelName2Module('ERA5')
+
+    basedir = os.path.join('test', 'scenario_1')
+    wmFileLoc = os.path.join(basedir, 'weather_files')
+    era5 = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'ERA5'}
+
+    lats_shape = (11,15)
+    lons_shape = (11,15)
 
     # test error messaging
     def test_interpVector(self):
@@ -40,6 +51,14 @@ class WMTests(unittest.TestCase):
         total_true = 1e-6*(np.trapz(self.wrf[1,1,:], self.zs) + np.trapz(self.hrf[1,1,:], self.zs))
 
         self.assertTrue(np.abs(total-total_true) < 0.01)
+
+    def test_prepareWeatherModel_ERA5(self):
+        weather_model, lats, lons = prepareWeatherModel(self.era5,self.wmFileLoc, self.basedir, verbose=True)
+        self.assertTrue(lats.shape == self.lats_shape)
+        self.assertTrue(lons.shape == self.lons_shape)
+        self.assertTrue(lons.shape == lats.shape)
+        self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
+        self.assertTrue(weather_model.Model()=='ERA-5')
 
 
 def main():
