@@ -125,15 +125,13 @@ def parse_args():
     return p.parse_args(), p
 
 
-
-
 def parseCMD():
     """
-    Parse command-line arguments and pass to main
+    Parse command-line arguments and pass to tropo_delay
     We'll parse arguments and call delay.py.
     """
     from RAiDER.checkArgs import checkArgs
-    from RAiDER.llreader import getHeights 
+    from RAiDER.delay import tropo_delay
 
     args, p = parse_args()
 
@@ -144,6 +142,6 @@ def parseCMD():
 
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
-        main(los, lats, lons, hgts, flag, weather_model, wmLoc, zref,
+        tropo_delay(los, lats, lons, hgts, flag, weather_model, wmLoc, zref,
              outformat, t, out, download_only, parallel, verbose, wfn, hfn)
 

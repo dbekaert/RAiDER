@@ -283,9 +283,10 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     """
     raiderDelay main function.
     """
-    from RAiDER.util import writeDelays
+    from RAiDER.llreader import getHeights 
     from RAiDER.losreader import getLookVectors
     from RAiDER.processWM import prepareWeatherModel
+    from RAiDER.util import writeDelays
 
     if verbose:
         print('Starting to run the weather model calculation')
