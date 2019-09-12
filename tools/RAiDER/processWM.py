@@ -33,13 +33,13 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     return download_flag, f
 
 
-def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, out, verbose = False, download_only = False):
+def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=None, verbose = False, download_only = False):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
     import numpy as np
     from RAiDER.models.allowed import checkIfImplemented
-    from RAiDER.util import pickle_load, writeLL
+    from RAiDER.util import pickle_load, writeLL, getTimeFromFile
     
     # Make weather
     weather_model, weather_files, weather_model_name = \
@@ -51,6 +51,7 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, out, verbose =
         download_flag, f = getWMFilename(weather_model.Model(), time, wmFileLoc, verbose)
     else:
         download_flag = False
+        time = getTimeFromFile(weather_files[0])
 
     # if no weather model files supplied, check the standard location
     if download_flag:
@@ -109,3 +110,5 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, out, verbose =
         p = weather_model.plot('pqt', True)
 
     return weather_model, lats, lons
+
+

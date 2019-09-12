@@ -35,6 +35,9 @@ class WMTests(unittest.TestCase):
     wmFileLoc = os.path.join(basedir, 'weather_files')
     era5 = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'ERA5'}
 
+    lats_shape = (11,15)
+    lons_shape = (11,15)
+
     # test error messaging
     def test_interpVector(self):
         f1 = lndi(self.points, self.wrf.flatten()) 
@@ -48,9 +51,14 @@ class WMTests(unittest.TestCase):
         total_true = 1e-6*(np.trapz(self.wrf[1,1,:], self.zs) + np.trapz(self.hrf[1,1,:], self.zs))
 
         self.assertTrue(np.abs(total-total_true) < 0.01)
+
     def test_prepareWeatherModel_ERA5(self):
-        lats, lons, weather_model = prepareWeatherModel(self.lat_box, self.lon_box, self.time, self.era5,
-                        self.wmFileLoc, self.basedir, verbose=True, download_only=False)
+        weather_model, lats, lons = prepareWeatherModel(self.era5,self.wmFileLoc, self.basedir, verbose=True)
+        self.assertTrue(lats.shape == self.lats_shape)
+        self.assertTrue(lons.shape == self.lons_shape)
+        self.assertTrue(lons.shape == lats.shape)
+        self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
+        self.assertTrue(weather_model.Model()=='ERA-5')
 
 
 def main():
