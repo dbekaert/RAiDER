@@ -299,7 +299,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     if wmLoc is None:
         wmLoc = os.path.join(out, 'weather_files')
     lats, lons, weather_model = prepareWeatherModel(lats, lons, time, weather,
-                        wmFileLoc, verbose=verbose, download_only=download_only)
+                        wmFileLoc, out, verbose=verbose, download_only=download_only)
 
     # Pull the DEM.
     if verbose:

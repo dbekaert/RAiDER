@@ -8,17 +8,15 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import os
-from datetime import datetime as dt
-
-# local imports
-from RAiDER.util import mkdir
-
 
 def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     '''
     Check whether the output weather model exists, and
     if not, download it.
     '''
+    from datetime import datetime as dt
+    from RAiDER.util import mkdir
+
     mkdir('weather_files')
     f = os.path.join(outLoc, 
         '{}_{}.nc'.format(weather_model_name,
@@ -35,11 +33,13 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     return download_flag, f
 
 
-def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = False, download_only = False):
+def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, out, verbose = False, download_only = False):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
+    import numpy as np
     from RAiDER.models.allowed import checkIfImplemented
+    from RAiDER.util import pickle_load, writeLL
     
     # Make weather
     weather_model, weather_files, weather_model_name = \
@@ -70,7 +70,7 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = Fals
 
     # Load the weather model data
     if weather_model_name == 'pickle':
-        weather_model = RAiDER.util.pickle_load(weather_files)
+        weather_model = pickle_load(weather_files)
     elif weather_files is not None:
         weather_model.load(*weather_files)
         download_flag = False
@@ -82,7 +82,7 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = Fals
         uwn = True
         lats,lons = weather_model.getLL() 
         lla = weather_model.getProjection()
-        RAiDER.util.writeLL(time, lats, lons,lla, weather_model_name, out)
+        writeLL(time, lats, lons,lla, weather_model_name, out)
 
     # weather model name
     if verbose:
@@ -105,10 +105,7 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = Fals
            pickle.dump(weather_model, f)
         print('Weather Model Name: {}'.format(weather_model.Model()))
         print(weather_model)
-        p = weather.plot(p, 'rh')
-        p.savefig(os.path.join(out, 'rh_plot.pdf'))
-        p = weather.plot(p, 'pqt')
-        p.savefig(os.path.join(out, 'pqt_plot.pdf'))
+        p = weather_model.plot('wh', True)
+        p = weather_model.plot('pqt', True)
 
-    return weather_model, lats, lons, uwn
-
+    return weather_model, lats, lons
