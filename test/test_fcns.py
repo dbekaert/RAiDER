@@ -8,6 +8,7 @@ import pandas as pd
 import unittest
 
 import RAiDER.llreader
+import RAiDER.losreader
 import RAiDER.util
 import RAiDER.delay
 import RAiDER.delayFcns
@@ -51,7 +52,7 @@ class FcnTests(unittest.TestCase):
         estInt = RAiDER.delay.int_fcn(self.pw, self.step)
         self.assertTrue(math.isclose(np.round(estInt,2),self.trueInt))
     def test_getZenithLookVecs(self):
-        lvs = RAiDER.delayFcns._getZenithLookVecs(self.lats, self.lons, self.hgts, self.zref)
+        lvs = RAiDER.losreader._getZenithLookVecs(self.lats, self.lons, self.hgts, self.zref)
         self.assertTrue(np.allclose(np.round(lvs, 4),self.zlvsTrue))
     def test_get_lengths(self):
         lengths = RAiDER.delayFcns._get_lengths(self.vec1)
@@ -68,12 +69,9 @@ class FcnTests(unittest.TestCase):
         xSort = RAiDER.delayFcns.sortSP(self.testArr1)
         self.assertTrue(np.allclose(xSort, self.testSort))
     def test_getUnitLVs(self):
-        lv = RAiDER.delayFcns.getUnitLVs(np.array([0, 0, 1001.5]), np.array([1001.5]))
+        lv,lengths = RAiDER.delayFcns.getUnitLVs(np.array([0, 0, 1001.5]))
         self.assertTrue(np.allclose(lv,np.array([0, 0, 1])))
-    def test_getLookVectorLength(self):
-        lvs, lengths = RAiDER.delayFcns.getLookVectorLength(Zenith, self.lats, self.lons, self.hgts, self.zref)
-        self.assertTrue(np.allclose(lengths, self.trueLengths))
-        self.assertTrue(np.allclose(np.round(lvs, 4), self.zlvsTrue))
+        self.assertTrue(lengths==1001.5)
 
         
 

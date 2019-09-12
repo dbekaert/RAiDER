@@ -10,7 +10,7 @@ import numpy as np
 import os
 import sys
 
-from RAiDER.constants import Zenith,_STEP,_ZREF
+from RAiDER.constants import _STEP,_ZREF
 
 
 def _common_delay(weatherObj, lats, lons, heights, 
@@ -29,9 +29,7 @@ def _common_delay(weatherObj, lats, lons, heights,
      lats       - Grid of latitudes for each ground point
      lons       - Grid of longitudes for each ground point
      heights    - Grid of heights for each ground point
-     look_vecs  - Grid of look vectors (should be full-length) for each ground point
-     raytrace   - If True, will use the raytracing method, if False, will use the Zenith 
-                  + projection method
+     look_vecs  - Grid of look vectors streching from ground point to sensor (cut off at zref)
      stepSize   - Integration step size in meters 
      intpType   - Can be one of 'scipy': LinearNDInterpolator, or 'sane': _sane_interpolate. 
                   Any other string will use the RegularGridInterpolate method
@@ -45,7 +43,8 @@ def _common_delay(weatherObj, lats, lons, heights,
     import RAiDER.delayFcns
 
     if verbose:
-       import time as timing
+        import time as timing
+        st = timing.time()
 
     parThresh = 1e5
 
@@ -63,9 +62,8 @@ def _common_delay(weatherObj, lats, lons, heights,
        pass
 
     # If weather model nodes only are desired, the calculation is very quick
-    if look_vecs is Zenith and useWeatherNodes:
+    if useWeatherNodes:
         _,_,zs = weatherObj.getPoints()
-        look_vecs = RAiDER.delayFcns._getZenithLookVecs(lats, lons, heights, zref = zref)
         wet_pw  = weatherObj.getWetRefractivity()
         hydro_pw= weatherObj.getHydroRefractivity()
         wet_delays = _integrateZenith(zs, wet_pw)
@@ -79,7 +77,7 @@ def _common_delay(weatherObj, lats, lons, heights,
         print('# of rays = {}'.format(len(lats)))
 
     rays, ecef = RAiDER.delayFcns.calculate_rays(lats, lons, heights, look_vecs, 
-                     zref = zref, stepSize = stepSize, verbose=verbose)
+                     stepSize = stepSize, verbose=verbose)
 
     if verbose:
         print('First ten points along first ray: {}'.format(rays[0][:10,:]))
@@ -91,6 +89,8 @@ def _common_delay(weatherObj, lats, lons, heights,
 
     if verbose:
         print('Finished ray calculation')
+        ft = timing.time()
+        print('Ray-tracing preliminaries took {:4.2f} secs'.format(ft-st))
         print('First ten points along first ray: {}'.format(rays[0][:10,:]))
         print('First ten points along last ray: {}'.format(rays[-1][:10,:]))
         try:
@@ -103,10 +103,8 @@ def _common_delay(weatherObj, lats, lons, heights,
     ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
 
     if verbose:
-       print('Wet interpolator bounding box: {}'.format(ifWet._bbox))
-       print('Hydrostatic interpolator bounding box: {}'.format(ifHydro._bbox))
-
-    if verbose:
+        print('Wet interpolator bounding box: {}'.format(ifWet._bbox))
+        print('Hydrostatic interpolator bounding box: {}'.format(ifHydro._bbox))
         print('Beginning interpolation of each ray')
         st = timing.time()
 
@@ -233,6 +231,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
     """
     from RAiDER.models.allowed import checkIfImplemented
     from RAiDER.downloadWM import downloadWMFile
+    from RAiDER.losreader import getLookVectors
     import RAiDER.util
 
     if verbose:
@@ -308,24 +307,11 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
         print('WARNING: some of the requested points are outside of the existing' +
              'weather model; these will end up as NaNs')
  
-    # LOS check and load
-    if verbose: 
-        print('Beginning LOS calculation')
-    if los is None:
-        los = Zenith
-    elif los is Zenith:
-        pass
-    else:
-        import RAiDER.losreader
-        los = RAiDER.losreader.infer_los(los, lats, lons, hgts, zref)
-
-    if los is Zenith:
-        raytrace = False
-    else:
-        raytrace = True
+    # Convert the line-of-sight inputs to look vectors
+    los = getLookVectors(los, lats, lons, hgts, zref)
        
     RAiDER.util.checkShapes(los, lats, lons, hgts)
-    RAiDER.util.checkLOS(los, raytrace, np.prod(lats.shape))
+    RAiDER.util.checkLOS(los, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it
     # easier to think about
@@ -333,6 +319,7 @@ def tropo_delay(time, los = None, lats = None, lons = None, hgts = None,
     real_shape = llas.shape[:-1]
     llas = llas.reshape(-1, 3)
     lats, lons, hgts = np.moveaxis(llas, -1, 0)
+    los = los.reshape((np.prod(los.shape[:-1]), los.shape[-1]))
 
     if verbose: 
         print('Beginning delay calculation')
