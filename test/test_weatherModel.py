@@ -29,14 +29,12 @@ class WMTests(unittest.TestCase):
     lat_box = np.array([16, 18])
     lon_box = np.array([-103, -100])
     time = datetime.datetime(2018,1,1)
-    model_module_name, model_obj = modelName2Module('ERA5')
-
-    basedir = os.path.join('test', 'scenario_1')
-    wmFileLoc = os.path.join(basedir, 'weather_files')
-    era5 = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'ERA5'}
 
     lats_shape = (11,15)
     lons_shape = (11,15)
+
+    lats_hrrr = ()
+    lons_hrrr = ()
 
     # test error messaging
     def test_interpVector(self):
@@ -53,13 +51,30 @@ class WMTests(unittest.TestCase):
         self.assertTrue(np.abs(total-total_true) < 0.01)
 
     def test_prepareWeatherModel_ERA5(self):
-        weather_model, lats, lons = prepareWeatherModel(self.era5,self.wmFileLoc, self.basedir, verbose=True)
+        model_module_name, model_obj = modelName2Module('ERA5')
+        basedir = os.path.join('test', 'scenario_1')
+        wmFileLoc = os.path.join(basedir, 'weather_files')
+        era5 = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'ERA5'}
+
+        weather_model, lats, lons = prepareWeatherModel(era5,wmFileLoc, basedir, verbose=True)
         self.assertTrue(lats.shape == self.lats_shape)
         self.assertTrue(lons.shape == self.lons_shape)
         self.assertTrue(lons.shape == lats.shape)
         self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
         self.assertTrue(weather_model.Model()=='ERA-5')
 
+    def test_prepareWeatherModel_ERA5(self):
+        model_module_name, model_obj = modelName2Module('HRRR')
+        basedir = os.path.join('test', 'scenario_2')
+        wmFileLoc = os.path.join(basedir, 'weather_files')
+        hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
+
+        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True)
+        self.assertTrue(lats.shape == self.lats_hrrr)
+        self.assertTrue(lons.shape == self.lons_hrrr)
+        self.assertTrue(lons.shape == lats.shape)
+        self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
+        self.assertTrue(weather_model.Model()=='HRRR')
 
 def main():
     unittest.main()
