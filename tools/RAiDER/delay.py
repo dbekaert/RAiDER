@@ -306,9 +306,9 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         print('Beginning DEM calculation')
     lats, lons, hgts = getHeights(lats, lons,heights)
 
+    # Convert the line-of-sight inputs to look vectors
     if verbose:
         print('Beginning line-of-sight calculation')
-    # Convert the line-of-sight inputs to look vectors
     los = getLookVectors(los, lats, lons, hgts, zref)
 
     wetDelay, hydroDelay = \

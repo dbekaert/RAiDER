@@ -75,8 +75,6 @@ def prepareWeatherModel(lats, lons, time, weatherDict, wmFileLoc, verbose = Fals
         weather_model.load(*weather_files)
         download_flag = False
     else:
-        # output file for storing the weather model
-        #weather_model.load(f)
         weather_model.load(f, lats = lats, lons = lons)
 
     # Pull the lat/lon data if using the weather model 
