@@ -31,8 +31,12 @@ class WeatherModel():
         self._humidityType = 'q'
         self._a = []
         self._b = []
+
         self._lon_res = None
         self._lat_res = None
+        self._x_res = None
+        self._y_res = None
+
         self._classname = None 
         self._dataset = None
         self._model_level_type = 'ml'
@@ -54,6 +58,10 @@ class WeatherModel():
         self._xs = np.empty((1, 1, 1)) # Use generic x/y/z instead of lon/lat/height
         self._ys = np.empty((1, 1, 1))
         self._zs = np.empty((1, 1, 1))
+
+        self._lats = None 
+        self._lons = None 
+
         self._p = None
         self._q = None
         self._rh = None
@@ -62,6 +70,7 @@ class WeatherModel():
         self._wet_refractivity = None
         self._hydrostatic_refractivity = None
         self._svp = None
+
 
         
     def __repr__(self):
@@ -231,7 +240,7 @@ class WeatherModel():
 
         if lats is not None:
             in_extent = self._getExtent(lats, lons)
-            self_extent = self._getExtent(self._ys, self._xs)
+            self_extent = self._getExtent(self._lats, self._lons)
             if self._isOutside(in_extent, self_extent):
                 print('Extent of the input lats/lons is: {}'.format(in_extent))
                 print('Extent of the weather model is: {}'.format(self_extent))
@@ -265,14 +274,16 @@ class WeatherModel():
         '''
         get the bounding box around a set of lats/lons
         '''
-        mask = (self._ys[:,:,0] > extent[0]) & (self._ys[:,:,0] < extent[1]) & \
-               (self._xs[:,:,0] > extent[2]) & (self._xs[:,:,0] < extent[3])
+        mask = (self._lats[:,:,0] > extent[0]) & (self._lats[:,:,0] < extent[1]) & \
+               (self._lons[:,:,0] > extent[2]) & (self._lons[:,:,0] < extent[3])
         ma1 = np.sum(mask, axis = 1).astype('bool')
         ma2 = np.sum(mask, axis = 0).astype('bool')
         index1 = np.arange(len(ma1))[ma1][0]
         index2 = np.arange(len(ma1))[ma1][-1]
         index3 = np.arange(len(ma2))[ma2][0]
         index4 = np.arange(len(ma2))[ma2][-1] + 1
+        self._lons                       = self._xs[index1:index2,index3:index4,:]
+        self._lats                       = self._ys[index1:index2,index3:index4,...]
         self._xs                       = self._xs[index1:index2,index3:index4,:]
         self._ys                       = self._ys[index1:index2,index3:index4,...]
         self._zs                       = self._zs[index1:index2,index3:index4,...]
@@ -422,6 +433,26 @@ class WeatherModel():
         
     def getLL(self):
         return self._ys[...,0].copy(), self._xs[...,0].copy()
+
+    def getXY_gdal(self, filename):
+        '''
+        Pull the grid info (x,y) from a gdal-readable file
+        '''
+        import gdal
+        ds = gdal.Open(filename, gdal.GA_ReadOnly)
+        xSize, ySize = ds.RasterXSize, ds.RasterYSize
+        trans = ds.GetGeoTransform()
+        del ds
+    
+        # make regular point grid
+        pixelSizeX = trans[1]
+        pixelSizeY = trans[5]
+        eastOrigin = trans[0] + 0.5*pixelSizeX
+        northOrigin =trans[3] + 0.5*pixelSizeY
+        xArray = np.arange(eastOrigin,  eastOrigin + pixelSizeX*xSize,  pixelSizeX)
+        yArray = np.arange(northOrigin, northOrigin + pixelSizeY*ySize, pixelSizeY)
+    
+        return xArray, yArray
         
     def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
         '''
@@ -432,11 +463,11 @@ class WeatherModel():
 
         # Have to do some complicated stuff to get a nice square box 
         # without doing the whole US
-        self._xs = self._xs.swapaxis(0,1)
-        self._ys = self._ys.swapaxis(0,1)
-        self._zs = self._zs.swapaxis(0,1)
-        self._p = self._p.swapaxis(0,1)
-        self._t = self._t.swapaxis(0,1)
+        self._xs = self._xs.swapaxes(0,1)
+        self._ys = self._ys.swapaxes(0,1)
+        self._zs = self._zs.swapaxes(0,1)
+        self._p = self._p.swapaxes(0,1)
+        self._t = self._t.swapaxes(0,1)
 
         mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
         mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
@@ -468,11 +499,12 @@ class WeatherModel():
         self._t  = _t.copy()
         self._p  = _p.copy()
 
+        import pdb; pdb.set_trace()
         if self._humidityType =='rh':
-            self._rh = self._rh.swapaxis(0,1)
+            self._rh = self._rh.swapaxes(0,1)
             _rh = self._rh[np.ix_(latx,lonx, zx)]
             self._rh = _rh.copy()
         elif self._humidityType =='q':
-            self._q = self._rh.swapaxis(0,1)
+            self._q = self._rh.swapaxes(0,1)
             _q = self._rh[np.ix_(latx,lonx, zx)]
             self._q = _q.copy()
