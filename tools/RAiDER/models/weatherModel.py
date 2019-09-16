@@ -432,11 +432,11 @@ class WeatherModel():
 
         # Have to do some complicated stuff to get a nice square box 
         # without doing the whole US
-        self._xs = self._xs.swapaxes(0,1)
-        self._ys = self._ys.swapaxes(0,1)
-        self._zs = self._zs.swapaxes(0,1)
-        self._p = self._p.swapaxes(0,1)
-        self._t = self._t.swapaxes(0,1)
+        self._xs = self._xs.swapaxis(0,1)
+        self._ys = self._ys.swapaxis(0,1)
+        self._zs = self._zs.swapaxis(0,1)
+        self._p = self._p.swapaxis(0,1)
+        self._t = self._t.swapaxis(0,1)
 
         mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
         mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
@@ -469,10 +469,10 @@ class WeatherModel():
         self._p  = _p.copy()
 
         if self._humidityType =='rh':
-            self._rh = self._rh.swapaxes(0,1)
+            self._rh = self._rh.swapaxis(0,1)
             _rh = self._rh[np.ix_(latx,lonx, zx)]
             self._rh = _rh.copy()
         elif self._humidityType =='q':
-            self._q = self._rh.swapaxes(0,1)
+            self._q = self._rh.swapaxis(0,1)
             _q = self._rh[np.ix_(latx,lonx, zx)]
             self._q = _q.copy()
