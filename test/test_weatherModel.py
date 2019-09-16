@@ -39,15 +39,15 @@ class WMTests(unittest.TestCase):
         zref = 15000
         stepSize = 10
 
-        f1 = lndi(self.points, self.wrf.flatten()) 
-        f2 = lndi(self.points, self.hrf.flatten())  
-        ray = np.stack([-100*np.ones(self.zref//100), 20*np.ones(self.zref//100), 
-                         np.linspace(-100, self.zref, self.zref//100)]).T
+        f1 = lndi(points, wrf.flatten()) 
+        f2 = lndi(points, hrf.flatten())  
+        ray = np.stack([-100*np.ones(zref//100), 20*np.ones(zref//100), 
+                         np.linspace(-100, zref, zref//100)]).T
         testwet = f1(ray)
         testhydro = f2(ray)
         dx = ray[1,2] - ray[0,2] 
         total = 1e-6*dx*np.sum(testwet + testhydro)
-        total_true = 1e-6*(np.trapz(self.wrf[1,1,:], self.zs) + np.trapz(self.hrf[1,1,:], self.zs))
+        total_true = 1e-6*(np.trapz(wrf[1,1,:], zs) + np.trapz(hrf[1,1,:], zs))
 
         self.assertTrue(np.abs(total-total_true) < 0.01)
 
