@@ -112,19 +112,19 @@ class HRRR(WeatherModel):
             lat_min, lat_max, lon_min, lon_max = self._bounds
             self._restrict_model(lat_min, lat_max, lon_min, lon_max)
 
-    def _makeDataCubes(outName, verbose = False):
+    def _makeDataCubes(self, outName, verbose = False):
         '''
         Create a cube of data representing temperature and relative humidity 
         at specified pressure levels    
         '''
         pl = self._getPresLevels()
-        pl = np.array([convertmb2Pa(p) for p in pl['Values']])
+        pl = np.array([self._convertmb2Pa(p) for p in pl['Values']])
     
-        t, z, q, xArr, yArr, lats, lons = pull_hrrr_data(outName, verbose = verbose)
+        t, z, q, xArr, yArr, lats, lons = self._pull_hrrr_data(outName, verbose = verbose)
     
         return xArr, yArr, lats.T, lons.T, np.moveaxis(t, [0,1,2], [2, 1, 0]), np.moveaxis(q, [0,1,2], [2, 1, 0]), np.moveaxis(z, [0,1,2], [2, 1, 0]), pl
     
-    def pull_hrrr_data(filename, verbose = False):
+    def _pull_hrrr_data(self, filename, verbose = False):
         '''
         Get the variables from a HRRR grib2 file
         '''

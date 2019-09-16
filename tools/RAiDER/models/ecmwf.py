@@ -89,9 +89,11 @@ class ECMWF(WeatherModel):
         self._p = np.transpose(self._p)
         self._t = np.transpose(self._t)
         self._q = np.transpose(self._q)
-        self._ys = np.transpose(_lats)
-        self._xs = np.transpose(_lons)
+        self._lats = np.transpose(_lats)
+        self._lons = np.transpose(_lons)
         self._zs = np.transpose(self._zs)
+        self._ys = self._lats.copy()
+        self._xs = self._lons.copy()
 
         # Flip all the axis so that zs are in order from bottom to top
         self._p = np.flip(self._p, axis = 2)

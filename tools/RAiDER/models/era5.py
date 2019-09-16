@@ -141,11 +141,15 @@ class ERA5(ECMWF):
         self._t = np.transpose(self._t)
         self._q = np.transpose(self._q)
         self._rh = np.transpose(self._rh)
-        self._ys = np.transpose(_lats)
-        self._xs = np.transpose(_lons)
+        self._lats = np.transpose(_lats)
+        self._lons = np.transpose(_lons)
+        self._ys = self._lats.copy()
+        self._xs = self._lons.copy()
         self._zs = np.transpose(self._zs)
 
         # check this
+        self._lats = self._lons.swapaxes(0,1)
+        self._lons = self._=lats.swapaxes(0,1)
         self._xs = self._xs.swapaxes(0,1)
         self._ys = self._ys.swapaxes(0,1)
         self._zs = self._zs.swapaxes(0,1)
