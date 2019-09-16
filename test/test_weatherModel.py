@@ -16,15 +16,6 @@ from RAiDER.constants import Zenith
 
 class WMTests(unittest.TestCase):
 
-    picklefile = os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik')
-    with open(picklefile, 'rb') as f:
-        wm = pickle.load(f)
-    points = np.stack([wm._xs.flatten(), wm._ys.flatten(), wm._zs.flatten()], axis = -1)
-    wrf = wm._wet_refractivity                                                                            
-    hrf = wm._hydrostatic_refractivity
-    zs = wm._zs[1,1,:]
-    zref = 15000
-    stepSize = 10
 
     lat_box = np.array([16, 18])
     lon_box = np.array([-103, -100])
@@ -33,11 +24,21 @@ class WMTests(unittest.TestCase):
     lats_shape = (11,15)
     lons_shape = (11,15)
 
-    lats_hrrr = ()
-    lons_hrrr = ()
+    lats_hrrr = np.array([36.5, 37.5])
+    lons_hrrr = np.array([-77, -76])
 
     # test error messaging
     def test_interpVector(self):
+        picklefile = os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik')
+        with open(picklefile, 'rb') as f:
+            wm = pickle.load(f)
+        points = np.stack([wm._xs.flatten(), wm._ys.flatten(), wm._zs.flatten()], axis = -1)
+        wrf = wm._wet_refractivity                                                                            
+        hrf = wm._hydrostatic_refractivity
+        zs = wm._zs[1,1,:]
+        zref = 15000
+        stepSize = 10
+
         f1 = lndi(self.points, self.wrf.flatten()) 
         f2 = lndi(self.points, self.hrf.flatten())  
         ray = np.stack([-100*np.ones(self.zref//100), 20*np.ones(self.zref//100), 
@@ -63,11 +64,11 @@ class WMTests(unittest.TestCase):
         self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
         self.assertTrue(weather_model.Model()=='ERA-5')
 
-    def test_prepareWeatherModel_ERA5(self):
+    def test_prepareWeatherModel_HRRR(self):
         model_module_name, model_obj = modelName2Module('HRRR')
         basedir = os.path.join('test', 'scenario_2')
         wmFileLoc = os.path.join(basedir, 'weather_files')
-        hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
+        hrrr = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'HRRR'}
 
         weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True)
         self.assertTrue(lats.shape == self.lats_hrrr)
