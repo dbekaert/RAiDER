@@ -163,6 +163,12 @@ class WeatherModel():
         '''
         self._model_level_type = levelType
 
+    def _convertmb2Pa(self, pres):
+        '''
+        Convert pressure in millibars to Pascals
+        '''
+        return 100*pres
+
     def _get_heights(self, lats, geo_hgt, geo_ht_fill = np.nan):
         '''
         Transform geo heights to actual heights
@@ -246,10 +252,7 @@ class WeatherModel():
                 print('Extent of the weather model is: {}'.format(self_extent))
                 raise RuntimeError('The weather model passed does not cover all of the \n \
                                   input points; you need to download a larger area.')
-            try:
-                self._trimExtent(in_extent) 
-            except:
-                pass
+            self._trimExtent(in_extent) 
 
     def _getExtent(self,lats, lons):
         '''
@@ -499,7 +502,6 @@ class WeatherModel():
         self._t  = _t.copy()
         self._p  = _p.copy()
 
-        import pdb; pdb.set_trace()
         if self._humidityType =='rh':
             self._rh = self._rh.swapaxes(0,1)
             _rh = self._rh[np.ix_(latx,lonx, zx)]
