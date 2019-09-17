@@ -85,10 +85,12 @@ class HRRR(WeatherModel):
 
         lons[lons > 180] -= 360
 
-        # data cube format should be lons, lats, heights
-        _xs = np.broadcast_to(xArr[:, np.newaxis, np.newaxis],
+        # data cube format should be lats,lons,heights
+        lats, lons = lats.T, lons.T
+        geo_hgt,temps, qs = geo_hgt.swapaxes(0,1), temps.swapaxes(0,1), qs.swapaxes(0,1)
+        _xs = np.broadcast_to(xArr[ np.newaxis,:, np.newaxis],
                                      geo_hgt.shape)
-        _ys = np.broadcast_to(yArr[np.newaxis, :, np.newaxis],
+        _ys = np.broadcast_to(yArr[ :,np.newaxis, np.newaxis],
                                      geo_hgt.shape)
         _lons = np.broadcast_to(lons[..., np.newaxis],
                                      geo_hgt.shape)
