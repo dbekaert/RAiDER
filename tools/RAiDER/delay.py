@@ -161,16 +161,10 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
 
-    try:
-        if itype == 'wet':
-            ifFun.getInterpFcns(weatherObj.getWetRefractivity().filled(fill_value=np.nan), interpType = interpType)
-        elif itype == 'hydro':
-            ifFun.getInterpFcns(weatherObj.getHydroRefractivity().filled(fill_value=np.nan), interpType = interpType)
-    except AttributeError:
-        if itype == 'wet':
-            ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
-        elif itype == 'hydro':
-            ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
+    if itype == 'wet':
+        ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
+    elif itype == 'hydro':
+        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
     return ifFun
 
 

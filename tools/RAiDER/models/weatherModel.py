@@ -251,6 +251,9 @@ class WeatherModel():
             self._wet_refractivity=util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity=util.padLower(self._hydrostatic_refractivity)
 
+        self._checkNotMaskedArrays()
+
+
         if lats is not None:
             in_extent = self._getExtent(lats, lons)
             self_extent = self._getExtent(self._lats, self._lons)
@@ -505,4 +508,26 @@ class WeatherModel():
 
         self._rh = None
         self._q = None
+
+    def _checkNotMaskedArrays(self):
+        try:
+            self._p = self._p.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._t = self._t.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._e = self._e.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._wet_refractivity = self._wet_refractivity.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._hydrostatic_refractivity = self._hydrostatic_refractivity.filled(fill_value=np.nan)
+        except:
+            pass
 
