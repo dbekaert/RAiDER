@@ -108,9 +108,16 @@ class HRRR(WeatherModel):
         self._lats = _lats
         self._lons = _lons
 
-        if self._bounds is not None:
-            lat_min, lat_max, lon_min, lon_max = self._bounds
-            self._restrict_model(lat_min, lat_max, lon_min, lon_max)
+        # For some reason z is opposite the others
+        self._p = np.flip(self._p, axis = 2)
+#        try:
+#            self._q = np.flip(self._q, axis = 2)
+#        except:
+#            pass
+#        try:
+#            self._rh = np.flip(self._rh, axis = 2)
+#        except:
+#            pass
 
     def _makeDataCubes(self, outName, verbose = False):
         '''
