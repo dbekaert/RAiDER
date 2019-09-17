@@ -71,7 +71,7 @@ class ERA5(ECMWF):
              0.949064, 0.956550, 0.963352, 0.969513, 0.975078, 0.980072, 0.984542,
              0.988500, 0.991984, 0.995003, 0.997630, 1.000000]
     
-    def fetch(self, lats, lons, time, out, Nextra = 2):
+    def _fetch(self, lats, lons, time, out, Nextra = 2):
         '''
         Fetch a weather model from ECMWF
         '''
@@ -141,11 +141,15 @@ class ERA5(ECMWF):
         self._t = np.transpose(self._t)
         self._q = np.transpose(self._q)
         self._rh = np.transpose(self._rh)
-        self._ys = np.transpose(_lats)
-        self._xs = np.transpose(_lons)
+        self._lats = np.transpose(_lats)
+        self._lons = np.transpose(_lons)
+        self._ys = self._lats.copy()
+        self._xs = self._lons.copy()
         self._zs = np.transpose(self._zs)
 
         # check this
+        self._lats = self._lons.swapaxes(0,1)
+        self._lons = self._lats.swapaxes(0,1)
         self._xs = self._xs.swapaxes(0,1)
         self._ys = self._ys.swapaxes(0,1)
         self._zs = self._zs.swapaxes(0,1)

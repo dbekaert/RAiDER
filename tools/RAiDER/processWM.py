@@ -74,10 +74,10 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
     if weather_model_name == 'pickle':
         weather_model = pickle_load(weather_files)
     elif weather_files is not None:
-        weather_model.load(*weather_files)
+        weather_model.load(*weather_files, outLats = lats, outLons = lons)
         download_flag = False
     else:
-        weather_model.load(f, lats = lats, lons = lons)
+        weather_model.load(f, outLats = lats, outLons = lons)
 
     # Pull the lat/lon data if using the weather model 
     if lats is None or len(lats)==2:
@@ -85,6 +85,8 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
         lats,lons = weather_model.getLL() 
         lla = weather_model.getProjection()
         writeLL(time, lats, lons,lla, weather_model_name, out)
+    else:
+        uwn = False
 
     # weather model name
     if verbose:
