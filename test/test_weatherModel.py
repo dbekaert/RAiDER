@@ -70,11 +70,8 @@ class WMTests(unittest.TestCase):
         wmFileLoc = os.path.join(basedir, 'weather_files')
         hrrr = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'HRRR'}
 
-        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True)
-        self.assertTrue(lats.shape == self.lats_hrrr)
-        self.assertTrue(lons.shape == self.lons_hrrr)
-        self.assertTrue(lons.shape == lats.shape)
-        self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
+        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr)
+        self.assertTrue(np.all(lons.shape == lats.shape))
         self.assertTrue(weather_model.Model()=='HRRR')
 
 def main():

@@ -149,7 +149,7 @@ class ERA5(ECMWF):
 
         # check this
         self._lats = self._lons.swapaxes(0,1)
-        self._lons = self._=lats.swapaxes(0,1)
+        self._lons = self._lats.swapaxes(0,1)
         self._xs = self._xs.swapaxes(0,1)
         self._ys = self._ys.swapaxes(0,1)
         self._zs = self._zs.swapaxes(0,1)

@@ -113,18 +113,18 @@ class WeatherModel():
         '''
         pass
 
-    def load(self, *args, lats = None, lons = None):
+    def load(self, *args, outLats = None, outLons = None, **kwargs):
         '''
         Calls the load_weather method. Each model class should define a load_weather 
         method appropriate for that class. 'args' should be one or more filenames. 
         '''
-        self.load_weather(*args)
+        self.load_weather(*args, **kwargs)
         self._find_e()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
 
         # adjust the grid based on the height data
-        self._adjust_grid(lats, lons)
+        self._adjust_grid(lats =outLats, lons=outLons)
 
     def load_weather(self, filename):
         '''
@@ -215,7 +215,7 @@ class WeatherModel():
     def getHydroRefractivity(self):
         return self._hydrostatic_refractivity
 
-    def _adjust_grid(self, lats, lons):
+    def _adjust_grid(self, lats = None, lons = None):
         '''
         This function pads the weather grid with a level at self._zmin, if 
         it does not already go that low. It also removes levels that are 
@@ -231,6 +231,8 @@ class WeatherModel():
             # extra slice to match the new z shape
             self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis],self._xs), axis = 2)
             self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis],self._ys), axis = 2)
+            self._lons = np.concatenate((self._lons[:,:,0][...,np.newaxis],self._lons), axis = 2)
+            self._lats = np.concatenate((self._lats[:,:,0][...,np.newaxis],self._lats), axis = 2)
 
             # need to extrapolate the other variables down now
             if self._humidityType == 'q':
@@ -291,13 +293,21 @@ class WeatherModel():
         self._ys                       = self._ys[index1:index2,index3:index4,...]
         self._zs                       = self._zs[index1:index2,index3:index4,...]
         self._p                        = self._p[index1:index2,index3:index4,...]
-        self._q                        = self._q[index1:index2,index3:index4,...]
-        self._rh                       = self._rh[index1:index2,index3:index4,...]
+
+        # pass if didn't compute the other type of humidity
+        try:
+            self._q                        = self._q[index1:index2,index3:index4,...]
+        except TypeError:
+            pass
+        try:
+            self._rh                       = self._rh[index1:index2,index3:index4,...]
+        except TypeError:
+            pass
+
         self._t                        = self._t[index1:index2,index3:index4,...]
         self._e                        = self._e[index1:index2,index3:index4,...]
         self._wet_refractivity         = self._wet_refractivity[index1:index2,index3:index4,...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2,index3:index4,:]
-
 
     def _find_svp(self):
         """
