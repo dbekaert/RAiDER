@@ -161,10 +161,16 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
 
-    if itype == 'wet':
-        ifFun.getInterpFcns(weatherObj.getWetRefractivity().filled(fill_value=np.nan), interpType = interpType)
-    elif itype == 'hydro':
-        ifFun.getInterpFcns(weatherObj.getHydroRefractivity().filled(fill_value=np.nan), interpType = interpType)
+    try:
+        if itype == 'wet':
+            ifFun.getInterpFcns(weatherObj.getWetRefractivity().filled(fill_value=np.nan), interpType = interpType)
+        elif itype == 'hydro':
+            ifFun.getInterpFcns(weatherObj.getHydroRefractivity().filled(fill_value=np.nan), interpType = interpType)
+    except AttributeError:
+        if itype == 'wet':
+            ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
+        elif itype == 'hydro':
+            ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
     return ifFun
 
 
@@ -257,7 +263,7 @@ def computeDelay(los, lats, lons, hgts, weather_model, zref = _ZREF,
         print('Lats shape is {}'.format(lats.shape))
         print('lat/lon box is {}/{}/{}/{} (SNWE)'
                .format(np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)))
-        print('DEM height range is {0:.2f}-{0:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
+        print('DEM height range is {0:.2f}-{1:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
         print('Reference z-value (max z for integration) is {} m'.format(zref))
         print('Number of processors to use: {}'.format(nproc))
 
@@ -312,7 +318,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     los = getLookVectors(los, lats, lons, hgts, zref)
 
     wetDelay, hydroDelay = \
-       computeDelay(los, lats, lons, heights,weather_model, zref, out,
+       computeDelay(los, lats, lons, hgts,weather_model, zref, out,
                          parallel=parallel, verbose = verbose)
 
     writeDelays(flag, wetDelay, hydroDelay, lats, lons,

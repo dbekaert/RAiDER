@@ -142,5 +142,9 @@ def parseCMD():
 
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
-        tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
-             outformat, t, out, download_only, parallel, verbose, wfn, hfn)
+        try:
+            tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
+               outformat, t, out, download_only, parallel, verbose, wfn, hfn)
+        except RuntimeError:
+            continue
+

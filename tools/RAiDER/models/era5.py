@@ -148,6 +148,7 @@ class ERA5(ECMWF):
         self._zs = np.transpose(self._zs)
 
         # check this
+        # data cube format should be lats,lons,heights
         self._lats = self._lons.swapaxes(0,1)
         self._lons = self._lats.swapaxes(0,1)
         self._xs = self._xs.swapaxes(0,1)

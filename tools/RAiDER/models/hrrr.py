@@ -53,10 +53,7 @@ class HRRR(WeatherModel):
         lat0 = 38.5
         lat1 = 38.5
         lat2 = 38.5
-        p1 = pyproj.Proj(proj='lcc', lat_1=lat1,
-                             lat_2=lat2, lat_0=lat0,
-                             lon_0=lon0, a=6370, b=6370,
-                             towgs84=(0,0,0), no_defs=True)
+        p1 = pyproj.Proj('+proj=lcc +lat_1=38.5 +lat_2=38.5 +lat_0=38.5 +lon_0=262.5 +x_0=0 +y_0=0 +a=6371229 +b=6371229 +units=m +no_defs')
         self._proj = p1
 
     def _fetch(self, lats, lons, time, out, Nextra = 2):
@@ -85,10 +82,12 @@ class HRRR(WeatherModel):
 
         lons[lons > 180] -= 360
 
-        # data cube format should be lons, lats, heights
-        _xs = np.broadcast_to(xArr[:, np.newaxis, np.newaxis],
+        # data cube format should be lats,lons,heights
+        lats, lons = lats.T, lons.T
+        geo_hgt,temps, qs = geo_hgt.swapaxes(0,1), temps.swapaxes(0,1), qs.swapaxes(0,1)
+        _xs = np.broadcast_to(xArr[ np.newaxis,:, np.newaxis],
                                      geo_hgt.shape)
-        _ys = np.broadcast_to(yArr[np.newaxis, :, np.newaxis],
+        _ys = np.broadcast_to(yArr[ :,np.newaxis, np.newaxis],
                                      geo_hgt.shape)
         _lons = np.broadcast_to(lons[..., np.newaxis],
                                      geo_hgt.shape)

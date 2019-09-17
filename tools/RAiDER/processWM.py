@@ -34,7 +34,7 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     return download_flag, f
 
 
-def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=None, verbose = False, download_only = False):
+def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=None, verbose = False, download_only = False, makePlots = False):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
@@ -109,6 +109,8 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
            pickle.dump(weather_model, f)
         print('Weather Model Name: {}'.format(weather_model.Model()))
         print(weather_model)
+
+    if makePlots:
         p = weather_model.plot('wh', True)
         p = weather_model.plot('pqt', True)
 
