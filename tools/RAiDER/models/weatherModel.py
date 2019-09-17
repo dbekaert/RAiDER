@@ -280,7 +280,7 @@ class WeatherModel():
            return True
         return False
 
-    def _trimExtent(self,extent):
+    def _trimExtent(self,extent, _zlevels = None):
         '''
         get the bounding box around a set of lats/lons
         '''
@@ -297,27 +297,19 @@ class WeatherModel():
         index4 = min(np.arange(len(ma2))[ma2][-1]+ 2, nx)
 
         # subset around points of interest
-        self._lons                       = self._lons[index1:index2,index3:index4,:]
-        self._lats                       = self._lats[index1:index2,index3:index4,...]
-        self._xs                       = self._xs[index1:index2,index3:index4,:]
-        self._ys                       = self._ys[index1:index2,index3:index4,...]
-        self._zs                       = self._zs[index1:index2,index3:index4,...]
-        self._p                        = self._p[index1:index2,index3:index4,...]
+        self._lons= self._lons[index1:index2,index3:index4,:]
+        self._lats= self._lats[index1:index2,index3:index4,...]
+        self._xs  = self._xs[index1:index2,index3:index4,:]
+        self._ys  = self._ys[index1:index2,index3:index4,...]
+        self._zs  = self._zs[index1:index2,index3:index4,...]
+        self._p   = self._p[index1:index2,index3:index4,...]
+        self._t   = self._t[index1:index2,index3:index4,...]
+        self._e   = self._e[index1:index2,index3:index4,...]
 
-        # pass if didn't compute the other type of humidity
-        try:
-            self._q                        = self._q[index1:index2,index3:index4,...]
-        except TypeError:
-            pass
-        try:
-            self._rh                       = self._rh[index1:index2,index3:index4,...]
-        except TypeError:
-            pass
-
-        self._t                        = self._t[index1:index2,index3:index4,...]
-        self._e                        = self._e[index1:index2,index3:index4,...]
         self._wet_refractivity         = self._wet_refractivity[index1:index2,index3:index4,...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2,index3:index4,:]
+
+        self._uniform_in_z(_zlevels=_zlevels)
 
     def _find_svp(self):
         """
@@ -477,61 +469,6 @@ class WeatherModel():
     
         return xArray, yArray
         
-    def _restrict_model(self, lat_min, lat_max, lon_min, lon_max, _zlevels = None):
-        '''
-        Restrict the weather model to the region of interest (ROI). If there are no 
-        points left in the model (because e.g. the ROI is outside the US), raise
-        an exception. 
-        '''
-        # Have to do some complicated stuff to get a nice square box 
-        # without doing the whole US
-        self._xs = self._xs.swapaxes(0,1)
-        self._ys = self._ys.swapaxes(0,1)
-        self._zs = self._zs.swapaxes(0,1)
-        self._p = self._p.swapaxes(0,1)
-        self._t = self._t.swapaxes(0,1)
-
-        mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
-        mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
-        mask2 = np.sum(mask1, axis=0).astype('bool')
-        mask4 = np.sum(mask3, axis=1).astype('bool')
-        NptsX = self._xs.shape[1]
-        NptsY = self._xs.shape[0]
-        lonRange = np.arange(0,NptsX)
-        latRange = np.arange(0,NptsY)
-        lonx = lonRange[mask2]
-        latx = latRange[mask4]
-        zx = np.arange(0, self._zs.shape[2])
-
-        # if there are no points left, raise exception
-        if np.sum(mask2) == 0 or np.sum(mask4) == 0:
-            raise RuntimeError('Region of interest is outside the region of the HRRR'+
-                                'weather archive data')
-
-        # otherwise subset the data
-        _xs = self._xs[np.ix_(latx,lonx, zx)]
-        _ys = self._ys[np.ix_(latx,lonx, zx)]
-        _zs = self._zs[np.ix_(latx,lonx, zx)]
-        _t  = self._t[np.ix_(latx,lonx, zx)]
-        _p  = self._p[np.ix_(latx,lonx, zx)]
-
-        self._zs = _zs.copy()
-        self._ys = _ys.copy()
-        self._xs = _xs.copy()
-        self._t  = _t.copy()
-        self._p  = _p.copy()
-
-        if self._humidityType =='rh':
-            self._rh = self._rh.swapaxes(0,1)
-            _rh = self._rh[np.ix_(latx,lonx, zx)]
-            self._rh = _rh.copy()
-        elif self._humidityType =='q':
-            self._q = self._rh.swapaxes(0,1)
-            _q = self._rh[np.ix_(latx,lonx, zx)]
-            self._q = _q.copy()
-
-        self._uniform_in_z(_zlevels=_zlevels)
-
     def _uniform_in_z(self, _zlevels = None):
         '''
         Interpolate all variables to a regular grid in z
