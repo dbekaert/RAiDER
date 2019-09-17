@@ -1,6 +1,6 @@
 ENVI
-samples = 1
-lines   = 1
+samples = 15
+lines   = 11
 bands   = 1
 header offset = 0
 file type = ENVI Standard

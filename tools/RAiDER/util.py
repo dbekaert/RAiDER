@@ -680,3 +680,54 @@ def parse_time(t):
     return time
 
 
+def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                outformat, wetFilename, hydroFilename, 
+                proj = None, gt = None, ndv = 0.):
+    '''
+    Write the delay numpy arrays to files in the format specified
+    '''
+
+    # Need to consistently handle noDataValues
+    wetDelay[np.isnan(wetDelay)] = ndv
+    hydroDelay[np.isnan(hydroDelay)] = ndv
+   
+    # Do different things, depending on the type of input
+    if flag=='station_file':
+        import pandas as pd
+        df = pd.read_csv(wetFilename)
+
+        # quick check for consistency
+        assert(np.all(np.abs(lats - df['Lat']) < 0.01))
+
+        df['wetDelay'] = wetDelay
+        df['hydroDelay'] = hydroDelay
+        df['totalDelay'] = wetDelay + hydroDelay
+        df.to_csv(wetFilename, index=False)
+
+    elif flag=='netcdf':
+        RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
+                       fmt=outformat, proj=proj, gt=gt)
+        RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
+                       fmt=outformat, proj=proj, gt=gt)
+
+    else:
+        RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
+                       fmt = outformat, proj = proj, gt = gt)
+        RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
+                       fmt = outformat, proj = proj, gt = gt)
+
+
+def getTimeFromFile(filename):
+    '''
+    Parse a filename to get a date-time
+    '''
+    import datetime
+    import re
+    fmt = '%Y_%m_%d_T%H_%M_%S'
+    p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
+    try:
+        out = p.search(filename).group()
+        return datetime.datetime.strptime(out, fmt)
+    except:
+        raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
+

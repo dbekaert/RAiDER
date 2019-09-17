@@ -9,15 +9,10 @@
     <MDI key="file_type">ENVI Standard</MDI>
     <MDI key="header_offset">0</MDI>
     <MDI key="interleave">bsq</MDI>
-    <MDI key="lines">1</MDI>
-    <MDI key="samples">1</MDI>
+    <MDI key="lines">11</MDI>
+    <MDI key="samples">15</MDI>
   </Metadata>
   <PAMRasterBand band="1">
-    <Metadata>
-      <MDI key="STATISTICS_MAXIMUM">-100</MDI>
-      <MDI key="STATISTICS_MEAN">-100</MDI>
-      <MDI key="STATISTICS_MINIMUM">-100</MDI>
-      <MDI key="STATISTICS_STDDEV">0</MDI>
-    </Metadata>
+    <NoDataValue>0.00000000000000E+00</NoDataValue>
   </PAMRasterBand>
 </PAMDataset>
