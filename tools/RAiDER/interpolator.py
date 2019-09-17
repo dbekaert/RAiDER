@@ -72,9 +72,9 @@ class Interpolator:
         return str(string)
 
     def _getShape(self, xs, ys, zs):
-        try:
-            self._shape = max(xs.shape, ys.shape, zs.shape)
-        except AttributeError:
+        #try:
+        #    self._shape = max(xs.shape, ys.shape, zs.shape)
+        #except AttributeError:
             self._shape = (len(xs), len(ys), len(zs))
 
     def _getBBox(self):
@@ -108,12 +108,12 @@ class Interpolator:
             xs,ys,zs = np.array(xs),np.array(ys),np.array(zs)
 
         self._getShape(xs, ys, zs)
-        self._Npoints = len(xs)
+        self._Npoints = np.prod((len(xs), len(ys), len(zs)))
         
-        try:
-            self._zlevels = np.nanmean(zs, axis=(0,1))
-        except:
-            pass
+#        try:
+#            self._zlevels = np.nanmean(zs, axis=(0,1))
+#        except:
+#            pass
 
         self._xs = xs.flatten()
         self._ys = ys.flatten()
@@ -196,35 +196,7 @@ def _interp3D(xs, ys, zs, values, zlevels, shape = None):
     '''
     from scipy.interpolate import RegularGridInterpolator as rgi
 
-    if shape is None:
-       shape = max(xs.shape, ys.shape, zs.shape)
-
-    # First interpolate uniformly in the z-direction
-    nx, ny = shape[:2]
-    zshaped = np.reshape(zs, shape)
-
-    # if zs are upside down, flip to interpolate vertically
-    if np.nanmean(zshaped[..., 0]) > np.nanmean(zshaped[...,-1]):
-        zshaped = np.flip(zshaped, axis = 2)
-        values = np.flip(values, axis = 2)
-
-    # TODO: requires zs increase along the 2-axis  
-    # zvalues = np.nanmean(zs, axis=(0,1))
-
-    new_zs = np.tile(zlevels, (nx,ny,1))
-    values = fillna3D(values)
-
-    new_var = interp_along_axis(zshaped, new_zs,
-                                  values, axis = 2)
-
-    # This assumes that the input data is in the correct projection; i.e.
-    # the native weather grid projection
-    xvalues = np.unique(xs)
-    yvalues = np.unique(ys)
-
-    # TODO: is it preferable to have lats first? 
-    interp= rgi((yvalues,xvalues, zlevels), new_var,
-                           bounds_error=False, fill_value = np.nan)
+    interp= rgi((ys,xs, zs), values,bounds_error=False, fill_value = np.nan)
     return interp
 
 

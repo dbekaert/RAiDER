@@ -70,16 +70,16 @@ class WeatherModel():
     def __repr__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
-        string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._xs.shape[:2])
-        string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._xs.shape))
+        string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
+        string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projection: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zmax)
-        string += 'Minimum/Maximum y (or latitude): {: 4.2f}/{: 4.2f}\n'\
+        string += 'Minimum/Maximum y: {: 4.2f}/{: 4.2f}\n'\
                   .format(robmin(self._ys), robmax(self._ys))
-        string += 'Minimum/Maximum x (or longitude): {: 4.2f}/{: 4.2f}\n'\
+        string += 'Minimum/Maximum x: {: 4.2f}/{: 4.2f}\n'\
                   .format(robmin(self._xs), robmax(self._xs))
         string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
                   .format(robmin(self._zs), robmax(self._zs))
@@ -478,11 +478,11 @@ class WeatherModel():
         # new regular z-spacing 
         if _zlevels is None:
             _zlevels = np.nanmean(self._zs, axis=(0,1))
-        new_zs = np.tile(zlevels, (nx,ny,1))
+        new_zs = np.tile(_zlevels, (nx,ny,1))
 
         # new variables
         wrf = fillna3D(self._wet_refractivity)
-        hrf = fillna3D(self._hydro_refractivity)
+        hrf = fillna3D(self._hydrostatic_refractivity)
         p = fillna3D(self._p)
         t = fillna3D(self._t)
         e = fillna3D(self._e)
@@ -497,8 +497,8 @@ class WeatherModel():
         self._t = t_new
         self._e = e_new
         self._wet_refractivity = wrf_new
-        self._hydro_refractivity = hrf_new
-        self._zs = zlevels
+        self._hydrostatic_refractivity = hrf_new
+        self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
 
