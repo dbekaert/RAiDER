@@ -295,8 +295,8 @@ class WeatherModel():
         index4 = min(np.arange(len(ma2))[ma2][-1]+ 2, nx)
 
         # subset around points of interest
-        self._lons                       = self._xs[index1:index2,index3:index4,:]
-        self._lats                       = self._ys[index1:index2,index3:index4,...]
+        self._lons                       = self._lons[index1:index2,index3:index4,:]
+        self._lats                       = self._lats[index1:index2,index3:index4,...]
         self._xs                       = self._xs[index1:index2,index3:index4,:]
         self._ys                       = self._ys[index1:index2,index3:index4,...]
         self._zs                       = self._zs[index1:index2,index3:index4,...]
