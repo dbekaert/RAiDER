@@ -101,7 +101,7 @@ class ECMWF(WeatherModel):
         self._q = np.flip(self._q, axis = 2)
         self._zs = np.flip(self._zs, axis = 2)
 
-    def fetch(self, lats, lons, time, out, Nextra = 2):
+    def _fetch(self, lats, lons, time, out, Nextra = 2):
         '''
         Fetch a weather model from ECMWF
         '''

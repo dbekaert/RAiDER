@@ -12,13 +12,6 @@ import RAiDER.util as util
 from RAiDER.util import robmin, robmax
 
 
-class ValidDateError(Exception):
-    def __init___(self,valid_range, badtime):
-        msg = 'ERROR: Valid date range for this weather model is {}-{}\n'.format(*valid_range)
-        msg += 'and the requested date is {}.'.format(time)
-        Exception.__init__(self,msg)
-        self.badtime= badtime
-
 class WeatherModel():
     '''
     Implement a generic weather model for getting estimated SAR delays
@@ -109,6 +102,14 @@ class WeatherModel():
 
     def fetch(self, lats, lons, time, out):
         '''
+        Checks the input datetime against the valid date range for the model and then 
+        calls the model _fetch routine
+        '''
+        self.check(time)
+        self._fetch(lats, lons, time, out)
+
+    def _fetch(self, lats, lons, time, out):
+        '''
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
@@ -148,14 +149,16 @@ class WeatherModel():
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
-        import time
+        print('Weather model {} is available from {}-{}'.format(self.Model(), self._valid_range[0], self._valid_range[1]))
         if time<self._valid_range[0]:
-            raise ValidDateError(self._valid_range, time)
+            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
         if self._valid_range[1] is not None: 
-            if self._valid_range[1] < time:
-                raise ValidDateError(self._valid_range, time)
-        if time > datetime.date.today() - self._lag_time:
-            raise ValidDateError(self._valid_range, time)
+            if self._valid_range[1]=='Present':
+                pass
+            elif self._valid_range[1] < time:
+                raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
+        if time > datetime.datetime.today() - self._lag_time:
+            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
             
     def setLevelType(self, levelType = 'ml'):
         ''' 

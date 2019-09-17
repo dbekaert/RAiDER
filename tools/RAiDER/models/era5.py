@@ -71,7 +71,7 @@ class ERA5(ECMWF):
              0.949064, 0.956550, 0.963352, 0.969513, 0.975078, 0.980072, 0.984542,
              0.988500, 0.991984, 0.995003, 0.997630, 1.000000]
     
-    def fetch(self, lats, lons, time, out, Nextra = 2):
+    def _fetch(self, lats, lons, time, out, Nextra = 2):
         '''
         Fetch a weather model from ECMWF
         '''

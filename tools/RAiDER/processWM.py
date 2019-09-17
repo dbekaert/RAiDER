@@ -85,6 +85,8 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
         lats,lons = weather_model.getLL() 
         lla = weather_model.getProjection()
         writeLL(time, lats, lons,lla, weather_model_name, out)
+    else:
+        uwn = False
 
     # weather model name
     if verbose:

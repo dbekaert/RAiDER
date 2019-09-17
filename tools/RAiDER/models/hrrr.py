@@ -24,7 +24,7 @@ class HRRR(WeatherModel):
         self._dataset = 'hrrr'
 
         # Tuple of min/max years where data is available. 
-        self._valid_range = (datetime.date(2018,7,15),)
+        self._valid_range = (datetime.datetime(2016,7,15),"Present")
         self._lag_time = datetime.timedelta(hours=3) # Availability lag time in days
 
         # model constants: TODO: need to update/double-check these
@@ -59,7 +59,7 @@ class HRRR(WeatherModel):
                              towgs84=(0,0,0), no_defs=True)
         self._proj = p1
 
-    def fetch(self, lats, lons, time, out, Nextra = 2):
+    def _fetch(self, lats, lons, time, out, Nextra = 2):
         '''
         Fetch weather model data from HRRR
         '''
