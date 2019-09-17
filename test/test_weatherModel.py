@@ -68,9 +68,9 @@ class WMTests(unittest.TestCase):
         model_module_name, model_obj = modelName2Module('HRRR')
         basedir = os.path.join('test', 'scenario_2')
         wmFileLoc = os.path.join(basedir, 'weather_files')
-        hrrr = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'HRRR'}
+        hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
 
-        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr)
+        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr, time = self.time)
         self.assertTrue(np.all(lons.shape == lats.shape))
         self.assertTrue(weather_model.Model()=='HRRR')
 
