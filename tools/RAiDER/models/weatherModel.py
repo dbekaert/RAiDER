@@ -290,27 +290,27 @@ class WeatherModel():
         index2 = np.arange(len(ma1))[ma1][-1]
         index3 = np.arange(len(ma2))[ma2][0]
         index4 = np.arange(len(ma2))[ma2][-1] + 1
-        self._lons = self._xs[index3:index4,index1:index2,:]
-        self._lats = self._ys[index3:index4,index1:index2,:]
-        self._xs   = self._xs[index3:index4,index1:index2,:]
-        self._ys   = self._ys[index3:index4,index1:index2,:]
-        self._zs   = self._zs[index3:index4,index1:index2,:]
-        self._p    = self._p[index3:index4,index1:index2,:]
-        self._t    = self._t[index3:index4,index1:index2,:]
-        self._e    = self._e[index3:index4,index1:index2,:]
+        self._lons                       = self._xs[index1:index2,index3:index4,:]
+        self._lats                       = self._ys[index1:index2,index3:index4,...]
+        self._xs                       = self._xs[index1:index2,index3:index4,:]
+        self._ys                       = self._ys[index1:index2,index3:index4,...]
+        self._zs                       = self._zs[index1:index2,index3:index4,...]
+        self._p                        = self._p[index1:index2,index3:index4,...]
 
         # pass if didn't compute the other type of humidity
         try:
-            self._q  = self._q[index1:index2,index3:index4,...]
+            self._q                        = self._q[index1:index2,index3:index4,...]
         except TypeError:
             pass
         try:
-            self._rh = self._rh[index1:index2,index3:index4,...]
+            self._rh                       = self._rh[index1:index2,index3:index4,...]
         except TypeError:
             pass
 
-        self._wet_refractivity         = self._wet_refractivity[index3:index4,index1:index2,...]
-        self._hydrostatic_refractivity = self._hydrostatic_refractivity[index3:index4,index1:index2,:]
+        self._t                        = self._t[index1:index2,index3:index4,...]
+        self._e                        = self._e[index1:index2,index3:index4,...]
+        self._wet_refractivity         = self._wet_refractivity[index1:index2,index3:index4,...]
+        self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2,index3:index4,:]
 
     def _find_svp(self):
         """
