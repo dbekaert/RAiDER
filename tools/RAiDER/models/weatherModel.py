@@ -257,8 +257,9 @@ class WeatherModel():
             if self._isOutside(in_extent, self_extent):
                 print('Extent of the input lats/lons is: {}'.format(in_extent))
                 print('Extent of the weather model is: {}'.format(self_extent))
-                raise RuntimeError('The weather model passed does not cover all of the \n \
+                print('The weather model passed does not cover all of the \n \
                                   input points; you need to download a larger area.')
+                raise RuntimeError
             self._trimExtent(in_extent) 
 
     def _getExtent(self,lats, lons):
