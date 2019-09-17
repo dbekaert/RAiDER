@@ -10,6 +10,7 @@ import RAiDER.constants as const
 import RAiDER.models.plotWeather as plots
 import RAiDER.util as util
 from RAiDER.util import robmin, robmax
+from RAiDER.interpolator import fillna3D, interp_along_axis
 
 
 class WeatherModel():
@@ -224,6 +225,7 @@ class WeatherModel():
         it does not already go that low. It also removes levels that are 
         above self._zmax, since they are not needed. 
         '''
+
         if self._zmin < np.nanmin(self._zs):
             # first add in a new layer at zmin
             new_heights = np.zeros(self._zs.shape[:2]) + self._zmin
@@ -475,13 +477,12 @@ class WeatherModel():
     
         return xArray, yArray
         
-    def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
+    def _restrict_model(self, lat_min, lat_max, lon_min, lon_max, _zlevels = None):
         '''
         Restrict the weather model to the region of interest (ROI). If there are no 
         points left in the model (because e.g. the ROI is outside the US), raise
         an exception. 
         '''
-
         # Have to do some complicated stuff to get a nice square box 
         # without doing the whole US
         self._xs = self._xs.swapaxes(0,1)
@@ -528,3 +529,42 @@ class WeatherModel():
             self._q = self._rh.swapaxes(0,1)
             _q = self._rh[np.ix_(latx,lonx, zx)]
             self._q = _q.copy()
+
+        self._uniform_in_z(_zlevels=_zlevels)
+
+    def _uniform_in_z(self, _zlevels = None):
+        '''
+        Interpolate all variables to a regular grid in z
+        '''
+        nx, ny = self._xs.shape[:2]
+
+        # new regular z-spacing 
+        if _zlevels is None:
+            _zlevels = np.nanmean(self._zs, axis=(0,1))
+        new_zs = np.tile(zlevels, (nx,ny,1))
+
+        # new variables
+        wrf = fillna3D(self._wet_refractivity)
+        hrf = fillna3D(self._hydro_refractivity)
+        p = fillna3D(self._p)
+        t = fillna3D(self._t)
+        e = fillna3D(self._e)
+        wrf_new = interp_along_axis(self._zs, new_zs, wrf, axis = 2)
+        hrf_new = interp_along_axis(self._zs, new_zs, hrf, axis = 2)
+        t_new = interp_along_axis(self._zs, new_zs, t, axis = 2)
+        p_new = interp_along_axis(self._zs, new_zs, p, axis = 2)
+        e_new = interp_along_axis(self._zs, new_zs, e, axis = 2)
+
+        # re-assign values to the uniform z
+        self._p = p_new
+        self._t = t_new
+        self._e = e_new
+        self._wet_refractivity = wrf_new
+        self._hydro_refractivity = hrf_new
+        self._zs = zlevels
+        self._xs = np.unique(self._xs)
+        self._ys = np.unique(self._ys)
+
+        self._rh = None
+        self._q = None
+
