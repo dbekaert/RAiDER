@@ -242,8 +242,11 @@ def fillna3D(array, axis = -1):
     test_nan = np.isnan(y)
     finder = lambda z: z.nonzero()[0]
     
-    y[test_nan]= np.interp(finder(test_nan), finder(~test_nan), y[~test_nan])
-    newy = np.reshape(y, shape)
-    final = np.moveaxis(newy, -1, axis)
-    return final
+    try:
+        y[test_nan]= np.interp(finder(test_nan), finder(~test_nan), y[~test_nan])
+        newy = np.reshape(y, shape)
+        final = np.moveaxis(newy, -1, axis)
+        return final
+    except ValueError:
+        return array
     

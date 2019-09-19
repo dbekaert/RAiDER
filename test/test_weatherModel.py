@@ -32,10 +32,12 @@ class WMTests(unittest.TestCase):
         picklefile = os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik')
         with open(picklefile, 'rb') as f:
             wm = pickle.load(f)
-        points = np.stack([wm._xs.flatten(), wm._ys.flatten(), wm._zs.flatten()], axis = -1)
-        wrf = wm._wet_refractivity                                                                            
+
+        [X, Y, Z] = np.meshgrid(wm._xs, wm._ys, wm._zs)
+        points = np.stack([X.flatten(), Y.flatten(), Z.flatten()], axis = -1)
+        wrf = wm._wet_refractivity
         hrf = wm._hydrostatic_refractivity
-        zs = wm._zs[1,1,:]
+        zs = wm._zs
         zref = 15000
         stepSize = 10
 
@@ -45,12 +47,15 @@ class WMTests(unittest.TestCase):
                          np.linspace(-100, zref, zref//100)]).T
         testwet = f1(ray)
         testhydro = f2(ray)
+        tmask = ~np.isnan(testwet) & ~np.isnan(testhydro)
         dx = ray[1,2] - ray[0,2] 
-        total = 1e-6*dx*np.sum(testwet + testhydro)
-        total_true = 1e-6*(np.trapz(wrf[1,1,:], zs) + np.trapz(hrf[1,1,:], zs))
+        total = 1e-6*dx*np.sum(testwet[tmask] + testhydro[tmask])
+        mask = np.isnan(wrf[1,1,:]) | np.isnan(hrf[1,1,:])
+        total_true = 1e-6*(np.trapz(wrf[1,1,:][~mask], zs[~mask]) + np.trapz(hrf[1,1,:][~mask], zs[~mask]))
 
         self.assertTrue(np.abs(total-total_true) < 0.01)
 
+    #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_ERA5(self):
         model_module_name, model_obj = modelName2Module('ERA5')
         basedir = os.path.join('test', 'scenario_1')
@@ -64,6 +69,7 @@ class WMTests(unittest.TestCase):
         self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
         self.assertTrue(weather_model.Model()=='ERA-5')
 
+    #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_HRRR(self):
         model_module_name, model_obj = modelName2Module('HRRR')
         basedir = os.path.join('test', 'scenario_2')

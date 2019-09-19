@@ -21,7 +21,7 @@ class FcnTests(unittest.TestCase):
     #zlevels = np.array([-1, 1, 3, 5, 10, 20])
     zlevels =  np.arange(-1, 21, 1)
     #z = zlevels + np.random.rand(len(zlevels))
-    z = zlevels 
+    z = zlevels
     [xs, ys, zs] = np.meshgrid(x, y, z)
     def F(x, y, z):
       return np.sin(x)*np.cos(y)*(0.1*z - 5)
@@ -56,8 +56,8 @@ class FcnTests(unittest.TestCase):
     truev1 = np.array([ 0.42073549,  0.87538421,  0.52520872, -0.30784124, -0.85786338])
 
     # test interp_along_axis
-    z = np.tile(np.arange(100)[...,np.newaxis], (5,1,5)).swapaxes(1,2)
-    zvals = 0.3*z - 12.75
+    z2 = np.tile(np.arange(100)[...,np.newaxis], (5,1,5)).swapaxes(1,2)
+    zvals = 0.3*z2 - 12.75
     newz = np.tile(np.array([1.5, 9.9, 15, 23.278, 39.99, 50.1])[...,np.newaxis], (5,1,5)).swapaxes(1,2)
     corz = 0.3*newz - 12.75
 
@@ -66,10 +66,10 @@ class FcnTests(unittest.TestCase):
         out =RAiDER.interpolator.interpVector(self.tv1, 6)
         self.assertTrue(np.allclose(out, self.truev1))
     def test_interp3D_1(self):
-        f = RAiDER.interpolator._interp3D(self.xs, self.ys, self.zs, self.values, self.zlevels)
+        f = RAiDER.interpolator._interp3D(self.x, self.y, self.z, self.values, self.zlevels)
         self.assertTrue((np.abs(f(self.testPoint1) - self.trueValue1) < 0.01)[0])
     def test_interp3D_2(self):
-        f = RAiDER.interpolator._interp3D(self.xs, self.ys, self.zs, self.values, self.zlevels)
+        f = RAiDER.interpolator._interp3D(self.x, self.y, self.z, self.values, self.zlevels)
         self.assertTrue((np.abs(f(self.testPoint2) - self.trueValue2) < 0.01)[0])
     def test_fillna3D(self):
         final = RAiDER.interpolator.fillna3D(self.valuesWNans)
@@ -77,7 +77,7 @@ class FcnTests(unittest.TestCase):
         error = np.abs(final[self.nanIndex] - self.values[self.nanIndex])/np.where(denom==0, 1, denom)
         self.assertTrue(np.mean(error)<0.1)
     def test_interp_along_axis(self):
-        out = RAiDER.interpolator.interp_along_axis(self.z, self.newz, self.zvals, axis = 2)
+        out = RAiDER.interpolator.interp_along_axis(self.z2, self.newz, self.zvals, axis = 2)
         self.assertTrue(np.allclose(self.corz, out))
   
 
