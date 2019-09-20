@@ -28,8 +28,6 @@ def checkArgs(args, p):
        raise ValueError('You must specify one of the following: \n \
              (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \
              (4) station file containing Lat and Lon columns')
-    if args.time is None and args.wmnetcdf is None:
-       p.error('You must specify either the weather model file (--wmnetcdf) or time (--time)')
     if args.model not in AllowedModels():
        raise NotImplementedError('Model {} is not an implemented model type'.format(args.model))
     if args.model == 'WRF' and args.wrfmodelfiles is None:
@@ -46,8 +44,9 @@ def checkArgs(args, p):
         flag = None
 
     # other
-    time = args.time
     out = args.out
+    if out is None:
+        out = os.getcwd()
     download_only = args.download_only
     verbose = args.verbose
 
@@ -69,6 +68,9 @@ def checkArgs(args, p):
         lat, lon, latproj, lonproj = RAiDER.llreader.readLL(args.station_file)
     else:
         lat = lon = None
+    from numpy import min, max
+    if (min(lat) < -90) | (max(lat)>90):
+        raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Weather
     weather_model_name = args.model.upper().replace('-','')
@@ -93,22 +95,35 @@ def checkArgs(args, p):
           args.outformat = 'netcdf'
        else:
           args.outformat = 'ENVI'
+    else:
+       outformat = args.outformat
+    # ensuring consistent file extensions
+    #outformat = output_format(outformat)
 
     # zref
     zref = args.zref
 
-    # output filenames
-    if flag == 'station_file':
-        wetFilename = os.path.join(out, '{}_Delay_{}_Zmax{}.csv'.format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
-        hydroFilename = wetFilename
+    # handle the datetimes requested
+    datetimeList = [d + args.time for d in args.dateList]
 
-        # copy the input file to the output location for editing
-        import pandas as pd
-        indf = pd.read_csv(args.station_file)
-        indf.to_csv(wetFilename, index=False)
-    else:
-        wetFilename, hydroFilename = \
-            RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
+    # output filenames
+    wetNames, hydroNames = [], []
+    for time in datetimeList:
+        if flag == 'station_file':
+            wetFilename = os.path.join(out, '{}_Delay_{}_Zmax{}.csv'
+                          .format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
+            hydroFilename = wetFilename
+
+            # copy the input file to the output location for editing
+            import pandas as pd
+            indf = pd.read_csv(args.station_file)
+            indf.to_csv(wetFilename, index=False)
+        else:
+            wetFilename, hydroFilename = \
+                RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
+
+        wetNames.append(wetFilename)
+        hydroNames.append(hydroFilename)
 
     # DEM
     if args.dem is not None:
@@ -116,7 +131,7 @@ def checkArgs(args, p):
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
     elif flag=='station_file':
-        heights = ('merge', wetFilename)
+        heights = ('merge', wetNames)
     else:
         heights = ('download', 'geom/warpedDEM.dem')
 
@@ -143,7 +158,7 @@ def checkArgs(args, p):
     # parallelization
     parallel = True if not args.no_parallel else False
 
-    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, time, out, download_only, parallel, verbose, wetFilename, hydroFilename
+    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, parallel, verbose, wetNames, hydroNames
 
 
 def output_format(outformat):

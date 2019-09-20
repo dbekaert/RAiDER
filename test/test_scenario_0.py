@@ -7,9 +7,10 @@ import pandas as pd
 import pickle
 import unittest
 
-import RAiDER.llreader
-import RAiDER.util
 import RAiDER.delay
+from RAiDER.llreader import readLL, getHeights
+from RAiDER.losreader import getLookVectors
+import RAiDER.util
 
 class TimeTests(unittest.TestCase):
 
@@ -33,74 +34,31 @@ class TimeTests(unittest.TestCase):
     # load the weather model type and date for the given scenario
     outdir = os.path.join(os.getcwd(),'test')
     basedir = os.path.join(outdir, '{}'.format(scenario))
-    lines=[]
-    with open(os.path.join(basedir, 'wmtype'), 'r') as f:
-        for line in f:
-            lines.append(line.strip())
-    wmtype = lines[0]
-    test_time = datetime.datetime.strptime(lines[1], '%Y%m%d%H%M%S')
-    flag = lines[-1]
-    test_file = os.path.join(basedir,'weather_model_data.csv')
+    out = os.path.join(basedir, os.sep)
 
-    # get the data for the scenario
-    if flag == 'station_file':
-       filename = os.path.join(basedir, 'station_file.txt')
-       [lats, lons, latproj, lonproj] = RAiDER.llreader.readLL(filename)
-    else:
-       latfile = os.path.join(basedir, 'lat.rdr')
-       lonfile = os.path.join(basedir,'lon.rdr')
-       losfile = os.path.join(basedir,'los.rdr')
-       [lats, lons] = RAiDER.llreader.readLL(latfile, lonfile)
+    data = RAiDER.util.pickle_load(os.path.join(basedir, 'data.pik'))
+    lats,lons,los,zref,hgts = data['lats'], data['lons'], data['los'], data['zref'], data['hgts']
 
-    # DEM
-    demfile = os.path.join(basedir,'geom', 'warpedDEM.dem')
-    wmLoc = os.path.join(basedir, 'weather_files')
-    RAiDER.util.mkdir(wmLoc)
-    if os.path.exists(demfile):
-        heights = ('dem', demfile)
-    else:
-        heights = ('download', demfile)
+    weather_model = RAiDER.util.pickle_load(os.path.join(basedir, 'pickledWeatherModel.pik'))
 
-    if useZen:
-        los = None
-    else:
-        los = ('los', losfile)
-
-    zref = 15000
-    out = '.'
-
-    # load the weather model
-    try:
-       model_name, wm = RAiDER.util.modelName2Module(wmtype)
-       weather = {'type': wm(), 'files': None,
-                'name': wmtype}
-    except:
-       weather = {'type': 'pickle', 'files': os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik'),
-                'name': 'pickle'}
-
+    # Compute the true delay
+    wrf = weather_model._wet_refractivity[1,1,:]
+    hrf = weather_model._hydrostatic_refractivity[1,1,:]
+    zs = weather_model._zs[1,1,:]
+    mask = zs > 2907
+    totalDelay = 1e-6*(np.trapz(wrf[mask], zs[mask]) + np.trapz(hrf[mask], zs[mask])) 
 
     # test error messaging
     #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_tropoSmallArea(self):
         wetDelay, hydroDelay = \
-            RAiDER.delay.tropo_delay(self.test_time, self.los, self.lats, self.lons, self.heights,
-                  self.weather, self.wmLoc, self.zref, self.out,
-                  parallel=False, verbose = True,
-                  download_only = False)
+            RAiDER.delay.computeDelay(self.los, self.lats, self.lons, self.hgts,
+                  self.weather_model, self.zref, self.out,
+                  parallel=False, verbose = True)
         totalDelayEst = wetDelay+hydroDelay
 
         # get the true delay from the weather model
-        picklefile = os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik')
-        with open(picklefile, 'rb') as f:
-            wm = pickle.load(f)
-        wrf = wm._wet_refractivity[1,1,:]
-        hrf = wm._hydrostatic_refractivity[1,1,:]
-        zs = wm._zs[1,1,:]
-        mask = zs > 2907
-        totalDelay = 1e-6*(np.trapz(wrf[mask], zs[mask]) + np.trapz(hrf[mask], zs[mask])) 
-        #delayDF = pd.read_csv(self.test_file)
-        #totalDelay = np.trapz(delayDF['totalRef'].values, x=delayDF['Z'].values)/1e6
-        self.assertTrue(np.abs(totalDelay - totalDelayEst) < 0.001)
+        self.assertTrue(np.abs(self.totalDelay - totalDelayEst) < 0.001)
 
 def main():
     unittest.main()

@@ -2,49 +2,21 @@ import os
 import numpy as np
 
 import RAiDER.util
-
+from RAiDER.util import parse_date, parse_time
+from RAiDER.constants import _ZREF
 
 def read_date(s):
-    """
-    Read a date from a string in pseudo-ISO 8601 format.
-    """
+    '''
+    Read and parse an input date or datestring
+    '''
     import datetime
-    import itertools
-    year_formats = (
-        '%Y-%m-%d',
-        '%Y%m%d',
-        '%Y-%m',
-        '%Y',  # I don't think anyone would ever want just a year
-    )
-    time_formats = (
-        '',
-        'T%H:%M:%S.%f',
-        'T%H:%M:%S',
-        'T%H%M%S.%f',
-        'T%H%M%S',
-        'T%H:%M',
-        'T%H%M',
-        'T%H',
-    )
-    timezone_formats = (
-        '',
-        'Z',
-        '%z',
-    )
-    all_formats = map(
-        ''.join,
-        itertools.product(year_formats, time_formats, timezone_formats))
-    date = None
-    for date_format in all_formats:
-        try:
-            date = datetime.datetime.strptime(s, date_format)
-        except ValueError:
-            continue
-    if date is None:
-        raise ValueError(
-            'Unable to coerce {} to a date. Try %Y-%m-%dT%H:%M:%S.%f%z'.format(s))
-
-    return date
+    try:
+        date1, date2 = [parse_date(d) for d in s.split(',')]
+        dateList = [date1 + k*datetime.timdelta(days=1) for k in range((date2 - date1).days+1)]
+        return dateList
+    except ValueError:
+        date = parse_date(s)
+        return [date]
 
 
 def parse_args():
@@ -54,9 +26,13 @@ def parse_args():
         description='Calculate tropospheric delay from a weather model')
 
     p.add_argument(
-        '--time',
-        help='Fetch weather model data at this (ISO 8601 format) time',
+        '--date',dest='dateList',
+        help='Fetch weather model data for a given date or date range.\nCan be a single date or a comma-separated list of two dates (earlier, later) in the ISO 8601 format',
         type=read_date, required=True)
+    p.add_argument(
+        '--time', dest = 'time',
+        help='Fetch weather model data at this (ISO 8601 format) time of day',
+        type=parse_time, required=True)
 
     # Line of sight
     los = p.add_mutually_exclusive_group()
@@ -132,7 +108,7 @@ def parse_args():
         '--zref', '-z',
         help=('Height limit when integrating (meters) '
               '(default: %(default)s)'),
-        type=int, default=15000)
+        type=int, default=_ZREF)
 
     p.add_argument(
         '--outformat', help='Output file format; GDAL-compatible for DEM, HDF5 for height levels',
@@ -149,81 +125,26 @@ def parse_args():
     return p.parse_args(), p
 
 
-def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                outformat, wetFilename, hydroFilename, 
-                proj = None, gt = None, ndv = 0.):
-    '''
-    Write the delay numpy arrays to files in the format specified
-    '''
-    # Need to consistently handle noDataValues
-    wetDelay[np.isnan(wetDelay)] = ndv
-    hydroDelay[np.isnan(hydroDelay)] = ndv
-   
-    # Do different things, depending on the type of input
-    if flag=='station_file':
-        import pandas as pd
-        df = pd.read_csv(wetFilename)
-
-        # quick check for consistency
-        assert(np.all(np.abs(lats - df['Lat']) < 0.01))
-
-        df['wetDelay'] = wetDelay
-        df['hydroDelay'] = hydroDelay
-        df['totalDelay'] = wetDelay + hydroDelay
-        df.to_csv(wetFilename, index=False)
-
-    elif flag=='netcdf':
-        RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-        RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-
-    else:
-        RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
-                       fmt = outformat, proj = proj, gt = gt)
-        RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
-                       fmt = outformat, proj = proj, gt = gt)
-
-
-def main(los, lats, lons, heights, flag, weather_model, wmLoc, zref, 
-         outformat, time, out, download_only, parallel, verbose, 
-         wetFilename, hydroFilename):
-    """
-    raiderDelay main function.
-    """
-    from RAiDER.delay import tropo_delay
-
-    if verbose: 
-       print('Starting to run the weather model calculation')
-       print('Time type: {}'.format(type(time)))
-       print('Time: {}'.format(time.strftime('%Y%m%d')))
-       print('Parallel is {}'.format(parallel))
-
-    wetDelay, hydroDelay = \
-       tropo_delay(time, los, lats, lons, heights, 
-                         weather_model, wmLoc, zref, out,
-                         parallel=parallel, verbose = verbose, 
-                         download_only = download_only)
-
-    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                outformat, wetFilename, hydroFilename,
-                proj = None, gt = None, ndv = 0.)
-
-
 def parseCMD():
     """
-    Parse command-line arguments and pass to main
+    Parse command-line arguments and pass to tropo_delay
     We'll parse arguments and call delay.py.
     """
     from RAiDER.checkArgs import checkArgs
+    from RAiDER.delay import tropo_delay
 
     args, p = parse_args()
 
     # Argument checking
     los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
-         time, out, download_only, parallel, verbose, \
-         wetFilename, hydroFilename = checkArgs(args, p)
+         times, out, download_only, parallel, verbose, \
+         wetNames, hydroNames= checkArgs(args, p)
 
-    main(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
-         outformat, time, out, download_only, parallel, verbose,
-         wetFilename, hydroFilename)
+    # Loop over each datetime and compute the delay
+    for t, wfn, hfn in zip(times, wetNames, hydroNames):
+        try:
+            tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
+               outformat, t, out, download_only, parallel, verbose, wfn, hfn)
+        except RuntimeError:
+            continue
+

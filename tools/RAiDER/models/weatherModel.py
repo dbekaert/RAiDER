@@ -12,13 +12,6 @@ import RAiDER.util as util
 from RAiDER.util import robmin, robmax
 
 
-class ValidDateError(Exception):
-    def __init___(self,valid_range, badtime):
-        msg = 'ERROR: Valid date range for this weather model is {}-{}\n'.format(*valid_range)
-        msg += 'and the requested date is {}.'.format(time)
-        Exception.__init__(self,msg)
-        self.badtime= badtime
-
 class WeatherModel():
     '''
     Implement a generic weather model for getting estimated SAR delays
@@ -31,8 +24,12 @@ class WeatherModel():
         self._humidityType = 'q'
         self._a = []
         self._b = []
+
         self._lon_res = None
         self._lat_res = None
+        self._x_res = None
+        self._y_res = None
+
         self._classname = None 
         self._dataset = None
         self._model_level_type = 'ml'
@@ -54,6 +51,10 @@ class WeatherModel():
         self._xs = np.empty((1, 1, 1)) # Use generic x/y/z instead of lon/lat/height
         self._ys = np.empty((1, 1, 1))
         self._zs = np.empty((1, 1, 1))
+
+        self._lats = None 
+        self._lons = None 
+
         self._p = None
         self._q = None
         self._rh = None
@@ -62,6 +63,7 @@ class WeatherModel():
         self._wet_refractivity = None
         self._hydrostatic_refractivity = None
         self._svp = None
+
 
         
     def __repr__(self):
@@ -100,22 +102,30 @@ class WeatherModel():
 
     def fetch(self, lats, lons, time, out):
         '''
+        Checks the input datetime against the valid date range for the model and then 
+        calls the model _fetch routine
+        '''
+        self.check(time)
+        self._fetch(lats, lons, time, out)
+
+    def _fetch(self, lats, lons, time, out):
+        '''
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
 
-    def load(self, *args, lats = None, lons = None):
+    def load(self, *args, outLats = None, outLons = None, **kwargs):
         '''
         Calls the load_weather method. Each model class should define a load_weather 
         method appropriate for that class. 'args' should be one or more filenames. 
         '''
-        self.load_weather(*args)
+        self.load_weather(*args, **kwargs)
         self._find_e()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
 
         # adjust the grid based on the height data
-        self._adjust_grid(lats, lons)
+        self._adjust_grid(lats =outLats, lons=outLons)
 
     def load_weather(self, filename):
         '''
@@ -123,7 +133,7 @@ class WeatherModel():
         '''
         pass
 
-    def plot(self, plotType = 'wh', savefig = False):
+    def plot(self, plotType = 'pqt', savefig = True):
         '''
         Plotting method. Valid plot types are 'pqt'
         '''
@@ -139,20 +149,28 @@ class WeatherModel():
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
-        import time
+        print('Weather model {} is available from {}-{}'.format(self.Model(), self._valid_range[0], self._valid_range[1]))
         if time<self._valid_range[0]:
-            raise ValidDateError(self._valid_range, time)
+            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
         if self._valid_range[1] is not None: 
-            if self._valid_range[1] < time:
-                raise ValidDateError(self._valid_range, time)
-        if time > datetime.date.today() - self._lag_time:
-            raise ValidDateError(self._valid_range, time)
+            if self._valid_range[1]=='Present':
+                pass
+            elif self._valid_range[1] < time:
+                raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
+        if time > datetime.datetime.today() - self._lag_time:
+            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
             
     def setLevelType(self, levelType = 'ml'):
         ''' 
         Update the level type to use in fetching data from the weather models
         '''
         self._model_level_type = levelType
+
+    def _convertmb2Pa(self, pres):
+        '''
+        Convert pressure in millibars to Pascals
+        '''
+        return 100*pres
 
     def _get_heights(self, lats, geo_hgt, geo_ht_fill = np.nan):
         '''
@@ -200,7 +218,7 @@ class WeatherModel():
     def getHydroRefractivity(self):
         return self._hydrostatic_refractivity
 
-    def _adjust_grid(self, lats, lons):
+    def _adjust_grid(self, lats = None, lons = None):
         '''
         This function pads the weather grid with a level at self._zmin, if 
         it does not already go that low. It also removes levels that are 
@@ -216,6 +234,8 @@ class WeatherModel():
             # extra slice to match the new z shape
             self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis],self._xs), axis = 2)
             self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis],self._ys), axis = 2)
+            self._lons = np.concatenate((self._lons[:,:,0][...,np.newaxis],self._lons), axis = 2)
+            self._lats = np.concatenate((self._lats[:,:,0][...,np.newaxis],self._lats), axis = 2)
 
             # need to extrapolate the other variables down now
             if self._humidityType == 'q':
@@ -231,14 +251,13 @@ class WeatherModel():
 
         if lats is not None:
             in_extent = self._getExtent(lats, lons)
-            self_extent = self._getExtent(self._ys, self._xs)
+            self_extent = self._getExtent(self._lats, self._lons)
             if self._isOutside(in_extent, self_extent):
+                print('Extent of the input lats/lons is: {}'.format(in_extent))
+                print('Extent of the weather model is: {}'.format(self_extent))
                 raise RuntimeError('The weather model passed does not cover all of the \n \
                                   input points; you need to download a larger area.')
-            try:
-                self._trimExtent(in_extent) 
-            except:
-                pass
+            self._trimExtent(in_extent) 
 
     def _getExtent(self,lats, lons):
         '''
@@ -263,25 +282,40 @@ class WeatherModel():
         '''
         get the bounding box around a set of lats/lons
         '''
-        mask = (self._ys[:,:,0] > extent[0]) & (self._ys[:,:,0] < extent[1]) & \
-               (self._xs[:,:,0] > extent[2]) & (self._xs[:,:,0] < extent[3])
+        mask = (self._lats[:,:,0] > extent[0]) & (self._lats[:,:,0] < extent[1]) & \
+               (self._lons[:,:,0] > extent[2]) & (self._lons[:,:,0] < extent[3])
         ma1 = np.sum(mask, axis = 1).astype('bool')
         ma2 = np.sum(mask, axis = 0).astype('bool')
-        index1 = np.arange(len(ma1))[ma1][0]
-        index2 = np.arange(len(ma1))[ma1][-1]
-        index3 = np.arange(len(ma2))[ma2][0]
-        index4 = np.arange(len(ma2))[ma2][-1] + 1
+
+        # indices of the part of the grid to keep
+        nx, ny, nz = self._xs.shape
+        index1 = max(np.arange(len(ma1))[ma1][0] - 2, 0)
+        index2 = min(np.arange(len(ma1))[ma1][-1]+ 2, ny)
+        index3 = max(np.arange(len(ma2))[ma2][0] - 2, 0)
+        index4 = min(np.arange(len(ma2))[ma2][-1]+ 2, nx)
+
+        # subset around points of interest
+        self._lons                       = self._lons[index1:index2,index3:index4,:]
+        self._lats                       = self._lats[index1:index2,index3:index4,...]
         self._xs                       = self._xs[index1:index2,index3:index4,:]
         self._ys                       = self._ys[index1:index2,index3:index4,...]
         self._zs                       = self._zs[index1:index2,index3:index4,...]
         self._p                        = self._p[index1:index2,index3:index4,...]
-        self._q                        = self._q[index1:index2,index3:index4,...]
-        self._rh                       = self._rh[index1:index2,index3:index4,...]
+
+        # pass if didn't compute the other type of humidity
+        try:
+            self._q                        = self._q[index1:index2,index3:index4,...]
+        except TypeError:
+            pass
+        try:
+            self._rh                       = self._rh[index1:index2,index3:index4,...]
+        except TypeError:
+            pass
+
         self._t                        = self._t[index1:index2,index3:index4,...]
         self._e                        = self._e[index1:index2,index3:index4,...]
         self._wet_refractivity         = self._wet_refractivity[index1:index2,index3:index4,...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2,index3:index4,:]
-
 
     def _find_svp(self):
         """
@@ -420,6 +454,26 @@ class WeatherModel():
         
     def getLL(self):
         return self._ys[...,0].copy(), self._xs[...,0].copy()
+
+    def getXY_gdal(self, filename):
+        '''
+        Pull the grid info (x,y) from a gdal-readable file
+        '''
+        import gdal
+        ds = gdal.Open(filename, gdal.GA_ReadOnly)
+        xSize, ySize = ds.RasterXSize, ds.RasterYSize
+        trans = ds.GetGeoTransform()
+        del ds
+    
+        # make regular point grid
+        pixelSizeX = trans[1]
+        pixelSizeY = trans[5]
+        eastOrigin = trans[0] + 0.5*pixelSizeX
+        northOrigin =trans[3] + 0.5*pixelSizeY
+        xArray = np.arange(eastOrigin,  eastOrigin + pixelSizeX*xSize,  pixelSizeX)
+        yArray = np.arange(northOrigin, northOrigin + pixelSizeY*ySize, pixelSizeY)
+    
+        return xArray, yArray
         
     def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
         '''

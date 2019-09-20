@@ -449,7 +449,7 @@ def checkShapes(los, lats, lons, hts):
          'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
-def checkLOS(los, raytrace, Npts):
+def checkLOS(los, Npts):
     '''
     Check that los is either: 
        (1) Zenith,
@@ -458,13 +458,9 @@ def checkLOS(los, raytrace, Npts):
        (3) a set of vectors, same number as the number of points. 
      '''
     from RAiDER.constants import Zenith
-    # los can either be a bunch of vectors or a bunch of scalars. If
-    # raytrace, then it's vectors, otherwise scalars. (Or it's Zenith)
+    # los is a bunch of vectors or Zenith
     if los is not Zenith:
-        if raytrace:
-            los = los.reshape(-1, 3)
-        else:
-            los = los.flatten()
+       los = los.reshape(-1, 3)
 
     if los is not Zenith and los.shape[0] != Npts:
        raise RuntimeError('Found {} line-of-sight values and only {} points'
@@ -615,3 +611,123 @@ def read_hgt_file(filename):
     data = pd.read_csv(filename)
     hgts = data['Hgt_m'].values
     return hgts
+
+
+def parse_date(s):
+    """
+    Parse a date from a string in pseudo-ISO 8601 format.
+    """
+    import datetime
+    import itertools
+    year_formats = (
+        '%Y-%m-%d',
+        '%Y%m%d'
+    )
+    date = None
+    for yf in year_formats:
+        try:
+            date = datetime.datetime.strptime(s, yf)
+        except ValueError:
+            continue
+             
+    if date is None:
+        raise ValueError(
+            'Unable to coerce {} to a date. Try %Y-%m-%d'.format(s))
+
+    return date
+
+
+def parse_time(t):
+    '''
+    Parse an input time (required to be ISO 8601)
+    '''
+    import datetime
+    import itertools
+    time_formats = (
+        '',
+        'T%H:%M:%S.%f',
+        'T%H%M%S.%f',
+        '%H%M%S.%f',
+        'T%H:%M:%S',
+        '%H:%M:%S',
+        'T%H%M%S',
+        '%H%M%S',
+        'T%H:%M',
+        'T%H%M',
+        '%H:%M',
+        'T%H',
+    )
+    timezone_formats = (
+        '',
+        'Z',
+        '%z',
+    )
+    all_formats = map(
+        ''.join,
+        itertools.product(time_formats, timezone_formats))
+
+    time = None
+    for tf in all_formats:
+        try:
+            time = datetime.datetime.strptime(t, tf) - datetime.datetime(1900,1,1)
+        except ValueError:
+            continue
+             
+    if time is None:
+        raise ValueError(
+            'Unable to coerce {} to a time. Try T%H:%M:%S'.format(t))
+
+    return time
+
+
+def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                outformat, wetFilename, hydroFilename, 
+                proj = None, gt = None, ndv = 0.):
+    '''
+    Write the delay numpy arrays to files in the format specified
+    '''
+
+    # Need to consistently handle noDataValues
+    wetDelay[np.isnan(wetDelay)] = ndv
+    hydroDelay[np.isnan(hydroDelay)] = ndv
+   
+    # Do different things, depending on the type of input
+    if flag=='station_file':
+        import pandas as pd
+        df = pd.read_csv(wetFilename)
+
+        # quick check for consistency
+        assert(np.all(np.abs(lats - df['Lat']) < 0.01))
+
+        df['wetDelay'] = wetDelay
+        df['hydroDelay'] = hydroDelay
+        df['totalDelay'] = wetDelay + hydroDelay
+        df.to_csv(wetFilename, index=False)
+
+    elif flag=='netcdf':
+        RAiDER.util.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
+                       fmt=outformat, proj=proj, gt=gt)
+        RAiDER.util.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
+                       fmt=outformat, proj=proj, gt=gt)
+
+    else:
+        RAiDER.util.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
+                       fmt = outformat, proj = proj, gt = gt)
+        RAiDER.util.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
+                       fmt = outformat, proj = proj, gt = gt)
+
+
+def getTimeFromFile(filename):
+    '''
+    Parse a filename to get a date-time
+    '''
+    import datetime
+    import re
+    fmt = '%Y_%m_%d_T%H_%M_%S'
+    p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
+    try:
+        out = p.search(filename).group()
+        return datetime.datetime.strptime(out, fmt)
+    except:
+        raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
+

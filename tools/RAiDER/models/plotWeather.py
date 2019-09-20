@@ -99,7 +99,6 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     # get the points needed
     x = weatherObj._xs[:,:,0]
     y = weatherObj._ys[:,:,0]
-
     z1a = np.zeros(x.shape) + z1
     z2a = np.zeros(x.shape) + z2
     pts1 = np.stack((x.flatten(), y.flatten(), z1a.flatten()), axis = 1)
@@ -123,10 +122,9 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(2,2,ind + 1)
-        if ind != 2:
-           sp.xaxis.set_ticklabels([])
-           sp.yaxis.set_ticklabels([])
-        im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis', extent=(np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)), origin='lower')
+        sp.xaxis.set_ticklabels([])
+        sp.yaxis.set_ticklabels([])
+        im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis')
         divider = mal(sp)
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)

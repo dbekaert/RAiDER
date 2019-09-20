@@ -9,48 +9,7 @@
 import numpy as np
 import pyproj
 
-from RAiDER.constants import Zenith, _ZREF, _STEP
-
-
-def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
-
-    '''
-    Returns look vectors when Zenith is used. 
-    Inputs: 
-       lats/lons/heights - Nx1 numpy arrays of points. 
-       zref              - float, integration height in meters
-    Outputs: 
-       zenLookVecs       - an Nx3 numpy array with the look vectors.
-                           The vectors give the zenith ray paths for 
-                           each of the points to the top of the atmosphere. 
-    '''
-    e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
-    n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
-    u = np.sin(np.radians(lats))
-    zenLookVecs = (np.array((e,n,u)).T*(zref - heights)[..., np.newaxis])
-    return zenLookVecs
-
-
-def _get_lengths(look_vecs):
-    '''
-    Returns the lengths of a vector or set of vectors, fast. 
-    Inputs: 
-       looks_vecs  - an Nx3 numpy array containing look vectors with absolute
-                     lengths; i.e., the absolute position of the top of the
-                     atmosphere. 
-    Outputs: 
-       lengths     - an Nx1 numpy array containing the absolute distance in 
-                     meters of the top of the atmosphere from the ground pnt. 
-    '''
-    if look_vecs.ndim==1:
-       if len(look_vecs)!=3:
-          raise RuntimeError('look_vecs must be Nx3') 
-    if look_vecs.shape[1]!=3:
-       raise RuntimeError('look_vecs must be Nx3')
-
-    lengths = np.linalg.norm(look_vecs, axis=-1)
-    lengths[~np.isfinite(lengths)] = 0
-    return lengths
+from RAiDER.constants import _STEP
 
 
 def _ray_helper(tup):
@@ -130,38 +89,43 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     return np.array(pyproj.transform(inProj, outProj, inlon, inlat, inhgt)).T
 
 
-def getGroundPositionECEF(lats, lons, hgts, oldProj, newProj):
+def getUnitLVs(look_vecs):
     '''
-    Compute the ground position of each pixel in ECEF reference frame
-    ''' 
-    start_positions = reproject(lats, lons, hgts, oldProj,newProj)
-    #start_positions = sortSP(start_positions)
-    return start_positions
-
-
-def getLookVectorLength(look_vecs, lats, lons, heights, zref = _ZREF):
+    Return a set of look vectors normalized by their lengths
     '''
-    Get the look vector stretching from the ground pixel to the point
-    at the top of the atmosphere, either (1) at zenith, or (2) towards
-    the RADAR satellite (for line-of-sight calculation)
-    '''
-    if look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-
-    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
     lengths = _get_lengths(look_vecs)
-    lengths[mask] = np.nan
-    return look_vecs, lengths
-
-
-def getUnitLVs(look_vecs, lengths):
-    #TODO: implement unittest for this together with getLookVectorLength. Was
-    # allowing non-unit vectors to pass
     slvs = look_vecs / lengths[..., np.newaxis]
-    return slvs
+    return slvs,lengths
 
 
-def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, stepSize = _STEP, verbose = False):
+def _get_lengths(look_vecs):
+    '''
+    Returns the lengths of a vector or set of vectors, fast. 
+    Inputs: 
+       looks_vecs  - an Nx3 numpy array containing look vectors with absolute
+                     lengths; i.e., the absolute position of the top of the
+                     atmosphere. 
+    Outputs: 
+       lengths     - an Nx1 numpy array containing the absolute distance in 
+                     meters of the top of the atmosphere from the ground pnt. 
+    '''
+    if look_vecs.ndim==1:
+       if len(look_vecs)!=3:
+          raise RuntimeError('look_vecs must be Nx3') 
+    if look_vecs.shape[-1]!=3:
+       raise RuntimeError('look_vecs must be Nx3')
+
+    lengths = np.linalg.norm(look_vecs, axis=-1)
+    try:
+        lengths[~np.isfinite(lengths)] = 0
+    except TypeError:
+        if ~np.isfinite(lengths):
+            lengths = 0
+
+    return lengths
+
+
+def calculate_rays(lats, lons, heights, look_vecs, stepSize = _STEP, verbose = False):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the 
     top of the atmosphere, using either a set of look vectors or the zenith
@@ -169,16 +133,15 @@ def calculate_rays(lats, lons, heights, look_vecs = Zenith, zref = None, stepSiz
     if verbose:
         print('calculate_rays: Starting look vector calculation')
         print('The integration stepsize is {} m'.format(stepSize))
-    
-    # get the raypath unit vectors and lengths for doing the interpolation 
-    look_vecs, lengths = getLookVectorLength(look_vecs, lats, lons, heights, zref)
-    scaled_look_vecs = getUnitLVs(look_vecs, lengths) 
+
+    # get the lengths of each ray for doing the interpolation 
+    scaled_look_vecs, lengths = getUnitLVs(look_vecs) 
 
     # This projects the ground pixels into earth-centered, earth-fixed coordinate 
     # system and sorts by position
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
-    start_positions = getGroundPositionECEF(lats, lons, heights, lla, ecef)
+    start_positions = reproject(lats, lons, heights, lla, ecef)
 
     # This returns the list of rays
     # TODO: make this not a list. 
