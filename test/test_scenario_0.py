@@ -7,7 +7,7 @@ import pandas as pd
 import pickle
 import unittest
 
-import RAiDER.delay
+from RAiDER.delay import computeDelay, interpolateDelay
 from RAiDER.llreader import readLL, getHeights
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
@@ -55,16 +55,19 @@ class TimeTests(unittest.TestCase):
     mask = (zs > 2907) & (~np.isnan(wrf) & ~np.isnan(hrf))
     wetDelay = 1e-6*np.trapz(wrf[mask], zs[mask]) 
     hydroDelay = 1e-6*np.trapz(hrf[mask], zs[mask])
+    delays = interpolateDelay(weather_model, lats, lons, hgts,los, zref = zref, useWeatherNodes = True)
 
     # test error messaging
     #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_tropoSmallArea(self):
         wetDelay, hydroDelay = \
-            RAiDER.delay.computeDelay(self.los, self.lats, self.lons, self.hgts,
+            computeDelay(self.los, self.lats, self.lons, self.hgts,
                   self.weather_model, self.zref, self.out,
                   parallel=False, verbose = True)
 
         # get the true delay from the weather model
+        self.assertTrue(np.abs(self.delays[0][1,1]-wetDelay) < 0.01)
+        self.assertTrue(np.abs(self.delays[1][1,1]-hydroDelay)< 0.01)
         self.assertTrue(np.abs(self.wetDelay - wetDelay) < 0.1)
         self.assertTrue(np.abs(self.hydroDelay - hydroDelay) < 0.1)
 

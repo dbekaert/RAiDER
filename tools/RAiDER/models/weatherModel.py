@@ -122,9 +122,9 @@ class WeatherModel():
         '''
         self.load_weather(*args, **kwargs)
         self._find_e()
-        self._checkForNans()
         self._checkNotMaskedArrays()
         self._uniform_in_z(_zlevels=_zlevels)
+        self._checkForNans()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
         self._adjust_grid(lats =outLats, lons=outLons)
