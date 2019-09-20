@@ -52,24 +52,27 @@ class TimeTests(unittest.TestCase):
     wrf = weather_model._wet_refractivity[1,1,:]
     hrf = weather_model._hydrostatic_refractivity[1,1,:]
     zs = weather_model._zs
-    mask = (zs > 2907) & (~np.isnan(wrf) & ~np.isnan(hrf))
-    wetDelay = 1e-6*np.trapz(wrf[mask], zs[mask]) 
-    hydroDelay = 1e-6*np.trapz(hrf[mask], zs[mask])
-    delays = interpolateDelay(weather_model, lats, lons, hgts,los, zref = zref, useWeatherNodes = True)
+    mask = (zs > 2907) & (zs < zref) & (~np.isnan(wrf) & ~np.isnan(hrf))
+    zt = np.linspace(2907, zref, 1000)
+    wt = np.interp(zt, zs[mask], wrf[mask])
+    ht = np.interp(zt, zs[mask], hrf[mask])
+    wetDelay = 1e-6*np.trapz(wt,zt) 
+    hydroDelay = 1e-6*np.trapz(ht, zt)
+    delays = interpolateDelay(weather_model, lats, lons, hgts,los, zref = zref, useWeatherNodes = False)
 
     # test error messaging
     #@unittest.skip("skipping full model test until all other unit tests pass")
-    def test_tropoSmallArea(self):
+    def test_computeDelay(self):
         wetDelay, hydroDelay = \
             computeDelay(self.los, self.lats, self.lons, self.hgts,
                   self.weather_model, self.zref, self.out,
                   parallel=False, verbose = True)
 
         # get the true delay from the weather model
-        self.assertTrue(np.abs(self.delays[0][1,1]-wetDelay) < 0.01)
-        self.assertTrue(np.abs(self.delays[1][1,1]-hydroDelay)< 0.01)
-        self.assertTrue(np.abs(self.wetDelay - wetDelay) < 0.1)
-        self.assertTrue(np.abs(self.hydroDelay - hydroDelay) < 0.1)
+        self.assertTrue(np.abs(self.delays[0]-wetDelay) < 0.01)
+        self.assertTrue(np.abs(self.delays[1]-hydroDelay)< 0.01)
+        self.assertTrue(np.abs(self.wetDelay - wetDelay)/wetDelay < 0.1)
+        self.assertTrue(np.abs(self.hydroDelay - hydroDelay)/hydroDelay < 0.3)
 
 def main():
     unittest.main()
