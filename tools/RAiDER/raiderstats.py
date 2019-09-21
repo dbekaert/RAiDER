@@ -89,7 +89,7 @@ def get_extent(dataset, spacing=1, userbbox=None):
 
     return extent, grid_dim, gridpoints
 
-class variogramAnalysis: #Input file(s) and bbox as either list or physical shape file.
+class variogramAnalysis:
     '''
         Class which ingests dataframe output from 'raider_stats' class and performs variogram analysis.
     '''
@@ -358,7 +358,7 @@ class variogramAnalysis: #Input file(s) and bbox as either list or physical shap
         return TOT_grids,TOT_res_robust_arr
 
 
-class raider_stats(object): #Input file(s) and bbox as either list or physical shape file.
+class raider_stats(object):
     '''
         Class which loads standard weather model/GPS delay files and generates a series of user-requested statistics and graphics.
     '''
