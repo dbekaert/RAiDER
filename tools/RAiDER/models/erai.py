@@ -2,7 +2,6 @@ import datetime
 import numpy as np
 import pyproj
 
-import RAiDER.util as util
 from RAiDER.models.ecmwf import ECMWF
 
 class ERAI(ECMWF):

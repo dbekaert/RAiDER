@@ -9,7 +9,6 @@ import unittest
 
 import RAiDER.llreader
 import RAiDER.losreader
-import RAiDER.util
 import RAiDER.delay
 import RAiDER.delayFcns
 

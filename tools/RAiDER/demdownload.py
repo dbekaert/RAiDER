@@ -11,7 +11,7 @@ import numpy as np
 import os
 from scipy.interpolate import RegularGridInterpolator as rgi
 
-import RAiDER.util
+import RAiDER.utilFcns
 
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
@@ -43,13 +43,13 @@ def download_dem(lats, lons, outLoc = None, save_flag= 'new', checkDEM = True,
     if os.path.exists(outRasterName):
         print('WARNING: DEM already exists in {}, checking shape'.format(os.path.dirname(outRasterName)))
         try:
-            hgts = RAiDER.util.gdal_open(outRasterName)
+            hgts = RAiDER.utilFcns.gdal_open(outRasterName)
             if hgts.shape != lats.shape:
                 raise RuntimeError('Existing DEM does not cover the area of the input \n \
                               lat/lon points; either move the DEM, delete it, or \n \
                               change the inputs.')
         except RuntimeError:
-            hgts = RAiDER.util.read_hgt_file(outRasterName)
+            hgts = RAiDER.utilFcns.read_hgt_file(outRasterName)
              
         hgts[hgts==ndv] = np.nan
         return hgts
@@ -72,7 +72,7 @@ def download_dem(lats, lons, outLoc = None, save_flag= 'new', checkDEM = True,
     print('DEM download finished')
 
     # Load the DEM data
-    out = RAiDER.util.gdal_open(memRaster)
+    out = RAiDER.utilFcns.gdal_open(memRaster)
 
     #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
@@ -96,9 +96,9 @@ def download_dem(lats, lons, outLoc = None, save_flag= 'new', checkDEM = True,
         # can be passed on to GDAL
         outInterp[np.isnan(outInterp)] = ndv
         if outInterp.ndim==2:
-            RAiDER.util.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
+            RAiDER.utilFcns.writeArrayToRaster(outInterp, outRasterName, noDataValue = gdalNDV)
         elif outInterp.ndim==1:
-            RAiDER.util.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = ndv)
+            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue = ndv)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag=='merge':

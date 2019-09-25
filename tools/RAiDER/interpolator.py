@@ -8,7 +8,7 @@
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import numpy as np
-from RAiDER.util import parallel_apply_along_axis
+from RAiDER.utilFcns import parallel_apply_along_axis
 
 
 class Interpolator:
