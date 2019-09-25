@@ -466,7 +466,7 @@ class raiderStats(object):
         if self.colorpercentile[0]>self.colorpercentile[1]:
             raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(self.colorpercentile[0],self.colorpercentile[1]))
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue = 5):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -490,7 +490,7 @@ class raiderStats(object):
         basemap.desired_tile_form='L'
         fig, axes = plt.subplots(subplot_kw={'projection':basemap.crs})
         axes.set_extent(self.plotbbox, ccrs.Geodetic())
-        axes.add_image(basemap, 5, cmap='gray')
+        axes.add_image(basemap, resValue, cmap='gray')
         axes.coastlines()
         cmap = plt.cm.hot_r
         cmap.set_bad('black', 0.)
@@ -564,7 +564,7 @@ class raiderStats(object):
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+'.png'),format='png',dpi=150, bbox_inches='tight')
+        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+'.png'),format='png',bbox_inches='tight')
         plt.close()
 
         return
