@@ -10,7 +10,7 @@
 import numpy as np
 import os.path
 import shelve
-import RAiDER.util as util
+import RAiDER.utilFcns as utilFcns
 from RAiDER.constants import _ZREF, Zenith
 
 
@@ -189,9 +189,9 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     a_0 = incidence
     a_1 = heading
 
-    east = util.sind(a_0)*util.cosd(a_1 + 90)
-    north = util.sind(a_0)*util.sind(a_1 + 90)
-    up = util.cosd(a_0)
+    east = utilFcns.sind(a_0)*utilFcns.cosd(a_1 + 90)
+    north = utilFcns.sind(a_0)*utilFcns.sind(a_1 + 90)
+    up = utilFcns.cosd(a_0)
 
     east, north, up = np.stack((east, north, up))
 
@@ -202,11 +202,11 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     # Scale look vectors by range
     east, north, up = np.stack((east, north, up)) * ranges
 
-    x, y, z = util.enu2ecef(
+    x, y, z = utilFcns.enu2ecef(
             east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
             lons.flatten(), heights.flatten())
 
-    los = (np.stack((x, y, z), axis=-1) - np.stack(util.lla2ecef(
+    los = (np.stack((x, y, z), axis=-1) - np.stack(utilFcns.lla2ecef(
                lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
     los = los.reshape(east.shape + (3,))
 
@@ -224,7 +224,7 @@ def infer_los(los, lats, lons, heights, zref):
         LOS = infer_sv(los_file, lats, lons, heights)
 
     if los_type == 'los':
-        incidence, heading = util.gdal_open(los_file)
+        incidence, heading = utilFcns.gdal_open(los_file)
         LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
 
     return LOS

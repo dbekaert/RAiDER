@@ -20,7 +20,6 @@ def createParser():
         Make any of the following specified plot(s): scatterplot of station locations, total empirical and experimental variogram fits for aggregate residuals between GNSS zenith delay and ERA-5 estimated zenith delays in each each grid cell (and for each valid time-slice if -verbose specified),and gridded heatmaps of station distribution, aggregate residuals between GNSS zenith delay and ERA-5 estimated zenith delays, range and sill values associated with experimental variogram fits. The default is to generate all of these.
     '''
     import argparse
-
     parser = argparse.ArgumentParser(description='Function to generate various quality control and baseline figures of the spatial-temporal network of products.')
     parser.add_argument('-f', '--file', dest='fname', type=str,required=True, help='csv file')
     parser.add_argument('-c', '--column_name', dest='col_name', type=str,default='GNSS_minus_ERA5', help='Name of the input column to plot')
@@ -42,8 +41,9 @@ def createParser():
     parser.add_argument('-variogramplot', '--variogramplot', action='store_true', dest='variogramplot', help="Plot gridded station variogram.")
     parser.add_argument('-plotall', '--plotall', action='store_true', dest='plotall', help="Generate all above plots.")
     parser.add_argument('-verbose', '--verbose', action='store_true', dest='verbose', help="Toggle verbose mode on. Must be specified to generate variogram plots per gridded station AND time-slice.")
-
-    #'How to call: raiderStats.py -f <filename> -grid_delay_mean'
+    '''
+        Example call to plot gridded station mean delay in a specfic time interval : raiderStats.py -f <filename> -grid_delay_mean -ti '2017-01-01 2018-01-01'
+    '''
     return parser
 
 def cmdLineParse(iargs = None):
