@@ -7,7 +7,7 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from RAiDER.stats import parseCMD
+from RAiDER.statsPlot import parseCMD
 
 if __name__ == "__main__":
 

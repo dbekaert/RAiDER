@@ -12,7 +12,7 @@ import os
 
 from RAiDER.llreader import readLL
 from RAiDER.models.allowed import AllowedModels
-import RAiDER.util
+import RAiDER.utilFcns
 
 
 def checkArgs(args, p):
@@ -74,7 +74,7 @@ def checkArgs(args, p):
 
     # Weather
     weather_model_name = args.model.upper().replace('-','')
-    model_module_name, model_obj = RAiDER.util.modelName2Module(args.model)
+    model_module_name, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
     if args.model == 'WRF':
        weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
                    'name': 'wrf'}
@@ -120,7 +120,7 @@ def checkArgs(args, p):
             indf.to_csv(wetFilename, index=False)
         else:
             wetFilename, hydroFilename = \
-                RAiDER.util.makeDelayFileNames(time, los, outformat, weather_model_name, out)
+                RAiDER.utilFcns.makeDelayFileNames(time, los, outformat, weather_model_name, out)
 
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)

@@ -1,8 +1,8 @@
 import os
 import numpy as np
 
-import RAiDER.util
-from RAiDER.util import parse_date, parse_time
+import RAiDER.utilFcns
+from RAiDER.utilFcns import parse_date, parse_time
 from RAiDER.constants import _ZREF
 
 def read_date(s):

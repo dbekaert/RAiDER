@@ -114,12 +114,12 @@
 #    if zref is None:
 #       zref = _ZREF
 #
-#    lats = util.gdal_open(lat)
-#    lons = util.gdal_open(lon)
-#    hts = util.gdal_open(ht)
+#    lats = utilFcns.gdal_open(lat)
+#    lons = utilFcns.gdal_open(lon)
+#    hts = utilFcns.gdal_open(ht)
 #
 #    if los is not Zenith:
-#        incidence, heading = util.gdal_open(los)
+#        incidence, heading = utilFcns.gdal_open(los)
 #        if raytrace:
 #            los = losreader.los_to_lv(
 #                incidence, heading, lats, lons, hts, zref).reshape(-1, 3)
@@ -160,7 +160,7 @@
 
 
         # Now remove any model level fully above zmax
-#        max_level_needed = util.getMaxModelLevel(self._zs, self._zmax, 'g') 
+#        max_level_needed = utilFcns.getMaxModelLevel(self._zs, self._zmax, 'g') 
 #        levInd = range(0,max_level_needed + 1)
         
 
