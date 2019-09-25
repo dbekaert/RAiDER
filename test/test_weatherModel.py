@@ -74,7 +74,7 @@ class WMTests(unittest.TestCase):
         self.assertTrue(np.abs(totalwet-total_wet) < 0.01)
         self.assertTrue(np.abs(totalhydro-total_hydro) < 0.01)
 
-    @unittest.skip("skipping full model test until all other unit tests pass")
+    #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_ERA5(self):
         model_module_name, model_obj = modelName2Module('ERA5')
         basedir = os.path.join('test', 'scenario_1')
@@ -90,7 +90,7 @@ class WMTests(unittest.TestCase):
         self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
         self.assertTrue(weather_model.Model()=='ERA-5')
 
-    @unittest.skip("skipping full model test until all other unit tests pass")
+    #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_HRRR(self):
         model_module_name, model_obj = modelName2Module('HRRR')
         basedir = os.path.join('test', 'scenario_2')
