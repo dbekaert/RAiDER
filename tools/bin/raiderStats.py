@@ -30,7 +30,7 @@ def createParser():
     parser.add_argument('-dt', '--densitythreshold', dest='densitythreshold', type=int, default='10', help='A given grid-cell is only valid if it contains this specified threshold of stations. By default 10 stations.')
     parser.add_argument('-sg', '--stationsongrids', dest='stationsongrids', action='store_true', help='In gridded plots, superimpose your gridded array with a scatterplot of station locations.')
     parser.add_argument('-dg', '--drawgridlines', dest='drawgridlines', action='store_true', help='Draw gridlines on gridded plots.')
-    parser.add_argument('-cp', '--colorpercentile', dest='colorpercentile', type=str, default='25 95', help='Set low and upper percentile for plot colorbars. By default 25% and 95%, respectively.')
+    parser.add_argument('-cp', '--colorpercentile', dest='colorpercentile', type=str, default='25 95', help='Set low and upper percentile for plot colorbars. By default 25%% and 95%%, respectively.')
     parser.add_argument('-ti', '--timeinterval', dest='timeinterval', type=str, default=None, help="Subset in time by specifying earliest YYYY-MM-DD date followed by latest date YYYY-MM-DD. -- Example : '2016-01-01 2019-01-01'.")
     parser.add_argument('-si', '--seasonalinterval', dest='seasonalinterval', type=str, default=None, help="Subset in by an specific interval for each year by specifying earliest MM-DD time followed by latest MM-DD time. -- Example : '03-21 06-21'.")
     parser.add_argument('-station_distribution', '--station_distribution', action='store_true', dest='station_distribution', help="Plot station distribution.")
@@ -67,7 +67,7 @@ class variogramAnalysis:
         import random
         import itertools
         if len(data)<self.densitythreshold:
-            print('WARNING: Less than %i points for this gridcell'%(self.densitythreshold))
+            print('WARNING: Less than {} points for this gridcell'.format(self.densitythreshold))
             print('Will pass empty list')
             d=[]
             indpars=[]
@@ -212,9 +212,9 @@ class variogramAnalysis:
             os.mkdir(workdir)
 
         # make plot title
-        title_str=' \nLat:%.2f Lon:%.2f\nTime:%s'%(coords[1],coords[0],timeslice)
+        title_str=' \nLat:{.2f} Lon:{.2f}\nTime:{}s'.format(coords[1],coords[0],timeslice)
         if seasonalinterval:
-            title_str+=' Season(mm/dd): %i/%i – %i/%i'%(int(timeslice[4:6]),int(timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
+            title_str+=' Season(mm/dd): {}/{} – {}/{}'.format(int(timeslice[4:6]),int(timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
 
         if dists is not None and vario is not None:
             plt.scatter(dists, vario, s=1, facecolor='0.5', label='raw')
@@ -232,12 +232,12 @@ class variogramAnalysis:
         if d_test is None and v_test is None:
             plt.title('Empirical variogram'+title_str)
             plt.tight_layout()
-            plt.savefig(os.path.join(workdir,'grid%i_timeslice%s_justEMPvariogram.eps'%(gridID,timeslice)))
+            plt.savefig(os.path.join(workdir,'grid{}_timeslice{}_justEMPvariogram.eps'.format(gridID,timeslice)))
         #Plot just experimental variogram
         else:
             plt.title('Experimental variogram'+title_str)
             plt.tight_layout()
-            plt.savefig(os.path.join(workdir,'grid%i_timeslice%s_justEXPvariogram.eps'%(gridID,timeslice)))
+            plt.savefig(os.path.join(workdir,'grid{}_timeslice{}_justEXPvariogram.eps'.format(gridID,timeslice)))
         plt.close()
 
         return
@@ -265,7 +265,7 @@ class variogramAnalysis:
                     #Record skipped [gridnode, timeslice]
                     skipped_slices.append([i, j.strftime("%Y-%m-%d")])
                 else:
-                    gridcenterlist.append(['grid%i '%(i)+'Lat:%f Lon:%f'%(self.gridpoints[i][1],self.gridpoints[i][0])])
+                    gridcenterlist.append(['grid{} '.format(i)+'Lat:{} Lon:{}'%(self.gridpoints[i][1],self.gridpoints[i][0])])
                     lonarr=np.array(grid_subset[grid_subset['Date']==j]['Lon'])
                     latarr=np.array(grid_subset[grid_subset['Date']==j]['Lat'])
                     delayarray=np.array(grid_subset[grid_subset['Date']==j]['gnss_minus_wm'])
@@ -275,14 +275,14 @@ class variogramAnalysis:
                     #fit experimental variogram for each time AND grid, model default is exponential
                     res_robust, d_test, v_test = self._fitVario(dists_binned, vario_binned, model=self.__exponential__, x0 = None, Nparm = 3)
                     #Plot empirical + experimental variogram for this gridnode and timeslice
-                    if not os.path.exists(os.path.join(self.workdir,'variograms/grid%i'%(i))):
-                        os.makedirs(os.path.join(self.workdir,'variograms/grid%i'%(i)))
+                    if not os.path.exists(os.path.join(self.workdir,'variograms/grid{}'.format(i))):
+                        os.makedirs(os.path.join(self.workdir,'variograms/grid{}'.format(i)))
                     #Make variogram plots for each time-slice if verbose mode specified.
                     if self.verbose:
                         #Plot empirical variogram for this gridnode and timeslice
-                        self.plotVariogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid%i'%(i)), dists=dists, vario=vario, dists_binned=dists_binned, vario_binned=vario_binned) #in verbose
+                        self.plotVariogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid{}'.format(i)), dists=dists, vario=vario, dists_binned=dists_binned, vario_binned=vario_binned) #in verbose
                         #Plot experimental variogram for this gridnode and timeslice
-                        self.plotVariogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid%i'%(i)), d_test=d_test, v_test=v_test, res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned) #in verbose
+                        self.plotVariogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid{}'.format(i)), d_test=d_test, v_test=v_test, res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned) #in verbose
                     #append for plotting
                     good_slices.append([i, j.strftime("%Y%m%d")])
                     dists_arr.append(dists); vario_arr.append(vario)
@@ -299,9 +299,9 @@ class variogramAnalysis:
                 TOT_good_slices.append([i, tot_timetag])
                 TOT_res_robust_arr.append(TOT_res_robust.x)
                 TOT_tot_timetag.append(tot_timetag)
-                self.plotVariogram(i, tot_timetag, [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid%i'%(i)), dists=dists_arr, vario=vario_arr, dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
+                self.plotVariogram(i, tot_timetag, [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid{}'.format(i)), dists=dists_arr, vario=vario_arr, dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
                 #Plot experimental variogram for this gridnode and timeslice
-                self.plotVariogram(i, tot_timetag, [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid%i'%(i)), d_test=TOT_d_test, v_test=TOT_v_test, res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
+                self.plotVariogram(i, tot_timetag, [self.gridpoints[i][1],self.gridpoints[i][0]], workdir=os.path.join(self.workdir,'variograms/grid{}'.format(i)), d_test=TOT_d_test, v_test=TOT_v_test, res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
             # Record sparse grids which didn't have sufficient sample size of data through any of the timeslices
             else:
                 sparse_grids.append(i)
@@ -309,7 +309,7 @@ class variogramAnalysis:
         # save grid-center lookup table
         gridcenterlist=[list(i) for i in set(tuple(j) for j in gridcenterlist)]
         gridcenter= open((os.path.join(self.workdir,'variograms/gridlocation_lookup.txt')),"w")
-        gridcenter.writelines('%s\n' % " ".join(center) for center in gridcenterlist)
+        gridcenter.writelines('{}\n'.format(" ".join(center) for center in gridcenterlist))
         gridcenter.close()
 
         TOT_grids=[i[0] for i in TOT_good_slices]
@@ -454,7 +454,7 @@ class raiderStats(object):
         ###Pass color percentile and check for input error
         self.colorpercentile=[float(val) for val in self.colorpercentile.split()]
         if self.colorpercentile[0]>self.colorpercentile[1]:
-            raise Exception('Input colorpercentile lower threshold %f higher than upper threshold %f'%(self.colorpercentile[0],self.colorpercentile[1]))
+            raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(self.colorpercentile[0],self.colorpercentile[1]))
 
     def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None):
         '''
