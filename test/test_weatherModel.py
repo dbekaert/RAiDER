@@ -61,7 +61,6 @@ class WMTests(unittest.TestCase):
 
         weather_model, lats, lons = prepareWeatherModel(era5,wmFileLoc, basedir, verbose=True)
         #weather_model, lats, lons = prepareWeatherModel(era5,wmFileLoc, basedir, verbose=True, lats = self.lat_box, lons = self.lon_box, time = self.time)
-        import pdb; pdb.set_trace()
         self.assertTrue(lats.shape == self.lats_shape)
         self.assertTrue(lons.shape == self.lons_shape)
         self.assertTrue(lons.shape == lats.shape)
@@ -75,8 +74,7 @@ class WMTests(unittest.TestCase):
         #hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
         hrrr = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'HRRR'}
 
-        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True)
-        #weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr, time = self.time)
+        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr)
         self.assertTrue(np.all(lons.shape == lats.shape))
         self.assertTrue(weather_model.Model()=='HRRR')
 

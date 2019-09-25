@@ -8,7 +8,7 @@ import os
 # local imports
 import RAiDER.constants as const
 import RAiDER.models.plotWeather as plots
-import RAiDER.util as util
+import RAiDER.utilFcns as util
 from RAiDER.util import robmin, robmax
 
 
