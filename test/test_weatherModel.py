@@ -9,7 +9,7 @@ from scipy.interpolate import LinearNDInterpolator as lndi
 import pickle
 import unittest
 
-from RAiDER.util import modelName2Module, writeLL
+from RAiDER.utilFcns import modelName2Module, writeLL
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.constants import Zenith
 
