@@ -22,8 +22,8 @@ def createParser():
     import argparse
 
     parser = argparse.ArgumentParser(description='Function to generate various quality control and baseline figures of the spatial-temporal network of products.')
-    parser.add_argument('-f', '--file', dest='fname', type=str,
-            required=True, help='csv file')
+    parser.add_argument('-f', '--file', dest='fname', type=str,required=True, help='csv file')
+    parser.add_argument('-c', '--column_name', dest='col_name', type=str,default='GNSS_minus_ERA5', help='Name of the input column to plot')
     parser.add_argument('-w', '--workdir', dest='workdir', default='./', help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
     parser.add_argument('-b', '--bbox', dest='bbox', type=str, default=None, help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
     parser.add_argument('-sp', '--spacing', dest='spacing', type=float, default='1', help='Specify spacing of grid-cells for statistical analyses. By default 1 deg.')
@@ -263,14 +263,14 @@ class variogramAnalysis:
             grid_subset=self.df[self.df['gridnode']==i]
             for j in sorted(list(set(grid_subset['Date']))):
                 #If insufficient sample size, skip slice and record occurence
-                if len(np.array(grid_subset[grid_subset['Date']==j]['GNSS_minus_ERA5']))<self.densitythreshold:
+                if len(np.array(grid_subset[grid_subset['Date']==j][self.col_name]))<self.densitythreshold:
                     #Record skipped [gridnode, timeslice]
                     skipped_slices.append([i, j.strftime("%Y-%m-%d")])
                 else:
                     gridcenterlist.append(['grid{} '.format(i)+'Lat:{} Lon:{}'%(self.gridpoints[i][1],self.gridpoints[i][0])])
                     lonarr=np.array(grid_subset[grid_subset['Date']==j]['Lon'])
                     latarr=np.array(grid_subset[grid_subset['Date']==j]['Lat'])
-                    delayarray=np.array(grid_subset[grid_subset['Date']==j]['GNSS_minus_ERA5'])
+                    delayarray=np.array(grid_subset[grid_subset['Date']==j][self.col_name])
                     #fit empirical variogram for each time AND grid
                     dists, vario=self._empVario(lonarr,latarr,delayarray)
                     dists_binned, vario_binned=self._binnedVario(dists, vario)
@@ -327,8 +327,9 @@ class raiderStats(object):
     # import dependencies
     import glob
 
-    def __init__(self, filearg, workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, colorpercentile='25 95', verbose=False):
+    def __init__(self, filearg,col_name, workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, colorpercentile='25 95', verbose=False):
         self.fname = filearg
+        self.col_name=col_name 
         self.workdir = workdir
         self.bbox = bbox
         self.spacing = spacing
@@ -563,7 +564,7 @@ class raiderStats(object):
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir,plottype+'.png'),format='png',dpi=150, bbox_inches='tight')
+        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+'.png'),format='png',dpi=150, bbox_inches='tight')
         plt.close()
 
         return
@@ -572,7 +573,7 @@ def parseCMD(iargs=None):
     inps = cmdLineParse(iargs)
     print("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
-    df_stats=raiderStats(inps.fname, inps.workdir, inps.bbox, inps.spacing, inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.colorpercentile, inps.verbose)
+    df_stats=raiderStats(inps.fname, inps.col_name, inps.workdir, inps.bbox, inps.spacing, inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.colorpercentile, inps.verbose)
 
     # If user requests to generate all plots.
     if inps.plotall:
@@ -594,13 +595,13 @@ def parseCMD(iargs=None):
     #Plot mean delay per station
     if inps.station_delay_mean:
         print("- Plot mean delay for each station.")
-        unique_points=df_stats.df.groupby(['Lon', 'Lat'])['GNSS_minus_ERA5'].mean()
+        unique_points=df_stats.df.groupby(['Lon', 'Lat'])[inps.col_name].mean()
         unique_points.dropna(how='any',inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist(),unique_points.values],'station_delay_mean', workdir=os.path.join(inps.workdir,'figures'))
     #Plot delay stdev per station
     if inps.station_delay_stdev:
         print("- Plot delay stdev for each station.")
-        unique_points=df_stats.df.groupby(['Lon', 'Lat'])['GNSS_minus_ERA5'].std()
+        unique_points=df_stats.df.groupby(['Lon', 'Lat'])[inps.col_name].std()
         unique_points.dropna(how='any',inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist(),unique_points.values],'station_delay_stdev', workdir=os.path.join(inps.workdir,'figures'))
 
@@ -613,14 +614,14 @@ def parseCMD(iargs=None):
     #Plot mean delay for each gridcell
     if inps.grid_delay_mean:
         print("- Plot mean delay per gridcell.")
-        unique_points=df_stats.df.groupby(['gridnode'])['GNSS_minus_ERA5'].mean()
+        unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].mean()
         unique_points.dropna(how='any',inplace=True)
         gridarr_heatmap=np.array([float(0) if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T,'grid_delay_mean', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
     #Plot mean delay for each gridcell
     if inps.grid_delay_stdev:
         print("- Plot delay stdev per gridcell.")
-        unique_points=df_stats.df.groupby(['gridnode'])['GNSS_minus_ERA5'].std()
+        unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].std()
         unique_points.dropna(how='any',inplace=True)
         gridarr_heatmap=np.array([float(0) if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T,'grid_delay_stdev', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
