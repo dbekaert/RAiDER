@@ -11,7 +11,7 @@ from RAiDER.delay import computeDelay, interpolateDelay
 from RAiDER.llreader import readLL, getHeights
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.utilFcns import pickle_load
+from RAiDER.utilFcns import pickle_load, modelName2Module
 
 class TimeTests(unittest.TestCase):
 
