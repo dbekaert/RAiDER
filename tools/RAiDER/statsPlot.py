@@ -467,7 +467,7 @@ class raiderStats(object):
         if self.colorpercentile[0]>self.colorpercentile[1]:
             raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(self.colorpercentile[0],self.colorpercentile[1]))
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue = 5, plotFormat = '.pdf'):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue = 5, plotFormat = 'pdf'):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -534,7 +534,7 @@ class raiderStats(object):
         #If gridded area passed
         else:
             # define the bins and normalize
-            colorbounds = np.linspace(np.percentile(gridarr,self.colorpercentile[0]), np.percentile(gridarr,self.colorpercentile[1]), 10)
+            colorbounds = np.linspace(np.percentile(gridarr[gridarr!=0],self.colorpercentile[0]), np.percentile(gridarr[gridarr!=0],self.colorpercentile[1]), 10)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
             gridarr=np.ma.masked_where(gridarr == 0, gridarr)
 
@@ -542,6 +542,7 @@ class raiderStats(object):
             im   = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=gridarr.min(), vmax=gridarr.max(), zorder=1, origin = 'upper', transform=ccrs.PlateCarree())
             # initiate colorbar
             cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
+            #cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
 
             #superimpose your gridded array with a supplementary list of point, if specified
             if self.stationsongrids:
@@ -565,7 +566,7 @@ class raiderStats(object):
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+plotFormat),format=plotFormat,bbox_inches='tight')
+        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+'.'+plotFormat),format=plotFormat,bbox_inches='tight')
         plt.close()
 
         return
