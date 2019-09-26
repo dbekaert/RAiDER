@@ -74,9 +74,9 @@ def writeWeatherLevelsToFile(totalhydro, totalwet, outFormat, hydro_file_name, w
        wet_ds.close()
 
     else:
-        import util
-        util.writeArrayToRaster(totalhydro, hydro_file_name, noDataValue = 0.)
-        util.writeArrayToRaster(totalwet, wet_file_name, noDataValue = 0.)
+        import utilFcns
+        utilFcns.writeArrayToRaster(totalhydro, hydro_file_name, noDataValue = 0.)
+        utilFcns.writeArrayToRaster(totalwet, wet_file_name, noDataValue = 0.)
 
 
 def writeStationDelaysToFile(totalhydro, totalwet, hydro_file_name, wet_file_name, outFormat):

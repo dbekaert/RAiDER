@@ -18,7 +18,7 @@ class ERA5(ECMWF):
         self._dataset = 'era5'
         self._Name = 'ERA-5'
 
-        self._valid_range = (datetime.date(1950,1,1),) # Tuple of min/max years where data is available. 
+        self._valid_range = (datetime.datetime(1950,1,1),"Present") # Tuple of min/max years where data is available. 
         self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
 
         self._a = [0.000000,     2.000365,     3.102241,     4.666084,     6.827977,
@@ -149,8 +149,8 @@ class ERA5(ECMWF):
 
         # check this
         # data cube format should be lats,lons,heights
-        self._lats = self._lons.swapaxes(0,1)
-        self._lons = self._lats.swapaxes(0,1)
+        self._lats = self._lats.swapaxes(0,1)
+        self._lons = self._lons.swapaxes(0,1)
         self._xs = self._xs.swapaxes(0,1)
         self._ys = self._ys.swapaxes(0,1)
         self._zs = self._zs.swapaxes(0,1)

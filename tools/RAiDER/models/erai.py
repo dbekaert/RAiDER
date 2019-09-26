@@ -2,7 +2,6 @@ import datetime
 import numpy as np
 import pyproj
 
-import RAiDER.util as util
 from RAiDER.models.ecmwf import ECMWF
 
 class ERAI(ECMWF):
@@ -15,7 +14,7 @@ class ERAI(ECMWF):
         self._dataset = 'interim'
         self._Name = 'ERA-I'
 
-        self._valid_range = (datetime.date(1950,1,1),) # Tuple of min/max years where data is available. 
+        self._valid_range = (datetime.datetime(1950,1,1),datetime.datetime(2018,1,1)) # Tuple of min/max years where data is available. 
         self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
 
         self._a = [0.0000000000e+000, 2.0000000000e+001, 3.8425338745e+001,

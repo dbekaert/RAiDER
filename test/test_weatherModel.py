@@ -9,13 +9,14 @@ from scipy.interpolate import LinearNDInterpolator as lndi
 import pickle
 import unittest
 
-from RAiDER.util import modelName2Module, writeLL
+from RAiDER.utilFcns import modelName2Module, writeLL
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.constants import Zenith
 
 
 class WMTests(unittest.TestCase):
 
+    time = datetime.datetime(2018,1,1,2,0,0)
 
     lat_box = np.array([16, 18])
     lon_box = np.array([-103, -100])
@@ -27,50 +28,77 @@ class WMTests(unittest.TestCase):
     lats_hrrr = np.array([36.5, 37.5])
     lons_hrrr = np.array([-77, -76])
 
-    # test error messaging
+    basedir = os.path.join('test', 'scenario_3')
+    wmLoc = os.path.join(basedir, 'weather_files')
+    model_module_name, model_obj = modelName2Module('ERA5')
+    era5 = {'type': model_obj(), 'files': None, 'name': 'ERA5'}
+    weather_model, lats, lons= prepareWeatherModel(era5,wmLoc, basedir, lats = lat_box, lons = lon_box, time = datetime.datetime(2019,1,1,2,0,0), verbose=False)
+
+    def test_noNaNs(self):
+        self.assertTrue(np.sum(np.isnan(self.weather_model._xs))==0)
+        self.assertTrue(np.sum(np.isnan(self.weather_model._ys))==0)
+        self.assertTrue(np.sum(np.isnan(self.weather_model._zs))==0)
+        self.assertTrue(np.sum(np.isnan(self.weather_model._p))==0)
+        self.assertTrue(np.sum(np.isnan(self.weather_model._e))==0)
+        self.assertTrue(np.sum(np.isnan(self.weather_model._t))==0)
+        self.assertTrue(np.sum(np.isnan(self.weather_model._wet_refractivity))==0)
+        self.assertTrue(np.sum(np.isnan(self.weather_model._hydrostatic_refractivity))==0)
+
     def test_interpVector(self):
-        picklefile = os.path.join('test', 'scenario_0', 'pickledWeatherModel.pik')
-        with open(picklefile, 'rb') as f:
-            wm = pickle.load(f)
-        points = np.stack([wm._xs.flatten(), wm._ys.flatten(), wm._zs.flatten()], axis = -1)
-        wrf = wm._wet_refractivity                                                                            
+        wm = self.weather_model
+        [X, Y, Z] = np.meshgrid(wm._xs, wm._ys, wm._zs)
+        points = np.stack([X.flatten(), Y.flatten(), Z.flatten()], axis = -1)
+        wrf = wm._wet_refractivity
         hrf = wm._hydrostatic_refractivity
-        zs = wm._zs[1,1,:]
+        zs = wm._zs
         zref = 15000
+        zmask = zs < zref
         stepSize = 10
 
         f1 = lndi(points, wrf.flatten()) 
         f2 = lndi(points, hrf.flatten())  
-        ray = np.stack([-100*np.ones(zref//100), 20*np.ones(zref//100), 
-                         np.linspace(-100, zref, zref//100)]).T
+        zint = zs[zmask]
+        ray = np.stack([-101*np.ones(len(zint)), 17*np.ones(len(zint)), zint]).T
         testwet = f1(ray)
         testhydro = f2(ray)
         dx = ray[1,2] - ray[0,2] 
-        total = 1e-6*dx*np.sum(testwet + testhydro)
-        total_true = 1e-6*(np.trapz(wrf[1,1,:], zs) + np.trapz(hrf[1,1,:], zs))
+        mask = np.isnan(testwet) | np.isnan(testhydro)
+        totalwet   = 1e-6*dx*np.sum(testwet[~mask]) 
+        totalhydro = 1e-6*dx*np.sum(testhydro[~mask])
+        totalwet   = 1e-6*np.trapz(testwet[~mask], zint[~mask]) 
+        totalhydro = 1e-6*np.trapz(testhydro[~mask], zint[~mask])
 
-        self.assertTrue(np.abs(total-total_true) < 0.01)
+        total_wet   = 1e-6*np.trapz(wrf[5,9,zmask], zs[zmask])
+        total_hydro = 1e-6*np.trapz(hrf[5,9,zmask], zs[zmask])
 
+        self.assertTrue(np.abs(totalwet-total_wet) < 0.01)
+        self.assertTrue(np.abs(totalhydro-total_hydro) < 0.01)
+
+    #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_ERA5(self):
         model_module_name, model_obj = modelName2Module('ERA5')
         basedir = os.path.join('test', 'scenario_1')
         wmFileLoc = os.path.join(basedir, 'weather_files')
+        #era5 = {'type': model_obj(), 'files': None, 'name': 'ERA5'}
         era5 = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'ERA5'}
 
         weather_model, lats, lons = prepareWeatherModel(era5,wmFileLoc, basedir, verbose=True)
+        #weather_model, lats, lons = prepareWeatherModel(era5,wmFileLoc, basedir, verbose=True, lats = self.lat_box, lons = self.lon_box, time = self.time)
         self.assertTrue(lats.shape == self.lats_shape)
         self.assertTrue(lons.shape == self.lons_shape)
         self.assertTrue(lons.shape == lats.shape)
         self.assertTrue(weather_model._wet_refractivity.shape[:2] == self.lats_shape)
         self.assertTrue(weather_model.Model()=='ERA-5')
 
+    #@unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_HRRR(self):
         model_module_name, model_obj = modelName2Module('HRRR')
         basedir = os.path.join('test', 'scenario_2')
         wmFileLoc = os.path.join(basedir, 'weather_files')
-        hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
+        #hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
+        hrrr = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'HRRR'}
 
-        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr, time = self.time)
+        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr)
         self.assertTrue(np.all(lons.shape == lats.shape))
         self.assertTrue(weather_model.Model()=='HRRR')
 

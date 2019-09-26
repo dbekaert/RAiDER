@@ -10,7 +10,7 @@ import numpy as np
 import os
 
 from RAiDER.demdownload import download_dem
-from RAiDER.util import gdal_open
+from RAiDER.utilFcns import gdal_open
 
 def readLL(*args):
     '''

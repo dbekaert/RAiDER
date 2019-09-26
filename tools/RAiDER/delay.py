@@ -161,16 +161,10 @@ def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
     ifFun.setPoints(*weatherObj.getPoints())
     ifFun.setProjection(weatherObj.getProjection())
 
-    try:
-        if itype == 'wet':
-            ifFun.getInterpFcns(weatherObj.getWetRefractivity().filled(fill_value=np.nan), interpType = interpType)
-        elif itype == 'hydro':
-            ifFun.getInterpFcns(weatherObj.getHydroRefractivity().filled(fill_value=np.nan), interpType = interpType)
-    except AttributeError:
-        if itype == 'wet':
-            ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
-        elif itype == 'hydro':
-            ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
+    if itype == 'wet':
+        ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
+    elif itype == 'hydro':
+        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
     return ifFun
 
 
@@ -234,7 +228,7 @@ def computeDelay(los, lats, lons, hgts, weather_model, zref = _ZREF,
     We do a little bit of preprocessing, then call
     interpolateDelay. 
     """
-    from RAiDER.util import checkShapes, checkLOS
+    from RAiDER.utilFcns import checkShapes, checkLOS
 
     checkShapes(los, lats, lons, hgts)
     checkLOS(los, np.prod(lats.shape))
@@ -290,7 +284,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     from RAiDER.llreader import getHeights 
     from RAiDER.losreader import getLookVectors
     from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.util import writeDelays
+    from RAiDER.utilFcns import writeDelays
 
     if verbose:
         print('Starting to run the weather model calculation')
