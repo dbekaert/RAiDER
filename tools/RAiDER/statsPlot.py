@@ -367,7 +367,7 @@ class raiderStats(object):
         se = [extent[1]-(self.spacing/2),extent[2]+(self.spacing/2)]
 
         #Store grid dimension [y,x]
-        grid_dim=[int((extent[-1]-extent[-2])/self.spacing),int((extent[1]-extent[0])/self.spacing)]
+        grid_dim=[int((extent[1]-extent[0])/self.spacing), int((extent[-1]-extent[-2])/self.spacing)]
 
         # Iterate over 2D area
         gridpoints = []
