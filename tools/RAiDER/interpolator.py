@@ -19,7 +19,6 @@ class Interpolator:
     temperature, and relative humidity.
 
     """
-    #TODO: handle 1-D, 2-D cases correctly
     def __init__(self, xs = [], ys = [], zs = [], proj = None):
         """Initialize a NetCDFModel."""
         self._xs = xs
@@ -72,10 +71,7 @@ class Interpolator:
         return str(string)
 
     def _getShape(self, xs, ys, zs):
-        #try:
-        #    self._shape = max(xs.shape, ys.shape, zs.shape)
-        #except AttributeError:
-            self._shape = (len(xs), len(ys), len(zs))
+        self._shape = (len(xs), len(ys), len(zs))
 
     def _getBBox(self):
         if len(self._xs) > 0:
@@ -110,11 +106,6 @@ class Interpolator:
         self._getShape(xs, ys, zs)
         self._Npoints = np.prod((len(xs), len(ys), len(zs)))
         
-#        try:
-#            self._zlevels = np.nanmean(zs, axis=(0,1))
-#        except:
-#            pass
-
         self._xs = xs.flatten()
         self._ys = ys.flatten()
         self._zs = zs.flatten()
