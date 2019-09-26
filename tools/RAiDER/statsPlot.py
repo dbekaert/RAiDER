@@ -50,12 +50,13 @@ def cmdLineParse(iargs = None):
     parser = createParser()
     return parser.parse_args(args=iargs)
 
-class variogramAnalysis:
+class variogramAnalysis():
     '''
         Class which ingests dataframe output from 'raiderStats' class and performs variogram analysis.
     '''
-    def __init__(self, filearg, gridpoints, workdir='./', seasonalinterval=None, densitythreshold=10, verbose=False):
+    def __init__(self, filearg, col_name, gridpoints, workdir='./', seasonalinterval=None, densitythreshold=10, verbose=False):
         self.df = filearg
+        self.col_name = col_name
         self.gridpoints = gridpoints
         self.workdir = workdir
         self.seasonalinterval = seasonalinterval
@@ -629,7 +630,7 @@ def parseCMD(iargs=None):
     ###Perform variogram analysis
     if inps.variogramplot:
         print("***Variogram Analysis Function:***")
-        make_variograms=variogramAnalysis(df_stats.df, df_stats.gridpoints, inps.workdir, df_stats.seasonalinterval, inps.densitythreshold, inps.verbose)
+        make_variograms=variogramAnalysis(df_stats.df, inps.col_name, df_stats.gridpoints, inps.workdir, df_stats.seasonalinterval, inps.densitythreshold, inps.verbose)
         TOT_grids,TOT_res_robust_arr=make_variograms.createVariograms()
         #plot range heatmap
         print("- Plot variogram range per gridcell.")
