@@ -10,7 +10,7 @@ import unittest
 import RAiDER.delay
 from RAiDER.llreader import readLL, getHeights
 from RAiDER.losreader import getLookVectors
-import RAiDER.util
+from RAiDER.utilFcns import pickle_load
 
 class TimeTests(unittest.TestCase):
 
@@ -36,10 +36,10 @@ class TimeTests(unittest.TestCase):
     basedir = os.path.join(outdir, '{}'.format(scenario))
     out = os.path.join(basedir, os.sep)
 
-    data = RAiDER.util.pickle_load(os.path.join(basedir, 'data.pik'))
+    data = pickle_load(os.path.join(basedir, 'data.pik'))
     lats,lons,los,zref,hgts = data['lats'], data['lons'], data['los'], data['zref'], data['hgts']
 
-    weather_model = RAiDER.util.pickle_load(os.path.join(basedir, 'pickledWeatherModel.pik'))
+    weather_model = pickle_load(os.path.join(basedir, 'pickledWeatherModel.pik'))
 
     # Compute the true delay
     wrf = weather_model._wet_refractivity[1,1,:]

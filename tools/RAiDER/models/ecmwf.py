@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 import pyproj
 
-import RAiDER.util as util
+from RAiDER.utilFcns import round_date
 from RAiDER.models.weatherModel import WeatherModel
 
 

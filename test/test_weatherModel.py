@@ -9,13 +9,14 @@ from scipy.interpolate import LinearNDInterpolator as lndi
 import pickle
 import unittest
 
-from RAiDER.util import modelName2Module, writeLL
+from RAiDER.utilFcns import modelName2Module, writeLL
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.constants import Zenith
 
 
 class WMTests(unittest.TestCase):
 
+    time = datetime.datetime(2018,1,1,2,0,0)
 
     lat_box = np.array([16, 18])
     lon_box = np.array([-103, -100])
@@ -55,9 +56,11 @@ class WMTests(unittest.TestCase):
         model_module_name, model_obj = modelName2Module('ERA5')
         basedir = os.path.join('test', 'scenario_1')
         wmFileLoc = os.path.join(basedir, 'weather_files')
+        #era5 = {'type': model_obj(), 'files': None, 'name': 'ERA5'}
         era5 = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'ERA5'}
 
         weather_model, lats, lons = prepareWeatherModel(era5,wmFileLoc, basedir, verbose=True)
+        #weather_model, lats, lons = prepareWeatherModel(era5,wmFileLoc, basedir, verbose=True, lats = self.lat_box, lons = self.lon_box, time = self.time)
         self.assertTrue(lats.shape == self.lats_shape)
         self.assertTrue(lons.shape == self.lons_shape)
         self.assertTrue(lons.shape == lats.shape)
@@ -68,9 +71,10 @@ class WMTests(unittest.TestCase):
         model_module_name, model_obj = modelName2Module('HRRR')
         basedir = os.path.join('test', 'scenario_2')
         wmFileLoc = os.path.join(basedir, 'weather_files')
-        hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
+        #hrrr = {'type': model_obj(), 'files': None, 'name': 'HRRR'}
+        hrrr = {'type': model_obj(), 'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 'name': 'HRRR'}
 
-        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr, time = self.time)
+        weather_model, lats, lons = prepareWeatherModel(hrrr,wmFileLoc, basedir, verbose=True, lats = self.lats_hrrr, lons = self.lons_hrrr)
         self.assertTrue(np.all(lons.shape == lats.shape))
         self.assertTrue(weather_model.Model()=='HRRR')
 

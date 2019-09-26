@@ -8,7 +8,6 @@ import pandas as pd
 import unittest
 
 import RAiDER.llreader
-import RAiDER.util
 import RAiDER.delay
 import RAiDER.delayFcns
 

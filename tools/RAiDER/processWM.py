@@ -16,7 +16,7 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     if not, download it.
     '''
     from datetime import datetime as dt
-    from RAiDER.util import mkdir
+    from RAiDER.utilFcns import mkdir
 
     mkdir('weather_files')
     f = os.path.join(outLoc, 
@@ -40,7 +40,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
     '''
     import numpy as np
     from RAiDER.models.allowed import checkIfImplemented
-    from RAiDER.util import pickle_load, writeLL, getTimeFromFile
+    from RAiDER.utilFcns import pickle_load, writeLL, getTimeFromFile
     
     # Make weather
     weather_model, weather_files, weather_model_name = \

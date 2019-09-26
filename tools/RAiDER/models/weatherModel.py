@@ -8,7 +8,7 @@ import os
 # local imports
 import RAiDER.constants as const
 import RAiDER.models.plotWeather as plots
-import RAiDER.util as util
+import RAiDER.utilFcns as util
 from RAiDER.util import robmin, robmax
 
 
@@ -288,7 +288,7 @@ class WeatherModel():
         ma2 = np.sum(mask, axis = 0).astype('bool')
 
         # indices of the part of the grid to keep
-        nx, ny, nz = self._xs.shape
+        ny,nx,nz = self._p.shape
         index1 = max(np.arange(len(ma1))[ma1][0] - 2, 0)
         index2 = min(np.arange(len(ma1))[ma1][-1]+ 2, ny)
         index3 = max(np.arange(len(ma2))[ma2][0] - 2, 0)
