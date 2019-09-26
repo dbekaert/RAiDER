@@ -215,7 +215,7 @@ class variogramAnalysis():
             os.mkdir(workdir)
 
         # make plot title
-        title_str=' \nLat:{.2f} Lon:{.2f}\nTime:{}s'.format(coords[1],coords[0],timeslice)
+        title_str=' \nLat:{:.2f} Lon:{:.2f}\nTime:{}s'.format(coords[1],coords[0],timeslice)
         if seasonalinterval:
             title_str+=' Season(mm/dd): {}/{} – {}/{}'.format(int(timeslice[4:6]),int(timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
 
@@ -268,7 +268,7 @@ class variogramAnalysis():
                     #Record skipped [gridnode, timeslice]
                     skipped_slices.append([i, j.strftime("%Y-%m-%d")])
                 else:
-                    gridcenterlist.append(['grid{} '.format(i)+'Lat:{} Lon:{}'%(self.gridpoints[i][1],self.gridpoints[i][0])])
+                    gridcenterlist.append(['grid{} '.format(i)+'Lat:{} Lon:{}'.format(self.gridpoints[i][1],self.gridpoints[i][0])])
                     lonarr=np.array(grid_subset[grid_subset['Date']==j]['Lon'])
                     latarr=np.array(grid_subset[grid_subset['Date']==j]['Lat'])
                     delayarray=np.array(grid_subset[grid_subset['Date']==j][self.col_name])
@@ -467,7 +467,7 @@ class raiderStats(object):
         if self.colorpercentile[0]>self.colorpercentile[1]:
             raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(self.colorpercentile[0],self.colorpercentile[1]))
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue = 5):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue = 5, plotFormat = '.pdf'):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -565,7 +565,7 @@ class raiderStats(object):
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+'.png'),format='png',bbox_inches='tight')
+        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+plotFormat),format=plotFormat,bbox_inches='tight')
         plt.close()
 
         return
