@@ -23,6 +23,7 @@ def createParser():
     parser = argparse.ArgumentParser(description='Function to generate various quality control and baseline figures of the spatial-temporal network of products.')
     parser.add_argument('-f', '--file', dest='fname', type=str,required=True, help='csv file')
     parser.add_argument('-c', '--column_name', dest='col_name', type=str,default='GNSS_minus_ERA5', help='Name of the input column to plot')
+    parser.add_argument('-fmt', '--plot_format', dest='plot_fmt', type=str,default='png', help='Plot format to use for saving figures')
     parser.add_argument('-w', '--workdir', dest='workdir', default='./', help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
     parser.add_argument('-b', '--bbox', dest='bbox', type=str, default=None, help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
     parser.add_argument('-sp', '--spacing', dest='spacing', type=float, default='1', help='Specify spacing of grid-cells for statistical analyses. By default 1 deg.')
@@ -293,6 +294,7 @@ class variogramAnalysis():
                     res_robust_arr.append(res_robust.x); d_test_arr.append(d_test); v_test_arr.append(v_test)
             #fit experimental variogram for each grid
             if dists_binned_arr!=[]:
+                #TODO: need to change this from accumulating binned data to raw data
                 dists_arr=np.concatenate(dists_arr).ravel(); vario_arr=np.concatenate(vario_arr).ravel()
                 dists_binned_arr=np.concatenate(dists_binned_arr).ravel(); vario_binned_arr=np.concatenate(vario_binned_arr).ravel()
                 TOT_res_robust, TOT_d_test, TOT_v_test = self._fitVario(dists_binned_arr, vario_binned_arr, model=self.__exponential__, x0 = None, Nparm = 3)
@@ -612,21 +614,21 @@ def parseCMD(iargs=None):
     if inps.grid_heatmap:
         print("- Plot density of stations per gridcell.")
         gridarr_heatmap=np.array([float(0) if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(df_stats.df['ID'][df_stats.df['gridnode']==i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T,'grid_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%1i', stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_heatmap.T,'grid_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%1i', stationsongrids=inps.stationsongrids, plotFormat = inps.plot_fmt)
     #Plot mean delay for each gridcell
     if inps.grid_delay_mean:
         print("- Plot mean delay per gridcell.")
         unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].mean()
         unique_points.dropna(how='any',inplace=True)
         gridarr_heatmap=np.array([float(0) if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T,'grid_delay_mean', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_heatmap.T,'grid_delay_mean', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat = inps.plot_fmt)
     #Plot mean delay for each gridcell
     if inps.grid_delay_stdev:
         print("- Plot delay stdev per gridcell.")
         unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].std()
         unique_points.dropna(how='any',inplace=True)
         gridarr_heatmap=np.array([float(0) if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T,'grid_delay_stdev', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_heatmap.T,'grid_delay_stdev', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat = inps.plot_fmt)
 
     ###Perform variogram analysis
     if inps.variogramplot:
@@ -636,10 +638,10 @@ def parseCMD(iargs=None):
         #plot range heatmap
         print("- Plot variogram range per gridcell.")
         gridarr_range=np.array([float(0) if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_range.T,'range_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_range.T,'range_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat = inps.plot_fmt)
         #plot sill heatmap
         print("- Plot variogram sill per gridcell.")
         gridarr_sill=np.array([float(0) if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         gridarr_sill=gridarr_sill*(10^4) #convert to cm
-        df_stats(gridarr_sill.T,'sill_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%.3e', stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_sill.T,'sill_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, plotFormat = inps.plot_fmt)
 
