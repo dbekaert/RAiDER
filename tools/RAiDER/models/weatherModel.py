@@ -10,6 +10,7 @@ import RAiDER.constants as const
 import RAiDER.models.plotWeather as plots
 import RAiDER.utilFcns as util
 from RAiDER.util import robmin, robmax
+from RAiDER.interpolator import fillna3D, interp_along_axis
 
 
 class WeatherModel():
@@ -69,16 +70,16 @@ class WeatherModel():
     def __repr__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
-        string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._xs.shape[:2])
-        string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._xs.shape))
+        string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
+        string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projection: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zmax)
-        string += 'Minimum/Maximum y (or latitude): {: 4.2f}/{: 4.2f}\n'\
+        string += 'Minimum/Maximum y: {: 4.2f}/{: 4.2f}\n'\
                   .format(robmin(self._ys), robmax(self._ys))
-        string += 'Minimum/Maximum x (or longitude): {: 4.2f}/{: 4.2f}\n'\
+        string += 'Minimum/Maximum x: {: 4.2f}/{: 4.2f}\n'\
                   .format(robmin(self._xs), robmax(self._xs))
         string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
                   .format(robmin(self._zs), robmax(self._zs))
@@ -114,17 +115,18 @@ class WeatherModel():
         '''
         pass
 
-    def load(self, *args, outLats = None, outLons = None, **kwargs):
+    def load(self, *args, outLats = None, outLons = None, _zlevels = None, **kwargs):
         '''
         Calls the load_weather method. Each model class should define a load_weather 
         method appropriate for that class. 'args' should be one or more filenames. 
         '''
         self.load_weather(*args, **kwargs)
         self._find_e()
+        self._checkNotMaskedArrays()
+        self._uniform_in_z(_zlevels=_zlevels)
+        self._checkForNans()
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
-
-        # adjust the grid based on the height data
         self._adjust_grid(lats =outLats, lons=outLons)
 
     def load_weather(self, filename):
@@ -187,6 +189,9 @@ class WeatherModel():
             self._find_e_from_q()
         else:
             raise RuntimeError('Not a valid humidity type')
+        self._rh = None
+        self._q = None
+
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
@@ -221,27 +226,17 @@ class WeatherModel():
     def _adjust_grid(self, lats = None, lons = None):
         '''
         This function pads the weather grid with a level at self._zmin, if 
-        it does not already go that low. It also removes levels that are 
-        above self._zmax, since they are not needed. 
+        it does not already go that low. 
+        <<The functionality below has been removed.>>
+        <<It also removes levels that are above self._zmax, since they are not needed.>>
         '''
+
         if self._zmin < np.nanmin(self._zs):
             # first add in a new layer at zmin
-            new_heights = np.zeros(self._zs.shape[:2]) + self._zmin
-            self._zs = np.concatenate(
-                       (new_heights[:,:,np.newaxis], self._zs), axis = 2)
+            self._zs = np.insert(self._zs, 0, self._zmin)
 
-            # since xs/ys (or lons/lats) are the same for all z, just add an
-            # extra slice to match the new z shape
-            self._xs = np.concatenate((self._xs[:,:,0][...,np.newaxis],self._xs), axis = 2)
-            self._ys = np.concatenate((self._ys[:,:,0][...,np.newaxis],self._ys), axis = 2)
             self._lons = np.concatenate((self._lons[:,:,0][...,np.newaxis],self._lons), axis = 2)
             self._lats = np.concatenate((self._lats[:,:,0][...,np.newaxis],self._lats), axis = 2)
-
-            # need to extrapolate the other variables down now
-            if self._humidityType == 'q':
-                self._q=util.padLower(self._q)
-            else:
-                self._rh=util.padLower(self._rh)
 
             self._p=util.padLower(self._p)
             self._t=util.padLower(self._t)
@@ -255,15 +250,26 @@ class WeatherModel():
             if self._isOutside(in_extent, self_extent):
                 print('Extent of the input lats/lons is: {}'.format(in_extent))
                 print('Extent of the weather model is: {}'.format(self_extent))
-                raise RuntimeError('The weather model passed does not cover all of the \n \
+                print('The weather model passed does not cover all of the \n \
                                   input points; you need to download a larger area.')
+                raise RuntimeError('Check the weather model')
             self._trimExtent(in_extent) 
 
     def _getExtent(self,lats, lons):
         '''
         get the bounding box around a set of lats/lons
         '''
-        return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+        if (lats.size == 1) & (lons.size == 1):
+            return [lats - self._lat_res, lats + self._lat_res, lons - self._lon_res, lons + self._lon_res]
+        elif (lats.size>1) & (lons.size>1):
+            return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+        elif lats.size == 1:
+            return [lats - self._lat_res, lats + self._lat_res, np.nanmin(lons), np.nanmax(lons)]
+        elif lons.size == 1:
+            return [np.nanmin(lats), np.nanmax(lats), lons - self._lon_res, lons + self._lon_res]
+        else:
+            raise RuntimeError('Not a valid lat/lon shape')
+            
 
     def _isOutside(self, extent1, extent2):
         '''
@@ -295,25 +301,14 @@ class WeatherModel():
         index4 = min(np.arange(len(ma2))[ma2][-1]+ 2, nx)
 
         # subset around points of interest
-        self._lons                       = self._lons[index1:index2,index3:index4,:]
-        self._lats                       = self._lats[index1:index2,index3:index4,...]
-        self._xs                       = self._xs[index1:index2,index3:index4,:]
-        self._ys                       = self._ys[index1:index2,index3:index4,...]
-        self._zs                       = self._zs[index1:index2,index3:index4,...]
-        self._p                        = self._p[index1:index2,index3:index4,...]
+        self._lons= self._lons[index1:index2,index3:index4,:]
+        self._lats= self._lats[index1:index2,index3:index4,...]
+        self._xs  = self._xs[index3:index4]
+        self._ys  = self._ys[index1:index2]
+        self._p   = self._p[index1:index2,index3:index4,...]
+        self._t   = self._t[index1:index2,index3:index4,...]
+        self._e   = self._e[index1:index2,index3:index4,...]
 
-        # pass if didn't compute the other type of humidity
-        try:
-            self._q                        = self._q[index1:index2,index3:index4,...]
-        except TypeError:
-            pass
-        try:
-            self._rh                       = self._rh[index1:index2,index3:index4,...]
-        except TypeError:
-            pass
-
-        self._t                        = self._t[index1:index2,index3:index4,...]
-        self._e                        = self._e[index1:index2,index3:index4,...]
         self._wet_refractivity         = self._wet_refractivity[index1:index2,index3:index4,...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2,index3:index4,:]
 
@@ -453,7 +448,7 @@ class WeatherModel():
         return self._xs.copy(),self._ys.copy(), self._zs.copy()
         
     def getLL(self):
-        return self._ys[...,0].copy(), self._xs[...,0].copy()
+        return self._lats[...,0].copy(), self._lons[...,0].copy()
 
     def getXY_gdal(self, filename):
         '''
@@ -472,59 +467,57 @@ class WeatherModel():
         northOrigin =trans[3] + 0.5*pixelSizeY
         xArray = np.arange(eastOrigin,  eastOrigin + pixelSizeX*xSize,  pixelSizeX)
         yArray = np.arange(northOrigin, northOrigin + pixelSizeY*ySize, pixelSizeY)
-    
+
         return xArray, yArray
         
-    def _restrict_model(self, lat_min, lat_max, lon_min, lon_max):
+    def _uniform_in_z(self, _zlevels = None):
         '''
-        Restrict the weather model to the region of interest (ROI). If there are no 
-        points left in the model (because e.g. the ROI is outside the US), raise
-        an exception. 
+        Interpolate all variables to a regular grid in z
         '''
+        nx, ny = self._p.shape[:2]
 
-        # Have to do some complicated stuff to get a nice square box 
-        # without doing the whole US
-        self._xs = self._xs.swapaxes(0,1)
-        self._ys = self._ys.swapaxes(0,1)
-        self._zs = self._zs.swapaxes(0,1)
-        self._p = self._p.swapaxes(0,1)
-        self._t = self._t.swapaxes(0,1)
+        # new regular z-spacing 
+        if _zlevels is None:
+            _zlevels = np.nanmean(self._zs, axis=(0,1))
+        new_zs = np.tile(_zlevels, (nx,ny,1))
 
-        mask1 = (self._xs[...,0] > lon_min) & (self._xs[...,0] < lon_max)
-        mask3 = (self._ys[...,0] > lat_min) & (self._ys[...,0] < lat_max)
-        mask2 = np.sum(mask1, axis=0).astype('bool')
-        mask4 = np.sum(mask3, axis=1).astype('bool')
-        NptsX = self._xs.shape[1]
-        NptsY = self._xs.shape[0]
-        lonRange = np.arange(0,NptsX)
-        latRange = np.arange(0,NptsY)
-        lonx = lonRange[mask2]
-        latx = latRange[mask4]
-        zx = np.arange(0, self._zs.shape[2])
+        # re-assign values to the uniform z
+        # new variables
+        self._t= interp_along_axis(self._zs, new_zs, self._t, axis = 2)
+        self._p= interp_along_axis(self._zs, new_zs, self._p, axis = 2)
+        self._e= interp_along_axis(self._zs, new_zs, self._e, axis = 2)
+        self._zs = _zlevels
+        self._xs = np.unique(self._xs)
+        self._ys = np.unique(self._ys)
 
-        # if there are no points left, raise exception
-        if np.sum(mask2) == 0 or np.sum(mask4) == 0:
-            raise RuntimeError('Region of interest is outside the region of the HRRR'+
-                                'weather archive data')
+    def _checkNotMaskedArrays(self):
+        try:
+            self._p = self._p.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._t = self._t.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._e = self._e.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._wet_refractivity = self._wet_refractivity.filled(fill_value=np.nan)
+        except:
+            pass
+        try:
+            self._hydrostatic_refractivity = self._hydrostatic_refractivity.filled(fill_value=np.nan)
+        except:
+            pass
 
-        # otherwise subset the data
-        _xs = self._xs[np.ix_(latx,lonx, zx)]
-        _ys = self._ys[np.ix_(latx,lonx, zx)]
-        _zs = self._zs[np.ix_(latx,lonx, zx)]
-        _t  = self._t[np.ix_(latx,lonx, zx)]
-        _p  = self._p[np.ix_(latx,lonx, zx)]
 
-        self._zs = _zs.copy()
-        self._ys = _ys.copy()
-        self._xs = _xs.copy()
-        self._t  = _t.copy()
-        self._p  = _p.copy()
+    def _checkForNans(self):
+        '''
+        Fill in NaN-values
+        '''
+        self._p = fillna3D(self._p)
+        self._t = fillna3D(self._t)
+        self._e = fillna3D(self._e)
 
-        if self._humidityType =='rh':
-            self._rh = self._rh.swapaxes(0,1)
-            _rh = self._rh[np.ix_(latx,lonx, zx)]
-            self._rh = _rh.copy()
-        elif self._humidityType =='q':
-            self._q = self._rh.swapaxes(0,1)
-            _q = self._rh[np.ix_(latx,lonx, zx)]
-            self._q = _q.copy()
