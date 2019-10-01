@@ -543,12 +543,12 @@ class raiderStats(object):
             # define the bins and normalize
             if cbounds is None:
                 cbounds = [np.percentile(gridarr[gridarr!=0],self.colorpercentile[0]), np.percentile(gridarr[gridarr!=0],self.colorpercentile[1])]
-            colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
+            colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
             gridarr=np.ma.masked_where(gridarr == 0, gridarr)
 
             #plot data
-            im   = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], vmax=cbounds[0], zorder=1, origin = 'upper', transform=ccrs.PlateCarree())
+            im   = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], vmax=cbounds[1], zorder=1, origin = 'upper', transform=ccrs.PlateCarree())
             # initiate colorbar
             cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
             #cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
