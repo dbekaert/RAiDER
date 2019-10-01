@@ -705,15 +705,15 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df.to_csv(wetFilename, index=False)
 
     elif flag=='netcdf':
-        RAiDER.utilFcns.writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
+        writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
-        RAiDER.utilFcns.writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
+        writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
                        fmt=outformat, proj=proj, gt=gt)
 
     else:
-        RAiDER.utilFcns.writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
+        writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
-        RAiDER.utilFcns.writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
+        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
 
 
