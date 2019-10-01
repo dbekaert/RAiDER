@@ -41,6 +41,7 @@ def createParser():
     parser.add_argument('-grid_delay_mean', '--grid_delay_mean', action='store_true', dest='grid_delay_mean', help="Plot gridded station mean delay.")
     parser.add_argument('-grid_delay_stdev', '--grid_delay_stdev', action='store_true', dest='grid_delay_stdev', help="Plot gridded station delay stdev.")
     parser.add_argument('-variogramplot', '--variogramplot', action='store_true', dest='variogramplot', help="Plot gridded station variogram.")
+    parser.add_argument('-binnedvariogram', '--binnedvariogram', action='store_true', dest='binnedvariogram', help="Apply experimental variogram fit to total binned empirical variograms for each time slice. Default is to total unbinned empiricial variogram.")
     parser.add_argument('-plotall', '--plotall', action='store_true', dest='plotall', help="Generate all above plots.")
     parser.add_argument('-verbose', '--verbose', action='store_true', dest='verbose', help="Toggle verbose mode on. Must be specified to generate variogram plots per gridded station AND time-slice.")
     '''
@@ -56,14 +57,16 @@ class variogramAnalysis():
     '''
         Class which ingests dataframe output from 'raiderStats' class and performs variogram analysis.
     '''
-    def __init__(self, filearg, col_name, gridpoints, workdir='./', seasonalinterval=None, densitythreshold=10, verbose=False):
+    def __init__(self, filearg, gridpoints, col_name, workdir='./', seasonalinterval=None, densitythreshold=10, verbose=False, binnedvariogram=False):
         self.df = filearg
         self.col_name = col_name
         self.gridpoints = gridpoints
+        self.col_name = col_name
         self.workdir = workdir
         self.seasonalinterval = seasonalinterval
         self.densitythreshold = densitythreshold
         self.verbose = verbose
+        self.binnedvariogram = binnedvariogram
 
     def _getSamples(self, data, Nsamp=None): 
         '''
@@ -217,7 +220,7 @@ class variogramAnalysis():
             os.mkdir(workdir)
 
         # make plot title
-        title_str=' \nLat:{:.2f} Lon:{:.2f}\nTime:{}s'.format(coords[1],coords[0],timeslice)
+        title_str=' \nLat:{:.2f} Lon:{:.2f}\nTime:{}s'.format(coords[1],coords[0],str(timeslice))
         if seasonalinterval:
             title_str+=' Season(mm/dd): {}/{} – {}/{}'.format(int(timeslice[4:6]),int(timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
 
@@ -270,7 +273,7 @@ class variogramAnalysis():
                     #Record skipped [gridnode, timeslice]
                     skipped_slices.append([i, j.strftime("%Y-%m-%d")])
                 else:
-                    gridcenterlist.append(['grid{} '.format(i)+'Lat:{} Lon:{}'.format(self.gridpoints[i][1],self.gridpoints[i][0])])
+                    gridcenterlist.append(['grid{} '.format(i)+'Lat:{} Lon:{}'.format(str(self.gridpoints[i][1]),str(self.gridpoints[i][0]))])
                     lonarr=np.array(grid_subset[grid_subset['Date']==j]['Lon'])
                     latarr=np.array(grid_subset[grid_subset['Date']==j]['Lat'])
                     delayarray=np.array(grid_subset[grid_subset['Date']==j][self.col_name])
@@ -297,7 +300,11 @@ class variogramAnalysis():
             if dists_binned_arr!=[]:
                 #TODO: need to change this from accumulating binned data to raw data
                 dists_arr=np.concatenate(dists_arr).ravel(); vario_arr=np.concatenate(vario_arr).ravel()
-                dists_binned_arr=np.concatenate(dists_binned_arr).ravel(); vario_binned_arr=np.concatenate(vario_binned_arr).ravel()
+                #if specified, passed binned empirical variograms
+                if self.binnedvariogram:
+                    dists_binned_arr=np.concatenate(dists_binned_arr).ravel(); vario_binned_arr=np.concatenate(vario_binned_arr).ravel()
+                else:
+                    dists_binned_arr, vario_binned_arr=self._binnedVario(dists_arr, vario_arr)
                 TOT_res_robust, TOT_d_test, TOT_v_test = self._fitVario(dists_binned_arr, vario_binned_arr, model=self.__exponential__, x0 = None, Nparm = 3)
                 #Plot empirical variogram for this gridnode and timeslice
                 tot_timetag=good_slices[0][1]+'–'+good_slices[-1][1]
@@ -526,7 +533,7 @@ class raiderStats(object):
                 zvalues=gridarr[2]
                 # define the bins and normalize
                 if cbounds is None:
-                    cbounds = [np.percentile(zvalues,self.colorpercentile[0]), np.percentile(zvalues,self.colorpercentile[1])]
+                    cbounds = [np.nanpercentile(zvalues,self.colorpercentile[0]), np.nanpercentile(zvalues,self.colorpercentile[1])]
                 colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
 
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
@@ -542,16 +549,15 @@ class raiderStats(object):
         else:
             # define the bins and normalize
             if cbounds is None:
-                cbounds = [np.percentile(gridarr[gridarr!=0],self.colorpercentile[0]), np.percentile(gridarr[gridarr!=0],self.colorpercentile[1])]
+                cbounds = [np.nanpercentile(gridarr,self.colorpercentile[0]), np.nanpercentile(gridarr,self.colorpercentile[1])]
             colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
-            gridarr=np.ma.masked_where(gridarr == 0, gridarr)
+            gridarr=np.ma.masked_where(gridarr == np.nan, gridarr)
 
             #plot data
             im   = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], vmax=cbounds[1], zorder=1, origin = 'upper', transform=ccrs.PlateCarree())
             # initiate colorbar
             cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
-            #cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
 
             #superimpose your gridded array with a supplementary list of point, if specified
             if self.stationsongrids:
@@ -620,35 +626,35 @@ def parseCMD(iargs=None):
     #Plot density of stations for each gridcell
     if inps.grid_heatmap:
         print("- Plot density of stations per gridcell.")
-        gridarr_heatmap=np.array([float(0) if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(df_stats.df['ID'][df_stats.df['gridnode']==i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
+        gridarr_heatmap=np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(df_stats.df['ID'][df_stats.df['gridnode']==i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T,'grid_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%1i', stationsongrids=inps.stationsongrids, cbounds = inps.cbounds, plotFormat = inps.plot_fmt)
     #Plot mean delay for each gridcell
     if inps.grid_delay_mean:
         print("- Plot mean delay per gridcell.")
         unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].mean()
         unique_points.dropna(how='any',inplace=True)
-        gridarr_heatmap=np.array([float(0) if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
+        gridarr_heatmap=np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T,'grid_delay_mean', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids,cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
     #Plot mean delay for each gridcell
     if inps.grid_delay_stdev:
         print("- Plot delay stdev per gridcell.")
         unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].std()
         unique_points.dropna(how='any',inplace=True)
-        gridarr_heatmap=np.array([float(0) if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
+        gridarr_heatmap=np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T,'grid_delay_stdev', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
 
     ###Perform variogram analysis
     if inps.variogramplot:
         print("***Variogram Analysis Function:***")
-        make_variograms=variogramAnalysis(df_stats.df, inps.col_name, df_stats.gridpoints, inps.workdir, df_stats.seasonalinterval, inps.densitythreshold, inps.verbose)
+        make_variograms=variogramAnalysis(df_stats.df, df_stats.gridpoints, inps.col_name, inps.workdir, df_stats.seasonalinterval, inps.densitythreshold, inps.verbose, binnedvariogram = inps.binnedvariogram)
         TOT_grids,TOT_res_robust_arr=make_variograms.createVariograms()
         #plot range heatmap
         print("- Plot variogram range per gridcell.")
-        gridarr_range=np.array([float(0) if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
+        gridarr_range=np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_range.T,'range_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
         #plot sill heatmap
         print("- Plot variogram sill per gridcell.")
-        gridarr_sill=np.array([float(0) if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
+        gridarr_sill=np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         gridarr_sill=gridarr_sill*(10^4) #convert to cm
         df_stats(gridarr_sill.T,'sill_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
 
