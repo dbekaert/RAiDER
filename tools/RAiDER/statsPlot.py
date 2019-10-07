@@ -22,7 +22,7 @@ def createParser():
     import argparse
     parser = argparse.ArgumentParser(description='Function to generate various quality control and baseline figures of the spatial-temporal network of products.')
     parser.add_argument('-f', '--file', dest='fname', type=str,required=True, help='csv file')
-    parser.add_argument('-c', '--column_name', dest='col_name', type=str,default='GNSS_minus_ERA5', help='Name of the input column to plot')
+    parser.add_argument('-c', '--column_name', dest='col_name', type=str,default='GNSS_minus_ERA5', help='Name of the input column to plot. Input assumed to be in units of meters')
     parser.add_argument('-fmt', '--plot_format', dest='plot_fmt', type=str,default='png', help='Plot format to use for saving figures')
     parser.add_argument('-cb', '--color_bounds', dest='cbounds', type=float,nargs=2,default=None, help='List of two floats to use as color axis bounds')
     parser.add_argument('-w', '--workdir', dest='workdir', default='./', help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
@@ -220,7 +220,7 @@ class variogramAnalysis():
             os.mkdir(workdir)
 
         # make plot title
-        title_str=' \nLat:{:.2f} Lon:{:.2f}\nTime:{}s'.format(coords[1],coords[0],str(timeslice))
+        title_str=' \nLat:{:.2f} Lon:{:.2f}\nTime:{}'.format(coords[1],coords[0],str(timeslice))
         if seasonalinterval:
             title_str+=' Season(mm/dd): {}/{} – {}/{}'.format(int(timeslice[4:6]),int(timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
 
@@ -322,7 +322,9 @@ class variogramAnalysis():
         # save grid-center lookup table
         gridcenterlist=[list(i) for i in set(tuple(j) for j in gridcenterlist)]
         gridcenter= open((os.path.join(self.workdir,'variograms/gridlocation_lookup.txt')),"w")
-        gridcenter.writelines('{}\n'.format(" ".join(center) for center in gridcenterlist))
+        for element in gridcenterlist:
+            gridcenter.writelines("\n".join(element))
+            gridcenter.write("\n")
         gridcenter.close()
 
         TOT_grids=[i[0] for i in TOT_good_slices]
@@ -657,4 +659,3 @@ def parseCMD(iargs=None):
         gridarr_sill=np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         gridarr_sill=gridarr_sill*(10^4) #convert to cm
         df_stats(gridarr_sill.T,'sill_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
-
