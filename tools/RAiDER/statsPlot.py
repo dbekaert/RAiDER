@@ -22,14 +22,16 @@ def createParser():
     import argparse
     parser = argparse.ArgumentParser(description='Function to generate various quality control and baseline figures of the spatial-temporal network of products.')
     parser.add_argument('-f', '--file', dest='fname', type=str,required=True, help='csv file')
-    parser.add_argument('-c', '--column_name', dest='col_name', type=str,default='GNSS_minus_ERA5', help='Name of the input column to plot')
+    parser.add_argument('-c', '--column_name', dest='col_name', type=str,default='GNSS_minus_ERA5', help='Name of the input column to plot. Input assumed to be in units of meters')
+    parser.add_argument('-fmt', '--plot_format', dest='plot_fmt', type=str,default='png', help='Plot format to use for saving figures')
+    parser.add_argument('-cb', '--color_bounds', dest='cbounds', type=float,nargs=2,default=None, help='List of two floats to use as color axis bounds')
     parser.add_argument('-w', '--workdir', dest='workdir', default='./', help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
     parser.add_argument('-b', '--bbox', dest='bbox', type=str, default=None, help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
     parser.add_argument('-sp', '--spacing', dest='spacing', type=float, default='1', help='Specify spacing of grid-cells for statistical analyses. By default 1 deg.')
     parser.add_argument('-dt', '--densitythreshold', dest='densitythreshold', type=int, default='10', help='A given grid-cell is only valid if it contains this specified threshold of stations. By default 10 stations.')
     parser.add_argument('-sg', '--stationsongrids', dest='stationsongrids', action='store_true', help='In gridded plots, superimpose your gridded array with a scatterplot of station locations.')
     parser.add_argument('-dg', '--drawgridlines', dest='drawgridlines', action='store_true', help='Draw gridlines on gridded plots.')
-    parser.add_argument('-cp', '--colorpercentile', dest='colorpercentile', type=str, default='25 95', help='Set low and upper percentile for plot colorbars. By default 25%% and 95%%, respectively.')
+    parser.add_argument('-cp', '--colorpercentile', dest='colorpercentile', type=float, default=None,nargs=2, help='Set low and upper percentile for plot colorbars. By default 25%% and 95%%, respectively.')
     parser.add_argument('-ti', '--timeinterval', dest='timeinterval', type=str, default=None, help="Subset in time by specifying earliest YYYY-MM-DD date followed by latest date YYYY-MM-DD. -- Example : '2016-01-01 2019-01-01'.")
     parser.add_argument('-si', '--seasonalinterval', dest='seasonalinterval', type=str, default=None, help="Subset in by an specific interval for each year by specifying earliest MM-DD time followed by latest MM-DD time. -- Example : '03-21 06-21'.")
     parser.add_argument('-station_distribution', '--station_distribution', action='store_true', dest='station_distribution', help="Plot station distribution.")
@@ -51,12 +53,13 @@ def cmdLineParse(iargs = None):
     parser = createParser()
     return parser.parse_args(args=iargs)
 
-class variogramAnalysis:
+class variogramAnalysis():
     '''
         Class which ingests dataframe output from 'raiderStats' class and performs variogram analysis.
     '''
     def __init__(self, filearg, gridpoints, col_name, workdir='./', seasonalinterval=None, densitythreshold=10, verbose=False, binnedvariogram=False):
         self.df = filearg
+        self.col_name = col_name
         self.gridpoints = gridpoints
         self.col_name = col_name
         self.workdir = workdir
@@ -217,7 +220,7 @@ class variogramAnalysis:
             os.mkdir(workdir)
 
         # make plot title
-        title_str=' \nLat:%.2f Lon:%.2f\nTime:%s'%(coords[1],coords[0],str(timeslice))
+        title_str=' \nLat:{:.2f} Lon:{:.2f}\nTime:{}'.format(coords[1],coords[0],str(timeslice))
         if seasonalinterval:
             title_str+=' Season(mm/dd): {}/{} – {}/{}'.format(int(timeslice[4:6]),int(timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
 
@@ -270,7 +273,7 @@ class variogramAnalysis:
                     #Record skipped [gridnode, timeslice]
                     skipped_slices.append([i, j.strftime("%Y-%m-%d")])
                 else:
-                    gridcenterlist.append(['grid{} '.format(i)+'Lat:%s Lon:%s'%(str(self.gridpoints[i][1]),str(self.gridpoints[i][0]))])
+                    gridcenterlist.append(['grid{} '.format(i)+'Lat:{} Lon:{}'.format(str(self.gridpoints[i][1]),str(self.gridpoints[i][0]))])
                     lonarr=np.array(grid_subset[grid_subset['Date']==j]['Lon'])
                     latarr=np.array(grid_subset[grid_subset['Date']==j]['Lat'])
                     delayarray=np.array(grid_subset[grid_subset['Date']==j][self.col_name])
@@ -295,6 +298,7 @@ class variogramAnalysis:
                     res_robust_arr.append(res_robust.x); d_test_arr.append(d_test); v_test_arr.append(v_test)
             #fit experimental variogram for each grid
             if dists_binned_arr!=[]:
+                #TODO: need to change this from accumulating binned data to raw data
                 dists_arr=np.concatenate(dists_arr).ravel(); vario_arr=np.concatenate(vario_arr).ravel()
                 #if specified, passed binned empirical variograms
                 if self.binnedvariogram:
@@ -318,7 +322,9 @@ class variogramAnalysis:
         # save grid-center lookup table
         gridcenterlist=[list(i) for i in set(tuple(j) for j in gridcenterlist)]
         gridcenter= open((os.path.join(self.workdir,'variograms/gridlocation_lookup.txt')),"w")
-        gridcenter.writelines('{}\n'.format(" ".join(center) for center in gridcenterlist))
+        for element in gridcenterlist:
+            gridcenter.writelines("\n".join(element))
+            gridcenter.write("\n")
         gridcenter.close()
 
         TOT_grids=[i[0] for i in TOT_good_slices]
@@ -373,7 +379,7 @@ class raiderStats(object):
         se = [extent[1]-(self.spacing/2),extent[2]+(self.spacing/2)]
 
         #Store grid dimension [y,x]
-        grid_dim=[int((extent[1]-extent[0])/self.spacing),int((extent[-1]-extent[-2])/self.spacing)]
+        grid_dim=[int((extent[1]-extent[0])/self.spacing), int((extent[-1]-extent[-2])/self.spacing)]
 
         # Iterate over 2D area
         gridpoints = []
@@ -469,11 +475,12 @@ class raiderStats(object):
             self.stationsongrids=[unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist()]
 
         ###Pass color percentile and check for input error
-        self.colorpercentile=[float(val) for val in self.colorpercentile.split()]
+        if self.colorpercentile is None:
+           self.colorpercentile=[25, 95]
         if self.colorpercentile[0]>self.colorpercentile[1]:
             raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(self.colorpercentile[0],self.colorpercentile[1]))
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue = 5):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, cbounds = None, resValue = 5, plotFormat = 'pdf'):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -527,12 +534,15 @@ class raiderStats(object):
             if len(gridarr)>2:
                 zvalues=gridarr[2]
                 # define the bins and normalize
-                colorbounds = np.linspace(np.nanpercentile(zvalues,self.colorpercentile[0]), np.nanpercentile(zvalues,self.colorpercentile[1]), 10)
+                if cbounds is None:
+                    cbounds = [np.nanpercentile(zvalues,self.colorpercentile[0]), np.nanpercentile(zvalues,self.colorpercentile[1])]
+                colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
+
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
                 zvalues=np.ma.masked_where(zvalues == 0, zvalues)
 
                 #plot data and initiate colorbar
-                im   = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=np.nanmin(zvalues), vmax=np.nanmax(zvalues), zorder=1, s=1, transform=ccrs.PlateCarree())
+                im   = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=cbounds[0], vmax=cbounds[1], zorder=1, s=1, transform=ccrs.PlateCarree())
                 # initiate colorbar
                 cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
@@ -540,12 +550,14 @@ class raiderStats(object):
         #If gridded area passed
         else:
             # define the bins and normalize
-            colorbounds = np.linspace(np.nanpercentile(gridarr,self.colorpercentile[0]), np.nanpercentile(gridarr,self.colorpercentile[1]), 10)
+            if cbounds is None:
+                cbounds = [np.nanpercentile(gridarr,self.colorpercentile[0]), np.nanpercentile(gridarr,self.colorpercentile[1])]
+            colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
             gridarr=np.ma.masked_where(gridarr == np.nan, gridarr)
 
             #plot data
-            im   = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=np.nanmin(gridarr), vmax=np.nanmax(gridarr), zorder=1, origin = 'upper', transform=ccrs.PlateCarree())
+            im   = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], vmax=cbounds[1], zorder=1, origin = 'upper', transform=ccrs.PlateCarree())
             # initiate colorbar
             cbar_ax=fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
 
@@ -571,7 +583,7 @@ class raiderStats(object):
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+'.png'),format='png',bbox_inches='tight')
+        plt.savefig(os.path.join(workdir,self.col_name +'_'+ plottype+'.'+plotFormat),format=plotFormat,bbox_inches='tight')
         plt.close()
 
         return
@@ -598,40 +610,40 @@ def parseCMD(iargs=None):
     if inps.station_distribution:
         print("- Plot spatial distribution of stations.")
         unique_points=df_stats.df.groupby(['Lon', 'Lat']).size()
-        df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist()],'station_distribution', workdir=os.path.join(inps.workdir,'figures'))
+        df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist()],'station_distribution', workdir=os.path.join(inps.workdir,'figures'),plotFormat = inps.plot_fmt, cbounds = inps.cbounds)
     #Plot mean delay per station
     if inps.station_delay_mean:
         print("- Plot mean delay for each station.")
         unique_points=df_stats.df.groupby(['Lon', 'Lat'])[inps.col_name].mean()
         unique_points.dropna(how='any',inplace=True)
-        df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist(),unique_points.values],'station_delay_mean', workdir=os.path.join(inps.workdir,'figures'))
+        df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist(),unique_points.values],'station_delay_mean', workdir=os.path.join(inps.workdir,'figures'),plotFormat = inps.plot_fmt, cbounds = inps.cbounds)
     #Plot delay stdev per station
     if inps.station_delay_stdev:
         print("- Plot delay stdev for each station.")
         unique_points=df_stats.df.groupby(['Lon', 'Lat'])[inps.col_name].std()
         unique_points.dropna(how='any',inplace=True)
-        df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist(),unique_points.values],'station_delay_stdev', workdir=os.path.join(inps.workdir,'figures'))
+        df_stats([unique_points.index.get_level_values('Lon').tolist(),unique_points.index.get_level_values('Lat').tolist(),unique_points.values],'station_delay_stdev', workdir=os.path.join(inps.workdir,'figures'),plotFormat = inps.plot_fmt, cbounds = inps.cbounds)
 
     ###Gridded station plots
     #Plot density of stations for each gridcell
     if inps.grid_heatmap:
         print("- Plot density of stations per gridcell.")
         gridarr_heatmap=np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(df_stats.df['ID'][df_stats.df['gridnode']==i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T,'grid_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%1i', stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_heatmap.T,'grid_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%1i', stationsongrids=inps.stationsongrids, cbounds = inps.cbounds, plotFormat = inps.plot_fmt)
     #Plot mean delay for each gridcell
     if inps.grid_delay_mean:
         print("- Plot mean delay per gridcell.")
         unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].mean()
         unique_points.dropna(how='any',inplace=True)
         gridarr_heatmap=np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T,'grid_delay_mean', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_heatmap.T,'grid_delay_mean', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids,cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
     #Plot mean delay for each gridcell
     if inps.grid_delay_stdev:
         print("- Plot delay stdev per gridcell.")
         unique_points=df_stats.df.groupby(['gridnode'])[inps.col_name].std()
         unique_points.dropna(how='any',inplace=True)
         gridarr_heatmap=np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist() else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T,'grid_delay_stdev', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_heatmap.T,'grid_delay_stdev', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
 
     ###Perform variogram analysis
     if inps.variogramplot:
@@ -641,10 +653,9 @@ def parseCMD(iargs=None):
         #plot range heatmap
         print("- Plot variogram range per gridcell.")
         gridarr_range=np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_range.T,'range_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids)
+        df_stats(gridarr_range.T,'range_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
         #plot sill heatmap
         print("- Plot variogram sill per gridcell.")
         gridarr_sill=np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         gridarr_sill=gridarr_sill*(10^4) #convert to cm
-        df_stats(gridarr_sill.T,'sill_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%.3e', stationsongrids=inps.stationsongrids)
-
+        df_stats(gridarr_sill.T,'sill_heatmap', workdir=os.path.join(inps.workdir,'figures'), drawgridlines=inps.drawgridlines, colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, cbounds = inps.cbounds,plotFormat = inps.plot_fmt)
