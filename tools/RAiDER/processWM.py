@@ -89,6 +89,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
         except RuntimeError:
             try:
                 os.mkdir(os.path.split(weather_model_name)[0])
+                writeLL(time, lats, lons,lla, weather_model_name, out)
             except:
                 print('Cannot save weather model Lat/Lons')
                 print('Continuing to process')
