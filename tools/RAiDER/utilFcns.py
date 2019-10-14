@@ -436,6 +436,8 @@ def checkShapes(los, lats, lons, hts):
     consistent set of line-of-sight and position data. 
     '''
     from RAiDER.constants import Zenith
+    if los is None:
+        los = Zenith
     test1 = hts.shape == lats.shape == lons.shape
     try:
         test2 = los.shape[:-1] != hts.shape

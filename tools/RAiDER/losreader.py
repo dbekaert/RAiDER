@@ -267,12 +267,16 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     if look_vecs is None:
         look_vecs= Zenith
 
-    if look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-    else:
-        look_vecs = infer_los(look_vecs, lats, lons, heights, zref)
+    lat = lats.flatten()
+    lon = lons.flatten()
+    hgt = heights.flatten()
 
-    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+    if look_vecs is Zenith:
+        look_vecs = _getZenithLookVecs(lat, lon, hgt, zref = zref)
+    else:
+        look_vecs = infer_los(look_vecs, lat, lon, hgt, zref)
+
+    mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
 
     # check size

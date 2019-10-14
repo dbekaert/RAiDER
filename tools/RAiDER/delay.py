@@ -228,9 +228,8 @@ def computeDelay(los, lats, lons, hgts, weather_model, zref = _ZREF,
     We do a little bit of preprocessing, then call
     interpolateDelay. 
     """
-    from RAiDER.utilFcns import checkShapes, checkLOS
+    from RAiDER.utilFcns import checkLOS
 
-    checkShapes(los, lats, lons, hgts)
     checkLOS(los, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it
@@ -284,7 +283,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     from RAiDER.llreader import getHeights 
     from RAiDER.losreader import getLookVectors
     from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays
+    from RAiDER.utilFcns import checkShapes,writeDelays
 
     if verbose:
         print('Starting to run the weather model calculation')
@@ -309,6 +308,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     # Convert the line-of-sight inputs to look vectors
     if verbose:
         print('Beginning line-of-sight calculation')
+    checkShapes(los, lats, lons, hgts)
     los = getLookVectors(los, lats, lons, hgts, zref)
 
     wetDelay, hydroDelay = \
