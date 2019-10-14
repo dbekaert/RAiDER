@@ -244,6 +244,14 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                            The vectors give the zenith ray paths for 
                            each of the points to the top of the atmosphere. 
     '''
+    try:
+        if (lats.ndim!=1) | (heights.ndim!=1) | (lons.ndim!=1):
+            raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
+    except AttributeError:
+        raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
+    if hasattr(zref, "__len__") | isinstance(zref, str):
+        raise RuntimeError('_getZenithLookVecs: zref must be a scalar')
+
     e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
     n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
