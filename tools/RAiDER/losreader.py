@@ -224,7 +224,9 @@ def infer_los(los, lats, lons, heights, zref):
         LOS = infer_sv(los_file, lats, lons, heights)
 
     if los_type == 'los':
-        incidence, heading = utilFcns.gdal_open(los_file)
+        from RAiDER.utilFcns import checkShapes
+        incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
+        checkShapes(np.stack((incidence, heading), axis = -1), lats, lons, heights)
         LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
 
     return LOS

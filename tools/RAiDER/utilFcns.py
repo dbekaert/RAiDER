@@ -440,11 +440,11 @@ def checkShapes(los, lats, lons, hts):
         los = Zenith
     test1 = hts.shape == lats.shape == lons.shape
     try:
-        test2 = los.shape[:-1] != hts.shape
-    except:
-        test2 = los is not Zenith
+        test2 = los.shape[:-1] == hts.shape
+    except AttributeError:
+        test2 = los is Zenith
 
-    if not test1 or test2:
+    if not test1 and test2:
         raise ValueError(
          'I need lats, lons, heights, and los to all be the same shape. ' +
          'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape)+

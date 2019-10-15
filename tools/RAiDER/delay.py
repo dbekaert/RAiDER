@@ -283,7 +283,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     from RAiDER.llreader import getHeights 
     from RAiDER.losreader import getLookVectors
     from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import checkShapes,writeDelays
+    from RAiDER.utilFcns import writeDelays
 
     if verbose:
         print('Starting to run the weather model calculation')
@@ -308,7 +308,6 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     # Convert the line-of-sight inputs to look vectors
     if verbose:
         print('Beginning line-of-sight calculation')
-    checkShapes(los, lats, lons, hgts)
     los = getLookVectors(los, lats, lons, hgts, zref)
 
     wetDelay, hydroDelay = \
