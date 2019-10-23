@@ -228,9 +228,8 @@ def computeDelay(los, lats, lons, hgts, weather_model, zref = _ZREF,
     We do a little bit of preprocessing, then call
     interpolateDelay. 
     """
-    from RAiDER.utilFcns import checkShapes, checkLOS
+    from RAiDER.utilFcns import checkLOS
 
-    checkShapes(los, lats, lons, hgts)
     checkLOS(los, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it

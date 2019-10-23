@@ -146,5 +146,6 @@ def parseCMD():
             tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
                outformat, t, out, download_only, parallel, verbose, wfn, hfn)
         except RuntimeError:
+            print('Date {} failed'.format(t))
             continue
 

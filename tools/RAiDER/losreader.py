@@ -224,7 +224,9 @@ def infer_los(los, lats, lons, heights, zref):
         LOS = infer_sv(los_file, lats, lons, heights)
 
     if los_type == 'los':
-        incidence, heading = utilFcns.gdal_open(los_file)
+        from RAiDER.utilFcns import checkShapes
+        incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
+        checkShapes(np.stack((incidence, heading), axis = -1), lats, lons, heights)
         LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
 
     return LOS
@@ -244,6 +246,14 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
                            The vectors give the zenith ray paths for 
                            each of the points to the top of the atmosphere. 
     '''
+    try:
+        if (lats.ndim!=1) | (heights.ndim!=1) | (lons.ndim!=1):
+            raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
+    except AttributeError:
+        raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
+    if hasattr(zref, "__len__") | isinstance(zref, str):
+        raise RuntimeError('_getZenithLookVecs: zref must be a scalar')
+
     e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
     n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
@@ -259,12 +269,16 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     if look_vecs is None:
         look_vecs= Zenith
 
-    if look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-    else:
-        look_vecs = infer_los(look_vecs, lats, lons, heights, zref)
+    lat = lats.flatten()
+    lon = lons.flatten()
+    hgt = heights.flatten()
 
-    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+    if look_vecs is Zenith:
+        look_vecs = _getZenithLookVecs(lat, lon, hgt, zref = zref)
+    else:
+        look_vecs = infer_los(look_vecs, lat, lon, hgt, zref)
+
+    mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
 
     # check size
