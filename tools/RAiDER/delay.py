@@ -76,7 +76,7 @@ def interpolateDelay(weatherObj, lats, lons, heights,
         print('stepSize = {}'.format(stepSize))
         print('# of rays = {}'.format(len(lats)))
 
-    rays, ecef = RAiDER.delayFcns.calculate_rays(lats, lons, heights, look_vecs, 
+    rays = RAiDER.delayFcns.calculate_rays(lats, lons, heights, look_vecs, 
                      stepSize = stepSize, verbose=verbose)
 
     if verbose:
@@ -84,7 +84,7 @@ def interpolateDelay(weatherObj, lats, lons, heights,
         print('First ten points along last ray: {}'.format(rays[-1][:10,:]))
 
     wmProj = weatherObj.getProjection()
-    newRays = reprojectRays(rays, ecef, wmProj)
+    newRays = ecef2WM(rays, wmProj)
     rays = orderForInterp(newRays)
 
     if verbose:
@@ -200,14 +200,18 @@ def _integrate_delays(stepSize, refr):
 def int_fcn(y, dx):
     return 1e-6*dx*np.nansum(y)
 
+ 
+def ecef2WM(rays, newProj): 
+    ''' 
+    Reproject rays into the weather model projection, then rearrange to  
+    match the weather model ordering. Rays are assumed to be in ECEF. 
+    ''' 
+    from RAiDER.delayFcns import _transform 
+    from pyproj import Transformer, CRS 
 
-def reprojectRays(rays, oldProj, newProj):
-    '''
-    Reproject rays into the weather model projection, then rearrange to 
-    match the weather model ordering. Rays are assumed to be in ECEF.
-    '''
-    from RAiDER.delayFcns import _transform
-    newPts = [_transform(ray, oldProj, newProj) for ray in rays]
+    p1 = CRS.from_epsg(4978) 
+    t = Transformer.from_proj(p1,newProj) 
+    newPts = [pt for pt in t.itransform(rays)] 
     return newPts
 
 

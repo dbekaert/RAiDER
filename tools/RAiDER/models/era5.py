@@ -1,6 +1,6 @@
 import datetime
 import numpy as np
-import pyproj
+from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
 
@@ -116,7 +116,7 @@ class ERA5(ECMWF):
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
-        self._proj = pyproj.Proj(proj='latlong')
+        self._proj = CRS.from_epsg(4326)
 
         self._t = t
         self._q = q

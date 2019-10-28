@@ -1,6 +1,6 @@
 import datetime 
 import numpy as np
-import pyproj
+from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
 

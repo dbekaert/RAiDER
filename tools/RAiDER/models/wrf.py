@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.io.netcdf as netcdf
-import pyproj
+from pyproj import CRS, Transformer
 
 from RAiDER.models.weatherModel import WeatherModel
 
@@ -46,8 +46,9 @@ class WRF(WeatherModel):
         # only the coordinates in lat/long. Ray transformed these to the native 
         # projection, then used an average to enforce a regular grid. It does matter
         # for the interpolation whether the grid is regular.
-        lla = pyproj.Proj(proj='latlong')
-        xs, ys = pyproj.transform(lla, self._proj, lons.flatten(), lats.flatten())
+        lla = CRS.from_epsg(4326)
+        t = Transformer.from_proj(lla,self._proj) 
+        xs, ys = t.transform(lons.flatten(), lats.flatten())
         xs = xs.reshape(lons.shape)
         ys = ys.reshape(lats.shape)
 
@@ -125,7 +126,7 @@ class WRF(WeatherModel):
         # Projection
         # See http://www.pkrc.net/wrf-lambert.html
         earthRadius = 6370e3  # <- note Ray had a bug here
-        p1 = pyproj.Proj(proj='lcc', lat_1=lat1,
+        p1 = CRS(proj='lcc', lat_1=lat1,
                              lat_2=lat2, lat_0=lat0,
                              lon_0=lon0, a=earthRadius, b=earthRadius,
                              towgs84=(0,0,0), no_defs=True)

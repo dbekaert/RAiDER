@@ -2,7 +2,7 @@
 # standard imports
 import datetime
 import numpy as np
-import pyproj
+from pyproj import CRS
 import os
 
 # local imports
@@ -43,8 +43,8 @@ class WeatherModel():
         self._g0 = const._g0 # gravity constant
         self._zmin = const._ZMIN # minimum integration height
         self._zmax = const._ZREF # max integration height
-        self._llaproj = pyproj.Proj(proj='latlong')
-        self._ecefproj = pyproj.Proj(proj='geocent')
+        self._llaproj = CRS.from_epsg(4326)
+        self._ecefproj = CRS.from_epsg(4978)
         self._proj = None
 
         # setup data structures  

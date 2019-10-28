@@ -81,12 +81,13 @@ def sortSP(arr):
     return xSorted
 
 
-def reproject(inlat, inlon, inhgt, inProj, outProj):
+def lla2ecef(inlat, inlon, inhgt):
     '''
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
-    import pyproj
-    return np.array(pyproj.transform(inProj, outProj, inlon, inlat, inhgt)).T
+    from pyproj import Transformer
+    t = Transformer.from_crs(4326,4978) # converts from WGS84 geodetic to WGS84 geocentric
+    return np.array(t.transform(inlon, inlat, inhgt)).T
 
 
 def getUnitLVs(look_vecs):
@@ -139,9 +140,7 @@ def calculate_rays(lats, lons, heights, look_vecs, stepSize = _STEP, verbose = F
 
     # This projects the ground pixels into earth-centered, earth-fixed coordinate 
     # system and sorts by position
-    ecef = pyproj.Proj(proj='geocent')
-    lla = pyproj.Proj(proj='latlong')
-    start_positions = reproject(lats, lons, heights, lla, ecef)
+    start_positions = lla2ecef(lats, lons, heights)
 
     # This returns the list of rays
     # TODO: make this not a list. 
@@ -152,7 +151,7 @@ def calculate_rays(lats, lons, heights, look_vecs, stepSize = _STEP, verbose = F
     # now we bite the bullet.
     rays = _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
 
-    return rays, ecef 
+    return rays
 
 
 #    # Now to interpolate, we have to re-project each ray into the coordinate 
