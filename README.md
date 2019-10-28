@@ -79,7 +79,7 @@ The following pages might be of use to those trying to build third party package
 
 ### Common Issues 
 
-This package uses GDAL and g++, both of which can be tricky to set up correctly.
+1. This package uses GDAL and g++, both of which can be tricky to set up correctly.
 GDAL in particular will often break after installing a new program
 If you receive error messages such as the following: 
 
@@ -94,6 +94,14 @@ try running the following commands within your RAiDER conda environment:
 conda update --force-reinstall libstdcxx-ng
 conda update --force-reinstall gdal libgdal
 ```
+
+2. This package requires both C++ and C headers, and the system headers are used for some C libraries. If running on a Mac computer, and "python setup.py build" results in a message stating that some system library header file is missing, try the following steps, and accept the various licenses and step through the installation process. Try recompiling after each step:
+
+ ```
+ xcode-select --install
+ open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg
+ ```
+ 
 
 ------
 ## Running RAiDER

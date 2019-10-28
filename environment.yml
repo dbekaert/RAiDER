@@ -25,6 +25,6 @@ dependencies:
  - numpy
  - pandas
  - pygrib
- - pyproj=1.9.6|>=2.1.0
+ - pyproj>=2.1.0
  - scipy
  - xarray
