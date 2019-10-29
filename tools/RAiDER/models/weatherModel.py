@@ -9,7 +9,7 @@ import os
 import RAiDER.constants as const
 import RAiDER.models.plotWeather as plots
 import RAiDER.utilFcns as util
-from RAiDER.util import robmin, robmax
+from RAiDER.utilFcns import robmin, robmax
 from RAiDER.interpolator import fillna3D, interp_along_axis
 
 
