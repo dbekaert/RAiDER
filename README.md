@@ -95,7 +95,7 @@ conda update --force-reinstall libstdcxx-ng
 conda update --force-reinstall gdal libgdal
 ```
 
-2. This package requires both C++ and C headers, and the system headers are used for some C libraries. If running on a Mac computer, and "python setup.py build" results in a message stating that some system library header file is missing, try the following steps, and accept the various licenses and step through the installation process. Try recompiling after each step:
+2. This package requires both C++ and C headers, and the system headers are used for some C libraries. If running on a Mac computer, and "python setup.py build" results in a message stating that some system library header file is missing, try the following steps, and accept the various licenses and step through the installation process. Try re-running the build step after each update:
 
  ```
  xcode-select --install
