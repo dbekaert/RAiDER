@@ -6,6 +6,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import h5py
 import numpy as np
 import pyproj
 
@@ -22,33 +23,100 @@ def _compute_ray(L, S, V, stepSize):
     start position (in x,y,z), a unit look vector V, and the 
     stepSize.
     '''
-    # Have to handle the case where there are invalid data
-    # TODO: cythonize this? 
     try:
         thisspace = np.arange(0, L+stepSize, stepSize)
-    except ValueError:
+    except ValueError:   # Have to handle the case where there are invalid data
         thisspace = np.array([])
     ray = S + thisspace[..., np.newaxis]*V
     return ray
 
 
-def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = None):
+def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False):
     '''
     Create the integration points for each ray path. 
     '''
-    data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
-    if len(lengths)<1e6:
-       positions_l= []
-       for tup in data:
-           positions_l.append(_ray_helper(tup))
-    else:
-       import multiprocessing as mp
-       if Nproc is None:
-          Nproc =mp.cpu_count()*3//4
-       pool = mp.Pool(Nproc)
-       positions_l = pool.map(_ray_helper, data)
+    from RAiDER.delayFcns import _transform 
+    from pyproj import Transformer, CRS 
+    from tqdm import tqdm
 
-    return positions_l
+    # Transformer from ECEF to weather model
+    p1 = CRS.from_epsg(4978) 
+    proj_wm = getProjFromWMFile(wm_file)
+    t = Transformer.from_proj(p1,proj_wm) 
+
+    # Get the weather model data
+    ifWet = getIntFcn(wm_file,interpType =interpType)
+    ifHydro = getIntFcn(wm_file,itype = 'hydro', interpType = interpType)
+
+    #TODO: Would like to parallelize this; but on the other hand it might be best to leave as is
+    # and parallelize the higher-up level
+    delays = []
+    with h5py.File(pnts_file, 'r') as f:
+        Nrays = f['Rays_len'].attrs['NumRays']
+    #    lengths, start_pos, scaled_look_vecs = f['Rays_len'].value.copy(), f['Rays_SP'].value.copy(), f['Rays_SLV'].value.copy()
+
+    with h5py.File(pnts_file, 'r') as f:
+        for k in tqdm(range(Nrays)):
+            ray = _compute_ray(f['Rays_len'][k], f['Rays_SP'][k,:], f['Rays_SLV'][k,:], stepSize)
+            #ray = _compute_ray(lengths[k], start_pos[k,:], scaled_look_vecs[k,:], stepSize)
+            ray_x, ray_y, ray_z = t.transform(ray[:,0], ray[:,1], ray[:,2])
+            ray_wm = np.array([ray_y, ray_x, ray_z]).T # <-- could be optional
+            delay_wet = ifWet(ray_wm)
+            delay_hydro = ifHydro(ray_wm)
+            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro))
+    return list(zip(*delays))
+
+
+def _integrateLOS(stepSize, wet_pw, hydro_pw):
+    delays = [] 
+    for d in (wet_pw, hydro_pw):
+        delays.append(_integrate_delays(stepSize, d))
+    return delays
+
+
+def _integrate_delays(stepSize, refr):
+    '''
+    This function gets the actual delays by integrating the refractivity in 
+    each node. Refractivity is given in the 'refr' variable. 
+    '''
+    delays = []
+    for ray in refr:
+        delays.append(int_fcn(ray, stepSize))
+    return delays
+
+
+def int_fcn(y, dx):
+    return 1e-6*dx*np.nansum(y)
+
+
+def getIntFcn(weather_file, itype = 'wet', interpType = '3d'):
+    '''
+    Function to create and return an Interpolator object
+    '''
+    from RAiDER.interpolator import Interpolator
+
+    ifFun = Interpolator()
+    with h5py.File(weather_file, 'r') as f:
+        xs = f['x'].value.copy()
+        ys = f['y'].value.copy()
+        zs = f['z'].value.copy()
+        ifFun.setPoints(xs, ys, zs)
+
+        if itype == 'wet':
+            ifFun.getInterpFcns(f['wet'].value.copy(), interpType = interpType)
+        elif itype == 'hydro':
+            ifFun.getInterpFcns(f['hydro'].value.copy(), interpType = interpType)
+    return ifFun
+
+
+def getProjFromWMFile(wm_file):
+    '''
+    Returns the projection of an HDF5 file 
+    '''
+    from pyproj import CRS 
+    with h5py.File(wm_file, 'r') as f:
+        wm_proj = CRS.from_json(f['Projection'].value)
+    return wm_proj
 
 
 def _transform(ray, oldProj, newProj):
@@ -81,25 +149,30 @@ def sortSP(arr):
     return xSorted
 
 
-def lla2ecef(inlat, inlon, inhgt):
+def lla2ecef(pnts_file):
     '''
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
     from pyproj import Transformer
+
     t = Transformer.from_crs(4326,4978) # converts from WGS84 geodetic to WGS84 geocentric
-    return np.array(t.transform(inlon, inlat, inhgt)).T
+    with h5py.File(pnts_file, 'r') as f:
+         newPts = np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)).T
+    return newPts
+#    with h5py.File(pnts_file, 'a') as f:
+#         nP = f.create_variable('newPts', data=newPts)
 
 
-def getUnitLVs(look_vecs):
+def getUnitLVs(pnts_file):
     '''
-    Return a set of look vectors normalized by their lengths
+    Get a set of look vectors normalized by their lengths
     '''
-    lengths = _get_lengths(look_vecs)
-    slvs = look_vecs / lengths[..., np.newaxis]
-    return slvs,lengths
+    get_lengths(pnts_file)
+    with h5py.File(pnts_file, 'r+') as f:
+        f['Rays_SLV'][:,:] = f['LOS'].value / f['Rays_len'].value[:,np.newaxis]
 
 
-def _get_lengths(look_vecs):
+def get_lengths(pnts_file):
     '''
     Returns the lengths of a vector or set of vectors, fast. 
     Inputs: 
@@ -110,23 +183,19 @@ def _get_lengths(look_vecs):
        lengths     - an Nx1 numpy array containing the absolute distance in 
                      meters of the top of the atmosphere from the ground pnt. 
     '''
-    if look_vecs.ndim==1:
-       if len(look_vecs)!=3:
-          raise RuntimeError('look_vecs must be Nx3') 
-    if look_vecs.shape[-1]!=3:
-       raise RuntimeError('look_vecs must be Nx3')
-
-    lengths = np.linalg.norm(look_vecs, axis=-1)
-    try:
-        lengths[~np.isfinite(lengths)] = 0
-    except TypeError:
-        if ~np.isfinite(lengths):
-            lengths = 0
-
-    return lengths
+    with h5py.File(pnts_file, 'r+') as f:
+        lengths = np.linalg.norm(f['LOS'].value, axis=-1)
+        try:
+            lengths[~np.isfinite(lengths)] = 0
+        except TypeError:
+            if ~np.isfinite(lengths):
+                lengths = 0
+        f['Rays_len'][:] = lengths
+        f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
 
-def calculate_rays(lats, lons, heights, look_vecs, stepSize = _STEP, verbose = False):
+
+def calculate_rays(pnts_file, stepSize = _STEP, verbose = False):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the 
     top of the atmosphere, using either a set of look vectors or the zenith
@@ -136,11 +205,11 @@ def calculate_rays(lats, lons, heights, look_vecs, stepSize = _STEP, verbose = F
         print('The integration stepsize is {} m'.format(stepSize))
 
     # get the lengths of each ray for doing the interpolation 
-    scaled_look_vecs, lengths = getUnitLVs(look_vecs) 
+    getUnitLVs(pnts_file) 
 
     # This projects the ground pixels into earth-centered, earth-fixed coordinate 
     # system and sorts by position
-    start_positions = lla2ecef(lats, lons, heights)
+    lla2ecef(pnts_file)
 
     # This returns the list of rays
     # TODO: make this not a list. 
@@ -149,9 +218,12 @@ def calculate_rays(lats, lons, heights, look_vecs, stepSize = _STEP, verbose = F
     # water). However, it would be MUCH more efficient to do this as a single 
     # pyproj call, rather than having to send each ray individually. For right 
     # now we bite the bullet.
-    rays = _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
+    #TODO: write the variables to a chunked HDF5 file and then use this file
+    # to compute the rays. Write out the rays to the file. 
+    #TODO: Add these variables to the original HDF5 file so that we don't have
+    # to create a new file
 
-    return rays
+#    return delays 
 
 
 #    # Now to interpolate, we have to re-project each ray into the coordinate 

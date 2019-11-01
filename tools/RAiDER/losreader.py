@@ -269,6 +269,7 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     if look_vecs is None:
         look_vecs= Zenith
 
+    in_shape = lats.shape
     lat = lats.flatten()
     lon = lons.flatten()
     hgt = heights.flatten()
@@ -288,7 +289,7 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     if look_vecs.shape[-1]!=3:
        raise RuntimeError('look_vecs must be Nx3')
 
-    return look_vecs
+    return look_vecs.reshape(in_shape + (3,))
 
 
 
