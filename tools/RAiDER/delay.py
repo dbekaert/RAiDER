@@ -183,12 +183,6 @@ def computeDelay(weather_model_file_name, pnts_file_name,
     if verbose: 
         print('Finished delay calculation')
 
-    # Restore shape
-    try:
-        hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
-    except:
-        pass
-
     return wet, hydro
 
 
@@ -261,6 +255,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5'):
     '''
     import datetime
     import h5py
+    import h5py_cache as h5c
     import os
 
     from RAiDER.utilFcns import checkLOS
@@ -275,20 +270,16 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5'):
     lats, lons, hgts = np.moveaxis(llas, -1, 0)
     los = los.reshape((np.prod(los.shape[:-1]), los.shape[-1]))
 
-    with h5py.File(outName, 'w') as f:
-        x = f.create_dataset('lon', data = lons.flatten())
-        y = f.create_dataset('lat', data = lats.flatten())
-        z = f.create_dataset('hgt', data = hgts.flatten())
-        los = f.create_dataset('LOS', data= los)
+    with h5c.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
+        x = f.create_dataset('lon', data = lons.flatten(), chunks = True)
+        y = f.create_dataset('lat', data = lats.flatten(), chunks = x.chunks)
+        z = f.create_dataset('hgt', data = hgts.flatten(), chunks = x.chunks)
+        los = f.create_dataset('LOS', data= los, chunks = x.chunks + (3,))
         x.attrs['Shape'] = real_shape
         y.attrs['Shape'] = real_shape
         z.attrs['Shape'] = real_shape
 
-        start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = True)
-        lengths = f.create_dataset('Rays_len',  (len(x),), chunks = True)
+        start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
+        lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
         lengths.attrs['NumRays'] = len(x)
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = True)
-
-        rays = f.create_group('rays')
-        
- 
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)

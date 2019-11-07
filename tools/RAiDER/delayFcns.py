@@ -13,22 +13,41 @@ import pyproj
 from RAiDER.constants import _STEP
 
 
-def _ray_helper(tup):
-    return _compute_ray(tup[0], tup[1], tup[2], tup[3])
+def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
+    #return _compute_ray(tup[0], tup[1], tup[2], tup[3])
+    maxLen = np.nanmax(lengths)
+    out, rayLens = [],[]
+    for L, S, V, in zip(lengths, start_positions, scaled_look_vectors):
+        ray, Npts = _compute_ray(L, S, V, stepSize, maxLen)
+        out.append(ray)
+        rayLens.append(Npts)
+    return np.stack(out, axis = 0), np.array(rayLens)
 
 
-def _compute_ray(L, S, V, stepSize):
+def _compute_ray2(L, S, V, stepSize):
     '''
     Compute and return points along a ray, given a total length, 
     start position (in x,y,z), a unit look vector V, and the 
     stepSize.
     '''
+    # Have to handle the case where there are invalid data
+    # TODO: cythonize this? 
     try:
         thisspace = np.arange(0, L+stepSize, stepSize)
-    except ValueError:   # Have to handle the case where there are invalid data
+    except ValueError:
         thisspace = np.array([])
     ray = S + thisspace[..., np.newaxis]*V
     return ray
+
+def _compute_ray(L, S, V, stepSize, maxLen):
+    '''
+    Compute and return points along a ray, given a total length, 
+    start position (in x,y,z), a unit look vector V, and the 
+    stepSize.
+    '''
+    thisspace = np.arange(0, maxLen+stepSize, stepSize)
+    ray = S + thisspace[..., np.newaxis]*V
+    return ray, int(L//stepSize + 1)
 
 
 def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False):
@@ -45,51 +64,109 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     t = Transformer.from_proj(p1,proj_wm) 
 
     # Get the weather model data
-    ifWet = getIntFcn(wm_file,interpType =interpType)
-    ifHydro = getIntFcn(wm_file,itype = 'hydro', interpType = interpType)
+    ifWet = getIntFcn2(wm_file,interpType =interpType)
+    ifHydro = getIntFcn2(wm_file,itype = 'hydro', interpType = interpType)
 
     #TODO: Would like to parallelize this; but on the other hand it might be best to leave as is
     # and parallelize the higher-up level
     delays = []
     with h5py.File(pnts_file, 'r') as f:
         Nrays = f['Rays_len'].attrs['NumRays']
-    #    lengths, start_pos, scaled_look_vecs = f['Rays_len'].value.copy(), f['Rays_SP'].value.copy(), f['Rays_SLV'].value.copy()
+        chunkSize = f['lon'].chunks[0]
+
+    fac = 10
+    chunkSize = chunkSize//fac
+    Nchunks = Nrays//chunkSize + 1
 
     with h5py.File(pnts_file, 'r') as f:
-        for k in tqdm(range(Nrays)):
-            ray = _compute_ray(f['Rays_len'][k], f['Rays_SP'][k,:], f['Rays_SLV'][k,:], stepSize)
-            #ray = _compute_ray(lengths[k], start_pos[k,:], scaled_look_vecs[k,:], stepSize)
-            ray_x, ray_y, ray_z = t.transform(ray[:,0], ray[:,1], ray[:,2])
-            ray_wm = np.array([ray_y, ray_x, ray_z]).T # <-- could be optional
-            delay_wet = ifWet(ray_wm)
-            delay_hydro = ifHydro(ray_wm)
-            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro))
-    return list(zip(*delays))
+        for k in tqdm(range(Nchunks)):
+        #for index in tqdm(range(Nrays)):
+            index = np.arange(k*chunkSize, min((k+1)*chunkSize, Nrays))
+            ray, Npts = _ray_helper(f['Rays_len'][index], 
+                                    f['Rays_SP'][index,:], 
+                                    f['Rays_SLV'][index,:], stepSize)
+            #if f['Rays_len'][index] > 1:
+            #    ray = _compute_ray2(f['Rays_len'][index], 
+            #                            f['Rays_SP'][index,:], 
+            #                            f['Rays_SLV'][index,:], stepSize)
+            ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
+            delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
+            delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
+            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro, Npts))
+            #else:
+            #    delays.append(np.array(np.nan, np.nan))
+
+#    import pdb; pdb.set_trace()
+#    wet_delay, hydro_delay = [], []
+#    for d in delays:
+#        wet_delay.append(d[0,...])
+#        hydro_delay.append(d[1,...])
+
+    wet_delay = [d[0,...] for d in delays]
+    hydro_delay = [d[1,...] for d in delays]
+
+    # Restore shape
+#    try:
+#        hydro, wet = np.stack((hydro_delay, wet_delay)).reshape((2,) + real_shape)
+#    except:
+#        pass
+
+#    return wet, hydro
+    return wet_delay, hydro_delay
 
 
-def _integrateLOS(stepSize, wet_pw, hydro_pw):
+def interpolate2(fun, x, y, z):
+    '''
+    helper function to make the interpolation step cleaner
+    '''
+    in_shape = x.shape
+    flat_shape = np.prod(in_shape)
+    out = fun((y.reshape(flat_shape,), x.reshape(flat_shape,), z.reshape(flat_shape,)))
+    outData = out[0].reshape(in_shape)
+    return outData
+
+def interpolate(fun, x, y, z):
+    '''
+    helper function to make the interpolation step cleaner
+    '''
+    in_shape = x.shape
+    out = []
+    flat_shape = np.prod(in_shape)
+    for x, y, z in zip(y.reshape(flat_shape,), x.reshape(flat_shape,), z.reshape(flat_shape,)):
+        out.append(fun((y,x,z))) # note that this re-ordering is on purpose to match the weather model
+    outData = np.array(out).reshape(in_shape)
+    return outData
+
+
+def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts = None):
     delays = [] 
     for d in (wet_pw, hydro_pw):
-        delays.append(_integrate_delays(stepSize, d))
-    return delays
+        delays.append(_integrate_delays(stepSize, d, Npts))
+    return np.stack(delays, axis = 0)
 
+def _integrate_delays2(stepSize, refr):
+    '''
+    This function gets the actual delays by integrating the refractivity in 
+    each node. Refractivity is given in the 'refr' variable. 
+    '''
+    return int_fcn2(refr, stepSize)
 
-def _integrate_delays(stepSize, refr):
+def _integrate_delays(stepSize, refr, Npts):
     '''
     This function gets the actual delays by integrating the refractivity in 
     each node. Refractivity is given in the 'refr' variable. 
     '''
     delays = []
-    for ray in refr:
-        delays.append(int_fcn(ray, stepSize))
-    return delays
+    for n, ray in zip(Npts, refr):
+        delays.append(int_fcn(ray, stepSize, n))
+    return np.array(delays)
 
-
-def int_fcn(y, dx):
+def int_fcn(y, dx, N):
+    return 1e-6*dx*np.nansum(y[:N])
+def int_fcn2(y, dx):
     return 1e-6*dx*np.nansum(y)
 
-
-def getIntFcn(weather_file, itype = 'wet', interpType = '3d'):
+def getIntFcn2(weather_file, itype = 'wet', interpType = '3d'):
     '''
     Function to create and return an Interpolator object
     '''
@@ -106,6 +183,23 @@ def getIntFcn(weather_file, itype = 'wet', interpType = '3d'):
             ifFun.getInterpFcns(f['wet'].value.copy(), interpType = interpType)
         elif itype == 'hydro':
             ifFun.getInterpFcns(f['hydro'].value.copy(), interpType = interpType)
+    return ifFun
+
+def getIntFcn(weather_file, itype = 'wet', interpType = '3d'):
+    '''
+    Function to create and return an Interpolator object
+    '''
+    from interp3d import interp_3d
+
+    with h5py.File(weather_file, 'r') as f:
+        xs = f['x'].value.copy()
+        ys = f['y'].value.copy()
+        zs = f['z'].value.copy()
+
+        if itype == 'wet':
+            ifFun = interp_3d.Interp3D(f['wet'].value.copy(), ys,xs,zs)
+        elif itype == 'hydro':
+            ifFun = interp_3d.Interp3D(f['hydro'].value.copy(), ys,xs,zs)
     return ifFun
 
 
