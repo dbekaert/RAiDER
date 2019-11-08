@@ -224,6 +224,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         if verbose:
             print('Beginning DEM calculation')
         lats, lons, hgts = getHeights(lats, lons,heights)
+        in_shape = lats.shape
 
         # Convert the line-of-sight inputs to look vectors
         if verbose:
@@ -235,7 +236,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         los = getLookVectors(los, lats, lons, hgts, zref)
 
         # write to an HDF5 file
-        writePnts2HDF5(lats, lons, hgts, los, pnts_file)
+        writePnts2HDF5(lats, lons, hgts, los, pnts_file, in_shape)
         del lats, lons, hgts, los
 
     wetDelay, hydroDelay = \
@@ -249,7 +250,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     return wetDelay, hydroDelay
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5'):
+def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -260,12 +261,13 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5'):
 
     from RAiDER.utilFcns import checkLOS
 
+    if in_shape is None:
+        in_shape = llas.shape[:-1]
     checkLOS(los, np.prod(lats.shape))
 
     # Save the shape so we can restore later, but flatten to make it
     # easier to think about
     llas = np.stack((lats, lons, hgts), axis=-1)
-    real_shape = llas.shape[:-1]
     llas = llas.reshape(-1, 3)
     lats, lons, hgts = np.moveaxis(llas, -1, 0)
     los = los.reshape((np.prod(los.shape[:-1]), los.shape[-1]))
@@ -275,9 +277,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5'):
         y = f.create_dataset('lat', data = lats.flatten(), chunks = x.chunks)
         z = f.create_dataset('hgt', data = hgts.flatten(), chunks = x.chunks)
         los = f.create_dataset('LOS', data= los, chunks = x.chunks + (3,))
-        x.attrs['Shape'] = real_shape
-        y.attrs['Shape'] = real_shape
-        z.attrs['Shape'] = real_shape
+        x.attrs['Shape'] = in_shape
+        y.attrs['Shape'] = in_shape
+        z.attrs['Shape'] = in_shape
 
         start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
         lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)

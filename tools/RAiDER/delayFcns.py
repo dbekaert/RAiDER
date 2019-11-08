@@ -73,6 +73,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     with h5py.File(pnts_file, 'r') as f:
         Nrays = f['Rays_len'].attrs['NumRays']
         chunkSize = f['lon'].chunks[0]
+        in_shape = f['lon'].attrs['Shape']
 
     fac = 10
     chunkSize = chunkSize//fac
@@ -102,8 +103,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
 #        wet_delay.append(d[0,...])
 #        hydro_delay.append(d[1,...])
 
-    wet_delay = [d[0,...] for d in delays]
-    hydro_delay = [d[1,...] for d in delays]
+    wet_delay = np.concatenate([d[0,...] for d in delays]).reshape(in_shape)
+    hydro_delay = np.concatenate([d[1,...] for d in delays]).reshape(in_shape)
 
     # Restore shape
 #    try:
