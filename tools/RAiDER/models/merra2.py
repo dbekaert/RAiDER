@@ -62,6 +62,7 @@ class MERRA2(WeatherModel):
             p[:] = dataset['lev'][:]
 
     def load_pressure_level(self, filename):
+        from pyproj import CRS
         from scipy.io import netcdf as nc
         with nc.netcdf_file(
                 filename, 'r', maskandscale=True) as f:
@@ -71,7 +72,7 @@ class MERRA2(WeatherModel):
             q = f.variables['QV'][0].copy()
             z = f.variables['H'][0].copy()
             p = f.variables['lev'][0].copy()
-        proj = pyproj.Proj('lla')
+        proj = CRS.from_epsg(4326)
         return lats, lons, proj, t, q, z, p
 
     def weather_and_nodes(self, filename):

@@ -2,14 +2,14 @@
 # standard imports
 import datetime
 import numpy as np
-import pyproj
+from pyproj import CRS
 import os
 
 # local imports
 import RAiDER.constants as const
 import RAiDER.models.plotWeather as plots
 import RAiDER.utilFcns as util
-from RAiDER.util import robmin, robmax
+from RAiDER.utilFcns import robmin, robmax
 from RAiDER.interpolator import fillna3D, interp_along_axis
 
 
@@ -36,6 +36,7 @@ class WeatherModel():
         self._model_level_type = 'ml'
         self._valid_range = (datetime.date(1900,1,1),) # Tuple of min/max years where data is available. 
         self._lag_time = datetime.timedelta(days =30) # Availability lag time in days
+        self._time = None
 
         # Define fixed constants
         self._R_v = 461.524
@@ -43,8 +44,8 @@ class WeatherModel():
         self._g0 = const._g0 # gravity constant
         self._zmin = const._ZMIN # minimum integration height
         self._zmax = const._ZREF # max integration height
-        self._llaproj = pyproj.Proj(proj='latlong')
-        self._ecefproj = pyproj.Proj(proj='geocent')
+        self._llaproj = CRS.from_epsg(4326)
+        self._ecefproj = CRS.from_epsg(4978)
         self._proj = None
 
         # setup data structures  
@@ -107,6 +108,7 @@ class WeatherModel():
         calls the model _fetch routine
         '''
         self.check(time)
+        self._time = time
         self._fetch(lats, lons, time, out)
 
     def _fetch(self, lats, lons, time, out):
@@ -129,7 +131,7 @@ class WeatherModel():
         self._get_hydro_refractivity() 
         self._adjust_grid(lats =outLats, lons=outLons)
 
-    def load_weather(self, filename):
+    def load_weather(self, *args, **kwargs):
         '''
         Placeholder method. Should be implemented in each weather model type class
         '''
@@ -520,4 +522,49 @@ class WeatherModel():
         self._p = fillna3D(self._p)
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
+
+
+    def write2HDF5(self, outName = None):
+        '''
+        Write the main (i.e., needed for external calculations) data to an HDF5 file
+        that can be accessed by external programs.
+
+        The point of doing this is to alleviate some of the memory load of keeping 
+        the full model in memory and make it easier to scale up the program. 
+        '''
+        import datetime
+        import h5py
+        import os
+
+        if outName is None:
+            outName = os.path.join(os.getcwd(), 
+               self._Name + datetime.datetime.strftime(self._time, '%Y_%m_%d_T%H_%M_%S') + '.h5')
+
+        with h5py.File(outName, 'w') as f:
+            x = f.create_dataset('x', data = self._xs)
+            y = f.create_dataset('y', data = self._ys)
+            z = f.create_dataset('z', data = self._zs)
+            x.make_scale('x - weather model native')
+            y.make_scale('y - weather model native')
+            z.make_scale('z - weather model native')
+        
+            lats = f.create_dataset('lat', data = self._lats)
+            lons = f.create_dataset('lon', data = self._lons)
+            lats.dims[0].attach_scale(x)
+            lats.dims[1].attach_scale(y)
+            lats.dims[2].attach_scale(z)
+            lons.dims[0].attach_scale(x)
+            lons.dims[1].attach_scale(y)
+            lons.dims[2].attach_scale(z)
+
+            wet = f.create_dataset('wet', data = self._wet_refractivity)
+            hydro = f.create_dataset('hydro', data = self._hydrostatic_refractivity)
+            wet.dims[0].attach_scale(x)
+            wet.dims[1].attach_scale(y)
+            wet.dims[2].attach_scale(z)
+            hydro.dims[0].attach_scale(x)
+            hydro.dims[1].attach_scale(y)
+            hydro.dims[2].attach_scale(z)
+
+            f.create_dataset('Projection', data= self._proj.to_json())
 

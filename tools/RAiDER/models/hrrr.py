@@ -1,7 +1,7 @@
 import datetime
 import numpy as np
 import os
-import pyproj
+from pyproj import CRS
 import re
 
 from RAiDER.models.weatherModel import WeatherModel
@@ -53,7 +53,7 @@ class HRRR(WeatherModel):
         lat0 = 38.5
         lat1 = 38.5
         lat2 = 38.5
-        p1 = pyproj.Proj('+proj=lcc +lat_1=38.5 +lat_2=38.5 +lat_0=38.5 +lon_0=262.5 +x_0=0 +y_0=0 +a=6371229 +b=6371229 +units=m +no_defs')
+        p1 = CRS('+proj=lcc +lat_1=38.5 +lat_2=38.5 +lat_0=38.5 +lon_0=262.5 +x_0=0 +y_0=0 +a=6371229 +b=6371229 +units=m +no_defs')
         self._proj = p1
 
     def _fetch(self, lats, lons, time, out, Nextra = 2):
