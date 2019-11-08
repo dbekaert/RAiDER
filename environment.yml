@@ -7,6 +7,7 @@ name: RAiDER
 channels:
  - conda-forge
  - anaconda
+ - moble
  - defaults
 dependencies:
  - python>=3
@@ -19,6 +20,7 @@ dependencies:
  - gcc
  - gdal>=3.0
  - h5py
+ - h5py-cache
  - jupyterlab
  - libgdal
  - matplotlib
@@ -28,3 +30,4 @@ dependencies:
  - pyproj>=2.1.0
  - scipy
  - xarray
+
