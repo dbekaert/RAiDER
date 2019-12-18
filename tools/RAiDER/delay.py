@@ -285,3 +285,4 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None)
         lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
         lengths.attrs['NumRays'] = len(x)
         scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)
+
