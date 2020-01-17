@@ -104,7 +104,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
             delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro, Npts))
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             #else:
             #    delays.append(np.array(np.nan, np.nan))
 
