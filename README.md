@@ -3,9 +3,11 @@ Raytracing Atmospheric Delay Estimation for RADAR
 
 [![Language](https://img.shields.io/badge/python-3.7%2B-blue.svg)](https://www.python.org/)
 
-RAiDER-tools is a package in Python which contains tools to calculate tropospheric corrections for Radar using a raytracing implementation. Its development was funded under the NASA Sea-level Change Team (NSLCT) program and the Earth Surface and Interior (ESI) program. U.S. Government sponsorship acknowledged.
+RAiDER-tools is a package in Python which contains tools to calculate tropospheric corrections for Radar using a raytracing implementation. Its development was funded under the NASA Sea-level Change Team (NSLCT) program and the Earth Surface and Interior (ESI) program (NTR-51433). U.S. Government sponsorship acknowledged. 
+
 
 Copyright (c) 2019-2020, California Institute of Technology ("Caltech"). All rights reserved.  
+
 THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS. USE AT YOUR OWN RISK.
 
 ## Contents
