@@ -211,12 +211,19 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
-    weather_model_file = os.path.join(wmLoc, 'test.h5')
+    wm_filename = '{}_{}.h5'.format(weather_model['name'], time)
+    weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(weather_model, wmLoc, out, lats=lats,  
                         lons=lons, time=time, verbose=verbose, download_only=download_only)
-        weather_model.write2HDF5(weather_model_file)
+        try:
+            weather_model.write2HDF5(weather_model_file)
+        except:
+            pass
         del weather_model
+
+    if download_only:
+        return None, None
 
     pnts_file = os.path.join('geom', 'testx.h5')
     if not os.path.exists(pnts_file):
@@ -256,7 +263,6 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None)
     '''
     import datetime
     import h5py
-    import h5py_cache as h5c
     import os
 
     from RAiDER.utilFcns import checkLOS
@@ -272,7 +278,8 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None)
     lats, lons, hgts = np.moveaxis(llas, -1, 0)
     los = los.reshape((np.prod(los.shape[:-1]), los.shape[-1]))
 
-    with h5c.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
+    with h5py.File(outName, 'w') as f:
+    #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
         x = f.create_dataset('lon', data = lons.flatten(), chunks = True)
         y = f.create_dataset('lat', data = lats.flatten(), chunks = x.chunks)
         z = f.create_dataset('hgt', data = hgts.flatten(), chunks = x.chunks)
@@ -285,4 +292,11 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None)
         lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
         lengths.attrs['NumRays'] = len(x)
         scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)
+     for band in range(ds.RasterCount):
+@@ -178,7 +179,7 @@ def gdal_open(fname, returnProj = False):
+     if not returnProj:
+         return data
+     else:
+-        return data, proj
++        return data, proj, gt
 

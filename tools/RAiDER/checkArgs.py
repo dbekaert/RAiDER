@@ -90,11 +90,11 @@ def checkArgs(args, p):
     # output file format
     if args.outformat is None:
        if args.heightlvs is not None: 
-          args.outformat = 'hdf5'
+          outformat = 'hdf5'
        elif args.station_file is not None: 
-          args.outformat = 'netcdf'
+          outformat = 'netcdf'
        else:
-          args.outformat = 'ENVI'
+          outformat = 'ENVI'
     else:
        outformat = args.outformat
     # ensuring consistent file extensions
@@ -141,19 +141,19 @@ def checkArgs(args, p):
        wmLoc = os.path.join(args.out, 'weather_files')
 
     if args.heightlvs is not None: 
-       if args.outformat.lower() != 'hdf5':
+       if outformat.lower() != 'hdf5':
           print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
        outformat = 'hdf5'
     elif args.station_file is not None:
-       if args.outformat.lower() != 'netcdf':
+       if outformat.lower() != 'netcdf':
           print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
        outformat = 'netcdf'
     else:
-       if args.outformat.lower() == 'hdf5':
+       if outformat.lower() == 'hdf5':
           print("WARNING: output require raster output file; changing outformat to ENVI")
           outformat = 'ENVI'
        else:
-          outformat = args.outformat.lower()
+          outformat = outformat.lower()
 
     # parallelization
     parallel = True if not args.no_parallel else False
