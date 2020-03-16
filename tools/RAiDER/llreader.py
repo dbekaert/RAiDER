@@ -30,8 +30,8 @@ def readLL(*args):
     if flag=='files':
         # If they are files, open them
         lat, lon = args
-        lats, latproj = gdal_open(lat, returnProj = True)
-        lons, lonproj = gdal_open(lon, returnProj = True)
+        lats, latproj, lat_gt = gdal_open(lat, returnProj = True)
+        lons, lonproj, lon_gt = gdal_open(lon, returnProj = True)
     elif flag=='bounding_box':
         N,W,S,E = args
         lats = np.array([float(N), float(S)])
