@@ -1,16 +1,16 @@
-
 # standard imports
 import datetime
 import numpy as np
-from pyproj import CRS
+from pyproj import CRS, Transformer
 import os
 
 # local imports
 import RAiDER.constants as const
 import RAiDER.models.plotWeather as plots
 import RAiDER.utilFcns as util
-from RAiDER.utilFcns import robmin, robmax
+from RAiDER.utilFcns import robmin, robmax,parallel_apply_along_axis
 from RAiDER.interpolator import fillna3D, interp_along_axis
+from RAiDER.constants import Zenith
 
 
 class WeatherModel():
@@ -64,6 +64,8 @@ class WeatherModel():
         self._e = None
         self._wet_refractivity = None
         self._hydrostatic_refractivity = None
+        self._wet_total = None
+        self._hydrostatic_total = None
         self._svp = None
 
 
@@ -117,11 +119,13 @@ class WeatherModel():
         '''
         pass
 
-    def load(self, *args, outLats = None, outLons = None, _zlevels = None, **kwargs):
+    def load(self, *args, outLats = None, outLons = None, los = None, _zlevels = None, zref = None, **kwargs):
         '''
         Calls the load_weather method. Each model class should define a load_weather 
         method appropriate for that class. 'args' should be one or more filenames. 
         '''
+        if zref is not None:
+            self._zmax = zref
         self.load_weather(*args, **kwargs)
         self._find_e()
         self._checkNotMaskedArrays()
@@ -130,6 +134,78 @@ class WeatherModel():
         self._get_wet_refractivity()
         self._get_hydro_refractivity() 
         self._adjust_grid(lats =outLats, lons=outLons)
+        los_flag = self._checkLOS(los)
+        self._runLOS(los, zref, los_flag)
+
+    def _checkLOS(self, los):
+        '''
+        I will check to see if a state vector has been supplied. If so, I will calculate the integrated
+        delay at the weather model grid nodes. 
+        '''
+        if los is Zenith:
+            return False
+        else:
+            return [True if los[0] =='sv' else False][0]
+
+    def _runLOS(self, los, zref, los_flag):
+        '''
+        Compute the full slant tropospheric delay for each weather model grid node, using the reference
+        height zref
+        '''
+        from RAiDER.utilFcns import lla2ecef
+        from RAiDER.delayFcns import getIntFcn, _ray_helper, interpolate2, _integrateLOS
+        from RAiDER.losreader import getLookVectors
+
+        _STEP = 10 # stepsize in meters
+
+        if zref is None:
+            zref = const._ZREF
+
+        hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
+        los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
+        wet = self.getWetRefractivity()
+        hydro = self.getHydroRefractivity()
+
+        # if a state vector was available, can compute the line-of-sight delays
+        if los_flag:
+            # ECEF to Lat/Lon reference frame
+            p1 = CRS.from_epsg(4978) 
+            t = Transformer.from_proj(p1,self._proj)
+
+            # Get the look vectors
+            # TODO: lengths and LOS return from GEO2RDR are not correct
+            lengths = np.linalg.norm(los, axis=-1)
+            lengths = lengths - np.tile(lengths[...,-1], (lengths.shape[-1],) + (1,1)).swapaxes(0,2)
+            max_len = np.nanmax(lengths)
+            los_slv = los/lengths[...,np.newaxis]
+
+            # Transform each point to ECEF
+            rays_ecef = lla2ecef(self._lats, self._lons, hgts)
+  
+            # Calculate the integrated delays
+            ifWet = getIntFcn(self._xs, self._ys, self._zs, wet)
+            ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
+
+            ray, Npts = _ray_helper(lengths, rays_ecef, los_slv, _STEP)
+            ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
+
+            delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
+            delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
+            delays = _integrateLOS(_STEP, delay_wet, delay_hydro, Npts)
+
+            self._wet_total = delays[...,0]
+            self._hydrostatic_total = delays[...,1]
+
+        else:
+            # If LOS is not supplied, return integrated ZTD
+            wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
+            #TODO: This returns zero for the last level because of the way trapz handles single points. 
+            # Should probably try to re-implement the integral function
+            for level in range(wet.shape[2]):
+                wet_total[...,level] = 1e-6*np.apply_along_axis(np.trapz, 2, wet[...,level:], x=self._zs[level:])
+                hydro_total[...,level]  = 1e-6*np.apply_along_axis(np.trapz, 2, hydro[...,level:], x=self._zs[level:])
+            self._hydrostatic_total = hydro_total
+            self._wet_total = wet_total
 
     def load_weather(self, *args, **kwargs):
         '''
@@ -559,12 +635,20 @@ class WeatherModel():
 
             wet = f.create_dataset('wet', data = self._wet_refractivity)
             hydro = f.create_dataset('hydro', data = self._hydrostatic_refractivity)
+            wet_total = f.create_dataset('wet_total', data = self._wet_total)
+            hydro_total = f.create_dataset('hydro_total', data = self._hydrostatic_total)
             wet.dims[0].attach_scale(x)
             wet.dims[1].attach_scale(y)
             wet.dims[2].attach_scale(z)
             hydro.dims[0].attach_scale(x)
             hydro.dims[1].attach_scale(y)
             hydro.dims[2].attach_scale(z)
+            wet_total.dims[0].attach_scale(x)
+            wet_total.dims[1].attach_scale(y)
+            wet_total.dims[2].attach_scale(z)
+            hydro_total.dims[0].attach_scale(x)
+            hydro_total.dims[1].attach_scale(y)
+            hydro_total.dims[2].attach_scale(z)
 
             f.create_dataset('Projection', data= self._proj.to_json())
 
