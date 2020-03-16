@@ -292,11 +292,3 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None)
         lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
         lengths.attrs['NumRays'] = len(x)
         scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)
-     for band in range(ds.RasterCount):
-@@ -178,7 +179,7 @@ def gdal_open(fname, returnProj = False):
-     if not returnProj:
-         return data
-     else:
--        return data, proj
-+        return data, proj, gt
-
