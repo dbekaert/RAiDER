@@ -155,6 +155,7 @@ def gdal_open(fname, returnProj = False):
     except:
         raise RuntimeError('File {} could not be opened'.format(fname))
     proj = ds.GetProjection()
+    gt = ds.GetGeoTransform()
 
     val = []
     for band in range(ds.RasterCount):
@@ -178,7 +179,7 @@ def gdal_open(fname, returnProj = False):
     if not returnProj:
         return data
     else:
-        return data, proj
+        return data, proj, gt
 
 
 def pickle_load(f):

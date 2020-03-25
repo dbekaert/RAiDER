@@ -68,7 +68,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
             print('WARNING: download_only flag selected. I will only '
                   'download the weather model, '
                   ' without doing any further processing.')
-            return None, None
+            return None, None, None
 
     # Load the weather model data
     if weather_model_name == 'pickle':
