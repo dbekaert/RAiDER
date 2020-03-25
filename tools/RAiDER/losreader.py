@@ -39,7 +39,7 @@ class ProductManager(Configurable):
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
-    import Geo2rdr
+    from RAiDER import Geo2rdr
 
     real_shape = lats.shape
     lats = lats.flatten()
@@ -278,6 +278,7 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
         look_vecs = _getZenithLookVecs(lat, lon, hgt, zref = zref)
     else:
         look_vecs = infer_los(look_vecs, lat, lon, hgt, zref)
+    import pdb; pdb.set_trace()
 
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
