@@ -39,7 +39,7 @@ class ProductManager(Configurable):
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
-    import Geo2rdr
+    from RAiDER import Geo2rdr
 
     real_shape = lats.shape
     lats = lats.flatten()
@@ -51,6 +51,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
     loss = np.zeros((3, len(lats)))
     slant_ranges = np.zeros_like(lats)
+ 
 
     for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
         height_array = np.array(((height,),))
@@ -58,10 +59,9 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
         # Geo2rdr is picky about the type of height
         height_array = height_array.astype(np.double)
 
-        geo2rdr_obj.set_geo_coordinate(np.radians(lon),
-                                       np.radians(lat),
-                                       1, 1,
-                                       height_array)
+        import pdb; pdb.set_trace()
+        geo2rdr_obj.set_geo_coordinate(np.radians(360-lon),np.radians(lat),1, 1,height_array)
+
         # compute the radar coordinate for each geo coordinate
         geo2rdr_obj.geo2rdr()
 
@@ -78,7 +78,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     # Have to think about traversal order here. It's easy, though, since
     # in both orders xs come first, followed by all ys, followed by all
     # zs.
-    return los.reshape((3,) + real_shape)
+    return los.reshape(real_shape + (3,))
 
 
 def read_shelve(filename):
@@ -121,7 +121,7 @@ def read_txt_file(filename):
     with open(filename, 'r') as f:
         for line in f:
             try:
-                t_, x_, y_, z_, vx_, vy_, vz_ = line.split()
+                t_, x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in line.split()]
             except ValueError:
                 raise ValueError(
                         "I need {} to be a 7 column text file, with ".format(filename) + 
@@ -134,8 +134,7 @@ def read_txt_file(filename):
             vx.append(vx_)
             vy.append(vy_)
             vz.append(vz_)
-    return (np.array(t), np.array(x), np.array(y), np.array(z), np.array(vx),
-            np.array(vy), np.array(vz))
+    return np.array([t,x,y,z, vx,vy, vz])
 
 
 def read_xml_file(filename):
@@ -281,13 +280,6 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
 
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
-
-    # check size
-    if look_vecs.ndim==1:
-       if len(look_vecs)!=3:
-          raise RuntimeError('look_vecs must be Nx3') 
-    if look_vecs.shape[-1]!=3:
-       raise RuntimeError('look_vecs must be Nx3')
 
     return look_vecs.reshape(in_shape + (3,))
 
