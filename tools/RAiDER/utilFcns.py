@@ -734,3 +734,39 @@ def getTimeFromFile(filename):
     except:
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
+
+def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None):
+    '''
+    Write query points to an HDF5 file for storage and access
+    '''
+    import datetime
+    import h5py
+    import os
+
+    from RAiDER.utilFcns import checkLOS
+
+    if in_shape is None:
+        in_shape = llas.shape[:-1]
+    checkLOS(los, np.prod(lats.shape))
+
+    # Save the shape so we can restore later, but flatten to make it
+    # easier to think about
+    llas = np.stack((lats, lons, hgts), axis=-1)
+    llas = llas.reshape(-1, 3)
+    lats, lons, hgts = np.moveaxis(llas, -1, 0)
+    los = los.reshape((np.prod(los.shape[:-1]), los.shape[-1]))
+
+    with h5py.File(outName, 'w') as f:
+    #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
+        x = f.create_dataset('lon', data = lons.flatten(), chunks = True)
+        y = f.create_dataset('lat', data = lats.flatten(), chunks = x.chunks)
+        z = f.create_dataset('hgt', data = hgts.flatten(), chunks = x.chunks)
+        los = f.create_dataset('LOS', data= los, chunks = x.chunks + (3,))
+        x.attrs['Shape'] = in_shape
+        y.attrs['Shape'] = in_shape
+        z.attrs['Shape'] = in_shape
+
+        start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
+        lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
+        lengths.attrs['NumRays'] = len(x)
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)

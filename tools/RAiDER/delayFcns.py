@@ -73,8 +73,15 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     t = Transformer.from_proj(p1,proj_wm) 
 
     # Get the weather model data
-    ifWet = getIntFcn2(wm_file,interpType =interpType)
-    ifHydro = getIntFcn2(wm_file,itype = 'hydro', interpType = interpType)
+    with h5py.File(wm_file, 'r') as f:
+        xs_wm = f['x'].value.copy()
+        ys_wm = f['y'].value.copy()
+        zs_wm = f['z'].value.copy()
+        wet=f['wet'].value.copy()
+        hydro=f['hydro'].value.copy()
+
+    ifWet = getIntFcn2(xs_wm, ys_wm, zs_wm, wet)
+    ifHydro = getIntFcn2(xs_wm, ys_wm, zs_wm, hydro)
 
     delays = []
     with h5py.File(pnts_file, 'r') as f:
@@ -176,46 +183,13 @@ def int_fcn(y, dx, N):
 def int_fcn2(y, dx):
     return 1e-6*dx*np.nansum(y)
 
-def getIntFcn2(weather_file, itype = 'wet', interpType = '3d'):
+def getIntFcn(xs, ys, zs, var):
     '''
     Function to create and return an Interpolator object
     '''
     from scipy.interpolate import RegularGridInterpolator as rgi
-
-#    from RAiDER.interpolator import Interpolator
-#
-#    ifFun = Interpolator()
-    with h5py.File(weather_file, 'r') as f:
-        xs = f['x'].value.copy()
-        ys = f['y'].value.copy()
-        zs = f['z'].value.copy()
-#        ifFun.setPoints(xs, ys, zs)
-#
-        if itype == 'wet':
-#            ifFun.getInterpFcns(f['wet'].value.copy(), interpType = interpType)
-             ifFun = rgi((ys.flatten(),xs.flatten(), zs.flatten()), f['wet'].value.copy(),bounds_error=False, fill_value = np.nan)
-        elif itype == 'hydro':
-#            ifFun.getInterpFcns(f['hydro'].value.copy(), interpType = interpType)
-             ifFun = rgi((ys.flatten(),xs.flatten(), zs.flatten()), f['hydro'].value.copy(),bounds_error=False, fill_value = np.nan)
+    ifFun = rgi((ys.flatten(),xs.flatten(), zs.flatten()), var,bounds_error=False, fill_value = np.nan)
     return ifFun
-
-def getIntFcn(weather_file, itype = 'wet', interpType = '3d'):
-    '''
-    Function to create and return an Interpolator object
-    '''
-    from interp3d import interp_3d
-
-    with h5py.File(weather_file, 'r') as f:
-        xs = f['x'].value.copy()
-        ys = f['y'].value.copy()
-        zs = f['z'].value.copy()
-
-        if itype == 'wet':
-            ifFun = interp_3d.Interp3D(f['wet'].value.copy(), ys,xs,zs)
-        elif itype == 'hydro':
-            ifFun = interp_3d.Interp3D(f['hydro'].value.copy(), ys,xs,zs)
-    return ifFun
-
 
 def getProjFromWMFile(wm_file):
     '''
