@@ -159,10 +159,9 @@ class WeatherModel():
         if zref is None:
             zref = const._ZREF
 
+        mask = self._zs < zref
         hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
-        los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
-        wet  = self.getWetRefractivity()
-        hydro= self.getHydroRefractivity()
+        los = getLookVectors(los, self._lats[...,mask], self._lons[...,mask], hgts[...,mask], self._zmax)
         
         # ECEF to Lat/Lon reference frame
         p1 = CRS.from_epsg(4978) 
@@ -170,17 +169,22 @@ class WeatherModel():
 
         # Get the look vectors
         lengths = np.linalg.norm(los, axis=-1)
-        max_len = np.nanmax(lengths)
+        max_len = min([np.nanmax(lengths), max(self._zs)]) # max(self._zs) should probably be a default, but leaving this in for now
         los_slv = los/lengths[...,np.newaxis]
 
         # Transform each point to ECEF
-        rays_ecef = lla2ecef(self._lats, self._lons, hgts)
+        rays_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts[...,mask]), axis =-1)
   
         # Calculate the integrated delays
-        ifWet = getIntFcn(self._xs, self._ys, self._zs, wet)
-        ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
+        ifWet = getIntFcn(self._xs, self._ys, self._zs, self.getWetRefractivity())
+        ifHydro = getIntFcn(self._xs, self._ys, self._zs, self.getHydroRefractivity())
 
-        ray, Npts = _ray_helper(lengths, rays_ecef, los_slv, _STEP)
+        np.place(lengths, lengths>max_len, max_len)
+        import pdb; pdb.set_trace() #TODO: Need to verify why _ray_helper is failing
+        ray, Npts = _ray_helper(lengths, 
+                                rays_ecef.reshape((np.prod(rays_ecef.shape[:-1]), rays_ecef.shape[-1])), 
+                                los_slv.reshape((np.prod(los_slv.shape[:-1]), los_slv.shape[-1])), 
+                                _STEP)
         ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
 
         delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
