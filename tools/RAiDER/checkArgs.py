@@ -23,7 +23,8 @@ def checkArgs(args, p):
 
     # Argument checking
     if args.heightlvs is not None and args.outformat != 'hdf5':
-       raise ValueError('HDF5 must be used with height levels')
+       print('HDF5 must be used with height levels')
+       args.outformat= 'hdf5'
     if args.area is None and args.bounding_box is None and args.wmnetcdf is None and args.station_file is None:
        raise ValueError('You must specify one of the following: \n \
              (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \

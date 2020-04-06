@@ -34,7 +34,9 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     return download_flag, f
 
 
-def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=None, verbose = False, download_only = False, makePlots = False):
+def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, 
+                        los = None, zref = None, time=None, verbose = False, 
+                        download_only = False, makePlots = False):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
@@ -74,27 +76,31 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, time=
     if weather_model_name == 'pickle':
         weather_model = pickle_load(weather_files)
     elif weather_files is not None:
-        weather_model.load(*weather_files, outLats = lats, outLons = lons)
+        weather_model.load(*weather_files, outLats = lats, outLons = lons, los = los, zref = zref)
         download_flag = False
     else:
-        weather_model.load(f, outLats = lats, outLons = lons)
+        weather_model.load(f, outLats = lats, outLons = lons, los = los, zref = zref)
 
-    # Pull the lat/lon data if using the weather model 
-    if lats is None or len(lats)==2:
-        uwn = True
-        lats,lons = weather_model.getLL() 
-        lla = weather_model.getProjection()
-        try:
-            writeLL(time, lats, lons,lla, weather_model_name, out)
-        except RuntimeError:
-            try:
-                os.mkdir(os.path.split(weather_model_name)[0])
-                writeLL(time, lats, lons,lla, weather_model_name, out)
-            except:
-                print('Cannot save weather model Lat/Lons')
-                print('Continuing to process')
-    else:
-        uwn = False
+    import pdb; pdb.set_trace()
+############################################################################
+### TODO: Need to check this bit
+#    # Pull the lat/lon data if using the weather model 
+#    if lats is None or len(lats)==2:
+#        uwn = True
+#        lats,lons = weather_model.getLL() 
+#        lla = weather_model.getProjection()
+#        try:
+#            writeLL(time, lats, lons,lla, weather_model_name, out)
+#        except RuntimeError:
+#            try:
+#                os.mkdir(os.path.split(weather_model_name)[0])
+#                writeLL(time, lats, lons,lla, weather_model_name, out)
+#            except:
+#                print('Cannot save weather model Lat/Lons')
+#                print('Continuing to process')
+#    else:
+#        uwn = False
+############################################################################
 
     # weather model name
     if verbose:
