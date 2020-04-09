@@ -11,6 +11,7 @@ import numpy as np
 import pyproj
 
 from RAiDER.constants import _STEP
+from RAiDER import makePoints
 
 
 def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
@@ -100,9 +101,11 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
         #for index in tqdm(range(Nrays)):
             index = np.arange(k*chunkSize, min((k+1)*chunkSize, Nrays))
             
-            ray, Npts = _ray_helper(f['Rays_len'][index], 
-                                    f['Rays_SP'][index,:], 
-                                    f['Rays_SLV'][index,:], stepSize)
+            Npts = [int(L//stepSize + 1) for L in f['Rays_len'][index]]
+#            ray, Npts = _ray_helper(f['Rays_len'][index], 
+#                                    f['Rays_SP'][index,:], 
+#                                    f['Rays_SLV'][index,:], stepSize)
+            ray = makePoints(max_len, f['Rays_SP'][index,:].value.copy(), f['Rays_SLV'][index,:],stepSize)
             #if f['Rays_len'][index] > 1:
             #    ray = _compute_ray2(f['Rays_len'][index], 
             #                            f['Rays_SP'][index,:], 
