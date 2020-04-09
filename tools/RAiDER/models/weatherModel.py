@@ -134,8 +134,7 @@ class WeatherModel():
         self._get_hydro_refractivity() 
         self._adjust_grid(lats =outLats, lons=outLons)
         los_flag = self._checkLOS(los)
-        if los_flag: 
-            self._runLOS(los, zref)
+        self._runLOS(los, zref, los_flag)
 
     def _checkLOS(self, los):
         '''
@@ -144,7 +143,7 @@ class WeatherModel():
         '''
         return [True if los[0] =='sv' else False][0]
 
-    def _runLOS(self, los, zref):
+    def _runLOS(self, los, zref, los_flag):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
@@ -163,31 +162,40 @@ class WeatherModel():
         wet  = self.getWetRefractivity()
         hydro= self.getHydroRefractivity()
         
-        # ECEF to Lat/Lon reference frame
-        p1 = CRS.from_epsg(4978) 
-        t = Transformer.from_proj(p1,self._proj)
+        if los_flag:
+            # ECEF to Lat/Lon reference frame
+            p1 = CRS.from_epsg(4978) 
+            t = Transformer.from_proj(p1,self._proj)
 
-        # Get the look vectors
-        lengths = np.linalg.norm(los, axis=-1)
-        max_len = np.nanmax(lengths)
-        los_slv = los/lengths[...,np.newaxis]
+            # Get the look vectors
+            lengths = np.linalg.norm(los, axis=-1)
+            max_len = np.nanmax(lengths)
+            los_slv = los/lengths[...,np.newaxis]
 
-        # Transform each point to ECEF
-        rays_ecef = lla2ecef(self._lats, self._lons, hgts)
+            # Transform each point to ECEF
+            rays_ecef = lla2ecef(self._lats, self._lons, hgts)
   
-        # Calculate the integrated delays
-        ifWet = getIntFcn(self._xs, self._ys, self._zs, wet)
-        ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
+            # Calculate the integrated delays
+            ifWet = getIntFcn(self._xs, self._ys, self._zs, wet)
+            ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
 
-        ray, Npts = _ray_helper(lengths, rays_ecef, los_slv, _STEP)
-        ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
+            ray, Npts = _ray_helper(lengths, rays_ecef, los_slv, _STEP)
+            ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
 
-        delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
-        delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-        delays = _integrateLOS(_STEP, delay_wet, delay_hydro, Npts)
+            delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
+            delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
+            delays = _integrateLOS(_STEP, delay_wet, delay_hydro, Npts)
 
-        self._wet_total = delays[...,0]
-        self._hydrostatic_total = delays[...,1]
+            self._wet_total = delays[...,0]
+            self._hydrostatic_total = delays[...,1]
+
+        else:
+            # If LOS is not supplied, return integrated ZTD
+            delay_wet = parallel_apply_along_axis(np.trapz, 2, self.getWetRefractivity(), x=self._zs)
+            delay_hydro = parallel_apply_along_axis(np.trapz, 2, self.getHydroRefractivity(), x=self._zs)
+            self._wet_total = delay_wet
+            self._hydrostatic_total = delay_hydro
+
 
     def load_weather(self, *args, **kwargs):
         '''
