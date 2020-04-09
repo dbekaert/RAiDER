@@ -81,7 +81,6 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     else:
         weather_model.load(f, outLats = lats, outLons = lons, los = los, zref = zref)
 
-    import pdb; pdb.set_trace()
 ############################################################################
 ### TODO: Need to check this bit
 #    # Pull the lat/lon data if using the weather model 

@@ -180,7 +180,6 @@ def read_ESA_Orbit_file(filename):
         vz[i]= float(st[9].text)
 
     return [t, x, y, z, vx, vy, vz]
->>>>>>> dev
 
 
 def read_xml_file(filename):
@@ -227,7 +226,6 @@ def infer_sv(los_file, lats, lons, heights):
         # as a shelve file, and throw whatever error that does, although
         # the message might be sometimes misleading.
         svs = read_shelve(los_file)
-    import pdb; pdb.set_trace()
     LOSs = state_to_los(*svs, lats = lats, lons = lons, heights = heights)
     return LOSs
 
