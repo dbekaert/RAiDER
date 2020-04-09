@@ -159,7 +159,6 @@ class WeatherModel():
         if zref is None:
             zref = const._ZREF
 
-        import pdb; pdb.set_trace()
         hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
         los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
         wet  = self.getWetRefractivity()

@@ -157,7 +157,6 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
     if download_only:
         return None, None
 
-
     pnts_file = os.path.join('geom', 'query_points.h5')
     if not os.path.exists(pnts_file):
         # Pull the DEM.
@@ -188,5 +187,3 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
                 proj = None, gt = None, ndv = 0.)
 
     return wetDelay, hydroDelay
-
-
