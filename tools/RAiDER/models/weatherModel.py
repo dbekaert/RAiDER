@@ -1,4 +1,3 @@
-
 # standard imports
 import datetime
 import numpy as np
