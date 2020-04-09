@@ -94,8 +94,6 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     chunkSize = chunkSize//fac
     Nchunks = Nrays//chunkSize + 1
 
-    #TODO: Would like to parallelize this; but on the other hand it might be best to leave as is
-    # and parallelize the higher-up level
     with h5py.File(pnts_file, 'r') as f:
         for k in tqdm(range(Nchunks)):
         #for index in tqdm(range(Nrays)):
