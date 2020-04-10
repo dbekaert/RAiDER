@@ -81,7 +81,6 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     else:
         weather_model.load(f, outLats = lats, outLons = lons, los = los, zref = zref)
 
-    import pdb; pdb.set_trace()
 ############################################################################
 ### TODO: Need to check this bit
 #    # Pull the lat/lon data if using the weather model 
@@ -109,7 +108,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         print('Bounds of the weather model: {}/{}/{}/{} (SNWE)'
                .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys), 
                       np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)))
-        print('Using weather nodes only? (true/false): {}'.format(uwn))
+#        print('Using weather nodes only? (true/false): {}'.format(uwn))
         print('Weather model: {}'.format(weather_model.Model()))
         print('Mean value of the wet refractivity: {}'
                .format(np.nanmean(weather_model.getWetRefractivity())))

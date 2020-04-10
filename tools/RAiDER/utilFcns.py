@@ -578,12 +578,8 @@ def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
     chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
               for sub_arr in sub_arrs]
 
-    pool = mp.Pool()
-    individual_results = pool.map(unpacking_apply_along_axis, chunks)
-    # Freeing the workers:
-    pool.close()
-    pool.join()
-#    individual_results = map(unpacking_apply_along_axis, chunks)
+    with mp.Pool() as pool:
+        individual_results = pool.map(unpacking_apply_along_axis, chunks)
 
     conc_results = np.concatenate(individual_results)
     ordered_results = conc_results.swapaxes(effective_axis, axis)
@@ -735,7 +731,7 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None):
+def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -745,26 +741,21 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5', in_shape = None)
 
     from RAiDER.utilFcns import checkLOS
 
-    if in_shape is None:
-        in_shape = llas.shape[:-1]
     checkLOS(los, np.prod(lats.shape))
-
-    # Save the shape so we can restore later, but flatten to make it
-    # easier to think about
-    llas = np.stack((lats, lons, hgts), axis=-1)
-    llas = llas.reshape(-1, 3)
-    lats, lons, hgts = np.moveaxis(llas, -1, 0)
-    los = los.reshape((np.prod(los.shape[:-1]), los.shape[-1]))
 
     with h5py.File(outName, 'w') as f:
     #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
-        x = f.create_dataset('lon', data = lons.flatten(), chunks = True)
-        y = f.create_dataset('lat', data = lats.flatten(), chunks = x.chunks)
-        z = f.create_dataset('hgt', data = hgts.flatten(), chunks = x.chunks)
+        if chunkSize is None:
+            x = f.create_dataset('lon', data = lons, chunks = True)
+        else:
+            x = f.create_dataset('lon', data = lons, chunks = chunkSize)
+        y = f.create_dataset('lat', data = lats, chunks = x.chunks)
+        z = f.create_dataset('hgt', data = hgts, chunks = x.chunks)
         los = f.create_dataset('LOS', data= los, chunks = x.chunks + (3,))
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
+        f.attrs['ChunkSize'] = chunkSize
 
         start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
         lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
