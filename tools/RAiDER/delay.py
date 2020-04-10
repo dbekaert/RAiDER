@@ -153,6 +153,9 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
             pass
 
         del weather_model
+    else:
+        print('Weather model already exists, please remove it ("{}") if you want to '\
+              'create a new one.'.format(weather_model_file))
 
     if download_only:
         return None, None

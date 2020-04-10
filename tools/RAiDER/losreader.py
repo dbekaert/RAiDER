@@ -39,7 +39,7 @@ class ProductManager(Configurable):
         return self._instance
 
 
-def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
+def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
     '''
     Converts information from a state vector for a satellite orbit, given in terms of 
     position and velocity, to line-of-sight information at each (lon,lat, height) 
@@ -83,7 +83,8 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
         loss[:, i] = los_x, los_y, los_z
 
         # get back the slant ranges
-        slant_range = geo2rdr_obj.get_slant_range()
+        # TODO: slant_range and LOS return from GEO2RDR are not correct, what units do they expect?
+        slant_range = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
         slant_ranges[i] = slant_range
 
     los = loss * slant_ranges

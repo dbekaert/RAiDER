@@ -578,12 +578,8 @@ def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
     chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
               for sub_arr in sub_arrs]
 
-    pool = mp.Pool()
-    individual_results = pool.map(unpacking_apply_along_axis, chunks)
-    # Freeing the workers:
-    pool.close()
-    pool.join()
-#    individual_results = map(unpacking_apply_along_axis, chunks)
+    with mp.Pool() as pool:
+        individual_results = pool.map(unpacking_apply_along_axis, chunks)
 
     conc_results = np.concatenate(individual_results)
     ordered_results = conc_results.swapaxes(effective_axis, axis)
