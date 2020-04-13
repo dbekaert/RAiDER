@@ -163,9 +163,9 @@ class WeatherModel():
 
         hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
         los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
-        wet  = self.getWetRefractivity()
-        hydro= self.getHydroRefractivity()
-        
+        wet = self.getWetRefractivity()
+        hydro = self.getHydroRefractivity()
+
         # if a state vector was available, can compute the line-of-sight delays
         if los_flag:
             # ECEF to Lat/Lon reference frame
@@ -198,8 +198,6 @@ class WeatherModel():
 
         else:
             # If LOS is not supplied, return integrated ZTD
-            wet = self.getWetRefractivity()
-            hydro = self.getHydroRefractivity()
             wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
             #TODO: This returns zero for the last level because of the way trapz handles single points. 
             # Should probably try to re-implement the integral function
@@ -208,7 +206,6 @@ class WeatherModel():
                 hydro_total[...,level]  = 1e-6*np.apply_along_axis(np.trapz, 2, hydro[...,level:], x=self._zs[level:])
             self._hydrostatic_total = hydro_total
             self._wet_total = wet_total
-
 
     def load_weather(self, *args, **kwargs):
         '''

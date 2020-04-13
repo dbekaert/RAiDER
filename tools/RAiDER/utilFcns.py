@@ -742,6 +742,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
     from RAiDER.utilFcns import checkLOS
 
     checkLOS(los, np.prod(lats.shape))
+    in_shape = lats.shape
 
     with h5py.File(outName, 'w') as f:
     #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:

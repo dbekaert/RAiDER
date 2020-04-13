@@ -184,6 +184,37 @@ def read_ESA_Orbit_file(filename):
     return [t, x, y, z, vx, vy, vz]
 
 
+def read_ESA_Orbit_file(filename):
+    '''
+    Read orbit data from an orbit file supplied by ESA
+    '''
+    import datetime
+    import xml.etree.ElementTree as ET
+
+    tree = ET.parse(filename)
+    root = tree.getroot()
+    data_block = root[1]
+    numOSV = len(data_block[0])
+
+    t = np.ones(numOSV)
+    x = np.ones(numOSV)
+    y = np.ones(numOSV)
+    z = np.ones(numOSV)
+    vx = np.ones(numOSV)
+    vy = np.ones(numOSV)
+    vz = np.ones(numOSV)
+
+    for i, st in enumerate(data_block[0]):
+        t[i] = dt2float(datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
+        x[i] = float(st[4].text)
+        y[i] = float(st[5].text)
+        z[i] = float(st[6].text)
+        vx[i]= float(st[7].text)
+        vy[i]= float(st[8].text)
+        vz[i]= float(st[9].text)
+
+    return [t, x, y, z, vx, vy, vz]
+
 def read_xml_file(filename):
 
     pm = ProductManager()
