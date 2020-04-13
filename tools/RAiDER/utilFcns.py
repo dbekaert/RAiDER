@@ -33,7 +33,7 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
     import pyproj
-    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt)
+    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt, always_xy = True)
     
 
 def lla2ecef(lat, lon, height):
@@ -41,14 +41,14 @@ def lla2ecef(lat, lon, height):
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
 
-    return pyproj.transform(lla, ecef, lon, lat, height)
+    return pyproj.transform(lla, ecef, lon, lat, height, always_xy=True)
 
 
 def ecef2lla(x, y, z):
     import pyproj
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
-    lon, lat, height = pyproj.transform(ecef, lla, x, y, z)
+    lon, lat, height = pyproj.transform(ecef, lla, x, y, z, always_xy = True)
     return lat, lon, height
 
 
@@ -78,7 +78,7 @@ def lla2lambert(lat, lon, height=None):
 
     if height is None:
         return lla(lat, lon, errcheck=True)
-    return pyproj.transform(lla, lambert, lat, lon, height)
+    return pyproj.transform(lla, lambert, lat, lon, height, always_xy = True)
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):

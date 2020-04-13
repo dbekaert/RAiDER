@@ -14,7 +14,7 @@ import RAiDER.utilFcns as utilFcns
 from RAiDER.constants import _ZREF, Zenith
 
 
-#TODO: It looks like Configurable and ProductManager may not be fully functioning
+#TODO: It looks like Configurable and ProductManager are not functioning
 class Configurable():
     '''
     Is this needed? 
@@ -44,6 +44,11 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
     Converts information from a state vector for a satellite orbit, given in terms of 
     position and velocity, to line-of-sight information at each (lon,lat, height) 
     coordinate requested by the user.
+
+    *Note*: 
+    The LOS returned should be a vector pointing from the ground pixel to the sensor, 
+    truncating at the top of the troposphere, in an earth-centered, earth-fixed 
+    coordinate system. 
     '''
     from RAiDER import Geo2rdr
 
@@ -73,8 +78,8 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
         # Geo2rdr is picky about the type of height
         height_array = height_array.astype(np.double)
 
-        geo2rdr_obj.set_geo_coordinate(360-lon,lat,1, 1,height_array)
-        #geo2rdr_obj.set_geo_coordinate(np.radians(360-lon),np.radians(lat),1, 1,height_array)
+        lon_start, lat_start = np.radians(360-lon),np.radians(lat)
+        geo2rdr_obj.set_geo_coordinate(lon_start, lat_start,1, 1,height_array)
 
         # compute the radar coordinate for each geo coordinate
         geo2rdr_obj.geo2rdr()
@@ -84,11 +89,11 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
         loss[:, i] = los_x, los_y, los_z
 
         # get back the slant ranges
-        # TODO: slant_range and LOS return from GEO2RDR are not correct, what units do they expect?
         slant_range = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
         slant_ranges[i] = slant_range
 
     los = loss * slant_ranges
+    #los = loss #<- just keep in unit vector form?
 
     # Have to think about traversal order here. It's easy, though, since
     # in both orders xs come first, followed by all ys, followed by all
@@ -173,7 +178,7 @@ def read_ESA_Orbit_file(filename):
     vz = np.ones(numOSV)
 
     for i, st in enumerate(data_block[0]):
-        t[i] = dt2float(datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
+        t[i] = (datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f') - datetime.datetime(1970,1,1)).total_seconds()
         x[i] = float(st[4].text)
         y[i] = float(st[5].text)
         z[i] = float(st[6].text)
@@ -181,7 +186,10 @@ def read_ESA_Orbit_file(filename):
         vy[i]= float(st[8].text)
         vz[i]= float(st[9].text)
 
+    t = t - t[0]
+
     return [t, x, y, z, vx, vy, vz]
+
 
 def read_xml_file(filename):
 
@@ -213,7 +221,8 @@ def read_xml_file(filename):
 
 
 def infer_sv(los_file, lats, lons, heights):
-    """Infer the type of file to read, then read an LOS file."""
+    """Read an LOS file."""
+    # TODO: Change this to a try/except structure
     _, ext = os.path.splitext(los_file)
     if ext == '.txt':
         svs = read_txt_file(los_file)
@@ -232,29 +241,39 @@ def infer_sv(los_file, lats, lons, heights):
 
 
 def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
-    # I'm looking at http://earthdef.caltech.edu/boards/4/topics/327
+    '''
+    Convert incidence and heading to line-of-sight vectors from the ground to the top of 
+    the troposphere. 
+
+    *NOTE*:
+    LOS here is defined in an Earth-centered, earth-referenced 
+    coordinate system as pointing from the ground pixel to the sensor, truncating at the top of
+    the troposphere. 
+    
+    Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
+    '''
     a_0 = incidence
     a_1 = heading
 
     east = utilFcns.sind(a_0)*utilFcns.cosd(a_1 + 90)
     north = utilFcns.sind(a_0)*utilFcns.sind(a_1 + 90)
     up = utilFcns.cosd(a_0)
-
     east, north, up = np.stack((east, north, up))
 
     # Pick reasonable range to top of troposphere if not provided
     if ranges is None:
         ranges = (zref - heights) / up
+    #slant_range = ranges = (zref - heights) / utilFcns.cosd(inc)
 
     # Scale look vectors by range
     east, north, up = np.stack((east, north, up)) * ranges
 
-    x, y, z = utilFcns.enu2ecef(
+    xyz = utilFcns.enu2ecef(
             east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
             lons.flatten(), heights.flatten())
 
-    los = (np.stack((x, y, z), axis=-1) - np.stack(utilFcns.lla2ecef(
-               lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
+    sp_xyz = utilFcns.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten())
+    los = np.stack(xyz, axis=-1) - np.stack(sp_xyz, axis=-1)
     los = los.reshape(east.shape + (3,))
 
     return los

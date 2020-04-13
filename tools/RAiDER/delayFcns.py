@@ -209,7 +209,7 @@ def _transform(ray, oldProj, newProj):
     newRay = np.stack(
                 pyproj.transform(
                       oldProj, newProj, ray[:,0], ray[:,1], ray[:,2])
-                      ,axis = -1)
+                      ,axis = -1, always_xy = True)
     return newRay
 
 
