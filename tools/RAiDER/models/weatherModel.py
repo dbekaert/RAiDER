@@ -187,6 +187,7 @@ class WeatherModel():
             ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
 
             ray, Npts = _ray_helper(lengths, rays_ecef, los_slv, _STEP)
+            #TODO: check whether this needs "always_xy" argument
             ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
 
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
