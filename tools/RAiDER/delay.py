@@ -117,8 +117,7 @@ def computeDelay(weather_model_file_name, pnts_file_name,
 
 
 def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
-         outformat, time, out, download_only, parallel, verbose,
-         wetFilename, hydroFilename):
+         outformat, time, out, download_only, verbose,wetFilename, hydroFilename):
     """
     raiderDelay main function.
     """
@@ -131,7 +130,6 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         print('Starting to run the weather model calculation')
         print('Time type: {}'.format(type(time)))
         print('Time: {}'.format(time.strftime('%Y%m%d')))
-        print('Parallel is {}'.format(parallel))
         print('Flag type is {}'.format(flag))
 
     # location of the weather model files
@@ -183,8 +181,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         del lats, lons, hgts, los
 
     wetDelay, hydroDelay = \
-       computeDelay(weather_model_file, pnts_file, zref, out,
-                         parallel=parallel, verbose = verbose)
+       computeDelay(weather_model_file, pnts_file, zref, out,verbose = verbose)
 
     writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                 outformat, wetFilename, hydroFilename,

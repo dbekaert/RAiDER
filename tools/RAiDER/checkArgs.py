@@ -13,7 +13,7 @@ import os
 from RAiDER.llreader import readLL
 from RAiDER.models.allowed import AllowedModels
 import RAiDER.utilFcns
-
+from RAiDER.constants import Zenith
 
 def checkArgs(args, p):
     '''
@@ -22,18 +22,15 @@ def checkArgs(args, p):
     '''
 
     # Argument checking
-    if args.heightlvs is not None and args.outformat != 'hdf5':
+    if args.heightlvs is not None and args.outformat.lower() != 'hdf5':
        print('HDF5 must be used with height levels')
        args.outformat= 'hdf5'
-    if args.area is None and args.bounding_box is None and args.wmnetcdf is None and args.station_file is None:
-       raise ValueError('You must specify one of the following: \n \
-             (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \
-             (4) station file containing Lat and Lon columns')
     if args.model not in AllowedModels():
-       raise NotImplementedError('Model {} is not an implemented model type'.format(args.model))
-    if args.model == 'WRF' and args.wrfmodelfiles is None:
-       p.error('Argument --wrfmodelfiles required with --model WRF')
+       raise NotImplementedError('Model {} has not been implemented'.format(args.model))
+    if args.model == 'WRF' and args.files is None:
+       p.error('Argument --files is required with --model WRF')
 
+    ## Area
     # flag depending on the type of input
     if args.area is not None:
         flag = 'files'
@@ -44,23 +41,6 @@ def checkArgs(args, p):
     else: 
         flag = None
 
-    # other
-    out = args.out
-    if out is None:
-        out = os.getcwd()
-    download_only = args.download_only
-    verbose = args.verbose
-
-    # Line of sight calc
-    if args.lineofsight is not None:
-        los = ('los', args.lineofsight)
-    elif args.statevectors is not None:
-        los = ('sv', args.statevectors)
-    else:
-        from RAiDER.constants import Zenith
-        los = Zenith
-
-    # Area
     if args.area is not None:
         lat, lon, latproj, lonproj = readLL(*args.area)
     elif args.bounding_box is not None:
@@ -73,33 +53,29 @@ def checkArgs(args, p):
     if (min(lat) < -90) | (max(lat)>90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
+    # Line of sight calc
+    if args.lineofsight is not None:
+        los = ('los', args.lineofsight)
+    elif args.statevectors is not None:
+        los = ('sv', args.statevectors)
+    else:
+        los = Zenith
+
     # Weather
     weather_model_name = args.model.upper().replace('-','')
     model_module_name, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
     if args.model == 'WRF':
-       weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
+       weathers = {'type': 'wrf', 'files': args.files,
                    'name': 'wrf'}
-    elif args.model=='pickle':
-        weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
-    elif args.wmnetcdf is not None:
-        weathers = {'type': model_obj(), 'files': args.wmnetcdf,
+    elif args.model=='HDF5':
+            weathers = {'type': 'HDF5', 'files': args.files,
                     'name': args.model}
     else:
-        weathers = {'type': model_obj(), 'files': None,
+        try:
+            weathers = {'type': model_obj(), 'files': args.files,
                     'name': args.model}
-
-    # output file format
-    if args.outformat is None:
-       if args.heightlvs is not None: 
-          outformat = 'hdf5'
-       elif args.station_file is not None: 
-          outformat = 'netcdf'
-       else:
-          outformat = 'ENVI'
-    else:
-       outformat = args.outformat
-    # ensuring consistent file extensions
-    #outformat = output_format(outformat)
+        except:
+            raise NotImplemented('{} is not implemented'.format(weather_model_name))
 
     # zref
     zref = args.zref
@@ -107,7 +83,31 @@ def checkArgs(args, p):
     # handle the datetimes requested
     datetimeList = [d + args.time for d in args.dateList]
 
-    # output filenames
+    ## Misc
+    download_only = args.download_only
+    verbose = args.verbose
+
+    ## Output
+    out = args.out
+    if out is None:
+        out = os.getcwd()
+    if args.outformat is None:
+       if args.heightlvs is not None: 
+          outformat = 'hdf5'
+       elif args.station_file is not None: 
+          outformat = 'csv'
+       elif los is Zenith:
+          outformat='hdf5'
+       else:
+          outformat = 'envi'
+    else:
+       outformat = args.outformat.lower()
+    if args.wmLoc is not None:
+       wmLoc = args.wmLoc
+    else:
+       wmLoc = os.path.join(args.out, 'weather_files')
+
+
     wetNames, hydroNames = [], []
     for time in datetimeList:
         if flag == 'station_file':
@@ -136,48 +136,6 @@ def checkArgs(args, p):
     else:
         heights = ('download', 'geom/warpedDEM.dem')
 
-    if args.wmLoc is not None:
-       wmLoc = args.wmLoc
-    else:
-       wmLoc = os.path.join(args.out, 'weather_files')
 
-    if args.heightlvs is not None: 
-       if outformat.lower() != 'hdf5':
-          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
-       outformat = 'hdf5'
-    elif args.station_file is not None:
-       if outformat.lower() != 'netcdf':
-          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
-       outformat = 'netcdf'
-    else:
-       if outformat.lower() == 'hdf5':
-          print("WARNING: output require raster output file; changing outformat to ENVI")
-          outformat = 'ENVI'
-       else:
-          outformat = outformat.lower()
+    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames
 
-    # parallelization
-    parallel = True if not args.no_parallel else False
-
-    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, parallel, verbose, wetNames, hydroNames
-
-
-def output_format(outformat):
-    """
-        Reduce the outformat strings users can specifiy to a select consistent set that can be used for filename extensions.
-    """
-    # convert the outformat to lower letters
-    outformat = outformat.lower()
-
-    # capture few specific cases:
-    outformat_dict = {}
-    outformat_dict['hdf5'] = 'h5'
-    outformat_dict['hdf'] = 'h5'
-    outformat_dict['h5'] = 'h5'
-    outformat_dict['envi'] = 'envi'
-
-    try:
-        outformat = outformat_dict[outformat]
-    except:
-        raise NotImplementedError
-    return outformat
