@@ -33,9 +33,7 @@ jobs:
       - run:
           name: Install RAiDER and test the install
           command: |
-            set -ex
-            source activate myenv
-            conda activate RAiDER
+            export PATH="$HOME/miniconda/bin:$PATH"
             python setup.py build
             python setup.py install
            
