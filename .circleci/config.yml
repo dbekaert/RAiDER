@@ -23,7 +23,7 @@ jobs:
             conda update -y conda
             conda create -n myenv python=$PYTHON_VERSION -c conda-forge
             source activate myenv
-            conda env create -f ./RAiDER/environment.yml
+            conda env create -f environment.yml
             conda activate RAiDER
             python --version
             python -c "import numpy; print(numpy.__version__)"
