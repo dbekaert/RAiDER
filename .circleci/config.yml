@@ -38,5 +38,5 @@ jobs:
             conda activate RAiDER
             python setup.py build
             python setup.py install
-           
+            python -c "import RAiDER; from RAiDER.delay import computeDelay, interpolateDelay; print(computeDelay)"
             
