@@ -12,7 +12,7 @@ jobs:
           command: |
             apt update
             apt install -y wget
-            apt-get update && apt-get upgrade
+            apt-get update --yes && apt-get upgrade --yes
             apt-get install g++ --yes
             cd $HOME
             wget "https://repo.anaconda.com/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh" -O miniconda.sh
