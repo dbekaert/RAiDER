@@ -23,7 +23,6 @@ jobs:
             conda update -y conda
             conda create -n myenv python=$PYTHON_VERSION -c conda-forge
             source activate myenv
-            conda env install --file environment.yml
             conda env create -f ./RAiDER/environment.yml
             conda activate RAiDER
             python --version
