@@ -36,6 +36,7 @@ jobs:
       - run:
           name: Install RAiDER and test the install
           command: |
+            set -ex
             python setup.py build
             python setup.py install
            
