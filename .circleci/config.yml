@@ -1,11 +1,10 @@
-version: 2
+version: 2.1
 jobs:
   build:
     docker:
       - image: ubuntu:bionic
     environment:
-      PYTHON_VERSION: 3.5.5
-      NUMPY_VERSION: 1.14.2
+      PYTHON_VERSION: 3.7.1
     steps:
       - checkout
       - run:
@@ -24,6 +23,17 @@ jobs:
             conda update -y conda
             conda create -n myenv python=$PYTHON_VERSION -c conda-forge
             source activate myenv
-            conda install -y numpy=$NUMPY_VERSION
+            conda install --file environment.yml
+            conda env create -f ./RAiDER/environment.yml
+            conda activate RAiDER
             python --version
             python -c "import numpy; print(numpy.__version__)"
+            python -c "import pyproj; print(pyproj.__version__)"
+            
+      - run:
+          name: Install RAiDER and test the install
+          command: |
+            python setup.py build
+            python setup.py install
+           
+            
