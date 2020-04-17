@@ -52,8 +52,11 @@ Example accepted formats:
               'calculated at weather model nodes if unspecified'),
         metavar=('LAT', 'LONG'))
     area.add_argument(
-        '--modelBBOX', '-b', nargs=4, dest='bounding_box',
-        help='BBOX to be downloaded, given as N W S E',
+        '--BBOX', '-b', nargs=4, dest='bounding_box',
+        help="""Bounding box over which to downloaded the weather model, given as N W S E. 
+If a bounding box is supplied, the delays will be calculated only at the x/y grid nodes of the 
+weather model that is selected. 
+""",
         metavar=('N', 'W', 'S', 'E'))
     area.add_argument(
         '--station_file',default = None, type=str, dest='station_file',
@@ -86,7 +89,7 @@ If no lat/lon data is provided, the weather model grid nodes will be used.
     heights.add_argument(
         '--heightlvs', default=None,
         help=("""If lat/lon data is provided, the weather delay will be 
-calculated at each of these heights (specified in meters) for the specified area.
+calculated at each of these heights (must be specified in meters) for the specified area.
 If no lat/lon data is provided, the lat/lon locations of the weather 
 model grid nodes will be used with the specified height levels.
 """),

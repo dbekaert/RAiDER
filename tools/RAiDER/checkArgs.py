@@ -22,9 +22,11 @@ def checkArgs(args, p):
     '''
 
     # Argument checking
-    if args.heightlvs is not None and args.outformat.lower() != 'hdf5':
-       print('HDF5 must be used with height levels')
-       args.outformat= 'hdf5'
+    if args.heightlvs is not None:
+        if args.outformat is not None:
+            if args.outformat.lower() != 'hdf5':
+                print('HDF5 must be used with height levels')
+                args.outformat= 'hdf5'
     if args.model not in AllowedModels():
        raise NotImplementedError('Model {} has not been implemented'.format(args.model))
     if args.model == 'WRF' and args.files is None:

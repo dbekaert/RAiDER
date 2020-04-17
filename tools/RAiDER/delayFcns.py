@@ -13,10 +13,9 @@ import pyproj
 from RAiDER.constants import _STEP
 from RAiDER import makePoints
 
-
 def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
     '''
-    Fast cython code to create the rays needed for ray-tracing
+    Python version of cython code to create the rays needed for ray-tracing
     Inputs: 
       max_len: maximum length of the rays
       Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
@@ -108,8 +107,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
         wet=f['wet'].value.copy()
         hydro=f['hydro'].value.copy()
 
-    ifWet = getIntFcn2(xs_wm, ys_wm, zs_wm, wet)
-    ifHydro = getIntFcn2(xs_wm, ys_wm, zs_wm, hydro)
+    ifWet = getIntFcn(xs_wm, ys_wm, zs_wm, wet)
+    ifHydro = getIntFcn(xs_wm, ys_wm, zs_wm, hydro)
 
     delays = []
     with h5py.File(pnts_file, 'r') as f:
