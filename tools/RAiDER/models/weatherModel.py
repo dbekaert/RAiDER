@@ -11,6 +11,8 @@ import RAiDER.utilFcns as util
 from RAiDER.utilFcns import robmin, robmax,parallel_apply_along_axis
 from RAiDER.interpolator import fillna3D, interp_along_axis
 from RAiDER.constants import Zenith
+#from RAiDER.makePoints import makePoints3D
+from RAiDER.delayFcns import makePoints3D
 
 
 class WeatherModel():
@@ -175,19 +177,21 @@ class WeatherModel():
             # Get the look vectors
             # TODO: lengths and LOS return from GEO2RDR are not correct
             lengths = np.linalg.norm(los, axis=-1)
-            lengths = lengths - np.tile(lengths[...,-1], (lengths.shape[-1],) + (1,1)).swapaxes(0,2)
             max_len = np.nanmax(lengths)
             los_slv = los/lengths[...,np.newaxis]
 
             # Transform each point to ECEF
-            rays_ecef = lla2ecef(self._lats, self._lons, hgts)
+            rays_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis = -1)
   
             # Calculate the integrated delays
             ifWet = getIntFcn(self._xs, self._ys, self._zs, wet)
             ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
 
-            ray, Npts = _ray_helper(lengths, rays_ecef, los_slv, _STEP)
-            ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
+            # Create the rays
+            ray = makePoints3D(max_len, rays_ecef, los_slv, _STEP)
+ 
+            # Transform from ECEF to weather model native projection
+            ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2], always_xy=True)
 
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)

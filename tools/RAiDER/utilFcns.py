@@ -190,17 +190,26 @@ def pickle_dump(o, f):
     with open(f, 'wb') as fil:
         pickle.dump(o, fil)
 
-def writeResultsToNETCDF(lats, lons, array, filename, noDataValue = 0., fmt='NETCDF', proj= None, gt = None):
+def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType = None):
     '''
     write a 1-D array to a NETCDF5 file
     '''
-    #TODO: This is a dummy placeholder until the correct NETCDF file writing is put in place
-    with open(filename, 'w') as f:
-       f.write('Lat, Lon, Delay (m)\n')
-       for lat, lon, val in zip(lats, lons, array):
-           if np.isnan(val):
-              val = noDataValue
-           f.write('{},{},{}\n'.format(lat, lon, val))
+    if delayType is None:
+        delayType = "Zenith"
+
+    import h5py
+    with h5py.File(filename, 'w') as f:
+       f['lat'] = lats
+       f['lon'] = lons
+       f['hgts'] = hgts
+       f['wetDelay'] = wet
+       f['hydroDelay'] = hydro
+       f['wetDelayUnit'] = "m"
+       f['hydroDelayUnit'] = "m"
+       f['hgtsUnit'] = "m"
+       f.attrs['DelayType'] = delayType
+      
+       
     print('Finished writing data to {}'.format(filename))
     
 
@@ -682,8 +691,8 @@ def parse_time(t):
 
 
 def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                outformat, wetFilename, hydroFilename, 
-                proj = None, gt = None, ndv = 0.):
+                wetFilename, hydroFilename = None, zlevels = None, delayType = None,
+                outformat = None, proj = None, gt = None, ndv = 0.):
     '''
     Write the delay numpy arrays to files in the format specified
     '''
@@ -705,12 +714,8 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df['totalDelay'] = wetDelay + hydroDelay
         df.to_csv(wetFilename, index=False)
 
-    elif flag=='netcdf':
-        writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-        writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-
+    elif outformat=='hdf5':
+        writeResultsToHDF5(lats, lons, zlevels, wetDelay, hydroDelay, wetFilename, delayType = delayType)
     else:
         writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)

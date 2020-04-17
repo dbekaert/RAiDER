@@ -13,6 +13,32 @@ import pyproj
 from RAiDER.constants import _STEP
 from RAiDER import makePoints
 
+def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
+    '''
+    Python version of cython code to create the rays needed for ray-tracing
+    Inputs: 
+      max_len: maximum length of the rays
+      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
+               earth-fixed coordinate system
+      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
+      stepSize: Distance between points along the ray-path
+    Output:
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+           line-of-sight vectors, up to the maximum length specified.
+    '''
+    Npts  = int((max_len+stepSize)//stepSize)
+    nrow = Rays_SP.shape[0]
+    ncol = Rays_SP.shape[1]
+    nz = Rays_SP.shape[2]
+    ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
+    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
+
+    for k1 in range(nrow):
+        for k2 in range(ncol):
+            for k2a in range(nz):
+                for k3 in range(3):
+                        ray[k1,k2,k2a,k3,:] = Rays_SP[k1,k2,k2a,k3] + basespace*Rays_SLV[k1,k2,k2a,k3]
+    return ray
 
 def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
     #return _compute_ray(tup[0], tup[1], tup[2], tup[3])
@@ -81,8 +107,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
         wet=f['wet'].value.copy()
         hydro=f['hydro'].value.copy()
 
-    ifWet = getIntFcn2(xs_wm, ys_wm, zs_wm, wet)
-    ifHydro = getIntFcn2(xs_wm, ys_wm, zs_wm, hydro)
+    ifWet = getIntFcn(xs_wm, ys_wm, zs_wm, wet)
+    ifHydro = getIntFcn(xs_wm, ys_wm, zs_wm, hydro)
 
     delays = []
     with h5py.File(pnts_file, 'r') as f:
@@ -112,7 +138,6 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
             delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro, Npts))
-            # import pdb; pdb.set_trace()
             #else:
             #    delays.append(np.array(np.nan, np.nan))
 
