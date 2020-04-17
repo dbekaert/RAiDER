@@ -423,7 +423,9 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-    mkdir('geom')
+
+    os.makedirs(os.path.abspath('geom'), exist_ok=True)
+
 
     writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
     writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
@@ -743,6 +745,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
 
     checkLOS(los, np.prod(lats.shape))
     in_shape = lats.shape
+    
+    # create directory if needed
+    os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
     with h5py.File(outName, 'w') as f:
     #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
