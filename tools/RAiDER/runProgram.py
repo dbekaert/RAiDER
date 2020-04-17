@@ -22,8 +22,13 @@ def read_date(s):
 def parse_args():
     """Parse command line arguments using argparse."""
     import argparse
-    p = argparse.ArgumentParser(
-        description='Calculate tropospheric delay from a weather model')
+    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""
+Calculate tropospheric delay from a weather model. 
+Usage examples: 
+raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
+raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v 
+""")
 
     p.add_argument(
         '--date',dest='dateList',
@@ -136,6 +141,8 @@ If using an HDF5 file, simply provide the filename
     p.add_argument('--download_only', action='store_true',dest='download_only', default = False, help='Download weather model only without processing? Default False')
 
     p.add_argument('--verbose', '-v', action='store_true',dest='verbose', default = False, help='Run in verbose (debug) mode? Default False')
+
+    p.print_usage()
 
     return p.parse_args(), p
 
