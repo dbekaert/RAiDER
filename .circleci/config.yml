@@ -23,6 +23,8 @@ jobs:
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
             conda update -y conda
+            conda create -n myenv python=$PYTHON_VERSION -c conda-forge
+            source activate myenv
             conda env create -f environment.yml
             conda activate RAiDER
             python --version
@@ -32,6 +34,7 @@ jobs:
           name: Install RAiDER and test the install
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
+            source activate myenv
             conda activate RAiDER
             python setup.py build
             python setup.py install
