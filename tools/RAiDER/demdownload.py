@@ -92,6 +92,10 @@ def download_dem(lats, lons, outLoc = None, save_flag= 'new', checkDEM = True,
 
     if save_flag=='new':
         print('Saving DEM to disk')
+        # ensure folders are created
+        folderName = os.sep.join(os.path.split(outRasterName)[:-1])
+        os.makedirs(folderName, exist_ok=True)
+
         # Need to ensure that noData values are consistently handled and 
         # can be passed on to GDAL
         outInterp[np.isnan(outInterp)] = ndv

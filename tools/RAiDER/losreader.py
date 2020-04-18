@@ -14,6 +14,7 @@ import RAiDER.utilFcns as utilFcns
 from RAiDER.constants import _ZREF, Zenith
 
 
+#TODO: It looks like Configurable and ProductManager are not functioning
 class Configurable():
     '''
     Is this needed? 
@@ -38,8 +39,26 @@ class ProductManager(Configurable):
         return self._instance
 
 
-def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
-    import Geo2rdr
+def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
+    '''
+    Converts information from a state vector for a satellite orbit, given in terms of 
+    position and velocity, to line-of-sight information at each (lon,lat, height) 
+    coordinate requested by the user.
+
+    *Note*: 
+    The LOS returned should be a vector pointing from the ground pixel to the sensor, 
+    truncating at the top of the troposphere, in an earth-centered, earth-fixed 
+    coordinate system. 
+    '''
+    from RAiDER import Geo2rdr
+
+    # check the inputs
+    if t.size < 4:
+        raise RuntimeError('state_to_los: At least 4 state vectors are required for orbit interpolation')
+    if t.shape!=x.shape:
+        raise RuntimeError('state_to_los: t and x must be the same size')
+    if lats.shape!=lons.shape:
+        raise RuntimeError('state_to_los: lats and lons must be the same size')
 
     real_shape = lats.shape
     lats = lats.flatten()
@@ -51,17 +70,16 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
     loss = np.zeros((3, len(lats)))
     slant_ranges = np.zeros_like(lats)
-
+ 
     for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
         height_array = np.array(((height,),))
 
         # Geo2rdr is picky about the type of height
         height_array = height_array.astype(np.double)
 
-        geo2rdr_obj.set_geo_coordinate(np.radians(lon),
-                                       np.radians(lat),
-                                       1, 1,
-                                       height_array)
+        lon_start, lat_start = np.radians(360-lon),np.radians(lat)
+        geo2rdr_obj.set_geo_coordinate(lon_start, lat_start,1, 1,height_array)
+
         # compute the radar coordinate for each geo coordinate
         geo2rdr_obj.geo2rdr()
 
@@ -70,15 +88,19 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
         loss[:, i] = los_x, los_y, los_z
 
         # get back the slant ranges
-        slant_range = geo2rdr_obj.get_slant_range()
-        slant_ranges[i] = slant_range
+        #slant_range = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
+        #slant_ranges[i] = slant_range
 
-    los = loss * slant_ranges
+    # We need LOS defined as pointing from the ground pixel to the sensor in ECEF reference frame
+    #sp = np.stack(utilFcns.lla2ecef(lats, lons, heights),axis = -1)
+    #pt_rng = np.linalg.norm(sp,axis=-1)
+    #slant_ranges = slant_ranges - pt_rng
+    los = -loss# * slant_ranges
 
     # Have to think about traversal order here. It's easy, though, since
     # in both orders xs come first, followed by all ys, followed by all
     # zs.
-    return los.reshape((3,) + real_shape)
+    return los.reshape(real_shape + (3,))
 
 
 def read_shelve(filename):
@@ -121,7 +143,7 @@ def read_txt_file(filename):
     with open(filename, 'r') as f:
         for line in f:
             try:
-                t_, x_, y_, z_, vx_, vy_, vz_ = line.split()
+                t_, x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in line.split()]
             except ValueError:
                 raise ValueError(
                         "I need {} to be a 7 column text file, with ".format(filename) + 
@@ -134,8 +156,50 @@ def read_txt_file(filename):
             vx.append(vx_)
             vy.append(vy_)
             vz.append(vz_)
-    return (np.array(t), np.array(x), np.array(y), np.array(z), np.array(vx),
-            np.array(vy), np.array(vz))
+    return [np.array(a) for a in [t,x,y,z, vx,vy, vz]]
+
+
+def read_ESA_Orbit_file(filename, time = None):
+    '''
+    Read orbit data from an orbit file supplied by ESA
+    '''
+    import datetime
+    import xml.etree.ElementTree as ET
+
+    tree = ET.parse(filename)
+    root = tree.getroot()
+    data_block = root[1]
+    numOSV = len(data_block[0])
+
+    t = np.ones(numOSV)
+    x = np.ones(numOSV)
+    y = np.ones(numOSV)
+    z = np.ones(numOSV)
+    vx = np.ones(numOSV)
+    vy = np.ones(numOSV)
+    vz = np.ones(numOSV)
+
+    for i, st in enumerate(data_block[0]):
+        t[i] = (datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f') - datetime.datetime(1970,1,1)).total_seconds()
+        x[i] = float(st[4].text)
+        y[i] = float(st[5].text)
+        z[i] = float(st[6].text)
+        vx[i]= float(st[7].text)
+        vy[i]= float(st[8].text)
+        vz[i]= float(st[9].text)
+
+    # Get the reference time
+    if time is not None:
+       time = (time - datetime.datetime(1970,1,1)).total_seconds()
+       time = time - t[0]
+
+    t = t - t[0]
+
+    #if time is not None:
+    #    mask = np.abs(t - time) < 3600
+    #    t, x, y, z, vx, vy, vz = t[mask], x[mask], y[mask], z[mask], vx[mask], vy[mask], vz[mask] 
+
+    return [t, x, y, z, vx, vy, vz]
 
 
 def read_xml_file(filename):
@@ -167,13 +231,16 @@ def read_xml_file(filename):
     return t, x, y, z, vx, vy, vz
 
 
-def infer_sv(los_file, lats, lons, heights):
-    """Infer the type of file to read, then read an LOS file."""
+def infer_sv(los_file, lats, lons, heights, time = None):
+    """Read an LOS file."""
+    # TODO: Change this to a try/except structure
     _, ext = os.path.splitext(los_file)
     if ext == '.txt':
         svs = read_txt_file(los_file)
     elif ext == '.xml':
         svs = read_xml_file(los_file)
+    elif ext == '.EOF':
+        svs = read_ESA_Orbit_file(los_file, time)
     else:
         # Here's where things get complicated... Either it's a shelve
         # file or the user messed up. For now we'll just try to read it
@@ -185,35 +252,45 @@ def infer_sv(los_file, lats, lons, heights):
 
 
 def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
-    # I'm looking at http://earthdef.caltech.edu/boards/4/topics/327
+    '''
+    Convert incidence and heading to line-of-sight vectors from the ground to the top of 
+    the troposphere. 
+
+    *NOTE*:
+    LOS here is defined in an Earth-centered, earth-referenced 
+    coordinate system as pointing from the ground pixel to the sensor, truncating at the top of
+    the troposphere. 
+    
+    Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
+    '''
     a_0 = incidence
     a_1 = heading
 
     east = utilFcns.sind(a_0)*utilFcns.cosd(a_1 + 90)
     north = utilFcns.sind(a_0)*utilFcns.sind(a_1 + 90)
     up = utilFcns.cosd(a_0)
-
     east, north, up = np.stack((east, north, up))
 
     # Pick reasonable range to top of troposphere if not provided
     if ranges is None:
         ranges = (zref - heights) / up
+    #slant_range = ranges = (zref - heights) / utilFcns.cosd(inc)
 
     # Scale look vectors by range
     east, north, up = np.stack((east, north, up)) * ranges
 
-    x, y, z = utilFcns.enu2ecef(
+    xyz = utilFcns.enu2ecef(
             east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
             lons.flatten(), heights.flatten())
 
-    los = (np.stack((x, y, z), axis=-1) - np.stack(utilFcns.lla2ecef(
-               lats.flatten(), lons.flatten(), heights.flatten()), axis=-1))
+    sp_xyz = utilFcns.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten())
+    los = np.stack(xyz, axis=-1) - np.stack(sp_xyz, axis=-1)
     los = los.reshape(east.shape + (3,))
 
     return los
 
 
-def infer_los(los, lats, lons, heights, zref):
+def infer_los(los, lats, lons, heights, zref, time = None):
     '''
     Helper function to deal with various LOS files supplied
     '''
@@ -221,7 +298,7 @@ def infer_los(los, lats, lons, heights, zref):
     los_type, los_file = los
 
     if los_type == 'sv':
-        LOS = infer_sv(los_file, lats, lons, heights)
+        LOS = infer_sv(los_file, lats, lons, heights, time)
 
     if los_type == 'los':
         from RAiDER.utilFcns import checkShapes
@@ -261,7 +338,7 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
     return zenLookVecs
 
 
-def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
+def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF, time = None):
     '''
     If the input look vectors are specified as Zenith, compute and return the
     look vectors. Otherwise, check that the look_vecs shape makes sense. 
@@ -277,19 +354,9 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lat, lon, hgt, zref = zref)
     else:
-        look_vecs = infer_los(look_vecs, lat, lon, hgt, zref)
+        look_vecs = infer_los(look_vecs, lat, lon, hgt, zref, time)
 
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
 
-    # check size
-    if look_vecs.ndim==1:
-       if len(look_vecs)!=3:
-          raise RuntimeError('look_vecs must be Nx3') 
-    if look_vecs.shape[-1]!=3:
-       raise RuntimeError('look_vecs must be Nx3')
-
     return look_vecs.reshape(in_shape + (3,))
-
-
-

@@ -11,7 +11,34 @@ import numpy as np
 import pyproj
 
 from RAiDER.constants import _STEP
+from RAiDER import makePoints
 
+def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
+    '''
+    Python version of cython code to create the rays needed for ray-tracing
+    Inputs: 
+      max_len: maximum length of the rays
+      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
+               earth-fixed coordinate system
+      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
+      stepSize: Distance between points along the ray-path
+    Output:
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+           line-of-sight vectors, up to the maximum length specified.
+    '''
+    Npts  = int((max_len+stepSize)//stepSize)
+    nrow = Rays_SP.shape[0]
+    ncol = Rays_SP.shape[1]
+    nz = Rays_SP.shape[2]
+    ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
+    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
+
+    for k1 in range(nrow):
+        for k2 in range(ncol):
+            for k2a in range(nz):
+                for k3 in range(3):
+                        ray[k1,k2,k2a,k3,:] = Rays_SP[k1,k2,k2a,k3] + basespace*Rays_SLV[k1,k2,k2a,k3]
+    return ray
 
 def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
     #return _compute_ray(tup[0], tup[1], tup[2], tup[3])
@@ -73,8 +100,15 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     t = Transformer.from_proj(p1,proj_wm) 
 
     # Get the weather model data
-    ifWet = getIntFcn2(wm_file,interpType =interpType)
-    ifHydro = getIntFcn2(wm_file,itype = 'hydro', interpType = interpType)
+    with h5py.File(wm_file, 'r') as f:
+        xs_wm = f['x'].value.copy()
+        ys_wm = f['y'].value.copy()
+        zs_wm = f['z'].value.copy()
+        wet=f['wet'].value.copy()
+        hydro=f['hydro'].value.copy()
+
+    ifWet = getIntFcn(xs_wm, ys_wm, zs_wm, wet)
+    ifHydro = getIntFcn(xs_wm, ys_wm, zs_wm, hydro)
 
     delays = []
     with h5py.File(pnts_file, 'r') as f:
@@ -86,16 +120,16 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     chunkSize = chunkSize//fac
     Nchunks = Nrays//chunkSize + 1
 
-    #TODO: Would like to parallelize this; but on the other hand it might be best to leave as is
-    # and parallelize the higher-up level
     with h5py.File(pnts_file, 'r') as f:
         for k in tqdm(range(Nchunks)):
         #for index in tqdm(range(Nrays)):
             index = np.arange(k*chunkSize, min((k+1)*chunkSize, Nrays))
             
-            ray, Npts = _ray_helper(f['Rays_len'][index], 
-                                    f['Rays_SP'][index,:], 
-                                    f['Rays_SLV'][index,:], stepSize)
+            Npts = [int(L//stepSize + 1) for L in f['Rays_len'][index]]
+#            ray, Npts = _ray_helper(f['Rays_len'][index], 
+#                                    f['Rays_SP'][index,:], 
+#                                    f['Rays_SLV'][index,:], stepSize)
+            ray = makePoints(max_len, f['Rays_SP'][index,:].value.copy(), f['Rays_SLV'][index,:],stepSize)
             #if f['Rays_len'][index] > 1:
             #    ray = _compute_ray2(f['Rays_len'][index], 
             #                            f['Rays_SP'][index,:], 
@@ -104,7 +138,6 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
             delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro, Npts))
-            # import pdb; pdb.set_trace()
             #else:
             #    delays.append(np.array(np.nan, np.nan))
 
@@ -176,46 +209,13 @@ def int_fcn(y, dx, N):
 def int_fcn2(y, dx):
     return 1e-6*dx*np.nansum(y)
 
-def getIntFcn2(weather_file, itype = 'wet', interpType = '3d'):
+def getIntFcn(xs, ys, zs, var):
     '''
     Function to create and return an Interpolator object
     '''
     from scipy.interpolate import RegularGridInterpolator as rgi
-
-#    from RAiDER.interpolator import Interpolator
-#
-#    ifFun = Interpolator()
-    with h5py.File(weather_file, 'r') as f:
-        xs = f['x'].value.copy()
-        ys = f['y'].value.copy()
-        zs = f['z'].value.copy()
-#        ifFun.setPoints(xs, ys, zs)
-#
-        if itype == 'wet':
-#            ifFun.getInterpFcns(f['wet'].value.copy(), interpType = interpType)
-             ifFun = rgi((ys.flatten(),xs.flatten(), zs.flatten()), f['wet'].value.copy(),bounds_error=False, fill_value = np.nan)
-        elif itype == 'hydro':
-#            ifFun.getInterpFcns(f['hydro'].value.copy(), interpType = interpType)
-             ifFun = rgi((ys.flatten(),xs.flatten(), zs.flatten()), f['hydro'].value.copy(),bounds_error=False, fill_value = np.nan)
+    ifFun = rgi((ys.flatten(),xs.flatten(), zs.flatten()), var,bounds_error=False, fill_value = np.nan)
     return ifFun
-
-def getIntFcn(weather_file, itype = 'wet', interpType = '3d'):
-    '''
-    Function to create and return an Interpolator object
-    '''
-    from interp3d import interp_3d
-
-    with h5py.File(weather_file, 'r') as f:
-        xs = f['x'].value.copy()
-        ys = f['y'].value.copy()
-        zs = f['z'].value.copy()
-
-        if itype == 'wet':
-            ifFun = interp_3d.Interp3D(f['wet'].value.copy(), ys,xs,zs)
-        elif itype == 'hydro':
-            ifFun = interp_3d.Interp3D(f['hydro'].value.copy(), ys,xs,zs)
-    return ifFun
-
 
 def getProjFromWMFile(wm_file):
     '''
@@ -234,7 +234,7 @@ def _transform(ray, oldProj, newProj):
     newRay = np.stack(
                 pyproj.transform(
                       oldProj, newProj, ray[:,0], ray[:,1], ray[:,2])
-                      ,axis = -1)
+                      ,axis = -1, always_xy = True)
     return newRay
 
 

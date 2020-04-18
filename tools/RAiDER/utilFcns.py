@@ -33,7 +33,7 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
     import pyproj
-    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt)
+    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt, always_xy = True)
     
 
 def lla2ecef(lat, lon, height):
@@ -41,14 +41,14 @@ def lla2ecef(lat, lon, height):
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
 
-    return pyproj.transform(lla, ecef, lon, lat, height)
+    return pyproj.transform(lla, ecef, lon, lat, height, always_xy=True)
 
 
 def ecef2lla(x, y, z):
     import pyproj
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
-    lon, lat, height = pyproj.transform(ecef, lla, x, y, z)
+    lon, lat, height = pyproj.transform(ecef, lla, x, y, z, always_xy = True)
     return lat, lon, height
 
 
@@ -78,7 +78,7 @@ def lla2lambert(lat, lon, height=None):
 
     if height is None:
         return lla(lat, lon, errcheck=True)
-    return pyproj.transform(lla, lambert, lat, lon, height)
+    return pyproj.transform(lla, lambert, lat, lon, height, always_xy = True)
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
@@ -190,17 +190,26 @@ def pickle_dump(o, f):
     with open(f, 'wb') as fil:
         pickle.dump(o, fil)
 
-def writeResultsToNETCDF(lats, lons, array, filename, noDataValue = 0., fmt='NETCDF', proj= None, gt = None):
+def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType = None):
     '''
     write a 1-D array to a NETCDF5 file
     '''
-    #TODO: This is a dummy placeholder until the correct NETCDF file writing is put in place
-    with open(filename, 'w') as f:
-       f.write('Lat, Lon, Delay (m)\n')
-       for lat, lon, val in zip(lats, lons, array):
-           if np.isnan(val):
-              val = noDataValue
-           f.write('{},{},{}\n'.format(lat, lon, val))
+    if delayType is None:
+        delayType = "Zenith"
+
+    import h5py
+    with h5py.File(filename, 'w') as f:
+       f['lat'] = lats
+       f['lon'] = lons
+       f['hgts'] = hgts
+       f['wetDelay'] = wet
+       f['hydroDelay'] = hydro
+       f['wetDelayUnit'] = "m"
+       f['hydroDelayUnit'] = "m"
+       f['hgtsUnit'] = "m"
+       f.attrs['DelayType'] = delayType
+      
+       
     print('Finished writing data to {}'.format(filename))
     
 
@@ -423,7 +432,9 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-    mkdir('geom')
+
+    os.makedirs(os.path.abspath('geom'), exist_ok=True)
+
 
     writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
     writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
@@ -578,12 +589,8 @@ def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
     chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
               for sub_arr in sub_arrs]
 
-    pool = mp.Pool()
-    individual_results = pool.map(unpacking_apply_along_axis, chunks)
-    # Freeing the workers:
-    pool.close()
-    pool.join()
-#    individual_results = map(unpacking_apply_along_axis, chunks)
+    with mp.Pool() as pool:
+        individual_results = pool.map(unpacking_apply_along_axis, chunks)
 
     conc_results = np.concatenate(individual_results)
     ordered_results = conc_results.swapaxes(effective_axis, axis)
@@ -684,8 +691,8 @@ def parse_time(t):
 
 
 def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                outformat, wetFilename, hydroFilename, 
-                proj = None, gt = None, ndv = 0.):
+                wetFilename, hydroFilename = None, zlevels = None, delayType = None,
+                outformat = None, proj = None, gt = None, ndv = 0.):
     '''
     Write the delay numpy arrays to files in the format specified
     '''
@@ -707,12 +714,8 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df['totalDelay'] = wetDelay + hydroDelay
         df.to_csv(wetFilename, index=False)
 
-    elif flag=='netcdf':
-        writeResultsToNETCDF(lats, lons, wetDelay, wetFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-        writeResultsToNETCDF(lats, lons, hydroDelay, hydroFilename, noDataValue = ndv,
-                       fmt=outformat, proj=proj, gt=gt)
-
+    elif outformat=='hdf5':
+        writeResultsToHDF5(lats, lons, zlevels, wetDelay, hydroDelay, wetFilename, delayType = delayType)
     else:
         writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
                        fmt = outformat, proj = proj, gt = gt)
@@ -734,3 +737,38 @@ def getTimeFromFile(filename):
     except:
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
+
+def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
+    '''
+    Write query points to an HDF5 file for storage and access
+    '''
+    import datetime
+    import h5py
+    import os
+
+    from RAiDER.utilFcns import checkLOS
+
+    checkLOS(los, np.prod(lats.shape))
+    in_shape = lats.shape
+    
+    # create directory if needed
+    os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
+
+    with h5py.File(outName, 'w') as f:
+    #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
+        if chunkSize is None:
+            x = f.create_dataset('lon', data = lons, chunks = True)
+        else:
+            x = f.create_dataset('lon', data = lons, chunks = chunkSize)
+        y = f.create_dataset('lat', data = lats, chunks = x.chunks)
+        z = f.create_dataset('hgt', data = hgts, chunks = x.chunks)
+        los = f.create_dataset('LOS', data= los, chunks = x.chunks + (3,))
+        x.attrs['Shape'] = in_shape
+        y.attrs['Shape'] = in_shape
+        z.attrs['Shape'] = in_shape
+        f.attrs['ChunkSize'] = chunkSize
+
+        start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
+        lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
+        lengths.attrs['NumRays'] = len(x)
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)

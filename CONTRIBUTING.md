@@ -1,6 +1,6 @@
 # Contributing Guidelines #
 
-This document is inspired by similar instructions from PySAR, ISCE, gdal and jupyterhub. 
+This document is inspired by similar instructions from MintPY, ISCE, gdal and jupyterhub. 
 These are several ways to contribute to the RAiDER framework:
 
 * Submitting bug reports and feature requests in RAiDER
@@ -8,7 +8,7 @@ These are several ways to contribute to the RAiDER framework:
 * Fixing typos, code and improving documentation
 * Writing code for everyone to use
 
-If you get stuck at any point you can create an [issue on GitHub](https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER/issues).
+If you get stuck at any point you can create an [issue on GitHub](https://github.com/dbekaert/RAiDER/issues).
 
 For more information on contributing to open source projects, [GitHub's own guide](https://guides.github.com/activities/contributing-to-open-source/)
 is a great starting point if you are new to version control.
@@ -18,20 +18,20 @@ is a great starting point if you are new to version control.
 
 ### Setting up the development environment ###
 
-Fork InSAR-tools/RAiDER from GitHub UI, and then
+Fork RAiDER from GitHub UI, and then
 
 ```
-git clone https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER.git
+git clone https://github.com/dbekaert/RAiDER.git
 cd RAiDER
 git remote add my_user_name https://github.com/my_user_name/RAiDER.git
 ```
 
 ### Setting up the documentation environment ###
 
-Fork InSAR-tools/RAiDER-docs from GitHub UI, and then
+Fork RAiDER-docs from GitHub UI, and then
 
 ```
-git clone https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER-docs.git
+git clone https://github.com/dbekaert/RAiDER-docs.git
 cd RAiDER-docs
 git remote add my_user_name https://github.com/my_user_name/RAiDER-docs.git
 ```
@@ -99,4 +99,4 @@ git push -f origin my_new_feature_branch
 Once a pull request is issued it will be reviewed by multiple members before it will be approved and integrated into the main.
 
 ### Things you should NOT do
-(For anyone with push rights to RAiDER or RAiDER-docs) Never modify a commit or the history of anything that has been committed to https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER and https://github-fn.jpl.nasa.gov/InSAR-tools/RAiDER-docs.
+(For anyone with push rights to RAiDER or RAiDER-docs) Never modify a commit or the history of anything that has been committed to https://github.com/dbekaert/RAiDER and https://github.com/dbekaert/RAiDER-docs.
