@@ -123,7 +123,7 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = Fals
         return wet, hydro
 
 
-def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
+def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
          outformat, time, out, download_only, verbose,wetFilename, hydroFilename):
     """
     raiderDelay main function.
@@ -153,7 +153,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
-    wm_filename = '{}_{}.h5'.format(weather_model['name'], time)
+    wm_filename = '{}_{}_{}N_{}N_{}E_{}E.h5'.format(weather_model['name'], time, *ll_bounds)
     weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(weather_model, wmLoc, out, lats=lats,  
@@ -162,6 +162,7 @@ def tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
             weather_model.write2HDF5(weather_model_file)
         except:
             pass
+
         del weather_model
     else:
         print('Weather model already exists, please remove it ("{}") if you want to '\

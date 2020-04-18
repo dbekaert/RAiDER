@@ -44,13 +44,18 @@ def checkArgs(args, p):
         flag = None
 
     if args.area is not None:
-        lat, lon, latproj, lonproj = readLL(*args.area)
+        lat, lon, latproj, lonproj, bounds = readLL(*args.area)
     elif args.bounding_box is not None:
-        lat, lon, latproj, lonproj = readLL(*args.bounding_box)
+        lat, lon, latproj, lonproj, bounds = readLL(*args.bounding_box)
     elif args.station_file is not None:
-        lat, lon, latproj, lonproj = RAiDER.llreader.readLL(args.station_file)
+        lat, lon, latproj, lonproj, bounds = readLL(args.station_file)
+    elif args.files is None:
+        print("""I cannot read the lat/lon data from the supplied files because 
+this option has not yet been implemented.""")
+        raise NotImplementedError()
     else:
-        lat = lon = None
+        raise RuntimeError('You must specify an area of interest')
+
     from numpy import min, max
     if (min(lat) < -90) | (max(lat)>90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
@@ -109,7 +114,6 @@ def checkArgs(args, p):
     else:
        wmLoc = os.path.join(args.out, 'weather_files')
 
-
     wetNames, hydroNames = [], []
     for time in datetimeList:
         if flag == 'station_file':
@@ -138,5 +142,5 @@ def checkArgs(args, p):
     else:
         heights = ('download', 'geom/warpedDEM.dem')
 
-    return los, lat, lon, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames
 
+    return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames

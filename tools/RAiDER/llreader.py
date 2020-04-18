@@ -50,8 +50,9 @@ def readLL(*args):
         #raise RuntimeError('readLL: unknown flag')
 
     [lats, lons] = enforceNumpyArray(lats, lons)
+    bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
 
-    return lats, lons, latproj, lonproj
+    return lats, lons, latproj, lonproj, bounds 
 
 
 def getHeights(lats, lons,heights, demFlag = 'dem', useWeatherNodes = False):

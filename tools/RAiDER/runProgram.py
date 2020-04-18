@@ -30,7 +30,17 @@ raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --z
 raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v 
 """)
 
-    p.add_argument(
+    p = argparse.ArgumentParser(
+          formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""
+Calculate tropospheric delay from a weather model. 
+Usage examples: 
+raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
+raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v 
+""")
+
+    datetime = p.add_argument_group('Datetime')
+    datetime.add_argument(
         '--date',dest='dateList',
         help="""Fetch weather model data for a given date or date range.
 Can be a single date or a comma-separated list of two dates (earlier, later) in the ISO 8601 format
@@ -39,7 +49,7 @@ Example accepted formats:
    YYYYMMDD,YYYYMMDD
 """,
         type=read_date, required=True)
-    p.add_argument(
+    datetime.add_argument(
         '--time', dest = 'time',
         help='''Fetch weather model data at this time of day. 
 Example accepted formats: 
@@ -101,7 +111,8 @@ model grid nodes will be used with the specified height levels.
         nargs='+', type=float)
 
     # Weather model
-    p.add_argument(
+    weather = p.add_argument_group("Weather model")
+    weather.add_argument(
         '--model',
         help="""Weather model product to use. 
 Options:
@@ -113,14 +124,14 @@ Options:
     HDF5 (provided as an HDF5 file, see documentation for details)
 """,
         default='ERA-5')
-    p.add_argument(
+    weather.add_argument(
         '--files', nargs='+', type=str,
         help="""
 If using WRF model files, list the OUT file and PLEV file separated by a space
 If using an HDF5 file, simply provide the filename
 """, default=None, metavar="FILES")
 
-    p.add_argument(
+    weather.add_argument(
         '--weatherModelFileLocation', '-w', dest='wmLoc',
         help='Directory location of/to write weather model files',
         default='weather_files')
@@ -132,17 +143,16 @@ If using an HDF5 file, simply provide the filename
               '(default: %(default)s)'),
         type=int, default=_ZREF)
 
-    p.add_argument(
+    misc = p.add_argument_group("Run parameters")
+    misc.add_argument(
         '--outformat', help='Specify GDAL-compatible format if surface delays are requested.',
         default=None)
 
-    p.add_argument('--out', help='Output file directory', default='.')
+    misc.add_argument('--out', help='Output file directory', default='.')
 
-    p.add_argument('--download_only', action='store_true',dest='download_only', default = False, help='Download weather model only without processing? Default False')
+    misc.add_argument('--download_only', action='store_true',dest='download_only', default = False, help='Download weather model only without processing? Default False')
 
-    p.add_argument('--verbose', '-v', action='store_true',dest='verbose', default = False, help='Run in verbose (debug) mode? Default False')
-
-    p.print_usage()
+    misc.add_argument('--verbose', '-v', action='store_true',dest='verbose', default = False, help='Run in verbose (debug) mode? Default False')
 
     return p.parse_args(), p
 
@@ -158,15 +168,16 @@ def parseCMD():
     args, p = parse_args()
 
     # Argument checking
-    los, lats, lons, heights, flag, weather_model, wmLoc, zref, outformat, \
+    los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
          times, out, download_only, verbose, \
          wetNames, hydroNames= checkArgs(args, p)
 
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
         try:
-            (_,_) = tropo_delay(los, lats, lons, heights, flag, weather_model, wmLoc, zref,
+            (_,_) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                outformat, t, out, download_only, verbose, wfn, hfn)
+
         except RuntimeError as e:
             print('Date {} failed'.format(t))
             print(e)
