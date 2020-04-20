@@ -195,16 +195,25 @@ def interp_along_axis(oldCoord, newCoord, data, axis = 2, pad = False):
     '''
     Interpolate an array of 3-D data along one axis. This function 
     assumes that the x-xoordinate increases monotonically.
-
-    Jeremy Maurer
     '''
-    stackedData = np.concatenate([oldCoord, data, newCoord], axis = axis)
-    try:
-       out = parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
-    except: 
-       out = np.apply_along_axis(interpVector, axis=axis,arr=stackedData, Nx=oldCoord.shape[axis])
+    if oldCoord.ndim > 1:
+        stackedData = np.concatenate([oldCoord, data, newCoord], axis = axis)
+        try:
+           out = parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
+        except: 
+           out = np.apply_along_axis(interpVector, axis=axis,arr=stackedData, Nx=oldCoord.shape[axis])
+    else:
+        out = np.apply_along_axis(interpV, axis=axis, arr=data, old_x = oldCoord, new_x = newCoord, 
+                              left = np.nan, right= np.nan)
     
     return out
+
+
+def interpV(y, old_x, new_x, left= None, right = None, period = None):
+    '''
+    Rearrange np.interp's arguments
+    '''
+    return np.interp(new_x, old_x, y, left= left, right = right, period = period)
 
 
 def interpVector(vec, Nx): 
@@ -213,11 +222,11 @@ def interpVector(vec, Nx):
     x, the original y, and the new x, in that order. Nx tells the 
     number of original x-points. 
     '''
-    from scipy import interpolate 
+    from scipy.interpolate import interp1d
     x = vec[:Nx] 
     y = vec[Nx:2*Nx] 
     xnew = vec[2*Nx:] 
-    f = interpolate.interp1d(x, y, bounds_error=False) 
+    f = interp1d(x, y, bounds_error=False) 
     return f(xnew)
 
 

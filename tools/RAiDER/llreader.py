@@ -50,39 +50,44 @@ def readLL(*args):
         #raise RuntimeError('readLL: unknown flag')
 
     [lats, lons] = enforceNumpyArray(lats, lons)
+    bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
 
-    return lats, lons, latproj, lonproj
+    return lats, lons, latproj, lonproj, bounds 
 
 
-def getHeights(lats, lons,heights, demFlag = 'dem'):
+def getHeights(lats, lons,heights, demFlag = 'dem', useWeatherNodes = False):
     '''
     Fcn to return heights from a DEM, either one that already exists
     or will download one if needed.
     '''
-    height_type, demFilename = heights
+    height_type, height_data = heights
+    in_shape = lats.shape
 
     if height_type == 'dem':
       try:
-          hts = gdal_open(demFilename)
+          hts = gdal_open(height_data)
       except:
-          print('WARNING: File {} could not be opened. \n'.format(demFilename))
+          print('WARNING: File {} could not be opened; requires GDAL-readable file. \n'.format(height_data))
           print('Proceeding with DEM download')
           height_type = 'download'
 
     elif height_type == 'lvs':
-        hts = demFilename
-        latlist, lonlist, hgtlist = [], [], []
-        for ht in hts:
-            latlist.append(lats.flatten())
-            lonlist.append(lons.flatten())
-            hgtlist.append(np.array([ht]*len(lats.flatten())))
-        lats = np.array(latlist)
-        lons = np.array(lonlist)
-        hts = np.array(hgtlist)
+        if useWeatherNodes:
+            hts = height_data
+        else:
+            hts = height_data
+            latlist, lonlist, hgtlist = [], [], []
+            for ht in hts:
+                latlist.append(lats.flatten())
+                lonlist.append(lons.flatten())
+                hgtlist.append(np.array([ht]*len(lats.flatten())))
+            lats = np.array(latlist).reshape(in_shape + (len(height_data),))
+            lons = np.array(lonlist).reshape(in_shape + (len(height_data),))
+            hts = np.array(hgtlist).reshape(in_shape + (len(height_data),))
 
     elif height_type == 'merge':
         import pandas as pd
-        for f in demFilename:
+        for f in height_data:
             data = pd.read_csv(f)
             lats = data['Lat'].values
             lons = data['Lon'].values
@@ -91,7 +96,7 @@ def getHeights(lats, lons,heights, demFlag = 'dem'):
         height_type = 'download'
         
     if height_type == 'download':
-        hts = download_dem(lats, lons, outName = os.path.abspath(demFilename))
+        hts = download_dem(lats, lons, outName = os.path.abspath(height_data))
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 

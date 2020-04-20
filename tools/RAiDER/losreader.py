@@ -71,7 +71,6 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
     loss = np.zeros((3, len(lats)))
     slant_ranges = np.zeros_like(lats)
  
-
     for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
         height_array = np.array(((height,),))
 
@@ -89,11 +88,14 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
         loss[:, i] = los_x, los_y, los_z
 
         # get back the slant ranges
-        slant_range = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
-        slant_ranges[i] = slant_range
+        #slant_range = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
+        #slant_ranges[i] = slant_range
 
-    los = loss * slant_ranges
-    #los = loss #<- just keep in unit vector form?
+    # We need LOS defined as pointing from the ground pixel to the sensor in ECEF reference frame
+    #sp = np.stack(utilFcns.lla2ecef(lats, lons, heights),axis = -1)
+    #pt_rng = np.linalg.norm(sp,axis=-1)
+    #slant_ranges = slant_ranges - pt_rng
+    los = -loss# * slant_ranges
 
     # Have to think about traversal order here. It's easy, though, since
     # in both orders xs come first, followed by all ys, followed by all
@@ -157,7 +159,7 @@ def read_txt_file(filename):
     return [np.array(a) for a in [t,x,y,z, vx,vy, vz]]
 
 
-def read_ESA_Orbit_file(filename):
+def read_ESA_Orbit_file(filename, time = None):
     '''
     Read orbit data from an orbit file supplied by ESA
     '''
@@ -186,41 +188,19 @@ def read_ESA_Orbit_file(filename):
         vy[i]= float(st[8].text)
         vz[i]= float(st[9].text)
 
+    # Get the reference time
+    if time is not None:
+       time = (time - datetime.datetime(1970,1,1)).total_seconds()
+       time = time - t[0]
+
     t = t - t[0]
 
-    return [t, x, y, z, vx, vy, vz]
-
-
-def read_ESA_Orbit_file(filename):
-    '''
-    Read orbit data from an orbit file supplied by ESA
-    '''
-    import datetime
-    import xml.etree.ElementTree as ET
-
-    tree = ET.parse(filename)
-    root = tree.getroot()
-    data_block = root[1]
-    numOSV = len(data_block[0])
-
-    t = np.ones(numOSV)
-    x = np.ones(numOSV)
-    y = np.ones(numOSV)
-    z = np.ones(numOSV)
-    vx = np.ones(numOSV)
-    vy = np.ones(numOSV)
-    vz = np.ones(numOSV)
-
-    for i, st in enumerate(data_block[0]):
-        t[i] = dt2float(datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
-        x[i] = float(st[4].text)
-        y[i] = float(st[5].text)
-        z[i] = float(st[6].text)
-        vx[i]= float(st[7].text)
-        vy[i]= float(st[8].text)
-        vz[i]= float(st[9].text)
+    #if time is not None:
+    #    mask = np.abs(t - time) < 3600
+    #    t, x, y, z, vx, vy, vz = t[mask], x[mask], y[mask], z[mask], vx[mask], vy[mask], vz[mask] 
 
     return [t, x, y, z, vx, vy, vz]
+
 
 def read_xml_file(filename):
 
@@ -251,7 +231,7 @@ def read_xml_file(filename):
     return t, x, y, z, vx, vy, vz
 
 
-def infer_sv(los_file, lats, lons, heights):
+def infer_sv(los_file, lats, lons, heights, time = None):
     """Read an LOS file."""
     # TODO: Change this to a try/except structure
     _, ext = os.path.splitext(los_file)
@@ -260,7 +240,7 @@ def infer_sv(los_file, lats, lons, heights):
     elif ext == '.xml':
         svs = read_xml_file(los_file)
     elif ext == '.EOF':
-        svs = read_ESA_Orbit_file(los_file)
+        svs = read_ESA_Orbit_file(los_file, time)
     else:
         # Here's where things get complicated... Either it's a shelve
         # file or the user messed up. For now we'll just try to read it
@@ -310,7 +290,7 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     return los
 
 
-def infer_los(los, lats, lons, heights, zref):
+def infer_los(los, lats, lons, heights, zref, time = None):
     '''
     Helper function to deal with various LOS files supplied
     '''
@@ -318,7 +298,7 @@ def infer_los(los, lats, lons, heights, zref):
     los_type, los_file = los
 
     if los_type == 'sv':
-        LOS = infer_sv(los_file, lats, lons, heights)
+        LOS = infer_sv(los_file, lats, lons, heights, time)
 
     if los_type == 'los':
         from RAiDER.utilFcns import checkShapes
@@ -358,7 +338,7 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
     return zenLookVecs
 
 
-def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
+def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF, time = None):
     '''
     If the input look vectors are specified as Zenith, compute and return the
     look vectors. Otherwise, check that the look_vecs shape makes sense. 
@@ -374,36 +354,9 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF):
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lat, lon, hgt, zref = zref)
     else:
-        look_vecs = infer_los(look_vecs, lat, lon, hgt, zref)
+        look_vecs = infer_los(look_vecs, lat, lon, hgt, zref, time)
 
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
 
     return look_vecs.reshape(in_shape + (3,))
-
-
-
-def dt2float(date):
-    import datetime as dt
-    import time
-
-    def sinceEpoch(date): # returns seconds since epoch
-        return time.mktime(date.timetuple())
-    s = sinceEpoch
-
-    # check that the object is a datetime
-    try:
-        year = date.year
-    except AttributeError:
-        date = numpyDT64ToDatetime(date)
-        year = date.year
-
-    startOfThisYear = dt.datetime(year=year, month=1, day=1)
-    startOfNextYear = dt.datetime(year=year+1, month=1, day=1)
-
-    yearElapsed = s(date) - s(startOfThisYear)
-    yearDuration = s(startOfNextYear) - s(startOfThisYear)
-    fraction = yearElapsed/yearDuration
-    date_frac = date.year + fraction
-
-    return date_frac
