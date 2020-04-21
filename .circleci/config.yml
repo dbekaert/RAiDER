@@ -42,4 +42,11 @@ jobs:
             python -c "import RAiDER; from RAiDER.delay import computeDelay, interpolateDelay; print(computeDelay)"
             raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
             raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v --heightlvs 0 100 200
+      - run:
+          name: Run unit tests
+          command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
+            source activate myenv
+            conda activate RAiDER
+            python -m unittest
             
