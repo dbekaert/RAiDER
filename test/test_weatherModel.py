@@ -13,7 +13,6 @@ from RAiDER.utilFcns import modelName2Module, writeLL
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.constants import Zenith
 
-@unittest.skip('skipping full model test until all other unit tests pass')
 class WMTests(unittest.TestCase):
 
     time = datetime.datetime(2018,1,1,2,0,0)
