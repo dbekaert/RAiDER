@@ -13,7 +13,6 @@ from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import pickle_load, modelName2Module
 
-@unittest.skip('skipping full model test until all other unit tests pass')
 class TimeTests(unittest.TestCase):
 
     #########################################
