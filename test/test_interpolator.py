@@ -7,11 +7,6 @@ import os
 import pandas as pd
 import unittest
 
-import RAiDER.llreader
-import RAiDER.delay
-import RAiDER.delayFcns
-
-from RAiDER.constants import Zenith
 
 class FcnTests(unittest.TestCase):
 
