@@ -66,18 +66,22 @@ class FcnTests(unittest.TestCase):
         out =interpVector(self.tv1, 6)
         self.assertTrue(np.allclose(out, self.truev1))
     def test_interp3D_1(self):
-        f = RAiDER.interpolator._interp3D(self.x, self.y, self.z, self.values, self.zlevels)
+        from RAiDER.interpolator import _interp3D
+        f = _interp3D(self.x, self.y, self.z, self.values, self.zlevels)
         self.assertTrue((np.abs(f(self.testPoint1) - self.trueValue1) < 0.01)[0])
     def test_interp3D_2(self):
-        f = RAiDER.interpolator._interp3D(self.x, self.y, self.z, self.values, self.zlevels)
+        from RAiDER.interpolator import _interp3D
+        f = _interp3D(self.x, self.y, self.z, self.values, self.zlevels)
         self.assertTrue((np.abs(f(self.testPoint2) - self.trueValue2) < 0.01)[0])
     def test_fillna3D(self):
-        final = RAiDER.interpolator.fillna3D(self.valuesWNans)
+        from RAiDER.interpolator import fillna3D
+        final = fillna3D(self.valuesWNans)
         denom = np.abs(self.values[self.nanIndex])
         error = np.abs(final[self.nanIndex] - self.values[self.nanIndex])/np.where(denom==0, 1, denom)
         self.assertTrue(np.mean(error)<0.1)
     def test_interp_along_axis(self):
-        out = RAiDER.interpolator.interp_along_axis(self.z2, self.newz, self.zvals, axis = 2)
+        from RAiDER.interpolator import interp_along_axis
+        out = interp_along_axis(self.z2, self.newz, self.zvals, axis = 2)
         self.assertTrue(np.allclose(self.corz, out))
   
 
