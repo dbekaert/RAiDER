@@ -62,7 +62,8 @@ class FcnTests(unittest.TestCase):
 
     # test error messaging
     def test_interpVector(self):
-        out =RAiDER.interpolator.interpVector(self.tv1, 6)
+        from RAiDER.interpolator import interpVector
+        out =interpVector(self.tv1, 6)
         self.assertTrue(np.allclose(out, self.truev1))
     def test_interp3D_1(self):
         f = RAiDER.interpolator._interp3D(self.x, self.y, self.z, self.values, self.zlevels)
