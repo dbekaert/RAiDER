@@ -50,5 +50,5 @@ jobs:
             source activate myenv
             conda activate RAiDER
             cd test
-            python -m unittest test_interpolator
+            python -m unittest test_interpolator test_utilFcns
             
