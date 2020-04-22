@@ -53,6 +53,8 @@ class FcnTests(unittest.TestCase):
     def test_gdal_open(self):
         from RAiDER.utilFcns import gdal_open
         out = gdal_open(self.fname1, False)
+        print(out.shape)
+        print(self.shape1)
         self.assertTrue(np.allclose(out.shape, self.shape1))
 
     def test_writeResultsToHDF5(self):
