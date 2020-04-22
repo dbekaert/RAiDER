@@ -60,8 +60,8 @@ class FcnTests(unittest.TestCase):
         writeResultsToHDF5(self.lats, self.lons, self.hgts, self.wet, self.hydro, self.filename)
         import h5py
         with h5py.File(self.filename, 'r') as f:
-            lats = f['lat']
-            hydro = f['hydroDelay']
+            lats = np.array(f['lat'])
+            hydro = np.array(f['hydroDelay'])
             delayType = f.attrs['DelayType']
         self.assertTrue(np.allclose(lats, self.lats))
         self.assertTrue(np.allclose(hydro, self.hydro))
