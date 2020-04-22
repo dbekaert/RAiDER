@@ -24,7 +24,7 @@ class FcnTests(unittest.TestCase):
     
     # test gdal_open
     fname1 = '../test/test_geom/lat.rdr'
-    shape1 = (226,45)
+    shape1 = (45,226)
     
     # test writeResultsToHDF5
     lats = np.array([15.0, 15.5, 16.0, 16.5, 17.5, -40, 60, 90])
