@@ -59,7 +59,7 @@ class FcnTests(unittest.TestCase):
         from RAiDER.utilFcns import writeResultsToHDF5
         writeResultsToHDF5(self.lats, self.lons, self.hgts, self.wet, self.hydro, self.filename)
         import h5py
-        with h5py.File(filename, 'r') as f:
+        with h5py.File(self.filename, 'r') as f:
             lats = f['lat']
             hydro = f['hydroDelay']
             delayType = f.attrs['DelayType']
