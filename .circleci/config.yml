@@ -49,5 +49,5 @@ jobs:
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate myenv
             conda activate RAiDER
-            python -m unittest test.test_interpolator.FcnTests
+            python -m unittest -q test_interpolator.FcnTests
             
