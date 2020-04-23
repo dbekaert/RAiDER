@@ -32,7 +32,11 @@ class FcnTests(unittest.TestCase):
     hgts = np.array([0., 1000., 10000., 0., 0., 0., 0., 0.])
     wet = np.zeros(lats.shape)
     hydro = np.ones(lats.shape)
-    filename = 'dummy.hdf5'
+    filename1 = 'dummy.hdf5'
+    
+    # test writeArrayToRaster
+    array = np.transpose(np.array([np.arange(0,10)]))*np.arange(0,10)
+    filename2 = 'dummy.out'
 
     # test error messaging
     def test_sind(self):
@@ -53,21 +57,29 @@ class FcnTests(unittest.TestCase):
     def test_gdal_open(self):
         from RAiDER.utilFcns import gdal_open
         out = gdal_open(self.fname1, False)
-        print(out.shape)
-        print(self.shape1)
         self.assertTrue(np.allclose(out.shape, self.shape1))
 
     def test_writeResultsToHDF5(self):
         from RAiDER.utilFcns import writeResultsToHDF5
-        writeResultsToHDF5(self.lats, self.lons, self.hgts, self.wet, self.hydro, self.filename)
+        writeResultsToHDF5(self.lats, self.lons, self.hgts, self.wet, self.hydro, self.filename1)
         import h5py
-        with h5py.File(self.filename, 'r') as f:
+        with h5py.File(self.filename1, 'r') as f:
             lats = np.array(f['lat'])
             hydro = np.array(f['hydroDelay'])
             delayType = f.attrs['DelayType']
         self.assertTrue(np.allclose(lats, self.lats))
         self.assertTrue(np.allclose(hydro, self.hydro))
         self.assertEqual(delayType, 'Zenith')
+
+    def test_writeArrayToRaster(self):
+        from RAiDER.utilFcns import writeArrayToRaster
+        writeArrayToRaster(self.array, self.filename2)
+        with gdal.Open(self.filename2, gdal.GA_ReadOnly) as ds:
+            b = ds.GetRasterBand(1)
+            d = b.ReadAsArray()
+            nodata = b.GetNoDataValue()
+            self.assertTrue(np.allclose(d, self.array))
+            self.assertEqual(nodata, 0)
 
   
 
