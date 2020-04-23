@@ -74,12 +74,12 @@ class FcnTests(unittest.TestCase):
     def test_writeArrayToRaster(self):
         from RAiDER.utilFcns import writeArrayToRaster
         writeArrayToRaster(self.array, self.filename2)
-        with gdal.Open(self.filename2, gdal.GA_ReadOnly) as ds:
-            b = ds.GetRasterBand(1)
-            d = b.ReadAsArray()
-            nodata = b.GetNoDataValue()
-            self.assertTrue(np.allclose(d, self.array))
-            self.assertEqual(nodata, 0)
+        ds = gdal.Open(self.filename2, gdal.GA_ReadOnly)
+        b = ds.GetRasterBand(1)
+        d = b.ReadAsArray()
+        nodata = b.GetNoDataValue()
+        self.assertTrue(np.allclose(d, self.array))
+        self.assertEqual(nodata, 0)
 
   
 
