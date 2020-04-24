@@ -22,6 +22,7 @@ class ECMWF(WeatherModel):
         self._lon_res = 0.2
         self._lat_res = 0.2
 
+
     def load_weather(self, filename):
         '''
         Consistent class method to be implemented across all weather model types. 
@@ -124,7 +125,7 @@ class ECMWF(WeatherModel):
         server.retrieve({
             "class": self._classname,  # ERA-Interim
             'dataset': self._dataset,
-            "expver": "1",
+            "expver": "{}".format(self._expver),
             # They warn me against all, but it works well
             "levelist": 'all',
             "levtype": "ml",  # Model levels

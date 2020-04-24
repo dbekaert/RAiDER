@@ -55,7 +55,7 @@ def readLL(*args):
     return lats, lons, latproj, lonproj, bounds 
 
 
-def getHeights(lats, lons,heights, demFlag = 'dem', useWeatherNodes = False):
+def getHeights(lats, lons,heights, useWeatherNodes = False):
     '''
     Fcn to return heights from a DEM, either one that already exists
     or will download one if needed.
@@ -72,9 +72,9 @@ def getHeights(lats, lons,heights, demFlag = 'dem', useWeatherNodes = False):
           height_type = 'download'
 
     elif height_type == 'lvs':
-        if useWeatherNodes:
+        if height_data is not None and useWeatherNodes:
             hts = height_data
-        else:
+        elif height_data is not None:
             hts = height_data
             latlist, lonlist, hgtlist = [], [], []
             for ht in hts:
@@ -84,6 +84,8 @@ def getHeights(lats, lons,heights, demFlag = 'dem', useWeatherNodes = False):
             lats = np.array(latlist).reshape(in_shape + (len(height_data),))
             lons = np.array(lonlist).reshape(in_shape + (len(height_data),))
             hts = np.array(hgtlist).reshape(in_shape + (len(height_data),))
+        else:
+            raise RuntimeError('Heights must be specified with height option "lvs"')
 
     elif height_type == 'merge':
         import pandas as pd
@@ -93,7 +95,11 @@ def getHeights(lats, lons,heights, demFlag = 'dem', useWeatherNodes = False):
             lons = data['Lon'].values
             hts = download_dem(lats, lons, outName = f, save_flag = 'merge')
     else:
-        height_type = 'download'
+        if useWeatherNodes:
+            hts = None
+            height_type = 'skip'
+        else:
+            height_type = 'download'
         
     if height_type == 'download':
         hts = download_dem(lats, lons, outName = os.path.abspath(height_data))
