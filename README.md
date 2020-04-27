@@ -4,6 +4,7 @@ Raytracing Atmospheric Delay Estimation for RADAR
 [![Language](https://img.shields.io/badge/python-3.7%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/dbekaert/RAiDER/blob/dev/LICENSE)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/486716578ab549738e3b0485be1b0047)](https://www.codacy.com/manual/bekaertdavid/RAiDER?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=dbekaert/RAiDER&amp;utm_campaign=Badge_Grade)
+[![CircleCI](https://circleci.com/gh/dbekaert/RAiDER.svg?style=svg)](https://circleci.com/gh/dbekaert/RAiDER)
 
 RAiDER-tools is a package in Python which contains tools to calculate tropospheric corrections for Radar using a raytracing implementation. Its development was funded under the NASA Sea-level Change Team (NSLCT) program and the Earth Surface and Interior (ESI) program (NTR-51433). U.S. Government sponsorship acknowledged. 
 
