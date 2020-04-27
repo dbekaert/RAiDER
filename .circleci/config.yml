@@ -27,6 +27,7 @@ jobs:
             source activate myenv
             conda env create -f environment.yml
             conda activate RAiDER
+            echo $'url: https://cds.climate.copernicus.eu/api/v2\nkey: 43214:de6dbdf6-ccf2-4a95-b26e-e1ceb24969e1' > $HOME/.cdsapirc
             python --version
             python -c "import numpy; print(numpy.__version__)"
             python -c "import pyproj; print(pyproj.__version__)"
@@ -39,6 +40,15 @@ jobs:
             python setup.py build
             python setup.py install
             python -c "import RAiDER; from RAiDER.delay import computeDelay, interpolateDelay; print(computeDelay)"
+            python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis; print(interp_along_axis)"
             raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
             raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v --heightlvs 0 100 200
+      - run:
+          name: Run unit tests
+          command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
+            source activate myenv
+            conda activate RAiDER
+            cd test
+            python -m unittest test_interpolator test_utilFcns
             

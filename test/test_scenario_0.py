@@ -61,7 +61,7 @@ class TimeTests(unittest.TestCase):
     delays = interpolateDelay(weather_model, lats, lons, hgts,los, zref = zref, useWeatherNodes = False)
 
     # test error messaging
-    #@unittest.skip("skipping full model test until all other unit tests pass")
+    @unittest.skip("skipping full model test until all other unit tests pass")
     def test_computeDelay(self):
         wetDelay, hydroDelay = \
             computeDelay(self.los, self.lats, self.lons, self.hgts,
