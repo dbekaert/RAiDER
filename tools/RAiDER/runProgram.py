@@ -4,6 +4,7 @@ import numpy as np
 import RAiDER.utilFcns
 from RAiDER.utilFcns import parse_date, parse_time
 from RAiDER.constants import _ZREF
+import argparse
 
 def read_date(s):
     '''
@@ -21,15 +22,6 @@ def read_date(s):
 
 def parse_args():
     """Parse command line arguments using argparse."""
-    import argparse
-    p = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="""
-Calculate tropospheric delay from a weather model. 
-Usage examples: 
-raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
-raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v 
-""")
-
     p = argparse.ArgumentParser(
           formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""
@@ -42,8 +34,8 @@ raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --z
     datetime = p.add_argument_group('Datetime')
     datetime.add_argument(
         '--date',dest='dateList',
-        help="""Fetch weather model data for a given date or date range.
-Can be a single date or a comma-separated list of two dates (earlier, later) in the ISO 8601 format
+        help="""Date to calculate delay.
+Can be a single date or a comma-separated list of two dates (earlier, later).
 Example accepted formats: 
    YYYYMMDD or
    YYYYMMDD,YYYYMMDD
@@ -51,108 +43,90 @@ Example accepted formats:
         type=read_date, required=True)
     datetime.add_argument(
         '--time', dest = 'time',
-        help='''Fetch weather model data at this time of day. 
-Example accepted formats: 
+        help='''Calculate delay at this time.
+Example formats: 
    THHMMSS,
    HHMMSS, or
    HH:MM:SS''',
         type=parse_time, required=True)
 
     # Area
-    area = p.add_mutually_exclusive_group(required=True)
+    area = p.add_argument_group('Area of Interest (Supply one)')
     area.add_argument(
-        '--area', '-a', nargs=2,default = None,
-        help=('GDAL-readable longitude and latitude files to specify the '
-              'region over which to calculate delay. Delay will be '
-              'calculated at weather model nodes if unspecified'),
+        '--latlon', '-ll', nargs=2,default = None,
+        help=('GDAL-readable latitude and longitude raster files (2 single-band files)'),
         metavar=('LAT', 'LONG'))
     area.add_argument(
         '--BBOX', '-b', nargs=4, dest='bounding_box',
-        help="""Bounding box over which to downloaded the weather model, given as N W S E. 
-If a bounding box is supplied, the delays will be calculated only at the x/y grid nodes of the 
-weather model that is selected. 
-""",
+        help="""Bounding box""",
         metavar=('N', 'W', 'S', 'E'))
     area.add_argument(
-        '--station_file',default = None, type=str, dest='station_file',
-        help=('CSV file containing a list of stations, with at least '
+        '--station_file', default = None, type=str, dest='station_file',
+        help=('CSV file with a list of stations, containing at least '
               'the columns "Lat" and "Lon"'))
 
     # Line of sight
-    los = p.add_mutually_exclusive_group()
+    los = p.add_argument_group('Line-of-sight options. If neither argument is supplied, the Zenith delay will be returned')
     los.add_argument(
         '--lineofsight', '-l',
-        help='GDAL-readable line-of-sight file. If a LOS or statevector' \
-             ' file is not specified, will return the Zenith delay',
+        help='GDAL-readable two-band line-of-sight file (B1: inclination, B2: heading)',
              metavar='LOS', default=None)
     los.add_argument(
         '--statevectors', '-s', default=None, metavar='SV',
         help=('An ESA orbit file or text file containing state vectors specifying ' \
-              'the orbit of the sensor. If a LOS or statevector file is not specified,' \
-              ' will return the Zenith delay'))
+              'the orbit of the sensor.'))
 
     # heights
-    heights = p.add_mutually_exclusive_group()
+    heights = p.add_argument_group('Height data. Default is ground surface for specified lat/lons, height levels otherwise')
     heights.add_argument(
         '--dem', '-d', default=None,
-        help="""DEM file. If not specified but lat/lon data is provided, an SRTM DEM will be downloaded.
-If no lat/lon data is provided, the weather model grid nodes will be used.
-""")
-#    heights.add_argument(
-#        '--weather_mnodel_nodes', default=False,
-#        help='If True, will use the heights of the weather model nodes')
+        help="""Specify a DEM to use with lat/lon inputs.""")
     heights.add_argument(
-        '--heightlvs', default=None,
-        help=("""If lat/lon data is provided, the weather delay will be 
-calculated at each of these heights (must be specified in meters) for the specified area.
-If no lat/lon data is provided, the lat/lon locations of the weather 
-model grid nodes will be used with the specified height levels.
-"""),
-        nargs='+', type=float)
+        '--heightlvs', 
+        help=("""A space-deliminited list of heights"""),
+        default=None,nargs='+', type=float)
 
     # Weather model
-    weather = p.add_argument_group("Weather model")
+    weather = p.add_argument_group("Weather model. See documentation for details")
     weather.add_argument(
         '--model',
-        help="""Weather model product to use. 
-Options:
-    ERA5 (Default option, global, 30 km spacing)
-    HRRR (Continental US only, 3 km spacing)
-    MERRA2 ()
-    NARR ()
-    WRF (requires providing "OUT" and "PLEV" files with the --files argument)
-    HDF5 (provided as an HDF5 file, see documentation for details)
-""",
-        default='ERA-5')
+        help="""Weather model option to use: ERA5/HRRR/MERRA2/NARR/WRF/HDF5. """,
+        default='ERA-5T')
     weather.add_argument(
-        '--files', nargs='+', type=str,
-        help="""
-If using WRF model files, list the OUT file and PLEV file separated by a space
-If using an HDF5 file, simply provide the filename
-""", default=None, metavar="FILES")
+        '--files', 
+        help="""OUT/PLEV or HDF5 file(s) """, 
+        default=None, nargs='+', type=str, metavar="FILES")
 
     weather.add_argument(
-        '--weatherModelFileLocation', '-w', dest='wmLoc',
+        '--weatherModelFileLocation', '-w',
         help='Directory location of/to write weather model files',
-        default='weather_files')
+        default='weather_files', dest='wmLoc')
 
-    # Height max
-    p.add_argument(
-        '--zref', '-z',
-        help=('Height limit when integrating (meters) '
-              '(default: %(default)s)'),
-        type=int, default=_ZREF)
 
     misc = p.add_argument_group("Run parameters")
     misc.add_argument(
-        '--outformat', help='Specify GDAL-compatible format if surface delays are requested.',
+        '--zref', '-z',
+        help=('Height limit when integrating (meters) (default: {}s)'.format(_ZREF)),
+        default=_ZREF)
+    misc.add_argument(
+        '--outformat', 
+        help='GDAL-compatible file format if surface delays are requested.',
         default=None)
 
-    misc.add_argument('--out', help='Output file directory', default='.')
+    misc.add_argument(
+        '--out', 
+        help='Output file directory', 
+        default='.')
 
-    misc.add_argument('--download_only', action='store_true',dest='download_only', default = False, help='Download weather model only without processing? Default False')
+    misc.add_argument(
+        '--download_only', 
+        help='Download weather model only without processing? Default False',
+        action='store_true',dest='download_only', default = False)
 
-    misc.add_argument('--verbose', '-v', action='store_true',dest='verbose', default = False, help='Run in verbose (debug) mode? Default False')
+    misc.add_argument(
+        '--verbose', '-v', 
+        help='Run in verbose (debug) mode? Default False',
+        action='store_true',dest='verbose', default = False)
 
     return p.parse_args(), p
 

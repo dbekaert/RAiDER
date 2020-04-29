@@ -745,8 +745,12 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
     import datetime
     import h5py
     import os
+    from osgeo import osr
 
     from RAiDER.utilFcns import checkLOS
+
+    epsg = 4326
+    projname = 'projection'
 
     checkLOS(los, np.prod(lats.shape))
     in_shape = lats.shape
@@ -756,10 +760,13 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
 
     with h5py.File(outName, 'w') as f:
     #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
+        f.attrs['Conventions'] = np.string_("CF-1.8")
+
         if chunkSize is None:
             x = f.create_dataset('lon', data = lons, chunks = True)
         else:
             x = f.create_dataset('lon', data = lons, chunks = chunkSize)
+
         y = f.create_dataset('lat', data = lats, chunks = x.chunks)
         z = f.create_dataset('hgt', data = hgts, chunks = x.chunks)
         los = f.create_dataset('LOS', data= los, chunks = x.chunks + (3,))
@@ -768,7 +775,42 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         z.attrs['Shape'] = in_shape
         f.attrs['ChunkSize'] = chunkSize
 
+        # CF 1.8 Convention stuff
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(epsg)
+        projds = f.create_dataset(projname, (), dtype='i')
+        projds[()] = epsg
+
+        ##WGS84 ellipsoid
+        projds.attrs['semi_major_axis'] = 6378137.0
+        projds.attrs['inverse_flattening'] = 298.257223563
+        projds.attrs['ellipsoid'] = np.string_("WGS84")
+        projds.attrs['epsg_code'] = epsg
+        projds.attrs['spatial_ref'] = np.string_(srs.ExportToWkt())
+
+        ###Geodetic latitude / longitude
+        if inps.epsg == 4326:
+            #Set up grid mapping
+            projds.attrs['grid_mapping_name'] = np.string_('latitude_longitude')
+            projds.attrs['longitude_of_prime_meridian'] = 0.0
+
+            x.attrs['standard_name'] = np.string_("longitude")
+            x.attrs['units'] = np.string_("degrees_east")
+            y.attrs['standard_name'] = np.string_("latitude")
+            y.attrs['units'] = np.string_("degrees_north")
+            z.attrs['standard_name'] = np.string_("height")
+            z.attrs['units'] = np.string_("m")
+        else:
+            raise NotImplemented
+
+
         start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
         lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
-        lengths.attrs['NumRays'] = len(x)
         scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)
+
+        los.attrs['grid_mapping'] = np.string_(projname)
+        start_positions.attrs['grid_mapping'] = np.string_(projname)
+        lengths.attrs['grid_mapping'] = np.string_(projname)
+        scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
+
+        f.attrs['NumRays'] = len(x)

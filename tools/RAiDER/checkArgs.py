@@ -27,14 +27,10 @@ def checkArgs(args, p):
             if args.outformat.lower() != 'hdf5':
                 print('HDF5 must be used with height levels')
                 args.outformat= 'hdf5'
-    if args.model not in AllowedModels():
-       raise NotImplementedError('Model {} has not been implemented'.format(args.model))
-    if args.model == 'WRF' and args.files is None:
-       p.error('Argument --files is required with --model WRF')
 
     ## Area
     # flag depending on the type of input
-    if args.area is not None:
+    if args.latlon is not None:
         flag = 'files'
     elif args.bounding_box is not None:
         flag = 'bounding_box'
@@ -43,9 +39,13 @@ def checkArgs(args, p):
     else: 
         flag = None
 
-    if args.area is not None:
-        lat, lon, latproj, lonproj, bounds = readLL(*args.area)
+    if args.latlon is not None:
+        if args.bounding_box is not None or args.station_file is not None:
+            raise RuntimeError("Please specify only one AOI: either files, a bounding box, or a file of stations")
+        lat, lon, latproj, lonproj, bounds = readLL(*args.latlon)
     elif args.bounding_box is not None:
+        if args.station_file is not None:
+            raise RuntimeError("Please specify only one AOI: either files, a bounding box, or a file of stations")
         lat, lon, latproj, lonproj, bounds = readLL(*args.bounding_box)
     elif args.station_file is not None:
         lat, lon, latproj, lonproj, bounds = readLL(args.station_file)
@@ -61,6 +61,8 @@ this option has not yet been implemented.""")
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc
+    if args.lineofsight is not None and args.statevectors is not None:
+        raise RuntimeError('Please supply only one of a line-of-sight file or a statevector file')
     if args.lineofsight is not None:
         los = ('los', args.lineofsight)
     elif args.statevectors is not None:
@@ -70,6 +72,10 @@ this option has not yet been implemented.""")
 
     # Weather
     weather_model_name = args.model.upper().replace('-','')
+    if weather_model_name not in AllowedModels():
+       raise NotImplementedError('Model {} has not been implemented'.format(args.model))
+    if weather_model_name == 'WRF' and args.files is None:
+       raise RuntimeError('Argument --files is required with --model WRF')
     model_module_name, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
     if args.model == 'WRF':
        weathers = {'type': 'wrf', 'files': args.files,
@@ -85,7 +91,7 @@ this option has not yet been implemented.""")
             raise NotImplemented('{} is not implemented'.format(weather_model_name))
 
     # zref
-    zref = args.zref
+    zref = float(args.zref)
 
     # handle the datetimes requested
     datetimeList = [d + args.time for d in args.dateList]
@@ -133,12 +139,15 @@ this option has not yet been implemented.""")
         hydroNames.append(hydroFilename)
 
     # DEM
+    useWeatherNodes = [True if flag=='bounding_box' else False]
     if args.dem is not None:
         heights = ('dem', args.dem)
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
     elif flag=='station_file':
         heights = ('merge', wetNames)
+    elif useWeatherNodes:
+        heights = ('skip', None)
     else:
         heights = ('download', 'geom/warpedDEM.dem')
 

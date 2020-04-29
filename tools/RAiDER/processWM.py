@@ -42,7 +42,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     '''
     import numpy as np
     from RAiDER.models.allowed import checkIfImplemented
-    from RAiDER.utilFcns import pickle_load, writeLL, getTimeFromFile
+    from RAiDER.utilFcns import writeLL, getTimeFromFile
     
     # Make weather
     weather_model, weather_files, weather_model_name = \
@@ -73,9 +73,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
             return None, None, None
 
     # Load the weather model data
-    if weather_model_name == 'pickle':
-        weather_model = pickle_load(weather_files)
-    elif weather_files is not None:
+    if weather_files is not None:
         weather_model.load(*weather_files, outLats = lats, outLons = lons, los = los, zref = zref)
         download_flag = False
     else:

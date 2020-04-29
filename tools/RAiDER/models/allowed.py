@@ -5,11 +5,9 @@ def AllowedModels():
     '''
     allowedModels = [
       'ERA5',
-      'ERA-5',
-      'ERA-I',
+      'ERA5T',
       'ERAI',
       'MERRA2',
-      'MERRA-2',
       'WRF',
       'HRRR',
       'HDF5']
