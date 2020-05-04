@@ -329,7 +329,6 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
     except AttributeError:
         raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
     if hasattr(zref, "__len__") | isinstance(zref, str):
-        import pdb; pdb.set_trace()
         raise RuntimeError('_getZenithLookVecs: zref must be a scalar')
 
     e = np.cos(np.radians(lats))*np.cos(np.radians(lons))

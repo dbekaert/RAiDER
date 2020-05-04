@@ -14,9 +14,9 @@ from RAiDER.constants import _STEP,_ZREF
 
 
 def interpolateDelay(weather_model_file_name, pnts_file_name, 
-                  zlevels = None, zref = _ZREF, 
-                  stepSize = _STEP, interpType = 'rgi',
-                  verbose = False, nproc = 8, useDask = False):
+                  zlevels = None, zref = _ZREF, stepSize = _STEP, 
+                  interpType = 'rgi',verbose = False, nproc = 8, 
+                  useDask = False, delayType = "Zenith"):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -60,8 +60,7 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
     RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize, verbose = verbose)
     delays = RAiDER.delayFcns.get_delays(stepSize, pnts_file_name, 
                               weather_model_file_name, interpType = interpType, 
-                              verbose = verbose)
-
+                              verbose = verbose, delayType = delayType)
     return delays
 
 
@@ -77,7 +76,8 @@ def _integrateZenith(zs, pw):
 
  
 def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = False, 
-                 zlevels = None, zref = _ZREF, out = None, parallel=False,verbose = False):
+                 zlevels = None, zref = _ZREF, out = None, parallel=False, 
+                 verbose = False, delayType = "Zenith"):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
@@ -116,7 +116,8 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = Fals
             return wet_delays,hydro_delays
     else:
         wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels = zlevels, 
-                                 zref = zref,nproc = nproc, useDask = useDask, verbose = verbose)
+                                 zref = zref,nproc = nproc, useDask = useDask, verbose = verbose,
+                                 delayType = delayType)
         if verbose: 
             print('Finished delay calculation')
 
@@ -197,7 +198,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
 
     wetDelay, hydroDelay = \
        computeDelay(weather_model_file, pnts_file, useWeatherNodes, 
-                 zref, out,verbose = verbose)
+                 zref, out,verbose = verbose, delayType = delayType)
 
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')

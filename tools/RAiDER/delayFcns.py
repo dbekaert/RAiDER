@@ -86,7 +86,8 @@ def testTime(t, ray, N):
     return (et - st)/N
 
 
-def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False):
+def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', 
+               verbose = False, delayType = "Zenith"):
     '''
     Create the integration points for each ray path. 
     '''
@@ -123,28 +124,16 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     with h5py.File(pnts_file, 'r') as f:
         for k in tqdm(range(Nchunks)):
         #for index in tqdm(range(Nrays)):
-            index = np.arange(k*chunkSize, min((k+1)*chunkSize, Nrays))
             
+            index = np.arange(k*chunkSize, min((k+1)*chunkSize, Nrays))
             Npts = [int(L//stepSize + 1) for L in f['Rays_len'][index]]
-#            ray, Npts = _ray_helper(f['Rays_len'][index], 
-#                                    f['Rays_SP'][index,:], 
-#                                    f['Rays_SLV'][index,:], stepSize)
-            ray = makePoints(max_len, f['Rays_SP'][index,:].value.copy(), f['Rays_SLV'][index,:],stepSize)
-            #if f['Rays_len'][index] > 1:
-            #    ray = _compute_ray2(f['Rays_len'][index], 
-            #                            f['Rays_SP'][index,:], 
-            #                            f['Rays_SLV'][index,:], stepSize)
+            ray = makePoints(max_len, f['Rays_SP'][index,:].value.copy(), 
+                             f['Rays_SLV'][index,:],stepSize)
+
             ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
             delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro, Npts))
-            #else:
-            #    delays.append(np.array(np.nan, np.nan))
-
-#    wet_delay, hydro_delay = [], []
-#    for d in delays:
-#        wet_delay.append(d[0,...])
-#        hydro_delay.append(d[1,...])
 
     wet_delay = np.concatenate([d[0,...] for d in delays]).reshape(in_shape)
     hydro_delay = np.concatenate([d[1,...] for d in delays]).reshape(in_shape)
