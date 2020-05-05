@@ -359,4 +359,4 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF, time = None):
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
 
-    return look_vecs.reshape(in_shape + (3,))
+    return look_vecs.reshape(in_shape + (3,)).astype(np.float64)

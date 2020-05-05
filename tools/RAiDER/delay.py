@@ -86,7 +86,6 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = Fals
     if verbose: 
         print('Beginning delay calculation')
 
-    # Call interpolateDelay to compute the hydrostatic and wet delays
     if parallel:
         useDask = True
         nproc = 16
@@ -94,7 +93,6 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = Fals
         useDask = False
         nproc = 1
 
-    # Call interpolateDelay
     if verbose:
         print('Reference z-value (max z for integration) is {} m'.format(zref))
         print('Number of processors to use: {}'.format(nproc))
@@ -143,7 +141,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
         print('DEM/height type is "{}"'.format(heights[0]))
 
     # Flags
-    useWeatherNodes = [True if flag=='bounding_box' else False]
+    useWeatherNodes = [True if flag=='bounding_box' else False][0]
     delayType = ["Zenith" if los is Zenith else "LOS"]
 
     # location of the weather model files
@@ -172,16 +170,16 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     if download_only:
         return None, None
 
+    # Pull the DEM.
+    if verbose:
+        print('Beginning DEM calculation')
+    in_shape = lats.shape
     lats, lons, hgts = getHeights(lats, lons,heights, useWeatherNodes)
 
     pnts_file = None
     if not useWeatherNodes:
-        pnts_file = os.path.join('geom', 'query_points.h5')
+        pnts_file = os.path.join(out, 'geom', 'query_points.h5')
         if not os.path.exists(pnts_file):
-            # Pull the DEM.
-            if verbose:
-                print('Beginning DEM calculation')
-            in_shape = lats.shape
 
             # Convert the line-of-sight inputs to look vectors
             if verbose:

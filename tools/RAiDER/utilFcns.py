@@ -789,7 +789,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         projds.attrs['spatial_ref'] = np.string_(srs.ExportToWkt())
 
         ###Geodetic latitude / longitude
-        if inps.epsg == 4326:
+        if epsg == 4326:
             #Set up grid mapping
             projds.attrs['grid_mapping_name'] = np.string_('latitude_longitude')
             projds.attrs['longitude_of_prime_meridian'] = 0.0
@@ -803,10 +803,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         else:
             raise NotImplemented
 
-
-        start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
-        lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)
+        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks = los.chunks)
+        lengths = f.create_dataset('Rays_len',  in_shape, chunks = x.chunks)
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks = los.chunks)
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
@@ -814,3 +813,4 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
+

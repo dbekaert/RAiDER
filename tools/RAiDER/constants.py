@@ -6,12 +6,13 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import numpy as np
 
-_ZMIN = -100   # minimum required height
-_ZREF = 15000  # maximum requierd height
-_STEP = 15     # integration step size in meters
+_ZMIN = np.float64(-100)   # minimum required height
+_ZREF = np.float64(15000)  # maximum requierd height
+_STEP = np.float64(15.0)     # integration step size in meters
 
-_g0 = 9.80665
+_g0 = np.float64(9.80665)
 
 
 class Zenith:

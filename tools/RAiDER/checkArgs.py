@@ -139,7 +139,7 @@ this option has not yet been implemented.""")
         hydroNames.append(hydroFilename)
 
     # DEM
-    useWeatherNodes = [True if flag=='bounding_box' else False]
+    useWeatherNodes = [True if flag=='bounding_box' else False][0]
     if args.dem is not None:
         heights = ('dem', args.dem)
     elif args.heightlvs is not None:

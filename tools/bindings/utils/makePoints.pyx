@@ -6,6 +6,32 @@ ctypedef double       npy_float64
 ctypedef npy_float64  float64_t
 
 cimport cython
+
+@cython.boundscheck(False)  # turn off array bounds check
+@cython.wraparound(False)   # turn off negative indices ([-1,-1])
+def makePoints1D(double max_len, cnp.ndarray[double, ndim=1] Rays_SP, cnp.ndarray[double, ndim=1] Rays_SLV, double stepSize):
+    '''
+    Fast cython code to create the rays needed for ray-tracing. 
+    Inputs: 
+      max_len: maximum length of the rays
+      Rays_SP: 1 x 3 numpy array of the location of the ground pixels in an earth-centered, 
+               earth-fixed coordinate system
+      Rays_SLV: 1 x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
+      stepSize: Distance between points along the ray-path
+    Output:
+      ray: a 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+           line-of-sight vectors, up to the maximum length specified.
+    '''
+    cdef int k3, k4
+    cdef int Npts  = int((max_len+stepSize)//stepSize)
+    cdef cnp.ndarray[npy_float64, ndim=2, mode='c'] ray = np.empty((3, Npts), dtype=np.float64)
+    cdef cnp.ndarray[npy_float64, ndim=1, mode='c'] basespace = np.arange(0, max_len+stepSize, stepSize) # max_len+stepSize
+
+    for k3 in range(3):
+        for k4 in range(Npts):
+            ray[k3,k4] = Rays_SP[k3] + basespace[k4]*Rays_SLV[k3]
+    return ray
+
 @cython.boundscheck(False)  # turn off array bounds check
 @cython.wraparound(False)   # turn off negative indices ([-1,-1])
 def makePoints2D(double max_len, cnp.ndarray[double, ndim=3] Rays_SP, cnp.ndarray[double, ndim=3] Rays_SLV, double stepSize):
