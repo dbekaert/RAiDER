@@ -335,7 +335,7 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
     n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
     zenLookVecs = (np.array((e,n,u)).T*(zref - heights)[..., np.newaxis])
-    return zenLookVecs
+    return zenLookVecs.astype(np.float64)
 
 
 def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF, time = None):

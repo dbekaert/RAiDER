@@ -12,54 +12,9 @@ import pyproj
 import itertools
 
 from RAiDER.constants import _STEP
-#from RAiDER.makePoints import makePoints1D,makePoints2D,makePoints3D
+from RAiDER.makePoints import makePoints1D,makePoints2D,makePoints3D
+#from RAiDER.utilFcns import makePoints1D,makePoints3D
 
-def makePoints1D(max_len, Rays_SP, Rays_SLV, stepSize):
-    '''
-    Python version of cython code to create the rays needed for ray-tracing
-    Inputs: 
-      max_len: maximum length of the rays
-      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
-               earth-fixed coordinate system
-      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
-      stepSize: Distance between points along the ray-path
-    Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
-           line-of-sight vectors, up to the maximum length specified.
-    '''
-    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize !=0. else 0][0]
-    ray = np.empty((3, Npts), dtype=np.float64)
-    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
-    for k3 in range(3):
-        ray[k3,:] = Rays_SP[k3] + basespace*Rays_SLV[k3]
-    return ray
-
-def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
-    '''
-    Python version of cython code to create the rays needed for ray-tracing
-    Inputs: 
-      max_len: maximum length of the rays
-      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
-               earth-fixed coordinate system
-      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
-      stepSize: Distance between points along the ray-path
-    Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
-           line-of-sight vectors, up to the maximum length specified.
-    '''
-    Npts  = int((max_len+stepSize)//stepSize)
-    nrow = Rays_SP.shape[0]
-    ncol = Rays_SP.shape[1]
-    nz = Rays_SP.shape[2]
-    ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
-    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
-
-    for k1 in range(nrow):
-        for k2 in range(ncol):
-            for k2a in range(nz):
-                for k3 in range(3):
-                        ray[k1,k2,k2a,k3,:] = Rays_SP[k1,k2,k2a,k3] + basespace*Rays_SLV[k1,k2,k2a,k3]
-    return ray
 
 def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
     #return _compute_ray(tup[0], tup[1], tup[2], tup[3])
@@ -119,7 +74,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
     # Transformer from ECEF to weather model
     p1 = CRS.from_epsg(4978) 
     proj_wm = getProjFromWMFile(wm_file)
-    t = Transformer.from_proj(p1,proj_wm) 
+    t = Transformer.from_proj(p1,proj_wm, always_xy=True) 
 
     # Get the weather model data
     with h5py.File(wm_file, 'r') as f:
@@ -144,7 +99,6 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
     #Nchunks = len(chunkInds)
     #chunks = chunk() # to be implemented
 
-    Npts = None
     with h5py.File(pnts_file, 'r') as f:
         #for ind in tqdm(range(len(chunkInds))):
         for ind in tqdm(range(np.prod(f['lon'].shape))):
@@ -158,7 +112,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
             ray_x, ray_y, ray_z = t.transform(ray[...,0, :], ray[...,1,:], ray[...,2,:])
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro, Npts))
+            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro))
 
     wet_delay = np.concatenate([d[0,...] for d in delays]).reshape(in_shape)
     hydro_delay = np.concatenate([d[1,...] for d in delays]).reshape(in_shape)
@@ -207,7 +161,10 @@ def interpolate(fun, x, y, z):
 def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts = None):
     delays = [] 
     for d in (wet_pw, hydro_pw):
-        delays.append(_integrate_delays(stepSize, d, Npts))
+        if d.ndim==1:
+            delays.append(np.array([int_fcn2(d, stepSize)]))
+        else:
+            delays.append(_integrate_delays(stepSize, d, Npts))
     return np.stack(delays, axis = 0)
 
 def _integrate_delays2(stepSize, refr):
@@ -217,7 +174,7 @@ def _integrate_delays2(stepSize, refr):
     '''
     return int_fcn2(refr, stepSize)
 
-def _integrate_delays(stepSize, refr, Npts):
+def _integrate_delays(stepSize, refr, Npts = None):
     '''
     This function gets the actual delays by integrating the refractivity in 
     each node. Refractivity is given in the 'refr' variable. 
@@ -290,10 +247,10 @@ def lla2ecef(pnts_file):
     '''
     from pyproj import Transformer
 
-    t = Transformer.from_crs(4326,4978) # converts from WGS84 geodetic to WGS84 geocentric
+    t = Transformer.from_crs(4326,4978, always_xy =True) # converts from WGS84 geodetic to WGS84 geocentric
     with h5py.File(pnts_file, 'r+') as f:
-        f['Rays_SP'][...] = np.moveaxis(np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)), 0, -1)
-
+        sp = np.moveaxis(np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)), 0, -1)
+        f['Rays_SP'][...] = sp.astype(np.float64) # ensure double is maintained
 
 def getUnitLVs(pnts_file):
     '''
@@ -301,7 +258,8 @@ def getUnitLVs(pnts_file):
     '''
     get_lengths(pnts_file)
     with h5py.File(pnts_file, 'r+') as f:
-        f['Rays_SLV'][...] = f['LOS'].value / f['Rays_len'].value[...,np.newaxis]
+        slv = f['LOS'].value / f['Rays_len'].value[...,np.newaxis]
+        f['Rays_SLV'][...] = slv
 
 
 def get_lengths(pnts_file):

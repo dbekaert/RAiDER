@@ -99,6 +99,7 @@ this option has not yet been implemented.""")
     ## Misc
     download_only = args.download_only
     verbose = args.verbose
+    useWeatherNodes = [True if flag=='bounding_box' else False][0]
 
     ## Output
     out = args.out
@@ -109,7 +110,7 @@ this option has not yet been implemented.""")
           outformat = 'hdf5'
        elif args.station_file is not None: 
           outformat = 'csv'
-       elif los is Zenith:
+       elif useWeatherNodes:
           outformat='hdf5'
        else:
           outformat = 'envi'
@@ -139,7 +140,6 @@ this option has not yet been implemented.""")
         hydroNames.append(hydroFilename)
 
     # DEM
-    useWeatherNodes = [True if flag=='bounding_box' else False][0]
     if args.dem is not None:
         heights = ('dem', args.dem)
     elif args.heightlvs is not None:
@@ -149,7 +149,7 @@ this option has not yet been implemented.""")
     elif useWeatherNodes:
         heights = ('skip', None)
     else:
-        heights = ('download', 'geom/warpedDEM.dem')
+        heights = ('download', os.path.join(out, 'geom', 'warpedDEM.dem'))
 
 
     return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames

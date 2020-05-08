@@ -5,6 +5,7 @@ import math
 import numpy as np
 import os
 import pandas as pd
+import pickle
 import unittest
 
 
@@ -81,8 +82,76 @@ class FcnTests(unittest.TestCase):
         self.assertTrue(np.allclose(d, self.array))
         self.assertEqual(nodata, 0)
 
+    def test_makePoints1D_Python(self):
+        from RAiDER.utilFcns import makePoints1D
+        test_result = makePoints1D(1000., np.array([0, 0, 0]), np.array([0, 0, 1]), 5)
+        true_ray = np.stack([np.zeros((200,)), np.zeros((200,)), np.arange(0,1000,5)], axis = -1).T
+        self.assertTrue(np.allclose(test_result, true_ray))
   
+    def test_makePoints3D_Python_dim(self):
+        from RAiDER.utilFcns import makePoints3D
+        sp = np.zeros((3, 3, 3, 3))
+        sp[:,:,1,2] = 10
+        sp[:,:,2,2] = 100
+        slv = np.zeros((3,3,3,3))
+        slv[0,:,:,2] = 1
+        slv[1,:,:,1] = 1
+        slv[2,:,:,0] = 1
+        test_result = makePoints3D(100., sp, slv, 5)
+        self.assertTrue(test_result.ndim==5)
 
+    def test_makePoints3D_Python_values(self):
+        from RAiDER.utilFcns import makePoints3D
+        sp = np.zeros((3, 3, 3, 3))
+        sp[:,:,1,2] = 10
+        sp[:,:,2,2] = 100
+        slv = np.zeros((3,3,3,3))
+        slv[0,:,:,2] = 1
+        slv[1,:,:,1] = 1
+        slv[2,:,:,0] = 1
+        test_result = makePoints3D(100., sp, slv, 5)
+        df = np.loadtxt('test_result_makePoints3D.txt')
+        shape = (3,3,3,3,20)
+        true_rays = df.reshape(shape)
+        self.assertTrue(np.allclose(test_result, true_rays))
+  
+    def test_makePoints1D_Cython(self):
+        from RAiDER.makePoints import makePoints1D
+        test_result = makePoints1D(1000., np.array([0., 0., 0.]), np.array([0., 0., 1.]), 5.)
+        true_ray = np.stack([np.zeros((200,)), np.zeros((200,)), np.arange(0,1000,5)], axis = -1).T
+        self.assertTrue(np.allclose(test_result, true_ray))
+  
+    def test_makePoints3D_Cython_dim(self):
+        from RAiDER.makePoints import makePoints3D
+        sp = np.zeros((3, 3, 3, 3))
+        sp[:,:,1,2] = 10
+        sp[:,:,2,2] = 100
+        slv = np.zeros((3,3,3,3))
+        slv[0,:,:,2] = 1
+        slv[1,:,:,1] = 1
+        slv[2,:,:,0] = 1
+        test_result = makePoints3D(100., sp, slv, 5)
+        self.assertTrue(test_result.ndim==5)
+
+    def test_makePoints3D_Cython_values(self):
+        from RAiDER.makePoints import makePoints3D
+        sp = np.zeros((3, 3, 3, 3))
+        sp[:,:,1,2] = 10
+        sp[:,:,2,2] = 100
+        slv = np.zeros((3,3,3,3))
+        slv[0,:,:,2] = 1
+        slv[1,:,:,1] = 1
+        slv[2,:,:,0] = 1
+        test_result = makePoints3D(100., sp, slv, 5)
+        df = np.loadtxt('test_result_makePoints3D.txt')
+        shape = (3,3,3,3,20)
+        true_rays = df.reshape(shape)
+        self.assertTrue(np.allclose(test_result, true_rays))
+
+def test_cleanUp():
+    import glob
+    dummy_files = glob.glob('dummy' + '*')
+    [os.remove(f) for f in dummy_files]
 
 def main():
     unittest.main()
