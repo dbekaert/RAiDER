@@ -329,14 +329,13 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
     except AttributeError:
         raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
     if hasattr(zref, "__len__") | isinstance(zref, str):
-        import pdb; pdb.set_trace()
         raise RuntimeError('_getZenithLookVecs: zref must be a scalar')
 
     e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
     n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
     zenLookVecs = (np.array((e,n,u)).T*(zref - heights)[..., np.newaxis])
-    return zenLookVecs
+    return zenLookVecs.astype(np.float64)
 
 
 def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF, time = None):
@@ -360,4 +359,4 @@ def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF, time = None):
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask,:] = np.nan
 
-    return look_vecs.reshape(in_shape + (3,))
+    return look_vecs.reshape(in_shape + (3,)).astype(np.float64)

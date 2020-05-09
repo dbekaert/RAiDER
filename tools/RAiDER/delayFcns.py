@@ -9,36 +9,12 @@
 import h5py
 import numpy as np
 import pyproj
+import itertools
 
 from RAiDER.constants import _STEP
-from RAiDER import makePoints
+from RAiDER.makePoints import makePoints1D,makePoints2D,makePoints3D
+#from RAiDER.utilFcns import makePoints1D,makePoints3D
 
-def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
-    '''
-    Python version of cython code to create the rays needed for ray-tracing
-    Inputs: 
-      max_len: maximum length of the rays
-      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
-               earth-fixed coordinate system
-      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
-      stepSize: Distance between points along the ray-path
-    Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
-           line-of-sight vectors, up to the maximum length specified.
-    '''
-    Npts  = int((max_len+stepSize)//stepSize)
-    nrow = Rays_SP.shape[0]
-    ncol = Rays_SP.shape[1]
-    nz = Rays_SP.shape[2]
-    ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
-    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
-
-    for k1 in range(nrow):
-        for k2 in range(ncol):
-            for k2a in range(nz):
-                for k3 in range(3):
-                        ray[k1,k2,k2a,k3,:] = Rays_SP[k1,k2,k2a,k3] + basespace*Rays_SLV[k1,k2,k2a,k3]
-    return ray
 
 def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
     #return _compute_ray(tup[0], tup[1], tup[2], tup[3])
@@ -86,7 +62,8 @@ def testTime(t, ray, N):
     return (et - st)/N
 
 
-def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False):
+def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', 
+               verbose = False, delayType = "Zenith"):
     '''
     Create the integration points for each ray path. 
     '''
@@ -97,7 +74,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
     # Transformer from ECEF to weather model
     p1 = CRS.from_epsg(4978) 
     proj_wm = getProjFromWMFile(wm_file)
-    t = Transformer.from_proj(p1,proj_wm) 
+    t = Transformer.from_proj(p1,proj_wm, always_xy=True) 
 
     # Get the weather model data
     with h5py.File(wm_file, 'r') as f:
@@ -112,39 +89,30 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
 
     delays = []
     with h5py.File(pnts_file, 'r') as f:
-        Nrays = f['Rays_len'].attrs['NumRays']
-        chunkSize = f['lon'].chunks[0]
+        Nrays = f.attrs['NumRays']
+        chunkSize = f['lon'].chunks
         in_shape = f['lon'].attrs['Shape']
+        arrSize = f['lon'].shape
+        max_len = np.nanmax(f['Rays_len']).astype(np.float64)
 
-    fac = 10
-    chunkSize = chunkSize//fac
-    Nchunks = Nrays//chunkSize + 1
+    #chunkInds =  makeChunkIndices(chunkSize, in_shape)
+    #Nchunks = len(chunkInds)
+    #chunks = chunk() # to be implemented
 
     with h5py.File(pnts_file, 'r') as f:
-        for k in tqdm(range(Nchunks)):
-        #for index in tqdm(range(Nrays)):
-            index = np.arange(k*chunkSize, min((k+1)*chunkSize, Nrays))
-            
-            Npts = [int(L//stepSize + 1) for L in f['Rays_len'][index]]
-#            ray, Npts = _ray_helper(f['Rays_len'][index], 
-#                                    f['Rays_SP'][index,:], 
-#                                    f['Rays_SLV'][index,:], stepSize)
-            ray = makePoints(max_len, f['Rays_SP'][index,:].value.copy(), f['Rays_SLV'][index,:],stepSize)
-            #if f['Rays_len'][index] > 1:
-            #    ray = _compute_ray2(f['Rays_len'][index], 
-            #                            f['Rays_SP'][index,:], 
-            #                            f['Rays_SLV'][index,:], stepSize)
-            ray_x, ray_y, ray_z = t.transform(ray[...,0], ray[...,1], ray[...,2])
+        #for ind in tqdm(range(len(chunkInds))):
+        for ind in tqdm(range(np.prod(f['lon'].shape))):
+            #index = chunkInds[ind]
+            row, col = [v[0] for v in np.unravel_index([ind], in_shape)]
+            ray = makePoints1D(max_len, f['Rays_SP'][row, col,:], 
+                             f['Rays_SLV'][row, col,:],stepSize)
+            #ray = makePoints3D(max_len, f['Rays_SP'][index,:].value.copy(), 
+            #                 f['Rays_SLV'][row, col,:],stepSize)
+
+            ray_x, ray_y, ray_z = t.transform(ray[...,0, :], ray[...,1,:], ray[...,2,:])
             delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro, Npts))
-            #else:
-            #    delays.append(np.array(np.nan, np.nan))
-
-#    wet_delay, hydro_delay = [], []
-#    for d in delays:
-#        wet_delay.append(d[0,...])
-#        hydro_delay.append(d[1,...])
+            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro))
 
     wet_delay = np.concatenate([d[0,...] for d in delays]).reshape(in_shape)
     hydro_delay = np.concatenate([d[1,...] for d in delays]).reshape(in_shape)
@@ -157,6 +125,15 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', verbose = False)
 
 #    return wet, hydro
     return wet_delay, hydro_delay
+
+
+def makeChunkIndices(chunkSize, in_shape):
+    '''
+    Create a list of indices for chunking a 2D array
+    '''
+    chunkInds = [(i,j) for i,j in itertools.product(range(0,in_shape[0],chunkSize[0]), range(0,in_shape[1],chunkSize[1]))]
+
+    return chunkInds
 
 
 def interpolate2(fun, x, y, z):
@@ -184,7 +161,10 @@ def interpolate(fun, x, y, z):
 def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts = None):
     delays = [] 
     for d in (wet_pw, hydro_pw):
-        delays.append(_integrate_delays(stepSize, d, Npts))
+        if d.ndim==1:
+            delays.append(np.array([int_fcn2(d, stepSize)]))
+        else:
+            delays.append(_integrate_delays(stepSize, d, Npts))
     return np.stack(delays, axis = 0)
 
 def _integrate_delays2(stepSize, refr):
@@ -194,14 +174,18 @@ def _integrate_delays2(stepSize, refr):
     '''
     return int_fcn2(refr, stepSize)
 
-def _integrate_delays(stepSize, refr, Npts):
+def _integrate_delays(stepSize, refr, Npts = None):
     '''
     This function gets the actual delays by integrating the refractivity in 
     each node. Refractivity is given in the 'refr' variable. 
     '''
     delays = []
-    for n, ray in zip(Npts, refr):
-        delays.append(int_fcn(ray, stepSize, n))
+    if Npts is not None:
+        for n, ray in zip(Npts, refr):
+            delays.append(int_fcn(ray, stepSize, n))
+    else:
+        for ray in refr:
+            delays.append(int_fcn2(ray, stepSize))
     return np.array(delays)
 
 def int_fcn(y, dx, N):
@@ -263,10 +247,10 @@ def lla2ecef(pnts_file):
     '''
     from pyproj import Transformer
 
-    t = Transformer.from_crs(4326,4978) # converts from WGS84 geodetic to WGS84 geocentric
+    t = Transformer.from_crs(4326,4978, always_xy =True) # converts from WGS84 geodetic to WGS84 geocentric
     with h5py.File(pnts_file, 'r+') as f:
-        f['Rays_SP'][:,:] = np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)).T
-
+        sp = np.moveaxis(np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)), 0, -1)
+        f['Rays_SP'][...] = sp.astype(np.float64) # ensure double is maintained
 
 def getUnitLVs(pnts_file):
     '''
@@ -274,7 +258,8 @@ def getUnitLVs(pnts_file):
     '''
     get_lengths(pnts_file)
     with h5py.File(pnts_file, 'r+') as f:
-        f['Rays_SLV'][:,:] = f['LOS'].value / f['Rays_len'].value[:,np.newaxis]
+        slv = f['LOS'].value / f['Rays_len'].value[...,np.newaxis]
+        f['Rays_SLV'][...] = slv
 
 
 def get_lengths(pnts_file):
@@ -295,7 +280,7 @@ def get_lengths(pnts_file):
         except TypeError:
             if ~np.isfinite(lengths):
                 lengths = 0
-        f['Rays_len'][:] = lengths
+        f['Rays_len'][:] = lengths.astype(np.float64)
         f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
 
@@ -357,3 +342,21 @@ def calculate_rays(pnts_file, stepSize = _STEP, verbose = False):
 #    for chunk in chunks:
 #       bags.append(newPts[chunk])
 #
+
+#def chunk(arr, blockIDs, block_size):
+#    '''
+#    return a list of chunks of an array along the first len(idx) axes.
+#    '''
+#    chunkDims = len(blockIDs[0])
+#    arrDims = arr.ndim
+#    compDims = arrDim - chunkDim
+#    for idx in blockIDs:
+#        tmp = np.zeros(tuple([block_size]*chunkDim + (compDim,)))
+#        indx = []
+#        for ind in range(chunkDims):
+#            indx.append(min(blockIDs[idx][ind]:blockIDs[idx][ind] + block_size, arr.shape[ind]))
+#        for ind in range(arrDim - chunkDims):
+#            indx.append([1])
+#        chunks.append(arr[tuple(indx)])
+#
+#    return chunks

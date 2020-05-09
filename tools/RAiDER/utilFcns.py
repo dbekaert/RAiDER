@@ -763,13 +763,13 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
         if chunkSize is None:
-            x = f.create_dataset('lon', data = lons, chunks = True)
+            x = f.create_dataset('lon', data = lons.astype(np.float64), chunks = True)
         else:
-            x = f.create_dataset('lon', data = lons, chunks = chunkSize)
+            x = f.create_dataset('lon', data = lons.astype(np.float64), chunks = chunkSize)
 
-        y = f.create_dataset('lat', data = lats, chunks = x.chunks)
-        z = f.create_dataset('hgt', data = hgts, chunks = x.chunks)
-        los = f.create_dataset('LOS', data= los, chunks = x.chunks + (3,))
+        y = f.create_dataset('lat', data = lats.astype(np.float64), chunks = x.chunks)
+        z = f.create_dataset('hgt', data = hgts.astype(np.float64), chunks = x.chunks)
+        los = f.create_dataset('LOS', data= los.astype(np.float64), chunks = x.chunks + (3,))
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
@@ -789,7 +789,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         projds.attrs['spatial_ref'] = np.string_(srs.ExportToWkt())
 
         ###Geodetic latitude / longitude
-        if inps.epsg == 4326:
+        if epsg == 4326:
             #Set up grid mapping
             projds.attrs['grid_mapping_name'] = np.string_('latitude_longitude')
             projds.attrs['longitude_of_prime_meridian'] = 0.0
@@ -803,10 +803,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         else:
             raise NotImplemented
 
-
-        start_positions = f.create_dataset('Rays_SP', (len(x),3), chunks = los.chunks)
-        lengths = f.create_dataset('Rays_len',  (len(x),), chunks = x.chunks)
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  (len(x),3), chunks = los.chunks)
+        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks = los.chunks, dtype='<f8')
+        lengths = f.create_dataset('Rays_len',  in_shape, chunks = x.chunks, dtype='<f8')
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks = los.chunks, dtype='<f8')
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
@@ -814,3 +813,51 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
+
+
+def makePoints1D(max_len, Rays_SP, Rays_SLV, stepSize):
+    '''
+    Python version of cython code to create the rays needed for ray-tracing
+    Inputs: 
+      max_len: maximum length of the rays
+      Rays_SP: 1 x 3 numpy array of the location of the ground pixels in an earth-centered, 
+               earth-fixed coordinate system
+      Rays_SLV: 1 x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
+      stepSize: Distance between points along the ray-path
+    Output:
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+           line-of-sight vectors, up to the maximum length specified.
+    '''
+    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize !=0. else 0][0]
+    ray = np.empty((3, Npts), dtype=np.float64)
+    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
+    for k3 in range(3):
+        ray[k3,:] = Rays_SP[k3] + basespace*Rays_SLV[k3]
+    return ray
+
+def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
+    '''
+    Python version of cython code to create the rays needed for ray-tracing
+    Inputs: 
+      max_len: maximum length of the rays
+      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
+               earth-fixed coordinate system
+      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
+      stepSize: Distance between points along the ray-path
+    Output:
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+           line-of-sight vectors, up to the maximum length specified.
+    '''
+    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize !=0. else 0][0]
+    nrow = Rays_SP.shape[0]
+    ncol = Rays_SP.shape[1]
+    nz = Rays_SP.shape[2]
+    ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
+    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
+
+    for k1 in range(nrow):
+        for k2 in range(ncol):
+            for k2a in range(nz):
+                for k3 in range(3):
+                        ray[k1,k2,k2a,k3,:] = Rays_SP[k1,k2,k2a,k3] + basespace*Rays_SLV[k1,k2,k2a,k3]
+    return ray

@@ -9,3 +9,4 @@ build
 *.cmake
 CMake*
 Makefile
+dummy*

@@ -31,8 +31,11 @@ class WMTests(unittest.TestCase):
     wmLoc = os.path.join(basedir, 'weather_files')
     model_module_name, model_obj = modelName2Module('ERA5')
     era5 = {'type': model_obj(), 'files': None, 'name': 'ERA5'}
-    weather_model, lats, lons= prepareWeatherModel(era5,wmLoc, basedir, lats = lat_box, lons = lon_box, time = datetime.datetime(2019,1,1,2,0,0), verbose=False)
     
+def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, 
+                        los = None, zref = None, time=None, verbose = False, 
+                        download_only = False, makePlots = False):
+
     @unittest.skip('skipping full model test until all other unit tests pass')
     def test_noNaNs(self):
         self.assertTrue(np.sum(np.isnan(self.weather_model._xs))==0)
