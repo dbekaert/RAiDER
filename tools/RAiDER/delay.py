@@ -192,7 +192,6 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
 
             # write to an HDF5 file
             writePnts2HDF5(lats, lons, hgts, los, pnts_file, in_shape)
-            del lats, lons, hgts, los
 
     wetDelay, hydroDelay = \
        computeDelay(weather_model_file, pnts_file, useWeatherNodes, 
