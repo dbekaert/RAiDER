@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Author: Jeremy Maurer, Raymond Hogenson, David Bekaert & Yang Lei
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
@@ -12,7 +12,8 @@ import numpy as np
 import pyproj
 import itertools
 import time
-#import scipy.io as sio
+import scipy.io as sio
+
 
 from RAiDER.constants import _STEP
 from RAiDER.makePoints import makePoints1D,makePoints2D,makePoints3D
@@ -66,7 +67,7 @@ def testTime(t, ray, N):
 
 
 def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', 
-               verbose = False, delayType = "Zenith"):
+               verbose = False, delayType = "Zenith", cpu_num = 0):
     '''
     Create the integration points for each ray path. 
     '''
@@ -75,11 +76,16 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
 
     # Get the weather model data
     with h5py.File(wm_file, 'r') as f:
-        xs_wm = f['x'].value.copy()
-        ys_wm = f['y'].value.copy()
-        zs_wm = f['z'].value.copy()
-        wet=f['wet'].value.copy()
-        hydro=f['hydro'].value.copy()
+#        xs_wm = f['x'].value.copy()
+#        ys_wm = f['y'].value.copy()
+#        zs_wm = f['z'].value.copy()
+#        wet=f['wet'].value.copy()
+#        hydro=f['hydro'].value.copy()
+        xs_wm = f['x'][()].copy()
+        ys_wm = f['y'][()].copy()
+        zs_wm = f['z'][()].copy()
+        wet=f['wet'][()].copy()
+        hydro=f['hydro'][()].copy()
 
     ifWet = getIntFcn(xs_wm, ys_wm, zs_wm, wet)
     ifHydro = getIntFcn(xs_wm, ys_wm, zs_wm, hydro)
@@ -93,8 +99,12 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
         arrSize = f['lon'].shape
         max_len = np.nanmax(f['Rays_len']).astype(np.float64)
 
+    if cpu_num == 0:
+        Nchunks = mp.cpu_count()
+        cpu_num = Nchunks
+    else:
+        Nchunks = cpu_num
 
-    Nchunks = mp.cpu_count()
     chunkSize1 = int(np.floor(np.prod(in_shape) / Nchunks))
     chunkRem = np.prod(in_shape) - chunkSize1 * Nchunks
     #chunkInds =  makeChunkIndices(chunkSize, in_shape)
@@ -134,8 +144,9 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
     time_elapse_hr = int(np.floor(time_elapse/3600.0))
     time_elapse_min = int(np.floor((time_elapse - time_elapse_hr*3600.0)/60.0))
     time_elapse_sec = (time_elapse - time_elapse_hr*3600.0 - time_elapse_min*60.0)
-    print("Delay estimation cost {0} hour(s) {1} minute(s) {2} second(s)".format(time_elapse_hr,time_elapse_min,time_elapse_sec))
+    print("Delay estimation cost {0} hour(s) {1} minute(s) {2} second(s) using {3} cpu threads".format(time_elapse_hr,time_elapse_min,time_elapse_sec,cpu_num))
 #    sio.savemat('test.mat',{'wet_delay':wet_delay,'hydro_delay':hydro_delay})
+    sio.savemat('get_delays_time_elapse.mat',{'time_elapse':time_elapse})
     return wet_delay, hydro_delay
 
 
@@ -256,7 +267,8 @@ def getProjFromWMFile(wm_file):
     '''
     from pyproj import CRS 
     with h5py.File(wm_file, 'r') as f:
-        wm_proj = CRS.from_json(f['Projection'].value)
+#        wm_proj = CRS.from_json(f['Projection'].value)
+        wm_proj = CRS.from_json(f['Projection'][()])
     return wm_proj
 
 
@@ -298,7 +310,8 @@ def lla2ecef(pnts_file):
 
     t = Transformer.from_crs(4326,4978, always_xy =True) # converts from WGS84 geodetic to WGS84 geocentric
     with h5py.File(pnts_file, 'r+') as f:
-        sp = np.moveaxis(np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)), 0, -1)
+#        sp = np.moveaxis(np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)), 0, -1)
+        sp = np.moveaxis(np.array(t.transform(f['lon'][()], f['lat'][()], f['hgt'][()])), 0, -1)
         f['Rays_SP'][...] = sp.astype(np.float64) # ensure double is maintained
 
 def getUnitLVs(pnts_file):
@@ -307,7 +320,8 @@ def getUnitLVs(pnts_file):
     '''
     get_lengths(pnts_file)
     with h5py.File(pnts_file, 'r+') as f:
-        slv = f['LOS'].value / f['Rays_len'].value[...,np.newaxis]
+#        slv = f['LOS'].value / f['Rays_len'].value[...,np.newaxis]
+        slv = f['LOS'][()] / f['Rays_len'][()][...,np.newaxis]
         f['Rays_SLV'][...] = slv
 
 
@@ -323,7 +337,8 @@ def get_lengths(pnts_file):
                      meters of the top of the atmosphere from the ground pnt. 
     '''
     with h5py.File(pnts_file, 'r+') as f:
-        lengths = np.linalg.norm(f['LOS'].value, axis=-1)
+#        lengths = np.linalg.norm(f['LOS'].value, axis=-1)
+        lengths = np.linalg.norm(f['LOS'][()], axis=-1)
         try:
             lengths[~np.isfinite(lengths)] = 0
         except TypeError:
