@@ -71,7 +71,7 @@ Example formats:
               'the columns "Lat" and "Lon"'))
 
     # Line of sight
-    los = p.add_argument_group('Line-of-sight options. If neither argument is supplied, the Zenith delay will be returned')
+    los = p.add_argument_group('Specify a Line-of-sight or state vector file, or if neither is supplied, the Zenith delay will be returned')
     los.add_argument(
         '--lineofsight', '-l',
         help='GDAL-readable two-band line-of-sight file (B1: inclination, B2: heading)',
@@ -101,16 +101,15 @@ Example formats:
         '--files',
         help="""OUT/PLEV or HDF5 file(s) """,
         default=None, nargs='+', type=str, metavar="FILES")
-
     weather.add_argument(
-        '--weatherModelFileLocation', '-w',
+        '--weatherFiles', '-w',
         help='Directory location of/to write weather model files',
         default=None, dest='wmLoc')
 
     misc = p.add_argument_group("Run parameters")
     misc.add_argument(
         '--zref', '-z',
-        help=('Height limit when integrating (meters) (default: {}s)'.format(_ZREF)),
+        help=('Height limit when integrating (meters) (default: {} km)'.format(_ZREF)),
         default=_ZREF)
     misc.add_argument(
         '--outformat',
