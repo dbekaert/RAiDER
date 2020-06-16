@@ -41,8 +41,8 @@ class hdf5_parallel_Tests(unittest.TestCase):
         self.assertTrue(np.allclose(self.delays_hydro_1, self.delays_hydro_4))
 
     
-    def test_get_delays_runtime(self):
-        self.assertTrue(self.time_elapse_1 > self.time_elapse_4)
+#     def test_get_delays_runtime(self):
+#         self.assertTrue(self.time_elapse_1 > self.time_elapse_4)
 
 
 def main():
