@@ -6,8 +6,8 @@ import numpy as np
 import os
 import pandas as pd
 import unittest
-import scipy.io as sio
-import subprocess
+
+
 
 
 class hdf5_parallel_Tests(unittest.TestCase):
@@ -23,14 +23,14 @@ class hdf5_parallel_Tests(unittest.TestCase):
     
     delays_wet_1, delays_hydro_1 = get_delays(stepSize, pnts_file, wm_file, interpType,
                                               verbose, delayType, cpu_num = 1)
-    conts = sio.loadmat('get_delays_time_elapse.mat')
-    time_elapse_1 = conts['time_elapse'][0]
+    with open('get_delays_time_elapse.txt', 'r') as f:
+        time_elapse_1 = float(f.readline())
+
     delays_wet_4, delays_hydro_4 = get_delays(stepSize, pnts_file, wm_file, interpType,
                                               verbose, delayType, cpu_num = 4)
-    conts = sio.loadmat('get_delays_time_elapse.mat')
-    time_elapse_4 = conts['time_elapse'][0]
-    
-    subprocess.getoutput('rm get_delays_time_elapse.mat')
+    with open('get_delays_time_elapse.txt', 'r') as f:
+        time_elapse_4 = float(f.readline())
+
 
     # test error messaging
     def test_get_delays_wet_accuracy(self):
@@ -41,8 +41,8 @@ class hdf5_parallel_Tests(unittest.TestCase):
         self.assertTrue(np.allclose(self.delays_hydro_1, self.delays_hydro_4))
 
     
-#     def test_get_delays_runtime(self):
-#         self.assertTrue(self.time_elapse_1 > self.time_elapse_4)
+    def test_get_delays_runtime(self):
+        print("Speedup by using 4 cpu threads vs single thread: ".format(self.time_elapse_1/self.time_elapse_4))
 
 
 def main():
