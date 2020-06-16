@@ -42,7 +42,7 @@ class hdf5_parallel_Tests(unittest.TestCase):
 
     
     def test_get_delays_runtime(self):
-        print("Speedup by using 4 cpu threads vs single thread: ".format(self.time_elapse_1/self.time_elapse_4))
+        print("Speedup by using 4 cpu threads vs single thread: {}".format(self.time_elapse_1/self.time_elapse_4))
 
 
 def main():
