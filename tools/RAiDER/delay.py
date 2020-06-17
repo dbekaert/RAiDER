@@ -58,7 +58,7 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
         print('stepSize = {}'.format(stepSize))
 
     RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize, verbose = verbose)
-    delays = RAiDER.delayFcns.get_delays(stepSize, pnts_file_name, 
+    delays = RAiDER.delayFcns.get_delays(stepSize, pnts_file_name,
                               weather_model_file_name, interpType = interpType, 
                               verbose = verbose, delayType = delayType)
     return delays
@@ -102,9 +102,9 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = Fals
         import h5py
         # Get the weather model data
         with h5py.File(weather_model_file_name, 'r') as f:
-            zs_wm = f['z'].value.copy()
-            total_wet=f['wet_total'].value.copy()
-            total_hydro=f['hydro_total'].value.copy()
+            zs_wm = f['z'][()].copy()
+            total_wet=f['wet_total'][()].copy()
+            total_hydro=f['hydro_total'][()].copy()
         if zlevels is None:
             return total_wet, total_hydro
         else:

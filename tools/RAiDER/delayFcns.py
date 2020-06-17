@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Author: Jeremy Maurer, Raymond Hogenson, David Bekaert & Yang Lei
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import multiprocessing as mp
 import h5py
 import numpy as np
 import pyproj
 import itertools
+import time
+
+
 
 from RAiDER.constants import _STEP
 from RAiDER.makePoints import makePoints1D,makePoints2D,makePoints3D
@@ -63,31 +67,26 @@ def testTime(t, ray, N):
 
 
 def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', 
-               verbose = False, delayType = "Zenith"):
+               verbose = False, delayType = "Zenith", cpu_num = 0):
     '''
     Create the integration points for each ray path. 
     '''
-    from RAiDER.delayFcns import _transform 
-    from pyproj import Transformer, CRS 
-    from tqdm import tqdm
 
-    # Transformer from ECEF to weather model
-    p1 = CRS.from_epsg(4978) 
-    proj_wm = getProjFromWMFile(wm_file)
-    t = Transformer.from_proj(p1,proj_wm, always_xy=True) 
+    t0 = time.time()
 
     # Get the weather model data
     with h5py.File(wm_file, 'r') as f:
-        xs_wm = f['x'].value.copy()
-        ys_wm = f['y'].value.copy()
-        zs_wm = f['z'].value.copy()
-        wet=f['wet'].value.copy()
-        hydro=f['hydro'].value.copy()
+        xs_wm = f['x'][()].copy()
+        ys_wm = f['y'][()].copy()
+        zs_wm = f['z'][()].copy()
+        wet=f['wet'][()].copy()
+        hydro=f['hydro'][()].copy()
 
     ifWet = getIntFcn(xs_wm, ys_wm, zs_wm, wet)
     ifHydro = getIntFcn(xs_wm, ys_wm, zs_wm, hydro)
 
-    delays = []
+
+
     with h5py.File(pnts_file, 'r') as f:
         Nrays = f.attrs['NumRays']
         chunkSize = f['lon'].chunks
@@ -95,24 +94,36 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
         arrSize = f['lon'].shape
         max_len = np.nanmax(f['Rays_len']).astype(np.float64)
 
+    if cpu_num == 0:
+        Nchunks = mp.cpu_count()
+        cpu_num = Nchunks
+    else:
+        Nchunks = cpu_num
+
+    chunkSize1 = int(np.floor(np.prod(in_shape) / Nchunks))
+    chunkRem = np.prod(in_shape) - chunkSize1 * Nchunks
     #chunkInds =  makeChunkIndices(chunkSize, in_shape)
     #Nchunks = len(chunkInds)
     #chunks = chunk() # to be implemented
 
     with h5py.File(pnts_file, 'r') as f:
         #for ind in tqdm(range(len(chunkInds))):
-        for ind in tqdm(range(np.prod(f['lon'].shape))):
+#        for ind in tqdm(range(np.prod(f['lon'].shape))):
             #index = chunkInds[ind]
-            row, col = [v[0] for v in np.unravel_index([ind], in_shape)]
-            ray = makePoints1D(max_len, f['Rays_SP'][row, col,:], 
-                             f['Rays_SLV'][row, col,:],stepSize)
-            #ray = makePoints3D(max_len, f['Rays_SP'][index,:].value.copy(), 
-            #                 f['Rays_SLV'][row, col,:],stepSize)
+        CHUNKS = []
+        for k in range(Nchunks):
+            if k == (Nchunks-1):
+                chunkInds = range(k*chunkSize1, (k+1)*chunkSize1+chunkRem)
+            else:
+                chunkInds = range(k*chunkSize1, (k+1)*chunkSize1)
+            CHUNKS.append(chunkInds)
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']), in_shape, stepSize, ifWet, ifHydro, max_len, wm_file)
+                        for kk in range(Nchunks)]
+        with mp.Pool() as pool:
+            individual_results = pool.map(unpacking_hdf5_read, chunk_inputs)
 
-            ray_x, ray_y, ray_z = t.transform(ray[...,0, :], ray[...,1,:], ray[...,2,:])
-            delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
-            delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-            delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro))
+        delays = np.concatenate(individual_results)
+    
 
     wet_delay = np.concatenate([d[0,...] for d in delays]).reshape(in_shape)
     hydro_delay = np.concatenate([d[1,...] for d in delays]).reshape(in_shape)
@@ -124,7 +135,53 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
 #        pass
 
 #    return wet, hydro
+
+    time_elapse = (time.time() - t0)
+    with open('get_delays_time_elapse.txt', 'w') as f:
+        f.write('{}'.format(time_elapse))
+    if verbose:
+        time_elapse_hr = int(np.floor(time_elapse/3600.0))
+        time_elapse_min = int(np.floor((time_elapse - time_elapse_hr*3600.0)/60.0))
+        time_elapse_sec = (time_elapse - time_elapse_hr*3600.0 - time_elapse_min*60.0)
+        print("Delay estimation cost {0} hour(s) {1} minute(s) {2} second(s) using {3} cpu threads".format(time_elapse_hr,time_elapse_min,time_elapse_sec,cpu_num))
     return wet_delay, hydro_delay
+
+
+
+def unpacking_hdf5_read(tup):
+    """
+        Like numpy.apply_along_axis(), but and with arguments in a tuple
+        instead.
+        This function is useful with multiprocessing.Pool().map(): (1)
+        map() only handles functions that take a single argument, and (2)
+        this function can generally be imported from a module, as required
+        by map().
+        """
+    
+    from pyproj import Transformer, CRS
+    
+    k, chunkInds, SP, SLV, in_shape, stepSize, ifWet, ifHydro, max_len, wm_file = tup
+    
+    # Transformer from ECEF to weather model
+    p1 = CRS.from_epsg(4978)
+    proj_wm = getProjFromWMFile(wm_file)
+    t = Transformer.from_proj(p1,proj_wm, always_xy=True)
+    
+    delays = []
+    
+    
+    for ind in chunkInds:
+        row, col = [v[0] for v in np.unravel_index([ind], in_shape)]
+        ray = makePoints1D(max_len, SP[row, col,:].astype('float64'),
+                           SLV[row, col,:].astype('float64'),stepSize)
+        ray_x, ray_y, ray_z = t.transform(ray[...,0, :], ray[...,1,:], ray[...,2,:])
+        delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
+        delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
+        delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro))
+
+    return delays
+
+
 
 
 def makeChunkIndices(chunkSize, in_shape):
@@ -207,7 +264,7 @@ def getProjFromWMFile(wm_file):
     '''
     from pyproj import CRS 
     with h5py.File(wm_file, 'r') as f:
-        wm_proj = CRS.from_json(f['Projection'].value)
+        wm_proj = CRS.from_json(f['Projection'][()])
     return wm_proj
 
 
@@ -249,7 +306,7 @@ def lla2ecef(pnts_file):
 
     t = Transformer.from_crs(4326,4978, always_xy =True) # converts from WGS84 geodetic to WGS84 geocentric
     with h5py.File(pnts_file, 'r+') as f:
-        sp = np.moveaxis(np.array(t.transform(f['lon'].value, f['lat'].value, f['hgt'].value)), 0, -1)
+        sp = np.moveaxis(np.array(t.transform(f['lon'][()], f['lat'][()], f['hgt'][()])), 0, -1)
         f['Rays_SP'][...] = sp.astype(np.float64) # ensure double is maintained
 
 def getUnitLVs(pnts_file):
@@ -258,7 +315,7 @@ def getUnitLVs(pnts_file):
     '''
     get_lengths(pnts_file)
     with h5py.File(pnts_file, 'r+') as f:
-        slv = f['LOS'].value / f['Rays_len'].value[...,np.newaxis]
+        slv = f['LOS'][()] / f['Rays_len'][()][...,np.newaxis]
         f['Rays_SLV'][...] = slv
 
 
@@ -274,7 +331,7 @@ def get_lengths(pnts_file):
                      meters of the top of the atmosphere from the ground pnt. 
     '''
     with h5py.File(pnts_file, 'r+') as f:
-        lengths = np.linalg.norm(f['LOS'].value, axis=-1)
+        lengths = np.linalg.norm(f['LOS'][()], axis=-1)
         try:
             lengths[~np.isfinite(lengths)] = 0
         except TypeError:

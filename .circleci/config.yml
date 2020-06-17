@@ -43,6 +43,7 @@ jobs:
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis; print(interp_along_axis)"
             raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
             raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v --heightlvs 0 100 200
+            raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/ERA5_Lat_2018_01_01_T00_00_00.dat test/scenario_1/geom/ERA5_Lon_2018_01_01_T00_00_00.dat --model ERA5 --zref 20000 -v --out test/scenario_1/
       - run:
           name: Run unit tests
           command: |
@@ -50,5 +51,5 @@ jobs:
             source activate myenv
             conda activate RAiDER
             cd test
-            python -m unittest test_interpolator test_utilFcns
+            python -m unittest test_interpolator test_utilFcns test_hdf5_parallel
             
