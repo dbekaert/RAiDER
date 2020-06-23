@@ -118,6 +118,9 @@ def checkArgs(args, p):
     else:
         wmLoc = os.path.join(args.out, 'weather_files')
 
+    if not os.path.exists(wmLoc):
+        os.mkdir(wmLoc)
+
     wetNames, hydroNames = [], []
     for time in datetimeList:
         if flag == 'station_file':
