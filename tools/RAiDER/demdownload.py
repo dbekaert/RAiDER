@@ -42,6 +42,8 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         outRasterName = os.path.join(outLoc, outName)
     else:
         outRasterName = outName
+    if verbose:
+        print('DEM will be downloaded to {}'.format(outRasterName))
 
     if os.path.exists(outRasterName):
         print('WARNING: DEM already exists in {}, checking shape'.format(os.path.dirname(outRasterName)))
@@ -53,6 +55,11 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
                               change the inputs.')
         except RuntimeError:
             hgts = RAiDER.utilFcns.read_hgt_file(outRasterName)
+        except: 
+            raise RuntimeError('Could not read the existing DEM; either delete it or fix it.')
+             
+        hgts[hgts==ndv] = np.nan
+        return hgts
 
         hgts[hgts == ndv] = np.nan
         return hgts
@@ -109,11 +116,11 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
             RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue=ndv)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
-    elif save_flag == 'merge':
-        import pandas as pd
-        df = pd.read_csv(outRasterName)
-        df['Hgt_m'] = outInterp
-        df.to_csv(outRasterName)
+    elif save_flag=='merge':
+       import pandas as pd
+       df = pd.read_csv(outRasterName)
+       df['Hgt_m'] = outInterp
+       df.to_csv(outRasterName, index=False)
     else:
         pass
 

@@ -99,37 +99,29 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     ifHydro = make_interpolator(xs_wm, ys_wm, zs_wm, hydro)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunkSize = f['lon'].chunks
+        Nrays = f.attrs['NumRays']
+        chunkSize = f.attrs['ChunkSize']
         in_shape = f['lon'].attrs['Shape']
         arrSize = f['lon'].shape
         max_len = np.nanmax(f['Rays_len']).astype(np.float64)
 
-    if cpu_num == 0:
-        Nchunks = mp.cpu_count()
-        cpu_num = Nchunks
-    else:
-        Nchunks = cpu_num
-
-    chunkSize1 = int(np.floor(np.prod(in_shape) / Nchunks))
-    chunkRem = np.prod(in_shape) - chunkSize1 * Nchunks
+    CHUNKS = chunk(chunkSize, in_shape)
+    Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        CHUNKS = []
-        for k in range(Nchunks):
-            if k == (Nchunks-1):
-                chunkInds = range(k*chunkSize1, (k+1)*chunkSize1+chunkRem)
-            else:
-                chunkInds = range(k*chunkSize1, (k+1)*chunkSize1)
-            CHUNKS.append(chunkInds)
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']), in_shape, stepSize, ifWet, ifHydro, max_len, wm_file)
-                        for kk in range(Nchunks)]
-        with mp.Pool() as pool:
-            individual_results = pool.starmap(process_chunk, chunk_inputs)
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']), 
+                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
-        delays = np.concatenate(individual_results)
+        if cpu_num ==0:
+            individual_results = []
+            for tup in chunk_inputs:
+                individual_results.append(unpacking_hdf5_read(tup))
+        else:
+            with mp.Pool() as pool:
+                individual_results = pool.map(unpacking_hdf5_read, chunk_inputs)
 
-    wet_delay = np.concatenate([d[0, ...] for d in delays]).reshape(in_shape)
-    hydro_delay = np.concatenate([d[1, ...] for d in delays]).reshape(in_shape)
+    wet_delay = np.concatenate([d[0,...] for d in individual_results]).reshape(in_shape)
+    hydro_delay = np.concatenate([d[1,...] for d in individual_results]).reshape(in_shape)
 
     time_elapse = (time.time() - t0)
     with open('get_delays_time_elapse.txt', 'w') as f:
@@ -138,7 +130,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
         time_elapse_hr = int(np.floor(time_elapse/3600.0))
         time_elapse_min = int(np.floor((time_elapse - time_elapse_hr*3600.0)/60.0))
         time_elapse_sec = (time_elapse - time_elapse_hr*3600.0 - time_elapse_min*60.0)
-        print("Delay estimation cost {0} hour(s) {1} minute(s) {2} second(s) using {3} cpu threads".format(time_elapse_hr, time_elapse_min, time_elapse_sec, cpu_num))
+        print("Delay estimation cost {0} hour(s) {1} minute(s) {2} second(s) using {3} cpu threads"
+               .format(time_elapse_hr,time_elapse_min,time_elapse_sec,cpu_num))
     return wet_delay, hydro_delay
 
 
@@ -154,6 +147,63 @@ def make_interpolator(xs, ys, zs, data):
     )
 
 
+def chunk(chunkSize, in_shape):
+    '''
+    Create a set of indices to use as chunks
+    '''
+    startInds =  makeChunkStartInds(chunkSize, in_shape)
+    chunkInds = makeChunksFromInds(startInds, chunkSize, in_shape)
+    return chunkInds
+
+
+def makeChunksFromInds(startInd, chunkSize, in_shape):
+    '''
+    From a list of tuples containing starting indices and
+    a tuple of chunkSize (length equal to ndim), create a 
+    list of arrays to be used as chunk indices
+    '''
+    indices = []
+    for ci in startInd:
+        index = []
+        for si,k,dim in zip(ci,chunkSize, range(len(chunkSize))):
+            if si+k > in_shape[dim]:
+                dend = in_shape[dim]
+            else:
+                dend = si+k
+            index.append(np.array(range(si, dend)))
+        indices.append(index)
+
+    # Now create the index mesh (for Ndim > 1)
+    chunks = []
+    if len(in_shape)>1:
+        for index in indices:
+            chunks.append([np.array(g) for g in zip(*list(itertools.product(*index)))])
+    else:
+        chunks = indices
+     
+    return chunks 
+
+
+def makeChunkStartInds(chunkSize, in_shape):
+    '''
+    Create a list of indices for chunking a 2D array
+    '''
+    if len(in_shape)==1:
+        chunkInds = [(i,) for i in range(0,in_shape[0],chunkSize[0])]
+
+    elif len(in_shape)==2:
+        chunkInds = [(i,j) for i,j in itertools.product(range(0,in_shape[0],chunkSize[0]), 
+                                                        range(0,in_shape[1],chunkSize[1]))]
+    elif len(in_shape)==3:
+        chunkInds = [(i,j, k) for i,j,k in itertools.product(range(0,in_shape[0],chunkSize[0]), 
+                                                             range(0,in_shape[1],chunkSize[1]), 
+                                                             range(0,in_shape[2],chunkSize[2]))]
+    else:
+        raise NotImplementedError('makeChunkStartInds: ndim > 3 not supported')
+
+    return chunkInds
+
+
 def process_chunk(k, chunkInds, SP, SLV, in_shape, stepSize, ifWet, ifHydro, max_len, wm_file):
     """
     Perform the interpolation and integration over a single chunk.
@@ -161,20 +211,30 @@ def process_chunk(k, chunkInds, SP, SLV, in_shape, stepSize, ifWet, ifHydro, max
     # Transformer from ECEF to weather model
     p1 = CRS.from_epsg(4978)
     proj_wm = getProjFromWMFile(wm_file)
-    t = Transformer.from_proj(p1, proj_wm, always_xy=True)
+    t = Transformer.from_proj(p1,proj_wm, always_xy=True)
+    
+    # datatype must be specific for the cython makePoints* function
+    _DTYPE = np.float64
 
-    delays = []
+    # H5PY does not support fancy indexing with tuples, hence this if/else check
+    if len(chunkSize)==1:
+        row = chunkInds[0]
+        ray = makePoints1D(max_len, SP[row, :].astype(_DTYPE), SLV[row, :].astype(_DTYPE), stepSize)
+    elif len(chunkSize)==2:
+        row, col = chunkInds
+        ray = makePoints1D(max_len, SP[row, col,:].astype(_DTYPE), SLV[row, col,:].astype(_DTYPE), stepSize)
+    elif len(chunkSize)==3:
+        row, col, zind  = chunkInds
+        ray = makePoints1D(max_len, SP[row, col, zind,:].astype(_DTYPE),SLV[row, col,zind,:].astype(_DTYPE),stepSize)
+    else:
+        raise RuntimeError('Data in more than 4 dimensions is not supported')
 
-    for ind in chunkInds:
-        row, col = [v[0] for v in np.unravel_index([ind], in_shape)]
-        ray = makePoints1D(max_len, SP[row, col, :].astype('float64'),
-                           SLV[row, col, :].astype('float64'), stepSize)
-        ray_x, ray_y, ray_z = t.transform(ray[..., 0, :], ray[..., 1, :], ray[..., 2, :])
-        delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
-        delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-        delays.append(_integrateLOS(stepSize, delay_wet, delay_hydro))
+    ray_x, ray_y, ray_z = t.transform(ray[...,0, :], ray[...,1,:], ray[...,2,:])
+    delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
+    delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
+    int_delays = _integrateLOS(stepSize, delay_wet, delay_hydro)
 
-    return delays
+    return int_delays
 
 
 def getProjFromWMFile(wm_file):

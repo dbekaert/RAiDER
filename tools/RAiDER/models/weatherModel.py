@@ -323,7 +323,8 @@ class WeatherModel(ABC):
                 print('Extent of the input lats/lons is: {}'.format(in_extent))
                 print('Extent of the weather model is: {}'.format(self_extent))
                 print('The weather model passed does not cover all of the \n \
-                                  input points; you need to download a larger area.')
+input points; you need to download a new one. Delete or move the existing file \
+to a new location')
                 raise RuntimeError('Check the weather model')
             self._trimExtent(in_extent)
 

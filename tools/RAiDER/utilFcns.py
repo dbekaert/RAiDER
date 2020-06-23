@@ -117,6 +117,8 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     write a numpy array to a GDAL-readable raster
     '''
     array_shp = np.shape(array)
+    if array.ndim!=2:
+        raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
     dType = array.dtype
     if 'complex' in str(dType):
         dType = gdal.GDT_CFloat32
@@ -444,7 +446,7 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
+def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None, verbose = False):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -460,18 +462,24 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
     # create directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
+    if chunkSize is None:
+        import multiprocessing as mp
+        minChunkSize = 100
+        maxChunkSize = 10000
+        cpu_count = mp.cpu_count()
+        chunkSize = tuple(max(min(maxChunkSize, s//cpu_count), min(s, minChunkSize)) for s in in_shape)
+
+    if verbose:
+        print('Chunk size is {}'.format(chunkSize))
+        print('Array shape is {}'.format(in_shape))
+
     with h5py.File(outName, 'w') as f:
-    # with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
-        if chunkSize is None:
-            x = f.create_dataset('lon', data=lons.astype(np.float64), chunks=True)
-        else:
-            x = f.create_dataset('lon', data=lons.astype(np.float64), chunks=chunkSize)
-
-        y = f.create_dataset('lat', data=lats.astype(np.float64), chunks=x.chunks)
-        z = f.create_dataset('hgt', data=hgts.astype(np.float64), chunks=x.chunks)
-        los = f.create_dataset('LOS', data=los.astype(np.float64), chunks=x.chunks + (3,))
+        x = f.create_dataset('lon', data = lons, chunks = chunkSize)
+        y = f.create_dataset('lat', data = lats, chunks = chunkSize)
+        z = f.create_dataset('hgt', data = hgts, chunks = chunkSize)
+        los = f.create_dataset('LOS', data= los, chunks = chunkSize + (3,))
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
