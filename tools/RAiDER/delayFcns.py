@@ -6,7 +6,6 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import itertools
 import multiprocessing as mp
 import time
 
@@ -44,6 +43,7 @@ def _compute_ray2(L, S, V, stepSize):
     ray = S + thisspace[..., np.newaxis]*V
     return ray
 
+
 def _compute_ray(L, S, V, stepSize, maxLen):
     '''
     Compute and return points along a ray, given a total length,
@@ -53,15 +53,6 @@ def _compute_ray(L, S, V, stepSize, maxLen):
     thisspace = np.arange(0, maxLen+stepSize, stepSize)
     ray = S + thisspace[..., np.newaxis]*V
     return ray, int(L//stepSize + 1)
-
-
-def testTime(t, ray, N):
-    import time
-    st = time.time()
-    for k in range(N):
-        ray_x, ray_y, ray_z = t.transform(ray[..., 0], ray[..., 1], ray[..., 2])
-    et = time.time()
-    return (et - st)/N
 
 
 def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
@@ -98,14 +89,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
 
     chunkSize1 = int(np.floor(np.prod(in_shape) / Nchunks))
     chunkRem = np.prod(in_shape) - chunkSize1 * Nchunks
-    #chunkInds =  makeChunkIndices(chunkSize, in_shape)
-    #Nchunks = len(chunkInds)
-    # chunks = chunk() # to be implemented
 
     with h5py.File(pnts_file, 'r') as f:
-        # for ind in tqdm(range(len(chunkInds))):
-#        for ind in tqdm(range(np.prod(f['lon'].shape))):
-            #index = chunkInds[ind]
         CHUNKS = []
         for k in range(Nchunks):
             if k == (Nchunks-1):
@@ -122,14 +107,6 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
 
     wet_delay = np.concatenate([d[0, ...] for d in delays]).reshape(in_shape)
     hydro_delay = np.concatenate([d[1, ...] for d in delays]).reshape(in_shape)
-
-    # Restore shape
-#    try:
-#        hydro, wet = np.stack((hydro_delay, wet_delay)).reshape((2,) + real_shape)
-#    except:
-#        pass
-
-#    return wet, hydro
 
     time_elapse = (time.time() - t0)
     with open('get_delays_time_elapse.txt', 'w') as f:
@@ -175,15 +152,6 @@ def unpacking_hdf5_read(tup):
     return delays
 
 
-def makeChunkIndices(chunkSize, in_shape):
-    '''
-    Create a list of indices for chunking a 2D array
-    '''
-    chunkInds = [(i, j) for i, j in itertools.product(range(0, in_shape[0], chunkSize[0]), range(0, in_shape[1], chunkSize[1]))]
-
-    return chunkInds
-
-
 def interpolate2(fun, x, y, z):
     '''
     helper function to make the interpolation step cleaner
@@ -192,6 +160,7 @@ def interpolate2(fun, x, y, z):
     out = fun((y.flatten(), x.flatten(), z.flatten()))
     outData = out.reshape(in_shape)
     return outData
+
 
 def interpolate(fun, x, y, z):
     '''
@@ -215,12 +184,14 @@ def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts=None):
             delays.append(_integrate_delays(stepSize, d, Npts))
     return np.stack(delays, axis=0)
 
+
 def _integrate_delays2(stepSize, refr):
     '''
     This function gets the actual delays by integrating the refractivity in
     each node. Refractivity is given in the 'refr' variable.
     '''
     return int_fcn2(refr, stepSize)
+
 
 def _integrate_delays(stepSize, refr, Npts=None):
     '''
@@ -236,10 +207,14 @@ def _integrate_delays(stepSize, refr, Npts=None):
             delays.append(int_fcn2(ray, stepSize))
     return np.array(delays)
 
+
 def int_fcn(y, dx, N):
     return 1e-6*dx*np.nansum(y[:N])
+
+
 def int_fcn2(y, dx):
     return 1e-6*dx*np.nansum(y)
+
 
 def getIntFcn(xs, ys, zs, var):
     '''
@@ -248,6 +223,7 @@ def getIntFcn(xs, ys, zs, var):
     from scipy.interpolate import RegularGridInterpolator as rgi
     ifFun = rgi((ys.flatten(), xs.flatten(), zs.flatten()), var, bounds_error=False, fill_value=np.nan)
     return ifFun
+
 
 def getProjFromWMFile(wm_file):
     '''
@@ -299,6 +275,7 @@ def lla2ecef(pnts_file):
     with h5py.File(pnts_file, 'r+') as f:
         sp = np.moveaxis(np.array(t.transform(f['lon'][()], f['lat'][()], f['hgt'][()])), 0, -1)
         f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
+
 
 def getUnitLVs(pnts_file):
     '''
@@ -359,50 +336,3 @@ def calculate_rays(pnts_file, stepSize=_STEP, verbose=False):
     # to compute the rays. Write out the rays to the file.
     # TODO: Add these variables to the original HDF5 file so that we don't have
     # to create a new file
-
-#    return delays
-
-
-#    # Now to interpolate, we have to re-project each ray into the coordinate
-#    # system used by the weather model.  --> this is inefficient as is
-#    if useDask:
-#        if verbose:
-#            print('Beginning re-projection using Dask')
-#        Npart = min(len(positions_l)//100 + 1, 1000)
-#        bag = [(pos, ecef, newProj) for pos in positions_l]
-#        PntBag = db.from_sequence(bag, npartitions=Npart)
-#        newPts = PntBag.map(_re_project).compute()
-#    else:
-#        if verbose:
-#            print('Beginning re-projection without Dask')
-#        newPts = list(map(f, positions_l))
-#
-#    # TODO: not sure how long this takes but looks inefficient
-#    newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
-
-     # TODO: implement chunking for efficient interpolation?
-#    # chunk the rays
-#    rayChunkIndices = list(range(len(start_positions)))
-#    chunks = np.array_split(rayChunkIndices, nChunks)
-#    bags = []
-#    for chunk in chunks:
-#       bags.append(newPts[chunk])
-#
-
-# def chunk(arr, blockIDs, block_size):
-#    '''
-#    return a list of chunks of an array along the first len(idx) axes.
-#    '''
-#    chunkDims = len(blockIDs[0])
-#    arrDims = arr.ndim
-#    compDims = arrDim - chunkDim
-#    for idx in blockIDs:
-#        tmp = np.zeros(tuple([block_size]*chunkDim + (compDim,)))
-#        indx = []
-#        for ind in range(chunkDims):
-#            indx.append(min(blockIDs[idx][ind]:blockIDs[idx][ind] + block_size, arr.shape[ind]))
-#        for ind in range(arrDim - chunkDims):
-#            indx.append([1])
-#        chunks.append(arr[tuple(indx)])
-#
-#    return chunks
