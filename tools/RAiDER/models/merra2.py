@@ -1,8 +1,9 @@
 from RAiDER.models.weatherModel import WeatherModel
 
+
 class MERRA2(WeatherModel):
     """Reader for MERRA-2 model.
-    
+
     Only supports pressure levels right now, that may change someday.
     """
     import urllib.request
@@ -13,7 +14,7 @@ class MERRA2(WeatherModel):
     _k3 = None
 
     _Name = 'MERRA-2'
-  
+
     def fetch(self, lats, lons, time, out):
         """Fetch MERRA-2."""
         # TODO: This function doesn't work right now. I'm getting a 302
@@ -94,8 +95,7 @@ class MERRA2(WeatherModel):
         lvs = '[0:1:41]'
         combined = '{}{}{}{}'.format(timeStr, lvs, latStr, lonStr)
         return ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/' +
-                'M2I6NPANA.5.12.4/{}/'.format(time.strftime("%Y/%m")) + 
-                'MERRA2_100.inst6_3d_ana_Np.{}.nc4.nc?'.format(time.strftime("%Y%m%d")) + 
-                'T{},H{},lat{},lev{},lon{},'.format(combined, combined, latStr, lvs, lonStr) + 
+                'M2I6NPANA.5.12.4/{}/'.format(time.strftime("%Y/%m")) +
+                'MERRA2_100.inst6_3d_ana_Np.{}.nc4.nc?'.format(time.strftime("%Y%m%d")) +
+                'T{},H{},lat{},lev{},lon{},'.format(combined, combined, latStr, lvs, lonStr) +
                 'time{}'.format(timeStr))
-

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+#
 #  Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 #  Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 #  RESERVED. United States Government Sponsorship acknowledged.
-# 
+#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import os
 import sys
+
 
 def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     '''
@@ -19,7 +20,7 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     from RAiDER.utilFcns import mkdir
 
     mkdir('weather_files')
-    f = os.path.join(outLoc, 
+    f = os.path.join(outLoc,
         '{}_{}.nc'.format(weather_model_name,
          dt.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
@@ -34,8 +35,8 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
     return download_flag, f
 
 
-def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None, 
-                        los = None, zref = None, time=None, verbose = False, 
+def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
+                        los = None, zref = None, time=None, verbose = False,
                         download_only = False, makePlots = False):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
@@ -43,7 +44,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     import numpy as np
     from RAiDER.models.allowed import checkIfImplemented
     from RAiDER.utilFcns import writeLL, getTimeFromFile
-    
+
     # Make weather
     weather_model, weather_files, weather_model_name = \
                weatherDict['type'],weatherDict['files'],weatherDict['name']
@@ -64,7 +65,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
             print('ERROR: Unable to download weather data')
             print('Exception encountered: {}'.format(e))
             sys.exit(0)
- 
+
         # exit on download if download_only requested
         if download_only:
             print('WARNING: download_only flag selected. I will only '
@@ -81,10 +82,10 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
 
 ############################################################################
 ### TODO: Need to check this bit
-#    # Pull the lat/lon data if using the weather model 
+#    # Pull the lat/lon data if using the weather model
 #    if lats is None or len(lats)==2:
 #        uwn = True
-#        lats,lons = weather_model.getLL() 
+#        lats,lons = weather_model.getLL()
 #        lla = weather_model.getProjection()
 #        try:
 #            writeLL(time, lats, lons,lla, weather_model_name, out)
@@ -104,7 +105,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         print('Number of weather model nodes: {}'.format(np.prod(weather_model.getWetRefractivity().shape)))
         print('Shape of weather model: {}'.format(weather_model.getWetRefractivity().shape))
         print('Bounds of the weather model: {}/{}/{}/{} (SNWE)'
-               .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys), 
+               .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
                       np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)))
 #        print('Using weather nodes only? (true/false): {}'.format(uwn))
         print('Weather model: {}'.format(weather_model.Model()))
@@ -126,5 +127,3 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         p = weather_model.plot('pqt', True)
 
     return weather_model, lats, lons
-
-

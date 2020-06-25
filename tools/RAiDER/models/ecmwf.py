@@ -1,8 +1,8 @@
 import datetime
+
 import numpy as np
 from pyproj import CRS
 
-from RAiDER.utilFcns import round_date
 from RAiDER.models.weatherModel import WeatherModel
 
 
@@ -22,13 +22,12 @@ class ECMWF(WeatherModel):
         self._lon_res = 0.2
         self._lat_res = 0.2
 
-
     def load_weather(self, filename):
         '''
-        Consistent class method to be implemented across all weather model types. 
-        As a result of calling this method, all of the variables (x, y, z, p, q, 
-        t, wet_refractivity, hydrostatic refractivity, e) should be fully 
-        populated. 
+        Consistent class method to be implemented across all weather model types.
+        As a result of calling this method, all of the variables (x, y, z, p, q,
+        t, wet_refractivity, hydrostatic refractivity, e) should be fully
+        populated.
         '''
         self._load_model_level(filename)
 
@@ -169,12 +168,12 @@ class ECMWF(WeatherModel):
             var = ['lnsp', 'q','z','t']
             levels = mls
             levType = 'model_level'
-        
+
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
-       
+
         dataDict = {
-            # 'class': self._classname, 
+            # 'class': self._classname,
             # 'dataset': self._dataset,
             # "expver": "{}".format(self._expver),
             "product_type": "reanalysis",
@@ -190,7 +189,7 @@ class ECMWF(WeatherModel):
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
-            "area": bbox, 
+            "area": bbox,
             "format": "netcdf"}
         print(dataDict)
 

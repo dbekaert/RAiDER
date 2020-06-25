@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+#
 #  Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 #  Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 #  RESERVED. United States Government Sponsorship acknowledged.
-# 
+#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-import numpy as np
 import os.path
 import shelve
+
+import numpy as np
+
 import RAiDER.utilFcns as utilFcns
 from RAiDER.constants import _ZREF, Zenith
 
@@ -17,7 +19,7 @@ from RAiDER.constants import _ZREF, Zenith
 #TODO: It looks like Configurable and ProductManager are not functioning
 class Configurable():
     '''
-    Is this needed? 
+    Is this needed?
     '''
     def __init__(self):
         pass
@@ -29,11 +31,11 @@ class ProductManager(Configurable):
     family = 'productmanager'
     def __init__(self,family='', name=''):
         super(ProductManager, self).__init__(family if family else  self.__class__.family, name=name)
-        
+
     def dumpProduct(self,obj,filename):
         self._instance = obj
         self.dump(filename)
-        
+
     def loadProduct(self,filename):
         self.load(filename)
         return self._instance
@@ -41,14 +43,14 @@ class ProductManager(Configurable):
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
     '''
-    Converts information from a state vector for a satellite orbit, given in terms of 
-    position and velocity, to line-of-sight information at each (lon,lat, height) 
+    Converts information from a state vector for a satellite orbit, given in terms of
+    position and velocity, to line-of-sight information at each (lon,lat, height)
     coordinate requested by the user.
 
-    *Note*: 
-    The LOS returned should be a vector pointing from the ground pixel to the sensor, 
-    truncating at the top of the troposphere, in an earth-centered, earth-fixed 
-    coordinate system. 
+    *Note*:
+    The LOS returned should be a vector pointing from the ground pixel to the sensor,
+    truncating at the top of the troposphere, in an earth-centered, earth-fixed
+    coordinate system.
     '''
     from RAiDER import Geo2rdr
 
@@ -70,7 +72,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref = _ZREF):
 
     loss = np.zeros((3, len(lats)))
     slant_ranges = np.zeros_like(lats)
- 
+
     for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
         height_array = np.array(((height,),))
 
@@ -146,8 +148,8 @@ def read_txt_file(filename):
                 t_, x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in line.split()]
             except ValueError:
                 raise ValueError(
-                        "I need {} to be a 7 column text file, with ".format(filename) + 
-                        "columns t, x, y, z, vx, vy, vz (Couldn't parse line " + 
+                        "I need {} to be a 7 column text file, with ".format(filename) +
+                        "columns t, x, y, z, vx, vy, vz (Couldn't parse line " +
                         "{})".format(repr(line)))
             t.append(t_)
             x.append(x_)
@@ -197,7 +199,7 @@ def read_ESA_Orbit_file(filename, time = None):
 
     #if time is not None:
     #    mask = np.abs(t - time) < 3600
-    #    t, x, y, z, vx, vy, vz = t[mask], x[mask], y[mask], z[mask], vx[mask], vy[mask], vz[mask] 
+    #    t, x, y, z, vx, vy, vz = t[mask], x[mask], y[mask], z[mask], vx[mask], vy[mask], vz[mask]
 
     return [t, x, y, z, vx, vy, vz]
 
@@ -253,14 +255,14 @@ def infer_sv(los_file, lats, lons, heights, time = None):
 
 def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     '''
-    Convert incidence and heading to line-of-sight vectors from the ground to the top of 
-    the troposphere. 
+    Convert incidence and heading to line-of-sight vectors from the ground to the top of
+    the troposphere.
 
     *NOTE*:
-    LOS here is defined in an Earth-centered, earth-referenced 
+    LOS here is defined in an Earth-centered, earth-referenced
     coordinate system as pointing from the ground pixel to the sensor, truncating at the top of
-    the troposphere. 
-    
+    the troposphere.
+
     Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
     '''
     a_0 = incidence
@@ -314,14 +316,14 @@ def infer_los(los, lats, lons, heights, zref, time = None):
 def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
 
     '''
-    Returns look vectors when Zenith is used. 
-    Inputs: 
-       lats/lons/heights - Nx1 numpy arrays of points. 
+    Returns look vectors when Zenith is used.
+    Inputs:
+       lats/lons/heights - Nx1 numpy arrays of points.
        zref              - float, integration height in meters
-    Outputs: 
+    Outputs:
        zenLookVecs       - an Nx3 numpy array with the look vectors.
-                           The vectors give the zenith ray paths for 
-                           each of the points to the top of the atmosphere. 
+                           The vectors give the zenith ray paths for
+                           each of the points to the top of the atmosphere.
     '''
     try:
         if (lats.ndim!=1) | (heights.ndim!=1) | (lons.ndim!=1):
@@ -341,7 +343,7 @@ def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
 def getLookVectors(look_vecs, lats, lons, heights, zref = _ZREF, time = None):
     '''
     If the input look vectors are specified as Zenith, compute and return the
-    look vectors. Otherwise, check that the look_vecs shape makes sense. 
+    look vectors. Otherwise, check that the look_vecs shape makes sense.
     '''
     if look_vecs is None:
         look_vecs= Zenith

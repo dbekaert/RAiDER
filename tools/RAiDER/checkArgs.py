@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+#
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
-# 
+#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from datetime import datetime
 import os
 
-from RAiDER.llreader import readLL
-from RAiDER.models.allowed import AllowedModels
 import RAiDER.utilFcns
 from RAiDER.constants import Zenith
+from RAiDER.llreader import readLL
+from RAiDER.models.allowed import AllowedModels
+
 
 def checkArgs(args, p):
     '''
@@ -36,7 +36,7 @@ def checkArgs(args, p):
         flag = 'bounding_box'
     elif args.station_file is not None:
         flag = 'station_file'
-    else: 
+    else:
         flag = None
 
     if args.latlon is not None:
@@ -50,7 +50,7 @@ def checkArgs(args, p):
     elif args.station_file is not None:
         lat, lon, latproj, lonproj, bounds = readLL(args.station_file)
     elif args.files is None:
-        print("""I cannot read the lat/lon data from the supplied files because 
+        print("""I cannot read the lat/lon data from the supplied files because
 this option has not yet been implemented.""")
         raise NotImplementedError()
     else:
@@ -106,9 +106,9 @@ this option has not yet been implemented.""")
     if out is None:
         out = os.getcwd()
     if args.outformat is None:
-       if args.heightlvs is not None: 
+       if args.heightlvs is not None:
           outformat = 'hdf5'
-       elif args.station_file is not None: 
+       elif args.station_file is not None:
           outformat = 'csv'
        elif useWeatherNodes:
           outformat='hdf5'

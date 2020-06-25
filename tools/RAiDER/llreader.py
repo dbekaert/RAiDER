@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+#
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
-# 
+#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import numpy as np
 import os
+
+import numpy as np
 
 from RAiDER.demdownload import download_dem
 from RAiDER.utilFcns import gdal_open
+
 
 def readLL(*args):
     '''
@@ -52,7 +54,7 @@ def readLL(*args):
     [lats, lons] = enforceNumpyArray(lats, lons)
     bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
 
-    return lats, lons, latproj, lonproj, bounds 
+    return lats, lons, latproj, lonproj, bounds
 
 
 def getHeights(lats, lons,heights, useWeatherNodes = False):
@@ -100,7 +102,7 @@ def getHeights(lats, lons,heights, useWeatherNodes = False):
             height_type = 'skip'
         else:
             height_type = 'download'
-        
+
     if height_type == 'download':
         hts = download_dem(lats, lons, outName = os.path.abspath(height_data))
 
@@ -137,7 +139,7 @@ def setGeoInfo(lat, lon, latproj, lonproj, outformat):
 
 def enforceNumpyArray(*args):
     '''
-    Enforce that a set of arguments are all numpy arrays. 
+    Enforce that a set of arguments are all numpy arrays.
     Raise an error on failure.
     '''
     return [checkArg(a) for a in args]
@@ -165,7 +167,7 @@ def readLLFromStationFile(fname):
     except:
        lats, lons = [], []
        with open(fname, 'r') as f:
-          for i, line in enumerate(f): 
+          for i, line in enumerate(f):
               if i == 0:
                  continue
               lat, lon = [float(f) for f in line.split(',')[1:3]]

@@ -7,13 +7,14 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from shapely.geometry import Polygon, Point
-import numpy as np
-import os
-import time
-import pandas as pd
-import matplotlib.pyplot as plt
 import datetime as dt
+import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from shapely.geometry import Point, Polygon
+
 
 def createParser():
     '''
@@ -68,9 +69,9 @@ class variogramAnalysis():
         self.verbose = verbose
         self.binnedvariogram = binnedvariogram
 
-    def _getSamples(self, data, Nsamp=None): 
+    def _getSamples(self, data, Nsamp=None):
         '''
-        pull samples from a 2D image for variogram analysis 
+        pull samples from a 2D image for variogram analysis
         '''
         import random
         import itertools
@@ -89,17 +90,17 @@ class variogramAnalysis():
                 indpars=indpars[:Nsamp]
             d = np.array([[data[r[0]],data[r[1]]] for r in indpars])
             # oversample and remove NaNs if possible
-            mask = ~np.isnan(d) 
+            mask = ~np.isnan(d)
             if False in mask:
                 print('Warning: NaNs present')
-                d = d[mask] 
+                d = d[mask]
                 indpars = indpars[mask]
 
         return d, indpars
 
     def _getXY(self, x2d, y2d, indpars):
         '''
-        Given a list of indices, return the x,y locations 
+        Given a list of indices, return the x,y locations
         from two matrices
         '''
         x = np.array([[x2d[r[0]],x2d[r[1]]] for r in indpars])
@@ -142,10 +143,10 @@ class variogramAnalysis():
 
         nBins=len(xBin)-1;
         hExp, expVario = [], []
-        
+
         for iBin in range(nBins):
            iBinMask = np.logical_and(xBin[iBin]<hEff, hEff<=xBin[iBin+1])
-             
+
            try:
               hExp.append(np.nanmean(hEff[iBinMask]))
               expVario.append(np.nanmean(rawVario[iBinMask]))
@@ -178,7 +179,7 @@ class variogramAnalysis():
         if Nparm is not None:
            lb = np.zeros(Nparm)
            x0 = (ub-lb)/2
-     
+
         bounds = (lb, ub)
 
         mask = np.isnan(dists) | np.isnan(vario)
@@ -186,7 +187,7 @@ class variogramAnalysis():
         v = vario[~mask].copy()
 
         res_robust = least_squares(resid, x0, bounds = bounds,
-                       loss='soft_l1', f_scale = 0.1, 
+                       loss='soft_l1', f_scale = 0.1,
                        args = (d, v, model))
 
         d_test = np.linspace(0, np.nanmax(dists), 100)
@@ -197,7 +198,7 @@ class variogramAnalysis():
     #this would be expontential plus nugget
     def __exponential__(self, parms, h):
         '''
-        returns a variogram model given a set of arguments and 
+        returns a variogram model given a set of arguments and
         key-word arguments
         '''
         # a = range, b = sill, c = nugget model
@@ -342,7 +343,7 @@ class raiderStats(object):
 
     def __init__(self, filearg,col_name, workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, colorpercentile='25 95', verbose=False):
         self.fname = filearg
-        self.col_name=col_name 
+        self.col_name=col_name
         self.workdir = workdir
         self.bbox = bbox
         self.spacing = spacing

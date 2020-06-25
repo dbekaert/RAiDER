@@ -1,8 +1,7 @@
 import datetime
+
 import numpy as np
-import os
 from pyproj import CRS
-import re
 
 from RAiDER.models.weatherModel import WeatherModel
 
@@ -23,7 +22,7 @@ class HRRR(WeatherModel):
         self._classname = 'hrrr'
         self._dataset = 'hrrr'
 
-        # Tuple of min/max years where data is available. 
+        # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(2016,7,15),"Present")
         self._lag_time = datetime.timedelta(hours=3) # Availability lag time in days
 
@@ -63,13 +62,13 @@ class HRRR(WeatherModel):
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
-        self._files = self._download_hrrr_file(time, 'hrrr', out = out, 
+        self._files = self._download_hrrr_file(time, 'hrrr', out = out,
                                           field = 'prs', verbose = True)
 
     def load_weather(self, filename = None):
         '''
         Load a weather model into a python weatherModel object, from self._files if no
-        filename is passed. 
+        filename is passed.
         '''
         if filename is None:
             filename = self._files
@@ -121,25 +120,25 @@ class HRRR(WeatherModel):
 
     def _makeDataCubes(self, outName, verbose = False):
         '''
-        Create a cube of data representing temperature and relative humidity 
-        at specified pressure levels    
+        Create a cube of data representing temperature and relative humidity
+        at specified pressure levels
         '''
         pl = self._getPresLevels()
         pl = np.array([self._convertmb2Pa(p) for p in pl['Values']])
-    
+
         t, z, q, xArr, yArr, lats, lons = self._pull_hrrr_data(outName, verbose = verbose)
-    
+
         return xArr, yArr, lats.T, lons.T, np.moveaxis(t, [0,1,2], [2, 1, 0]), np.moveaxis(q, [0,1,2], [2, 1, 0]), np.moveaxis(z, [0,1,2], [2, 1, 0]), pl
-    
+
     def _pull_hrrr_data(self, filename, verbose = False):
         '''
         Get the variables from a HRRR grib2 file
         '''
         from cfgrib.xarray_store import open_dataset
-    
+
         # Pull the native grid
         xArr, yArr = self.getXY_gdal(filename)
-    
+
         # open the dataset and pull the data
         ds = open_dataset(filename,
              backend_kwargs={'filter_by_keys': {'typeOfLevel': 'isobaricInhPa'}})
@@ -148,7 +147,7 @@ class HRRR(WeatherModel):
         q = ds['q'].values.copy()
         lats = ds['t'].latitude.values.copy()
         lons = ds['t'].longitude.values.copy()
-    
+
         return t, z, q, xArr, yArr, lats, lons
 
     def _getPresLevels(self, low = 50, high = 1013.2, inc = 25):
@@ -158,25 +157,25 @@ class HRRR(WeatherModel):
         return outDict
 
     def _download_hrrr_file(self, DATE, model, out, field = 'prs', verbose = False):
-        ''' 
+        '''
         Download a HRRR model
-        ''' 
+        '''
         import requests
-    
+
         fxx = '00'
         outfile = '{}_{}_{}_f00.grib2'.format(model, DATE.strftime('%Y%m%d_%H%M%S'), field)
-    
+
         grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{}.grib2' \
                         .format(model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
-    
+
         if verbose:
-           print('Downloading {} to {}'.format(grib2file, out))
-    
+            print('Downloading {} to {}'.format(grib2file, out))
+
         r = requests.get(grib2file)
         with open(out, 'wb') as f:
-           f.write(r.content)
-    
+            f.write(r.content)
+
         if verbose:
-           print('Success!')
-    
-        return out 
+            print('Success!')
+
+        return out

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+#
 # Author: Jeremy Maurer
 # Copyright 2020, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
-# 
+#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import gdal
 import numpy as np
+
 from RAiDER.utilFcns import gdal_open, writeArrayToRaster
 
 
@@ -62,7 +63,7 @@ def makeLatLonGrid(inFile, lonFileName, latFileName, fmt = 'ENVI'):
 
     xEnd = xStart + xStep*xSize-xStep
     yEnd = yStart + yStep*ySize-yStep
-    
+
     x = np.arange(xStart, xEnd, xStep)
     y = np.arange(yStart, yEnd, yStep)
     X,Y = np.meshgrid(x,y)
@@ -112,7 +113,7 @@ def makeLOSFile(incFile, azFile, fmt = 'ENVI', filename = 'los.rdr'):
 
 def prepFromAria():
     '''
-    A command-line utility to convert ARIA standard product outputs from ARIA-tools to 
+    A command-line utility to convert ARIA standard product outputs from ARIA-tools to
     RAiDER-compatible format
     '''
     args, p = parse_args()

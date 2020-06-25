@@ -6,18 +6,16 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import itertools
 import multiprocessing as mp
+import time
+
 import h5py
 import numpy as np
 import pyproj
-import itertools
-import time
-
-
 
 from RAiDER.constants import _STEP
-from RAiDER.makePoints import makePoints1D,makePoints2D,makePoints3D
-#from RAiDER.utilFcns import makePoints1D,makePoints3D
+from RAiDER.makePoints import makePoints1D
 
 
 def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
@@ -33,12 +31,12 @@ def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
 
 def _compute_ray2(L, S, V, stepSize):
     '''
-    Compute and return points along a ray, given a total length, 
-    start position (in x,y,z), a unit look vector V, and the 
+    Compute and return points along a ray, given a total length,
+    start position (in x,y,z), a unit look vector V, and the
     stepSize.
     '''
     # Have to handle the case where there are invalid data
-    # TODO: cythonize this? 
+    # TODO: cythonize this?
     try:
         thisspace = np.arange(0, L+stepSize, stepSize)
     except ValueError:
@@ -48,8 +46,8 @@ def _compute_ray2(L, S, V, stepSize):
 
 def _compute_ray(L, S, V, stepSize, maxLen):
     '''
-    Compute and return points along a ray, given a total length, 
-    start position (in x,y,z), a unit look vector V, and the 
+    Compute and return points along a ray, given a total length,
+    start position (in x,y,z), a unit look vector V, and the
     stepSize.
     '''
     thisspace = np.arange(0, maxLen+stepSize, stepSize)
@@ -66,10 +64,10 @@ def testTime(t, ray, N):
     return (et - st)/N
 
 
-def get_delays(stepSize, pnts_file, wm_file, interpType = '3D', 
+def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
                verbose = False, delayType = "Zenith", cpu_num = 0):
     '''
-    Create the integration points for each ray path. 
+    Create the integration points for each ray path.
     '''
 
     t0 = time.time()
@@ -123,7 +121,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType = '3D',
             individual_results = pool.map(unpacking_hdf5_read, chunk_inputs)
 
         delays = np.concatenate(individual_results)
-    
+
 
     wet_delay = np.concatenate([d[0,...] for d in delays]).reshape(in_shape)
     hydro_delay = np.concatenate([d[1,...] for d in delays]).reshape(in_shape)
@@ -157,19 +155,19 @@ def unpacking_hdf5_read(tup):
         this function can generally be imported from a module, as required
         by map().
         """
-    
+
     from pyproj import Transformer, CRS
-    
+
     k, chunkInds, SP, SLV, in_shape, stepSize, ifWet, ifHydro, max_len, wm_file = tup
-    
+
     # Transformer from ECEF to weather model
     p1 = CRS.from_epsg(4978)
     proj_wm = getProjFromWMFile(wm_file)
     t = Transformer.from_proj(p1,proj_wm, always_xy=True)
-    
+
     delays = []
-    
-    
+
+
     for ind in chunkInds:
         row, col = [v[0] for v in np.unravel_index([ind], in_shape)]
         ray = makePoints1D(max_len, SP[row, col,:].astype('float64'),
@@ -216,7 +214,7 @@ def interpolate(fun, x, y, z):
 
 
 def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts = None):
-    delays = [] 
+    delays = []
     for d in (wet_pw, hydro_pw):
         if d.ndim==1:
             delays.append(np.array([int_fcn2(d, stepSize)]))
@@ -226,15 +224,15 @@ def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts = None):
 
 def _integrate_delays2(stepSize, refr):
     '''
-    This function gets the actual delays by integrating the refractivity in 
-    each node. Refractivity is given in the 'refr' variable. 
+    This function gets the actual delays by integrating the refractivity in
+    each node. Refractivity is given in the 'refr' variable.
     '''
     return int_fcn2(refr, stepSize)
 
 def _integrate_delays(stepSize, refr, Npts = None):
     '''
-    This function gets the actual delays by integrating the refractivity in 
-    each node. Refractivity is given in the 'refr' variable. 
+    This function gets the actual delays by integrating the refractivity in
+    each node. Refractivity is given in the 'refr' variable.
     '''
     delays = []
     if Npts is not None:
@@ -260,9 +258,9 @@ def getIntFcn(xs, ys, zs, var):
 
 def getProjFromWMFile(wm_file):
     '''
-    Returns the projection of an HDF5 file 
+    Returns the projection of an HDF5 file
     '''
-    from pyproj import CRS 
+    from pyproj import CRS
     with h5py.File(wm_file, 'r') as f:
         wm_proj = CRS.from_json(f['Projection'][()])
     return wm_proj
@@ -279,14 +277,14 @@ def _transform(ray, oldProj, newProj):
     return newRay
 
 
-def _re_project(tup): 
+def _re_project(tup):
     newPnt = _transform(tup[0],tup[1], tup[2])
     return newPnt
 
 
 def sortSP(arr):
     '''
-    Return an array that has been sorted progressively by 
+    Return an array that has been sorted progressively by
     each axis, beginning with the first
     Input:
       arr  - an Nx(2 or 3) array containing a set of N points in 2D or 3D space
@@ -321,14 +319,14 @@ def getUnitLVs(pnts_file):
 
 def get_lengths(pnts_file):
     '''
-    Returns the lengths of a vector or set of vectors, fast. 
-    Inputs: 
+    Returns the lengths of a vector or set of vectors, fast.
+    Inputs:
        looks_vecs  - an Nx3 numpy array containing look vectors with absolute
                      lengths; i.e., the absolute position of the top of the
-                     atmosphere. 
-    Outputs: 
-       lengths     - an Nx1 numpy array containing the absolute distance in 
-                     meters of the top of the atmosphere from the ground pnt. 
+                     atmosphere.
+    Outputs:
+       lengths     - an Nx1 numpy array containing the absolute distance in
+                     meters of the top of the atmosphere from the ground pnt.
     '''
     with h5py.File(pnts_file, 'r+') as f:
         lengths = np.linalg.norm(f['LOS'][()], axis=-1)
@@ -344,36 +342,36 @@ def get_lengths(pnts_file):
 
 def calculate_rays(pnts_file, stepSize = _STEP, verbose = False):
     '''
-    From a set of lats/lons/hgts, compute ray paths from the ground to the 
+    From a set of lats/lons/hgts, compute ray paths from the ground to the
     top of the atmosphere, using either a set of look vectors or the zenith
     '''
     if verbose:
         print('calculate_rays: Starting look vector calculation')
         print('The integration stepsize is {} m'.format(stepSize))
 
-    # get the lengths of each ray for doing the interpolation 
-    getUnitLVs(pnts_file) 
+    # get the lengths of each ray for doing the interpolation
+    getUnitLVs(pnts_file)
 
-    # This projects the ground pixels into earth-centered, earth-fixed coordinate 
+    # This projects the ground pixels into earth-centered, earth-fixed coordinate
     # system and sorts by position
     newPts = lla2ecef(pnts_file)
 
     # This returns the list of rays
-    # TODO: make this not a list. 
+    # TODO: make this not a list.
     # Why is a list used instead of a numpy array? It is because every ray has a
     # different length, and some rays have zero length (i.e. the points over
-    # water). However, it would be MUCH more efficient to do this as a single 
-    # pyproj call, rather than having to send each ray individually. For right 
+    # water). However, it would be MUCH more efficient to do this as a single
+    # pyproj call, rather than having to send each ray individually. For right
     # now we bite the bullet.
     #TODO: write the variables to a chunked HDF5 file and then use this file
-    # to compute the rays. Write out the rays to the file. 
+    # to compute the rays. Write out the rays to the file.
     #TODO: Add these variables to the original HDF5 file so that we don't have
     # to create a new file
 
-#    return delays 
+#    return delays
 
 
-#    # Now to interpolate, we have to re-project each ray into the coordinate 
+#    # Now to interpolate, we have to re-project each ray into the coordinate
 #    # system used by the weather model.  --> this is inefficient as is
 #    if useDask:
 #        if verbose:

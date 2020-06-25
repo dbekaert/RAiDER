@@ -1,10 +1,11 @@
 """Geodesy-related utility functions."""
 
 
-from osgeo import gdal
-import numpy as np
-import pickle
 import os
+import pickle
+
+import numpy as np
+from osgeo import gdal
 
 gdal.UseExceptions()
 
@@ -34,7 +35,7 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     '''
     import pyproj
     return pyproj.transform(inProj, outProj, inlon, inlat, inhgt, always_xy = True)
-    
+
 
 def lla2ecef(lat, lon, height):
     import pyproj
@@ -208,10 +209,10 @@ def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType = None)
        f['hydroDelayUnit'] = "m"
        f['hgtsUnit'] = "m"
        f.attrs['DelayType'] = delayType
-      
-       
+
+
     print('Finished writing data to {}'.format(filename))
-    
+
 
 def writeArrayToRaster(array, filename, noDataValue = 0., fmt = 'ENVI', proj = None, gt = None):
     '''
@@ -250,7 +251,7 @@ def writeArrayToFile(lats, lons, array, filename, noDataValue = -9999):
        f.write('Lat,Lon,Hgt_m\n')
        for l, L, a in zip(lats, lons, array):
            f.write('{},{},{}\n'.format(l, L, a))
-    
+
 
 def round_date(date, precision):
     import datetime
@@ -277,7 +278,7 @@ def round_date(date, precision):
 
 def _least_nonzero(a):
     """Fill in a flat array with the lowest nonzero value.
-    
+
     Useful for interpolation below the bottom of the weather model.
     """
     out = np.full(a.shape[:2], np.nan)
@@ -324,7 +325,7 @@ def _get_Re(lats):
     '''
     Returns the ellipsoid as a fcn of latitude
     '''
-    #TODO: verify constants, add to base class constants? 
+    #TODO: verify constants, add to base class constants?
     Rmax = 6378137
     Rmin = 6356752
     return np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
@@ -404,7 +405,7 @@ def makeDelayFileNames(time, los,outformat, weather_model_name, out):
     return names for the wet and hydrostatic delays
     '''
     str1 = time.isoformat() + "_" if time is not None else ""
-    str2 = "z" if los is None else "s" 
+    str2 = "z" if los is None else "s"
     str3 = 'td.{}'.format(outformat)
     hydroname, wetname = (
         '{}_{}_'.format(weather_model_name, dtyp) + str1 + str2 + str3
@@ -418,7 +419,7 @@ def makeDelayFileNames(time, los,outformat, weather_model_name, out):
 def mkdir(dirName):
     try:
        os.mkdir(dirName)
-    except FileExistsError: 
+    except FileExistsError:
        pass
 
 
@@ -428,9 +429,9 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
     out to a file
     '''
     from datetime import datetime as dt
-    lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
+    lonFileName = '{}_Lon_{}.dat'.format(weather_model_name,
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-    latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
+    latFileName = '{}_Lat_{}.dat'.format(weather_model_name,
                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
 
     os.makedirs(os.path.abspath('geom'), exist_ok=True)
@@ -445,7 +446,7 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
 def checkShapes(los, lats, lons, hts):
     '''
     Make sure that by the time the code reaches here, we have a
-    consistent set of line-of-sight and position data. 
+    consistent set of line-of-sight and position data.
     '''
     from RAiDER.constants import Zenith
     if los is None:
@@ -465,11 +466,11 @@ def checkShapes(los, lats, lons, hts):
 
 def checkLOS(los, Npts):
     '''
-    Check that los is either: 
+    Check that los is either:
        (1) Zenith,
-       (2) a set of scalar values of the same size as the number 
+       (2) a set of scalar values of the same size as the number
            of points, which represent the projection value), or
-       (3) a set of vectors, same number as the number of points. 
+       (3) a set of vectors, same number as the number of points.
      '''
     from RAiDER.constants import Zenith
     # los is a bunch of vectors or Zenith
@@ -488,17 +489,17 @@ def modelName2Module(model_name):
     converts it to a module name, which will look like erai. I doesn't
     always produce a valid module name, but that's not the goal. The
     goal is just to handle common cases.
-    Inputs: 
+    Inputs:
        model_name  - Name of an allowed weather model (e.g., 'era-5')
-    Outputs: 
-       module_name - Name of the module 
+    Outputs:
+       module_name - Name of the module
        wmObject    - callable, weather model object
     """
     import importlib
     module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name,wmObject 
+    return module_name,wmObject
 
 
 def gdal_trans(f1, f2, fmt = 'VRT'):
@@ -544,7 +545,7 @@ def getExtent(lats, lons=None, shrink = 1):
             extent = [extent[0] + delW, extent[1] - delE, extent[2] + delS, extent[3] - delN]
         del ds
         return extent
-       
+
     else:
        return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
 
@@ -552,7 +553,7 @@ def getExtent(lats, lons=None, shrink = 1):
 def setLLds(infile, latfile, lonfile):
     '''
     Use a lat/lon file to set the x/y coordinates of infile
-    ''' 
+    '''
     from osgeo import gdal, osr
     ds = gdal.Open(infile, gdal.GA_ReadOnly)
     ds.SetMetadata({'X_DATASET': os.path.abspath(latfile), 'X_BAND': '1',
@@ -561,18 +562,18 @@ def setLLds(infile, latfile, lonfile):
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
     ds.SetProjection(srs.ExportToWkt())
-    del ds 
+    del ds
 
 
 def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
     """
     Like numpy.apply_along_axis(), but takes advantage of multiple
     cores.
-    
+
     This function and the one below (unpacking_apply_along_axis) were
-    copied from 
+    copied from
     https://stackoverflow.com/questions/45526700/easy-parallelization-of-numpy-apply-along-axis
-    """        
+    """
     # Effective axis where apply_along_axis() will be applied by each
     # worker (any non-zero axis number would work, so as to allow the use
     # of `np.array_split()`, which is only done on axis 0):
@@ -639,7 +640,7 @@ def parse_date(s):
             date = datetime.datetime.strptime(s, yf)
         except ValueError:
             continue
-             
+
     if date is None:
         raise ValueError(
             'Unable to coerce {} to a date. Try %Y-%m-%d'.format(s))
@@ -682,7 +683,7 @@ def parse_time(t):
             time = datetime.datetime.strptime(t, tf) - datetime.datetime(1900,1,1)
         except ValueError:
             continue
-             
+
     if time is None:
         raise ValueError(
             'Unable to coerce {} to a time. Try T%H:%M:%S'.format(t))
@@ -700,7 +701,7 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
     # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
-   
+
     # Do different things, depending on the type of input
     if flag=='station_file':
         import pandas as pd
@@ -754,7 +755,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
 
     checkLOS(los, np.prod(lats.shape))
     in_shape = lats.shape
-    
+
     # create directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
@@ -818,14 +819,14 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
 def makePoints1D(max_len, Rays_SP, Rays_SLV, stepSize):
     '''
     Python version of cython code to create the rays needed for ray-tracing
-    Inputs: 
+    Inputs:
       max_len: maximum length of the rays
-      Rays_SP: 1 x 3 numpy array of the location of the ground pixels in an earth-centered, 
+      Rays_SP: 1 x 3 numpy array of the location of the ground pixels in an earth-centered,
                earth-fixed coordinate system
       Rays_SLV: 1 x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
       stepSize: Distance between points along the ray-path
     Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
            line-of-sight vectors, up to the maximum length specified.
     '''
     Npts  = int(max_len//stepSize) + [1 if max_len % stepSize !=0. else 0][0]
@@ -838,14 +839,14 @@ def makePoints1D(max_len, Rays_SP, Rays_SLV, stepSize):
 def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
     '''
     Python version of cython code to create the rays needed for ray-tracing
-    Inputs: 
+    Inputs:
       max_len: maximum length of the rays
-      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
+      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered,
                earth-fixed coordinate system
       Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
       stepSize: Distance between points along the ray-path
     Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
            line-of-sight vectors, up to the maximum length specified.
     '''
     Npts  = int(max_len//stepSize) + [1 if max_len % stepSize !=0. else 0][0]

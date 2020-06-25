@@ -1,20 +1,22 @@
 """
 This set of functions is designed to for plotting WeatherModel
 class objects. It is not designed to be used on its own apart
-from this class. 
+from this class.
 """
 
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
 import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
+
 import RAiDER.interpolator as intrp
+
 
 def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     '''
     Create a plot with pressure, temp, and humidity at two heights
     '''
 
-    # Get the interpolator 
+    # Get the interpolator
     intFcn= intrp.Interpolator()
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
@@ -36,7 +38,7 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     titles = ('P (hPa)', 'E (hPa)'.format(z1), 'T (C)', '', '','')
 
     # setup the plot
-    f = plt.figure(figsize = (10,6)) 
+    f = plt.figure(figsize = (10,6))
     xind = int(np.floor(weatherObj._xs.shape[0]/2))
     yind = int(np.floor(weatherObj._ys.shape[1]/2))
     # loop over each plot
@@ -45,9 +47,9 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
         if ind != 2:
             sp.xaxis.set_ticklabels([])
             sp.yaxis.set_ticklabels([])
-        im = sp.imshow(np.reshape(plot, x.shape), 
-                       cmap='viridis', 
-                       extent=(np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)), 
+        im = sp.imshow(np.reshape(plot, x.shape),
+                       cmap='viridis',
+                       extent=(np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)),
                        origin='lower')
         sp.plot(x[xind, yind],y[xind, yind], 'ko', 'filled')
         divider = mal(sp)
@@ -65,17 +67,17 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     sp.plot(weatherObj._p[xind,yind,:]/1e2, zdata)
     sp.set_ylabel('Height (km)')
     sp.set_xlabel('Pressure (hPa)')
-    
+
     sp = f.add_subplot(3,3,8)
     sp.plot(weatherObj._e[xind,yind,:]/100,zdata)
     sp.yaxis.set_ticklabels([])
     sp.set_xlabel('E (hPa)')
-    
+
     sp = f.add_subplot(3,3,9)
     sp.plot(weatherObj._t[xind,yind,:]- 273.15, zdata)
     sp.yaxis.set_ticklabels([])
     sp.set_xlabel('Temp (C)')
-    
+
     plt.subplots_adjust(top=0.95, bottom=0.1, left=0.05, right=0.95, hspace=0.05,
                     wspace=0.3)
 
@@ -86,11 +88,11 @@ def plot_pqt(weatherObj, savefig = True, z1 = 500, z2 = 15000):
 
 def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     '''
-    Create a plot with wet refractivity and hydrostatic refractivity, 
+    Create a plot with wet refractivity and hydrostatic refractivity,
     at two different heights
     '''
 
-    # Get the interpolator 
+    # Get the interpolator
     intFcn= intrp.Interpolator()
     intFcn.setPoints(*weatherObj.getPoints())
     intFcn.setProjection(weatherObj.getProjection())
@@ -112,7 +114,7 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
 
     # titles
     titles = ('Wet refractivity ({:5.1f} m)'.format(z1),
-              'Hydrostatic refractivity ({:5.1f} m)'.format(z1), 
+              'Hydrostatic refractivity ({:5.1f} m)'.format(z1),
               'Wet refractivity ({:5.1f} m)'.format(z2),
               'Hydrostatic refractivity ({:5.1f} m)'.format(z2))
 
@@ -133,4 +135,3 @@ def plot_wh(weatherObj, savefig = True, z1 = 500, z2 = 15000):
     if savefig:
          plt.savefig('Refractivity_hgt{}_and_{}m.pdf'.format(z1, z2))
     return f
-

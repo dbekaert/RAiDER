@@ -18,4 +18,3 @@ _g0 = np.float64(9.80665)
 class Zenith:
     """Special value indicating a look vector of "zenith"."""
     pass
-
