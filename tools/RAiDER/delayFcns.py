@@ -107,8 +107,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
         wet = f['wet'][()].copy()
         hydro = f['hydro'][()].copy()
 
-    ifWet = getIntFcn(xs_wm, ys_wm, zs_wm, wet)
-    ifHydro = getIntFcn(xs_wm, ys_wm, zs_wm, hydro)
+    ifWet = make_interpolator(xs_wm, ys_wm, zs_wm, wet)
+    ifHydro = make_interpolator(xs_wm, ys_wm, zs_wm, hydro)
 
     with h5py.File(pnts_file, 'r') as f:
         Nrays = f.attrs['NumRays']
@@ -155,7 +155,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     return wet_delay, hydro_delay
 
 
-def getIntFcn(xs, ys, zs, data):
+def make_interpolator(xs, ys, zs, data):
     '''
     Function to create and return an Interpolator object
     '''
