@@ -32,7 +32,7 @@ raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/ERA
 
     datetime = p.add_argument_group('Datetime')
     datetime.add_argument(
-        '--date',dest='dateList',
+        '--date', dest='dateList',
         help="""Date to calculate delay.
 Can be a single date or a comma-separated list of two dates (earlier, later).
 Example accepted formats:
@@ -41,7 +41,7 @@ Example accepted formats:
 """,
         type=read_date, required=True)
     datetime.add_argument(
-        '--time', dest = 'time',
+        '--time', dest='time',
         help='''Calculate delay at this time.
 Example formats:
    THHMMSS,
@@ -52,7 +52,7 @@ Example formats:
     # Area
     area = p.add_argument_group('Area of Interest (Supply one)')
     area.add_argument(
-        '--latlon', '-ll', nargs=2,default = None,
+        '--latlon', '-ll', nargs=2, default=None,
         help=('GDAL-readable latitude and longitude raster files (2 single-band files)'),
         metavar=('LAT', 'LONG'))
     area.add_argument(
@@ -60,7 +60,7 @@ Example formats:
         help="""Bounding box""",
         metavar=('N', 'W', 'S', 'E'))
     area.add_argument(
-        '--station_file', default = None, type=str, dest='station_file',
+        '--station_file', default=None, type=str, dest='station_file',
         help=('CSV file with a list of stations, containing at least '
               'the columns "Lat" and "Lon"'))
 
@@ -83,7 +83,7 @@ Example formats:
     heights.add_argument(
         '--heightlvs',
         help=("""A space-deliminited list of heights"""),
-        default=None,nargs='+', type=float)
+        default=None, nargs='+', type=float)
 
     # Weather model
     weather = p.add_argument_group("Weather model. See documentation for details")
@@ -100,7 +100,6 @@ Example formats:
         '--weatherModelFileLocation', '-w',
         help='Directory location of/to write weather model files',
         default=None, dest='wmLoc')
-
 
     misc = p.add_argument_group("Run parameters")
     misc.add_argument(
@@ -120,12 +119,12 @@ Example formats:
     misc.add_argument(
         '--download_only',
         help='Download weather model only without processing? Default False',
-        action='store_true',dest='download_only', default = False)
+        action='store_true', dest='download_only', default=False)
 
     misc.add_argument(
         '--verbose', '-v',
         help='Run in verbose (debug) mode? Default False',
-        action='store_true',dest='verbose', default = False)
+        action='store_true', dest='verbose', default=False)
 
     return p.parse_args(), p
 
@@ -142,14 +141,14 @@ def parseCMD():
 
     # Argument checking
     los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
-         times, out, download_only, verbose, \
-         wetNames, hydroNames= checkArgs(args, p)
+    times, out, download_only, verbose, \
+    wetNames, hydroNames = checkArgs(args, p)
 
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
         try:
-            (_,_) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
-               outformat, t, out, download_only, verbose, wfn, hfn)
+            (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
+                                 outformat, t, out, download_only, verbose, wfn, hfn)
 
         except RuntimeError as e:
             print('Date {} failed'.format(t))

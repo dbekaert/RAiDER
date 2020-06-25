@@ -14,9 +14,9 @@ from RAiDER.constants import _STEP, _ZREF
 
 
 def interpolateDelay(weather_model_file_name, pnts_file_name,
-                  zlevels = None, zref = _ZREF, stepSize = _STEP,
-                  interpType = 'rgi',verbose = False, nproc = 8,
-                  useDask = False, delayType = "Zenith"):
+                     zlevels=None, zref=_ZREF, stepSize=_STEP,
+                     interpType='rgi', verbose=False, nproc=8,
+                     useDask=False, delayType="Zenith"):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -46,21 +46,21 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
 
     # Determine if/what type of parallization to use
     if useDask:
-       import dask.bag as db
+        import dask.bag as db
     elif nproc > 1:
-       import multiprocessing as mp
+        import multiprocessing as mp
     else:
-       pass
+        pass
 
     if verbose:
         print('Beginning ray calculation')
         print('ZREF = {}'.format(zref))
         print('stepSize = {}'.format(stepSize))
 
-    RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize, verbose = verbose)
+    RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize, verbose=verbose)
     delays = RAiDER.delayFcns.get_delays(stepSize, pnts_file_name,
-                              weather_model_file_name, interpType = interpType,
-                              verbose = verbose, delayType = delayType)
+                                         weather_model_file_name, interpType=interpType,
+                                         verbose=verbose, delayType=delayType)
     return delays
 
 
@@ -71,13 +71,12 @@ def interpRay(tup):
 
 
 def _integrateZenith(zs, pw):
-    return 1e-6*np.trapz(pw, zs, axis = -1)
+    return 1e-6*np.trapz(pw, zs, axis=-1)
 
 
-
-def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = False,
-                 zlevels = None, zref = _ZREF, out = None, parallel=False,
-                 verbose = False, delayType = "Zenith"):
+def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
+                 zlevels=None, zref=_ZREF, out=None, parallel=False,
+                 verbose=False, delayType="Zenith"):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
@@ -103,19 +102,19 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = Fals
         # Get the weather model data
         with h5py.File(weather_model_file_name, 'r') as f:
             zs_wm = f['z'][()].copy()
-            total_wet=f['wet_total'][()].copy()
-            total_hydro=f['hydro_total'][()].copy()
+            total_wet = f['wet_total'][()].copy()
+            total_hydro = f['hydro_total'][()].copy()
         if zlevels is None:
             return total_wet, total_hydro
         else:
             from RAiDER.interpolator import interp_along_axis
-            wet_delays = interp_along_axis(zs_wm,zlevels, total_wet, axis=-1)
+            wet_delays = interp_along_axis(zs_wm, zlevels, total_wet, axis=-1)
             hydro_delays = interp_along_axis(zs_wm, zlevels, total_hydro, axis=-1)
-            return wet_delays,hydro_delays
+            return wet_delays, hydro_delays
     else:
-        wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels = zlevels,
-                                 zref = zref,nproc = nproc, useDask = useDask, verbose = verbose,
-                                 delayType = delayType)
+        wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels=zlevels,
+                                      zref=zref, nproc=nproc, useDask=useDask, verbose=verbose,
+                                      delayType=delayType)
         if verbose:
             print('Finished delay calculation')
 
@@ -123,7 +122,7 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes = Fals
 
 
 def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
-         outformat, time, out, download_only, verbose,wetFilename, hydroFilename):
+                outformat, time, out, download_only, verbose, wetFilename, hydroFilename):
     """
     raiderDelay main function.
     """
@@ -141,7 +140,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
         print('DEM/height type is "{}"'.format(heights[0]))
 
     # Flags
-    useWeatherNodes = [True if flag=='bounding_box' else False][0]
+    useWeatherNodes = [True if flag == 'bounding_box' else False][0]
     delayType = ["Zenith" if los is Zenith else "LOS"]
 
     # location of the weather model files
@@ -156,7 +155,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(weather_model, wmLoc, out, lats=lats,
-                        lons=lons, los=los, zref = zref, time=time, verbose=verbose, download_only=download_only)
+                                                        lons=lons, los=los, zref=zref, time=time, verbose=verbose, download_only=download_only)
         try:
             weather_model.write2HDF5(weather_model_file)
         except:
@@ -174,7 +173,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     if verbose:
         print('Beginning DEM calculation')
     in_shape = lats.shape
-    lats, lons, hgts = getHeights(lats, lons,heights, useWeatherNodes)
+    lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
     pnts_file = None
     if not useWeatherNodes:
@@ -185,7 +184,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
             if verbose:
                 print('Lats shape is {}'.format(lats.shape))
                 print('lat/lon box is {}/{}/{}/{} (SNWE)'
-                       .format(np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)))
+                      .format(np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)))
                 print('DEM height range is {0:.2f}-{1:.2f} m'.format(np.nanmin(hgts), np.nanmax(hgts)))
                 print('Beginning line-of-sight calculation')
             los = getLookVectors(los, lats, lons, hgts, zref)
@@ -194,18 +193,18 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
             writePnts2HDF5(lats, lons, hgts, los, pnts_file, in_shape)
 
     wetDelay, hydroDelay = \
-       computeDelay(weather_model_file, pnts_file, useWeatherNodes,
-                 zref, out,verbose = verbose, delayType = delayType)
+    computeDelay(weather_model_file, pnts_file, useWeatherNodes,
+                 zref, out, verbose=verbose, delayType=delayType)
 
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                outName, zlevels = hgts,  outformat = outformat, delayType = delayType)
+                    outName, zlevels=hgts,  outformat=outformat, delayType=delayType)
     elif useWeatherNodes:
         print('Delays have been written to the weather model file; see {}'.format(weather_model_file))
     else:
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                wetFilename, hydroFilename, outformat = outformat,
-                proj = None, gt = None, ndv = 0.)
+                    wetFilename, hydroFilename, outformat=outformat,
+                    proj=None, gt=None, ndv=0.)
 
     return wetDelay, hydroDelay

@@ -91,7 +91,7 @@ class MERRA2(WeatherModel):
             lon_max, lon_min = lon_min, lon_max
         timeStr = '[0]'  # TODO: change
         latStr = '[{}:{}:{}]'.format(lat_min, lat_step, lat_max)
-        lonStr = '[{}:{}:{}]'.format(lon_min,lon_step, lon_max)  # TODO: wrap
+        lonStr = '[{}:{}:{}]'.format(lon_min, lon_step, lon_max)  # TODO: wrap
         lvs = '[0:1:41]'
         combined = '{}{}{}{}'.format(timeStr, lvs, latStr, lonStr)
         return ('https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/' +

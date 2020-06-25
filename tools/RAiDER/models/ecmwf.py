@@ -10,6 +10,7 @@ class ECMWF(WeatherModel):
     '''
     Implement ECMWF models
     '''
+
     def __init__(self):
         # initialize a weather model
         WeatherModel.__init__(self)
@@ -66,13 +67,13 @@ class ECMWF(WeatherModel):
         self._t = t
         self._q = Q
 
-        geo_hgt,pres,hgt = self._calculategeoh(z, lnsp)
+        geo_hgt, pres, hgt = self._calculategeoh(z, lnsp)
 
         # re-assign lons, lats to match heights
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
-                                     hgt.shape)
+                                hgt.shape)
         _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
-                                     hgt.shape)
+                                hgt.shape)
         # ys is latitude
         self._get_heights(_lats, hgt)
 
@@ -81,7 +82,7 @@ class ECMWF(WeatherModel):
         # grid, otherwise we'll leave it alone.
         if len(pres.shape) == 1:
             self._p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],
-                                        self._zs.shape)
+                                      self._zs.shape)
         else:
             self._p = pres
 
@@ -96,12 +97,12 @@ class ECMWF(WeatherModel):
         self._xs = self._lons.copy()
 
         # Flip all the axis so that zs are in order from bottom to top
-        self._p = np.flip(self._p, axis = 2)
-        self._t = np.flip(self._t, axis = 2)
-        self._q = np.flip(self._q, axis = 2)
-        self._zs = np.flip(self._zs, axis = 2)
+        self._p = np.flip(self._p, axis=2)
+        self._t = np.flip(self._t, axis=2)
+        self._q = np.flip(self._q, axis=2)
+        self._zs = np.flip(self._zs, axis=2)
 
-    def _fetch(self, lats, lons, time, out, Nextra = 2):
+    def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
         Fetch a weather model from ECMWF
         '''
@@ -114,7 +115,7 @@ class ECMWF(WeatherModel):
                 out)
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
-                       lon_step, time, out):
+                        lon_step, time, out):
         import ecmwfapi
 
         server = ecmwfapi.ECMWFDataServer()
@@ -144,42 +145,41 @@ class ECMWF(WeatherModel):
             # be any of "3/6/9/12".
             "step": "0",
             # grid: Only regular lat/lon grids are supported.
-            "grid": '{}/{}'.format(lat_step,lon_step),
-            "area": '{}/{}/{}/{}'.format(lat_max,lon_min,lat_min,lon_max), # area: N/W/S/E
+            "grid": '{}/{}'.format(lat_step, lon_step),
+            "area": '{}/{}/{}/{}'.format(lat_max, lon_min, lat_min, lon_max),  # area: N/W/S/E
             "format": "netcdf",
             "resol": "av",
             "target": out,    # target: the name of the output file.
         })
 
     def _get_from_cds(self, lat_min, lat_max, lat_step, lon_min, lon_max,
-                       lon_step, acqTime, outname):
+                      lon_step, acqTime, outname):
         import cdsapi
 
-        pls = ['1','2','3','5','7','10','20','30','50','70','100','125','150','175','200','225','250','300','350','400','450','500','550','600','650','700','750','775','800','825','850','875','900','925','950','975','1000']
+        pls = ['1', '2', '3', '5', '7', '10', '20', '30', '50', '70', '100', '125', '150', '175', '200', '225', '250', '300', '350', '400', '450', '500', '550', '600', '650', '700', '750', '775', '800', '825', '850', '875', '900', '925', '950', '975', '1000']
         mls = np.arange(137) + 1
 
         c = cdsapi.Client(verify=0)
-        #corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        # corrected_date = util.round_date(time, datetime.timedelta(hours=6))
         if self._model_level_type == 'pl':
-            var = ['geopotential','relative_humidity','specific_humidity','temperature']
+            var = ['geopotential', 'relative_humidity', 'specific_humidity', 'temperature']
             levels = 'all'
             levType = 'pressure_level'
         else:
-            var = ['lnsp', 'q','z','t']
+            var = ['lnsp', 'q', 'z', 't']
             levels = mls
             levType = 'model_level'
 
         bbox = [lat_max, lon_min, lat_min, lon_max]
-
 
         dataDict = {
             # 'class': self._classname,
             # 'dataset': self._dataset,
             # "expver": "{}".format(self._expver),
             "product_type": "reanalysis",
-            "{}".format(levType):levels,
+            "{}".format(levType): levels,
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
-            'variable':var,
+            'variable': var,
             "stream": "oper",
             "type": "an",
             "year": "{}".format(acqTime.year),
@@ -193,4 +193,4 @@ class ECMWF(WeatherModel):
             "format": "netcdf"}
         print(dataDict)
 
-        c.retrieve('reanalysis-era5-pressure-levels',dataDict,outname)
+        c.retrieve('reanalysis-era5-pressure-levels', dataDict, outname)

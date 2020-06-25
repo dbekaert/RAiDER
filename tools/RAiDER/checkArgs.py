@@ -26,9 +26,9 @@ def checkArgs(args, p):
         if args.outformat is not None:
             if args.outformat.lower() != 'hdf5':
                 print('HDF5 must be used with height levels')
-                args.outformat= 'hdf5'
+                args.outformat = 'hdf5'
 
-    ## Area
+    # Area
     # flag depending on the type of input
     if args.latlon is not None:
         flag = 'files'
@@ -57,7 +57,7 @@ this option has not yet been implemented.""")
         raise RuntimeError('You must specify an area of interest')
 
     from numpy import min, max
-    if (min(lat) < -90) | (max(lat)>90):
+    if (min(lat) < -90) | (max(lat) > 90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc
@@ -71,22 +71,22 @@ this option has not yet been implemented.""")
         los = Zenith
 
     # Weather
-    weather_model_name = args.model.upper().replace('-','')
+    weather_model_name = args.model.upper().replace('-', '')
     if weather_model_name not in AllowedModels():
-       raise NotImplementedError('Model {} has not been implemented'.format(args.model))
+        raise NotImplementedError('Model {} has not been implemented'.format(args.model))
     if weather_model_name == 'WRF' and args.files is None:
-       raise RuntimeError('Argument --files is required with --model WRF')
+        raise RuntimeError('Argument --files is required with --model WRF')
     model_module_name, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
     if args.model == 'WRF':
-       weathers = {'type': 'wrf', 'files': args.files,
-                   'name': 'wrf'}
-    elif args.model=='HDF5':
-            weathers = {'type': 'HDF5', 'files': args.files,
+        weathers = {'type': 'wrf', 'files': args.files,
+                    'name': 'wrf'}
+    elif args.model == 'HDF5':
+        weathers = {'type': 'HDF5', 'files': args.files,
                     'name': args.model}
     else:
         try:
             weathers = {'type': model_obj(), 'files': args.files,
-                    'name': args.model}
+                        'name': args.model}
         except:
             raise NotImplemented('{} is not implemented'.format(weather_model_name))
 
@@ -96,36 +96,36 @@ this option has not yet been implemented.""")
     # handle the datetimes requested
     datetimeList = [d + args.time for d in args.dateList]
 
-    ## Misc
+    # Misc
     download_only = args.download_only
     verbose = args.verbose
-    useWeatherNodes = [True if flag=='bounding_box' else False][0]
+    useWeatherNodes = [True if flag == 'bounding_box' else False][0]
 
-    ## Output
+    # Output
     out = args.out
     if out is None:
         out = os.getcwd()
     if args.outformat is None:
-       if args.heightlvs is not None:
-          outformat = 'hdf5'
-       elif args.station_file is not None:
-          outformat = 'csv'
-       elif useWeatherNodes:
-          outformat='hdf5'
-       else:
-          outformat = 'envi'
+        if args.heightlvs is not None:
+            outformat = 'hdf5'
+        elif args.station_file is not None:
+            outformat = 'csv'
+        elif useWeatherNodes:
+            outformat = 'hdf5'
+        else:
+            outformat = 'envi'
     else:
-       outformat = args.outformat.lower()
+        outformat = args.outformat.lower()
     if args.wmLoc is not None:
-       wmLoc = args.wmLoc
+        wmLoc = args.wmLoc
     else:
-       wmLoc = os.path.join(args.out, 'weather_files')
+        wmLoc = os.path.join(args.out, 'weather_files')
 
     wetNames, hydroNames = [], []
     for time in datetimeList:
         if flag == 'station_file':
             wetFilename = os.path.join(out, '{}_Delay_{}_Zmax{}.csv'
-                          .format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
+                                       .format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
@@ -144,12 +144,11 @@ this option has not yet been implemented.""")
         heights = ('dem', args.dem)
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
-    elif flag=='station_file':
+    elif flag == 'station_file':
         heights = ('merge', wetNames)
     elif useWeatherNodes:
         heights = ('skip', None)
     else:
         heights = ('download', os.path.join(out, 'geom', 'warpedDEM.dem'))
-
 
     return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames

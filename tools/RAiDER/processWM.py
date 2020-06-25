@@ -11,7 +11,7 @@ import os
 import sys
 
 
-def getWMFilename(weather_model_name, time, outLoc, verbose = False):
+def getWMFilename(weather_model_name, time, outLoc, verbose=False):
     '''
     Check whether the output weather model exists, and
     if not, download it.
@@ -21,23 +21,23 @@ def getWMFilename(weather_model_name, time, outLoc, verbose = False):
 
     mkdir('weather_files')
     f = os.path.join(outLoc,
-        '{}_{}.nc'.format(weather_model_name,
-         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
+                     '{}_{}.nc'.format(weather_model_name,
+                                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
 
     if verbose:
         print('Storing weather model at: {}'.format(f))
 
     download_flag = True
     if os.path.exists(f):
-       print('WARNING: Weather model already exists, skipping download')
-       download_flag = False
+        print('WARNING: Weather model already exists, skipping download')
+        download_flag = False
 
     return download_flag, f
 
 
 def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
-                        los = None, zref = None, time=None, verbose = False,
-                        download_only = False, makePlots = False):
+                        los=None, zref=None, time=None, verbose=False,
+                        download_only=False, makePlots=False):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
@@ -47,8 +47,8 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
 
     # Make weather
     weather_model, weather_files, weather_model_name = \
-               weatherDict['type'],weatherDict['files'],weatherDict['name']
-    checkIfImplemented(weather_model_name.upper().replace('-',''))
+    weatherDict['type'], weatherDict['files'], weatherDict['name']
+    checkIfImplemented(weather_model_name.upper().replace('-', ''))
 
     # check whether weather model files are supplied
     if weather_files is None:
@@ -75,13 +75,13 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
 
     # Load the weather model data
     if weather_files is not None:
-        weather_model.load(*weather_files, outLats = lats, outLons = lons, los = los, zref = zref)
+        weather_model.load(*weather_files, outLats=lats, outLons=lons, los=los, zref=zref)
         download_flag = False
     else:
-        weather_model.load(f, outLats = lats, outLons = lons, los = los, zref = zref)
+        weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
 
 ############################################################################
-### TODO: Need to check this bit
+# TODO: Need to check this bit
 #    # Pull the lat/lon data if using the weather model
 #    if lats is None or len(lats)==2:
 #        uwn = True
@@ -105,12 +105,12 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         print('Number of weather model nodes: {}'.format(np.prod(weather_model.getWetRefractivity().shape)))
         print('Shape of weather model: {}'.format(weather_model.getWetRefractivity().shape))
         print('Bounds of the weather model: {}/{}/{}/{} (SNWE)'
-               .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
+              .format(np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
                       np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)))
 #        print('Using weather nodes only? (true/false): {}'.format(uwn))
         print('Weather model: {}'.format(weather_model.Model()))
         print('Mean value of the wet refractivity: {}'
-               .format(np.nanmean(weather_model.getWetRefractivity())))
+              .format(np.nanmean(weather_model.getWetRefractivity())))
         print('Mean value of the hydrostatic refractivity: {}'
               .format(np.nanmean(weather_model.getHydroRefractivity())))
         # If the verbose option is called, write out the weather model to a pickle file
@@ -118,7 +118,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         import pickle
         pickleFilename = os.path.join(out, 'pickledWeatherModel.pik')
         with open(pickleFilename, 'wb') as f:
-           pickle.dump(weather_model, f)
+            pickle.dump(weather_model, f)
         print('Weather Model Name: {}'.format(weather_model.Model()))
         print(weather_model)
 
