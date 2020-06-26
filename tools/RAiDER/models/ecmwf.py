@@ -3,6 +3,7 @@ import datetime
 import numpy as np
 from pyproj import CRS
 
+import RAiDER.utilFcns as util
 from RAiDER.models.weatherModel import WeatherModel
 
 
