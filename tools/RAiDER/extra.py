@@ -47,12 +47,12 @@
 #
 #
 #
-#def _helper(tup):
+# def _helper(tup):
 #    
 #    return _compute_ray(tup[0], tup[1], tup[2], tup[3])
 #    #return _compute_ray(L, S, V, stepSize)
 #
-#def _get_rays_p(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 4):
+# def _get_rays_p(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 4):
 #    import multiprocessing as mp
 #
 #    # setup for multiprocessing
@@ -62,7 +62,7 @@
 #    positions_l = pool.map(helper, data)
 #    return positions_l
 #
-#def _get_rays_d(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 2):
+# def _get_rays_d(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 2):
 #   import dask.bag as db
 #   L = db.from_sequence(lengths)
 #   S = db.from_sequence(start_positions)
@@ -77,9 +77,9 @@
 #
 #
 #
-#TODO: the following three fcns are unclear if/how they are needed. 
+# TODO: the following three fcns are unclear if/how they are needed. 
 # likely need to see how they work with tropo_delay
-#def delay_over_area(weather, 
+# def delay_over_area(weather, 
 #                    lat_min, lat_max, lat_res, 
 #                    lon_min, lon_max, lon_res, 
 #                    ht_min, ht_max, ht_res, 
@@ -106,7 +106,7 @@
 #    return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
 #
 #
-#def delay_from_files(weather, lat, lon, ht, zref = None, parallel=False, los=Zenith,
+# def delay_from_files(weather, lat, lon, ht, zref = None, parallel=False, los=Zenith,
 #                     raytrace=True, verbose = False):
 #    """
 #    Read location information from files and calculate delay.
@@ -141,7 +141,7 @@
 #    return hydro, wet
 #
 #
-#def get_weather_and_nodes(model, filename, zmin=None):
+# def get_weather_and_nodes(model, filename, zmin=None):
 #    """Look up weather information from a model and file.
 #
 #    We use the module.load method to load the weather model file, but
@@ -158,11 +158,10 @@
 # I took it out because there are not that many levels above and seems easier to 
 # keep them all then try to put in a cutoff
 
-
         # Now remove any model level fully above zmax
 #        max_level_needed = utilFcns.getMaxModelLevel(self._zs, self._zmax, 'g') 
 #        levInd = range(0,max_level_needed + 1)
-        
+
 
 #        if self._humidityType == 'q':
 #            self._q = self._q[...,levInd]

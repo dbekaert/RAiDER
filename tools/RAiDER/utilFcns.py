@@ -1,10 +1,11 @@
 """Geodesy-related utility functions."""
 
 
-from osgeo import gdal
-import numpy as np
-import pickle
 import os
+import pickle
+
+import numpy as np
+from osgeo import gdal
 
 gdal.UseExceptions()
 
@@ -33,8 +34,8 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
     import pyproj
-    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt, always_xy = True)
-    
+    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt, always_xy=True)
+
 
 def lla2ecef(lat, lon, height):
     import pyproj
@@ -48,7 +49,7 @@ def ecef2lla(x, y, z):
     import pyproj
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
-    lon, lat, height = pyproj.transform(ecef, lla, x, y, z, always_xy = True)
+    lon, lat, height = pyproj.transform(ecef, lla, x, y, z, always_xy=True)
     return lat, lon, height
 
 
@@ -78,7 +79,7 @@ def lla2lambert(lat, lon, height=None):
 
     if height is None:
         return lla(lat, lon, errcheck=True)
-    return pyproj.transform(lla, lambert, lat, lon, height, always_xy = True)
+    return pyproj.transform(lla, lambert, lat, lon, height, always_xy=True)
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
@@ -147,7 +148,7 @@ def big_and(*args):
     return result
 
 
-def gdal_open(fname, returnProj = False):
+def gdal_open(fname, returnProj=False):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     try:
@@ -159,11 +160,11 @@ def gdal_open(fname, returnProj = False):
 
     val = []
     for band in range(ds.RasterCount):
-        b = ds.GetRasterBand(band + 1) # gdal counts from 1, not 0
+        b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
         d = b.ReadAsArray()
         try:
             ndv = b.GetNoDataValue()
-            d[d==ndv]=np.nan
+            d[d == ndv] = np.nan
         except:
             print('NoDataValue attempt failed*******')
             pass
@@ -190,7 +191,7 @@ def pickle_dump(o, f):
     with open(f, 'wb') as fil:
         pickle.dump(o, fil)
 
-def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType = None):
+def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
     '''
     write a 1-D array to a NETCDF5 file
     '''
@@ -199,21 +200,20 @@ def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType = None)
 
     import h5py
     with h5py.File(filename, 'w') as f:
-       f['lat'] = lats
-       f['lon'] = lons
-       f['hgts'] = hgts
-       f['wetDelay'] = wet
-       f['hydroDelay'] = hydro
-       f['wetDelayUnit'] = "m"
-       f['hydroDelayUnit'] = "m"
-       f['hgtsUnit'] = "m"
-       f.attrs['DelayType'] = delayType
-      
-       
-    print('Finished writing data to {}'.format(filename))
-    
+        f['lat'] = lats
+        f['lon'] = lons
+        f['hgts'] = hgts
+        f['wetDelay'] = wet
+        f['hydroDelay'] = hydro
+        f['wetDelayUnit'] = "m"
+        f['hydroDelayUnit'] = "m"
+        f['hgtsUnit'] = "m"
+        f.attrs['DelayType'] = delayType
 
-def writeArrayToRaster(array, filename, noDataValue = 0., fmt = 'ENVI', proj = None, gt = None):
+    print('Finished writing data to {}'.format(filename))
+
+
+def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
     '''
     write a numpy array to a GDAL-readable raster
     '''
@@ -231,9 +231,9 @@ def writeArrayToRaster(array, filename, noDataValue = 0., fmt = 'ENVI', proj = N
     driver = gdal.GetDriverByName(fmt)
     ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
     if proj is not None:
-       ds.SetProjection(proj)
+        ds.SetProjection(proj)
     if gt is not None:
-       ds.SetGeoTransform(gt)
+        ds.SetGeoTransform(gt)
     b1 = ds.GetRasterBand(1)
     b1.WriteArray(array)
     b1.SetNoDataValue(noDataValue)
@@ -241,16 +241,16 @@ def writeArrayToRaster(array, filename, noDataValue = 0., fmt = 'ENVI', proj = N
     b1 = None
 
 
-def writeArrayToFile(lats, lons, array, filename, noDataValue = -9999):
+def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
     '''
     Write a single-dim array of values to a file
     '''
     array[np.isnan(array)] = noDataValue
     with open(filename, 'w') as f:
-       f.write('Lat,Lon,Hgt_m\n')
-       for l, L, a in zip(lats, lons, array):
-           f.write('{},{},{}\n'.format(l, L, a))
-    
+        f.write('Lat,Lon,Hgt_m\n')
+        for l, L, a in zip(lats, lons, array):
+            f.write('{},{},{}\n'.format(l, L, a))
+
 
 def round_date(date, precision):
     import datetime
@@ -277,7 +277,7 @@ def round_date(date, precision):
 
 def _least_nonzero(a):
     """Fill in a flat array with the lowest nonzero value.
-    
+
     Useful for interpolation below the bottom of the weather model.
     """
     out = np.full(a.shape[:2], np.nan)
@@ -317,20 +317,20 @@ def _get_g_ll(lats):
     '''
     Compute the variation in gravity constant with latitude
     '''
-    #TODO: verify these constants. In particular why is the reference g different from self._g0?
+    # TODO: verify these constants. In particular why is the reference g different from self._g0?
     return 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
 
 def _get_Re(lats):
     '''
     Returns the ellipsoid as a fcn of latitude
     '''
-    #TODO: verify constants, add to base class constants? 
+    # TODO: verify constants, add to base class constants?
     Rmax = 6378137
     Rmin = 6356752
     return np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
 
 
-def _geo_to_ht(lats, hts, g0 = 9.80556):
+def _geo_to_ht(lats, hts, g0=9.80556):
     """Convert geopotential height to altitude."""
     # Convert geopotential to geometric height. This comes straight from
     # TRAIN
@@ -349,24 +349,24 @@ def padLower(invar):
     add a layer of data below the lowest current z-level at height zmin
     '''
     new_var = _least_nonzero(invar)
-    return np.concatenate((new_var[:,:,np.newaxis], invar), axis =2)
+    return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
 def testArr(arr, thresh, ttype):
     '''
     Helper function for checking heights
     '''
-    if ttype=='g':
-        test = np.all(arr>thresh)
-    elif ttype =='l':
-        test = np.all(arr<thresh)
+    if ttype == 'g':
+        test = np.all(arr > thresh)
+    elif ttype == 'l':
+        test = np.all(arr < thresh)
     else:
         raise RuntimeError('testArr: bad type')
 
     return test
 
 
-def getMaxModelLevel(arr3D, thresh, ttype = 'l'):
+def getMaxModelLevel(arr3D, thresh, ttype='l'):
     '''
     Returns the model level number to keep
     '''
@@ -399,12 +399,12 @@ def Chunk(iterable, n):
             for i in range(n))
 
 
-def makeDelayFileNames(time, los,outformat, weather_model_name, out):
+def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     '''
     return names for the wet and hydrostatic delays
     '''
     str1 = time.isoformat() + "_" if time is not None else ""
-    str2 = "z" if los is None else "s" 
+    str2 = "z" if los is None else "s"
     str3 = 'td.{}'.format(outformat)
     hydroname, wetname = (
         '{}_{}_'.format(weather_model_name, dtyp) + str1 + str2 + str3
@@ -417,9 +417,9 @@ def makeDelayFileNames(time, los,outformat, weather_model_name, out):
 
 def mkdir(dirName):
     try:
-       os.mkdir(dirName)
-    except FileExistsError: 
-       pass
+        os.mkdir(dirName)
+    except FileExistsError:
+        pass
 
 
 def writeLL(time, lats, lons, llProj, weather_model_name, out):
@@ -428,13 +428,12 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
     out to a file
     '''
     from datetime import datetime as dt
-    lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
-                      dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-    latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
-                      dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+    lonFileName = '{}_Lon_{}.dat'.format(weather_model_name,
+                                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+    latFileName = '{}_Lat_{}.dat'.format(weather_model_name,
+                                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
 
     os.makedirs(os.path.abspath('geom'), exist_ok=True)
-
 
     writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
     writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
@@ -445,7 +444,7 @@ def writeLL(time, lats, lons, llProj, weather_model_name, out):
 def checkShapes(los, lats, lons, hts):
     '''
     Make sure that by the time the code reaches here, we have a
-    consistent set of line-of-sight and position data. 
+    consistent set of line-of-sight and position data.
     '''
     from RAiDER.constants import Zenith
     if los is None:
@@ -459,25 +458,25 @@ def checkShapes(los, lats, lons, hts):
     if not test1 and test2:
         raise ValueError(
          'I need lats, lons, heights, and los to all be the same shape. ' +
-         'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape)+
+         'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
          'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
 def checkLOS(los, Npts):
     '''
-    Check that los is either: 
+    Check that los is either:
        (1) Zenith,
-       (2) a set of scalar values of the same size as the number 
+       (2) a set of scalar values of the same size as the number
            of points, which represent the projection value), or
-       (3) a set of vectors, same number as the number of points. 
+       (3) a set of vectors, same number as the number of points.
      '''
     from RAiDER.constants import Zenith
     # los is a bunch of vectors or Zenith
     if los is not Zenith:
-       los = los.reshape(-1, 3)
+        los = los.reshape(-1, 3)
 
     if los is not Zenith and los.shape[0] != Npts:
-       raise RuntimeError('Found {} line-of-sight values and only {} points'
+        raise RuntimeError('Found {} line-of-sight values and only {} points'
                            .format(los.shape[0], Npts))
     return los
 
@@ -488,27 +487,27 @@ def modelName2Module(model_name):
     converts it to a module name, which will look like erai. I doesn't
     always produce a valid module name, but that's not the goal. The
     goal is just to handle common cases.
-    Inputs: 
+    Inputs:
        model_name  - Name of an allowed weather model (e.g., 'era-5')
-    Outputs: 
-       module_name - Name of the module 
+    Outputs:
+       module_name - Name of the module
        wmObject    - callable, weather model object
     """
     import importlib
     module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name,wmObject 
+    return module_name, wmObject
 
 
-def gdal_trans(f1, f2, fmt = 'VRT'):
+def gdal_trans(f1, f2, fmt='VRT'):
     '''
     translate a file from one location to another using GDAL
     '''
     ds1 = gdal.Open(f1)
     if ds1 is None:
         raise RuntimeError('Could not open the file {}'.format(f1))
-    ds2 = gdal.Translate(f2, ds1, format = fmt)
+    ds2 = gdal.Translate(f2, ds1, format=fmt)
     if ds2 is None:
         raise RuntimeError('Could not translate the file {} to {}'.format(f1, f2))
     ds1 = None
@@ -525,11 +524,11 @@ def isOutside(extent1, extent2):
     t3 = extent1[2] < extent2[2]
     t4 = extent1[3] > extent2[3]
     if np.any([t1, t2, t3, t4]):
-       return True
+        return True
     return False
 
 
-def getExtent(lats, lons=None, shrink = 1):
+def getExtent(lats, lons=None, shrink=1):
     '''
     get the bounding box around a set of lats/lons
     '''
@@ -544,15 +543,15 @@ def getExtent(lats, lons=None, shrink = 1):
             extent = [extent[0] + delW, extent[1] - delE, extent[2] + delS, extent[3] - delN]
         del ds
         return extent
-       
+
     else:
-       return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+        return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
 
 
 def setLLds(infile, latfile, lonfile):
     '''
     Use a lat/lon file to set the x/y coordinates of infile
-    ''' 
+    '''
     from osgeo import gdal, osr
     ds = gdal.Open(infile, gdal.GA_ReadOnly)
     ds.SetMetadata({'X_DATASET': os.path.abspath(latfile), 'X_BAND': '1',
@@ -561,18 +560,18 @@ def setLLds(infile, latfile, lonfile):
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
     ds.SetProjection(srs.ExportToWkt())
-    del ds 
+    del ds
 
 
 def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
     """
     Like numpy.apply_along_axis(), but takes advantage of multiple
     cores.
-    
+
     This function and the one below (unpacking_apply_along_axis) were
-    copied from 
+    copied from
     https://stackoverflow.com/questions/45526700/easy-parallelization-of-numpy-apply-along-axis
-    """        
+    """
     # Effective axis where apply_along_axis() will be applied by each
     # worker (any non-zero axis number would work, so as to allow the use
     # of `np.array_split()`, which is only done on axis 0):
@@ -639,7 +638,7 @@ def parse_date(s):
             date = datetime.datetime.strptime(s, yf)
         except ValueError:
             continue
-             
+
     if date is None:
         raise ValueError(
             'Unable to coerce {} to a date. Try %Y-%m-%d'.format(s))
@@ -679,10 +678,10 @@ def parse_time(t):
     time = None
     for tf in all_formats:
         try:
-            time = datetime.datetime.strptime(t, tf) - datetime.datetime(1900,1,1)
+            time = datetime.datetime.strptime(t, tf) - datetime.datetime(1900, 1, 1)
         except ValueError:
             continue
-             
+
     if time is None:
         raise ValueError(
             'Unable to coerce {} to a time. Try T%H:%M:%S'.format(t))
@@ -691,8 +690,8 @@ def parse_time(t):
 
 
 def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                wetFilename, hydroFilename = None, zlevels = None, delayType = None,
-                outformat = None, proj = None, gt = None, ndv = 0.):
+                wetFilename, hydroFilename=None, zlevels=None, delayType=None,
+                outformat=None, proj=None, gt=None, ndv=0.):
     '''
     Write the delay numpy arrays to files in the format specified
     '''
@@ -700,9 +699,9 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
     # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
-   
+
     # Do different things, depending on the type of input
-    if flag=='station_file':
+    if flag == 'station_file':
         import pandas as pd
         df = pd.read_csv(wetFilename)
 
@@ -714,13 +713,13 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df['totalDelay'] = wetDelay + hydroDelay
         df.to_csv(wetFilename, index=False)
 
-    elif outformat=='hdf5':
-        writeResultsToHDF5(lats, lons, zlevels, wetDelay, hydroDelay, wetFilename, delayType = delayType)
+    elif outformat == 'hdf5':
+        writeResultsToHDF5(lats, lons, zlevels, wetDelay, hydroDelay, wetFilename, delayType=delayType)
     else:
-        writeArrayToRaster(wetDelay, wetFilename, noDataValue = ndv,
-                       fmt = outformat, proj = proj, gt = gt)
-        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue = ndv,
-                       fmt = outformat, proj = proj, gt = gt)
+        writeArrayToRaster(wetDelay, wetFilename, noDataValue=ndv,
+                           fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue=ndv,
+                           fmt=outformat, proj=proj, gt=gt)
 
 
 def getTimeFromFile(filename):
@@ -738,7 +737,7 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
+def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -754,22 +753,22 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
 
     checkLOS(los, np.prod(lats.shape))
     in_shape = lats.shape
-    
+
     # create directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
     with h5py.File(outName, 'w') as f:
-    #with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
+    # with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
         if chunkSize is None:
-            x = f.create_dataset('lon', data = lons.astype(np.float64), chunks = True)
+            x = f.create_dataset('lon', data=lons.astype(np.float64), chunks=True)
         else:
-            x = f.create_dataset('lon', data = lons.astype(np.float64), chunks = chunkSize)
+            x = f.create_dataset('lon', data=lons.astype(np.float64), chunks=chunkSize)
 
-        y = f.create_dataset('lat', data = lats.astype(np.float64), chunks = x.chunks)
-        z = f.create_dataset('hgt', data = hgts.astype(np.float64), chunks = x.chunks)
-        los = f.create_dataset('LOS', data= los.astype(np.float64), chunks = x.chunks + (3,))
+        y = f.create_dataset('lat', data=lats.astype(np.float64), chunks=x.chunks)
+        z = f.create_dataset('hgt', data=hgts.astype(np.float64), chunks=x.chunks)
+        los = f.create_dataset('LOS', data=los.astype(np.float64), chunks=x.chunks + (3,))
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
@@ -781,16 +780,16 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         projds = f.create_dataset(projname, (), dtype='i')
         projds[()] = epsg
 
-        ##WGS84 ellipsoid
+        # WGS84 ellipsoid
         projds.attrs['semi_major_axis'] = 6378137.0
         projds.attrs['inverse_flattening'] = 298.257223563
         projds.attrs['ellipsoid'] = np.string_("WGS84")
         projds.attrs['epsg_code'] = epsg
         projds.attrs['spatial_ref'] = np.string_(srs.ExportToWkt())
 
-        ###Geodetic latitude / longitude
+        # Geodetic latitude / longitude
         if epsg == 4326:
-            #Set up grid mapping
+            # Set up grid mapping
             projds.attrs['grid_mapping_name'] = np.string_('latitude_longitude')
             projds.attrs['longitude_of_prime_meridian'] = 0.0
 
@@ -803,9 +802,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
         else:
             raise NotImplemented
 
-        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks = los.chunks, dtype='<f8')
-        lengths = f.create_dataset('Rays_len',  in_shape, chunks = x.chunks, dtype='<f8')
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks = los.chunks, dtype='<f8')
+        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8')
+        lengths = f.create_dataset('Rays_len',  in_shape, chunks=x.chunks, dtype='<f8')
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks=los.chunks, dtype='<f8')
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
@@ -818,46 +817,46 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None):
 def makePoints1D(max_len, Rays_SP, Rays_SLV, stepSize):
     '''
     Python version of cython code to create the rays needed for ray-tracing
-    Inputs: 
+    Inputs:
       max_len: maximum length of the rays
-      Rays_SP: 1 x 3 numpy array of the location of the ground pixels in an earth-centered, 
+      Rays_SP: 1 x 3 numpy array of the location of the ground pixels in an earth-centered,
                earth-fixed coordinate system
       Rays_SLV: 1 x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
       stepSize: Distance between points along the ray-path
     Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
            line-of-sight vectors, up to the maximum length specified.
     '''
-    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize !=0. else 0][0]
+    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize != 0. else 0][0]
     ray = np.empty((3, Npts), dtype=np.float64)
-    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
+    basespace = np.arange(0, max_len, stepSize)  # max_len+stepSize
     for k3 in range(3):
-        ray[k3,:] = Rays_SP[k3] + basespace*Rays_SLV[k3]
+        ray[k3, :] = Rays_SP[k3] + basespace*Rays_SLV[k3]
     return ray
 
 def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
     '''
     Python version of cython code to create the rays needed for ray-tracing
-    Inputs: 
+    Inputs:
       max_len: maximum length of the rays
-      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered, 
+      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered,
                earth-fixed coordinate system
       Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
       stepSize: Distance between points along the ray-path
     Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the 
+      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
            line-of-sight vectors, up to the maximum length specified.
     '''
-    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize !=0. else 0][0]
+    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize != 0. else 0][0]
     nrow = Rays_SP.shape[0]
     ncol = Rays_SP.shape[1]
     nz = Rays_SP.shape[2]
     ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
-    basespace = np.arange(0, max_len, stepSize) # max_len+stepSize
+    basespace = np.arange(0, max_len, stepSize)  # max_len+stepSize
 
     for k1 in range(nrow):
         for k2 in range(ncol):
             for k2a in range(nz):
                 for k3 in range(3):
-                        ray[k1,k2,k2a,k3,:] = Rays_SP[k1,k2,k2a,k3] + basespace*Rays_SLV[k1,k2,k2a,k3]
+                    ray[k1, k2, k2a, k3, :] = Rays_SP[k1, k2, k2a, k3] + basespace*Rays_SLV[k1, k2, k2a, k3]
     return ray

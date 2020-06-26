@@ -1,46 +1,48 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+#
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
-# 
+#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import numpy as np
 import os
+
+import numpy as np
 
 from RAiDER.demdownload import download_dem
 from RAiDER.utilFcns import gdal_open
+
 
 def readLL(*args):
     '''
     Parse lat/lon/height inputs and return
     the appropriate outputs
     '''
-    if len(args)==2:
-       flag='files'
-    elif len(args)==4:
-       flag='bounding_box'
-    elif len(args)==1:
-       flag = 'station_list'
+    if len(args) == 2:
+        flag = 'files'
+    elif len(args) == 4:
+        flag = 'bounding_box'
+    elif len(args) == 1:
+        flag = 'station_list'
     else:
-       raise RuntimeError('llreader: Cannot parse args')
+        raise RuntimeError('llreader: Cannot parse args')
 
     # Lats/Lons
-    if flag=='files':
+    if flag == 'files':
         # If they are files, open them
         lat, lon = args
-        lats, latproj, lat_gt = gdal_open(lat, returnProj = True)
-        lons, lonproj, lon_gt = gdal_open(lon, returnProj = True)
-    elif flag=='bounding_box':
-        N,W,S,E = args
+        lats, latproj, lat_gt = gdal_open(lat, returnProj=True)
+        lons, lonproj, lon_gt = gdal_open(lon, returnProj=True)
+    elif flag == 'bounding_box':
+        N, W, S, E = args
         lats = np.array([float(N), float(S)])
         lons = np.array([float(E), float(W)])
         latproj = lonproj = 'EPSG:4326'
-        if (lats[0] == lats[1]) | (lons[0]==lons[1]):
-           raise RuntimeError('You have passed a zero-size bounding box: {}'
+        if (lats[0] == lats[1]) | (lons[0] == lons[1]):
+            raise RuntimeError('You have passed a zero-size bounding box: {}'
                                .format(args.bounding_box))
-    elif flag=='station_list':
+    elif flag == 'station_list':
         lats, lons = readLLFromStationFile(*args)
         latproj = lonproj = 'EPSG:4326'
     else:
@@ -52,10 +54,10 @@ def readLL(*args):
     [lats, lons] = enforceNumpyArray(lats, lons)
     bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
 
-    return lats, lons, latproj, lonproj, bounds 
+    return lats, lons, latproj, lonproj, bounds
 
 
-def getHeights(lats, lons,heights, useWeatherNodes = False):
+def getHeights(lats, lons, heights, useWeatherNodes=False):
     '''
     Fcn to return heights from a DEM, either one that already exists
     or will download one if needed.
@@ -64,12 +66,12 @@ def getHeights(lats, lons,heights, useWeatherNodes = False):
     in_shape = lats.shape
 
     if height_type == 'dem':
-      try:
-          hts = gdal_open(height_data)
-      except:
-          print('WARNING: File {} could not be opened; requires GDAL-readable file. \n'.format(height_data))
-          print('Proceeding with DEM download')
-          height_type = 'download'
+        try:
+            hts = gdal_open(height_data)
+        except:
+            print('WARNING: File {} could not be opened; requires GDAL-readable file. \n'.format(height_data))
+            print('Proceeding with DEM download')
+            height_type = 'download'
 
     elif height_type == 'lvs':
         if height_data is not None and useWeatherNodes:
@@ -93,16 +95,16 @@ def getHeights(lats, lons,heights, useWeatherNodes = False):
             data = pd.read_csv(f)
             lats = data['Lat'].values
             lons = data['Lon'].values
-            hts = download_dem(lats, lons, outName = f, save_flag = 'merge')
+            hts = download_dem(lats, lons, outName=f, save_flag='merge')
     else:
         if useWeatherNodes:
             hts = None
             height_type = 'skip'
         else:
             height_type = 'download'
-        
+
     if height_type == 'download':
-        hts = download_dem(lats, lons, outName = os.path.abspath(height_data))
+        hts = download_dem(lats, lons, outName=os.path.abspath(height_data))
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 
@@ -137,7 +139,7 @@ def setGeoInfo(lat, lon, latproj, lonproj, outformat):
 
 def enforceNumpyArray(*args):
     '''
-    Enforce that a set of arguments are all numpy arrays. 
+    Enforce that a set of arguments are all numpy arrays.
     Raise an error on failure.
     '''
     return [checkArg(a) for a in args]
@@ -145,13 +147,13 @@ def enforceNumpyArray(*args):
 def checkArg(arg):
 
     if arg is None:
-       return None
+        return None
     else:
-       import numpy as np
-       try:
-          return np.array(arg)
-       except:
-          raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
+        import numpy as np
+        try:
+            return np.array(arg)
+        except:
+            raise RuntimeError('checkArg: Cannot covert argument to numpy arrays')
 
 
 def readLLFromStationFile(fname):
@@ -159,16 +161,16 @@ def readLLFromStationFile(fname):
     Helper fcn for checking argument compatibility
     '''
     try:
-       import pandas as pd
-       stats = pd.read_csv(fname)
-       return stats['Lat'].values,stats['Lon'].values
+        import pandas as pd
+        stats = pd.read_csv(fname)
+        return stats['Lat'].values, stats['Lon'].values
     except:
-       lats, lons = [], []
-       with open(fname, 'r') as f:
-          for i, line in enumerate(f): 
-              if i == 0:
-                 continue
-              lat, lon = [float(f) for f in line.split(',')[1:3]]
-              lats.append(lat)
-              lons.append(lon)
-       return lats, lons
+        lats, lons = [], []
+        with open(fname, 'r') as f:
+            for i, line in enumerate(f):
+                if i == 0:
+                    continue
+                lat, lon = [float(f) for f in line.split(',')[1:3]]
+                lats.append(lat)
+                lons.append(lon)
+        return lats, lons

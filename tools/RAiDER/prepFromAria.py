@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 
+#
 # Author: Jeremy Maurer
 # Copyright 2020, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
-# 
+#
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import gdal
 import numpy as np
+
 from RAiDER.utilFcns import gdal_open, writeArrayToRaster
 
 
@@ -19,32 +20,32 @@ def parse_args():
 
     # Line of sight
     p.add_argument(
-        '--incFile', '-i',type=str,
+        '--incFile', '-i', type=str,
         help='GDAL-readable raster image file of inclination',
         metavar='INC', required=True)
     p.add_argument(
-        '--azFile', '-a',type=str,
+        '--azFile', '-a', type=str,
         help='GDAL-readable raster image file of azimuth',
         metavar='AZ', required=True)
 
     p.add_argument(
-        '--los_filename', '-f', default = 'los.rdr', type=str, dest='los_file',
+        '--los_filename', '-f', default='los.rdr', type=str, dest='los_file',
         help=('Output Line-of-sight filename'))
     p.add_argument(
-        '--lat_filename', '-l', default = 'lat.rdr', type=str, dest='lat_file',
+        '--lat_filename', '-l', default='lat.rdr', type=str, dest='lat_file',
         help=('Output latitude filename'))
     p.add_argument(
-        '--lon_filename', '-L', default = 'lon.rdr', type=str, dest='lon_file',
+        '--lon_filename', '-L', default='lon.rdr', type=str, dest='lon_file',
         help=('Output longitude filename'))
 
     p.add_argument(
-        '--format', '-t',default = 'ENVI', type=str, dest='fmt',
+        '--format', '-t', default='ENVI', type=str, dest='fmt',
         help=('Output file format'))
 
     return p.parse_args(), p
 
 
-def makeLatLonGrid(inFile, lonFileName, latFileName, fmt = 'ENVI'):
+def makeLatLonGrid(inFile, lonFileName, latFileName, fmt='ENVI'):
     '''
     Convert the geocoded grids to lat/lon files for input to RAiDER
     '''
@@ -62,21 +63,20 @@ def makeLatLonGrid(inFile, lonFileName, latFileName, fmt = 'ENVI'):
 
     xEnd = xStart + xStep*xSize-xStep
     yEnd = yStart + yStep*ySize-yStep
-    
+
     x = np.arange(xStart, xEnd, xStep)
     y = np.arange(yStart, yEnd, yStep)
-    X,Y = np.meshgrid(x,y)
+    X, Y = np.meshgrid(x, y)
     writeArrayToRaster(X, lonFileName, 0., fmt, proj, gt)
     writeArrayToRaster(Y, latFileName, 0., fmt, proj, gt)
 
 
-
-def makeLOSFile(incFile, azFile, fmt = 'ENVI', filename = 'los.rdr'):
+def makeLOSFile(incFile, azFile, fmt='ENVI', filename='los.rdr'):
     '''
     Create a line-of-sight file from ARIA-derived azimuth and inclination files
     '''
-    az, az_proj, az_gt = gdal_open(azFile, returnProj = True)
-    az[az==0]=np.nan
+    az, az_proj, az_gt = gdal_open(azFile, returnProj=True)
+    az[az == 0] = np.nan
     inc = gdal_open(incFile)
 
     heading = 90 - az
@@ -112,7 +112,7 @@ def makeLOSFile(incFile, azFile, fmt = 'ENVI', filename = 'los.rdr'):
 
 def prepFromAria():
     '''
-    A command-line utility to convert ARIA standard product outputs from ARIA-tools to 
+    A command-line utility to convert ARIA standard product outputs from ARIA-tools to
     RAiDER-compatible format
     '''
     args, p = parse_args()
