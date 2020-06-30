@@ -11,7 +11,7 @@ def read_date(s):
     import datetime
     try:
         date1, date2 = [parse_date(d) for d in s.split(',')]
-        dateList = [date1 + k*datetime.timdelta(days=1) for k in range((date2 - date1).days+1)]
+        dateList = [date1 + k*datetime.timedelta(days=1) for k in range((date2 - date1).days+1)]
         return dateList
     except ValueError:
         date = parse_date(s)
