@@ -60,6 +60,10 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
     # Specify filenames
     if verbose:
         print('Getting the DEM')
+<<<<<<< HEAD
+=======
+        import time
+>>>>>>> update verbose option in demdownload
         st = time.time()
 
     memRaster = '/vsimem/warpedDEM'
