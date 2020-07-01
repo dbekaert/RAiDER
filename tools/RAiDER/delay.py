@@ -7,10 +7,12 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+import traceback
 
 import numpy as np
 
 from RAiDER.constants import _STEP, _ZREF
+from RAiDER.utilFcns import make_weather_model_filename
 
 
 def interpolateDelay(weather_model_file_name, pnts_file_name,
@@ -151,15 +153,16 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
-    wm_filename = '{}_{}_{}N_{}N_{}E_{}E.h5'.format(weather_model['name'], time, *ll_bounds)
+    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
     weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(weather_model, wmLoc, out, lats=lats,
                                                         lons=lons, los=los, zref=zref, time=time, verbose=verbose, download_only=download_only)
         try:
             weather_model.write2HDF5(weather_model_file)
-        except:
-            pass
+        except Exception:
+            print("Unable to save weathermodel to file")
+            traceback.print_exc()
 
         del weather_model
     else:

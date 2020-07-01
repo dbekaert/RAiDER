@@ -187,9 +187,11 @@ def pickle_load(f):
     with open(f, 'rb') as fil:
         return pickle.load(fil)
 
+
 def pickle_dump(o, f):
     with open(f, 'wb') as fil:
         pickle.dump(o, fil)
+
 
 def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
     '''
@@ -281,7 +283,7 @@ def _least_nonzero(a):
     Useful for interpolation below the bottom of the weather model.
     """
     out = np.full(a.shape[:2], np.nan)
-    xlim, ylim, zlim  = np.shape(a)
+    xlim, ylim, zlim = np.shape(a)
     for x in range(xlim):
         for y in range(ylim):
             for z in range(zlim):
@@ -302,6 +304,7 @@ def robmin(a):
     except ValueError:
         return 'N/A'
 
+
 def robmax(a):
     '''
     Get the minimum of an array, accounting for empty lists
@@ -319,6 +322,7 @@ def _get_g_ll(lats):
     '''
     # TODO: verify these constants. In particular why is the reference g different from self._g0?
     return 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
+
 
 def _get_Re(lats):
     '''
@@ -401,18 +405,33 @@ def Chunk(iterable, n):
 
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     '''
-    return names for the wet and hydrostatic delays
+    return names for the wet and hydrostatic delays.
+
+    # Examples:
+    >>> makeDelayFileNames(time(0, 0, 0), None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
+    >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
     '''
-    str1 = time.isoformat() + "_" if time is not None else ""
-    str2 = "z" if los is None else "s"
-    str3 = 'td.{}'.format(outformat)
+    format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
+        model_name=weather_model_name,
+        time=time.strftime("%H_%M_%S_") if time is not None else "",
+        los="ztd" if los is None else "std",
+        ext=outformat
+    )
     hydroname, wetname = (
-        '{}_{}_'.format(weather_model_name, dtyp) + str1 + str2 + str3
-        for dtyp in ('hydro', 'wet'))
+        format_string.format(dtyp) for dtyp in ('hydro', 'wet')
+    )
 
     hydro_file_name = os.path.join(out, hydroname)
     wet_file_name = os.path.join(out, wetname)
     return wet_file_name, hydro_file_name
+
+
+def make_weather_model_filename(name, time, ll_bounds):
+    return '{}_{}_{}N_{}N_{}E_{}E.h5'.format(
+        name, time.strftime("%Y-%m-%dT%H_%M_%S"), *ll_bounds
+    )
 
 
 def mkdir(dirName):
@@ -611,6 +630,7 @@ def unpacking_apply_along_axis(tup):
     func1d, axis, arr, arg, kwarg = tup
     results = np.apply_along_axis(func1d, axis, arr, *arg, **kwarg)
     return results
+
 
 def read_hgt_file(filename):
     '''
