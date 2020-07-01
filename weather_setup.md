@@ -1,6 +1,6 @@
 # Setup for accessing weather model data
 
-## For accessing ECMWF-type weather models (e.g. ECMWF, ERA5, ERA5-T)
+## For accessing ECMWF-type weather model data (e.g. ECMWF, ERA5, ERA5-T)
 
 1. Create an account on the Copernicus servers [here](https://cds.climate.copernicus.eu/user)
 
@@ -21,7 +21,7 @@
    
 4. You must accept the [license](https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products) for each product you wish to download.
 
-## For accessing MERRA2-type weather models with the use of OpenDAP  (e.g. MERRA-2, GMAO)
+## For accessing MERRA2-type weather model data with the use of OpenDAP  (e.g. MERRA-2, GMAO)
 
 1. Create an account on the NASA's Earthdata website [here](https://urs.earthdata.nasa.gov)
 
