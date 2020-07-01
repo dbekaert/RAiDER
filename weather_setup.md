@@ -13,7 +13,11 @@
          url: https://cds.climate.copernicus.eu/api/v2
          key: 43214:de6dbdf6-ccf2-4a95-b26e-e1ceb24969e1
       
-   b. Install the CDS API using pip: pip install cdsapi. ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
+   b. Install the CDS API using pip: 
+   
+         pip install cdsapi
+   
+   ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
    
 4. You must accept the [license](https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products) for each product you wish to download.
 
@@ -33,4 +37,8 @@
    
 4. Add the application `NASA GESDISC DATA ARCHIVE` by clicking on the `Applications->Authorized Apps` on the menu after logging into your Earthdata profile, and then scrolling down to the application `NASA GESDISC DATA ARCHIVE` to approve it. _This seems not required for GMAO for now, but recommended to do so for all OpenDAP-based weather models._
 
-5. Install the OpenDAP using pip: pip install pydap. ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
+5. Install the OpenDAP using pip: 
+
+         pip install pydap
+      
+   ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
