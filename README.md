@@ -50,6 +50,7 @@ Below we list the dependencies for RAiDER
 * numpy
 * pandas
 * xarray
+* pydap 3.2.1
 ```
 
 
@@ -88,6 +89,8 @@ setenv PYTHONPATH $PYTHONPATH:/RAiDERREPO/tools/RAiDER
 set PATH $PATH:'/RAiDERREPO/tools/bin'
 ```
 
+### setup for various weather model access 
+The notes to set up various weather model access can be found [here](./weather_setup.md).
 
 ### Other installation options
 The following pages might be of use to those trying to build third party packages from source.
@@ -140,6 +143,7 @@ TODO
 * Jeremy Maurer
 * Raymond Hogenson
 * Heresh Fattahi
+* Yang Lei
 * [_other community members_](https://github.com/dbekaert/RAiDER/graphs/contributors)
 
 We welcome community contributions. For instructions see [here](https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md).
