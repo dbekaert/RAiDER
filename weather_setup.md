@@ -1,10 +1,36 @@
 # Setup for accessing weather models
 
 ## For accessing ECMWF-type weather models (e.g. ECMWF, ERA5, ERA5-T)
-1. Create an account on the Copernicus servers here:  https://cds.climate.copernicus.eu/user
+
+1. Create an account on the Copernicus servers [here](https://cds.climate.copernicus.eu/user)
+
 2. Confirm your email, etc. 
-3. Install the public API key and client (https://cds.climate.copernicus.eu/api-how-to): 
+
+3. Install the public API key and client as instructed [here](https://cds.climate.copernicus.eu/api-how-to): 
+
    a. Copy the URL and API key from the webpage into a file in your home directory name ~/.cdsapirc 
-   b. Install the CDS API using pip: pip install cdsapi. 
-4. You must accept the license for each product you wish to download: https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products
-5. See the test_cdsapi.py script for details of the API. You can test that you can connect to the servers by running the test suite (described below). 
+      
+         url: https://cds.climate.copernicus.eu/api/v2
+         key: 43214:de6dbdf6-ccf2-4a95-b26e-e1ceb24969e1
+      
+   b. Install the CDS API using pip: pip install cdsapi. ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
+   
+4. You must accept the [license](https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products) for each product you wish to download.
+
+## For accessing MERRA2-type weather models with the use of OpenDAP  (e.g. MERRA-2, GMAO)
+
+1. Create an account on the NASA's Earthdata website [here](https://urs.earthdata.nasa.gov)
+
+2. Confirm your email, etc. 
+
+3. Copy the login username and password to a file in your home directory name ~/.netrc 
+         
+         machine urs.earthdata.nasa.gov
+                 login <USERNAME>
+                 password <PASSWORD>
+                 
+   _Note the `<USERNAME>` and `<PASSWORD>` represent the actual username and password, and should be replaced with the user's own information correspondingly._
+   
+4. Add the application `NASA GESDISC DATA ARCHIVE` by clicking on the `Applications->Authorized Apps` on the menu after logging into your Earthdata profile, and then scrolling down to the application `NASA GESDISC DATA ARCHIVE` to approve it. _This seems not required for GMAO for now, but recommended to do so for all OpenDAP-based weather models._
+
+5. Install the OpenDAP using pip: pip install pydap. ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
