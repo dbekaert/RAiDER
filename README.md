@@ -17,6 +17,7 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 
 1. [Software Dependencies](#software-dependencies)
 2. [Installation](#installation)
+- [Setup for various weather model access](#modelsetup)
 - [Other installation options](#installopts)
 - [Common Issues](#problems)
 3. [Running RAiDER](#running-raider)
@@ -89,7 +90,7 @@ setenv PYTHONPATH $PYTHONPATH:/RAiDERREPO/tools/RAiDER
 set PATH $PATH:'/RAiDERREPO/tools/bin'
 ```
 
-### setup for various weather model access 
+### Setup for various weather model access 
 The notes to set up various weather model access can be found [here](./weather_setup.md).
 
 ### Other installation options
