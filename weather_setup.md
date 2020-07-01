@@ -17,7 +17,7 @@
    
          pip install cdsapi
    
-   ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
+   ___Note: this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
    
 4. You must accept the [license](https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products) for each product you wish to download.
 
@@ -41,6 +41,6 @@
 
          pip install pydap
       
-   ___Note this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
+   ___Note: this has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
    
-   ___Note PyDAP v3.2.1 is required for now because the latest v3.2.2 (as of now) has a known [bug](https://colab.research.google.com/drive/1f_ss1Oa3VzgAOd_p8sgekdnLVE5NW6s5) in accessing and slicing the GMAO model. This bug is expected to be fixed in newer versions of PyDAP.___
+   ___Note: PyDAP v3.2.1 is required for now because the latest v3.2.2 (as of now) has a known [bug](https://colab.research.google.com/drive/1f_ss1Oa3VzgAOd_p8sgekdnLVE5NW6s5) in accessing and slicing the GMAO model. This bug is expected to be fixed in newer versions of PyDAP.___
