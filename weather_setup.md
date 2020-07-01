@@ -1,4 +1,4 @@
-# Setup for accessing weather models
+# Setup for accessing weather model data
 
 ## For accessing ECMWF-type weather models (e.g. ECMWF, ERA5, ERA5-T)
 
