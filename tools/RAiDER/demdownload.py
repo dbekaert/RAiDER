@@ -58,18 +58,7 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
     # Specify filenames
     memRaster = '/vsimem/warpedDEM'
     inRaster = '/vsicurl/{}'.format(_world_dem)
-
-    ds = gdal.Open(inRaster)
-    gdalNDV = ds.GetRasterBand(1).GetNoDataValue()
-    del ds
-
-    # Download and warp
-    print('Beginning DEM download and warping')
-
-    wrpOpt = gdal.WarpOptions(outputBounds=(minlon, minlat, maxlon, maxlat))
-    gdal.Warp(memRaster, inRaster, options=wrpOpt)
-
-    print('DEM download finished')
+    gdal.BuildVRT(memRaster, inRaster, outputBounds=[minlon, minlat, maxlon, maxlat])
 
     # Load the DEM data
     out = RAiDER.utilFcns.gdal_open(memRaster)
