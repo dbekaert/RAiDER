@@ -19,11 +19,12 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
 
 
 def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
-                 outName='warpedDEM.dem', ndv=0.):
+                 outName='warpedDEM.dem', ndv=0., verbose = False):
     '''
     Download a DEM if one is not already present.
     '''
-    print('Getting the DEM')
+    if verbose: 
+        print('Getting the DEM')
 
     # Insert check for DEM noData values
     if checkDEM:
@@ -56,6 +57,11 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         return hgts
 
     # Specify filenames
+    if verbose:
+        print('Getting the DEM')
+        import time
+        st = time.time()
+
     memRaster = '/vsimem/warpedDEM'
     inRaster = '/vsicurl/{}'.format(_world_dem)
     gdal.BuildVRT(memRaster, inRaster, outputBounds=[minlon, minlat, maxlon, maxlat])
@@ -63,10 +69,17 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
     # Load the DEM data
     out = RAiDER.utilFcns.gdal_open(memRaster)
 
+    if verbose:
+        print('Loaded the DEM')
+        et = time.time()
+        print('DEM download took {:.2f} seconds'.format(et - st))
+
     #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
 
-    print('Beginning interpolation')
+    if verbose:
+        print('Beginning interpolation')
+
     nPixLat = out.shape[0]
     nPixLon = out.shape[1]
     xlats = np.linspace(minlat, maxlat, nPixLat)
@@ -77,10 +90,12 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
 
     outInterp = interpolator(np.stack((lats, lons), axis=-1))
 
-    print('Interpolation finished')
+    if verbose:
+        print('Interpolation finished')
 
     if save_flag == 'new':
-        print('Saving DEM to disk')
+        if verbose:
+            print('Saving DEM to disk')
         # ensure folders are created
         folderName = os.sep.join(os.path.split(outRasterName)[:-1])
         os.makedirs(folderName, exist_ok=True)
