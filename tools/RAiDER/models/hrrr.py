@@ -9,6 +9,7 @@ from RAiDER.models.weatherModel import WeatherModel
 def Model():
     return HRRR()
 
+
 class HRRR(WeatherModel):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.

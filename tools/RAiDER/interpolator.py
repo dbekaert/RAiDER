@@ -15,7 +15,7 @@ from RAiDER.utilFcns import parallel_apply_along_axis
 def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
     '''
     Interpolate an array of 3-D data along one axis. This function
-    assumes that the x-xoordinate increases monotonically.
+    assumes that the x-coordinate increases monotonically.
     '''
     if oldCoord.ndim > 1:
         stackedData = np.concatenate([oldCoord, data, newCoord], axis=axis)

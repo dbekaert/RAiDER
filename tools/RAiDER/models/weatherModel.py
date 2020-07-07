@@ -1,18 +1,20 @@
 import datetime
+import os
+from abc import ABC, abstractmethod
 
 import numpy as np
 from pyproj import CRS, Transformer
 
-import RAiDER.constants as const
-import RAiDER.models.plotWeather as plots
-import RAiDER.utilFcns as util
+from RAiDER import constants as const
+from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
 from RAiDER.interpolator import fillna3D, interp_along_axis
 from RAiDER.makePoints import makePoints3D
+from RAiDER.models import plotWeather as plots
 from RAiDER.utilFcns import robmax, robmin
 
 
-class WeatherModel():
+class WeatherModel(ABC):
     '''
     Implement a generic weather model for getting estimated SAR delays
     '''
@@ -68,7 +70,7 @@ class WeatherModel():
         self._hydrostatic_total = None
         self._svp = None
 
-    def __repr__(self):
+    def __str__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
         string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
@@ -112,6 +114,7 @@ class WeatherModel():
         self._time = time
         self._fetch(lats, lons, time, out)
 
+    @abstractmethod
     def _fetch(self, lats, lons, time, out):
         '''
         Placeholder method. Should be implemented in each weather model type class
@@ -143,17 +146,17 @@ class WeatherModel():
         '''
         if los is Zenith:
             return False
-        else:
-            return [True if los[0] == 'sv' else False][0]
+
+        return los[0] == 'sv'
 
     def _runLOS(self, los, zref, los_flag):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
-        from RAiDER.utilFcns import lla2ecef
-        from RAiDER.delayFcns import getIntFcn, _ray_helper, interpolate2, _integrateLOS
+        from RAiDER.delayFcns import _integrateLOS, getIntFcn, interpolate2
         from RAiDER.losreader import getLookVectors
+        from RAiDER.utilFcns import lla2ecef
 
         _STEP = 10  # stepsize in meters
 
@@ -208,6 +211,7 @@ class WeatherModel():
             self._hydrostatic_total = hydro_total
             self._wet_total = wet_total
 
+    @abstractmethod
     def load_weather(self, *args, **kwargs):
         '''
         Placeholder method. Should be implemented in each weather model type class
@@ -604,13 +608,15 @@ class WeatherModel():
         The point of doing this is to alleviate some of the memory load of keeping
         the full model in memory and make it easier to scale up the program.
         '''
-        import datetime
         import h5py
-        import os
 
         if outName is None:
-            outName = os.path.join(os.getcwd(),
-                                   self._Name + datetime.datetime.strftime(self._time, '%Y_%m_%d_T%H_%M_%S') + '.h5')
+            outName = os.path.join(
+                os.getcwd(),
+                self._Name + datetime.datetime.strftime(
+                    self._time, '%Y_%m_%d_T%H_%M_%S'
+                ) + '.h5'
+            )
 
         with h5py.File(outName, 'w') as f:
             x = f.create_dataset('x', data=self._xs.astype(np.float64))
