@@ -61,24 +61,6 @@ def _interp3D(xs, ys, zs, values, zlevels, shape=None):
     return interp
 
 
-def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
-    '''
-    Interpolate an array of 3-D data along one axis. This function
-    assumes that the x-xoordinate increases monotonically.
-    '''
-    if oldCoord.ndim > 1:
-        stackedData = np.concatenate([oldCoord, data, newCoord], axis=axis)
-        try:
-            out = parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
-        except:
-            out = np.apply_along_axis(interpVector, axis=axis, arr=stackedData, Nx=oldCoord.shape[axis])
-    else:
-        out = np.apply_along_axis(interpV, axis=axis, arr=data, old_x=oldCoord, new_x=newCoord,
-                                  left=np.nan, right=np.nan)
-
-    return out
-
-
 def fillna3D(array, axis=-1):
     '''
     Fcn to fill in NaNs in a 3D array by interpolating over one axis only
