@@ -8,7 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 
-import gdal
+from osgeo import gdal
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator as rgi
 

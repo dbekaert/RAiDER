@@ -530,7 +530,7 @@ class WeatherModel():
         '''
         Pull the grid info (x,y) from a gdal-readable file
         '''
-        import gdal
+        from osgeo import gdal
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
         xSize, ySize = ds.RasterXSize, ds.RasterYSize
         trans = ds.GetGeoTransform()

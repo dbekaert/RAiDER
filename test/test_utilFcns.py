@@ -3,7 +3,7 @@ import os
 import unittest
 from datetime import time
 
-import gdal
+from osgeo import gdal
 import numpy as np
 
 from RAiDER.utilFcns import makeDelayFileNames
