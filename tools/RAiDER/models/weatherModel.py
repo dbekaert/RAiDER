@@ -206,8 +206,8 @@ class WeatherModel(ABC):
             # TODO: This returns zero for the last level because of the way trapz handles single points.
             # Should probably try to re-implement the integral function
             for level in range(wet.shape[2]):
-                wet_total[..., level] = 1e-6*np.apply_along_axis(np.trapz, 2, wet[..., level:], x=self._zs[level:])
-                hydro_total[..., level] = 1e-6*np.apply_along_axis(np.trapz, 2, hydro[..., level:], x=self._zs[level:])
+                wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
+                hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
             self._hydrostatic_total = hydro_total
             self._wet_total = wet_total
 

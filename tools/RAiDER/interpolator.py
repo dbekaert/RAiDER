@@ -10,6 +10,7 @@
 import numpy as np
 
 from RAiDER.utilFcns import parallel_apply_along_axis
+from scipy.interpolate import interp1d
 
 
 def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
@@ -43,7 +44,6 @@ def interpVector(vec, Nx):
     x, the original y, and the new x, in that order. Nx tells the
     number of original x-points.
     '''
-    from scipy.interpolate import interp1d
     x = vec[:Nx]
     y = vec[Nx:2*Nx]
     xnew = vec[2*Nx:]
