@@ -279,20 +279,12 @@ def round_date(date, precision):
 
 
 def _least_nonzero(a):
-    """Fill in a flat array with the lowest nonzero value.
+    """Fill in a flat array with the first non-nan value in the last dimension.
 
     Useful for interpolation below the bottom of the weather model.
     """
-    out = np.full(a.shape[:2], np.nan)
-    xlim, ylim, zlim = np.shape(a)
-    for x in range(xlim):
-        for y in range(ylim):
-            for z in range(zlim):
-                val = a[x][y][z]
-                if not np.isnan(val):
-                    out[x][y] = val
-                    break
-    return out
+    mgrid_index = tuple(slice(None, d) for d in a.shape[:-1])
+    return a[tuple(np.mgrid[mgrid_index]) + ((~np.isnan(a)).argmax(-1),)]
 
 
 def robmin(a):
