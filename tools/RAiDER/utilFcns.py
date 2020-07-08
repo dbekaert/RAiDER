@@ -424,13 +424,6 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def mkdir(dirName):
-    try:
-        os.mkdir(dirName)
-    except FileExistsError:
-        pass
-
-
 def writeLL(time, lats, lons, llProj, weather_model_name, out):
     '''
     If the weather model grid nodes are used, write the lat/lon values

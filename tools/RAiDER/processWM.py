@@ -6,9 +6,10 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+import contextlib
 import os
 import sys
+from datetime import datetime
 
 
 def getWMFilename(weather_model_name, time, outLoc, verbose=False):
@@ -16,13 +17,15 @@ def getWMFilename(weather_model_name, time, outLoc, verbose=False):
     Check whether the output weather model exists, and
     if not, download it.
     '''
-    from datetime import datetime as dt
-    from RAiDER.utilFcns import mkdir
-
-    mkdir('weather_files')
-    f = os.path.join(outLoc,
-                     '{}_{}.nc'.format(weather_model_name,
-                                       dt.strftime(time, '%Y_%m_%d_T%H_%M_%S')))
+    with contextlib.suppress(FileExistsError):
+        os.mkdir('weather_files')
+    f = os.path.join(
+        outLoc,
+        '{}_{}.nc'.format(
+            weather_model_name,
+            datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')
+        )
+    )
 
     if verbose:
         print('Storing weather model at: {}'.format(f))
@@ -42,8 +45,9 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
     import numpy as np
+
     from RAiDER.models.allowed import checkIfImplemented
-    from RAiDER.utilFcns import writeLL, getTimeFromFile
+    from RAiDER.utilFcns import getTimeFromFile, writeLL
 
     # Make weather
     weather_model, weather_files, weather_model_name = \
