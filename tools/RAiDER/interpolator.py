@@ -47,7 +47,7 @@ def interpVector(vec, Nx):
     x = vec[:Nx]
     y = vec[Nx:2*Nx]
     xnew = vec[2*Nx:]
-    f = interp1d(x, y, bounds_error=False)
+    f = interp1d(x, y, bounds_error=False, copy=False, assume_sorted=True)
     return f(xnew)
 
 
