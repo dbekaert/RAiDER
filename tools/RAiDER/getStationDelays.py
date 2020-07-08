@@ -114,13 +114,13 @@ def getDelays(stationFile, filename, returnTime=None):
         # if time not specified, pass all times
         if returnTime == None:
             filtoutput = {'ID': [site]*len(north_grad), 'Date': [time]*len(north_grad), 'ZTD': delay, 'north_grad': north_grad,
-                          'east_grad': east_grad, 'doy': times, 'sigZTD': sig}
+                          'east_grad': east_grad, 'times': times, 'sigZTD': sig}
             filtoutput = [{key: value[k] for key, value in filtoutput.items()}
                           for k in range(len(filtoutput['ID']))]
         else:
             index = np.argmin(np.abs(np.array(timesList) - returnTime))
             filtoutput = [{'ID': site, 'Date': time, 'ZTD': delay[index], 'north_grad': north_grad[index],
-                           'east_grad': east_grad[index], 'doy': times[index], 'sigZTD': sig[index]}]
+                           'east_grad': east_grad[index], 'times': times[index], 'sigZTD': sig[index]}]
         # setup pandas array and write output to CSV, making sure to update existing CSV.
         filtoutput = pd.DataFrame(filtoutput)
         if not os.path.exists(filename):
@@ -175,6 +175,8 @@ def getStationData(inFile, outDir=None, returnTime=None):
     # Consolidate all CSV files into one object
     name = os.path.join(outDir, 'CombinedGPS_ztd.csv')
     statsFile = pd.concat([pd.read_csv(i) for i in outputfiles])
+    # drop all duplicate lines
+    statsFile.drop_duplicates(inplace=True)
     # Convert the above object into a csv file and export
     statsFile.to_csv(name, index=False, encoding="utf-8")
     del statsFile
@@ -182,8 +184,9 @@ def getStationData(inFile, outDir=None, returnTime=None):
     # Add lat/lon info
     origstatsFile = pd.read_csv(inFile)
     statsFile = pd.read_csv(name)
-    statsFile = pd.merge(left=statsFile, right=origstatsFile[[
-                         'ID', 'Lat', 'Lon']], how='left', left_on='ID', right_on='ID')
+    statsFile = pd.merge(left=statsFile, right=origstatsFile[['ID', 'Lat', 'Lon']], how='left', left_on='ID', right_on='ID')
+    # drop all lines with nans
+    statsFile.dropna(how='any', inplace=True)
     statsFile.to_csv(name, index=False)
     del origstatsFile, statsFile
 
@@ -201,7 +204,7 @@ def getDate(stationFile):
     return date, year, doy
 
 
-def secondsOfDay(returnTime)
+def secondsOfDay(returnTime):
     '''
     Convert HH:MM:SS format time-tag to seconds of day.
     '''

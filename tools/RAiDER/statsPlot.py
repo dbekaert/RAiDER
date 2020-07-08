@@ -7,6 +7,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import argparse
 import datetime as dt
 import os
 
@@ -15,15 +16,13 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point, Polygon
 
-def createParser():
-    '''
-        Make any of the following specified plot(s): scatterplot of station locations, total empirical and experimental variogram fits for data in each grid cell (and for each valid time-slice if -verbose specified), and gridded heatmaps of data, station distribution, range and sill values associated with experimental variogram fits. The default is to generate all of these.
-    '''
-    import argparse
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
-Function to generate various quality control and baseline figures of the spatial-temporal network of products.
 
-Specifically, make any of the following specified plot(s) :
+def createParser():
+    """Parse command line arguments using argparse."""
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
+Perform basic statistical analyses concerning the spatiotemporal distribution of zenith delays.
+
+Specifically, make any of the following specified plot(s):
 scatterplot of station locations, total empirical and experimental variogram fits for data in each grid cell 
 (and for each valid time-slice if -verbose specified), and gridded heatmaps of data, station distribution, 
 range and sill values associated with experimental variogram fits. The default is to generate all of these.
@@ -444,7 +443,7 @@ class raiderStats(object):
     # import dependencies
     import glob
 
-    def __init__(self, filearg, col_name, workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, colorpercentile='25 95', verbose=False):
+    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, colorpercentile='25 95', verbose=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -465,20 +464,29 @@ class raiderStats(object):
 
     def _getExtent(self):  #dataset, spacing=1, userbbox=None
         """ Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees """
-        extent = [np.floor(min(self.df['Lon'])-(self.spacing/2)), np.ceil(max(self.df['Lon'])+(self.spacing/2)),
-                  np.floor(min(self.df['Lat'])-(self.spacing/2)), np.ceil(max(self.df['Lat'])+(self.spacing/2))]
+        extent = [np.floor(min(self.df['Lon'])), np.ceil(max(self.df['Lon'])),
+                  np.floor(min(self.df['Lat'])), np.ceil(max(self.df['Lat']))]
         if self.bbox is not None:
             dfextents_poly = Polygon(np.column_stack((np.array([extent[0], extent[0], extent[1], extent[1], extent[0]]),
                                                       np.array([extent[2], extent[3], extent[3], extent[2], extent[2]]))))
             userbbox_poly = Polygon(np.column_stack((np.array([self.bbox[2], self.bbox[3], self.bbox[3], self.bbox[2], self.bbox[2]]),
                                                      np.array([self.bbox[0], self.bbox[0], self.bbox[1], self.bbox[1], self.bbox[0]]))))
             if userbbox_poly.intersects(dfextents_poly):
-                extent = [np.floor(self.bbox[2]-(self.spacing/2)), np.ceil(self.bbox[-1]+(self.spacing/2)),
-                          np.floor(self.bbox[0]-(self.spacing/2)), np.ceil(self.bbox[1]+(self.spacing/2))]
+                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]),np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
             else:
-                print(
-                    "WARNING: User-specified bounds do not overlap with dataset bounds, proceeding with the latter.")
+                print("WARNING: User-specified bounds do not overlap with dataset bounds, proceeding with the latter.")
             del dfextents_poly, userbbox_poly
+
+        # ensure that extents do not exceed -180/180 lon and -90/90 lat
+        if extent[0] < -180.: extent[0] = -180.
+        if extent[1] > 180.: extent[1] = 180.
+        if extent[2] < -90.: extent[2] = -90.
+        if extent[3] > 90.: extent[3] = 90.
+
+        # ensure even spacing, set spacing to 1 if specified spacing is not even multiple of bounds
+        if (extent[1]-extent[0]) % self.spacing != 0 or (extent[-1]-extent[-2]) % self.spacing:
+            print("WARNING: User-specified spacing {} is not even multiple of bounds, resetting spacing to 1°".format(self.spacing))
+            self.spacing = 1
 
         # Create corners of rectangle to be transformed to a grid
         nw = [extent[0]+(self.spacing/2), extent[-1]-(self.spacing/2)]
@@ -620,17 +628,17 @@ class raiderStats(object):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
-
+        import cartopy.crs as ccrs
+        import cartopy.feature as cfeature
+        import cartopy.io.img_tiles as cimgt
         import matplotlib as mpl
+        import matplotlib.ticker as mticker
+        from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        from pandas.plotting import register_matplotlib_converters
         # supress matplotlib postscript warnings
         mpl._log.setLevel('ERROR')
-        from pandas.plotting import register_matplotlib_converters
         register_matplotlib_converters()
-        import cartopy.io.img_tiles as cimgt
-        import cartopy.crs as ccrs
-        from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
-        import cartopy.feature as cfeature
-        import matplotlib.ticker as mticker
 
         # If specified workdir doesn't exist, create it
         if not os.path.exists(workdir):
@@ -640,12 +648,7 @@ class raiderStats(object):
         # by default set background to white
         axes.add_feature(cfeature.NaturalEarthFeature(
             'physical', 'land', '50m', facecolor='white'), zorder=0)
-        # reset in case bounds too large
-        try:
-            axes.set_extent(self.plotbbox, ccrs.PlateCarree())
-        except ValueError:
-            self.plotbbox = [-179.99, 179.99, -89.99, 89.99]
-            axes.set_extent(self.plotbbox, ccrs.PlateCarree())
+        axes.set_extent(self.plotbbox, ccrs.PlateCarree())
         # add coastlines
         axes.coastlines(linewidth=0.2, color="gray", zorder=4)
         cmap = plt.cm.hot_r
@@ -676,7 +679,7 @@ class raiderStats(object):
             if plottype == "station_distribution":
                 axes.set_title(" ".join(plottype.split('_')), zorder=2)
                 im = axes.scatter(gridarr[0], gridarr[1], zorder=1, s=0.5,
-                                  marker='.', color='b', transform=ccrs.PlateCarree())
+                    marker='.', color='b', transform=ccrs.PlateCarree())
 
             # passing 3rd column as z-value
             if len(gridarr) > 2:
@@ -692,12 +695,12 @@ class raiderStats(object):
 
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=cbounds[0],
-                                  vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
-                # initiate colorbar
+                    vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
+                # initiate colorbar and control height of colorbar
+                divider = make_axes_locatable(axes)
+                cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
                 cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional',
-                                       ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
-                cbar_ax.set_label(" ".join(plottype.split('_')),
-                                  rotation=-90, labelpad=10)
+                    ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
         # If gridded area passed
         else:
@@ -710,16 +713,23 @@ class raiderStats(object):
             if cbounds is None:
                 cbounds = [np.nanpercentile(gridarr, self.colorpercentile[0]), np.nanpercentile(
                     gridarr, self.colorpercentile[1])]
+                # if upper/lower bounds identical, overwrite lower bound as 75% of upper bound to avoid plotting ValueError
+                if cbounds[0]==cbounds[1]:
+                    cbounds[0]*=0.75
+                    cbounds.sort()
+
             colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
             gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
 
             # plot data
-            im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,
-                             vmin=cbounds[0], vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
-            # initiate colorbar
-            cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional',
-                                   ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1)
+            im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], 
+                vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
+            # initiate colorbar and control height of colorbar
+            divider = make_axes_locatable(axes)
+            cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
+            cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, 
+                    boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
             # superimpose your gridded array with a supplementary list of point, if specified
             if self.stationsongrids:
@@ -735,34 +745,41 @@ class raiderStats(object):
                 gl.ylocator = mticker.FixedLocator(np.arange(
                     self.plotbbox[2], self.plotbbox[3]+self.spacing, self.spacing).tolist())
 
+        # Add labels to colorbar, if necessary
+        if 'cbar_ax' in locals():
             # experimental variogram fit range heatmap
             if plottype == "range_heatmap":
-                cbar_ax.set_label(" ".join(plottype.split(
-                    '_'))+' (°)', rotation=-90, labelpad=10)
-
+                cbar_ax.set_label(" ".join(plottype.split('_'))+' (°)', rotation=-90, labelpad=10)
             # experimental variogram fit sill heatmap
             elif plottype == "sill_heatmap":
-                cbar_ax.set_label(" ".join(plottype.split(
-                    '_'))+' (cm\u00b2)', rotation=-90, labelpad=10)
-
+                cbar_ax.set_label(" ".join(plottype.split('_'))+' (cm\u00b2)', rotation=-90, labelpad=10)
+            # specify appropriate units for mean/std
+            elif plottype == "grid_delay_mean" or plottype == "grid_delay_stdev" or \
+                plottype == "station_delay_mean" or plottype == "station_delay_stdev":
+                cbar_ax.set_label(" ".join(plottype.split('_'))+' ({})'.format(self.unit), 
+                    rotation=-90, labelpad=10)
+            # gridmap of station density has no units
             else:
-                cbar_ax.set_label(" ".join(plottype.split('_')),
-                                  rotation=-90, labelpad=10)
+                cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype +
-                                 '.'+plotFormat), format=plotFormat, bbox_inches='tight')
+        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype +'.'+plotFormat), 
+            format=plotFormat, bbox_inches='tight')
         plt.close()
 
         return
 
 
-def parseCMD(iargs=None):
-    inps = cmdLineParse(iargs)
+def statsAnalyses(inps=None):
+    '''
+    Main workflow for generating a suite of plots to illustrate spatiotemporal distribution 
+    and/or character of zenith delays
+    '''
+
     print("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
-    df_stats = raiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,
-                           inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.colorpercentile, inps.verbose)
+    df_stats = raiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,  \
+        inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.colorpercentile, inps.verbose)
 
     # If user requests to generate all plots.
     if inps.plotall:
@@ -845,3 +862,9 @@ def parseCMD(iargs=None):
         gridarr_sill = gridarr_sill*(10 ^ 4)  # convert to cm
         df_stats(gridarr_sill.T, 'sill_heatmap', workdir=os.path.join(inps.workdir, 'figures'), drawgridlines=inps.drawgridlines,
                  colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, cbounds=inps.cbounds, plotFormat=inps.plot_fmt)
+
+
+if __name__ == "__main__":
+    inps = cmdLineParse()
+
+    statsAnalyses(inps)
