@@ -7,10 +7,12 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-
 from osgeo import gdal
+import time
+
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator as rgi
+import time
 
 import RAiDER.utilFcns
 
@@ -19,11 +21,12 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
 
 
 def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
-                 outName='warpedDEM.dem', ndv=0.):
+                 outName='warpedDEM.dem', ndv=0., verbose=False):
     '''
     Download a DEM if one is not already present.
     '''
-    print('Getting the DEM')
+    if verbose: 
+        print('Getting the DEM')
 
     # Insert check for DEM noData values
     if checkDEM:
@@ -56,28 +59,28 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         return hgts
 
     # Specify filenames
+    if verbose:
+        print('Getting the DEM')
+        st = time.time()
+
     memRaster = '/vsimem/warpedDEM'
     inRaster = '/vsicurl/{}'.format(_world_dem)
-
-    ds = gdal.Open(inRaster)
-    gdalNDV = ds.GetRasterBand(1).GetNoDataValue()
-    del ds
-
-    # Download and warp
-    print('Beginning DEM download and warping')
-
-    wrpOpt = gdal.WarpOptions(outputBounds=(minlon, minlat, maxlon, maxlat))
-    gdal.Warp(memRaster, inRaster, options=wrpOpt)
-
-    print('DEM download finished')
+    gdal.BuildVRT(memRaster, inRaster, outputBounds=[minlon, minlat, maxlon, maxlat])
 
     # Load the DEM data
     out = RAiDER.utilFcns.gdal_open(memRaster)
 
+    if verbose:
+        print('Loaded the DEM')
+        et = time.time()
+        print('DEM download took {:.2f} seconds'.format(et - st))
+
     #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
 
-    print('Beginning interpolation')
+    if verbose:
+        print('Beginning interpolation')
+
     nPixLat = out.shape[0]
     nPixLon = out.shape[1]
     xlats = np.linspace(minlat, maxlat, nPixLat)
@@ -88,10 +91,12 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
 
     outInterp = interpolator(np.stack((lats, lons), axis=-1))
 
-    print('Interpolation finished')
+    if verbose:
+        print('Interpolation finished')
 
     if save_flag == 'new':
-        print('Saving DEM to disk')
+        if verbose:
+            print('Saving DEM to disk')
         # ensure folders are created
         folderName = os.sep.join(os.path.split(outRasterName)[:-1])
         os.makedirs(folderName, exist_ok=True)
@@ -100,7 +105,7 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         # can be passed on to GDAL
         outInterp[np.isnan(outInterp)] = ndv
         if outInterp.ndim == 2:
-            RAiDER.utilFcns.writeArrayToRaster(outInterp, outRasterName, noDataValue=gdalNDV)
+            RAiDER.utilFcns.writeArrayToRaster(outInterp, outRasterName, noDataValue=ndv)
         elif outInterp.ndim == 1:
             RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue=ndv)
         else:

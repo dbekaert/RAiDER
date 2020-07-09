@@ -57,7 +57,7 @@ def readLL(*args):
     return lats, lons, latproj, lonproj, bounds
 
 
-def getHeights(lats, lons, heights, useWeatherNodes=False):
+def getHeights(lats, lons, heights, useWeatherNodes=False, verbose=False):
     '''
     Fcn to return heights from a DEM, either one that already exists
     or will download one if needed.
@@ -95,7 +95,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
             data = pd.read_csv(f)
             lats = data['Lat'].values
             lons = data['Lon'].values
-            hts = download_dem(lats, lons, outName=f, save_flag='merge')
+            hts = download_dem(lats, lons, outName=f, save_flag='merge', verbose=verbose)
     else:
         if useWeatherNodes:
             hts = None
