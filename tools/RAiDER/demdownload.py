@@ -12,6 +12,7 @@ import time
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator as rgi
+import time
 
 import RAiDER.utilFcns
 
@@ -60,10 +61,6 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
     # Specify filenames
     if verbose:
         print('Getting the DEM')
-<<<<<<< HEAD
-=======
-        import time
->>>>>>> update verbose option in demdownload
         st = time.time()
 
     memRaster = '/vsimem/warpedDEM'
@@ -108,9 +105,9 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         # can be passed on to GDAL
         outInterp[np.isnan(outInterp)] = ndv
         if outInterp.ndim == 2:
-            RAiDER.utilFcns.writeArrayToRaster(outInterp, outRasterName, noDataValue=0.)
+            RAiDER.utilFcns.writeArrayToRaster(outInterp, outRasterName, noDataValue=ndv)
         elif outInterp.ndim == 1:
-            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue=0.)
+            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue=ndv)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':
