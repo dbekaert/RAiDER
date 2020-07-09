@@ -154,7 +154,7 @@ class WeatherModel(ABC):
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
-        from RAiDER.delayFcns import _integrateLOS, getIntFcn, interpolate2
+        from RAiDER.delayFcns import _integrateLOS, make_interpolator, interpolate2
         from RAiDER.losreader import getLookVectors
         from RAiDER.utilFcns import lla2ecef
 
@@ -184,8 +184,8 @@ class WeatherModel(ABC):
             rays_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
 
             # Calculate the integrated delays
-            ifWet = getIntFcn(self._xs, self._ys, self._zs, wet)
-            ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
+            ifWet = make_interpolator(self._xs, self._ys, self._zs, wet)
+            ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
 
             # Create the rays
             ray = makePoints3D(max_len, rays_ecef, los_slv, _STEP)
