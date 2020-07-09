@@ -6,14 +6,14 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import numpy as np
-import os
 import glob
-import subprocess as subp
+import os
+import re
 
-from distutils.core import setup
-from distutils.extension import Extension
-from Cython.Build import cythonize
+import numpy as np
+from setuptools import Extension, setup
+
+from Cython.Build import cythonize  # isort:skip
 
 # Parameter defs
 CWD = os.getcwd()
@@ -22,20 +22,53 @@ CPP_DIR = os.path.join(GEOMETRY_DIR, "cpp", "classes")
 CYTHON_DIR = os.path.join(GEOMETRY_DIR, "cython", "Geo2rdr")
 UTIL_DIR = os.path.join(CWD, 'tools', 'bindings', 'utils')
 
+
 def getVersion():
     with open('version.txt', 'r') as f:
-         version = f.read().split("=")[-1].replace("'",'').strip()
-    return version
+        m = re.match("""version=['"](.*)['"]""", f.read())
+
+    assert m, "Malformed 'version.txt' file!"
+    return m.group(1)
 
 
-extensions = [
+# Based on https://github.com/pybind/python_example/blob/master/setup.py
+class get_pybind_include(object):
+    """Helper class to determine the pybind11 include path
+    The purpose of this class is to postpone importing pybind11
+    until it is actually installed, so that the ``get_include()``
+    method can be invoked. """
+
+    def __str__(self):
+        import pybind11
+        return pybind11.get_include()
+
+
+pybind_extensions = [
+    Extension(
+        'RAiDER.interpolate',
+        # Sort input source files to ensure bit-for-bit reproducible builds
+        # (https://github.com/pybind/python_example/pull/53)
+        sorted([
+            'tools/bindings/interpolate/src/module.cpp',
+            'tools/bindings/interpolate/src/interpolate.cpp'
+        ]),
+        include_dirs=[
+            # Path to pybind11 headers
+            get_pybind_include(),
+        ],
+        language='c++'
+    ),
+]
+
+
+cython_extensions = [
      Extension(
        name="RAiDER.Geo2rdr",
-       sources= glob.glob(os.path.join(CPP_DIR, "*/*.cc")) + 
-                glob.glob(os.path.join(CYTHON_DIR, "*.pyx")), 
-       include_dirs=[np.get_include()] + 
+       sources=glob.glob(os.path.join(CPP_DIR, "*/*.cc")) +
+               glob.glob(os.path.join(CYTHON_DIR, "*.pyx")),
+       include_dirs=[np.get_include()] +
                     [os.path.join(CPP_DIR, "Geometry"),
-                     os.path.join(CPP_DIR, "Utility"), 
+                     os.path.join(CPP_DIR, "Utility"),
                      os.path.join(CPP_DIR, "Orbit")],
        extra_compile_args=['-std=c++11'],
        extra_link_args=['-lm'],
@@ -43,18 +76,31 @@ extensions = [
      ),
      Extension(
        name="RAiDER.makePoints",
-       sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")), 
-       include_dirs=[np.get_include()] 
-     )
+       sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")),
+       include_dirs=[np.get_include()]
+     ),
 ]
 
-setup (name = 'RAiDER',
-       version = getVersion(),
-       description = 'This is the RAiDER package',
-       package_dir={'tools': 'tools',
-                    'RAiDER': 'tools/RAiDER',
-                    'RAiDER.models': 'tools/RAiDER/models'},
-       packages=['tools', 'RAiDER', 'RAiDER.models'],
-       ext_modules = cythonize(extensions, quiet = True, compiler_directives={'language_level': 3}),
-       scripts=['tools/bin/raiderDelay.py', 'tools/bin/raiderStats.py', 'tools/bin/raiderDownloadGNSS.py'])
-
+setup(
+    name='RAiDER',
+    version=getVersion(),
+    description='This is the RAiDER package',
+    package_dir={
+        'tools': 'tools',
+        'RAiDER': 'tools/RAiDER',
+        'RAiDER.models': 'tools/RAiDER/models',
+    },
+    packages=['tools', 'RAiDER', 'RAiDER.models'],
+    ext_modules=cythonize(
+        cython_extensions,
+        quiet=True,
+        compiler_directives={'language_level': 3}
+    ) + pybind_extensions,
+    scripts=[
+        'tools/bin/raiderDelay.py',
+        'tools/bin/raiderStats.py',
+        'tools/bin/raiderDownloadGNSS.py'
+    ],
+    setup_requires=['pybind11>=2.5.0'],
+    zip_safe=False,
+)
