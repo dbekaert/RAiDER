@@ -13,13 +13,16 @@ from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
 
-@pytest.mark.skip("Test fails, needs to be fixed")
 def test_tropo_delay(tmp_path):
+    #########################################
+    # Scenario: 
+    # 1: Small area, ERA5, Zenith delay
+    #########################################
     lats = gdal_open(os.path.join(
-        SCENARIO_DIR, 'geom', 'ERA5_Lat_2018_01_01_T00_00_00.dat'
+        SCENARIO_DIR, 'geom', 'lat.dat'
     ))
     lons = gdal_open(os.path.join(
-        SCENARIO_DIR, 'geom', 'ERA5_Lon_2018_01_01_T00_00_00.dat'
+        SCENARIO_DIR, 'geom', 'lon.dat'
     ))
 
     time = datetime.datetime(2020, 1, 3, 23, 0)
@@ -52,11 +55,13 @@ def test_tropo_delay(tmp_path):
             hydroFilename=hydro_file
         )
 
+#    outdir = os.path.join(os.getcwd(), 'test', scenario)
+
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)
-        true_wet = gdal_open(os.path.join(SCENARIO_DIR, "ERA5_wet_true.envi"))
-        true_hydro = gdal_open(os.path.join(SCENARIO_DIR, "ERA5_hydro_true.envi"))
+        true_wet = gdal_open(os.path.join(SCENARIO_DIR, "wet.envi"))
+        true_hydro = gdal_open(os.path.join(SCENARIO_DIR, "hydro.envi"))
 
         # get the true delay from the weather model
         assert np.allclose(wet, true_wet, equal_nan=True)

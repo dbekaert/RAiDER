@@ -11,13 +11,10 @@ import pandas as pd
 import pyproj
 from osgeo import gdal, osr
 
+from RAiDER import Geo2rdr
 from RAiDER.constants import Zenith
 
 gdal.UseExceptions()
-
-
-# Top of the troposphere
-zref = 15000
 
 
 def sind(x):
@@ -112,7 +109,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     write a numpy array to a GDAL-readable raster
     '''
     array_shp = np.shape(array)
-    if array.ndim!=2:
+    if array.ndim != 2:
         raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
     dType = array.dtype
     if 'complex' in str(dType):
@@ -441,13 +438,10 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None, verbose = False):
+def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, verbose=False):
     '''
     Write query points to an HDF5 file for storage and access
     '''
-
-    from RAiDER.utilFcns import checkLOS
-
     epsg = 4326
     projname = 'projection'
 
@@ -458,7 +452,6 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None, v
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
     if chunkSize is None:
-        import multiprocessing as mp
         minChunkSize = 100
         maxChunkSize = 10000
         cpu_count = mp.cpu_count()
@@ -471,10 +464,10 @@ def writePnts2HDF5(lats, lons, hgts, los, outName = 'testx.h5',chunkSize=None, v
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
-        x = f.create_dataset('lon', data = lons, chunks = chunkSize)
-        y = f.create_dataset('lat', data = lats, chunks = chunkSize)
-        z = f.create_dataset('hgt', data = hgts, chunks = chunkSize)
-        los = f.create_dataset('LOS', data= los, chunks = chunkSize + (3,))
+        x = f.create_dataset('lon', data=lons, chunks=chunkSize)
+        y = f.create_dataset('lat', data=lats, chunks=chunkSize)
+        z = f.create_dataset('hgt', data=hgts, chunks=chunkSize)
+        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,))
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
