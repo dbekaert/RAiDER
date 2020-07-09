@@ -207,7 +207,10 @@ PYBIND11_MODULE(interpolate, m) {
             std::vector<slice<double>> grid;
             for (auto axis : points) {
                 auto info = axis.request();
-                grid.push_back(slice<double> {info.shape[0], (double *) info.ptr});
+                grid.push_back(slice<double> {
+                    (size_t) info.shape[0],
+                    (double *) info.ptr
+                });
             }
             slice<double> values_slice = {
                 values_info.size / sizeof(double),
