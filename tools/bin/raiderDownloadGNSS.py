@@ -1,4 +1,4 @@
-#!/u/leffe0/ssangha/tools/conda_installation/stable_feb9_2020/envs/RAiDER/bin/python
+#!/usr/bin/env python3
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Simran Sangha, Jeremy Maurer, & David Bekaert
@@ -7,9 +7,9 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from RAiDER.downloadGNSSDelays import cmdLineParse,queryRepos
+from RAiDER.downloadGNSSDelays import cmd_line_parse,query_repos
 
 if __name__ == "__main__":
-    inps = cmdLineParse()
+    inps = cmd_line_parse()
 
-    queryRepos(inps)
+    query_repos(inps)

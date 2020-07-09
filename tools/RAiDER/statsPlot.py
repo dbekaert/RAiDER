@@ -17,7 +17,7 @@ import pandas as pd
 from shapely.geometry import Point, Polygon
 
 
-def createParser():
+def create_parser():
     """Parse command line arguments using argparse."""
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description="""
 Perform basic statistical analyses concerning the spatiotemporal distribution of zenith delays.
@@ -111,14 +111,14 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     return parser
 
 
-def cmdLineParse(iargs=None):
-    parser = createParser()
+def cmd_line_parse(iargs=None):
+    parser = create_parser()
     return parser.parse_args(args=iargs)
 
 
-class variogramAnalysis():
+class VariogramAnalysis():
     '''
-        Class which ingests dataframe output from 'raiderStats' class and performs variogram analysis.
+        Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis.
     '''
 
     def __init__(self, filearg, gridpoints, col_name, workdir='./', seasonalinterval=None, densitythreshold=10, verbose=False, binnedvariogram=False):
@@ -131,7 +131,7 @@ class variogramAnalysis():
         self.verbose = verbose
         self.binnedvariogram = binnedvariogram
 
-    def _getSamples(self, data, Nsamp=None):
+    def _get_samples(self, data, Nsamp=None):
         '''
         pull samples from a 2D image for variogram analysis
         '''
@@ -161,7 +161,7 @@ class variogramAnalysis():
 
         return d, indpars
 
-    def _getXY(self, x2d, y2d, indpars):
+    def _get_XY(self, x2d, y2d, indpars):
         '''
         Given a list of indices, return the x,y locations
         from two matrices
@@ -171,7 +171,7 @@ class variogramAnalysis():
 
         return x, y
 
-    def _getDistances(self, XY, xy=None):
+    def _get_distances(self, XY, xy=None):
         '''
         Return the distances between each point in a list of points
         '''
@@ -181,7 +181,7 @@ class variogramAnalysis():
         else:
             return 0.5*np.square(XY - xy)  # XY = 1st col xy= 2nd col
 
-    def _empVario(self, x, y, data, Nsamp=1e3):
+    def _emp_vario(self, x, y, data, Nsamp=1e3):
         '''
         Compute empirical semivariance
         '''
@@ -190,15 +190,15 @@ class variogramAnalysis():
         ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
         data = data-(np.matmul(A, ramp))
 
-        samples, indpars = self._getSamples(data)
-        x, y = self._getXY(x, y, indpars)
-        dists = self._getDistances(
+        samples, indpars = self._get_samples(data)
+        x, y = self._get_XY(x, y, indpars)
+        dists = self._get_distances(
             np.array([[x[:, 0], y[:, 0]], [x[:, 1], y[:, 1]]]).T)
-        vario = self._getDistances(samples[:, 0], samples[:, 1])
+        vario = self._get_distances(samples[:, 0], samples[:, 1])
 
         return dists, vario
 
-    def _binnedVario(self, hEff, rawVario, xBin=None):
+    def _binned_vario(self, hEff, rawVario, xBin=None):
         '''
         return a binned empirical variogram
         '''
@@ -227,7 +227,7 @@ class variogramAnalysis():
 
         return np.array(hExp), np.array(expVario)
 
-    def _fitVario(self, dists, vario, model=None, x0=None, Nparm=None,  ub=None):
+    def _fit_vario(self, dists, vario, model=None, x0=None, Nparm=None,  ub=None):
         '''
         Fit a variogram model to data
         '''
@@ -282,7 +282,7 @@ class variogramAnalysis():
         a, b, c = parms
         return b*(1 - np.exp(-np.square(h)/(a**2))) + c
 
-    def plotVariogram(self, gridID, timeslice, coords, workdir='./', d_test=None, v_test=None, res_robust=None, dists=None, vario=None, dists_binned=None, vario_binned=None, seasonalinterval=None):
+    def plot_variogram(self, gridID, timeslice, coords, workdir='./', d_test=None, v_test=None, res_robust=None, dists=None, vario=None, dists_binned=None, vario_binned=None, seasonalinterval=None):
         '''
         Make empirical and/or experimental variogram fit plots
         '''
@@ -328,7 +328,7 @@ class variogramAnalysis():
 
         return
 
-    def createVariograms(self):
+    def create_variograms(self):
         # Iterate through stations and time slice to append empirical variogram
         # track data for plotting
         TOT_good_slices = []
@@ -364,11 +364,11 @@ class variogramAnalysis():
                     delayarray = np.array(
                         grid_subset[grid_subset['Date'] == j][self.col_name])
                     # fit empirical variogram for each time AND grid
-                    dists, vario = self._empVario(lonarr, latarr, delayarray)
-                    dists_binned, vario_binned = self._binnedVario(
+                    dists, vario = self._emp_vario(lonarr, latarr, delayarray)
+                    dists_binned, vario_binned = self._binned_vario(
                         dists, vario)
                     # fit experimental variogram for each time AND grid, model default is exponential
-                    res_robust, d_test, v_test = self._fitVario(
+                    res_robust, d_test, v_test = self._fit_vario(
                         dists_binned, vario_binned, model=self.__exponential__, x0=None, Nparm=3)
                     # Plot empirical + experimental variogram for this gridnode and timeslice
                     if not os.path.exists(os.path.join(self.workdir, 'variograms/grid{}'.format(i))):
@@ -377,10 +377,10 @@ class variogramAnalysis():
                     # Make variogram plots for each time-slice if verbose mode specified.
                     if self.verbose:
                         # Plot empirical variogram for this gridnode and timeslice
-                        self.plotVariogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
+                        self.plot_variogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
                             self.workdir, 'variograms/grid{}'.format(i)), dists=dists, vario=vario, dists_binned=dists_binned, vario_binned=vario_binned)  # in verbose
                         # Plot experimental variogram for this gridnode and timeslice
-                        self.plotVariogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
+                        self.plot_variogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
                             self.workdir, 'variograms/grid{}'.format(i)), d_test=d_test, v_test=v_test, res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)  # in verbose
                     # append for plotting
                     good_slices.append([i, j.strftime("%Y%m%d")])
@@ -401,9 +401,9 @@ class variogramAnalysis():
                     dists_binned_arr = np.concatenate(dists_binned_arr).ravel()
                     vario_binned_arr = np.concatenate(vario_binned_arr).ravel()
                 else:
-                    dists_binned_arr, vario_binned_arr = self._binnedVario(
+                    dists_binned_arr, vario_binned_arr = self._binned_vario(
                         dists_arr, vario_arr)
-                TOT_res_robust, TOT_d_test, TOT_v_test = self._fitVario(
+                TOT_res_robust, TOT_d_test, TOT_v_test = self._fit_vario(
                     dists_binned_arr, vario_binned_arr, model=self.__exponential__, x0=None, Nparm=3)
                 # Plot empirical variogram for this gridnode and timeslice
                 tot_timetag = good_slices[0][1]+'–'+good_slices[-1][1]
@@ -411,10 +411,10 @@ class variogramAnalysis():
                 TOT_good_slices.append([i, tot_timetag])
                 TOT_res_robust_arr.append(TOT_res_robust.x)
                 TOT_tot_timetag.append(tot_timetag)
-                self.plotVariogram(i, tot_timetag, [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(
+                self.plot_variogram(i, tot_timetag, [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(
                     i)), dists=dists_arr, vario=vario_arr, dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
                 # Plot experimental variogram for this gridnode and timeslice
-                self.plotVariogram(i, tot_timetag, [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
+                self.plot_variogram(i, tot_timetag, [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
                     self.workdir, 'variograms/grid{}'.format(i)), d_test=TOT_d_test, v_test=TOT_v_test, res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
             # Record sparse grids which didn't have sufficient sample size of data through any of the timeslices
             else:
@@ -435,7 +435,7 @@ class variogramAnalysis():
         return TOT_grids, TOT_res_robust_arr
 
 
-class raiderStats(object):
+class RaiderStats(object):
     '''
         Class which loads standard weather model/GPS delay files and generates a series of user-requested statistics and graphics.
     '''
@@ -460,9 +460,9 @@ class raiderStats(object):
         if not os.path.exists(self.workdir):
             os.mkdir(self.workdir)
 
-        self.createDF()
+        self.create_DF()
 
-    def _getExtent(self):  #dataset, spacing=1, userbbox=None
+    def _get_extent(self):  #dataset, spacing=1, userbbox=None
         """ Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees """
         extent = [np.floor(min(self.df['Lon'])), np.ceil(max(self.df['Lon'])),
                   np.floor(min(self.df['Lat'])), np.ceil(max(self.df['Lat']))]
@@ -485,7 +485,7 @@ class raiderStats(object):
 
         # ensure even spacing, set spacing to 1 if specified spacing is not even multiple of bounds
         if (extent[1]-extent[0]) % self.spacing != 0 or (extent[-1]-extent[-2]) % self.spacing:
-            print("WARNING: User-specified spacing {} is not even multiple of bounds, resetting spacing to 1°".format(self.spacing))
+            print("WARNING: User-specified spacing {} is not even multiple of bounds, resetting spacing to 1\N{DEGREE SIGN}".format(self.spacing))
             self.spacing = 1
 
         # Create corners of rectangle to be transformed to a grid
@@ -513,7 +513,7 @@ class raiderStats(object):
 
         return extent, grid_dim, gridpoints
 
-    def _convertSI(self, val, unit_in, unit_out):
+    def _convert_SI(self, val, unit_in, unit_out):
         '''
         Convert input to desired units
         '''
@@ -533,12 +533,12 @@ class raiderStats(object):
 
         # convert to m
         if self.unit != 'm':
-            data[self.col_name] = self._convertSI(
+            data[self.col_name] = self._convert_SI(
                 data[self.col_name], self.unit, 'm')
 
         return data
 
-    def createDF(self):
+    def create_DF(self):
         '''
             Create dataframe.
         '''
@@ -582,7 +582,7 @@ class raiderStats(object):
             except:
                 raise Exception(
                     'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
-        self.plotbbox, self.grid_dim, self.gridpoints = self._getExtent()
+        self.plotbbox, self.grid_dim, self.gridpoints = self._get_extent()
 
         # generate list of grid-polygons
         append_poly = []
@@ -714,8 +714,8 @@ class raiderStats(object):
                 cbounds = [np.nanpercentile(gridarr, self.colorpercentile[0]), np.nanpercentile(
                     gridarr, self.colorpercentile[1])]
                 # if upper/lower bounds identical, overwrite lower bound as 75% of upper bound to avoid plotting ValueError
-                if cbounds[0]==cbounds[1]:
-                    cbounds[0]*=0.75
+                if cbounds[0] == cbounds[1]:
+                    cbounds[0] *= 0.75
                     cbounds.sort()
 
             colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
@@ -770,7 +770,7 @@ class raiderStats(object):
         return
 
 
-def statsAnalyses(inps=None):
+def stats_analyses(inps=None):
     '''
     Main workflow for generating a suite of plots to illustrate spatiotemporal distribution 
     and/or character of zenith delays
@@ -778,12 +778,12 @@ def statsAnalyses(inps=None):
 
     print("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
-    df_stats = raiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,  \
+    df_stats = RaiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,  \
         inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.colorpercentile, inps.verbose)
 
     # If user requests to generate all plots.
     if inps.plotall:
-        print('"-plotall"==True. All plots will be made.')
+        print('"-plotall" == True. All plots will be made.')
         inps.station_distribution = True
         inps.station_delay_mean = True
         inps.station_delay_stdev = True
@@ -846,9 +846,9 @@ def statsAnalyses(inps=None):
     # Perform variogram analysis
     if inps.variogramplot:
         print("***Variogram Analysis Function:***")
-        make_variograms = variogramAnalysis(df_stats.df, df_stats.gridpoints, inps.col_name, inps.workdir,
+        make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, inps.col_name, inps.workdir,
                                             df_stats.seasonalinterval, inps.densitythreshold, inps.verbose, binnedvariogram=inps.binnedvariogram)
-        TOT_grids, TOT_res_robust_arr = make_variograms.createVariograms()
+        TOT_grids, TOT_res_robust_arr = make_variograms.create_variograms()
         # plot range heatmap
         print("- Plot variogram range per gridcell.")
         gridarr_range = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
@@ -865,6 +865,31 @@ def statsAnalyses(inps=None):
 
 
 if __name__ == "__main__":
-    inps = cmdLineParse()
+    inps = cmd_line_parse()
 
-    statsAnalyses(inps)
+    stats_analyses(
+        inps.fname,
+        inps.col_name,
+        inps.unit,
+        inps.workdir,
+        inps.bbox,
+        inps.spacing,
+        inps.timeinterval,
+        inps.seasonalinterval,
+        inps.plot_fmt,
+        inps.cbounds,
+        inps.colorpercentile,
+        inps.densitythreshold,
+        inps.stationsongrids,
+        inps.drawgridlines,
+        inps.plotall,
+        inps.station_distribution,
+        inps.station_delay_mean,
+        inps.station_delay_stdev,
+        inps.grid_heatmap,
+        inps.grid_delay_mean,
+        inps.grid_delay_stdev,
+        inps.variogramplot,
+        inps.binnedvariogram,
+        inps.verbose,
+    )

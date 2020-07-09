@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-def getDelays(stationFile, filename, returnTime=None):
+def get_delays(stationFile, filename, returnTime=None):
     '''
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
@@ -51,7 +51,7 @@ def getDelays(stationFile, filename, returnTime=None):
     for j in stationTarlist:
         f = gzip.open(ziprepo.open(j), 'rb')
         # get the date of the file
-        time, yearFromFile, doyFromFile = getDate(os.path.basename(j).split('.'))
+        time, yearFromFile, doyFromFile = get_date(os.path.basename(j).split('.'))
         # initialize variables
         d, ngrad, egrad, timesList, Sig = [], [], [], [], []
         flag = False
@@ -137,7 +137,7 @@ def getDelays(stationFile, filename, returnTime=None):
     return allstationTarfiles
 
 
-def getStationData(inFile, outDir=None, returnTime=None):
+def get_station_data(inFile, outDir=None, returnTime=None):
     '''
     Pull tropospheric delay data for a given station name
     '''
@@ -148,7 +148,7 @@ def getStationData(inFile, outDir=None, returnTime=None):
     if not os.path.exists(pathbase):
         os.mkdir(pathbase)
 
-    returnTime = secondsOfDay(returnTime)
+    returnTime = seconds_of_day(returnTime)
     # print warning if not divisible by 3 seconds
     if returnTime % 3 != 0:
         index = np.argmin(
@@ -169,7 +169,7 @@ def getStationData(inFile, outDir=None, returnTime=None):
         for sf in stationFiles:
             StationID = os.path.basename(sf).split('.')[0]
             name = os.path.join(pathbase, StationID + '_ztd.csv')
-            result = getDelays(sf, name, returnTime=returnTime)
+            result = get_delays(sf, name, returnTime=returnTime)
             outputfiles.append(name)
 
     # Consolidate all CSV files into one object
@@ -191,7 +191,7 @@ def getStationData(inFile, outDir=None, returnTime=None):
     del origstatsFile, statsFile
 
 
-def getDate(stationFile):
+def get_date(stationFile):
     '''
     extract the date from a station delay file
     '''
@@ -204,7 +204,7 @@ def getDate(stationFile):
     return date, year, doy
 
 
-def secondsOfDay(returnTime):
+def seconds_of_day(returnTime):
     '''
     Convert HH:MM:SS format time-tag to seconds of day.
     '''

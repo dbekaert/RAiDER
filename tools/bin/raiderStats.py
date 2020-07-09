@@ -1,4 +1,4 @@
-#!/u/leffe0/ssangha/tools/conda_installation/stable_feb9_2020/envs/RAiDER/bin/python
+#!/usr/bin/env python3
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Simran Sangha, Jeremy Maurer, & David Bekaert
@@ -7,10 +7,9 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#from RAiDER.statsPlot import parseCMD
-from RAiDER.statsPlot import cmdLineParse,statsAnalyses
+from RAiDER.statsPlot import cmd_line_parse,stats_analyses
 
 if __name__ == "__main__":
-    inps = cmdLineParse()
+    inps = cmd_line_parse()
 
-    statsAnalyses(inps)
+    stats_analyses(inps)
