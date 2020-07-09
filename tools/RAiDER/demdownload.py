@@ -7,8 +7,9 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-
 from osgeo import gdal
+import time
+
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator as rgi
 
@@ -19,7 +20,7 @@ _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
 
 
 def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
-                 outName='warpedDEM.dem', ndv=0., verbose = False):
+                 outName='warpedDEM.dem', ndv=0., verbose=False):
     '''
     Download a DEM if one is not already present.
     '''
@@ -59,7 +60,6 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
     # Specify filenames
     if verbose:
         print('Getting the DEM')
-        import time
         st = time.time()
 
     memRaster = '/vsimem/warpedDEM'
@@ -104,9 +104,9 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         # can be passed on to GDAL
         outInterp[np.isnan(outInterp)] = ndv
         if outInterp.ndim == 2:
-            RAiDER.utilFcns.writeArrayToRaster(outInterp, outRasterName, noDataValue=gdalNDV)
+            RAiDER.utilFcns.writeArrayToRaster(outInterp, outRasterName, noDataValue=0.)
         elif outInterp.ndim == 1:
-            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue=ndv)
+            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outRasterName, noDataValue=0.)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':
