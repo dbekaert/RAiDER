@@ -1,11 +1,20 @@
 """Geodesy-related utility functions."""
-
-
+import importlib
+import itertools
+import math
+import multiprocessing as mp
 import os
 import pickle
+import re
+from datetime import datetime
 
+import h5py
 import numpy as np
-from osgeo import gdal
+import pandas as pd
+import pyproj
+from osgeo import gdal, osr
+
+from RAiDER.constants import Zenith
 
 gdal.UseExceptions()
 
@@ -33,12 +42,10 @@ def reproject(inlat, inlon, inhgt, inProj, outProj):
     '''
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
-    import pyproj
     return pyproj.transform(inProj, outProj, inlon, inlat, inhgt, always_xy=True)
 
 
 def lla2ecef(lat, lon, height):
-    import pyproj
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
 
@@ -46,7 +53,6 @@ def lla2ecef(lat, lon, height):
 
 
 def ecef2lla(x, y, z):
-    import pyproj
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
     lon, lat, height = pyproj.transform(ecef, lla, x, y, z, always_xy=True)
@@ -71,7 +77,6 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
 
 
 def lla2lambert(lat, lon, height=None):
-    import pyproj
     lla = pyproj.Proj(proj='latlong')
     lambert = pyproj.Proj(
             '+proj=lcc +lat_1=30.0 +lat_2=60.0 +lat_0=18.500015 +lon_0=-100.2 '
@@ -200,7 +205,6 @@ def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
     if delayType is None:
         delayType = "Zenith"
 
-    import h5py
     with h5py.File(filename, 'w') as f:
         f['lat'] = lats
         f['lon'] = lons
@@ -219,8 +223,6 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     '''
     write a numpy array to a GDAL-readable raster
     '''
-    import gdal
-    import numpy as np
     array_shp = np.shape(array)
     dType = array.dtype
     if 'complex' in str(dType):
@@ -255,17 +257,16 @@ def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
 
 
 def round_date(date, precision):
-    import datetime
     # First try rounding up
     # Timedelta since the beginning of time
-    datedelta = datetime.datetime.min - date
+    datedelta = datetime.min - date
     # Round that timedelta to the specified precision
     rem = datedelta % precision
     # Add back to get date rounded up
     round_up = date + rem
 
     # Next try rounding down
-    datedelta = date - datetime.datetime.min
+    datedelta = date - datetime.min
     rem = datedelta % precision
     round_down = date - rem
 
@@ -278,29 +279,20 @@ def round_date(date, precision):
 
 
 def _least_nonzero(a):
-    """Fill in a flat array with the lowest nonzero value.
+    """Fill in a flat array with the first non-nan value in the last dimension.
 
     Useful for interpolation below the bottom of the weather model.
     """
-    out = np.full(a.shape[:2], np.nan)
-    xlim, ylim, zlim = np.shape(a)
-    for x in range(xlim):
-        for y in range(ylim):
-            for z in range(zlim):
-                val = a[x][y][z]
-                if not np.isnan(val):
-                    out[x][y] = val
-                    break
-    return out
+    mgrid_index = tuple(slice(None, d) for d in a.shape[:-1])
+    return a[tuple(np.mgrid[mgrid_index]) + ((~np.isnan(a)).argmax(-1),)]
 
 
 def robmin(a):
     '''
     Get the minimum of an array, accounting for empty lists
     '''
-    from numpy import nanmin as min
     try:
-        return min(a)
+        return np.nanmin(a)
     except ValueError:
         return 'N/A'
 
@@ -309,9 +301,8 @@ def robmax(a):
     '''
     Get the minimum of an array, accounting for empty lists
     '''
-    from numpy import nanmax as max
     try:
-        return max(a)
+        return np.nanmax(a)
     except ValueError:
         return 'N/A'
 
@@ -397,7 +388,6 @@ def Chunk(iterable, n):
         [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
 
     """
-    import math
     chunksize = int(math.ceil(len(iterable) / n))
     return (iterable[i * chunksize:i * chunksize + chunksize]
             for i in range(n))
@@ -434,23 +424,15 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def mkdir(dirName):
-    try:
-        os.mkdir(dirName)
-    except FileExistsError:
-        pass
-
-
 def writeLL(time, lats, lons, llProj, weather_model_name, out):
     '''
     If the weather model grid nodes are used, write the lat/lon values
     out to a file
     '''
-    from datetime import datetime as dt
     lonFileName = '{}_Lon_{}.dat'.format(weather_model_name,
-                                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+                                         datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
     latFileName = '{}_Lat_{}.dat'.format(weather_model_name,
-                                         dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
+                                         datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
 
     os.makedirs(os.path.abspath('geom'), exist_ok=True)
 
@@ -465,7 +447,6 @@ def checkShapes(los, lats, lons, hts):
     Make sure that by the time the code reaches here, we have a
     consistent set of line-of-sight and position data.
     '''
-    from RAiDER.constants import Zenith
     if los is None:
         los = Zenith
     test1 = hts.shape == lats.shape == lons.shape
@@ -489,7 +470,6 @@ def checkLOS(los, Npts):
            of points, which represent the projection value), or
        (3) a set of vectors, same number as the number of points.
      '''
-    from RAiDER.constants import Zenith
     # los is a bunch of vectors or Zenith
     if los is not Zenith:
         los = los.reshape(-1, 3)
@@ -512,7 +492,6 @@ def modelName2Module(model_name):
        module_name - Name of the module
        wmObject    - callable, weather model object
     """
-    import importlib
     module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
@@ -571,7 +550,6 @@ def setLLds(infile, latfile, lonfile):
     '''
     Use a lat/lon file to set the x/y coordinates of infile
     '''
-    from osgeo import gdal, osr
     ds = gdal.Open(infile, gdal.GA_ReadOnly)
     ds.SetMetadata({'X_DATASET': os.path.abspath(latfile), 'X_BAND': '1',
                     'Y_DATASET': os.path.abspath(lonfile), 'Y_BAND': '1'})
@@ -594,8 +572,6 @@ def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
     # Effective axis where apply_along_axis() will be applied by each
     # worker (any non-zero axis number would work, so as to allow the use
     # of `np.array_split()`, which is only done on axis 0):
-    import multiprocessing as mp
-    import numpy as np
 
     effective_axis = 1 if axis == 0 else axis
     if effective_axis != axis:
@@ -626,7 +602,6 @@ def unpacking_apply_along_axis(tup):
     this function can generally be imported from a module, as required
     by map().
     """
-    import numpy as np
     func1d, axis, arr, arg, kwarg = tup
     results = np.apply_along_axis(func1d, axis, arr, *arg, **kwarg)
     return results
@@ -636,7 +611,6 @@ def read_hgt_file(filename):
     '''
     Read height data from a comma-delimited file
     '''
-    import pandas as pd
     data = pd.read_csv(filename)
     hgts = data['Hgt_m'].values
     return hgts
@@ -646,8 +620,6 @@ def parse_date(s):
     """
     Parse a date from a string in pseudo-ISO 8601 format.
     """
-    import datetime
-    import itertools
     year_formats = (
         '%Y-%m-%d',
         '%Y%m%d'
@@ -655,7 +627,7 @@ def parse_date(s):
     date = None
     for yf in year_formats:
         try:
-            date = datetime.datetime.strptime(s, yf)
+            date = datetime.strptime(s, yf)
         except ValueError:
             continue
 
@@ -670,8 +642,6 @@ def parse_time(t):
     '''
     Parse an input time (required to be ISO 8601)
     '''
-    import datetime
-    import itertools
     time_formats = (
         '',
         'T%H:%M:%S.%f',
@@ -698,7 +668,7 @@ def parse_time(t):
     time = None
     for tf in all_formats:
         try:
-            time = datetime.datetime.strptime(t, tf) - datetime.datetime(1900, 1, 1)
+            time = datetime.strptime(t, tf) - datetime(1900, 1, 1)
         except ValueError:
             continue
 
@@ -722,7 +692,6 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
 
     # Do different things, depending on the type of input
     if flag == 'station_file':
-        import pandas as pd
         df = pd.read_csv(wetFilename)
 
         # quick check for consistency
@@ -746,13 +715,11 @@ def getTimeFromFile(filename):
     '''
     Parse a filename to get a date-time
     '''
-    import datetime
-    import re
     fmt = '%Y_%m_%d_T%H_%M_%S'
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
     try:
         out = p.search(filename).group()
-        return datetime.datetime.strptime(out, fmt)
+        return datetime.strptime(out, fmt)
     except:
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
@@ -761,10 +728,6 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
     '''
     Write query points to an HDF5 file for storage and access
     '''
-    import datetime
-    import h5py
-    import os
-    from osgeo import osr
 
     from RAiDER.utilFcns import checkLOS
 

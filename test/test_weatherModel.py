@@ -1,6 +1,6 @@
 # Unit and other tests
 import datetime
-import gdal
+from osgeo import gdal
 import glob
 import math
 import numpy as np

@@ -10,12 +10,13 @@
 import numpy as np
 
 from RAiDER.utilFcns import parallel_apply_along_axis
+from scipy.interpolate import interp1d
 
 
 def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
     '''
     Interpolate an array of 3-D data along one axis. This function
-    assumes that the x-xoordinate increases monotonically.
+    assumes that the x-coordinate increases monotonically.
     '''
     if oldCoord.ndim > 1:
         stackedData = np.concatenate([oldCoord, data, newCoord], axis=axis)
@@ -43,11 +44,10 @@ def interpVector(vec, Nx):
     x, the original y, and the new x, in that order. Nx tells the
     number of original x-points.
     '''
-    from scipy.interpolate import interp1d
     x = vec[:Nx]
     y = vec[Nx:2*Nx]
     xnew = vec[2*Nx:]
-    f = interp1d(x, y, bounds_error=False)
+    f = interp1d(x, y, bounds_error=False, copy=False, assume_sorted=True)
     return f(xnew)
 
 
@@ -59,24 +59,6 @@ def _interp3D(xs, ys, zs, values, zlevels, shape=None):
 
     interp = rgi((ys, xs, zs), values, bounds_error=False, fill_value=np.nan)
     return interp
-
-
-def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
-    '''
-    Interpolate an array of 3-D data along one axis. This function
-    assumes that the x-xoordinate increases monotonically.
-    '''
-    if oldCoord.ndim > 1:
-        stackedData = np.concatenate([oldCoord, data, newCoord], axis=axis)
-        try:
-            out = parallel_apply_along_axis(interpVector, arr=stackedData, axis=axis, Nx=oldCoord.shape[axis])
-        except:
-            out = np.apply_along_axis(interpVector, axis=axis, arr=stackedData, Nx=oldCoord.shape[axis])
-    else:
-        out = np.apply_along_axis(interpV, axis=axis, arr=data, old_x=oldCoord, new_x=newCoord,
-                                  left=np.nan, right=np.nan)
-
-    return out
 
 
 def fillna3D(array, axis=-1):
