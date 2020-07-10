@@ -66,8 +66,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
         'Optional controls for plot formatting/options.')
     pltformat.add_argument('-fmt', '--plot_format', dest='plot_fmt', type=str,
                            default='png', help='Plot format to use for saving figures')
-    pltformat.add_argument('-cb', '--color_bounds', dest='cbounds', type=float,
-                           nargs=2, default=None, help='List of two floats to use as color axis bounds')
+    pltformat.add_argument('-cb', '--color_bounds', dest='cbounds', type=str,
+                           default=None, help='List of two floats to use as color axis bounds')
     pltformat.add_argument('-cp', '--colorpercentile', dest='colorpercentile', type=float, default=None, nargs=2,
                            help='Set low and upper percentile for plot colorbars. By default 25%% and 95%%, respectively.')
     pltformat.add_argument('-dt', '--densitythreshold', dest='densitythreshold', type=int, default='10',
@@ -443,7 +443,7 @@ class RaiderStats(object):
     # import dependencies
     import glob
 
-    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, colorpercentile='25 95', verbose=False):
+    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, cbounds=None, colorpercentile='25 95', verbose=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -453,12 +453,16 @@ class RaiderStats(object):
         self.timeinterval = timeinterval
         self.seasonalinterval = seasonalinterval
         self.stationsongrids = stationsongrids
+        self.cbounds = cbounds
         self.colorpercentile = colorpercentile
         self.verbose = verbose
 
         # create workdir if it doesn't exist
         if not os.path.exists(self.workdir):
             os.mkdir(self.workdir)
+
+        if self.cbounds:
+            self.cbounds = [float(val) for val in self.cbounds.split()]
 
         self.create_DF()
 
@@ -624,7 +628,7 @@ class RaiderStats(object):
             raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(
                 self.colorpercentile[0], self.colorpercentile[1]))
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, cbounds=None, resValue=5, plotFormat='pdf'):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue=5, plotFormat='pdf'):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -685,9 +689,13 @@ class RaiderStats(object):
             if len(gridarr) > 2:
                 zvalues = gridarr[2]
                 # define the bins and normalize
-                if cbounds is None:
+                if not self.cbounds:
                     cbounds = [np.nanpercentile(zvalues, self.colorpercentile[0]), np.nanpercentile(
                         zvalues, self.colorpercentile[1])]
+                    # if upper/lower bounds identical, overwrite lower bound as 75% of upper bound to avoid plotting ValueError
+                    if cbounds[0] == cbounds[1]:
+                        cbounds[0] *= 0.75
+                        cbounds.sort()
                 colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
 
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
@@ -710,7 +718,7 @@ class RaiderStats(object):
             axes.add_feature(cfeature.NaturalEarthFeature(
                 'physical', 'ocean', '50m', facecolor='#ADD8E6'), zorder=0)
             # define the bins and normalize
-            if cbounds is None:
+            if not self.cbounds:
                 cbounds = [np.nanpercentile(gridarr, self.colorpercentile[0]), np.nanpercentile(
                     gridarr, self.colorpercentile[1])]
                 # if upper/lower bounds identical, overwrite lower bound as 75% of upper bound to avoid plotting ValueError
@@ -779,7 +787,7 @@ def stats_analyses(inps=None):
     print("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,  \
-        inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.colorpercentile, inps.verbose)
+        inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.cbounds, inps.colorpercentile, inps.verbose)
 
     # If user requests to generate all plots.
     if inps.plotall:
@@ -798,7 +806,7 @@ def stats_analyses(inps=None):
         print("- Plot spatial distribution of stations.")
         unique_points = df_stats.df.groupby(['Lon', 'Lat']).size()
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        )], 'station_distribution', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt, cbounds=inps.cbounds)
+        )], 'station_distribution', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
     # Plot mean delay per station
     if inps.station_delay_mean:
         print("- Plot mean delay for each station.")
@@ -806,7 +814,7 @@ def stats_analyses(inps=None):
             ['Lon', 'Lat'])[inps.col_name].mean()
         unique_points.dropna(how='any', inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        ), unique_points.values], 'station_delay_mean', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt, cbounds=inps.cbounds)
+        ), unique_points.values], 'station_delay_mean', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
     # Plot delay stdev per station
     if inps.station_delay_stdev:
         print("- Plot delay stdev for each station.")
@@ -814,7 +822,7 @@ def stats_analyses(inps=None):
             ['Lon', 'Lat'])[inps.col_name].std()
         unique_points.dropna(how='any', inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        ), unique_points.values], 'station_delay_stdev', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt, cbounds=inps.cbounds)
+        ), unique_points.values], 'station_delay_stdev', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
 
     # Gridded station plots
     # Plot density of stations for each gridcell
@@ -823,7 +831,7 @@ def stats_analyses(inps=None):
         gridarr_heatmap = np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(
             df_stats.df['ID'][df_stats.df['gridnode'] == i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T, 'grid_heatmap', workdir=os.path.join(inps.workdir, 'figures'), drawgridlines=inps.drawgridlines,
-                 colorbarfmt='%1i', stationsongrids=inps.stationsongrids, cbounds=inps.cbounds, plotFormat=inps.plot_fmt)
+                 colorbarfmt='%1i', stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
     # Plot mean delay for each gridcell
     if inps.grid_delay_mean:
         print("- Plot mean delay per gridcell.")
@@ -832,7 +840,7 @@ def stats_analyses(inps=None):
         gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
         ) else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T, 'grid_delay_mean', workdir=os.path.join(inps.workdir, 'figures'),
-                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, cbounds=inps.cbounds, plotFormat=inps.plot_fmt)
+                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
     # Plot mean delay for each gridcell
     if inps.grid_delay_stdev:
         print("- Plot delay stdev per gridcell.")
@@ -841,7 +849,7 @@ def stats_analyses(inps=None):
         gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
         ) else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T, 'grid_delay_stdev', workdir=os.path.join(inps.workdir, 'figures'),
-                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, cbounds=inps.cbounds, plotFormat=inps.plot_fmt)
+                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
 
     # Perform variogram analysis
     if inps.variogramplot:
@@ -854,14 +862,14 @@ def stats_analyses(inps=None):
         gridarr_range = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_range.T, 'range_heatmap', workdir=os.path.join(inps.workdir, 'figures'),
-                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, cbounds=inps.cbounds, plotFormat=inps.plot_fmt)
+                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
         # plot sill heatmap
         print("- Plot variogram sill per gridcell.")
         gridarr_sill = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         gridarr_sill = gridarr_sill*(10 ^ 4)  # convert to cm
         df_stats(gridarr_sill.T, 'sill_heatmap', workdir=os.path.join(inps.workdir, 'figures'), drawgridlines=inps.drawgridlines,
-                 colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, cbounds=inps.cbounds, plotFormat=inps.plot_fmt)
+                 colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
 
 
 if __name__ == "__main__":
