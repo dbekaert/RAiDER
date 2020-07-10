@@ -1,5 +1,6 @@
-from RAiDER.interpolator import interp_along_axis
 import numpy as np
+
+from RAiDER.interpolator import interp_along_axis
 
 
 def test_interp_along_axis_1d():

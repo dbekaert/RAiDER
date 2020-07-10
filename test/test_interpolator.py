@@ -1,11 +1,12 @@
 # Unit and other tests
 import datetime
-from osgeo import gdal
 import math
-import numpy as np
 import os
-import pandas as pd
 import unittest
+
+import numpy as np
+import pandas as pd
+from osgeo import gdal
 
 
 class FcnTests(unittest.TestCase):

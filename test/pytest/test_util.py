@@ -1,5 +1,6 @@
-from RAiDER.utilFcns import _least_nonzero
 import numpy as np
+
+from RAiDER.utilFcns import _least_nonzero
 
 
 def test_least_nonzero():

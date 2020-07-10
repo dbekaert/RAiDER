@@ -1,17 +1,19 @@
 # Unit and other tests
 import datetime
-from osgeo import gdal
 import glob
 import math
-import numpy as np
 import os
-from scipy.interpolate import LinearNDInterpolator as lndi
 import pickle
 import unittest
 
-from RAiDER.utilFcns import modelName2Module, writeLL
-from RAiDER.processWM import prepareWeatherModel
+import numpy as np
+from osgeo import gdal
+from scipy.interpolate import LinearNDInterpolator as lndi
+
 from RAiDER.constants import Zenith
+from RAiDER.processWM import prepareWeatherModel
+from RAiDER.utilFcns import modelName2Module, writeLL
+
 
 class WMTests(unittest.TestCase):
 

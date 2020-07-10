@@ -1,17 +1,19 @@
 # Unit and other tests
 import datetime
-from osgeo import gdal
-import numpy as np
 import os
-import pandas as pd
 import pickle
 import unittest
 
+import numpy as np
+import pandas as pd
+from osgeo import gdal
+
 from RAiDER.delay import computeDelay, interpolateDelay
-from RAiDER.llreader import readLL, getHeights
+from RAiDER.llreader import getHeights, readLL
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.utilFcns import pickle_load, modelName2Module
+from RAiDER.utilFcns import modelName2Module, pickle_load
+
 
 class TimeTests(unittest.TestCase):
     pass
