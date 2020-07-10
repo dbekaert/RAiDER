@@ -5,10 +5,9 @@
 #include <iostream>
 
 
-// TODO, just take start and size
-inline size_t bisect_left(double * data, size_t data_N, double x, size_t left, size_t right) {
-    assert(left > 0);
-    assert(right < data_N);
+inline size_t bisect_left(double * data, size_t data_N, double x) {
+    size_t left = 0;
+    size_t right = data_N - 1;
 
     while (right - left > 1) {
         size_t mid = left + (right - left) / 2;
@@ -27,15 +26,16 @@ inline size_t bisect_left(double * data, size_t data_N, double x, size_t left, s
 // the start of the array.
 //
 // Tries a small scan first and then switches to bisection
-inline size_t find_left(double * data, size_t data_N, double x, size_t left, size_t right) {
-    for (size_t i = 0; i < 5; i++) {
+inline size_t find_left(double * data, size_t data_N, double x) {
+    size_t left = 0;
+
+    for (; left < 5; left++) {
         if (left == data_N || x < data[left]) {
             return left;
         }
-        left += 1;
     }
 
-    return bisect_left(data, data_N, x, left, right);
+    return bisect_left(&data[left], data_N - left, x) + left;
 }
 
 
@@ -45,13 +45,18 @@ void interpolate_1d(
     double * data_ys,
     double * xs,
     double * out,
-    size_t N
+    size_t N,
+    bool assume_sorted
 ) {
     size_t lo = 0;
-    size_t hi = 0;
     for (size_t i = 0; i < N; i++) {
         double x = xs[i];
-        hi = find_left(data_xs, data_N, x, lo, data_N);
+        size_t hi;
+        if (assume_sorted) {
+            hi = find_left(&data_xs[lo], data_N - lo, x) + lo;
+        } else {
+            hi = bisect_left(data_xs, data_N, x);
+        }
         if (hi < 1) {
             hi = 1;
         } else if (hi > data_N - 1) {
@@ -83,15 +88,22 @@ void interpolate_2d(
     double * data_zs,
     double * interpolation_points,
     double * out,
-    size_t N
+    size_t N,
+    bool assume_sorted
 ) {
     size_t lox = 0;
     size_t loy = 0;
     for (size_t i = 0; i < N; i++) {
         double x = interpolation_points[i * 2];
         double y = interpolation_points[i * 2 + 1];
-        size_t hix = find_left(data_xs, data_x_N, x, lox, data_x_N);
-        size_t hiy = find_left(data_ys, data_y_N, y, loy, data_y_N);
+        size_t hix, hiy;
+        if (assume_sorted) {
+            hix = find_left(&data_xs[lox], data_x_N - lox, x) + lox;
+            hiy = find_left(&data_ys[loy], data_y_N - loy, y) + loy;
+        } else {
+            hix = bisect_left(data_xs, data_x_N, x);
+            hiy = bisect_left(data_ys, data_y_N, y);
+        }
         if (hix < 1) {
             hix = 1;
         } else if (hix > data_x_N - 1) {
@@ -141,7 +153,8 @@ void interpolate_3d(
     double * data_ws,
     double * interpolation_points,
     double * out,
-    size_t N
+    size_t N,
+    bool assume_sorted
 ) {
     size_t lox = 0;
     size_t loy = 0;
@@ -150,9 +163,16 @@ void interpolate_3d(
         double x = interpolation_points[i * 3];
         double y = interpolation_points[i * 3 + 1];
         double z = interpolation_points[i * 3 + 2];
-        size_t hix = find_left(data_xs, data_x_N, x, lox, data_x_N);
-        size_t hiy = find_left(data_ys, data_y_N, y, loy, data_y_N);
-        size_t hiz = find_left(data_zs, data_z_N, z, loz, data_z_N);
+        size_t hix, hiy, hiz;
+        if (assume_sorted) {
+            hix = find_left(&data_xs[lox], data_x_N - lox, x) + lox;
+            hiy = find_left(&data_ys[loy], data_y_N - loy, y) + loy;
+            hiz = find_left(&data_zs[loz], data_z_N - loz, z) + loz;
+        } else {
+            hix = bisect_left(data_xs, data_x_N, x);
+            hiy = bisect_left(data_ys, data_y_N, y);
+            hiz = bisect_left(data_zs, data_z_N, z);
+        }
         if (hix < 1) {
             hix = 1;
         } else if (hix > data_x_N - 1) {
@@ -218,9 +238,12 @@ void interpolate(
     const std::vector<slice<double>> &grid,
     const slice<double> &values,
     const slice<double> &interpolation_points,
-    slice<double> &out
+    slice<double> &out,
+    bool assume_sorted
 ) {
-    // Only up to 64 dimensions is supported
+    // Only up to 64 dimensions is supported because at that point we run out
+    // of space for our bitmask. However, this should be suitable for any
+    // practical use case.
     assert(grid.size() < 64);
 
     size_t dimensions = grid.size();
@@ -243,7 +266,12 @@ void interpolate(
         for (size_t dim = 0; dim < dimensions; dim++) {
             auto xs = grid[dim];
             double x = interpolation_points.ptr[i * dimensions + dim];
-            size_t hi = find_left(xs.ptr, xs.size, x, los[dim], xs.size);
+            size_t hi;
+            if (assume_sorted) {
+                hi = find_left(&xs.ptr[los[dim]], xs.size - los[dim], x) + los[dim];
+            } else {
+                hi = bisect_left(xs.ptr, xs.size, x);
+            }
             if (hi < 1) {
                 hi = 1;
             } else if (hi > xs.size - 1) {
@@ -267,8 +295,6 @@ void interpolate(
         out.ptr[i] = 0;
         for (unsigned long j = 0; j < corner_points.size(); j++) {
             size_t index = 0;
-            // lox * data_y * data_z + loy * data_z + loz
-            // (data_z (data_y * (lox) + loy) + loz) * 1
             for (size_t dim = 0; dim < dimensions; dim++) {
                 index += (
                     (j >> (dim)) & 1 ? his[dim] : los[dim]

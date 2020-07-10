@@ -16,7 +16,8 @@ void interpolate_1d(
     double * data_ys,
     double * xs,
     double * out,
-    size_t N
+    size_t N,
+    bool assume_sorted
 );
 
 void interpolate_2d(
@@ -27,7 +28,8 @@ void interpolate_2d(
     double * data_zs,
     double * interpolation_points,
     double * out,
-    size_t N
+    size_t N,
+    bool assume_sorted
 );
 
 void interpolate_3d(
@@ -40,7 +42,8 @@ void interpolate_3d(
     double * data_ws,
     double * interpolation_points,
     double * out,
-    size_t N
+    size_t N,
+    bool assume_sorted
 );
 
 template <typename T>
@@ -54,7 +57,8 @@ void interpolate(
     const std::vector<slice<double>> &grid,
     const slice<double> &values,
     const slice<double> &interpolation_points,
-    slice<double> &out
+    slice<double> &out,
+    bool assume_sorted
 );
 
 #endif

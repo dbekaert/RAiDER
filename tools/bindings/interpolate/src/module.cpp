@@ -19,6 +19,7 @@ PYBIND11_MODULE(interpolate, m) {
         std::vector<py::array_t<double, py::array::c_style>> points,
         py::array_t<double, py::array::c_style> values,
         py::array_t<double, py::array::c_style> interp_points,
+        bool assume_sorted,
         size_t max_threads
     ) {
         size_t num_dims = points.size();
@@ -92,7 +93,8 @@ PYBIND11_MODULE(interpolate, m) {
                     values_ptr,
                     interp_points_ptr,
                     out,
-                    num_elements
+                    num_elements,
+                    assume_sorted
                 );
             } else {
                 std::vector<std::future<void>> tasks;
@@ -107,7 +109,8 @@ PYBIND11_MODULE(interpolate, m) {
                             values_ptr,
                             &interp_points_ptr[index],
                             &out[index],
-                            index + stride < num_elements ? stride : num_elements - index
+                            index + stride < num_elements ? stride : num_elements - index,
+                            assume_sorted
                         )
                     );
                 }
@@ -131,7 +134,8 @@ PYBIND11_MODULE(interpolate, m) {
                     values_ptr,
                     interp_points_ptr,
                     out,
-                    num_elements
+                    num_elements,
+                    assume_sorted
                 );
             } else {
                 std::vector<std::future<void>> tasks;
@@ -148,7 +152,8 @@ PYBIND11_MODULE(interpolate, m) {
                             values_ptr,
                             &interp_points_ptr[index * num_dims],
                             &out[index],
-                            index + stride < num_elements ? stride : num_elements - index
+                            index + stride < num_elements ? stride : num_elements - index,
+                            assume_sorted
                         )
                     );
                 }
@@ -176,7 +181,8 @@ PYBIND11_MODULE(interpolate, m) {
                     values_ptr,
                     interp_points_ptr,
                     out,
-                    num_elements
+                    num_elements,
+                    assume_sorted
                 );
             } else {
                 std::vector<std::future<void>> tasks;
@@ -195,7 +201,8 @@ PYBIND11_MODULE(interpolate, m) {
                             values_ptr,
                             &interp_points_ptr[index * num_dims],
                             &out[index],
-                            index + stride < num_elements ? stride : num_elements - index
+                            index + stride < num_elements ? stride : num_elements - index,
+                            assume_sorted
                         )
                     );
                 }
@@ -226,7 +233,8 @@ PYBIND11_MODULE(interpolate, m) {
                 grid,
                 values_slice,
                 interpolation_points_slice,
-                out_slice
+                out_slice,
+                assume_sorted
             );
         }
 
@@ -246,7 +254,21 @@ PYBIND11_MODULE(interpolate, m) {
     R"pbdoc(
         Linear interpolator in any dimension. Arguments are similar to
         scipy.interpolate.RegularGridInterpolator
+
+        :param points: Tuple of N axis coordinates specifying the grid.
+        :param values: Nd array containing the grid point values.
+        :param interp_points: List of points to interpolate, should have
+            dimension (x, N). If this list is guaranteed to be sorted make sure
+            to use the `assume_sorted` option.
+        :param assume_sorted: Enable optimization when the list of interpolation
+            points is sorted.
+        :param max_threads: Limit the number of threads to a certain amount.
+            Note: The number of threads will always be one of {1, 2, 4, 8}
     )pbdoc",
-    py::arg("points"), py::arg("values"), py::arg("interp_points"), py::arg("max_threads") = 8
+    py::arg("points"),
+    py::arg("values"),
+    py::arg("interp_points"),
+    py::arg("assume_sorted") = false,
+    py::arg("max_threads") = 8
   );
 }
