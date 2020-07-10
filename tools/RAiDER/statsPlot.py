@@ -648,6 +648,9 @@ class RaiderStats(object):
         if not os.path.exists(workdir):
             os.mkdir(workdir)
 
+        # Pass cbounds
+        cbounds = self.cbounds
+
         fig, axes = plt.subplots(subplot_kw={'projection': ccrs.PlateCarree()})
         # by default set background to white
         axes.add_feature(cfeature.NaturalEarthFeature(
@@ -689,14 +692,14 @@ class RaiderStats(object):
             if len(gridarr) > 2:
                 zvalues = gridarr[2]
                 # define the bins and normalize
-                if not self.cbounds:
+                if cbounds is None:
                     cbounds = [np.nanpercentile(zvalues, self.colorpercentile[0]), np.nanpercentile(
                         zvalues, self.colorpercentile[1])]
                     # if upper/lower bounds identical, overwrite lower bound as 75% of upper bound to avoid plotting ValueError
                     if cbounds[0] == cbounds[1]:
                         cbounds[0] *= 0.75
                         cbounds.sort()
-                colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
+                colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
 
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
                 zvalues = np.ma.masked_where(zvalues == 0, zvalues)
@@ -718,7 +721,7 @@ class RaiderStats(object):
             axes.add_feature(cfeature.NaturalEarthFeature(
                 'physical', 'ocean', '50m', facecolor='#ADD8E6'), zorder=0)
             # define the bins and normalize
-            if not self.cbounds:
+            if cbounds is None:
                 cbounds = [np.nanpercentile(gridarr, self.colorpercentile[0]), np.nanpercentile(
                     gridarr, self.colorpercentile[1])]
                 # if upper/lower bounds identical, overwrite lower bound as 75% of upper bound to avoid plotting ValueError
@@ -726,7 +729,7 @@ class RaiderStats(object):
                     cbounds[0] *= 0.75
                     cbounds.sort()
 
-            colorbounds = np.linspace(cbounds[0], cbounds[1], 11)
+            colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
             gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
 
