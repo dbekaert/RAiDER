@@ -478,7 +478,7 @@ class RaiderStats(object):
             if userbbox_poly.intersects(dfextents_poly):
                 extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]),np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
             else:
-                print("WARNING: User-specified bounds do not overlap with dataset bounds, proceeding with the latter.")
+                raise Exception("User-specified bounds do not overlap with dataset bounds, adjust bounds and re-run program.")
             if extent[0] < -180. or extent[1] > 180. or extent[2] < -90. or extent[3] > 90.:
                 raise Exception("Specified bounds exceed -180/180 lon and/or -90/90 lat, adjust bounds and re-run program.")
             del dfextents_poly, userbbox_poly
