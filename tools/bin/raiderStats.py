@@ -7,9 +7,9 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from RAiDER.statsPlot import parseCMD
+from RAiDER.statsPlot import cmd_line_parse,stats_analyses
 
 if __name__ == "__main__":
+    inps = cmd_line_parse()
 
-    # Main engine
-    parseCMD()
+    stats_analyses(inps)

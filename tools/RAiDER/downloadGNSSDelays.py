@@ -14,28 +14,39 @@ import sys
 
 import pandas as pd
 import requests
-from RAiDER.getStationDelays import getStationData
+from RAiDER.getStationDelays import get_station_data
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
 
-def parse_args():
+def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="""
 Check for and download tropospheric zenith delays for a set of GNSS stations from UNR
-Usage examples: 
-downloadGNSSdelay.py -y 2010 --check
-downloadGNSSdelay.py -y 2010 -b 40 -79 39 -78 -v
-downloadGNSSdelay.py -y 2010 -f station_list.txt --out products
-""")
 
-    p.add_argument(
-        '--years', '-y', dest='years', nargs='+',
-        help="""Year to check or download delays (format YYYY).
-Can be a single value or a comma-separated list. If two years non-consecutive years are given, download each year in between as well. 
-""", type=parse_years, required=True)
+Example call to virtually access and append zenith delay information to a CSV table in specified output 
+directory, across specified range of years and all available times of day, and confined to specified 
+geographic bounding box :
+downloadGNSSdelay.py --out products -y '2010,2014' -b '40 -79 39 -78'
+
+Example call to virtually access and append zenith delay information to a CSV table in specified output 
+directory, across specified range of years and specified time of day, and distributed globally :
+downloadGNSSdelay.py --out products -y '2010,2014' --returntime '00:00:00' -f station_list.txt
+
+Example call to virtually access and append zenith delay information to a CSV table in specified output 
+directory, across specified range of years and specified time of day, and distributed globally but restricted 
+to list of stations specified in input textfile :
+downloadGNSSdelay.py --out products -y '2010,2014' --returntime '00:00:00' -f station_list.txt
+
+NOTE, following example call to physically download zenith delay information not recommended as it is not 
+necessary for most applications.
+Example call to physically download and append zenith delay information to a CSV table in specified output 
+directory, across specified range of years and specified time of day, and confined to specified 
+geographic bounding box :
+downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:00:00' -b '40 -79 39 -78'
+""")
 
     # Stations to check/download
     area = p.add_argument_group(
@@ -49,14 +60,15 @@ Can be a single value or a comma-separated list. If two years non-consecutive ye
 
     misc = p.add_argument_group("Run parameters")
     misc.add_argument(
-        '--outformat',
-        help='GDAL-compatible file format if surface delays are requested.',
-        default=None)
+        '--out', dest='out',
+        help='Directory to deposit outputs',
+        default='.')
 
     misc.add_argument(
-        '--out', dest='out',
-        help='Directory to download products',
-        default='.')
+        '--years', '-y', dest='years', nargs='+',
+        help="""Year to check or download delays (format YYYY).
+Can be a single value or a comma-separated list. If two years non-consecutive years are given, download each year in between as well. 
+""", type=parse_years, required=True)
 
     misc.add_argument(
         '--returntime', dest='returnTime',
@@ -65,7 +77,7 @@ Can be a single value or a comma-separated list. If two years non-consecutive ye
 
     misc.add_argument(
         '--download',
-        help='Physically download data. Note this is not necessary to proceed with statistical analysis, as data can be handled virtually in the program.',
+        help='Physically download data. Note this option is not necessary to proceed with statistical analyses, as data can be handled virtually in the program.',
         action='store_true', dest='download', default=False)
 
     misc.add_argument(
@@ -73,67 +85,15 @@ Can be a single value or a comma-separated list. If two years non-consecutive ye
         help='Run in verbose (debug) mode? Default False',
         action='store_true', dest='verbose', default=False)
 
-    return p.parse_args(), p
+    return p
 
 
-def parseCMD():
-    """
-    Parse command-line arguments and pass to tropo_delay
-    We'll parse arguments and call delay.py.
-    """
-    args, p = parse_args()
-
-    # Create specified output directory if it does not exist.
-    if not os.path.exists(args.out):
-        os.mkdir(args.out)
-
-    # Setup bounding box
-    if args.bounding_box:
-        if isinstance([str(val) for val in args.bounding_box.split()], list) and not os.path.isfile(args.bounding_box):
-            try:
-                bbox = [float(val) for val in args.bounding_box.split()]
-            except:
-                raise Exception(
-                    'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
-            # if necessary, convert negative longitudes to positive
-            if bbox[2] < 0:
-                bbox[2] += 360
-            if bbox[3] < 0:
-                bbox[3] += 360
-    # If bbox not specified, query stations across the entire globe
-    else:
-        bbox = [-90, 90, 0, 360]
-
-    # Handle station query
-    stats, origstatsFile = getStationList(
-        bbox=bbox, writeLoc=args.out, userstatList=args.station_file)
-
-    # iterate over years
-    for yr in args.years:
-        statDF = downloadTropoDelays(
-            stats, yr, writeDir=args.out, download=args.download, verbose=args.verbose)
-        statDF.to_csv(os.path.join(
-            args.out, 'gnssStationList_overbbox_withpaths.csv'))
-
-    # Add lat/lon info
-    origstatsFile = pd.read_csv(origstatsFile)
-    statsFile = pd.read_csv(os.path.join(
-        args.out, 'gnssStationList_overbbox_withpaths.csv'))
-    statsFile = pd.merge(left=statsFile, right=origstatsFile,
-                         how='left', left_on='ID', right_on='ID')
-    statsFile.to_csv(os.path.join(
-        args.out, 'gnssStationList_overbbox_withpaths.csv'), index=False)
-    del statDF, origstatsFile, statsFile
-
-    # Extract delays for each station
-    getStationData(os.path.join(args.out, 'gnssStationList_overbbox_withpaths.csv'),
-                   outDir=args.out, returnTime=args.returnTime)
-
-    if args.verbose:
-        print('Completed processing')
+def cmd_line_parse(iargs=None):
+    parser = create_parser()
+    return parser.parse_args(args=iargs)
 
 
-def getStationList(bbox=None, writeLoc=None, userstatList=None):
+def get_station_list(bbox=None, writeLoc=None, userstatList=None):
     '''
     Creates a list of stations inside a lat/lon bounding box from a source
     Inputs: 
@@ -143,9 +103,9 @@ def getStationList(bbox=None, writeLoc=None, userstatList=None):
     writeLoc = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox.csv')
 
     if userstatList:
-        userstatList = readTextFile(userstatList)
+        userstatList = read_text_file(userstatList)
 
-    statList = getStatsByllh(llhBox=bbox, userstatList=userstatList)
+    statList = get_stats_by_llh(llhBox=bbox, userstatList=userstatList)
 
     # write to file and pass final stations list
     statList.to_csv(writeLoc, index=False)
@@ -154,7 +114,7 @@ def getStationList(bbox=None, writeLoc=None, userstatList=None):
     return stations, writeLoc
 
 
-def getStatsByllh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
+def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     '''
     Function to pull lat, lon, height, beginning date, end date, and number of solutions for stations inside the bounding box llhBox. 
     llhBox should be a tuple with format (lat1, lat2, lon1, lon2), where lat1, lon1 define the lower left-hand corner and lat2, lon2 
@@ -167,13 +127,13 @@ def getStatsByllh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     # it's a file like object and works just like a file
     data = requests.get(stationHoldings)
     stations = []
-    for ind, line in enumerate(data):  # files are iterable
+    for ind, line in enumerate(data.text.splitlines()):  # files are iterable
         if ind == 0:
             continue
-        statID, lat, lon = getID(line)
+        statID, lat, lon = get_ID(line)
         # Only pass if in bbox
         # And if user list of stations specified, only pass info for stations within list
-        if inBox(lat, lon, llhBox) and (not userstatList or statID in userstatList):
+        if in_box(lat, lon, llhBox) and (not userstatList or statID in userstatList):
             # convert lon into range [-180,180]
             lon = fix_lons(lon)
             stations.append({'ID': statID, 'Lat': lat, 'Lon': lon})
@@ -191,7 +151,7 @@ def getStatsByllh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     return stations
 
 
-def downloadTropoDelays(stats, years, writeDir='.', download=False, verbose=False):
+def download_tropo_delays(stats, years, writeDir='.', download=False, verbose=False):
     '''
     Check for and download GNSS tropospheric delays from an archive. If download is True then 
     files will be physically downloaded, which again is not necessary as data can be virtually accessed. 
@@ -266,7 +226,7 @@ def check_url(url, verbose=False):
     return url
 
 
-def readTextFile(filename):
+def read_text_file(filename):
     '''
     Read a list of GNSS station names from a plain text file
     '''
@@ -274,7 +234,7 @@ def readTextFile(filename):
         return [line.strip() for line in f]
 
 
-def inBox(lat, lon, llhbox):
+def in_box(lat, lon, llhbox):
     '''
     Checks whether the given lat, lon pair are inside the bounding box llhbox
     '''
@@ -292,11 +252,11 @@ def fix_lons(lon):
     return fixed_lon
 
 
-def getID(line):
+def get_ID(line):
     '''
     Pulls the station ID, lat, and lon for a given entry in the UNR text file
     '''
-    stat_id, lat, lon = line.decode().split()[:3]
+    stat_id, lat, lon = line.split()[:3]
     return stat_id, float(lat), float(lon)
 
 
@@ -309,3 +269,72 @@ def parse_years(timestr):
     if len(years) == 2:
          years = list(range(years[0],years[1]+1))
     return years
+
+
+def query_repos(inps=None):
+    """
+    Main workflow for querying supported GPS repositories for zenith delay information.
+    """
+
+    # Create specified output directory if it does not exist.
+    if not os.path.exists(inps.out):
+        os.mkdir(inps.out)
+
+    # Setup bounding box
+    if inps.bounding_box:
+        if not os.path.isfile(inps.bounding_box):
+            try:
+                bbox = [float(val) for val in inps.bounding_box.split()]
+            except ValueError:
+                raise Exception(
+                    'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
+            # if necessary, convert negative longitudes to positive
+            if bbox[2] < 0:
+                bbox[2] += 360
+            if bbox[3] < 0:
+                bbox[3] += 360
+    # If bbox not specified, query stations across the entire globe
+    else:
+        bbox = [-90, 90, 0, 360]
+
+    # Handle station query
+    stats, origstatsFile = get_station_list(
+        bbox=bbox, writeLoc=inps.out, userstatList=inps.station_file)
+
+    # iterate over years
+    for yr in inps.years:
+        statDF = download_tropo_delays(
+            stats, yr, writeDir=inps.out, download=inps.download, verbose=inps.verbose)
+        statDF.to_csv(os.path.join(
+            inps.out, 'gnssStationList_overbbox_withpaths.csv'))
+
+    # Add lat/lon info
+    origstatsFile = pd.read_csv(origstatsFile)
+    statsFile = pd.read_csv(os.path.join(
+        inps.out, 'gnssStationList_overbbox_withpaths.csv'))
+    statsFile = pd.merge(left=statsFile, right=origstatsFile,
+                         how='left', left_on='ID', right_on='ID')
+    statsFile.to_csv(os.path.join(
+        inps.out, 'gnssStationList_overbbox_withpaths.csv'), index=False)
+    del statDF, origstatsFile, statsFile
+
+    # Extract delays for each station
+    get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'),
+                   outDir=inps.out, returnTime=inps.returnTime)
+
+    if inps.verbose:
+        print('Completed processing')
+
+
+if __name__ == "__main__":
+    inps = cmd_line_parse()
+
+    query_repos(
+        inps.station_file,
+        inps.bounding_box,
+        inps.out,
+        inps.years,
+        inps.returnTime,
+        inps.download,
+        inps.verbose
+    )
