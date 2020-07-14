@@ -50,5 +50,4 @@ jobs:
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate myenv
             conda activate RAiDER
-            cd test
-            py.test test_interpolator.py test_util.py test_hdf5_parallel.py
+            py.test test/
