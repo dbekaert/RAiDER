@@ -38,7 +38,6 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
                         los = None, zref = None, time=None, verbose = False, 
                         download_only = False, makePlots = False):
 
-    @unittest.skip('skipping full model test until all other unit tests pass')
     def test_noNaNs(self):
         self.assertTrue(np.sum(np.isnan(self.weather_model._xs))==0)
         self.assertTrue(np.sum(np.isnan(self.weather_model._ys))==0)

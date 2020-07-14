@@ -55,8 +55,6 @@ def test_tropo_delay(tmp_path):
             hydroFilename=hydro_file
         )
 
-#    outdir = os.path.join(os.getcwd(), 'test', scenario)
-
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)
