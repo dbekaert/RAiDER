@@ -10,6 +10,7 @@ def AllowedModels():
       'MERRA2',
       'WRF',
       'HRRR',
+      'GMAO',
       'HDF5']
 
     return allowedModels
