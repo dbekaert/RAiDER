@@ -61,4 +61,22 @@ void interpolate(
     bool assume_sorted
 );
 
+template <typename T>
+inline size_t offset(const ssize_t *strides, const std::vector<size_t> &index) {
+    size_t offset = 0;
+    for (size_t dim = 0; dim < index.size(); dim++) {
+        offset += index[dim] * strides[dim];
+    }
+    return offset / sizeof(T);
+}
+
+void interpolate_1d_along_axis(
+    const py::array_t<double> points,
+    const py::array_t<double> values,
+    const py::array_t<double> interp_points,
+    py::array_t<double> out,
+    size_t axis,
+    bool assume_sorted
+);
+
 #endif

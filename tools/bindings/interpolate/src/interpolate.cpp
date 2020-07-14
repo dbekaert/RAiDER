@@ -5,7 +5,7 @@
 #include <iostream>
 
 
-inline size_t bisect_left(double * data, size_t data_N, double x) {
+inline size_t bisect_left(const double * data, size_t data_N, double x) {
     size_t left = 0;
     size_t right = data_N - 1;
 
@@ -21,12 +21,11 @@ inline size_t bisect_left(double * data, size_t data_N, double x) {
     return right;
 }
 
-
 // Like bisect_left but optimized for when we expect the target to appear near
 // the start of the array.
 //
 // Tries a small scan first and then switches to bisection
-inline size_t find_left(double * data, size_t data_N, double x) {
+inline size_t find_left(const double * data, size_t data_N, double x) {
     size_t left = 0;
 
     for (; left < 5; left++) {
@@ -309,5 +308,137 @@ void interpolate(
         }
 
         out.ptr[i] /= total_volume;
+    }
+}
+
+// TODO: Implement with a smarter iterator that computes the offset automatically
+inline size_t bisect_left_strided(
+    const double * data,
+    size_t data_N,
+    double x,
+    const ssize_t *strides,
+    const std::vector<size_t> index,
+    size_t axis
+) {
+    // Copy the index
+    std::vector<size_t> index_(index);
+    size_t left = 0;
+    size_t right = data_N - 1;
+
+    while (right - left > 1) {
+        size_t mid = left + (right - left) / 2;
+        index_[axis] = mid;
+        size_t offset = ::offset<double>(strides, index_);
+        if (x < data[offset]) {
+            right = mid;
+        } else {
+            left = mid;
+        }
+    }
+
+    return right;
+}
+
+inline size_t find_left_strided(
+    const double * data,
+    size_t data_N,
+    double x,
+    const ssize_t *strides,
+    const std::vector<size_t> index,
+    size_t axis
+) {
+    // Copy the index
+    std::vector<size_t> index_(index);
+    size_t left = 0;
+    size_t offset = 0;
+
+    for (; left < 5; left++) {
+        index_[axis] = left;
+        offset = ::offset<double>(strides, index_);
+        if (left == data_N || x < data[left]) {
+            return left;
+        }
+    }
+
+    return bisect_left_strided(&data[offset], data_N - left, x, strides, index, axis) + left;
+}
+
+void interpolate_1d_along_axis(
+    const py::array_t<double> points,
+    const py::array_t<double> values,
+    const py::array_t<double> interp_points,
+    py::array_t<double> out,
+    size_t axis,
+    bool assume_sorted
+) {
+    size_t dimensions = interp_points.ndim();
+    auto shape = interp_points.shape();
+    auto strides = interp_points.strides();
+    size_t axis_size = (size_t) shape[axis];
+    auto points_strides = points.strides();
+
+    size_t grid_axis_size = (size_t) points.shape(axis);
+
+    std::vector<size_t> index(dimensions);
+
+    const double *points_ptr = points.data();
+    const double *values_ptr = values.data();
+    const double *interp_ptr = interp_points.data();
+    double *out_ptr = out.mutable_data();
+
+    // Iterate over the starting indices. This counts over the shape skipping
+    // the dimension 'axis'.
+    bool done = false;
+    while (!done) {
+        /* Do the interpolation */
+        size_t lo = 0;
+        size_t lo_offset = 0;
+        for (size_t i = 0; i < axis_size; i++) {
+            index[axis] = i;
+            size_t offset = ::offset<double>(strides, index);
+
+            double x = interp_ptr[offset];
+            size_t hi;
+            if (assume_sorted) {
+                hi = find_left_strided(&points_ptr[lo_offset], grid_axis_size - lo, x, points_strides, index, axis) + lo;
+            } else {
+                hi = bisect_left_strided(points_ptr, grid_axis_size, x, points_strides, index, axis);
+            }
+            if (hi < 1) {
+                hi = 1;
+            } else if (hi > grid_axis_size - 1) {
+                hi = grid_axis_size - 1;
+            }
+
+            lo = hi - 1;
+            index[axis] = lo;
+            lo_offset = ::offset<double>(points_strides, index);
+            index[axis] = hi;
+            size_t hi_offset = ::offset<double>(points_strides, index);
+
+            double x0 = points_ptr[lo_offset],
+                   x1 = points_ptr[hi_offset],
+                   // Output
+                   y0 = values_ptr[lo_offset],
+                   y1 = values_ptr[hi_offset];
+
+            double slope = (y1 - y0) / (x1 - x0);
+            out_ptr[offset] = y0 + slope * (x - x0);
+        }
+        /* End interpolation */
+
+        done = true;
+        for (size_t i = dimensions; i > 0; i--) {
+            size_t dim = i - 1;
+            if (dim == axis) {
+                continue;
+            }
+            if (index[dim] + 1 < (size_t) shape[dim]) {
+                index[dim] += 1;
+                done = false;
+                break;
+            }
+            index[dim] = 0;
+        }
     }
 }

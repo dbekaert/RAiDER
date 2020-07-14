@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from scipy.interpolate import RegularGridInterpolator
 
-from RAiDER.interpolate import interpolate
+from RAiDER.interpolate import interpolate, interpolate_along_axis
 from RAiDER.interpolator import (
     _interp3D, fillna3D, interp_along_axis, interpVector
 )
@@ -92,6 +92,49 @@ def test_interp_along_axis():
     assert np.allclose(interp_along_axis(z2, newz, zvals, axis=2), corz)
 
 
+def test_interpolate_along_axis():
+    # Rejects scalar values
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.array(0), np.array(0), np.array(0))
+
+    # Rejects mismatched number of dimensions
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros(1), np.zeros(1), np.zeros((1, 1)))
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros(1), np.zeros((1, 1)), np.zeros(1))
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros((1, 1)), np.zeros(1), np.zeros(1))
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros(1), np.zeros((1, 1)), np.zeros((1, 1)))
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros((1, 1)), np.zeros((1, 1)), np.zeros(1))
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros((1, 1)), np.zeros(1), np.zeros((1, 1)))
+
+    # Rejects mismatched shape for points and values
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros(1), np.zeros(2), np.zeros(1))
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros((9, 2)), np.zeros((9, 3)), np.zeros(1))
+
+    # Rejects bad axis
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros(1), np.zeros(1), np.zeros(1), axis=1)
+    with pytest.raises(TypeError):
+        interpolate_along_axis(np.zeros(1), np.zeros(1), np.zeros(1), axis=-2)
+
+    # Rejects bad interp_points shape
+    with pytest.raises(TypeError):
+        interpolate_along_axis(
+            np.zeros((2, 2)), np.zeros((2, 2)), np.zeros((3, 2))
+        )
+    with pytest.raises(TypeError):
+        interpolate_along_axis(
+            np.zeros((2, 2)), np.zeros((2, 2)), np.zeros((2, 3)),
+            axis=0
+        )
+
+
 def test_interp_along_axis_1d():
     def f(x):
         return 2 * x
@@ -103,6 +146,10 @@ def test_interp_along_axis_1d():
 
     assert np.allclose(
         interp_along_axis(xs, points, ys, axis=0),
+        2 * points
+    )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=0),
         2 * points
     )
 
@@ -124,6 +171,10 @@ def test_interp_along_axis_2d():
 
     assert np.allclose(
         interp_along_axis(xs, points, ys, axis=1),
+        2 * points
+    )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=1),
         2 * points
     )
 
@@ -151,6 +202,10 @@ def test_interp_along_axis_3d():
 
     assert np.allclose(
         interp_along_axis(xs, points, ys, axis=2),
+        2 * points
+    )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=2),
         2 * points
     )
 

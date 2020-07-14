@@ -271,4 +271,101 @@ PYBIND11_MODULE(interpolate, m) {
         py::arg("assume_sorted") = false,
         py::arg("max_threads") = 8
     );
+
+    m.def("interpolate_along_axis", [](
+            py::array_t<double, py::array::c_style> points,
+            py::array_t<double, py::array::c_style> values,
+            py::array_t<double, py::array::c_style> interp_points,
+            ssize_t axis_in,
+            bool assume_sorted,
+            size_t max_threads
+        ) {
+            if (values.ndim() == 0 || interp_points.ndim() == 0) {
+                throw py::type_error("Only arrays are supported, not scalar values!");
+            }
+
+            if (points.ndim() != values.ndim() || points.ndim() != interp_points.ndim()) {
+                throw py::type_error(
+                    "'points', 'values' and 'interp_points' must all have the "
+                    "same number of dimensions!"
+                );
+            }
+            size_t dimensions = (size_t) points.ndim();
+
+            for (size_t i = 0; i < dimensions; i++) {
+                if (points.shape(i) != values.shape(i)) {
+                    throw py::type_error("'points' and 'values' must have the same shape!");
+                }
+            }
+
+            if (axis_in < 0) { axis_in += dimensions; }
+            if (axis_in >= dimensions || axis_in < 0) {
+                throw py::type_error("'axis' out of range!");
+            }
+            size_t axis = (size_t) axis_in;
+
+            for (size_t i = 0; i < dimensions; i++) {
+                if (i != axis && interp_points.shape(i) != points.shape(i)) {
+                    std::stringstream ss;
+                    ss << "Dimension mismatch at axis " << i << "! 'points' is "
+                    << points.shape()[i] << " but interp_points is "
+                    << interp_points.shape()[i] << "!";
+                    throw py::type_error(ss.str());
+                }
+            }
+
+            double *out = new double[interp_points.size()];
+
+            py::capsule free_when_done(out, [](void *f) {
+                double *out = reinterpret_cast<double *>(f);
+                delete[] out;
+            });
+
+            std::vector<ssize_t> shape(
+                interp_points.shape(),
+                interp_points.shape() + dimensions
+            );
+            std::vector<ssize_t> strides(
+                interp_points.strides(),
+                interp_points.strides() + dimensions
+            );
+
+            auto out_array = py::array_t<double>(
+                shape, // Shape
+                strides, // Strides
+                out, // the data pointer
+                free_when_done
+            ); // numpy array references this parent
+
+
+            interpolate_1d_along_axis(
+                points,
+                values,
+                interp_points,
+                out_array,
+                axis,
+                assume_sorted
+            );
+
+            return out_array;
+        },
+        R"pbdoc(
+          1D linear interpolator along a specific axis.
+
+          :param points: Coordinates specifying the grid.
+          :param values: Array containing the grid point values.
+          :param interp_points:
+          :param axis: The axis to interpolate along.
+          :param assume_sorted: Enable optimization when the list of interpolation
+              points is sorted along the axis of interpolation.
+          :param max_threads: Limit the number of threads to a certain amount.
+              Note: The number of threads will always be one of {1, 2, 4, 8}
+        )pbdoc",
+        py::arg("points"),
+        py::arg("values"),
+        py::arg("interp_points"),
+        py::arg("axis") = -1,
+        py::arg("assume_sorted") = false,
+        py::arg("max_threads") = 8
+    );
 }
