@@ -235,6 +235,38 @@ def test_interp_along_axis_3d_axis1():
         interp_along_axis(xs, points, ys, axis=1),
         2 * points
     )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=1),
+        2 * points
+    )
+
+
+def test_interp_along_axis_3d_large():
+    def f(x):
+        return 2 * x
+
+    # To scale values along axis 0 of a 3 dimensional array
+    scale = np.arange(1, 101).reshape((100, 1, 1))
+    axis1 = np.arange(100)
+    axis2 = np.repeat(np.array([axis1]), 100, axis=0)
+    xs = np.repeat(np.array([axis2]), 100, axis=0) * scale
+    ys = f(xs)
+
+    points = np.array([np.linspace(0, 99, num=200)]).repeat(100, axis=0)
+    points = np.repeat(np.array([points]), 100, axis=0) * scale
+
+    assert np.allclose(
+        interp_along_axis(xs, points, ys, axis=2),
+        2 * points
+    )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=2),
+        2 * points
+    )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=2, assume_sorted=True),
+        2 * points
+    )
 
 
 def test_grid_dim_mismatch():
