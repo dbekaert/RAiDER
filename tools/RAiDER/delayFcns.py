@@ -103,7 +103,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
         chunkSize = f.attrs['ChunkSize']
         in_shape = f['lon'].attrs['Shape']
         arrSize = f['lon'].shape
-        max_len = np.nanmax(f['Rays_len']).astype(np.float64)
+        max_len = np.nanmax(f['Rays_len'])
 
     CHUNKS = chunk(chunkSize, in_shape)
     Nchunks = len(CHUNKS)
@@ -116,8 +116,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
             individual_results = pool.starmap(process_chunk, chunk_inputs)
         delays = np.concatenate(individual_results)
 
-    wet_delay = np.concatenate([d[0, ...] for d in delays]).reshape(in_shape)
-    hydro_delay = np.concatenate([d[1, ...] for d in delays]).reshape(in_shape)
+    wet_delay = delays[0,...].reshape(in_shape)
+    hydro_delay = delays[1,...].reshape(in_shape)
 
     time_elapse = (time.time() - t0)
     with open('get_delays_time_elapse.txt', 'w') as f:
