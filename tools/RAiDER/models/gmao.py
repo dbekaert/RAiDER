@@ -11,8 +11,8 @@ def Model():
     return GMAO()
 
 class GMAO(WeatherModel):
-    # I took this from
-    # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
+    # I took this from GMAO model level weblink
+    # https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv
     def __init__(self):
         # initialize a weather model
         WeatherModel.__init__(self)
@@ -27,12 +27,12 @@ class GMAO(WeatherModel):
         self._valid_range = (datetime.datetime(2017,12,1),"Present")
         self._lag_time = datetime.timedelta(hours=0.3125) # Availability lag time in days
 
-        # model constants: TODO: need to update/double-check these
+        # model constants
         self._k1 = 0.776  # [K/Pa]
         self._k2 = 0.233 # [K/Pa]
         self._k3 = 3.75e3 # [K^2/Pa]
 
-        # 3 km horizontal grid spacing
+        # horizontal grid spacing
         self._lat_res = 0.25
         self._lon_res = 0.3125
         self._x_res = 0.3125
@@ -45,9 +45,12 @@ class GMAO(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
+    
+    
+    
     def _fetch(self, lats, lons, time, out, Nextra = 2):
         '''
-        Fetch weather model data from GMAO
+        Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP
         '''
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
@@ -70,11 +73,9 @@ class GMAO(WeatherModel):
     
     def _load_model_level(self,f):
         '''
-        Get the variables from a HRRR grib2 file
+        Get the variables from the GMAO link using OpenDAP
         '''
-
-
-
+        # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
         lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)
         lon_min_ind = int((self._bounds[2] - (-180.0)) / self._lon_res)
@@ -108,7 +109,7 @@ class GMAO(WeatherModel):
         lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind+1) * self._lat_res), self._lat_res)
         lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind+1) * self._lon_res), self._lon_res)
         
-        # restructure the lat/lon/h in regular grid
+        # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],t.shape)
         _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],t.shape)
         _hs = np.broadcast_to(hs[:, np.newaxis, np.newaxis],t.shape)
@@ -134,7 +135,6 @@ class GMAO(WeatherModel):
         _hs = _hs.swapaxes(0,1)
         
         
-        
         # For some reason z is opposite the others
         p = np.flip(p, axis = 2)
         q = np.flip(q, axis = 2)
@@ -151,6 +151,7 @@ class GMAO(WeatherModel):
         q_intrpl = interp_along_axis(h, _hs, q, axis = 2)
         t_intrpl = interp_along_axis(h, _hs, t, axis = 2)
         
+        # fill missing values (nans; better to double check the interp_along_axis function) in the interpolated variables
         import pandas as pd
         
         for ii in range(p_intrpl.shape[0]):
@@ -186,10 +187,4 @@ class GMAO(WeatherModel):
         self._ys = _lats
         self._zs = _hs
         
-        
-#        import pdb
-#        pdb.set_trace()
-
-
-
-
+ 
