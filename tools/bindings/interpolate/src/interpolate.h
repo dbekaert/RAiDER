@@ -234,10 +234,10 @@ public:
 };
 
 void interpolate_1d_along_axis(
-    const py::array_t<double> points,
-    const py::array_t<double> values,
-    const py::array_t<double> interp_points,
-    py::array_t<double> out,
+    const py::buffer_info grid,
+    const py::buffer_info values,
+    const py::buffer_info interp_points,
+    py::buffer_info out,
     size_t axis,
     bool assume_sorted
 );

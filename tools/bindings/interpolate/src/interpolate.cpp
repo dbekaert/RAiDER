@@ -240,29 +240,29 @@ void interpolate(
 }
 
 void interpolate_1d_along_axis(
-    const py::array_t<double> grid,
-    const py::array_t<double> values,
-    const py::array_t<double> interp_points,
-    py::array_t<double> out,
+    const py::buffer_info grid,
+    const py::buffer_info values,
+    const py::buffer_info interp_points,
+    py::buffer_info out,
     size_t axis,
     bool assume_sorted
 ) {
-    size_t dimensions = interp_points.ndim();
-    auto interp_shape = interp_points.shape();
-    auto interp_strides = interp_points.strides();
+    size_t dimensions = interp_points.ndim;
+    const std::vector<ssize_t> &interp_shape = interp_points.shape;
+    const std::vector<ssize_t> &interp_strides = interp_points.strides;
     ssize_t interp_axis_stride = interp_strides[axis];
     size_t interp_axis_size = (size_t) interp_shape[axis];
 
-    auto grid_strides = grid.strides();
+    auto grid_strides = grid.strides;
     ssize_t grid_axis_stride = grid_strides[axis];
-    size_t grid_axis_size = (size_t) grid.shape(axis);
+    size_t grid_axis_size = (size_t) grid.shape[axis];
 
     std::vector<size_t> index(dimensions);
 
-    const double *grid_ptr = grid.data();
-    const double *values_ptr = values.data();
-    const double *interp_ptr = interp_points.data();
-    double *out_ptr = out.mutable_data();
+    const double *grid_ptr = (double*) grid.ptr;
+    const double *values_ptr = (double*) values.ptr;
+    const double *interp_ptr = (double*) interp_points.ptr;
+    double *out_ptr = (double*) out.ptr;
 
     // Iterate over the starting indices. This counts over the shape skipping
     // the dimension 'axis'.

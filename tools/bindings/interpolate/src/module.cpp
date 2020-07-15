@@ -75,7 +75,7 @@ PYBIND11_MODULE(interpolate, m) {
             if (num_threads == 0) {
                 num_threads = 1;
             }
-            size_t stride = num_elements / num_threads;
+            size_t stride = (num_elements / num_threads) + 1;
 
             double * values_ptr = (double *) values_info.ptr,
                    * interp_points_ptr = (double *) interp_points_info.ptr;
@@ -280,6 +280,10 @@ PYBIND11_MODULE(interpolate, m) {
             bool assume_sorted,
             size_t max_threads
         ) {
+            py::buffer_info points_info = points.request();
+            py::buffer_info values_info = values.request();
+            py::buffer_info interp_points_info = interp_points.request();
+
             if (values.ndim() == 0 || interp_points.ndim() == 0) {
                 throw py::type_error("Only arrays are supported, not scalar values!");
             }
@@ -297,38 +301,43 @@ PYBIND11_MODULE(interpolate, m) {
                     throw py::type_error("'points' and 'values' must have the same shape!");
                 }
             }
+            
+            size_t num_threads = std::max((size_t) 1, max_threads);
 
             if (axis_in < 0) { axis_in += dimensions; }
             if (axis_in >= dimensions || axis_in < 0) {
                 throw py::type_error("'axis' out of range!");
+            } else if (axis_in == 0 && max_threads > 1) {
+                throw std::runtime_error(
+                    "Cannot interpolate along axis 0 with multiple threads!"
+                );
             }
             size_t axis = (size_t) axis_in;
 
             for (size_t i = 0; i < dimensions; i++) {
-                if (i != axis && interp_points.shape(i) != points.shape(i)) {
+                if (i != axis && interp_points_info.shape[i] != points_info.shape[i]) {
                     std::stringstream ss;
                     ss << "Dimension mismatch at axis " << i << "! 'points' is "
-                    << points.shape()[i] << " but interp_points is "
-                    << interp_points.shape()[i] << "!";
+                    << points_info.shape[i] << " but interp_points is "
+                    << interp_points_info.shape[i] << "!";
                     throw py::type_error(ss.str());
                 }
             }
 
-            double *out = new double[interp_points.size()];
+
+            size_t interp_points_size = 1;
+            for (size_t i = 0; i < dimensions; i++) {
+                interp_points_size *= interp_points_info.shape[i];
+            }
+            double *out = new double[interp_points_size];
 
             py::capsule free_when_done(out, [](void *f) {
                 double *out = reinterpret_cast<double *>(f);
                 delete[] out;
             });
 
-            std::vector<ssize_t> shape(
-                interp_points.shape(),
-                interp_points.shape() + dimensions
-            );
-            std::vector<ssize_t> strides(
-                interp_points.strides(),
-                interp_points.strides() + dimensions
-            );
+            std::vector<ssize_t> shape(interp_points_info.shape);
+            std::vector<ssize_t> strides(interp_points_info.strides);
 
             auto out_array = py::array_t<double>(
                 shape, // Shape
@@ -337,15 +346,84 @@ PYBIND11_MODULE(interpolate, m) {
                 free_when_done
             ); // numpy array references this parent
 
+            py::buffer_info out_info = out_array.request();
 
-            interpolate_1d_along_axis(
-                points,
-                values,
-                interp_points,
-                out_array,
-                axis,
-                assume_sorted
-            );
+            size_t thread_stride = (points_info.shape[0] / num_threads) + 1;
+
+            if (num_threads == 1) {
+                interpolate_1d_along_axis(
+                    std::move(points_info),
+                    std::move(values_info),
+                    std::move(interp_points_info),
+                    std::move(out_info),
+                    axis,
+                    assume_sorted
+                );
+            } else {
+                std::vector<std::future<void>> tasks;
+
+                for (size_t i = 0; i < num_threads; i++) {
+                    size_t index = i * thread_stride;
+                    size_t num_elements =
+                        index + thread_stride < points_info.shape[0]
+                        ? thread_stride : points_info.shape[0] - index;
+
+                    std::vector<ssize_t> points_view_shape(points_info.shape);
+                    points_view_shape[0] = num_elements;
+                    py::buffer_info points_view_info(
+                        (unsigned char *) points_info.ptr + index * points_info.strides[0],
+                        points_info.itemsize,
+                        points_info.format,
+                        points_info.ndim,
+                        points_view_shape,
+                        std::vector<ssize_t>(points_info.strides)
+                    );
+                    std::vector<ssize_t> values_view_shape(values_info.shape);
+                    values_view_shape[0] = num_elements;
+                    py::buffer_info values_view_info(
+                        (unsigned char *) values_info.ptr + index * values_info.strides[0],
+                        values_info.itemsize,
+                        values_info.format,
+                        values_info.ndim,
+                        values_view_shape,
+                        std::vector<ssize_t>(values_info.strides)
+                    );
+                    std::vector<ssize_t> interp_points_view_shape(interp_points_info.shape);
+                    interp_points_view_shape[0] = num_elements;
+                    py::buffer_info interp_points_view_info(
+                        (unsigned char *) interp_points_info.ptr + index * interp_points_info.strides[0],
+                        interp_points_info.itemsize,
+                        interp_points_info.format,
+                        interp_points_info.ndim,
+                        interp_points_view_shape,
+                        std::vector<ssize_t>(interp_points_info.strides)
+                    );
+                    std::vector<ssize_t> out_view_shape(out_info.shape);
+                    out_view_shape[0] = num_elements;
+                    py::buffer_info out_view_info(
+                        (unsigned char *) out_info.ptr + index * out_info.strides[0],
+                        out_info.itemsize,
+                        out_info.format,
+                        out_info.ndim,
+                        out_view_shape,
+                        std::vector<ssize_t>(out_info.strides)
+                    );
+                    tasks.push_back(
+                        std::async(
+                            &interpolate_1d_along_axis,
+                            std::move(points_view_info),
+                            std::move(values_view_info),
+                            std::move(interp_points_view_info),
+                            std::move(out_view_info),
+                            axis,
+                            assume_sorted
+                        )
+                    );
+                }
+                for (auto &future : tasks) {
+                    std::move(future);
+                }
+            }
 
             return out_array;
         },
