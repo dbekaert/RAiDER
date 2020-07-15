@@ -87,7 +87,7 @@ PYBIND11_MODULE(interpolate, m) {
 
                 if (num_threads == 1) {
                     // For small arrays just compute in one thread
-                    interpolate_1d(
+                    interpolate_1d<double>(
                         xs_ptr,
                         points[0].size(),
                         values_ptr,
@@ -103,7 +103,7 @@ PYBIND11_MODULE(interpolate, m) {
                         size_t index = i * stride;
                         tasks.push_back(
                             std::async(
-                                &interpolate_1d,
+                                &interpolate_1d<double, double *>,
                                 xs_ptr,
                                 xs_info.shape[0],
                                 values_ptr,

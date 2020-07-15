@@ -4,6 +4,7 @@
 #include <iterator>
 
 #include "sys/types.h"
+#include "assert.h"
 
 #ifndef PY_FAST_INTERP_H
 #define PY_FAST_INTERP_H
@@ -47,15 +48,43 @@ inline size_t find_left(RAIter begin, RAIter end, double x) {
 
 // TODO: Don't store grid points as an array, just derive them from a formula?
 // TODO: Same for interpolation points?
+template<typename T, typename RAIter>
 void interpolate_1d(
-    double * data_xs,
+    const RAIter data_xs,
     size_t data_N,
-    double * data_ys,
-    double * xs,
-    double * out,
+    const RAIter data_ys,
+    const RAIter xs,
+    RAIter out,
     size_t N,
     bool assume_sorted
-);
+) {
+    size_t lo = 0;
+    for (size_t i = 0; i < N; i++) {
+        T x = xs[i];
+        size_t hi;
+        if (assume_sorted) {
+            hi = find_left(data_xs + lo, data_xs + data_N, x) + lo;
+        } else {
+            hi = bisect_left(data_xs, data_xs + data_N, x);
+        }
+        if (hi < 1) {
+            hi = 1;
+        } else if (hi > data_N - 1) {
+            hi = data_N - 1;
+        }
+
+        lo = hi - 1;
+
+        T   x0 = data_xs[lo],
+            x1 = data_xs[hi],
+            // Output
+            y0 = data_ys[lo],
+            y1 = data_ys[hi];
+
+        T slope = (y1 - y0) / (x1 - x0);
+        out[i] = y0 + slope * (x - x0);
+    }
+}
 
 void interpolate_2d(
     double * data_xs,
@@ -124,6 +153,7 @@ public:
         const size_t * index,
         const ssize_t * strides
     ) : data((unsigned char*) data), ndim(ndim), axis(axis) {
+        assert(axis < ndim);
         axis_stride = strides[axis];
         for (size_t dim = 0; dim < ndim; dim++) {
             if (dim != axis) {
@@ -131,6 +161,30 @@ public:
             }
         }
     }
+
+    axis_iterator(
+        const py::array_t<T> &array,
+        size_t axis,
+        const size_t * index
+    ) : axis_iterator(
+            array.data(),
+            (size_t) array.ndim(),
+            axis,
+            index,
+            array.strides()
+        ) { assert(array.ndim() > 0); }
+
+    axis_iterator(
+        const T *data,
+        size_t ndim,
+        size_t axis,
+        size_t axis_stride,
+        size_t offset_base
+    ) : data((unsigned char*) data),
+        ndim(ndim),
+        axis(axis),
+        axis_stride(axis_stride),
+        offset_base(offset_base) { }
 
     axis_iterator& operator++() {
         position += 1;

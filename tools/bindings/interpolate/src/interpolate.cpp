@@ -4,45 +4,6 @@
 
 #include <iostream>
 
-
-void interpolate_1d(
-    double * data_xs,
-    size_t data_N,
-    double * data_ys,
-    double * xs,
-    double * out,
-    size_t N,
-    bool assume_sorted
-) {
-    size_t lo = 0;
-    for (size_t i = 0; i < N; i++) {
-        double x = xs[i];
-        size_t hi;
-        if (assume_sorted) {
-            hi = find_left(data_xs + lo, data_xs + data_N, x) + lo;
-        } else {
-            hi = bisect_left(data_xs, data_xs + data_N, x);
-        }
-        if (hi < 1) {
-            hi = 1;
-        } else if (hi > data_N - 1) {
-            hi = data_N - 1;
-        }
-
-        lo = hi - 1;
-
-        double x0 = data_xs[lo],
-               x1 = data_xs[hi],
-               // Output
-               y0 = data_ys[lo],
-               y1 = data_ys[hi];
-
-        double slope = (y1 - y0) / (x1 - x0);
-        out[i] = y0 + slope * (x - x0);
-    }
-}
-
-
 // data_zs must have length data_x_N * data_y_N
 // out must have length N
 // interpolation_points must have length 2N
@@ -279,7 +240,7 @@ void interpolate(
 }
 
 void interpolate_1d_along_axis(
-    const py::array_t<double> points,
+    const py::array_t<double> grid,
     const py::array_t<double> values,
     const py::array_t<double> interp_points,
     py::array_t<double> out,
@@ -287,18 +248,18 @@ void interpolate_1d_along_axis(
     bool assume_sorted
 ) {
     size_t dimensions = interp_points.ndim();
-    auto shape = interp_points.shape();
-    auto strides = interp_points.strides();
-    ssize_t axis_stride_norm = strides[axis] / sizeof(double);
-    size_t axis_size = (size_t) shape[axis];
+    auto interp_shape = interp_points.shape();
+    auto interp_strides = interp_points.strides();
+    ssize_t interp_axis_stride = interp_strides[axis];
+    size_t interp_axis_size = (size_t) interp_shape[axis];
 
-    auto points_strides = points.strides();
-    ssize_t points_axis_stride_norm = points_strides[axis] / sizeof(double);
-    size_t grid_axis_size = (size_t) points.shape(axis);
+    auto grid_strides = grid.strides();
+    ssize_t grid_axis_stride = grid_strides[axis];
+    size_t grid_axis_size = (size_t) grid.shape(axis);
 
     std::vector<size_t> index(dimensions);
 
-    const double *points_ptr = points.data();
+    const double *grid_ptr = grid.data();
     const double *values_ptr = values.data();
     const double *interp_ptr = interp_points.data();
     double *out_ptr = out.mutable_data();
@@ -308,51 +269,32 @@ void interpolate_1d_along_axis(
     bool done = false;
     while (!done) {
         /* Do the interpolation */
-        size_t lo = 0;
-        axis_iterator<double> begin_axis(points.data(), dimensions, axis, index.data(), points_strides);
-        auto end_axis = begin_axis + grid_axis_size;
 
-        size_t base_offset = 0;
-        size_t base_points_offset = 0;
+        // precompute the strided offsets
+        size_t interp_offset_base = 0;
+        size_t grid_offset_base = 0;
         for (size_t dim = 0; dim < dimensions; dim++) {
             if (dim != axis) {
-                base_offset += index[dim] * strides[dim];
-                base_points_offset += index[dim] * points_strides[dim];
+                interp_offset_base += index[dim] * interp_strides[dim];
+                grid_offset_base += index[dim] * grid_strides[dim];
             }
         }
-        base_offset /= sizeof(double);
-        base_points_offset /= sizeof(double);
+        // interp_points and out have the same structure
+        axis_iterator<double> interp_begin_axis(interp_ptr, dimensions, axis, interp_axis_stride, interp_offset_base);
+        axis_iterator<double> out_begin_axis(out_ptr, dimensions, axis, interp_axis_stride, interp_offset_base);
+        // grid and values have the same structure
+        axis_iterator<double> grid_begin_axis(grid_ptr, dimensions, axis, grid_axis_stride, grid_offset_base);
+        axis_iterator<double> values_begin_axis(values_ptr, dimensions, axis, grid_axis_stride, grid_offset_base);
 
-        for (size_t i = 0; i < axis_size; i++) {
-            size_t offset = base_offset + i * axis_stride_norm;
-
-            double x = interp_ptr[offset];
-            size_t hi;
-            if (assume_sorted) {
-                hi = find_left(begin_axis + lo, end_axis, x) + lo;
-            } else {
-                hi = bisect_left(begin_axis, end_axis, x);
-            }
-            // Adjust for bad endpoints
-            if (hi < 1) {
-                hi = 1;
-            } else if (hi > grid_axis_size - 1) {
-                hi = grid_axis_size - 1;
-            }
-
-            lo = hi - 1;
-            size_t lo_offset = base_points_offset + lo * points_axis_stride_norm;
-            size_t hi_offset = base_points_offset + hi * points_axis_stride_norm;
-
-            double x0 = points_ptr[lo_offset],
-                   x1 = points_ptr[hi_offset],
-                   // Output
-                   y0 = values_ptr[lo_offset],
-                   y1 = values_ptr[hi_offset];
-
-            double slope = (y1 - y0) / (x1 - x0);
-            out_ptr[offset] = y0 + slope * (x - x0);
-        }
+        interpolate_1d<double>(
+            grid_begin_axis,
+            grid_axis_size,
+            values_begin_axis,
+            interp_begin_axis,
+            out_begin_axis,
+            interp_axis_size,
+            assume_sorted
+        );
         /* End interpolation */
 
         done = true;
@@ -361,7 +303,7 @@ void interpolate_1d_along_axis(
             if (dim == axis) {
                 continue;
             }
-            if (index[dim] + 1 < (size_t) shape[dim]) {
+            if (index[dim] + 1 < (size_t) interp_shape[dim]) {
                 index[dim] += 1;
                 done = false;
                 break;
