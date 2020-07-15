@@ -289,9 +289,11 @@ void interpolate_1d_along_axis(
     size_t dimensions = interp_points.ndim();
     auto shape = interp_points.shape();
     auto strides = interp_points.strides();
+    ssize_t axis_stride_norm = strides[axis] / sizeof(double);
     size_t axis_size = (size_t) shape[axis];
 
     auto points_strides = points.strides();
+    ssize_t points_axis_stride_norm = points_strides[axis] / sizeof(double);
     size_t grid_axis_size = (size_t) points.shape(axis);
 
     std::vector<size_t> index(dimensions);
@@ -307,13 +309,22 @@ void interpolate_1d_along_axis(
     while (!done) {
         /* Do the interpolation */
         size_t lo = 0;
-        size_t lo_offset = 0;
         axis_iterator<double> begin_axis(points.data(), dimensions, axis, index.data(), points_strides);
         auto end_axis = begin_axis + grid_axis_size;
 
+        size_t base_offset = 0;
+        size_t base_points_offset = 0;
+        for (size_t dim = 0; dim < dimensions; dim++) {
+            if (dim != axis) {
+                base_offset += index[dim] * strides[dim];
+                base_points_offset += index[dim] * points_strides[dim];
+            }
+        }
+        base_offset /= sizeof(double);
+        base_points_offset /= sizeof(double);
+
         for (size_t i = 0; i < axis_size; i++) {
-            index[axis] = i;
-            size_t offset = ::offset<double>(strides, index);
+            size_t offset = base_offset + i * axis_stride_norm;
 
             double x = interp_ptr[offset];
             size_t hi;
@@ -322,6 +333,7 @@ void interpolate_1d_along_axis(
             } else {
                 hi = bisect_left(begin_axis, end_axis, x);
             }
+            // Adjust for bad endpoints
             if (hi < 1) {
                 hi = 1;
             } else if (hi > grid_axis_size - 1) {
@@ -329,10 +341,8 @@ void interpolate_1d_along_axis(
             }
 
             lo = hi - 1;
-            index[axis] = lo;
-            lo_offset = ::offset<double>(points_strides, index);
-            index[axis] = hi;
-            size_t hi_offset = ::offset<double>(points_strides, index);
+            size_t lo_offset = base_points_offset + lo * points_axis_stride_norm;
+            size_t hi_offset = base_points_offset + hi * points_axis_stride_norm;
 
             double x0 = points_ptr[lo_offset],
                    x1 = points_ptr[hi_offset],
