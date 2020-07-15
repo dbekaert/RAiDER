@@ -1,18 +1,19 @@
 # Unit and other tests
 import datetime
-from osgeo import gdal
 import math
-import numpy as np
 import os
-import pandas as pd
 import unittest
 
-import RAiDER.llreader
-import RAiDER.losreader
+import numpy as np
+import pandas as pd
+from osgeo import gdal
+
 import RAiDER.delay
 import RAiDER.delayFcns
-
+import RAiDER.llreader
+import RAiDER.losreader
 from RAiDER.constants import Zenith
+
 
 class FcnTests(unittest.TestCase):
 
