@@ -113,8 +113,8 @@ class axis_iterator {
     const unsigned char *data;
     size_t ndim;
     size_t axis;
-    const size_t * index;
-    const ssize_t * strides;
+    size_t axis_stride;
+    size_t offset_base = 0;
     size_t position = 0;
 public:
     axis_iterator(
@@ -123,7 +123,14 @@ public:
         size_t axis,
         const size_t * index,
         const ssize_t * strides
-    ) : data((unsigned char*) data), ndim(ndim), axis(axis), index(index), strides(strides) {}
+    ) : data((unsigned char*) data), ndim(ndim), axis(axis) {
+        axis_stride = strides[axis];
+        for (size_t dim = 0; dim < ndim; dim++) {
+            if (dim != axis) {
+                offset_base += index[dim] * strides[dim];
+            }
+        }
+    }
 
     axis_iterator& operator++() {
         position += 1;
@@ -150,8 +157,8 @@ public:
         return data == other.data
             && ndim == other.ndim
             && axis == other.axis
-            && index == other.index
-            && strides == other.strides
+            && axis_stride == other.axis_stride
+            && offset_base == other.offset_base
             && position == other.position;
     }
     bool operator!=(axis_iterator &other) const {
@@ -161,14 +168,7 @@ public:
         return (*this)[position];
     }
     T & operator[](const ssize_t &n) const {
-        size_t offset = 0;
-        for (size_t dim = 0; dim < ndim; dim++) {
-            if (dim == axis) {
-                offset += (position + n) * strides[dim];
-            } else {
-                offset += index[dim] * strides[dim];
-            }
-        }
+        size_t offset = offset_base + (position + n) * axis_stride;
         return *((T*) (data + offset));
     }
     // iterator traits
