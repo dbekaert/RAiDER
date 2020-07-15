@@ -5,39 +5,6 @@
 #include <iostream>
 
 
-inline size_t bisect_left(const double * data, size_t data_N, double x) {
-    size_t left = 0;
-    size_t right = data_N - 1;
-
-    while (right - left > 1) {
-        size_t mid = left + (right - left) / 2;
-        if (x < data[mid]) {
-            right = mid;
-        } else {
-            left = mid;
-        }
-    }
-
-    return right;
-}
-
-// Like bisect_left but optimized for when we expect the target to appear near
-// the start of the array.
-//
-// Tries a small scan first and then switches to bisection
-inline size_t find_left(const double * data, size_t data_N, double x) {
-    size_t left = 0;
-
-    for (; left < 5; left++) {
-        if (left == data_N || x < data[left]) {
-            return left;
-        }
-    }
-
-    return bisect_left(&data[left], data_N - left, x) + left;
-}
-
-
 void interpolate_1d(
     double * data_xs,
     size_t data_N,
@@ -52,9 +19,9 @@ void interpolate_1d(
         double x = xs[i];
         size_t hi;
         if (assume_sorted) {
-            hi = find_left(&data_xs[lo], data_N - lo, x) + lo;
+            hi = find_left(data_xs + lo, data_xs + data_N, x) + lo;
         } else {
-            hi = bisect_left(data_xs, data_N, x);
+            hi = bisect_left(data_xs, data_xs + data_N, x);
         }
         if (hi < 1) {
             hi = 1;
@@ -97,11 +64,11 @@ void interpolate_2d(
         double y = interpolation_points[i * 2 + 1];
         size_t hix, hiy;
         if (assume_sorted) {
-            hix = find_left(&data_xs[lox], data_x_N - lox, x) + lox;
-            hiy = find_left(&data_ys[loy], data_y_N - loy, y) + loy;
+            hix = find_left(data_xs + lox, data_xs + data_x_N, x) + lox;
+            hiy = find_left(data_ys + loy, data_ys + data_y_N, y) + loy;
         } else {
-            hix = bisect_left(data_xs, data_x_N, x);
-            hiy = bisect_left(data_ys, data_y_N, y);
+            hix = bisect_left(data_xs, data_xs + data_x_N, x);
+            hiy = bisect_left(data_ys, data_ys + data_y_N, y);
         }
         if (hix < 1) {
             hix = 1;
@@ -164,13 +131,13 @@ void interpolate_3d(
         double z = interpolation_points[i * 3 + 2];
         size_t hix, hiy, hiz;
         if (assume_sorted) {
-            hix = find_left(&data_xs[lox], data_x_N - lox, x) + lox;
-            hiy = find_left(&data_ys[loy], data_y_N - loy, y) + loy;
-            hiz = find_left(&data_zs[loz], data_z_N - loz, z) + loz;
+            hix = find_left(data_xs + lox, data_xs + data_x_N, x) + lox;
+            hiy = find_left(data_ys + loy, data_ys + data_y_N, y) + loy;
+            hiz = find_left(data_zs + loz, data_zs + data_z_N, z) + loz;
         } else {
-            hix = bisect_left(data_xs, data_x_N, x);
-            hiy = bisect_left(data_ys, data_y_N, y);
-            hiz = bisect_left(data_zs, data_z_N, z);
+            hix = bisect_left(data_xs, data_xs + data_x_N, x);
+            hiy = bisect_left(data_ys, data_ys + data_y_N, y);
+            hiz = bisect_left(data_zs, data_zs + data_z_N, z);
         }
         if (hix < 1) {
             hix = 1;
@@ -267,9 +234,9 @@ void interpolate(
             double x = interpolation_points.ptr[i * dimensions + dim];
             size_t hi;
             if (assume_sorted) {
-                hi = find_left(&xs.ptr[los[dim]], xs.size - los[dim], x) + los[dim];
+                hi = find_left(xs.ptr + los[dim], xs.ptr + xs.size, x) + los[dim];
             } else {
-                hi = bisect_left(xs.ptr, xs.size, x);
+                hi = bisect_left(xs.ptr, xs.ptr + xs.size, x);
             }
             if (hi < 1) {
                 hi = 1;
@@ -311,58 +278,6 @@ void interpolate(
     }
 }
 
-// TODO: Implement with a smarter iterator that computes the offset automatically
-inline size_t bisect_left_strided(
-    const double * data,
-    size_t data_N,
-    double x,
-    const ssize_t *strides,
-    const std::vector<size_t> index,
-    size_t axis
-) {
-    // Copy the index
-    std::vector<size_t> index_(index);
-    size_t left = 0;
-    size_t right = data_N - 1;
-
-    while (right - left > 1) {
-        size_t mid = left + (right - left) / 2;
-        index_[axis] = mid;
-        size_t offset = ::offset<double>(strides, index_);
-        if (x < data[offset]) {
-            right = mid;
-        } else {
-            left = mid;
-        }
-    }
-
-    return right;
-}
-
-inline size_t find_left_strided(
-    const double * data,
-    size_t data_N,
-    double x,
-    const ssize_t *strides,
-    const std::vector<size_t> index,
-    size_t axis
-) {
-    // Copy the index
-    std::vector<size_t> index_(index);
-    size_t left = 0;
-    size_t offset = 0;
-
-    for (; left < 5; left++) {
-        index_[axis] = left;
-        offset = ::offset<double>(strides, index_);
-        if (left == data_N || x < data[left]) {
-            return left;
-        }
-    }
-
-    return bisect_left_strided(&data[offset], data_N - left, x, strides, index, axis) + left;
-}
-
 void interpolate_1d_along_axis(
     const py::array_t<double> points,
     const py::array_t<double> values,
@@ -375,8 +290,8 @@ void interpolate_1d_along_axis(
     auto shape = interp_points.shape();
     auto strides = interp_points.strides();
     size_t axis_size = (size_t) shape[axis];
-    auto points_strides = points.strides();
 
+    auto points_strides = points.strides();
     size_t grid_axis_size = (size_t) points.shape(axis);
 
     std::vector<size_t> index(dimensions);
@@ -393,6 +308,9 @@ void interpolate_1d_along_axis(
         /* Do the interpolation */
         size_t lo = 0;
         size_t lo_offset = 0;
+        axis_iterator<double> begin_axis(points.data(), dimensions, axis, index.data(), points_strides);
+        auto end_axis = begin_axis + grid_axis_size;
+
         for (size_t i = 0; i < axis_size; i++) {
             index[axis] = i;
             size_t offset = ::offset<double>(strides, index);
@@ -400,9 +318,9 @@ void interpolate_1d_along_axis(
             double x = interp_ptr[offset];
             size_t hi;
             if (assume_sorted) {
-                hi = find_left_strided(&points_ptr[lo_offset], grid_axis_size - lo, x, points_strides, index, axis) + lo;
+                hi = find_left(begin_axis + lo, end_axis, x) + lo;
             } else {
-                hi = bisect_left_strided(points_ptr, grid_axis_size, x, points_strides, index, axis);
+                hi = bisect_left(begin_axis, end_axis, x);
             }
             if (hi < 1) {
                 hi = 1;

@@ -92,6 +92,11 @@ def test_interp_along_axis():
     assert np.allclose(interp_along_axis(z2, newz, zvals, axis=2), corz)
 
 
+def shuffle_along_axis(a, axis):
+    idx = np.random.rand(*a.shape).argsort(axis=axis)
+    return np.take_along_axis(a, idx, axis=axis)
+
+
 def test_interpolate_along_axis():
     # Rejects scalar values
     with pytest.raises(TypeError):
@@ -241,7 +246,8 @@ def test_interp_along_axis_3d_axis1():
     )
 
 
-def test_interp_along_axis_3d_large():
+@pytest.mark.parametrize("num_points", (7, 200, 500))
+def test_interp_along_axis_3d_large(num_points):
     def f(x):
         return 2 * x
 
@@ -252,21 +258,37 @@ def test_interp_along_axis_3d_large():
     xs = np.repeat(np.array([axis2]), 100, axis=0) * scale
     ys = f(xs)
 
-    points = np.array([np.linspace(0, 99, num=200)]).repeat(100, axis=0)
+    points = np.array([np.linspace(0, 99, num=num_points)]).repeat(100, axis=0)
     points = np.repeat(np.array([points]), 100, axis=0) * scale
 
+    ans = 2 * points
+
+    assert np.allclose(interp_along_axis(xs, points, ys, axis=2), ans)
+    assert np.allclose(interpolate_along_axis(xs, ys, points, axis=2), ans)
     assert np.allclose(
-        interp_along_axis(xs, points, ys, axis=2),
-        2 * points
+        interpolate_along_axis(xs, ys, points, axis=2, assume_sorted=True), ans
     )
-    assert np.allclose(
-        interpolate_along_axis(xs, ys, points, axis=2),
-        2 * points
-    )
-    assert np.allclose(
-        interpolate_along_axis(xs, ys, points, axis=2, assume_sorted=True),
-        2 * points
-    )
+
+
+def test_interp_along_axis_3d_large_unsorted():
+    def f(x):
+        return 2 * x
+
+    # To scale values along axis 0 of a 3 dimensional array
+    scale = np.arange(1, 101).reshape((100, 1, 1))
+    axis1 = np.arange(100)
+    axis2 = np.repeat(np.array([axis1]), 100, axis=0)
+    xs = np.repeat(np.array([axis2]), 100, axis=0) * scale
+    ys = f(xs)
+
+    points = np.array([np.linspace(0, 99, num=300)]).repeat(100, axis=0)
+    points = np.repeat(np.array([points]), 100, axis=0) * scale
+    points = shuffle_along_axis(points, 2)
+
+    ans = 2 * points
+
+    assert np.allclose(interp_along_axis(xs, points, ys, axis=2), ans)
+    assert np.allclose(interpolate_along_axis(xs, ys, points, axis=2), ans)
 
 
 def test_grid_dim_mismatch():
