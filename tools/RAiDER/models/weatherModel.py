@@ -2,16 +2,20 @@ import datetime
 import os
 from abc import ABC, abstractmethod
 
+import h5py
 import numpy as np
 from pyproj import CRS, Transformer
 
 from RAiDER import constants as const
 from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
-from RAiDER.interpolator import fillna3D, interp_along_axis
+from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
+from RAiDER.interpolate import interpolate_along_axis
+from RAiDER.interpolator import fillna3D
+from RAiDER.losreader import getLookVectors
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
-from RAiDER.utilFcns import robmax, robmin
+from RAiDER.utilFcns import lla2ecef, robmax, robmin
 
 
 class WeatherModel(ABC):
@@ -154,9 +158,6 @@ class WeatherModel(ABC):
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
-        from RAiDER.delayFcns import _integrateLOS, make_interpolator, interpolate2
-        from RAiDER.losreader import getLookVectors
-        from RAiDER.utilFcns import lla2ecef
 
         _STEP = 10  # stepsize in meters
 
@@ -563,9 +564,9 @@ class WeatherModel(ABC):
 
         # re-assign values to the uniform z
         # new variables
-        self._t = interp_along_axis(self._zs, new_zs, self._t, axis=2)
-        self._p = interp_along_axis(self._zs, new_zs, self._p, axis=2)
-        self._e = interp_along_axis(self._zs, new_zs, self._e, axis=2)
+        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
+        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
+        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
@@ -608,7 +609,6 @@ class WeatherModel(ABC):
         The point of doing this is to alleviate some of the memory load of keeping
         the full model in memory and make it easier to scale up the program.
         '''
-        import h5py
 
         if outName is None:
             outName = os.path.join(
