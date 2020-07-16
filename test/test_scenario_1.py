@@ -14,10 +14,10 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
 
 def test_tropo_delay(tmp_path):
-    #########################################
-    # Scenario: 
-    # 1: Small area, ERA5, Zenith delay
-    #########################################
+    '''
+    Scenario: 
+    1: Small area, ERA5, Zenith delay
+    '''
     lats = gdal_open(os.path.join(
         SCENARIO_DIR, 'geom', 'lat.dat'
     ))
