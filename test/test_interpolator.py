@@ -136,7 +136,7 @@ def test_interpolate_along_axis():
     with pytest.raises(TypeError):
         interpolate_along_axis(
             np.zeros((2, 2)), np.zeros((2, 2)), np.zeros((2, 3)),
-            axis=0
+            axis=0, max_threads=1
         )
 
 
@@ -154,8 +154,29 @@ def test_interp_along_axis_1d():
         2 * points
     )
     assert np.allclose(
-        interpolate_along_axis(xs, ys, points, axis=0),
+        interpolate_along_axis(xs, ys, points, axis=0, max_threads=1),
         2 * points
+    )
+
+
+def test_interp_along_axis_1d_out_of_bounds():
+    def f(x):
+        return 2 * x
+
+    xs = np.array([1, 2, 3, 4])
+    ys = f(xs)
+
+    points = np.array([0, 5])
+
+    assert np.allclose(
+        interp_along_axis(xs, points, ys, axis=0),
+        np.array([np.nan, np.nan]),
+        equal_nan=True
+    )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=0, max_threads=1, fill_value=np.nan),
+        np.array([np.nan, np.nan]),
+        equal_nan=True
     )
 
 

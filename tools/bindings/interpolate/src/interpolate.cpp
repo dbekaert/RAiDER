@@ -3,6 +3,7 @@
 #include "interpolate.h"
 
 #include <iostream>
+#include <optional>
 
 // data_zs must have length data_x_N * data_y_N
 // out must have length N
@@ -245,6 +246,7 @@ void interpolate_1d_along_axis(
     const py::buffer_info interp_points,
     py::buffer_info out,
     size_t axis,
+    std::optional<double> fill_value,
     bool assume_sorted
 ) {
     size_t dimensions = interp_points.ndim;
@@ -268,8 +270,6 @@ void interpolate_1d_along_axis(
     // the dimension 'axis'.
     bool done = false;
     while (!done) {
-        /* Do the interpolation */
-
         // precompute the strided offsets
         size_t interp_offset_base = 0;
         size_t grid_offset_base = 0;
@@ -293,10 +293,11 @@ void interpolate_1d_along_axis(
             interp_begin_axis,
             out_begin_axis,
             interp_axis_size,
+            fill_value,
             assume_sorted
         );
-        /* End interpolation */
 
+        // Find the next index
         done = true;
         for (size_t i = dimensions; i > 0; i--) {
             size_t dim = i - 1;

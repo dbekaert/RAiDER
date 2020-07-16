@@ -2,6 +2,8 @@
 #include <pybind11/numpy.h>
 
 #include <iterator>
+#include <optional>
+#include <iostream>
 
 #include "sys/types.h"
 #include "assert.h"
@@ -14,14 +16,14 @@ namespace py = pybind11;
 template<typename RAIter>
 inline size_t bisect_left(RAIter begin, RAIter end, double x) {
     size_t left = 0;
-    size_t right = std::distance(begin, end) - 1;
+    size_t right = std::distance(begin, end);
 
-    while (right - left > 1) {
-        size_t mid = left + (right - left) / 2;
+    while (right != left) {
+        size_t mid = (left + right) / 2;
         if (x < begin[mid]) {
             right = mid;
         } else {
-            left = mid;
+            left = mid + 1;
         }
     }
 
@@ -56,6 +58,7 @@ void interpolate_1d(
     const RAIter xs,
     RAIter out,
     size_t N,
+    std::optional<double> fill_value,
     bool assume_sorted
 ) {
     size_t lo = 0;
@@ -68,8 +71,16 @@ void interpolate_1d(
             hi = bisect_left(data_xs, data_xs + data_N, x);
         }
         if (hi < 1) {
+            if (fill_value.has_value()) {
+                out[i] = *fill_value;
+                continue;
+            }
             hi = 1;
         } else if (hi > data_N - 1) {
+            if (fill_value.has_value()) {
+                out[i] = *fill_value;
+                continue;
+            }
             hi = data_N - 1;
         }
 
@@ -239,6 +250,7 @@ void interpolate_1d_along_axis(
     const py::buffer_info interp_points,
     py::buffer_info out,
     size_t axis,
+    std::optional<double> fill_value,
     bool assume_sorted
 );
 

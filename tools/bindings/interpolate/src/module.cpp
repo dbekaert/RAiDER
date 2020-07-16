@@ -6,6 +6,7 @@
 #include <iostream>
 #include <future>
 #include <sstream>
+#include <optional>
 
 #include "interpolate.h"
 
@@ -75,7 +76,10 @@ PYBIND11_MODULE(interpolate, m) {
             if (num_threads == 0) {
                 num_threads = 1;
             }
-            size_t stride = (num_elements / num_threads) + 1;
+            size_t stride = (num_elements / num_threads);
+            if (stride * num_threads < num_elements) {
+                stride += 1;
+            }
 
             double * values_ptr = (double *) values_info.ptr,
                    * interp_points_ptr = (double *) interp_points_info.ptr;
@@ -94,6 +98,7 @@ PYBIND11_MODULE(interpolate, m) {
                         interp_points_ptr,
                         out,
                         num_elements,
+                        std::nullopt,
                         assume_sorted
                     );
                 } else {
@@ -110,6 +115,7 @@ PYBIND11_MODULE(interpolate, m) {
                                 &interp_points_ptr[index],
                                 &out[index],
                                 index + stride < num_elements ? stride : num_elements - index,
+                                std::nullopt,
                                 assume_sorted
                             )
                         );
@@ -277,6 +283,7 @@ PYBIND11_MODULE(interpolate, m) {
             py::array_t<double, py::array::c_style> values,
             py::array_t<double, py::array::c_style> interp_points,
             ssize_t axis_in,
+            std::optional<double> fill_value,
             bool assume_sorted,
             size_t max_threads
         ) {
@@ -301,7 +308,7 @@ PYBIND11_MODULE(interpolate, m) {
                     throw py::type_error("'points' and 'values' must have the same shape!");
                 }
             }
-            
+
             size_t num_threads = std::max((size_t) 1, max_threads);
 
             if (axis_in < 0) { axis_in += dimensions; }
@@ -348,7 +355,13 @@ PYBIND11_MODULE(interpolate, m) {
 
             py::buffer_info out_info = out_array.request();
 
-            size_t thread_stride = (points_info.shape[0] / num_threads) + 1;
+            num_threads = std::min(num_threads, (size_t) points_info.shape[0]);
+
+            size_t thread_stride = points_info.shape[0] / num_threads;
+            if (thread_stride * num_threads < points_info.shape[0]) {
+                thread_stride += 1;
+            }
+
 
             if (num_threads == 1) {
                 interpolate_1d_along_axis(
@@ -357,6 +370,7 @@ PYBIND11_MODULE(interpolate, m) {
                     std::move(interp_points_info),
                     std::move(out_info),
                     axis,
+                    fill_value,
                     assume_sorted
                 );
             } else {
@@ -367,6 +381,10 @@ PYBIND11_MODULE(interpolate, m) {
                     size_t num_elements =
                         index + thread_stride < points_info.shape[0]
                         ? thread_stride : points_info.shape[0] - index;
+
+                    if (num_elements == 0) {
+                        break;
+                    }
 
                     std::vector<ssize_t> points_view_shape(points_info.shape);
                     points_view_shape[0] = num_elements;
@@ -416,6 +434,7 @@ PYBIND11_MODULE(interpolate, m) {
                             std::move(interp_points_view_info),
                             std::move(out_view_info),
                             axis,
+                            fill_value,
                             assume_sorted
                         )
                     );
@@ -430,20 +449,26 @@ PYBIND11_MODULE(interpolate, m) {
         R"pbdoc(
           1D linear interpolator along a specific axis.
 
-          :param points: Coordinates specifying the grid.
-          :param values: Array containing the grid point values.
-          :param interp_points:
+          :param points: N-dimensional x coordinates. Axis specified by
+                'axis' must contain at least 2 points.
+          :param values: N-dimensional y values. Must have the same shape as
+                'points'.
+          :param interp_points: N-dimensional x coordinates to interpolate at.
+                The shape may only differ from that of 'points' at the axis
+                specified by 'axis'. For example if 'points' has shape (1, 2, 3)
+                and 'axis' is 2, then and shape like (1, 2, X) is valid.
           :param axis: The axis to interpolate along.
           :param assume_sorted: Enable optimization when the list of interpolation
-              points is sorted along the axis of interpolation.
+                points is sorted along the axis of interpolation.
           :param max_threads: Limit the number of threads to a certain amount.
-              Note: The number of threads will always be one of {1, 2, 4, 8}
         )pbdoc",
         py::arg("points"),
         py::arg("values"),
         py::arg("interp_points"),
         py::arg("axis") = -1,
+        py::arg("fill_value") = std::nullopt,
         py::arg("assume_sorted") = false,
-        py::arg("max_threads") = 8
+        py::arg("max_threads") = 8,
+        py::return_value_policy::move
     );
 }
