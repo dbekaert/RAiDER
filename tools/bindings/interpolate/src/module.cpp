@@ -1,9 +1,16 @@
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+// Author: Rohan Weeden
+// Copyright 2020, by the California Institute of Technology. ALL RIGHTS
+// RESERVED. United States Government Sponsorship acknowledged.
+//
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 
 #include <algorithm>
-#include <iostream>
 #include <future>
 #include <sstream>
 #include <optional>

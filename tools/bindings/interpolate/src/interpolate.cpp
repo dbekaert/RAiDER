@@ -1,8 +1,15 @@
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+// Author: Rohan Weeden
+// Copyright 2020, by the California Institute of Technology. ALL RIGHTS
+// RESERVED. United States Government Sponsorship acknowledged.
+//
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 #include "assert.h"
 #include "stdio.h"
 #include "interpolate.h"
 
-#include <iostream>
 #include <optional>
 
 // data_zs must have length data_x_N * data_y_N
