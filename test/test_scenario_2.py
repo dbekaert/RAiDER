@@ -2,71 +2,66 @@
 from datetime import datetime
 import numpy as np
 import os
-import unittest
 import pandas as pd
+import pytest
 from shutil import copyfile
+from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import gdal_open, modelName2Module
 
-class RunTests(unittest.TestCase):
+SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
 
-    #########################################
-    # Scenario to use: 
-    # 1: GNSS station list
-    scenario = 'scenario_2'
-    weather_model_name = 'ERA5'
-    los = Zenith
-    download_only = False
-    verbose = True
+def test_computeDelay(tmp_path):
+    '''
+    Scenario to use: 
+    2: GNSS station list
+    '''
     wetName = 'stations_with_Delays.csv'
 
-    t = datetime(2020,1,3,23,0,0)
-    #########################################
-
     # load the weather model type and date for the given scenario
-    outdir = os.path.join(os.getcwd(), 'test', scenario)
-    wmLoc = os.path.join(outdir, 'weather_files')
-    heights = ('DEM', os.path.join(outdir, 'geom/warpedDEM.dem'))
-    wetFile = os.path.join(outdir, wetName)
+    wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
+    wetFile = os.path.join(SCENARIO_DIR, wetName)
     hydroFile = wetFile # Not used for station file input, only passed for consistent input arguments
 
-    true_delay = os.path.join(outdir, 'ERA5_true_GNSS.csv')
+    true_delay = os.path.join(SCENARIO_DIR, 'ERA5_true_GNSS.csv')
 
-    station_file = os.path.join(outdir, 'stations.csv')
+    station_file = os.path.join(SCENARIO_DIR, 'stations.csv')
     copyfile(station_file, wetFile)
     stats = pd.read_csv(station_file)
     lats = stats['Lat'].values
     lons = stats['Lon'].values
-    ll_bounds = (33.746, 36.795, -118.313, -114.892)
-    heights = ('merge', [os.path.join(outdir,wetName)])
-    flag = 'station_file'
-    zref = 20000.
-    outformat = 'csv'
-
-    model_module_name, model_obj = modelName2Module(weather_model_name)
-    weather_model = {'type': model_obj(), 'files': None, 'name': weather_model_name}
+    
+    _, model_obj = modelName2Module('ERA5')
  
 
-    def test_computeDelay(self):
-        (_,_) = tropo_delay(self.los, self.lats, self.lons, self.ll_bounds, self.heights, self.flag, 
-                            self.weather_model, self.wmLoc, self.zref, self.outformat, self.t, self.outdir, 
-                            self.download_only, self.verbose, self.wetFile, self.hydroFile)
+    with pushd(tmp_path):
+        (_,_) = tropo_delay(
+           los=Zenith, 
+           lats=lats, 
+           lats=lons, 
+           ll_bounds=(33.746, 36.795, -118.313, -114.892),
+           heights=('merge', [os.path.join(outdir,wetName)]), 
+           flag='station_file', 
+           weather_model={'type': model_obj(), 'files': None, 'name': 'ERA5'},
+           wmLoc=None, 
+           zref=20000., 
+           outformat='csv', 
+           time=datetime(2020,1,3,23,0,0), 
+           out=tmp_path, 
+           download_only=False, 
+           verbose=True, 
+           wetFile, 
+           hydroFile
+           )
  
-        # get the results
-        est_delay  = pd.read_csv(self.wetFile)
-        true_delay = pd.read_csv(self.true_delay)
+    # get the results
+    est_delay  = pd.read_csv(wetFile)
+    true_delay = pd.read_csv(true_delay)
 
-        # get the true delay from the weather model
-        self.assertTrue(np.allclose(est_delay['totalDelay'].values, true_delay['totalDelay'].values, equal_nan=True))
-        self.assertTrue(np.allclose(est_delay['wetDelay'].values, true_delay['wetDelay'].values, equal_nan=True))
-        self.assertTrue(np.allclose(est_delay['hydroDelay'].values, true_delay['hydroDelay'].values, equal_nan=True))
-
-def main():
-    unittest.main()
-   
-if __name__=='__main__':
-
-    unittest.main()
+    # get the true delay from the weather model
+    self.assertTrue(np.allclose(est_delay['totalDelay'].values, true_delay['totalDelay'].values, equal_nan=True))
+    self.assertTrue(np.allclose(est_delay['wetDelay'].values, true_delay['wetDelay'].values, equal_nan=True))
+    self.assertTrue(np.allclose(est_delay['hydroDelay'].values, true_delay['hydroDelay'].values, equal_nan=True))
 
