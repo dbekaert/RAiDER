@@ -97,7 +97,6 @@ PYBIND11_MODULE(interpolate, m) {
                 double * xs_ptr = (double *) xs_info.ptr;
 
                 if (num_threads == 1) {
-                    // For small arrays just compute in one thread
                     interpolate_1d<double>(
                         xs_ptr,
                         points[0].size(),

@@ -145,15 +145,6 @@ void interpolate(
     bool assume_sorted
 );
 
-template <typename T>
-inline size_t offset(const ssize_t *strides, const std::vector<size_t> &index) {
-    size_t offset = 0;
-    for (size_t dim = 0; dim < index.size(); dim++) {
-        offset += index[dim] * strides[dim];
-    }
-    return offset / sizeof(T);
-}
-
 // Helper for handling the striding required to iterate along a given axis
 template<typename T>
 class axis_iterator {
