@@ -13,3 +13,4 @@ dummy*
 weather_files
 test/data
 *.log
+test/*/geom/*.dem
