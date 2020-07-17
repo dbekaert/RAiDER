@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: David Bekaert, Jeremy Maurer, and Piyush Agram
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 import glob
 import os
 import re
@@ -13,6 +14,8 @@ import re
 import numpy as np
 from setuptools import Extension, setup
 
+# Cythonize should be imported after setuptools. See:
+# https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#configuring-the-c-build
 from Cython.Build import cythonize  # isort:skip
 
 # Parameter defs
@@ -23,7 +26,7 @@ CYTHON_DIR = os.path.join(GEOMETRY_DIR, "cython", "Geo2rdr")
 UTIL_DIR = os.path.join(CWD, 'tools', 'bindings', 'utils')
 
 
-def getVersion():
+def get_version():
     with open('version.txt', 'r') as f:
         m = re.match("""version=['"](.*)['"]""", f.read())
 
@@ -63,28 +66,32 @@ pybind_extensions = [
 
 
 cython_extensions = [
-     Extension(
-       name="RAiDER.Geo2rdr",
-       sources=glob.glob(os.path.join(CPP_DIR, "*/*.cc")) +
-               glob.glob(os.path.join(CYTHON_DIR, "*.pyx")),
-       include_dirs=[np.get_include()] +
-                    [os.path.join(CPP_DIR, "Geometry"),
-                     os.path.join(CPP_DIR, "Utility"),
-                     os.path.join(CPP_DIR, "Orbit")],
-       extra_compile_args=['-std=c++11'],
-       extra_link_args=['-lm'],
-       language="c++"
-     ),
-     Extension(
-       name="RAiDER.makePoints",
-       sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")),
-       include_dirs=[np.get_include()]
-     ),
+    Extension(
+        name="RAiDER.Geo2rdr",
+        sources=[
+            *glob.glob(os.path.join(CPP_DIR, "*/*.cc")),
+            *glob.glob(os.path.join(CYTHON_DIR, "*.pyx"))
+        ],
+        include_dirs=[
+            np.get_include(),
+            os.path.join(CPP_DIR, "Geometry"),
+            os.path.join(CPP_DIR, "Utility"),
+            os.path.join(CPP_DIR, "Orbit")
+        ],
+        extra_compile_args=['-std=c++11'],
+        extra_link_args=['-lm'],
+        language="c++"
+    ),
+    Extension(
+        name="RAiDER.makePoints",
+        sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")),
+        include_dirs=[np.get_include()]
+    ),
 ]
 
 setup(
     name='RAiDER',
-    version=getVersion(),
+    version=get_version(),
     description='This is the RAiDER package',
     package_dir={
         'tools': 'tools',
