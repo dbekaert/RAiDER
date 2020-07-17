@@ -18,7 +18,7 @@ MODEL_FILE = os.path.join(
     TEST_DIR,
     "scenario_1",
     "weather_files",
-    "ERA5_2020-01-03T23_00_00_15.75N_18.25N_-103.25E_-99.75E.h5"
+    "ERA5_2020-01-03T23_00_00_15.75N_18.25N_-103.24E_-99.75E.h5"
 )
 
 
