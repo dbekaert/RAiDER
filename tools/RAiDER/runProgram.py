@@ -143,7 +143,6 @@ def parseCMD():
     times, out, download_only, verbose, \
     wetNames, hydroNames = checkArgs(args, p)
 
-    import pdb; pdb.set_trace()
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
         try:

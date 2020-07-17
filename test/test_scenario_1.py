@@ -13,7 +13,7 @@ from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
 
-def test_tropo_delay(tmp_path):
+def test_tropo_delay(SCENARIO_DIR):
     '''
     Scenario: 
     1: Small area, ERA5, Zenith delay

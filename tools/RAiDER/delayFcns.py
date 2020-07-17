@@ -152,11 +152,61 @@ def chunk(chunkSize, in_shape):
     return chunkInds
 
 
+def makeChunkStartInds(chunkSize, in_shape):
+    '''
+    Create a list of start indices for chunking a numpy D-dimensional array. 
+    Inputs: 
+        chunkSize - length-D tuple containing chunk sizes
+        in_shape  - length-D tuple containing the shape of the array to be chunked
+    Outputs
+        chunkInds - a list of length-D tuples, where each tuple is the starting 
+                    multi-index of each chunk
+    Example:
+        makeChunkStartInds((2,2,16), (4,8,16))
+    Output:  [(0, 0, 0),
+             (0, 2, 0),
+             (0, 4, 0),
+             (0, 6, 0),
+             (2, 0, 0),
+             (2, 2, 0),
+             (2, 4, 0),
+             (2, 6, 0)]
+    '''
+    if len(in_shape) == 1:
+        chunkInds = [(i,) for i in range(0, in_shape[0], chunkSize[0])]
+
+    elif len(in_shape) == 2:
+        chunkInds = [(i, j) for i, j in itertools.product(range(0, in_shape[0], chunkSize[0]), 
+                                                          range(0, in_shape[1], chunkSize[1]))]
+    elif len(in_shape) == 3:
+        chunkInds = [(i, j, k) for i, j, k in itertools.product(range(0, in_shape[0], chunkSize[0]), 
+                                                                range(0, in_shape[1], chunkSize[1]), 
+                                                                range(0, in_shape[2], chunkSize[2]))]
+    else:
+        raise NotImplementedError('makeChunkStartInds: ndim > 3 not supported')
+
+    return chunkInds
+
+
 def makeChunksFromInds(startInd, chunkSize, in_shape):
     '''
-    From a list of tuples containing starting indices and
-    a tuple of chunkSize (length equal to ndim), create a 
-    list of arrays to be used as chunk indices
+    From a length-N list of tuples containing starting indices, 
+    create a list of indices into chunks of a numpy D-dimensional array. 
+    Inputs:
+       startInd  - A length-N list of D-dimensional tuples containing the 
+                   starting indices of a set of chunks
+       chunkSize - A D-dimensional tuple containing chunk size in each dimension
+       in_shape  - A D-dimensional tuple containing the size of each dimension
+    Outputs: 
+       chunks    - A length-N list of length-D lists, where each element of the 
+                   length-D list is a numpy array of indices     
+    Example: 
+        makeChunksFromInds([(0, 0), (0, 2), (2, 0), (2, 2)],(4,4),(2,2))
+    Output:
+        [[np.array([0, 0, 1, 1]), np.array([0, 1, 0, 1])],
+         [np.array([0, 0, 1, 1]), np.array([2, 3, 2, 3])],
+         [np.array([2, 2, 3, 3]), np.array([0, 1, 0, 1])],
+         [np.array([2, 2, 3, 3]), np.array([2, 3, 2, 3])]]
     '''
     indices = []
     for ci in startInd:
@@ -178,26 +228,6 @@ def makeChunksFromInds(startInd, chunkSize, in_shape):
         chunks = indices
 
     return chunks 
-
-
-def makeChunkStartInds(chunkSize, in_shape):
-    '''
-    Create a list of indices for chunking a 2D array
-    '''
-    if len(in_shape) == 1:
-        chunkInds = [(i,) for i in range(0, in_shape[0], chunkSize[0])]
-
-    elif len(in_shape) == 2:
-        chunkInds = [(i, j) for i, j in itertools.product(range(0, in_shape[0], chunkSize[0]), 
-                                                          range(0, in_shape[1], chunkSize[1]))]
-    elif len(in_shape) == 3:
-        chunkInds = [(i, j, k) for i, j, k in itertools.product(range(0, in_shape[0], chunkSize[0]), 
-                                                                range(0, in_shape[1], chunkSize[1]), 
-                                                                range(0, in_shape[2], chunkSize[2]))]
-    else:
-        raise NotImplementedError('makeChunkStartInds: ndim > 3 not supported')
-
-    return chunkInds
 
 
 def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file):

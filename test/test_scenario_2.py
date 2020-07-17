@@ -19,11 +19,11 @@ def test_computeDelay(tmp_path):
     2: GNSS station list
     '''
     wetName = 'stations_with_Delays.csv'
+    wetFile = os.path.join(SCENARIO_DIR, wetName)
+    hydroFile = wetFile # Not used for station file input, only passed for consistent input arguments
 
     # load the weather model type and date for the given scenario
     wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
-    wetFile = os.path.join(SCENARIO_DIR, wetName)
-    hydroFile = wetFile # Not used for station file input, only passed for consistent input arguments
 
     true_delay = os.path.join(SCENARIO_DIR, 'ERA5_true_GNSS.csv')
 
@@ -40,9 +40,9 @@ def test_computeDelay(tmp_path):
         (_,_) = tropo_delay(
            los=Zenith, 
            lats=lats, 
-           lats=lons, 
+           lons=lons, 
            ll_bounds=(33.746, 36.795, -118.313, -114.892),
-           heights=('merge', [os.path.join(outdir,wetName)]), 
+           heights=('merge', [wetFile]), 
            flag='station_file', 
            weather_model={'type': model_obj(), 'files': None, 'name': 'ERA5'},
            wmLoc=None, 
@@ -52,8 +52,8 @@ def test_computeDelay(tmp_path):
            out=tmp_path, 
            download_only=False, 
            verbose=True, 
-           wetFile, 
-           hydroFile
+           wetFilename=wetFile, 
+           hydroFilename=hydroFile
            )
  
     # get the results
@@ -61,7 +61,7 @@ def test_computeDelay(tmp_path):
     true_delay = pd.read_csv(true_delay)
 
     # get the true delay from the weather model
-    self.assertTrue(np.allclose(est_delay['totalDelay'].values, true_delay['totalDelay'].values, equal_nan=True))
-    self.assertTrue(np.allclose(est_delay['wetDelay'].values, true_delay['wetDelay'].values, equal_nan=True))
-    self.assertTrue(np.allclose(est_delay['hydroDelay'].values, true_delay['hydroDelay'].values, equal_nan=True))
+    assert np.allclose(est_delay['totalDelay'].values, true_delay['totalDelay'].values, equal_nan=True)
+    assert np.allclose(est_delay['wetDelay'].values, true_delay['wetDelay'].values, equal_nan=True)
+    assert np.allclose(est_delay['hydroDelay'].values, true_delay['hydroDelay'].values, equal_nan=True)
 
