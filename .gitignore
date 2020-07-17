@@ -12,4 +12,4 @@ Makefile
 dummy*
 weather_files
 test/data
-test/*/geom
+test/*/geom/*.dem

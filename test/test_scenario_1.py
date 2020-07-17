@@ -12,8 +12,7 @@ from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
-
-def test_tropo_delay(SCENARIO_DIR):
+def test_tropo_delay(tmp_path):
     '''
     Scenario: 
     1: Small area, ERA5, Zenith delay
@@ -29,7 +28,7 @@ def test_tropo_delay(SCENARIO_DIR):
 
     _, model_obj = modelName2Module("ERA5")
     wet_file, hydro_file = makeDelayFileNames(
-        time, Zenith, "envi", "ERA5", tmp_path
+        time, Zenith, "envi", "ERA5", SCENARIO_DIR
     )
 
     with pushd(tmp_path):
@@ -45,7 +44,7 @@ def test_tropo_delay(SCENARIO_DIR):
                 "files": None,
                 "name": "ERA5"
             },
-            wmLoc=None,
+            wmLoc=os.path.join(SCENARIO_DIR, 'weather_files'),
             zref=20000.,
             outformat="envi",
             time=time,
