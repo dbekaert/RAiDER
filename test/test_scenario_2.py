@@ -41,7 +41,7 @@ def test_computeDelay(tmp_path):
            los=Zenith, 
            lats=lats, 
            lons=lons, 
-           ll_bounds=(33.746, 36.795, -118.313, -114.892),
+           ll_bounds=(33.746, 36.795, -118.312, -114.892),
            heights=('merge', [wetFile]), 
            flag='station_file', 
            weather_model={'type': model_obj(), 'files': None, 'name': 'ERA5'},
