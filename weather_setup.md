@@ -11,7 +11,9 @@
    a. Copy the URL and API key from the webpage into a file in your home directory name ~/.cdsapirc 
       
          url: https://cds.climate.copernicus.eu/api/v2
-         key: 43214:de6dbdf6-ccf2-4a95-b26e-e1ceb24969e1
+         key: <KEY>
+      
+      _Note the `<KEY>` represents the actual key obtained upon the registration of CDS API, and should be replaced with the user's own information._
       
    b. Install the CDS API using pip: 
    
