@@ -518,7 +518,7 @@ class RaiderStats(object):
             userbbox_poly = Polygon(np.column_stack((np.array([self.bbox[2], self.bbox[3], self.bbox[3], self.bbox[2], self.bbox[2]]),
                                                      np.array([self.bbox[0], self.bbox[0], self.bbox[1], self.bbox[1], self.bbox[0]]))))
             if userbbox_poly.intersects(dfextents_poly):
-                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]),np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
+                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]), np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
             else:
                 raise Exception("User-specified bounds do not overlap with dataset bounds, adjust bounds and re-run program.")
             if extent[0] < -180. or extent[1] > 180. or extent[2] < -90. or extent[3] > 90.:
@@ -745,7 +745,7 @@ class RaiderStats(object):
             if plottype == "station_distribution":
                 axes.set_title(" ".join(plottype.split('_')), zorder=2)
                 im = axes.scatter(gridarr[0], gridarr[1], zorder=1, s=0.5,
-                    marker='.', color='b', transform=ccrs.PlateCarree())
+                                  marker='.', color='b', transform=ccrs.PlateCarree())
 
             # passing 3rd column as z-value
             if len(gridarr) > 2:
@@ -765,12 +765,12 @@ class RaiderStats(object):
 
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=cbounds[0],
-                    vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
+                                  vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
                 # initiate colorbar and control height of colorbar
                 divider = make_axes_locatable(axes)
                 cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
                 cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional',
-                    ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                                       ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
         # If gridded area passed
         else:

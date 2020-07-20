@@ -29,27 +29,27 @@ def make_points_0d_data():
 
 @pytest.fixture
 def make_points_1d_data():
-     ray1 = np.stack([
-             np.zeros(200),
-             np.zeros(200),
-             np.arange(0, 1000, 5)
-         ],
-         axis=-1
-     ).T
-     ray2 = np.stack([
-             np.zeros(200),
-             np.arange(0, 1000, 5),
-             np.zeros(200),
-         ],
-         axis=-1
-     ).T
-     rays = np.stack([ray1,ray2],axis=0)
+    ray1 = np.stack([
+            np.zeros(200),
+            np.zeros(200),
+            np.arange(0, 1000, 5)
+        ],
+        axis=-1
+    ).T
+    ray2 = np.stack([
+            np.zeros(200),
+            np.arange(0, 1000, 5),
+            np.zeros(200),
+        ],
+        axis=-1
+    ).T
+    rays = np.stack([ray1, ray2], axis=0)
 
-     sp = np.array([[0., 0., 0.],
-                    [0., 0., 0.]])
-     slv = np.array([[0., 0., 1.],
-                     [0., 1., 0.]])
-     return rays,(1000., sp, slv, 5.)
+    sp = np.array([[0., 0., 0.],
+                   [0., 0., 0.]])
+    slv = np.array([[0., 0., 1.],
+                    [0., 1., 0.]])
+    return rays, (1000., sp, slv, 5.)
 
 
 @pytest.fixture

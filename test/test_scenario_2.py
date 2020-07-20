@@ -20,7 +20,7 @@ def test_computeDelay(tmp_path):
     '''
     wetName = 'stations_with_Delays.csv'
     wetFile = os.path.join(SCENARIO_DIR, wetName)
-    hydroFile = wetFile # Not used for station file input, only passed for consistent input arguments
+    hydroFile = wetFile  # Not used for station file input, only passed for consistent input arguments
 
     # load the weather model type and date for the given scenario
     wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
@@ -32,12 +32,11 @@ def test_computeDelay(tmp_path):
     stats = pd.read_csv(station_file)
     lats = stats['Lat'].values
     lons = stats['Lon'].values
-    
+
     _, model_obj = modelName2Module('ERA5')
- 
 
     with pushd(tmp_path):
-        (_,_) = tropo_delay(
+        (_, _) = tropo_delay(
            los=Zenith, 
            lats=lats, 
            lons=lons, 
@@ -48,14 +47,14 @@ def test_computeDelay(tmp_path):
            wmLoc=None, 
            zref=20000., 
            outformat='csv', 
-           time=datetime(2020,1,3,23,0,0), 
+           time=datetime(2020, 1, 3, 23, 0, 0), 
            out=tmp_path, 
            download_only=False, 
            verbose=True, 
            wetFilename=wetFile, 
            hydroFilename=hydroFile
            )
- 
+
     # get the results
     est_delay  = pd.read_csv(wetFile)
     true_delay = pd.read_csv(true_delay)

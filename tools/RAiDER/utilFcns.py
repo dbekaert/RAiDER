@@ -52,7 +52,7 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
     return my_ecef
 
 
-def gdal_open(fname, returnProj=False):
+def gdal_open(fname, returnProj=False, userNDV = None):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     try:
@@ -66,11 +66,15 @@ def gdal_open(fname, returnProj=False):
     for band in range(ds.RasterCount):
         b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
         data = b.ReadAsArray()
-        try:
-            ndv = b.GetNoDataValue()
-            data[data == ndv] = np.nan
-        except:
-            pass
+        if userNDV is not None:
+            print('Using user-supplied NoDataValue')
+            data[data==userNDV]=np.nan
+        else:
+            try:
+                ndv = b.GetNoDataValue()
+                data[data == ndv] = np.nan
+            except:
+                print('NoDataValue attempt failed*******')
         val.append(data)
         b = None
     ds = None
@@ -439,7 +443,7 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.,verbose=False):
+def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0., verbose=False):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -465,10 +469,10 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
-        x = f.create_dataset('lon', data=lons, chunks=chunkSize,fillvalue=noDataValue)
-        y = f.create_dataset('lat', data=lats, chunks=chunkSize,fillvalue=noDataValue)
-        z = f.create_dataset('hgt', data=hgts, chunks=chunkSize,fillvalue=noDataValue)
-        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,),fillvalue=noDataValue)
+        x = f.create_dataset('lon', data=lons, chunks=chunkSize, fillvalue=noDataValue)
+        y = f.create_dataset('lat', data=lats, chunks=chunkSize, fillvalue=noDataValue)
+        z = f.create_dataset('hgt', data=hgts, chunks=chunkSize, fillvalue=noDataValue)
+        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,), fillvalue=noDataValue)
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
@@ -503,9 +507,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         else:
             raise NotImplemented
 
-        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8',fillvalue=noDataValue)
-        lengths = f.create_dataset('Rays_len',  in_shape, chunks=x.chunks, dtype='<f8',fillvalue=noDataValue)
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks=los.chunks, dtype='<f8',fillvalue=noDataValue)
+        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
+        lengths = f.create_dataset('Rays_len',  in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
