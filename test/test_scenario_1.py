@@ -28,7 +28,7 @@ def test_tropo_delay(tmp_path):
 
     _, model_obj = modelName2Module("ERA5")
     wet_file, hydro_file = makeDelayFileNames(
-        time, Zenith, "envi", "ERA5", SCENARIO_DIR
+        time, Zenith, "envi", "ERA5", tmp_path 
     )
 
     with pushd(tmp_path):
@@ -58,9 +58,11 @@ def test_tropo_delay(tmp_path):
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)
-        true_wet = gdal_open(os.path.join(SCENARIO_DIR, "wet.envi"))
-        true_hydro = gdal_open(os.path.join(SCENARIO_DIR, "hydro.envi"))
+        true_wet = gdal_open(os.path.join(SCENARIO_DIR, "wet.envi"), userNDV=0.)
+        true_hydro = gdal_open(os.path.join(SCENARIO_DIR, "hydro.envi"), userNDV=0.)
+        print(true_wet)
 
         # get the true delay from the weather model
         assert np.allclose(wet, true_wet, equal_nan=True)
         assert np.allclose(hydro, true_hydro, equal_nan=True)
+

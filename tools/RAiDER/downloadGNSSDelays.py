@@ -345,8 +345,13 @@ def query_repos(inps=None):
     del origstatsFile, statsFile
 
     # Extract delays for each station
+<<<<<<< HEAD
     get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=inps.numCPUs,
                    outDir=inps.out, returnTime=inps.returnTime)
+=======
+    get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'),
+                     outDir=inps.out, returnTime=inps.returnTime)
+>>>>>>> Clean up unit tests, replace true files for scenario_1, fix formatting
 
     if inps.verbose:
         print('Completed processing')

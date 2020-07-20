@@ -78,9 +78,9 @@ def lla2ecef(pnts_file):
         lon = f['lon'][()]
         lat = f['lat'][()]
         hgt = f['hgt'][()]
-        lon[lon==ndv]=np.nan
-        lat[lat==ndv]=np.nan
-        hgt[hgt==ndv]=np.nan
+        lon[lon == ndv] = np.nan
+        lat[lat == ndv] = np.nan
+        hgt[hgt == ndv] = np.nan
         sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
         f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
 
@@ -122,8 +122,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
             individual_results = pool.starmap(process_chunk, chunk_inputs)
         delays = np.concatenate(individual_results)
 
-    wet_delay = delays[0,...].reshape(in_shape)
-    hydro_delay = delays[1,...].reshape(in_shape)
+    wet_delay = delays[0, ...].reshape(in_shape)
+    hydro_delay = delays[1, ...].reshape(in_shape)
 
     time_elapse = (time.time() - t0)
     with open('get_delays_time_elapse.txt', 'w') as f:
@@ -247,7 +247,7 @@ def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, ma
 
     # datatype must be specific for the cython makePoints* function
     _DTYPE = np.float64
- 
+
     # H5PY does not support fancy indexing with tuples, hence this if/else check
     if len(chunkSize) == 1:
         row = chunkInds[0]

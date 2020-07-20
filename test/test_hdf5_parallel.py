@@ -25,7 +25,7 @@ MODEL_FILE = os.path.join(
 
 @pytest.mark.skipif(~os.path.exists(MODEL_FILE) or 
                     ~os.path.exists(POINTS_FILE), 
-                     reason="Will not pass until the test_scenario_*'s have run")
+                    reason="Will not pass until the test_scenario_*'s have run")
 def test_get_delays_accuracy(tmp_path):
     stepSize = 15.0
     interpType = 'rgi'
