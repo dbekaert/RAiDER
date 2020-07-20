@@ -342,12 +342,12 @@ class VariogramAnalysis():
                 if self.verbose:
                     # Plot empirical variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists, vario=vario,
-                        dists_binned=dists_binned, vario_binned=vario_binned)
+                                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists, vario=vario,
+                                        dists_binned=dists_binned, vario_binned=vario_binned)
                     # Plot experimental variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=d_test, v_test=v_test,
-                        res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)
+                                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=d_test, v_test=v_test,
+                                        res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)
                 # append for plotting
                 self.good_slices.append([grid_ind, j.strftime("%Y%m%d")])
                 dists_arr.append(dists)
@@ -378,12 +378,12 @@ class VariogramAnalysis():
             self.TOT_res_robust_arr.append(TOT_res_robust.x)
             self.TOT_tot_timetag.append(tot_timetag)
             self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists_arr, vario=vario_arr,
-                dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
+                                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists_arr, vario=vario_arr,
+                                dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
             # Plot experimental variogram for this gridnode and timeslice
             self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=TOT_d_test, v_test=TOT_v_test,
-                res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
+                                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=TOT_d_test, v_test=TOT_v_test,
+                                res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
         # Record sparse grids which didn't have sufficient sample size of data through any of the timeslices
         else:
             self.sparse_grids.append(grid_ind)
@@ -411,14 +411,14 @@ class VariogramAnalysis():
             args.append((i, grid_subset))
         # Parallelize iteration through all grid-cells and time slices
         with multiprocessing.Pool(self.numCPUs) as multipool:
-            for i,j,k in multipool.starmap(self._append_variogram, args):
+            for i, j, k in multipool.starmap(self._append_variogram, args):
                 self.TOT_good_slices.extend(i)
                 self.TOT_res_robust_arr.extend(j)
                 self.gridcenterlist.extend(k)
 
         # save grid-center lookup table
         self.gridcenterlist = [list(i) for i in set(tuple(j)
-                                               for j in self.gridcenterlist)]
+                                                    for j in self.gridcenterlist)]
         self.gridcenterlist.sort(key=lambda x: int(x[0][4:6]))
         gridcenter = open(
             (os.path.join(self.workdir, 'variograms/gridlocation_lookup.txt')), "w")

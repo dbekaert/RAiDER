@@ -52,7 +52,7 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
     return my_ecef
 
 
-def gdal_open(fname, returnProj=False, userNDV = None):
+def gdal_open(fname, returnProj=False, userNDV=None):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     try:
@@ -68,7 +68,7 @@ def gdal_open(fname, returnProj=False, userNDV = None):
         data = b.ReadAsArray()
         if userNDV is not None:
             print('Using user-supplied NoDataValue')
-            data[data==userNDV]=np.nan
+            data[data == userNDV] = np.nan
         else:
             try:
                 ndv = b.GetNoDataValue()

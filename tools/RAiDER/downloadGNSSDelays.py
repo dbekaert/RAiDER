@@ -359,10 +359,18 @@ def query_repos(
     del origstatsFile, statsFile
 
     # Extract delays for each station
+<<<<<<< HEAD
     get_station_data(os.path.join(out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=numCPUs,
                      outDir=out, returnTime=returnTime)
 
     log.debug('Completed processing')
+=======
+    get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=inps.numCPUs,
+                     outDir=inps.out, returnTime=inps.returnTime)
+
+    if inps.verbose:
+        print('Completed processing')
+>>>>>>> Fix up some formatting issues
 
 
 if __name__ == "__main__":

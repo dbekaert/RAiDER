@@ -7,18 +7,20 @@ from RAiDER.delayFcns import chunk, makeChunksFromInds, makeChunkStartInds
 # done correctly for various dimensions
 
 def checkChunks(chunk1, chunk2):
-    check = []
     for k1, L in enumerate(chunk2):
         for k2, arr in enumerate(L):
             assert np.allclose(arr, chunk1[k1][k2])
+
 
 def test_makeChunkStartInds1D():
     chunkStartInds = [(0,), (1,), (2,), (3,), (4,)]
     assert makeChunkStartInds((1,), (5,)) == chunkStartInds
 
+
 def test_makeChunkStartInds2D():
     chunkStartInds = [(0, 0), (0, 1), (3, 0), (3, 1), (6, 0), (6, 1)]
     assert makeChunkStartInds((3, 1), (9, 2)) == chunkStartInds
+
 
 def test_makeChunkStartInds3D():
     chunkStartInds = (
@@ -33,14 +35,17 @@ def test_makeChunkStartInds3D():
         )
     assert makeChunkStartInds((2, 2, 16), (4, 8, 16)) == chunkStartInds
 
+
 def test_makeChunksFromInds1D():
     chunks = [[np.array([0, 1])], [np.array([2, 3])]]
     checkChunks(chunks, 
-                makeChunksFromInds(startInd=[(0,), (2,)], 
+                makeChunksFromInds(
+                                   startInd=[(0,), (2,)], 
                                    chunkSize=(2,), 
                                    in_shape=(4,)
                                    )
                ) 
+
 
 def test_makeChunksFromInds2D():
     chunks = [[np.array([0, 0, 1, 1]), np.array([0, 1, 0, 1])],
@@ -48,11 +53,13 @@ def test_makeChunksFromInds2D():
               [np.array([2, 2, 3, 3]), np.array([0, 1, 0, 1])],
               [np.array([2, 2, 3, 3]), np.array([2, 3, 2, 3])]]
     checkChunks(chunks, 
-                makeChunksFromInds(startInd=[(0, 0), (0, 2), (2, 0), (2, 2)], 
+                makeChunksFromInds(
+                                   startInd=[(0, 0), (0, 2), (2, 0), (2, 2)], 
                                    chunkSize=(2, 2), 
                                    in_shape=(4, 4)
                                   )
                ) 
+
 
 def test_makeChunksFromInds3D():
     chunks = [[np.array([0, 0]), np.array([0, 0]), np.array([0, 1])],
@@ -60,11 +67,13 @@ def test_makeChunksFromInds3D():
               [np.array([1, 1]), np.array([0, 0]), np.array([0, 1])],
               [np.array([1, 1]), np.array([1, 1]), np.array([0, 1])]]
     checkChunks(chunks, 
-                makeChunksFromInds(startInd=[(0, 0, 0), (0, 1, 0), (1, 0, 0), (1, 1, 0)], 
+                makeChunksFromInds(
+                                   startInd=[(0, 0, 0), (0, 1, 0), (1, 0, 0), (1, 1, 0)], 
                                    chunkSize=(1, 1, 2), 
                                    in_shape=(2, 2, 2)
                                   )
                 ) 
+
 
 def test_chunk1D():
     chunks = [[np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])],
@@ -78,17 +87,19 @@ def test_chunk1D():
                      )
                ) 
 
-def test_chunk2D():
 
+def test_chunk2D():
     chunks = [[np.array([0, 0, 1, 1]), np.array([0, 1, 0, 1])],
               [np.array([0, 0, 1, 1]), np.array([2, 3, 2, 3])],
               [np.array([2, 2, 3, 3]), np.array([0, 1, 0, 1])],
               [np.array([2, 2, 3, 3]), np.array([2, 3, 2, 3])]]
     checkChunks(chunks, 
-                chunk(chunkSize=(2, 2), 
+                chunk(
+                      chunkSize=(2, 2), 
                       in_shape=(4, 4)
                      )
                 ) 
+
 
 def test_chunk3D():
     chunks = [[np.array([0, 0, 0, 0, 1, 1, 1, 1]),
@@ -104,7 +115,8 @@ def test_chunk3D():
                np.array([2, 2, 3, 3, 2, 2, 3, 3]),
                np.array([2, 3, 2, 3, 2, 3, 2, 3])]]
     checkChunks(chunks, 
-                chunk(chunkSize=(2, 2, 2),
+                chunk(
+                      chunkSize=(2, 2, 2),
                       in_shape=(2, 4, 4)
                      )
                 ) 

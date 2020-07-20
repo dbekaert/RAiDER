@@ -1,4 +1,3 @@
-# Unit and other tests
 import datetime
 import os
 from test import DATA_DIR, TEST_DIR, pushd
@@ -26,9 +25,13 @@ def test_tropo_delay(tmp_path):
 
     time = datetime.datetime(2020, 1, 3, 23, 0)
 
+    wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
+    if not os.path.exists(wmLoc):
+        os.mkdir(wmLoc)
+
     _, model_obj = modelName2Module("ERA5")
     wet_file, hydro_file = makeDelayFileNames(
-        time, Zenith, "envi", "ERA5", tmp_path 
+        time, Zenith, "envi", "ERA5", tmp_path
     )
 
     with pushd(tmp_path):
@@ -44,7 +47,7 @@ def test_tropo_delay(tmp_path):
                 "files": None,
                 "name": "ERA5"
             },
-            wmLoc=os.path.join(SCENARIO_DIR, 'weather_files'),
+            wmLoc=wmLoc,
             zref=20000.,
             outformat="envi",
             time=time,
