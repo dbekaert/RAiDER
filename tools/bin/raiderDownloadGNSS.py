@@ -7,9 +7,9 @@
 #
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-from RAiDER.statsPlot import cmd_line_parse,stats_analyses
+from RAiDER.downloadGNSSDelays import cmd_line_parse,query_repos
 
 if __name__ == "__main__":
     inps = cmd_line_parse()
 
-    stats_analyses(inps)
+    query_repos(inps)

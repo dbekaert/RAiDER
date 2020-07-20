@@ -10,3 +10,5 @@ build
 CMake*
 Makefile
 dummy*
+weather_files
+test/data

@@ -6,7 +6,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import gdal
+from osgeo import gdal
 import numpy as np
 
 from RAiDER.utilFcns import gdal_open, writeArrayToRaster
