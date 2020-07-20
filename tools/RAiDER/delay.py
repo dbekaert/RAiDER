@@ -165,6 +165,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     if verbose:
         print('Beginning DEM calculation')
     in_shape = lats.shape
+
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes, verbose=verbose)
 
     pnts_file = None
