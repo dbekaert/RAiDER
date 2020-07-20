@@ -13,7 +13,7 @@
          url: https://cds.climate.copernicus.eu/api/v2
          key: <KEY>
       
-      _Note the `<KEY>` represents the actual key obtained upon the registration of CDS API, and should be replaced with the user's own information._
+      _Note the `<KEY>` represents the API key obtained upon the registration of CDS API, and should be replaced with the user's own information._
       
    b. Install the CDS API using pip: 
    
