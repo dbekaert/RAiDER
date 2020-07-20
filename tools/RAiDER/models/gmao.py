@@ -151,26 +151,7 @@ class GMAO(WeatherModel):
         q_intrpl = interp_along_axis(h, _hs, q, axis = 2)
         t_intrpl = interp_along_axis(h, _hs, t, axis = 2)
         
-#        # fill missing values (nans; better to double check the interp_along_axis function) in the interpolated variables
-#        import pandas as pd
-#
-#        for ii in range(p_intrpl.shape[0]):
-#            df = pd.DataFrame(p_intrpl[ii,:,:])
-#            df = df.interpolate(method='linear',limit_direction='backward',axis=1)
-#            df = df.interpolate(method='linear',limit_direction='forward',axis=1)
-#            p_intrpl[ii,:,:] = df.to_numpy()
-#
-#        for ii in range(q_intrpl.shape[0]):
-#            df = pd.DataFrame(q_intrpl[ii,:,:])
-#            df = df.interpolate(method='linear',limit_direction='backward',axis=1)
-#            df = df.interpolate(method='linear',limit_direction='forward',axis=1)
-#            q_intrpl[ii,:,:] = df.to_numpy()
-#
-#        for ii in range(t_intrpl.shape[0]):
-#            df = pd.DataFrame(t_intrpl[ii,:,:])
-#            df = df.interpolate(method='linear',limit_direction='backward',axis=1)
-#            df = df.interpolate(method='linear',limit_direction='forward',axis=1)
-#            t_intrpl[ii,:,:] = df.to_numpy()
+
 
         
         # assign the regular-grid (lat/lon/h) variables
