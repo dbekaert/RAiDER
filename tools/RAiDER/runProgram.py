@@ -27,7 +27,7 @@ Calculate tropospheric delay from a weather model.
 Usage examples:
 raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
 raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v
-raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/ERA5_Lat_2018_01_01_T00_00_00.dat test/scenario_1/geom/ERA5_Lon_2018_01_01_T00_00_00.dat --model ERA5 --zref 20000 -v --out test/scenario_1/
+raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/lat.dat test/scenario_1/geom/lon.dat --model ERA5 --zref 20000 -v --out test/scenario_1/
 """)
 
     datetime = p.add_argument_group('Datetime')
