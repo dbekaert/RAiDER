@@ -25,7 +25,7 @@ class GMAO(WeatherModel):
 
         # Tuple of min/max years where data is available. 
         self._valid_range = (dt.datetime(2017, 12, 1), "Present")
-        self._lag_time = dt.timedelta(hours=0.3125)  # Availability lag time in hours
+        self._lag_time = dt.timedelta(hours=0.3125)  # Availability lag time in hours (unit in days)
 
         # model constants
         self._k1 = 0.776  # [K/Pa]
