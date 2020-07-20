@@ -192,9 +192,7 @@ void interpolate(
     std::vector<double> lower_dist(dimensions);
     std::vector<double> upper_dist(dimensions);
 
-
     std::vector<double> corner_points(1 << dimensions);
-
 
     for (size_t i = 0; i < num_points; i++) {
         double total_volume = 1;
