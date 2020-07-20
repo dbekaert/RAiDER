@@ -161,9 +161,6 @@ class GMAO(WeatherModel):
         self._t = t_intrpl
         self._lats = _lats
         self._lons = _lons
-#        self._xs = lons
-#        self._ys = lats
-#        self._zs = np.flip(hs)
         self._xs = _lons
         self._ys = _lats
         self._zs = _hs
