@@ -28,4 +28,5 @@ dependencies:
  - scipy
  - xarray
  - shapely
- - pydap=3.2.1
+ - pydap>3.2.2, <3.2.2
+ - pytest
