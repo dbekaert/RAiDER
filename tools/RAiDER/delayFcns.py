@@ -204,7 +204,7 @@ def interpolate2(fun, x, y, z):
     helper function to make the interpolation step cleaner
     '''
     in_shape = x.shape
-    out = fun((y.flatten(), x.flatten(), z.flatten()))
+    out = fun((y.ravel(), x.ravel(), z.ravel()))
     outData = out.reshape(in_shape)
     return outData
 
