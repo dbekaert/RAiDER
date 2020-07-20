@@ -75,10 +75,16 @@ def lla2ecef(pnts_file):
     '''
     reproject a set of lat/lon/hgts to a new coordinate system
     '''
-
     t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
     with h5py.File(pnts_file, 'r+') as f:
-        sp = np.moveaxis(np.array(t.transform(f['lon'][()], f['lat'][()], f['hgt'][()])), 0, -1)
+        ndv = f.attrs['NoDataValue']
+        lon = f['lon'][()]
+        lat = f['lat'][()]
+        hgt = f['hgt'][()]
+        lon[lon==ndv]=np.nan
+        lat[lat==ndv]=np.nan
+        hgt[hgt==ndv]=np.nan
+        sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
         f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
 
 
@@ -245,7 +251,7 @@ def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, ma
 
     # datatype must be specific for the cython makePoints* function
     _DTYPE = np.float64
-
+ 
     # H5PY does not support fancy indexing with tuples, hence this if/else check
     if len(chunkSize) == 1:
         row = chunkInds[0]

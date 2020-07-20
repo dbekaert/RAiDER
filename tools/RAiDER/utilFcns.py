@@ -1,14 +1,15 @@
 """Geodesy-related utility functions."""
+import h5py
 import importlib
 import itertools
 import os
 import re
-from datetime import datetime
+import pyproj
 
-import h5py
+from datetime import datetime
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import pyproj
 from osgeo import gdal, osr
 
 from RAiDER import Geo2rdr
@@ -64,13 +65,13 @@ def gdal_open(fname, returnProj=False):
     val = []
     for band in range(ds.RasterCount):
         b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
-        d = b.ReadAsArray()
+        data = b.ReadAsArray()
         try:
             ndv = b.GetNoDataValue()
-            d[d == ndv] = np.nan
+            data[data == ndv] = np.nan
         except:
             pass
-        val.append(d)
+        val.append(data)
         b = None
     ds = None
 
@@ -438,7 +439,7 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, verbose=False):
+def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.,verbose=False):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -464,14 +465,15 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, ve
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
-        x = f.create_dataset('lon', data=lons, chunks=chunkSize)
-        y = f.create_dataset('lat', data=lats, chunks=chunkSize)
-        z = f.create_dataset('hgt', data=hgts, chunks=chunkSize)
-        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,))
+        x = f.create_dataset('lon', data=lons, chunks=chunkSize,fillvalue=noDataValue)
+        y = f.create_dataset('lat', data=lats, chunks=chunkSize,fillvalue=noDataValue)
+        z = f.create_dataset('hgt', data=hgts, chunks=chunkSize,fillvalue=noDataValue)
+        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,),fillvalue=noDataValue)
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
         f.attrs['ChunkSize'] = chunkSize
+        f.attrs['NoDataValue'] = noDataValue
 
         # CF 1.8 Convention stuff
         srs = osr.SpatialReference()
@@ -501,9 +503,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, ve
         else:
             raise NotImplemented
 
-        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8')
-        lengths = f.create_dataset('Rays_len',  in_shape, chunks=x.chunks, dtype='<f8')
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks=los.chunks, dtype='<f8')
+        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8',fillvalue=noDataValue)
+        lengths = f.create_dataset('Rays_len',  in_shape, chunks=x.chunks, dtype='<f8',fillvalue=noDataValue)
+        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks=los.chunks, dtype='<f8',fillvalue=noDataValue)
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
