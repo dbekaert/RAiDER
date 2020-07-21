@@ -1,10 +1,13 @@
 import datetime as dt
-import numpy as np
 import os
-from pyproj import CRS
 import re
+
+import numpy as np
+from pyproj import CRS
+
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.models.weatherModel import WeatherModel
+
 
 class GMAO(WeatherModel):
     # I took this from GMAO model level weblink
@@ -62,10 +65,10 @@ class GMAO(WeatherModel):
         '''
         Get the variables from the GMAO link using OpenDAP
         '''
-        
-        import pydap.client
+
         import pydap.cas.urs
-        
+        import pydap.client
+
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
         lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)

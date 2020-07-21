@@ -8,17 +8,17 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import datetime
-import numpy as np
 import os.path
 import shelve
 import xml.etree.ElementTree as ET
 
-from RAiDER.constants import _ZREF, Zenith
-from RAiDER import Geo2rdr
+import numpy as np
+
 import RAiDER.utilFcns as utilFcns
+from RAiDER import Geo2rdr
+from RAiDER.constants import _ZREF, Zenith
 
-
-#def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
+# def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 #    import Geo2rdr
 #
 #    real_shape = lats.shape

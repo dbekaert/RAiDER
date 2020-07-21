@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 import requests
 
+
 def get_delays(stationFile, filename, returnTime=None):
     '''
     Parses and returns a dictionary containing either (1) all
@@ -77,7 +78,7 @@ def get_delays(stationFile, filename, returnTime=None):
                 # Break iteration if time from line in file does not match date reported in filename
                 if doy != doyFromFile:
                     print('WARNING: time {} from line in conflict with time {} from file {}, will continue reading next tarfile(s)' \
-                        .format(doy, doyFromFile, j))
+                          .format(doy, doyFromFile, j))
                     continue
                 d.append(trotot)
                 ngrad.append(tgntot)

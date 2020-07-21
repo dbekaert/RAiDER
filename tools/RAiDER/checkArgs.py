@@ -56,7 +56,7 @@ this option has not yet been implemented.""")
     else:
         raise RuntimeError('You must specify an area of interest')
 
-    from numpy import min, max
+    from numpy import max, min
     if (min(lat) < -90) | (max(lat) > 90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 

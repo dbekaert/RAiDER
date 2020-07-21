@@ -6,21 +6,21 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import h5py
-import numpy as np
 import os
 import traceback
 
+import h5py
+import numpy as np
+
+import RAiDER.delayFcns
+from RAiDER.constants import _STEP, _ZREF, Zenith
+from RAiDER.interpolator import interp_along_axis
 from RAiDER.llreader import getHeights
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.utilFcns import writeDelays, writePnts2HDF5
-from RAiDER.constants import Zenith
-
-import RAiDER.delayFcns
-from RAiDER.constants import _STEP, _ZREF
-from RAiDER.utilFcns import make_weather_model_filename
-from RAiDER.interpolator import interp_along_axis
+from RAiDER.utilFcns import (
+    make_weather_model_filename, writeDelays, writePnts2HDF5
+)
 
 
 def interpolateDelay(weather_model_file_name, pnts_file_name,

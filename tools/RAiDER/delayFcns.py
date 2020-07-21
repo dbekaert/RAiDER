@@ -191,7 +191,7 @@ def interpolate2(fun, x, y, z):
     helper function to make the interpolation step cleaner
     '''
     in_shape = x.shape
-    out = fun((y.ravel(), x.ravel(), z.ravel())) # note that this re-ordering is on purpose to match the weather model
+    out = fun((y.ravel(), x.ravel(), z.ravel()))  # note that this re-ordering is on purpose to match the weather model
     outData = out.reshape(in_shape)
     return outData
 
