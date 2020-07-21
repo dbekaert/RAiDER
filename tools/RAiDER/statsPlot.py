@@ -636,7 +636,6 @@ class RaiderStats(object):
         '''
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
-        import cartopy.io.img_tiles as cimgt
         import matplotlib as mpl
         import matplotlib.ticker as mticker
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter

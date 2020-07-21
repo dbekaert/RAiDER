@@ -33,19 +33,7 @@ def calculate_rays(pnts_file, stepSize=_STEP, verbose=False):
 
     # This projects the ground pixels into earth-centered, earth-fixed coordinate
     # system and sorts by position
-    newPts = lla2ecef(pnts_file)
-
-    # This returns the list of rays
-    # TODO: make this not a list.
-    # Why is a list used instead of a numpy array? It is because every ray has a
-    # different length, and some rays have zero length (i.e. the points over
-    # water). However, it would be MUCH more efficient to do this as a single
-    # pyproj call, rather than having to send each ray individually. For right
-    # now we bite the bullet.
-    # TODO: write the variables to a chunked HDF5 file and then use this file
-    # to compute the rays. Write out the rays to the file.
-    # TODO: Add these variables to the original HDF5 file so that we don't have
-    # to create a new file
+    lla2ecef(pnts_file)
 
 
 def getUnitLVs(pnts_file):
@@ -111,7 +99,6 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     ifHydro = make_interpolator(xs_wm, ys_wm, zs_wm, hydro)
 
     with h5py.File(pnts_file, 'r') as f:
-        Nrays = f.attrs['NumRays']
         chunkSize = f['lon'].chunks
         in_shape = f['lon'].attrs['Shape']
         arrSize = f['lon'].shape
@@ -204,21 +191,8 @@ def interpolate2(fun, x, y, z):
     helper function to make the interpolation step cleaner
     '''
     in_shape = x.shape
-    out = fun((y.ravel(), x.ravel(), z.ravel()))
+    out = fun((y.ravel(), x.ravel(), z.ravel())) # note that this re-ordering is on purpose to match the weather model
     outData = out.reshape(in_shape)
-    return outData
-
-
-def interpolate(fun, x, y, z):
-    '''
-    helper function to make the interpolation step cleaner
-    '''
-    in_shape = x.shape
-    out = []
-    flat_shape = np.prod(in_shape)
-    for x, y, z in zip(y.reshape(flat_shape,), x.reshape(flat_shape,), z.reshape(flat_shape,)):
-        out.append(fun((y, x, z)))  # note that this re-ordering is on purpose to match the weather model
-    outData = np.array(out).reshape(in_shape)
     return outData
 
 
@@ -230,14 +204,6 @@ def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts=None):
         else:
             delays.append(_integrate_delays(stepSize, d, Npts))
     return np.stack(delays, axis=0)
-
-
-def _integrate_delays2(stepSize, refr):
-    '''
-    This function gets the actual delays by integrating the refractivity in
-    each node. Refractivity is given in the 'refr' variable.
-    '''
-    return int_fcn(refr, stepSize)
 
 
 def _integrate_delays(stepSize, refr, Npts=None):
@@ -257,74 +223,3 @@ def _integrate_delays(stepSize, refr, Npts=None):
 
 def int_fcn(y, dx, N=None):
     return 1e-6*dx*np.nansum(y[:N])
-
-
-def _re_project(tup):
-    newPnt = _transform(tup[0], tup[1], tup[2])
-    return newPnt
-
-
-def _transform(ray, oldProj, newProj):
-    '''
-    Transform a ray from one coordinate system to another
-    '''
-    newRay = np.stack(
-        pyproj.transform(
-          oldProj, newProj, ray[:, 0], ray[:, 1], ray[:, 2]
-        ),
-        axis=-1,
-        always_xy=True
-    )
-    return newRay
-
-
-def sortSP(arr):
-    '''
-    Return an array that has been sorted progressively by
-    each axis, beginning with the first
-    Input:
-      arr  - an Nx(2 or 3) array containing a set of N points in 2D or 3D space
-    Output:
-      xSorted  - an Nx(2 or 3) array containing the sorted points
-    '''
-    ySorted = arr[arr[:, 1].argsort()]
-    xSorted = ySorted[ySorted[:, 0].argsort()]
-    return xSorted
-
-
-def _ray_helper(lengths, start_positions, scaled_look_vectors, stepSize):
-    # return _compute_ray(tup[0], tup[1], tup[2], tup[3])
-    maxLen = np.nanmax(lengths)
-    out, rayLens = [], []
-    for L, S, V, in zip(lengths, start_positions, scaled_look_vectors):
-        ray, Npts = _compute_ray(L, S, V, stepSize, maxLen)
-        out.append(ray)
-        rayLens.append(Npts)
-    return np.stack(out, axis=0), np.array(rayLens)
-
-
-def _compute_ray(L, S, V, stepSize, maxLen):
-    '''
-    Compute and return points along a ray, given a total length,
-    start position (in x,y,z), a unit look vector V, and the
-    stepSize.
-    '''
-    thisspace = np.arange(0, maxLen+stepSize, stepSize)
-    ray = S + thisspace[..., np.newaxis]*V
-    return ray, int(L//stepSize + 1)
-
-
-def _compute_ray2(L, S, V, stepSize):
-    '''
-    Compute and return points along a ray, given a total length,
-    start position (in x,y,z), a unit look vector V, and the
-    stepSize.
-    '''
-    # Have to handle the case where there are invalid data
-    # TODO: cythonize this?
-    try:
-        thisspace = np.arange(0, L+stepSize, stepSize)
-    except ValueError:
-        thisspace = np.array([])
-    ray = S + thisspace[..., np.newaxis]*V
-    return ray

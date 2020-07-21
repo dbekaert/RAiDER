@@ -76,7 +76,7 @@ this option has not yet been implemented.""")
         raise NotImplementedError('Model {} has not been implemented'.format(args.model))
     if weather_model_name == 'WRF' and args.files is None:
         raise RuntimeError('Argument --files is required with --model WRF')
-    model_module_name, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
+    _, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
     if args.model == 'WRF':
         weathers = {'type': 'wrf', 'files': args.files,
                     'name': 'wrf'}

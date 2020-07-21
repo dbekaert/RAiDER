@@ -4,7 +4,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.interpolate import interpolate, interpolate_along_axis
 from RAiDER.interpolator import (
-    _interp3D, fillna3D, interp_along_axis, interpVector
+    fillna3D, interp_along_axis, interpVector
 )
 
 
@@ -33,20 +33,6 @@ def test_interpVector():
             6
         ),
         np.array([0.42073549, 0.87538421, 0.52520872, -0.30784124, -0.85786338])
-    )
-
-
-def test_interp3D(grid):
-    (x, y, z), values = grid
-
-    interp = _interp3D(x, y, z, values, z)
-    assert np.allclose(
-        interp(np.array([
-            [5, 5, 5], [4.5, 0.5, 15.0]
-        ])),
-        np.array([1.22404, 3.00252]),
-        atol=0.01,
-        rtol=0.01
     )
 
 

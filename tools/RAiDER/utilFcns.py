@@ -1,7 +1,6 @@
 """Geodesy-related utility functions."""
 import importlib
 import itertools
-import math
 import multiprocessing as mp
 import os
 import pickle
@@ -33,30 +32,11 @@ def cosd(x):
     return np.cos(np.radians(x))
 
 
-def tand(x):
-    """Return degree tangent."""
-    return np.tan(np.radians(x))
-
-
-def reproject(inlat, inlon, inhgt, inProj, outProj):
-    '''
-    reproject a set of lat/lon/hgts to a new coordinate system
-    '''
-    return pyproj.transform(inProj, outProj, inlon, inlat, inhgt, always_xy=True)
-
-
 def lla2ecef(lat, lon, height):
     ecef = pyproj.Proj(proj='geocent')
     lla = pyproj.Proj(proj='latlong')
 
     return pyproj.transform(lla, ecef, lon, lat, height, always_xy=True)
-
-
-def ecef2lla(x, y, z):
-    ecef = pyproj.Proj(proj='geocent')
-    lla = pyproj.Proj(proj='latlong')
-    lon, lat, height = pyproj.transform(ecef, lla, x, y, z, always_xy=True)
-    return lat, lon, height
 
 
 def enu2ecef(east, north, up, lat0, lon0, h0):
@@ -74,83 +54,6 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
     my_ecef = np.stack((x0 + u, y0 + v, z0 + w))
 
     return my_ecef
-
-
-def lla2lambert(lat, lon, height=None):
-    lla = pyproj.Proj(proj='latlong')
-    lambert = pyproj.Proj(
-            '+proj=lcc +lat_1=30.0 +lat_2=60.0 +lat_0=18.500015 +lon_0=-100.2 '
-            '+a=6370 +b=6370 +towgs84=0,0,0 +no_defs')
-
-    if height is None:
-        return lla(lat, lon, errcheck=True)
-    return pyproj.transform(lla, lambert, lat, lon, height, always_xy=True)
-
-
-def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
-    import Geo2rdr
-
-    real_shape = lats.shape
-    lats = lats.flatten()
-    lons = lons.flatten()
-    heights = heights.flatten()
-
-    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
-    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
-
-    loss = np.zeros((3, len(lats)))
-    slant_ranges = np.zeros_like(lats)
-
-    for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
-        height_array = np.array(((height,),))
-
-        # Geo2rdr is picky about the type of height
-        height_array = height_array.astype(np.double)
-
-        geo2rdr_obj.set_geo_coordinate(np.radians(lon),
-                                       np.radians(lat),
-                                       1, 1,
-                                       height_array)
-        # compute the radar coordinate for each geo coordinate
-        geo2rdr_obj.geo2rdr()
-
-        # get back the line of sight unit vector
-        los_x, los_y, los_z = geo2rdr_obj.get_los()
-        loss[:, i] = los_x, los_y, los_z
-
-        # get back the slant ranges
-        slant_range = geo2rdr_obj.get_slant_range()
-        slant_ranges[i] = slant_range
-
-    los = loss * slant_ranges
-
-    # Have to think about traversal order here. It's easy, though, since
-    # in both orders xs come first, followed by all ys, followed by all
-    # zs.
-    return los.reshape((3,) + real_shape)
-
-
-def toXYZ(lats, lons, hts):
-    """Convert lat, lon, geopotential height to x, y, z in ECEF."""
-    # Convert geopotential to geometric height. This comes straight from
-    # TRAIN
-    g0 = 9.80665
-    # Map of g with latitude (I'm skeptical of this equation)
-    g = 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
-    Rmax = 6378137
-    Rmin = 6356752
-    Re = np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
-
-    # Calculate Geometric Height, h
-    h = (hts*Re)/(g/g0*Re - hts)
-    return lla2ecef(lats, lons, h)
-
-
-def big_and(*args):
-    result = args[0]
-    for a in args[1:]:
-        result = np.logical_and(result, a)
-    return result
 
 
 def gdal_open(fname, returnProj=False):
@@ -186,16 +89,6 @@ def gdal_open(fname, returnProj=False):
         return data
     else:
         return data, proj, gt
-
-
-def pickle_load(f):
-    with open(f, 'rb') as fil:
-        return pickle.load(fil)
-
-
-def pickle_dump(o, f):
-    with open(f, 'wb') as fil:
-        pickle.dump(o, fil)
 
 
 def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
@@ -347,52 +240,6 @@ def padLower(invar):
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def testArr(arr, thresh, ttype):
-    '''
-    Helper function for checking heights
-    '''
-    if ttype == 'g':
-        test = np.all(arr > thresh)
-    elif ttype == 'l':
-        test = np.all(arr < thresh)
-    else:
-        raise RuntimeError('testArr: bad type')
-
-    return test
-
-
-def getMaxModelLevel(arr3D, thresh, ttype='l'):
-    '''
-    Returns the model level number to keep
-    '''
-    for ind, level in enumerate(arr3D.T):
-        if testArr(level, thresh, ttype):
-            return ind
-    return ind
-
-
-def Chunk(iterable, n):
-    """ Split iterable into ``n`` iterables of similar size
-
-    Examples::
-        >>> l = [1, 2, 3, 4]
-        >>> list(chunked(l, 4))
-        [[1], [2], [3], [4]]
-
-        >>> l = [1, 2, 3]
-        >>> list(chunked(l, 4))
-        [[1], [2], [3], []]
-
-        >>> l = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-        >>> list(chunked(l, 4))
-        [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
-
-    """
-    chunksize = int(math.ceil(len(iterable) / n))
-    return (iterable[i * chunksize:i * chunksize + chunksize]
-            for i in range(n))
-
-
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     '''
     return names for the wet and hydrostatic delays.
@@ -422,24 +269,6 @@ def make_weather_model_filename(name, time, ll_bounds):
     return '{}_{}_{}N_{}N_{}E_{}E.h5'.format(
         name, time.strftime("%Y-%m-%dT%H_%M_%S"), *ll_bounds
     )
-
-
-def writeLL(time, lats, lons, llProj, weather_model_name, out):
-    '''
-    If the weather model grid nodes are used, write the lat/lon values
-    out to a file
-    '''
-    lonFileName = '{}_Lon_{}.dat'.format(weather_model_name,
-                                         datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-    latFileName = '{}_Lat_{}.dat'.format(weather_model_name,
-                                         datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-
-    os.makedirs(os.path.abspath('geom'), exist_ok=True)
-
-    writeArrayToRaster(lons, os.path.join(out, 'geom', lonFileName))
-    writeArrayToRaster(lats, os.path.join(out, 'geom', latFileName))
-
-    return latFileName, lonFileName
 
 
 def checkShapes(los, lats, lons, hts):
@@ -496,115 +325,6 @@ def modelName2Module(model_name):
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name, wmObject
-
-
-def gdal_trans(f1, f2, fmt='VRT'):
-    '''
-    translate a file from one location to another using GDAL
-    '''
-    ds1 = gdal.Open(f1)
-    if ds1 is None:
-        raise RuntimeError('Could not open the file {}'.format(f1))
-    ds2 = gdal.Translate(f2, ds1, format=fmt)
-    if ds2 is None:
-        raise RuntimeError('Could not translate the file {} to {}'.format(f1, f2))
-    ds1 = None
-    ds2 = None
-
-
-def isOutside(extent1, extent2):
-    '''
-    Determine whether any of extent1  lies outside extent2
-    extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
-    '''
-    t1 = extent1[0] < extent2[0]
-    t2 = extent1[1] > extent2[1]
-    t3 = extent1[2] < extent2[2]
-    t4 = extent1[3] > extent2[3]
-    if np.any([t1, t2, t3, t4]):
-        return True
-    return False
-
-
-def getExtent(lats, lons=None, shrink=1):
-    '''
-    get the bounding box around a set of lats/lons
-    '''
-    if lons is None:
-        ds   = gdal.Open(lats, gdal.GA_ReadOnly)
-        trans    = ds.GetGeoTransform()
-        # W E S N
-        extent   = [trans[0], trans[0] + ds.RasterXSize * trans[1],
-                    trans[3] + ds.RasterYSize*trans[5], trans[3]]
-        if shrink is not None:
-            delW, delE, delS, delN = shrink
-            extent = [extent[0] + delW, extent[1] - delE, extent[2] + delS, extent[3] - delN]
-        del ds
-        return extent
-
-    else:
-        return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
-
-
-def setLLds(infile, latfile, lonfile):
-    '''
-    Use a lat/lon file to set the x/y coordinates of infile
-    '''
-    ds = gdal.Open(infile, gdal.GA_ReadOnly)
-    ds.SetMetadata({'X_DATASET': os.path.abspath(latfile), 'X_BAND': '1',
-                    'Y_DATASET': os.path.abspath(lonfile), 'Y_BAND': '1'})
-
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
-    ds.SetProjection(srs.ExportToWkt())
-    del ds
-
-
-def parallel_apply_along_axis(func1d, axis, arr, *args, **kwargs):
-    """
-    Like numpy.apply_along_axis(), but takes advantage of multiple
-    cores.
-
-    This function and the one below (unpacking_apply_along_axis) were
-    copied from
-    https://stackoverflow.com/questions/45526700/easy-parallelization-of-numpy-apply-along-axis
-    """
-    # Effective axis where apply_along_axis() will be applied by each
-    # worker (any non-zero axis number would work, so as to allow the use
-    # of `np.array_split()`, which is only done on axis 0):
-
-    effective_axis = 1 if axis == 0 else axis
-    if effective_axis != axis:
-        arr = arr.swapaxes(axis, effective_axis)
-
-    # Chunks for the mapping (only a few chunks):
-    Nchunks = mp.cpu_count()*3//4
-    sub_arrs = np.array_split(arr, Nchunks)
-    chunks = [(func1d, effective_axis, sub_arr, args, kwargs)
-              for sub_arr in sub_arrs]
-
-    with mp.Pool() as pool:
-        individual_results = pool.map(unpacking_apply_along_axis, chunks)
-
-    conc_results = np.concatenate(individual_results)
-    ordered_results = conc_results.swapaxes(effective_axis, axis)
-
-    return ordered_results
-
-
-def unpacking_apply_along_axis(tup):
-    """
-    Like numpy.apply_along_axis(), but and with arguments in a tuple
-    instead.
-
-    This function is useful with multiprocessing.Pool().map(): (1)
-    map() only handles functions that take a single argument, and (2)
-    this function can generally be imported from a module, as required
-    by map().
-    """
-    func1d, axis, arr, arg, kwarg = tup
-    results = np.apply_along_axis(func1d, axis, arr, *arg, **kwarg)
-    return results
 
 
 def read_hgt_file(filename):

@@ -59,13 +59,6 @@ def test_cosd():
     )
 
 
-def test_tand():
-    assert np.allclose(
-        tand(np.array([0, 30, 45, 60])),
-        np.array([0, 1 / np.sqrt(3), 1, np.sqrt(3)])
-    )
-
-
 def test_gdal_open():
     out = gdal_open(os.path.join(TEST_DIR, "test_geom", "lat.rdr"), False)
 

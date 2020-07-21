@@ -47,7 +47,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     import numpy as np
 
     from RAiDER.models.allowed import checkIfImplemented
-    from RAiDER.utilFcns import getTimeFromFile, writeLL
+    from RAiDER.utilFcns import getTimeFromFile
 
     # Make weather
     weather_model, weather_files, weather_model_name = \
@@ -83,26 +83,6 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         download_flag = False
     else:
         weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
-
-############################################################################
-# TODO: Need to check this bit
-#    # Pull the lat/lon data if using the weather model
-#    if lats is None or len(lats)==2:
-#        uwn = True
-#        lats,lons = weather_model.getLL()
-#        lla = weather_model.getProjection()
-#        try:
-#            writeLL(time, lats, lons,lla, weather_model_name, out)
-#        except RuntimeError:
-#            try:
-#                os.mkdir(os.path.split(weather_model_name)[0])
-#                writeLL(time, lats, lons,lla, weather_model_name, out)
-#            except:
-#                print('Cannot save weather model Lat/Lons')
-#                print('Continuing to process')
-#    else:
-#        uwn = False
-############################################################################
 
     # weather model name
     if verbose:

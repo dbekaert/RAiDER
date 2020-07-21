@@ -50,8 +50,6 @@ class WeatherModel(ABC):
         self._g0 = const._g0  # gravity constant
         self._zmin = const._ZMIN  # minimum integration height
         self._zmax = const._ZREF  # max integration height
-        self._llaproj = CRS.from_epsg(4326)
-        self._ecefproj = CRS.from_epsg(4978)
         self._proj = None
 
         # setup data structures
@@ -242,12 +240,6 @@ class WeatherModel(ABC):
                 raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
         if time > datetime.datetime.today() - self._lag_time:
             raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-
-    def setLevelType(self, levelType='ml'):
-        '''
-        Update the level type to use in fetching data from the weather models
-        '''
-        self._model_level_type = levelType
 
     def _convertmb2Pa(self, pres):
         '''
@@ -524,9 +516,6 @@ class WeatherModel(ABC):
 
     def getPoints(self):
         return self._xs.copy(), self._ys.copy(), self._zs.copy()
-
-    def getLL(self):
-        return self._lats[..., 0].copy(), self._lons[..., 0].copy()
 
     def getXY_gdal(self, filename):
         '''
