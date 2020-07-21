@@ -547,19 +547,6 @@ class RaiderStats(object):
         else:
             return stat_ID, self.polygon_dict[id(grid_int)]
 
-    def _OGcheck_stationgrid_intersection(self, stat_ID):
-        '''
-        Return index of grid cell which intersects with station
-        Note: Fast, but assumes station locations don't change
-        '''
-        try:
-            coord = Point((self.unique_points[1][self.unique_points[0].index(
-                stat_ID)], self.unique_points[2][self.unique_points[0].index(stat_ID)]))
-            return stat_ID, [j.intersects(
-                coord) for j in self.append_poly].index(True)
-        except ValueError:
-            return stat_ID, 'NaN'
-
     def _reader(self):
         '''
         Read a input file
