@@ -9,13 +9,16 @@
 
 import argparse
 import datetime as dt
+import itertools
+import multiprocessing
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from RAiDER.downloadGNSSDelays import parse_cpus
 from shapely.geometry import Point, Polygon
-
+from shapely.strtree import STRtree
 
 def create_parser():
     """Parse command line arguments using argparse."""
@@ -48,6 +51,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           help='Specified input unit. Input will be converted into m if not already in m.')
     userinps.add_argument('-w', '--workdir', dest='workdir', default='./',
                           help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
+    userinps.add_argument('--cpus', dest='numCPUs', type=parse_cpus, default=8,
+                          help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.')
 
     # Spatiotemporal subset options
     dtsubsets = parser.add_argument_group(
@@ -136,7 +141,6 @@ class VariogramAnalysis():
         pull samples from a 2D image for variogram analysis
         '''
         import random
-        import itertools
         if len(data) < self.densitythreshold:
             print('WARNING: Less than {} points for this gridcell'.format(
                 self.densitythreshold))
@@ -443,7 +447,7 @@ class RaiderStats(object):
     # import dependencies
     import glob
 
-    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, cbounds=None, colorpercentile='25 95', verbose=False):
+    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, cbounds=None, colorpercentile='25 95', verbose=False, numCPUs=8):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -456,6 +460,7 @@ class RaiderStats(object):
         self.cbounds = cbounds
         self.colorpercentile = colorpercentile
         self.verbose = verbose
+        self.numCPUs = numCPUs
 
         # create workdir if it doesn't exist
         if not os.path.exists(self.workdir):
@@ -526,6 +531,34 @@ class RaiderStats(object):
         SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.}
 
         return val*SI[unit_in]/SI[unit_out]
+
+    def _check_stationgrid_intersection(self, stat_ID):
+        '''
+        Return index of grid cell which intersects with station
+        Note: Fast, but assumes station locations don't change
+        '''
+        coord = Point((self.unique_points[1][self.unique_points[0].index(
+            stat_ID)], self.unique_points[2][self.unique_points[0].index(stat_ID)]))
+        # Get grid cell polygon which intersect with station coordinate
+        grid_int = self.polygon_tree.query(coord)[0]
+        # Pass corresponding grid cell index
+        if grid_int == []:
+            return stat_ID, 'NaN'
+        else:
+            return stat_ID, self.polygon_dict[id(grid_int)]
+
+    def _OGcheck_stationgrid_intersection(self, stat_ID):
+        '''
+        Return index of grid cell which intersects with station
+        Note: Fast, but assumes station locations don't change
+        '''
+        try:
+            coord = Point((self.unique_points[1][self.unique_points[0].index(
+                stat_ID)], self.unique_points[2][self.unique_points[0].index(stat_ID)]))
+            return stat_ID, [j.intersects(
+                coord) for j in self.append_poly].index(True)
+        except ValueError:
+            return stat_ID, 'NaN'
 
     def _reader(self):
         '''
@@ -598,22 +631,22 @@ class RaiderStats(object):
             append_poly.append(Polygon(np.column_stack((np.array([bbox[2], bbox[3], bbox[3], bbox[2], bbox[2]]),
                                                         np.array([bbox[0], bbox[0], bbox[1], bbox[1], bbox[0]])))))  # Pass lons/lats to create polygon
 
-        # check for grid cell intersection with each station (loop through each station).. fast, but assumes station locations don't change
+        # Check for grid cell intersection with each station
         idtogrid_dict = {}
-        unique_points = self.df.groupby(['ID', 'Lon', 'Lat']).size()
-        unique_points = [unique_points.index.get_level_values('ID').tolist(), unique_points.index.get_level_values(
-            'Lon').tolist(), unique_points.index.get_level_values('Lat').tolist()]
-        for i in unique_points[0]:
-            try:
-                coord = Point((unique_points[1][unique_points[0].index(
-                    i)], unique_points[2][unique_points[0].index(i)]))
-                idtogrid_dict[i] = [j.intersects(
-                    coord) for j in append_poly].index(True)
-            except:
-                idtogrid_dict[i] = 'NaN'
+        self.unique_points = self.df.groupby(['ID', 'Lon', 'Lat']).size()
+        self.unique_points = [self.unique_points.index.get_level_values('ID').tolist(), self.unique_points.index.get_level_values(
+            'Lon').tolist(), self.unique_points.index.get_level_values('Lat').tolist()]
+        # Initiate R-tree of gridded array domain
+        self.polygon_dict = dict((id(pt), i) for i, pt in enumerate(append_poly))
+        self.polygon_tree = STRtree(append_poly)
+        # Parallelize check of station intersection with grid cells
+        with multiprocessing.Pool(self.numCPUs) as multipool:
+            for stat_ID,grd_index in multipool.starmap(self._check_stationgrid_intersection, itertools.product(self.unique_points[0])):
+                idtogrid_dict[stat_ID] = grd_index
+
         # map gridnode dictionary to dataframe
         self.df['gridnode'] = self.df['ID'].map(idtogrid_dict)
-        del unique_points, idtogrid_dict, append_poly
+        del self.unique_points, self.polygon_dict, self.polygon_tree, idtogrid_dict
         # sort by grid and date
         self.df.sort_values(['gridnode', 'Date'])
 
@@ -807,11 +840,13 @@ def stats_analyses(inps=None):
 
     # Station plots
     # Plot each individual station
+    start_time = time.time()
     if inps.station_distribution:
         print("- Plot spatial distribution of stations.")
         unique_points = df_stats.df.groupby(['Lon', 'Lat']).size()
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
         )], 'station_distribution', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
+    print("station_distribution took", time.time() - start_time)
     # Plot mean delay per station
     if inps.station_delay_mean:
         print("- Plot mean delay for each station.")
@@ -831,12 +866,14 @@ def stats_analyses(inps=None):
 
     # Gridded station plots
     # Plot density of stations for each gridcell
+    start_time = time.time()
     if inps.grid_heatmap:
         print("- Plot density of stations per gridcell.")
         gridarr_heatmap = np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(
             df_stats.df['ID'][df_stats.df['gridnode'] == i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T, 'grid_heatmap', workdir=os.path.join(inps.workdir, 'figures'), drawgridlines=inps.drawgridlines,
                  colorbarfmt='%1i', stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
+    print("grid_heatmap took", time.time() - start_time)
     # Plot mean delay for each gridcell
     if inps.grid_delay_mean:
         print("- Plot mean delay per gridcell.")
