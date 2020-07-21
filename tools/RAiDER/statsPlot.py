@@ -827,13 +827,11 @@ def stats_analyses(inps=None):
 
     # Station plots
     # Plot each individual station
-    start_time = time.time()
     if inps.station_distribution:
         print("- Plot spatial distribution of stations.")
         unique_points = df_stats.df.groupby(['Lon', 'Lat']).size()
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
         )], 'station_distribution', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
-    print("station_distribution took", time.time() - start_time)
     # Plot mean delay per station
     if inps.station_delay_mean:
         print("- Plot mean delay for each station.")
@@ -853,14 +851,12 @@ def stats_analyses(inps=None):
 
     # Gridded station plots
     # Plot density of stations for each gridcell
-    start_time = time.time()
     if inps.grid_heatmap:
         print("- Plot density of stations per gridcell.")
         gridarr_heatmap = np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(
             df_stats.df['ID'][df_stats.df['gridnode'] == i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T, 'grid_heatmap', workdir=os.path.join(inps.workdir, 'figures'), drawgridlines=inps.drawgridlines,
                  colorbarfmt='%1i', stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
-    print("grid_heatmap took", time.time() - start_time)
     # Plot mean delay for each gridcell
     if inps.grid_delay_mean:
         print("- Plot mean delay per gridcell.")
