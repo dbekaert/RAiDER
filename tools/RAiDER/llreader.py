@@ -6,12 +6,15 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import logging
 import os
 
 import numpy as np
 
 from RAiDER.demdownload import download_dem
 from RAiDER.utilFcns import gdal_open
+
+log = logging.getLogger(__name__)
 
 
 def readLL(*args):
@@ -57,7 +60,7 @@ def readLL(*args):
     return lats, lons, latproj, lonproj, bounds
 
 
-def getHeights(lats, lons, heights, useWeatherNodes=False, verbose=False):
+def getHeights(lats, lons, heights, useWeatherNodes=False):
     '''
     Fcn to return heights from a DEM, either one that already exists
     or will download one if needed.
@@ -69,8 +72,11 @@ def getHeights(lats, lons, heights, useWeatherNodes=False, verbose=False):
         try:
             hts = gdal_open(height_data)
         except:
-            print('WARNING: File {} could not be opened; requires GDAL-readable file. \n'.format(height_data))
-            print('Proceeding with DEM download')
+            log.warning(
+                'File %s could not be opened; requires GDAL-readable file.',
+                height_data, exc_info=True
+            )
+            log.info('Proceeding with DEM download')
             height_type = 'download'
 
     elif height_type == 'lvs':
@@ -95,7 +101,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False, verbose=False):
             data = pd.read_csv(f)
             lats = data['Lat'].values
             lons = data['Lon'].values
-            hts = download_dem(lats, lons, outName=f, save_flag='merge', verbose=verbose)
+            hts = download_dem(lats, lons, outName=f, save_flag='merge')
     else:
         if useWeatherNodes:
             hts = None

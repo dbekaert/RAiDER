@@ -1,9 +1,7 @@
 """Geodesy-related utility functions."""
 import importlib
 import itertools
-import multiprocessing as mp
 import os
-import pickle
 import re
 from datetime import datetime
 
@@ -74,7 +72,6 @@ def gdal_open(fname, returnProj=False):
             ndv = b.GetNoDataValue()
             d[d == ndv] = np.nan
         except:
-            print('NoDataValue attempt failed*******')
             pass
         val.append(d)
         b = None
@@ -108,8 +105,6 @@ def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
         f['hydroDelayUnit'] = "m"
         f['hgtsUnit'] = "m"
         f.attrs['DelayType'] = delayType
-
-    print('Finished writing data to {}'.format(filename))
 
 
 def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):

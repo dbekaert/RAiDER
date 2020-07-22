@@ -6,6 +6,7 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import logging
 import os
 import time
 
@@ -15,17 +16,18 @@ from scipy.interpolate import RegularGridInterpolator as rgi
 
 import RAiDER.utilFcns
 
+log = logging.getLogger(__name__)
+
 _world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
               'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
 
 
 def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
-                 outName='warpedDEM.dem', ndv=0., verbose=False):
+                 outName='warpedDEM.dem', ndv=0.):
     '''
     Download a DEM if one is not already present.
     '''
-    if verbose: 
-        print('Getting the DEM')
+    log.debug('Getting the DEM')
 
     # Insert check for DEM noData values
     if checkDEM:
@@ -44,13 +46,17 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         outRasterName = outName
 
     if os.path.exists(outRasterName):
-        print('WARNING: DEM already exists in {}, checking shape'.format(os.path.dirname(outRasterName)))
+        log.warning(
+            'DEM already exists in %s, checking shape',
+            os.path.dirname(outRasterName)
+        )
         try:
             hgts = RAiDER.utilFcns.gdal_open(outRasterName)
             if hgts.shape != lats.shape:
-                raise RuntimeError('Existing DEM does not cover the area of the input \n \
-                              lat/lon points; either move the DEM, delete it, or \n \
-                              change the inputs.')
+                raise RuntimeError(
+                    'Existing DEM does not cover the area of the input lat/lon '
+                    'points; either move the DEM, delete it, or change the inputs.'
+                )
         except RuntimeError:
             hgts = RAiDER.utilFcns.read_hgt_file(outRasterName)
 
@@ -58,9 +64,8 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         return hgts
 
     # Specify filenames
-    if verbose:
-        print('Getting the DEM')
-        st = time.time()
+    log.debug('Getting the DEM')
+    st = time.time()
 
     memRaster = '/vsimem/warpedDEM'
     inRaster = '/vsicurl/{}'.format(_world_dem)
@@ -69,16 +74,14 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
     # Load the DEM data
     out = RAiDER.utilFcns.gdal_open(memRaster)
 
-    if verbose:
-        print('Loaded the DEM')
-        et = time.time()
-        print('DEM download took {:.2f} seconds'.format(et - st))
+    log.debug('Loaded the DEM')
+    et = time.time()
+    log.debug('DEM download took %.2f seconds', et - st)
 
     #  Flip the orientation, since GDAL writes top-bot
     out = out[::-1]
 
-    if verbose:
-        print('Beginning interpolation')
+    log.debug('Beginning interpolation')
 
     nPixLat = out.shape[0]
     nPixLon = out.shape[1]
@@ -90,12 +93,10 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
 
     outInterp = interpolator(np.stack((lats, lons), axis=-1))
 
-    if verbose:
-        print('Interpolation finished')
+    log.debug('Interpolation finished')
 
     if save_flag == 'new':
-        if verbose:
-            print('Saving DEM to disk')
+        log.debug('Saving DEM to disk')
         # ensure folders are created
         folderName = os.sep.join(os.path.split(outRasterName)[:-1])
         os.makedirs(folderName, exist_ok=True)

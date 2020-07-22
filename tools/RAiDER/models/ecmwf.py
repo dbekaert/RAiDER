@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 from pyproj import CRS
 
-import RAiDER.utilFcns as util
+from RAiDER import utilFcns as util
 from RAiDER.models.weatherModel import WeatherModel
 
 
@@ -192,6 +192,5 @@ class ECMWF(WeatherModel):
             "step": "0",
             "area": bbox,
             "format": "netcdf"}
-        print(dataDict)
 
         c.retrieve('reanalysis-era5-pressure-levels', dataDict, outname)

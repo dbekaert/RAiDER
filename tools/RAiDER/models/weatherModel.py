@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 from abc import ABC, abstractmethod
 
@@ -16,6 +17,8 @@ from RAiDER.losreader import getLookVectors
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
 from RAiDER.utilFcns import lla2ecef, robmax, robmin
+
+log = logging.getLogger(__name__)
 
 
 class WeatherModel(ABC):
@@ -230,7 +233,10 @@ class WeatherModel(ABC):
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
-        print('Weather model {} is available from {}-{}'.format(self.Model(), self._valid_range[0], self._valid_range[1]))
+        log.info(
+            'Weather model %s is available from %s-%s',
+            self.Model(), self._valid_range[0], self._valid_range[1]
+        )
         if time < self._valid_range[0]:
             raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
         if self._valid_range[1] is not None:
@@ -320,10 +326,12 @@ class WeatherModel(ABC):
             in_extent = self._getExtent(lats, lons)
             self_extent = self._getExtent(self._lats, self._lons)
             if self._isOutside(in_extent, self_extent):
-                print('Extent of the input lats/lons is: {}'.format(in_extent))
-                print('Extent of the weather model is: {}'.format(self_extent))
-                print('The weather model passed does not cover all of the \n \
-                                  input points; you need to download a larger area.')
+                log.info('Extent of the input lats/lons is: {}'.format(in_extent))
+                log.info('Extent of the weather model is: {}'.format(self_extent))
+                log.info(
+                    'The weather model passed does not cover all of the input '
+                    'points; you need to download a larger area.'
+                )
                 raise RuntimeError('Check the weather model')
             self._trimExtent(in_extent)
 

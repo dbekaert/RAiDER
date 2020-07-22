@@ -12,3 +12,4 @@ Makefile
 dummy*
 weather_files
 test/data
+*.log

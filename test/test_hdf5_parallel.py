@@ -32,7 +32,6 @@ def test_get_delays_accuracy(tmp_path):
             POINTS_FILE,
             MODEL_FILE,
             interpType,
-            verbose=True,
             cpu_num=1
         )
 
@@ -41,7 +40,6 @@ def test_get_delays_accuracy(tmp_path):
             POINTS_FILE,
             MODEL_FILE,
             interpType,
-            verbose=True,
             cpu_num=4
         )
         assert np.allclose(delays_wet_1, delays_wet_4)
