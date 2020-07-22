@@ -292,6 +292,8 @@ def parse_cpus(cpustr):
         cpus = os.cpu_count()
     elif cpus.isdigit():
         cpus = int(cpus)
+    elif cpus.lstrip("-").isdigit():
+        raise Exception("Specified invalid negative --cpus argument. Relaunch with valid integer argument or 'all'.")
     else:
         raise Exception("Cannot understand the --cpus argument. Valid integer argument or 'all' not specified.")
     
