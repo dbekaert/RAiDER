@@ -31,14 +31,26 @@ class UnixColorFormatter(Formatter):
 
     def __init__(self, fmt=None, datefmt=None, style="%", use_color=True):
         super().__init__(fmt, datefmt, style)
+        # Save the old function so we can call it later
+        self.__formatMessage = self.formatMessage
         if use_color:
             self.formatMessage = self.formatMessageColor
 
     def formatMessageColor(self, record):
-        message = super().formatMessage(record)
+        message = self.__formatMessage(record)
         color = self.COLORS.get(record.levelno)
         if color:
-            return "".join([color, message, self.reset])
+            message = "".join([color, message, self.reset])
+        return message
+
+
+class CustomFormatter(UnixColorFormatter):
+    """Adds levelname prefixes to the message on warning or above."""
+
+    def formatMessage(self, record):
+        message = super().formatMessage(record)
+        if record.levelno >= logging.WARNING:
+            message = ": ".join((record.levelname, message))
         return message
 
 
@@ -46,7 +58,7 @@ logger = logging.getLogger("RAiDER")
 logger.setLevel(logging.INFO)
 
 stdout_handler = StreamHandler(sys.stdout)
-stdout_handler.setFormatter(UnixColorFormatter(use_color=os.name != "nt"))
+stdout_handler.setFormatter(CustomFormatter(use_color=os.name != "nt"))
 
 errorfile_handler = FileHandler("error.log")
 errorfile_handler.setFormatter(Formatter(
