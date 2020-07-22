@@ -72,7 +72,6 @@ def gdal_open(fname, returnProj=False):
             ndv = b.GetNoDataValue()
             d[d == ndv] = np.nan
         except:
-            print('NoDataValue attempt failed*******')
             pass
         val.append(d)
         b = None
