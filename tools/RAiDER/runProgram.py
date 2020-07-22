@@ -1,10 +1,14 @@
 import argparse
+import logging
 from datetime import timedelta
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
+from RAiDER.logger import logger
 from RAiDER.utilFcns import parse_date, parse_time
+
+log = logging.getLogger(__name__)
 
 
 def read_date(s):
@@ -144,13 +148,15 @@ def parseCMD():
     times, out, download_only, verbose, \
     wetNames, hydroNames = checkArgs(args, p)
 
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
         try:
             (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
-                                 outformat, t, out, download_only, verbose, wfn, hfn)
+                                 outformat, t, out, download_only, wfn, hfn)
 
-        except RuntimeError as e:
-            print('Date {} failed'.format(t))
-            print(e)
+        except RuntimeError:
+            log.exception("Date %s failed", t)
             continue

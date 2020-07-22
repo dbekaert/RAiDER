@@ -48,7 +48,6 @@ def test_tropo_delay(tmp_path):
             time=time,
             out=tmp_path,
             download_only=False,
-            verbose=True,
             wetFilename=wet_file,
             hydroFilename=hydro_file
         )

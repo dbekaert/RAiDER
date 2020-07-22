@@ -1,9 +1,7 @@
 """Geodesy-related utility functions."""
 import importlib
 import itertools
-import multiprocessing as mp
 import os
-import pickle
 import re
 from datetime import datetime
 
@@ -108,8 +106,6 @@ def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
         f['hydroDelayUnit'] = "m"
         f['hgtsUnit'] = "m"
         f.attrs['DelayType'] = delayType
-
-    print('Finished writing data to {}'.format(filename))
 
 
 def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):

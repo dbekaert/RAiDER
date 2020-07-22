@@ -6,27 +6,28 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import logging
 import multiprocessing as mp
 import time
 
 import h5py
 import numpy as np
-import pyproj
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.constants import _STEP
 from RAiDER.makePoints import makePoints1D
 
+log = logging.getLogger(__name__)
 
-def calculate_rays(pnts_file, stepSize=_STEP, verbose=False):
+
+def calculate_rays(pnts_file, stepSize=_STEP):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the
     top of the atmosphere, using either a set of look vectors or the zenith
     '''
-    if verbose:
-        print('calculate_rays: Starting look vector calculation')
-        print('The integration stepsize is {} m'.format(stepSize))
+    log.debug('calculate_rays: Starting look vector calculation')
+    log.debug('The integration stepsize is %f m', stepSize)
 
     # get the lengths of each ray for doing the interpolation
     getUnitLVs(pnts_file)
@@ -80,7 +81,7 @@ def lla2ecef(pnts_file):
 
 
 def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
-               verbose=False, delayType="Zenith", cpu_num=0):
+               delayType="Zenith", cpu_num=0):
     '''
     Create the integration points for each ray path.
     '''
@@ -134,11 +135,14 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     time_elapse = (time.time() - t0)
     with open('get_delays_time_elapse.txt', 'w') as f:
         f.write('{}'.format(time_elapse))
-    if verbose:
-        time_elapse_hr = int(np.floor(time_elapse/3600.0))
-        time_elapse_min = int(np.floor((time_elapse - time_elapse_hr*3600.0)/60.0))
-        time_elapse_sec = (time_elapse - time_elapse_hr*3600.0 - time_elapse_min*60.0)
-        print("Delay estimation cost {0} hour(s) {1} minute(s) {2} second(s) using {3} cpu threads".format(time_elapse_hr, time_elapse_min, time_elapse_sec, cpu_num))
+
+    time_elapse_hr = int(np.floor(time_elapse/3600.0))
+    time_elapse_min = int(np.floor((time_elapse - time_elapse_hr*3600.0)/60.0))
+    time_elapse_sec = (time_elapse - time_elapse_hr*3600.0 - time_elapse_min*60.0)
+    log.debug(
+        "Delay estimation cost %d hour(s) %d minute(s) %d second(s) using %d cpu threads",
+        time_elapse_hr, time_elapse_min, time_elapse_sec, cpu_num
+    )
     return wet_delay, hydro_delay
 
 

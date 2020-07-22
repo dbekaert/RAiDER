@@ -26,8 +26,7 @@ def checkArgs(args, p):
     if args.heightlvs is not None:
         if args.outformat is not None:
             if args.outformat.lower() != 'hdf5':
-                print('HDF5 must be used with height levels')
-                args.outformat = 'hdf5'
+                raise RuntimeError('HDF5 must be used with height levels')
 
     # Area
     # flag depending on the type of input
@@ -51,9 +50,7 @@ def checkArgs(args, p):
     elif args.station_file is not None:
         lat, lon, latproj, lonproj, bounds = readLL(args.station_file)
     elif args.files is None:
-        print("""I cannot read the lat/lon data from the supplied files because
-this option has not yet been implemented.""")
-        raise NotImplementedError()
+        raise NotImplementedError("Reading lat/lon data from files is not implemented")
     else:
         raise RuntimeError('You must specify an area of interest')
 
