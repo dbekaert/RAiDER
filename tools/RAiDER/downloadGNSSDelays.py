@@ -9,6 +9,7 @@
 
 import argparse
 import itertools
+import multiprocessing
 import os
 import sys
 
@@ -66,7 +67,7 @@ downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:0
         default='.')
 
     misc.add_argument(
-        '--years', '-y', dest='years', nargs='+',
+        '--years', '-y', dest='years',
         help="""Year to check or download delays (format YYYY).
 Can be a single value or a comma-separated list. If two years non-consecutive years are given, download each year in between as well. 
 """, type=parse_years, required=True)
@@ -80,6 +81,11 @@ Can be a single value or a comma-separated list. If two years non-consecutive ye
         '--download',
         help='Physically download data. Note this option is not necessary to proceed with statistical analyses, as data can be handled virtually in the program.',
         action='store_true', dest='download', default=False)
+
+    misc.add_argument(
+        '--cpus',
+        help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.',
+        dest='numCPUs', type=parse_cpus, default=8)
 
     misc.add_argument(
         '--verbose', '-v',
@@ -152,7 +158,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     return stations
 
 
-def download_tropo_delays(stats, years, writeDir='.', download=False, verbose=False):
+def download_tropo_delays(stats, years, writeDir='.', numCPUs=8, download=False, verbose=False):
     '''
     Check for and download GNSS tropospheric delays from an archive. If download is True then 
     files will be physically downloaded, which again is not necessary as data can be virtually accessed. 
@@ -165,20 +171,22 @@ def download_tropo_delays(stats, years, writeDir='.', download=False, verbose=Fa
         raise TypeError('years should be an int or a list of ints')
 
     # Iterate over stations and years and check or download data
-    results = []
     stat_year_tup = itertools.product(stats, years)
-    for s, y in itertools.product(stats, years):
-        if verbose:
-            print('Currently checking station {} in {}'.format(s, y))
-        fileurl = download_UNR(s, y, writeDir=writeDir,
-                               download=download, verbose=verbose)
+    stat_year_tup = ((*tup, writeDir, download, verbose) for tup in stat_year_tup)
+    # Parallelize remote querying of station locations
+    with multiprocessing.Pool(numCPUs) as multipool:
         # only record valid path
-        if fileurl:
-            results.append({'ID': s, 'year': y, 'path': fileurl})
-    return pd.DataFrame(results).set_index('ID')
+        results = [fileurl for fileurl in multipool.starmap(download_UNR,stat_year_tup) \
+            if fileurl['path']]
+
+    # Write results to file
+    statDF = pd.DataFrame(results).set_index('ID')
+    statDF.to_csv(os.path.join(writeDir, 'gnssStationList_overbbox_withpaths.csv'))
+
+    return
 
 
-def download_UNR(statID, year, writeDir='.', baseURL=_UNR_URL, download=False, verbose=False):
+def download_UNR(statID, year, writeDir='.', download=False, verbose=False, baseURL=_UNR_URL):
     '''
     Download a zip file containing tropospheric delays for a given station and year
     The URL format is http://geodesy.unr.edu/gps_timeseries/trop/<ssss>/<ssss>.<yyyy>.trop.zip
@@ -188,13 +196,15 @@ def download_UNR(statID, year, writeDir='.', baseURL=_UNR_URL, download=False, v
     '''
     URL = "{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip".format(
         baseURL, statID.upper(), year)
+    if verbose:
+        print('Currently checking station {} in {}'.format(statID, year))
     if download:
         saveLoc = os.path.abspath(os.path.join(
             writeDir, '{0}.{1}.trop.zip'.format(statID.upper(), year)))
         filepath = download_url(URL, saveLoc, verbose=verbose)
     else:
         filepath = check_url(URL, verbose=verbose)
-    return filepath
+    return {'ID': statID, 'year': year, 'path': filepath}
 
 
 def download_url(url, save_path, verbose=False, chunk_size=2048):
@@ -272,6 +282,24 @@ def parse_years(timestr):
     return years
 
 
+def parse_cpus(cpustr):
+    '''
+    Takes string input and returns integer number of cpus for multiprocessing
+    '''
+    cpus = cpustr.lower()
+    # If user specifies 'all', pass maximum number of CPUs allowed by system. Otherwise, pass specified integer.
+    if cpus == 'all':
+        cpus = os.cpu_count()
+    elif cpus.isdigit():
+        cpus = int(cpus)
+    elif cpus.lstrip("-").isdigit():
+        raise Exception("Specified invalid negative --cpus argument. Relaunch with valid integer argument or 'all'.")
+    else:
+        raise Exception("Cannot understand the --cpus argument. Valid integer argument or 'all' not specified.")
+    
+    return cpus
+
+
 def query_repos(inps=None):
     """
     Main workflow for querying supported GPS repositories for zenith delay information.
@@ -303,11 +331,8 @@ def query_repos(inps=None):
         bbox=bbox, writeLoc=inps.out, userstatList=inps.station_file)
 
     # iterate over years
-    for yr in inps.years:
-        statDF = download_tropo_delays(
-            stats, yr, writeDir=inps.out, download=inps.download, verbose=inps.verbose)
-        statDF.to_csv(os.path.join(
-            inps.out, 'gnssStationList_overbbox_withpaths.csv'))
+    download_tropo_delays(
+        stats, inps.years, writeDir=inps.out, download=inps.download, verbose=inps.verbose)
 
     # Add lat/lon info
     origstatsFile = pd.read_csv(origstatsFile)
@@ -317,11 +342,11 @@ def query_repos(inps=None):
                          how='left', left_on='ID', right_on='ID')
     statsFile.to_csv(os.path.join(
         inps.out, 'gnssStationList_overbbox_withpaths.csv'), index=False)
-    del statDF, origstatsFile, statsFile
+    del origstatsFile, statsFile
 
     # Extract delays for each station
-    get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'),
-                     outDir=inps.out, returnTime=inps.returnTime)
+    get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=inps.numCPUs,
+                   outDir=inps.out, returnTime=inps.returnTime)
 
     if inps.verbose:
         print('Completed processing')

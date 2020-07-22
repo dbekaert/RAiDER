@@ -10,6 +10,7 @@
 import datetime as dt
 import gzip
 import io
+import multiprocessing
 import os
 import zipfile
 
@@ -67,14 +68,15 @@ def get_delays(stationFile, filename, returnTime=None):
                     continue
                 # Attempt to read data
                 try:
+                    split_lines=line.split()
                     # units: mm, mm, mm, deg, deg, deg, deg, mm, mm, K
                     trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
-                        [float(t) for t in line.split()[2:]]
+                        [float(t) for t in split_lines[2:]]
                 except:
                     continue
-                site = line.split()[0]
+                site = split_lines[0]
                 year, doy, seconds = [int(n)
-                                      for n in line.split()[1].split(':')]
+                                      for n in split_lines[1].split(':')]
                 # Break iteration if time from line in file does not match date reported in filename
                 if doy != doyFromFile:
                     print('WARNING: time {} from line in conflict with time {} from file {}, will continue reading next tarfile(s)' \
@@ -135,10 +137,10 @@ def get_delays(stationFile, filename, returnTime=None):
     allstationTarfiles.sort()
     del ziprepo
 
-    return allstationTarfiles
+    return
 
 
-def get_station_data(inFile, outDir=None, returnTime=None):
+def get_station_data(inFile, numCPUs=8, outDir=None, returnTime=None):
     '''
     Pull tropospheric delay data for a given station name
     '''
@@ -167,11 +169,15 @@ def get_station_data(inFile, outDir=None, returnTime=None):
 
     if len(stationFiles) > 0:
         outputfiles = []
+        args = []
         for sf in stationFiles:
             StationID = os.path.basename(sf).split('.')[0]
             name = os.path.join(pathbase, StationID + '_ztd.csv')
-            result = get_delays(sf, name, returnTime=returnTime)
+            args.append((sf, name, returnTime))
             outputfiles.append(name)
+        # Parallelize remote querying of zenith delays
+        with multiprocessing.Pool(numCPUs) as multipool:
+            multipool.starmap(get_delays, args)
 
     # Consolidate all CSV files into one object
     name = os.path.join(outDir, 'CombinedGPS_ztd.csv')
@@ -186,8 +192,9 @@ def get_station_data(inFile, outDir=None, returnTime=None):
     origstatsFile = pd.read_csv(inFile)
     statsFile = pd.read_csv(name)
     statsFile = pd.merge(left=statsFile, right=origstatsFile[['ID', 'Lat', 'Lon']], how='left', left_on='ID', right_on='ID')
-    # drop all lines with nans
+    # drop all lines with nans and sort by station ID and year
     statsFile.dropna(how='any', inplace=True)
+    statsFile.sort_values(['ID', 'Date'])
     statsFile.to_csv(name, index=False)
     del origstatsFile, statsFile
 

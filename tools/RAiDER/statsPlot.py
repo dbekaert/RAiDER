@@ -9,13 +9,17 @@
 
 import argparse
 import datetime as dt
+import itertools
+import multiprocessing
 import os
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from RAiDER.downloadGNSSDelays import parse_cpus
 from shapely.geometry import Point, Polygon
-
+from shapely.strtree import STRtree
 
 def create_parser():
     """Parse command line arguments using argparse."""
@@ -48,6 +52,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           help='Specified input unit. Input will be converted into m if not already in m.')
     userinps.add_argument('-w', '--workdir', dest='workdir', default='./',
                           help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
+    userinps.add_argument('--cpus', dest='numCPUs', type=parse_cpus, default=8,
+                          help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.')
 
     # Spatiotemporal subset options
     dtsubsets = parser.add_argument_group(
@@ -121,21 +127,21 @@ class VariogramAnalysis():
         Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis.
     '''
 
-    def __init__(self, filearg, gridpoints, col_name, workdir='./', seasonalinterval=None, densitythreshold=10, verbose=False, binnedvariogram=False):
+    def __init__(self, filearg, gridpoints, col_name, workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, verbose=False):
         self.df = filearg
         self.col_name = col_name
         self.gridpoints = gridpoints
         self.workdir = workdir
         self.seasonalinterval = seasonalinterval
         self.densitythreshold = densitythreshold
-        self.verbose = verbose
         self.binnedvariogram = binnedvariogram
+        self.numCPUs = numCPUs
+        self.verbose = verbose
 
     def _get_samples(self, data, Nsamp=None):
         '''
         pull samples from a 2D image for variogram analysis
         '''
-        import itertools
         import random
         if len(data) < self.densitythreshold:
             print('WARNING: Less than {} points for this gridcell'.format(
@@ -202,9 +208,10 @@ class VariogramAnalysis():
         '''
         return a binned empirical variogram
         '''
-        import warnings
         if xBin is None:
-            xBin = np.linspace(0, np.nanmax(hEff)*.67, 20)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+                xBin = np.linspace(0, np.nanmax(hEff)*.67, 20)
 
         nBins = len(xBin)-1
         hExp, expVario = [], []
@@ -221,7 +228,7 @@ class VariogramAnalysis():
                 pass
 
         if False in ~np.isnan(hExp):
-            #print('Warning: NaNs present in binned histogram')
+            # NaNs present in binned histogram
             hExp = [x for x in hExp if str(x) != 'nan']
             expVario = [x for x in expVario if str(x) != 'nan']
 
@@ -237,8 +244,10 @@ class VariogramAnalysis():
             return (m(x, d) - v)
 
         if ub is None:
-            ub = np.array([np.nanmax(dists)*0.8, np.nanmax(vario)
-                           * 0.8, np.nanmax(vario)*0.8])
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+                ub = np.array([np.nanmax(dists)*0.8, np.nanmax(vario)
+                               * 0.8, np.nanmax(vario)*0.8])
 
         if x0 is None and Nparm is None:
             raise RuntimeError(
@@ -258,7 +267,9 @@ class VariogramAnalysis():
                                    loss='soft_l1', f_scale=0.1,
                                    args=(d, v, model))
 
-        d_test = np.linspace(0, np.nanmax(dists), 100)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+            d_test = np.linspace(0, np.nanmax(dists), 100)
         # v_test is my y., # res_robust.x =a, b, c, where a = range, b = sill, and c = nugget model, d_test=x
         v_test = model(res_robust.x, d_test)
 
@@ -272,7 +283,9 @@ class VariogramAnalysis():
         '''
         # a = range, b = sill, c = nugget model
         a, b, c = parms
-        return b*(1 - np.exp(-h/a)) + c
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="overflow encountered in true_divide")
+            return b*(1 - np.exp(-h/a)) + c
 
     # this would be gaussian plus nugget
     def __gaussian__(self, parms, h):
@@ -281,6 +294,137 @@ class VariogramAnalysis():
         '''
         a, b, c = parms
         return b*(1 - np.exp(-np.square(h)/(a**2))) + c
+
+    def _append_variogram(self, grid_ind, grid_subset):
+        '''
+        For a given grid-cell, iterate through time slices to generate/append empirical variogram(s)
+        '''
+        # Comprehensive arrays recording data across all time epochs for given station
+        dists_arr = []
+        vario_arr = []
+        dists_binned_arr = []
+        vario_binned_arr = []
+        res_robust_arr = []
+        d_test_arr = []
+        v_test_arr = []
+        for j in sorted(list(set(grid_subset['Date']))):
+            # If insufficient sample size, skip slice and record occurence
+            if len(np.array(grid_subset[grid_subset['Date'] == j][self.col_name])) < self.densitythreshold:
+                # Record skipped [gridnode, timeslice]
+                self.skipped_slices.append([grid_ind, j.strftime("%Y-%m-%d")])
+            else:
+                self.gridcenterlist.append(['grid{} '.format(
+                    grid_ind)+'Lat:{} Lon:{}'.format(
+                    str(self.gridpoints[grid_ind][1]), str(self.gridpoints[grid_ind][0]))])
+                lonarr = np.array(
+                    grid_subset[grid_subset['Date'] == j]['Lon'])
+                latarr = np.array(
+                    grid_subset[grid_subset['Date'] == j]['Lat'])
+                delayarray = np.array(
+                    grid_subset[grid_subset['Date'] == j][self.col_name])
+                # fit empirical variogram for each time AND grid
+                dists, vario = self._emp_vario(lonarr, latarr, delayarray)
+                dists_binned, vario_binned = self._binned_vario(
+                    dists, vario)
+                # fit experimental variogram for each time AND grid, model default is exponential
+                res_robust, d_test, v_test = self._fit_vario(
+                    dists_binned, vario_binned, model=self.__exponential__, x0=None, Nparm=3)
+                # Plot empirical + experimental variogram for this gridnode and timeslice
+                if not os.path.exists(os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind))):
+                    os.makedirs(os.path.join(
+                        self.workdir, 'variograms/grid{}'.format(grid_ind)))
+                # Make variogram plots for each time-slice if verbose mode specified.
+                if self.verbose:
+                    # Plot empirical variogram for this gridnode and timeslice
+                    self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
+                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists, vario=vario,
+                        dists_binned=dists_binned, vario_binned=vario_binned)
+                    # Plot experimental variogram for this gridnode and timeslice
+                    self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
+                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=d_test, v_test=v_test,
+                        res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)
+                # append for plotting
+                self.good_slices.append([grid_ind, j.strftime("%Y%m%d")])
+                dists_arr.append(dists)
+                vario_arr.append(vario)
+                dists_binned_arr.append(dists_binned)
+                vario_binned_arr.append(vario_binned)
+                res_robust_arr.append(res_robust.x)
+                d_test_arr.append(d_test)
+                v_test_arr.append(v_test)
+        # fit experimental variogram for each grid
+        if dists_binned_arr != []:
+            # TODO: need to change this from accumulating binned data to raw data
+            dists_arr = np.concatenate(dists_arr).ravel()
+            vario_arr = np.concatenate(vario_arr).ravel()
+            # if specified, passed binned empirical variograms
+            if self.binnedvariogram:
+                dists_binned_arr = np.concatenate(dists_binned_arr).ravel()
+                vario_binned_arr = np.concatenate(vario_binned_arr).ravel()
+            else:
+                dists_binned_arr, vario_binned_arr = self._binned_vario(
+                    dists_arr, vario_arr)
+            TOT_res_robust, TOT_d_test, TOT_v_test = self._fit_vario(
+                dists_binned_arr, vario_binned_arr, model=self.__exponential__, x0=None, Nparm=3)
+            # Plot empirical variogram for this gridnode and timeslice
+            tot_timetag = self.good_slices[0][1]+'–'+self.good_slices[-1][1]
+            # Append TOT arrays
+            self.TOT_good_slices.append([grid_ind, tot_timetag])
+            self.TOT_res_robust_arr.append(TOT_res_robust.x)
+            self.TOT_tot_timetag.append(tot_timetag)
+            self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
+                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists_arr, vario=vario_arr,
+                dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
+            # Plot experimental variogram for this gridnode and timeslice
+            self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
+                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=TOT_d_test, v_test=TOT_v_test,
+                res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
+        # Record sparse grids which didn't have sufficient sample size of data through any of the timeslices
+        else:
+            self.sparse_grids.append(grid_ind)
+
+        return self.TOT_good_slices, self.TOT_res_robust_arr, self.gridcenterlist
+
+    def create_variograms(self):
+        '''
+        Iterate through grid-cells and time slices to generate empirical variogram(s)
+        '''
+        # track data for plotting
+        self.TOT_good_slices = []
+        self.TOT_res_robust_arr = []
+        self.TOT_tot_timetag = []
+        # track pass/rejected grids
+        self.sparse_grids = []
+        self.good_slices = []
+        self.skipped_slices = []
+        # record grid-centers for lookup-table
+        self.gridcenterlist = []
+        args = []
+        for i in sorted(list(set(self.df['gridnode']))):
+            # pass subset of all stations corresponding to given grid-cell
+            grid_subset = self.df[self.df['gridnode'] == i]
+            args.append((i, grid_subset))
+        # Parallelize iteration through all grid-cells and time slices
+        with multiprocessing.Pool(self.numCPUs) as multipool:
+            for i,j,k in multipool.starmap(self._append_variogram, args):
+                self.TOT_good_slices.extend(i)
+                self.TOT_res_robust_arr.extend(j)
+                self.gridcenterlist.extend(k)
+
+        # save grid-center lookup table
+        self.gridcenterlist = [list(i) for i in set(tuple(j)
+                                               for j in self.gridcenterlist)]
+        self.gridcenterlist.sort(key=lambda x: int(x[0][4:6]))
+        gridcenter = open(
+            (os.path.join(self.workdir, 'variograms/gridlocation_lookup.txt')), "w")
+        for element in self.gridcenterlist:
+            gridcenter.writelines("\n".join(element))
+            gridcenter.write("\n")
+        gridcenter.close()
+
+        TOT_grids = [i[0] for i in self.TOT_good_slices]
+
+        return TOT_grids, self.TOT_res_robust_arr
 
     def plot_variogram(self, gridID, timeslice, coords, workdir='./', d_test=None, v_test=None, res_robust=None, dists=None, vario=None, dists_binned=None, vario_binned=None, seasonalinterval=None):
         '''
@@ -328,112 +472,6 @@ class VariogramAnalysis():
 
         return
 
-    def create_variograms(self):
-        # Iterate through stations and time slice to append empirical variogram
-        # track data for plotting
-        TOT_good_slices = []
-        TOT_res_robust_arr = []
-        TOT_tot_timetag = []
-        # track pass/rejected grids
-        sparse_grids = []
-        good_slices = []
-        skipped_slices = []
-        # record grid-centers for lookup-table
-        gridcenterlist = []
-        for i in sorted(list(set(self.df['gridnode']))):
-            dists_arr = []
-            vario_arr = []
-            dists_binned_arr = []
-            vario_binned_arr = []
-            res_robust_arr = []
-            d_test_arr = []
-            v_test_arr = []
-            grid_subset = self.df[self.df['gridnode'] == i]
-            for j in sorted(list(set(grid_subset['Date']))):
-                # If insufficient sample size, skip slice and record occurence
-                if len(np.array(grid_subset[grid_subset['Date'] == j][self.col_name])) < self.densitythreshold:
-                    # Record skipped [gridnode, timeslice]
-                    skipped_slices.append([i, j.strftime("%Y-%m-%d")])
-                else:
-                    gridcenterlist.append(['grid{} '.format(
-                        i)+'Lat:{} Lon:{}'.format(str(self.gridpoints[i][1]), str(self.gridpoints[i][0]))])
-                    lonarr = np.array(
-                        grid_subset[grid_subset['Date'] == j]['Lon'])
-                    latarr = np.array(
-                        grid_subset[grid_subset['Date'] == j]['Lat'])
-                    delayarray = np.array(
-                        grid_subset[grid_subset['Date'] == j][self.col_name])
-                    # fit empirical variogram for each time AND grid
-                    dists, vario = self._emp_vario(lonarr, latarr, delayarray)
-                    dists_binned, vario_binned = self._binned_vario(
-                        dists, vario)
-                    # fit experimental variogram for each time AND grid, model default is exponential
-                    res_robust, d_test, v_test = self._fit_vario(
-                        dists_binned, vario_binned, model=self.__exponential__, x0=None, Nparm=3)
-                    # Plot empirical + experimental variogram for this gridnode and timeslice
-                    if not os.path.exists(os.path.join(self.workdir, 'variograms/grid{}'.format(i))):
-                        os.makedirs(os.path.join(
-                            self.workdir, 'variograms/grid{}'.format(i)))
-                    # Make variogram plots for each time-slice if verbose mode specified.
-                    if self.verbose:
-                        # Plot empirical variogram for this gridnode and timeslice
-                        self.plot_variogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
-                            self.workdir, 'variograms/grid{}'.format(i)), dists=dists, vario=vario, dists_binned=dists_binned, vario_binned=vario_binned)  # in verbose
-                        # Plot experimental variogram for this gridnode and timeslice
-                        self.plot_variogram(i, j.strftime("%Y%m%d"), [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
-                            self.workdir, 'variograms/grid{}'.format(i)), d_test=d_test, v_test=v_test, res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)  # in verbose
-                    # append for plotting
-                    good_slices.append([i, j.strftime("%Y%m%d")])
-                    dists_arr.append(dists)
-                    vario_arr.append(vario)
-                    dists_binned_arr.append(dists_binned)
-                    vario_binned_arr.append(vario_binned)
-                    res_robust_arr.append(res_robust.x)
-                    d_test_arr.append(d_test)
-                    v_test_arr.append(v_test)
-            # fit experimental variogram for each grid
-            if dists_binned_arr != []:
-                # TODO: need to change this from accumulating binned data to raw data
-                dists_arr = np.concatenate(dists_arr).ravel()
-                vario_arr = np.concatenate(vario_arr).ravel()
-                # if specified, passed binned empirical variograms
-                if self.binnedvariogram:
-                    dists_binned_arr = np.concatenate(dists_binned_arr).ravel()
-                    vario_binned_arr = np.concatenate(vario_binned_arr).ravel()
-                else:
-                    dists_binned_arr, vario_binned_arr = self._binned_vario(
-                        dists_arr, vario_arr)
-                TOT_res_robust, TOT_d_test, TOT_v_test = self._fit_vario(
-                    dists_binned_arr, vario_binned_arr, model=self.__exponential__, x0=None, Nparm=3)
-                # Plot empirical variogram for this gridnode and timeslice
-                tot_timetag = good_slices[0][1]+'–'+good_slices[-1][1]
-                # Append TOT arrays
-                TOT_good_slices.append([i, tot_timetag])
-                TOT_res_robust_arr.append(TOT_res_robust.x)
-                TOT_tot_timetag.append(tot_timetag)
-                self.plot_variogram(i, tot_timetag, [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(
-                    i)), dists=dists_arr, vario=vario_arr, dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
-                # Plot experimental variogram for this gridnode and timeslice
-                self.plot_variogram(i, tot_timetag, [self.gridpoints[i][1], self.gridpoints[i][0]], workdir=os.path.join(
-                    self.workdir, 'variograms/grid{}'.format(i)), d_test=TOT_d_test, v_test=TOT_v_test, res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
-            # Record sparse grids which didn't have sufficient sample size of data through any of the timeslices
-            else:
-                sparse_grids.append(i)
-
-        # save grid-center lookup table
-        gridcenterlist = [list(i) for i in set(tuple(j)
-                                               for j in gridcenterlist)]
-        gridcenter = open(
-            (os.path.join(self.workdir, 'variograms/gridlocation_lookup.txt')), "w")
-        for element in gridcenterlist:
-            gridcenter.writelines("\n".join(element))
-            gridcenter.write("\n")
-        gridcenter.close()
-
-        TOT_grids = [i[0] for i in TOT_good_slices]
-
-        return TOT_grids, TOT_res_robust_arr
-
 
 class RaiderStats(object):
     '''
@@ -476,7 +514,7 @@ class RaiderStats(object):
             userbbox_poly = Polygon(np.column_stack((np.array([self.bbox[2], self.bbox[3], self.bbox[3], self.bbox[2], self.bbox[2]]),
                                                      np.array([self.bbox[0], self.bbox[0], self.bbox[1], self.bbox[1], self.bbox[0]]))))
             if userbbox_poly.intersects(dfextents_poly):
-                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]), np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
+                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]),np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
             else:
                 raise Exception("User-specified bounds do not overlap with dataset bounds, adjust bounds and re-run program.")
             if extent[0] < -180. or extent[1] > 180. or extent[2] < -90. or extent[3] > 90.:
@@ -526,6 +564,21 @@ class RaiderStats(object):
         SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.}
 
         return val*SI[unit_in]/SI[unit_out]
+
+    def _check_stationgrid_intersection(self, stat_ID):
+        '''
+        Return index of grid cell which intersects with station
+        Note: Fast, but assumes station locations don't change
+        '''
+        coord = Point((self.unique_points[1][self.unique_points[0].index(
+            stat_ID)], self.unique_points[2][self.unique_points[0].index(stat_ID)]))
+        # Get grid cell polygon which intersect with station coordinate
+        grid_int = self.polygon_tree.query(coord)
+        # Pass corresponding grid cell index
+        if grid_int:
+            return self.polygon_dict[id(grid_int[0])]
+
+        return 'NaN'
 
     def _reader(self):
         '''
@@ -598,22 +651,21 @@ class RaiderStats(object):
             append_poly.append(Polygon(np.column_stack((np.array([bbox[2], bbox[3], bbox[3], bbox[2], bbox[2]]),
                                                         np.array([bbox[0], bbox[0], bbox[1], bbox[1], bbox[0]])))))  # Pass lons/lats to create polygon
 
-        # check for grid cell intersection with each station (loop through each station).. fast, but assumes station locations don't change
+        # Check for grid cell intersection with each station
         idtogrid_dict = {}
-        unique_points = self.df.groupby(['ID', 'Lon', 'Lat']).size()
-        unique_points = [unique_points.index.get_level_values('ID').tolist(), unique_points.index.get_level_values(
-            'Lon').tolist(), unique_points.index.get_level_values('Lat').tolist()]
-        for i in unique_points[0]:
-            try:
-                coord = Point((unique_points[1][unique_points[0].index(
-                    i)], unique_points[2][unique_points[0].index(i)]))
-                idtogrid_dict[i] = [j.intersects(
-                    coord) for j in append_poly].index(True)
-            except:
-                idtogrid_dict[i] = 'NaN'
+        self.unique_points = self.df.groupby(['ID', 'Lon', 'Lat']).size()
+        self.unique_points = [self.unique_points.index.get_level_values('ID').tolist(), self.unique_points.index.get_level_values(
+            'Lon').tolist(), self.unique_points.index.get_level_values('Lat').tolist()]
+        # Initiate R-tree of gridded array domain
+        self.polygon_dict = dict((id(pt), i) for i, pt in enumerate(append_poly))
+        self.polygon_tree = STRtree(append_poly)
+        for stat_ID in self.unique_points[0]:
+            grd_index = self._check_stationgrid_intersection(stat_ID)
+            idtogrid_dict[stat_ID] = grd_index
+
         # map gridnode dictionary to dataframe
         self.df['gridnode'] = self.df['ID'].map(idtogrid_dict)
-        del unique_points, idtogrid_dict, append_poly
+        del self.unique_points, self.polygon_dict, self.polygon_tree, idtogrid_dict, append_poly
         # sort by grid and date
         self.df.sort_values(['gridnode', 'Date'])
 
@@ -636,12 +688,12 @@ class RaiderStats(object):
         '''
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
+        import cartopy.io.img_tiles as cimgt
         import matplotlib as mpl
         import matplotlib.ticker as mticker
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         from pandas.plotting import register_matplotlib_converters
-
         # supress matplotlib postscript warnings
         mpl._log.setLevel('ERROR')
         register_matplotlib_converters()
@@ -688,7 +740,7 @@ class RaiderStats(object):
             if plottype == "station_distribution":
                 axes.set_title(" ".join(plottype.split('_')), zorder=2)
                 im = axes.scatter(gridarr[0], gridarr[1], zorder=1, s=0.5,
-                                  marker='.', color='b', transform=ccrs.PlateCarree())
+                    marker='.', color='b', transform=ccrs.PlateCarree())
 
             # passing 3rd column as z-value
             if len(gridarr) > 2:
@@ -708,12 +760,12 @@ class RaiderStats(object):
 
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=cbounds[0],
-                                  vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
+                    vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
                 # initiate colorbar and control height of colorbar
                 divider = make_axes_locatable(axes)
                 cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
                 cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional',
-                                       ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                    ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
         # If gridded area passed
         else:
@@ -737,12 +789,12 @@ class RaiderStats(object):
 
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], 
-                             vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
+                vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
             # initiate colorbar and control height of colorbar
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
             cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, 
-                                   boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                    boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
             # superimpose your gridded array with a supplementary list of point, if specified
             if self.stationsongrids:
@@ -770,14 +822,14 @@ class RaiderStats(object):
             elif plottype == "grid_delay_mean" or plottype == "grid_delay_stdev" or \
                 plottype == "station_delay_mean" or plottype == "station_delay_stdev":
                 cbar_ax.set_label(" ".join(plottype.split('_'))+' ({})'.format(self.unit), 
-                                  rotation=-90, labelpad=10)
+                    rotation=-90, labelpad=10)
             # gridmap of station density has no units
             else:
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype + '.'+plotFormat), 
-                    format=plotFormat, bbox_inches='tight')
+        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype +'.'+plotFormat), 
+            format=plotFormat, bbox_inches='tight')
         plt.close()
 
         return
@@ -792,7 +844,7 @@ def stats_analyses(inps=None):
     print("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,  \
-                           inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.cbounds, inps.colorpercentile, inps.verbose)
+        inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.cbounds, inps.colorpercentile, inps.verbose)
 
     # If user requests to generate all plots.
     if inps.plotall:
@@ -860,7 +912,8 @@ def stats_analyses(inps=None):
     if inps.variogramplot:
         print("***Variogram Analysis Function:***")
         make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, inps.col_name, inps.workdir,
-                                            df_stats.seasonalinterval, inps.densitythreshold, inps.verbose, binnedvariogram=inps.binnedvariogram)
+                                            df_stats.seasonalinterval, inps.densitythreshold, inps.binnedvariogram,
+                                            inps.numCPUs, inps.verbose)
         TOT_grids, TOT_res_robust_arr = make_variograms.create_variograms()
         # plot range heatmap
         print("- Plot variogram range per gridcell.")
