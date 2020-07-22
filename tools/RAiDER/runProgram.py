@@ -1,6 +1,9 @@
 import argparse
+from datetime import timedelta
 
+from RAiDER.checkArgs import checkArgs
 from RAiDER.constants import _ZREF
+from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import parse_date, parse_time
 
 
@@ -8,10 +11,9 @@ def read_date(s):
     '''
     Read and parse an input date or datestring
     '''
-    import datetime
     try:
         date1, date2 = [parse_date(d) for d in s.split(',')]
-        dateList = [date1 + k*datetime.timedelta(days=1) for k in range((date2 - date1).days+1)]
+        dateList = [date1 + k*timedelta(days=1) for k in range((date2 - date1).days+1)]
         return dateList
     except ValueError:
         date = parse_date(s)
@@ -22,7 +24,7 @@ def parse_args():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
           formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="""
+          description="""
 Calculate tropospheric delay from a weather model.
 Usage examples:
 raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
@@ -134,8 +136,6 @@ def parseCMD():
     Parse command-line arguments and pass to tropo_delay
     We'll parse arguments and call delay.py.
     """
-    from RAiDER.checkArgs import checkArgs
-    from RAiDER.delay import tropo_delay
 
     args, p = parse_args()
 

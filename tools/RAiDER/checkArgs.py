@@ -6,8 +6,9 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 import os
+
+import numpy as np
 
 import RAiDER.utilFcns
 from RAiDER.constants import Zenith
@@ -56,8 +57,7 @@ this option has not yet been implemented.""")
     else:
         raise RuntimeError('You must specify an area of interest')
 
-    from numpy import max, min
-    if (min(lat) < -90) | (max(lat) > 90):
+    if (np.min(lat) < -90) | (np.max(lat) > 90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc
@@ -99,7 +99,7 @@ this option has not yet been implemented.""")
     # Misc
     download_only = args.download_only
     verbose = args.verbose
-    useWeatherNodes = [True if flag == 'bounding_box' else False][0]
+    useWeatherNodes = flag == 'bounding_box'
 
     # Output
     out = args.out
