@@ -12,7 +12,7 @@ Global logging configuration
 import logging
 import os
 import sys
-from logging import Formatter, StreamHandler
+from logging import FileHandler, Formatter, StreamHandler
 
 
 # Inspired by
@@ -48,4 +48,12 @@ logger.setLevel(logging.INFO)
 stdout_handler = StreamHandler(sys.stdout)
 stdout_handler.setFormatter(UnixColorFormatter(use_color=os.name != "nt"))
 
+errorfile_handler = FileHandler("error.log")
+errorfile_handler.setFormatter(Formatter(
+    "[{asctime}] {funcName:>20}:{lineno:<5} {levelname:<10} {message}",
+    style="{"
+))
+errorfile_handler.setLevel(logging.WARNING)
+
 logger.addHandler(stdout_handler)
+logger.addHandler(errorfile_handler)
