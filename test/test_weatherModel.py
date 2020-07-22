@@ -12,7 +12,7 @@ from scipy.interpolate import LinearNDInterpolator as lndi
 
 from RAiDER.constants import Zenith
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.utilFcns import modelName2Module, writeLL
+from RAiDER.utilFcns import modelName2Module
 
 
 class WMTests(unittest.TestCase):

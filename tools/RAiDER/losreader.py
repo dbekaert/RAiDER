@@ -7,40 +7,58 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import datetime
 import os.path
 import shelve
+import xml.etree.ElementTree as ET
 
 import numpy as np
 
 import RAiDER.utilFcns as utilFcns
+from RAiDER import Geo2rdr
 from RAiDER.constants import _ZREF, Zenith
 
-
-# TODO: It looks like Configurable and ProductManager are not functioning
-class Configurable():
-    '''
-    Is this needed?
-    '''
-
-    def __init__(self):
-        pass
-
-class ProductManager(Configurable):
-    '''
-    TODO: docstring
-    '''
-    family = 'productmanager'
-
-    def __init__(self, family='', name=''):
-        super(ProductManager, self).__init__(family if family else  self.__class__.family, name=name)
-
-    def dumpProduct(self, obj, filename):
-        self._instance = obj
-        self.dump(filename)
-
-    def loadProduct(self, filename):
-        self.load(filename)
-        return self._instance
+# def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
+#    import Geo2rdr
+#
+#    real_shape = lats.shape
+#    lats = lats.flatten()
+#    lons = lons.flatten()
+#    heights = heights.flatten()
+#
+#    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
+#    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
+#
+#    loss = np.zeros((3, len(lats)))
+#    slant_ranges = np.zeros_like(lats)
+#
+#    for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
+#        height_array = np.array(((height,),))
+#
+#        # Geo2rdr is picky about the type of height
+#        height_array = height_array.astype(np.double)
+#
+#        geo2rdr_obj.set_geo_coordinate(np.radians(lon),
+#                                       np.radians(lat),
+#                                       1, 1,
+#                                       height_array)
+#        # compute the radar coordinate for each geo coordinate
+#        geo2rdr_obj.geo2rdr()
+#
+#        # get back the line of sight unit vector
+#        los_x, los_y, los_z = geo2rdr_obj.get_los()
+#        loss[:, i] = los_x, los_y, los_z
+#
+#        # get back the slant ranges
+#        slant_range = geo2rdr_obj.get_slant_range()
+#        slant_ranges[i] = slant_range
+#
+#    los = loss * slant_ranges
+#
+#    # Have to think about traversal order here. It's easy, though, since
+#    # in both orders xs come first, followed by all ys, followed by all
+#    # zs.
+#    return los.reshape((3,) + real_shape)
 
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
@@ -54,7 +72,6 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
     truncating at the top of the troposphere, in an earth-centered, earth-fixed
     coordinate system.
     '''
-    from RAiDER import Geo2rdr
 
     # check the inputs
     if t.size < 4:
@@ -167,9 +184,6 @@ def read_ESA_Orbit_file(filename, time=None):
     '''
     Read orbit data from an orbit file supplied by ESA
     '''
-    import datetime
-    import xml.etree.ElementTree as ET
-
     tree = ET.parse(filename)
     root = tree.getroot()
     data_block = root[1]
@@ -206,43 +220,12 @@ def read_ESA_Orbit_file(filename, time=None):
     return [t, x, y, z, vx, vy, vz]
 
 
-def read_xml_file(filename):
-
-    pm = ProductManager()
-    pm.configure()
-
-    obj = pm.loadProduct(filename)
-
-    numSV = len(obj.orbit.stateVectors)
-
-    t = np.ones(numSV)
-    x = np.ones(numSV)
-    y = np.ones(numSV)
-    z = np.ones(numSV)
-    vx = np.ones(numSV)
-    vy = np.ones(numSV)
-    vz = np.ones(numSV)
-
-    for i, st in enumerate(obj.orbit.stateVectors):
-        t[i] = st.time.second + st.time.minute*60.0
-        x[i] = st.position[0]
-        y[i] = st.position[1]
-        z[i] = st.position[2]
-        vx[i] = st.velocity[0]
-        vy[i] = st.velocity[1]
-        vz[i] = st.velocity[2]
-
-    return t, x, y, z, vx, vy, vz
-
-
 def infer_sv(los_file, lats, lons, heights, time=None):
     """Read an LOS file."""
     # TODO: Change this to a try/except structure
     _, ext = os.path.splitext(los_file)
     if ext == '.txt':
         svs = read_txt_file(los_file)
-    elif ext == '.xml':
-        svs = read_xml_file(los_file)
     elif ext == '.EOF':
         svs = read_ESA_Orbit_file(los_file, time)
     else:
@@ -303,16 +286,13 @@ def infer_los(los, lats, lons, heights, zref, time=None):
 
     if los_type == 'sv':
         LOS = infer_sv(los_file, lats, lons, heights, time)
-
-    if los_type == 'los':
-        from RAiDER.utilFcns import checkShapes
+    elif los_type == 'los':
         incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
-        checkShapes(np.stack((incidence, heading), axis=-1), lats, lons, heights)
+        utilFcns.checkShapes(np.stack((incidence, heading), axis=-1), lats, lons, heights)
         LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
-
+    else:
+        raise ValueError("Unsupported los type '{}'".format(los_type))
     return LOS
-
-    raise ValueError("Unsupported los type '{}'".format(los_type))
 
 
 def _getZenithLookVecs(lats, lons, heights, zref=_ZREF):

@@ -7,12 +7,11 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-from osgeo import gdal
 import time
 
 import numpy as np
+from osgeo import gdal
 from scipy.interpolate import RegularGridInterpolator as rgi
-import time
 
 import RAiDER.utilFcns
 

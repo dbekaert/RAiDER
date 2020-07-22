@@ -32,8 +32,8 @@ def readLL(*args):
     if flag == 'files':
         # If they are files, open them
         lat, lon = args
-        lats, latproj, lat_gt = gdal_open(lat, returnProj=True)
-        lons, lonproj, lon_gt = gdal_open(lon, returnProj=True)
+        lats, latproj, _ = gdal_open(lat, returnProj=True)
+        lons, lonproj, _ = gdal_open(lon, returnProj=True)
     elif flag == 'bounding_box':
         N, W, S, E = args
         lats = np.array([float(N), float(S)])
@@ -109,32 +109,6 @@ def getHeights(lats, lons, heights, useWeatherNodes=False, verbose=False):
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 
     return lats, lons, hts
-
-
-def setGeoInfo(lat, lon, latproj, lonproj, outformat):
-    # TODO: implement
-    # set_geo_info should be a list of functions to call on the dataset,
-    # and each will do some bit of work
-    set_geo_info = list()
-    if lat is not None:
-        def geo_info(ds):
-            ds.SetMetadata({'X_DATASET': os.path.abspath(lat), 'X_BAND': '1',
-                            'Y_DATASET': os.path.abspath(lon), 'Y_BAND': '1'})
-        set_geo_info.append(geo_info)
-    # Is it ever possible that lats and lons will actually have embedded
-    # projections?
-    if latproj:
-        if outformat != 'h5':
-            def geo_info(ds):
-                ds.SetProjection(latproj)
-        else:
-            geo_info = None
-    elif lonproj:
-        def geo_info(ds):
-            ds.SetProjection(lonproj)
-        set_geo_info.append(geo_info)
-
-    return set_geo_info
 
 
 def enforceNumpyArray(*args):

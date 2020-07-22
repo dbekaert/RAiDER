@@ -6,8 +6,8 @@ class MERRA2(WeatherModel):
 
     Only supports pressure levels right now, that may change someday.
     """
-    import urllib.request
     import json
+    import urllib.request
 
     _k1 = None
     _k2 = None
@@ -22,9 +22,10 @@ class MERRA2(WeatherModel):
         # annoying, it'd be nice if pydap would just follow to the new
         # page. I don't have time to debug this now, so I'll just drop
         # this comment here.
-        import pydap.client
-        import pydap.cas.urs
         import json
+
+        import pydap.cas.urs
+        import pydap.client
         from scipy.io import netcdf as nc
 
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds()

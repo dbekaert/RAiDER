@@ -8,7 +8,7 @@ import pytest
 from osgeo import gdal
 
 from RAiDER.utilFcns import (
-    _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind, tand,
+    _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
     writeArrayToRaster, writeResultsToHDF5
 )
 
@@ -56,13 +56,6 @@ def test_cosd():
     assert np.allclose(
         cosd(np.array([0, 60, 90, 180])),
         np.array([1, 0.5, 0, -1])
-    )
-
-
-def test_tand():
-    assert np.allclose(
-        tand(np.array([0, 30, 45, 60])),
-        np.array([0, 1 / np.sqrt(3), 1, np.sqrt(3)])
     )
 
 
