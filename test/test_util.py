@@ -54,7 +54,6 @@ def make_points_1d_data():
 
 @pytest.fixture
 def make_points_2d_data():
-
     sp = np.zeros((2, 2, 3))
     slv = np.zeros((2, 2, 3))
     slv[0, 0, 0] = 1
@@ -81,7 +80,6 @@ def make_points_2d_data():
 
 @pytest.fixture
 def make_points_3d_data():
-
     sp = np.zeros((3, 3, 3, 3))
     sp[:, :, 1, 2] = 10
     sp[:, :, 2, 2] = 100

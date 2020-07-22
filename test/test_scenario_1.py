@@ -31,7 +31,7 @@ def test_tropo_delay(tmp_path):
 
     _, model_obj = modelName2Module("ERA5")
     wet_file, hydro_file = makeDelayFileNames(
-        time, Zenith, "envi", "ERA5", tmp_path 
+        time, Zenith, "envi", "ERA5", tmp_path
     )
 
     with pushd(tmp_path):

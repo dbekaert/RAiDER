@@ -68,7 +68,7 @@ def get_delays(stationFile, filename, returnTime=None):
                     continue
                 # Attempt to read data
                 try:
-                    split_lines=line.split()
+                    split_lines = line.split()
                     # units: mm, mm, mm, deg, deg, deg, deg, mm, mm, K
                     trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
                         [float(t) for t in split_lines[2:]]

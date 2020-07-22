@@ -176,8 +176,8 @@ def download_tropo_delays(stats, years, writeDir='.', numCPUs=8, download=False,
     # Parallelize remote querying of station locations
     with multiprocessing.Pool(numCPUs) as multipool:
         # only record valid path
-        results = [fileurl for fileurl in multipool.starmap(download_UNR,stat_year_tup) \
-            if fileurl['path']]
+        results = [fileurl for fileurl in multipool.starmap(download_UNR, stat_year_tup) \
+                   if fileurl['path']]
 
     # Write results to file
     statDF = pd.DataFrame(results).set_index('ID')
@@ -296,7 +296,7 @@ def parse_cpus(cpustr):
         raise Exception("Specified invalid negative --cpus argument. Relaunch with valid integer argument or 'all'.")
     else:
         raise Exception("Cannot understand the --cpus argument. Valid integer argument or 'all' not specified.")
-    
+
     return cpus
 
 
@@ -345,13 +345,8 @@ def query_repos(inps=None):
     del origstatsFile, statsFile
 
     # Extract delays for each station
-<<<<<<< HEAD
     get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=inps.numCPUs,
-                   outDir=inps.out, returnTime=inps.returnTime)
-=======
-    get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'),
                      outDir=inps.out, returnTime=inps.returnTime)
->>>>>>> Clean up unit tests, replace true files for scenario_1, fix formatting
 
     if inps.verbose:
         print('Completed processing')
