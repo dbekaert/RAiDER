@@ -8,7 +8,7 @@ import pytest
 from osgeo import gdal
 
 from RAiDER.utilFcns import (
-    _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind, tand,
+    _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind
     writeArrayToRaster, writeResultsToHDF5
 )
 
