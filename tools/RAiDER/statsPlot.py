@@ -6,20 +6,25 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 import argparse
 import datetime as dt
 import itertools
+import logging
 import multiprocessing
 import os
 import warnings
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from RAiDER.downloadGNSSDelays import parse_cpus
+from matplotlib import pyplot as plt
 from shapely.geometry import Point, Polygon
 from shapely.strtree import STRtree
+
+from RAiDER.downloadGNSSDelays import parse_cpus
+from RAiDER.logger import logger
+
+log = logging.getLogger(__name__)
+
 
 def create_parser():
     """Parse command line arguments using argparse."""
@@ -27,8 +32,8 @@ def create_parser():
 Perform basic statistical analyses concerning the spatiotemporal distribution of zenith delays.
 
 Specifically, make any of the following specified plot(s):
-scatterplot of station locations, total empirical and experimental variogram fits for data in each grid cell 
-(and for each valid time-slice if -verbose specified), and gridded heatmaps of data, station distribution, 
+scatterplot of station locations, total empirical and experimental variogram fits for data in each grid cell
+(and for each valid time-slice if -verbose specified), and gridded heatmaps of data, station distribution,
 range and sill values associated with experimental variogram fits. The default is to generate all of these.
 
 Example call to plot gridded station mean delay in a specific time interval :
@@ -144,9 +149,8 @@ class VariogramAnalysis():
         '''
         import random
         if len(data) < self.densitythreshold:
-            print('WARNING: Less than {} points for this gridcell'.format(
-                self.densitythreshold))
-            print('Will pass empty list')
+            log.warning('Less than {} points for this gridcell', self.densitythreshold)
+            log.info('Will pass empty list')
             d = []
             indpars = []
         else:
@@ -161,7 +165,7 @@ class VariogramAnalysis():
             # oversample and remove NaNs if possible
             mask = ~np.isnan(d)
             if False in mask:
-                print('Warning: NaNs present')
+                log.warning('NaNs present')
                 d = d[mask]
                 indpars = indpars[mask]
 
@@ -334,6 +338,7 @@ class VariogramAnalysis():
                     os.makedirs(os.path.join(
                         self.workdir, 'variograms/grid{}'.format(grid_ind)))
                 # Make variogram plots for each time-slice if verbose mode specified.
+                # FIXME: This is not what "verbose" is for. Use a different argument
                 if self.verbose:
                     # Plot empirical variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
@@ -481,7 +486,7 @@ class RaiderStats(object):
     # import dependencies
     import glob
 
-    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, cbounds=None, colorpercentile='25 95', verbose=False):
+    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, cbounds=None, colorpercentile='25 95'):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -493,7 +498,6 @@ class RaiderStats(object):
         self.stationsongrids = stationsongrids
         self.cbounds = cbounds
         self.colorpercentile = colorpercentile
-        self.verbose = verbose
 
         # create workdir if it doesn't exist
         if not os.path.exists(self.workdir):
@@ -529,7 +533,7 @@ class RaiderStats(object):
 
         # ensure even spacing, set spacing to 1 if specified spacing is not even multiple of bounds
         if (extent[1]-extent[0]) % self.spacing != 0 or (extent[-1]-extent[-2]) % self.spacing:
-            print("WARNING: User-specified spacing {} is not even multiple of bounds, resetting spacing to 1\N{DEGREE SIGN}".format(self.spacing))
+            log.warning("User-specified spacing %s is not even multiple of bounds, resetting spacing to 1\N{DEGREE SIGN}", self.spacing)
             self.spacing = 1
 
         # Create corners of rectangle to be transformed to a grid
@@ -686,14 +690,15 @@ class RaiderStats(object):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
-        import cartopy.crs as ccrs
-        import cartopy.feature as cfeature
-        import cartopy.io.img_tiles as cimgt
         import matplotlib as mpl
-        import matplotlib.ticker as mticker
+        from cartopy import crs as ccrs
+        from cartopy import feature as cfeature
+        from cartopy.io import img_tiles as cimgt
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
+        from matplotlib import ticker as mticker
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         from pandas.plotting import register_matplotlib_converters
+
         # supress matplotlib postscript warnings
         mpl._log.setLevel('ERROR')
         register_matplotlib_converters()
@@ -788,12 +793,12 @@ class RaiderStats(object):
             gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
 
             # plot data
-            im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], 
+            im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0],
                 vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
             # initiate colorbar and control height of colorbar
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
-            cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, 
+            cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds,
                     boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
             # superimpose your gridded array with a supplementary list of point, if specified
@@ -821,113 +826,140 @@ class RaiderStats(object):
             # specify appropriate units for mean/std
             elif plottype == "grid_delay_mean" or plottype == "grid_delay_stdev" or \
                 plottype == "station_delay_mean" or plottype == "station_delay_stdev":
-                cbar_ax.set_label(" ".join(plottype.split('_'))+' ({})'.format(self.unit), 
+                cbar_ax.set_label(" ".join(plottype.split('_'))+' ({})'.format(self.unit),
                     rotation=-90, labelpad=10)
             # gridmap of station density has no units
             else:
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype +'.'+plotFormat), 
+        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype +'.'+plotFormat),
             format=plotFormat, bbox_inches='tight')
         plt.close()
 
         return
 
 
-def stats_analyses(inps=None):
+def stats_analyses(
+    fname,
+    col_name,
+    unit,
+    workdir,
+    bbox,
+    spacing,
+    timeinterval,
+    seasonalinterval,
+    plot_fmt,
+    cbounds,
+    colorpercentile,
+    densitythreshold,
+    stationsongrids,
+    drawgridlines,
+    plotall,
+    station_distribution,
+    station_delay_mean,
+    station_delay_stdev,
+    grid_heatmap,
+    grid_delay_mean,
+    grid_delay_stdev,
+    variogramplot,
+    binnedvariogram,
+    verbose,
+):
     '''
-    Main workflow for generating a suite of plots to illustrate spatiotemporal distribution 
+    Main workflow for generating a suite of plots to illustrate spatiotemporal distribution
     and/or character of zenith delays
     '''
+    if verbose:
+        logger.setLevel(logging.DEBUG)
 
-    print("***Stats Function:***")
+    log.info("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
-    df_stats = RaiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,  \
-        inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.cbounds, inps.colorpercentile, inps.verbose)
+    df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing,  \
+        timeinterval, seasonalinterval, stationsongrids, cbounds, colorpercentile)
 
     # If user requests to generate all plots.
-    if inps.plotall:
-        print('"-plotall" == True. All plots will be made.')
-        inps.station_distribution = True
-        inps.station_delay_mean = True
-        inps.station_delay_stdev = True
-        inps.grid_heatmap = True
-        inps.grid_delay_mean = True
-        inps.grid_delay_stdev = True
-        inps.variogramplot = True
+    if plotall:
+        log.info('"-plotall" == True. All plots will be made.')
+        station_distribution = True
+        station_delay_mean = True
+        station_delay_stdev = True
+        grid_heatmap = True
+        grid_delay_mean = True
+        grid_delay_stdev = True
+        variogramplot = True
 
     # Station plots
     # Plot each individual station
-    if inps.station_distribution:
-        print("- Plot spatial distribution of stations.")
+    if station_distribution:
+        log.info("- Plot spatial distribution of stations.")
         unique_points = df_stats.df.groupby(['Lon', 'Lat']).size()
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        )], 'station_distribution', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
+        )], 'station_distribution', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
     # Plot mean delay per station
-    if inps.station_delay_mean:
-        print("- Plot mean delay for each station.")
+    if station_delay_mean:
+        log.info("- Plot mean delay for each station.")
         unique_points = df_stats.df.groupby(
-            ['Lon', 'Lat'])[inps.col_name].mean()
+            ['Lon', 'Lat'])[col_name].mean()
         unique_points.dropna(how='any', inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        ), unique_points.values], 'station_delay_mean', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
+        ), unique_points.values], 'station_delay_mean', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
     # Plot delay stdev per station
-    if inps.station_delay_stdev:
-        print("- Plot delay stdev for each station.")
+    if station_delay_stdev:
+        log.info("- Plot delay stdev for each station.")
         unique_points = df_stats.df.groupby(
-            ['Lon', 'Lat'])[inps.col_name].std()
+            ['Lon', 'Lat'])[col_name].std()
         unique_points.dropna(how='any', inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        ), unique_points.values], 'station_delay_stdev', workdir=os.path.join(inps.workdir, 'figures'), plotFormat=inps.plot_fmt)
+        ), unique_points.values], 'station_delay_stdev', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
 
     # Gridded station plots
     # Plot density of stations for each gridcell
-    if inps.grid_heatmap:
-        print("- Plot density of stations per gridcell.")
+    if grid_heatmap:
+        log.info("- Plot density of stations per gridcell.")
         gridarr_heatmap = np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(
             df_stats.df['ID'][df_stats.df['gridnode'] == i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T, 'grid_heatmap', workdir=os.path.join(inps.workdir, 'figures'), drawgridlines=inps.drawgridlines,
-                 colorbarfmt='%1i', stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
+        df_stats(gridarr_heatmap.T, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
+                 colorbarfmt='%1i', stationsongrids=stationsongrids, plotFormat=plot_fmt)
     # Plot mean delay for each gridcell
-    if inps.grid_delay_mean:
-        print("- Plot mean delay per gridcell.")
-        unique_points = df_stats.df.groupby(['gridnode'])[inps.col_name].mean()
+    if grid_delay_mean:
+        log.info("- Plot mean delay per gridcell.")
+        unique_points = df_stats.df.groupby(['gridnode'])[col_name].mean()
         unique_points.dropna(how='any', inplace=True)
         gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
         ) else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T, 'grid_delay_mean', workdir=os.path.join(inps.workdir, 'figures'),
-                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
+        df_stats(gridarr_heatmap.T, 'grid_delay_mean', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
     # Plot mean delay for each gridcell
-    if inps.grid_delay_stdev:
-        print("- Plot delay stdev per gridcell.")
-        unique_points = df_stats.df.groupby(['gridnode'])[inps.col_name].std()
+    if grid_delay_stdev:
+        log.info("- Plot delay stdev per gridcell.")
+        unique_points = df_stats.df.groupby(['gridnode'])[col_name].std()
         unique_points.dropna(how='any', inplace=True)
         gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
         ) else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T, 'grid_delay_stdev', workdir=os.path.join(inps.workdir, 'figures'),
-                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
+        df_stats(gridarr_heatmap.T, 'grid_delay_stdev', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
 
     # Perform variogram analysis
-    if inps.variogramplot:
-        print("***Variogram Analysis Function:***")
-        make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, inps.col_name, inps.workdir,
-                                            df_stats.seasonalinterval, inps.densitythreshold, inps.binnedvariogram,
-                                            inps.numCPUs, inps.verbose)
+    if variogramplot:
+        log.info("***Variogram Analysis Function:***")
+        make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, col_name, workdir,
+                                            df_stats.seasonalinterval, densitythreshold, binnedvariogram,
+                                            numCPUs, verbose)
         TOT_grids, TOT_res_robust_arr = make_variograms.create_variograms()
         # plot range heatmap
-        print("- Plot variogram range per gridcell.")
+        log.info("- Plot variogram range per gridcell.")
         gridarr_range = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_range.T, 'range_heatmap', workdir=os.path.join(inps.workdir, 'figures'),
-                 drawgridlines=inps.drawgridlines, stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
+        df_stats(gridarr_range.T, 'range_heatmap', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
         # plot sill heatmap
-        print("- Plot variogram sill per gridcell.")
+        log.info("- Plot variogram sill per gridcell.")
         gridarr_sill = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         gridarr_sill = gridarr_sill*(10 ^ 4)  # convert to cm
-        df_stats(gridarr_sill.T, 'sill_heatmap', workdir=os.path.join(inps.workdir, 'figures'), drawgridlines=inps.drawgridlines,
-                 colorbarfmt='%.3e', stationsongrids=inps.stationsongrids, plotFormat=inps.plot_fmt)
+        df_stats(gridarr_sill.T, 'sill_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
+                 colorbarfmt='%.3e', stationsongrids=stationsongrids, plotFormat=plot_fmt)
 
 
 if __name__ == "__main__":

@@ -6,20 +6,23 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 import argparse
 import itertools
+import logging
 import multiprocessing
 import os
-import sys
 
 import pandas as pd
 import requests
 
 from RAiDER.getStationDelays import get_station_data
+from RAiDER.logger import logger
+
+log = logging.getLogger(__name__)
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
+
 
 def create_parser():
     """Parse command line arguments using argparse."""
@@ -28,24 +31,24 @@ def create_parser():
         description="""
 Check for and download tropospheric zenith delays for a set of GNSS stations from UNR
 
-Example call to virtually access and append zenith delay information to a CSV table in specified output 
-directory, across specified range of years and all available times of day, and confined to specified 
+Example call to virtually access and append zenith delay information to a CSV table in specified output
+directory, across specified range of years and all available times of day, and confined to specified
 geographic bounding box :
 downloadGNSSdelay.py --out products -y '2010,2014' -b '40 -79 39 -78'
 
-Example call to virtually access and append zenith delay information to a CSV table in specified output 
+Example call to virtually access and append zenith delay information to a CSV table in specified output
 directory, across specified range of years and specified time of day, and distributed globally :
 downloadGNSSdelay.py --out products -y '2010,2014' --returntime '00:00:00' -f station_list.txt
 
-Example call to virtually access and append zenith delay information to a CSV table in specified output 
-directory, across specified range of years and specified time of day, and distributed globally but restricted 
+Example call to virtually access and append zenith delay information to a CSV table in specified output
+directory, across specified range of years and specified time of day, and distributed globally but restricted
 to list of stations specified in input textfile :
 downloadGNSSdelay.py --out products -y '2010,2014' --returntime '00:00:00' -f station_list.txt
 
-NOTE, following example call to physically download zenith delay information not recommended as it is not 
+NOTE, following example call to physically download zenith delay information not recommended as it is not
 necessary for most applications.
-Example call to physically download and append zenith delay information to a CSV table in specified output 
-directory, across specified range of years and specified time of day, and confined to specified 
+Example call to physically download and append zenith delay information to a CSV table in specified output
+directory, across specified range of years and specified time of day, and confined to specified
 geographic bounding box :
 downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:00:00' -b '40 -79 39 -78'
 """)
@@ -69,7 +72,7 @@ downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:0
     misc.add_argument(
         '--years', '-y', dest='years',
         help="""Year to check or download delays (format YYYY).
-Can be a single value or a comma-separated list. If two years non-consecutive years are given, download each year in between as well. 
+Can be a single value or a comma-separated list. If two years non-consecutive years are given, download each year in between as well.
 """, type=parse_years, required=True)
 
     misc.add_argument(
@@ -103,8 +106,8 @@ def cmd_line_parse(iargs=None):
 def get_station_list(bbox=None, writeLoc=None, userstatList=None):
     '''
     Creates a list of stations inside a lat/lon bounding box from a source
-    Inputs: 
-        bbox    - length-4 list of floats that describes a bounding box. Format is 
+    Inputs:
+        bbox    - length-4 list of floats that describes a bounding box. Format is
                   S N W E
     '''
     writeLoc = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox.csv')
@@ -123,9 +126,9 @@ def get_station_list(bbox=None, writeLoc=None, userstatList=None):
 
 def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     '''
-    Function to pull lat, lon, height, beginning date, end date, and number of solutions for stations inside the bounding box llhBox. 
-    llhBox should be a tuple with format (lat1, lat2, lon1, lon2), where lat1, lon1 define the lower left-hand corner and lat2, lon2 
-    define the upper right corner. 
+    Function to pull lat, lon, height, beginning date, end date, and number of solutions for stations inside the bounding box llhBox.
+    llhBox should be a tuple with format (lat1, lat2, lon1, lon2), where lat1, lon1 define the lower left-hand corner and lat2, lon2
+    define the upper right corner.
     '''
     if llhBox is None:
         llhBox = [-90, 90, 0, 360]
@@ -145,23 +148,26 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
             lon = fix_lons(lon)
             stations.append({'ID': statID, 'Lat': lat, 'Lon': lon})
 
-    print('{} stations were found'.format(len(stations)))
+    log.info('%d stations were found', len(stations))
     stations = pd.DataFrame(stations)
     # Report stations from user's list that do not cover bbox
     if userstatList:
         userstatList = [
             i for i in userstatList if i not in stations['ID'].to_list()]
         if userstatList:
-            print("Warning: The following user-input stations are not covered by the input bounding box {0}: {1}"
-                  .format(str(llhBox).strip('[]'), str(userstatList).strip('[]')))
+            log.warning(
+                "The following user-input stations are not covered by the input "
+                "bounding box %s: %s",
+                str(llhBox).strip('[]'), str(userstatList).strip('[]')
+            )
 
     return stations
 
 
-def download_tropo_delays(stats, years, writeDir='.', numCPUs=8, download=False, verbose=False):
+def download_tropo_delays(stats, years, writeDir='.', numCPUs=8, download=False):
     '''
-    Check for and download GNSS tropospheric delays from an archive. If download is True then 
-    files will be physically downloaded, which again is not necessary as data can be virtually accessed. 
+    Check for and download GNSS tropospheric delays from an archive. If download is True then
+    files will be physically downloaded, which again is not necessary as data can be virtually accessed.
     '''
 
     # argument checking
@@ -172,21 +178,21 @@ def download_tropo_delays(stats, years, writeDir='.', numCPUs=8, download=False,
 
     # Iterate over stations and years and check or download data
     stat_year_tup = itertools.product(stats, years)
-    stat_year_tup = ((*tup, writeDir, download, verbose) for tup in stat_year_tup)
+    stat_year_tup = ((*tup, writeDir, download) for tup in stat_year_tup)
     # Parallelize remote querying of station locations
     with multiprocessing.Pool(numCPUs) as multipool:
         # only record valid path
-        results = [fileurl for fileurl in multipool.starmap(download_UNR,stat_year_tup) \
-            if fileurl['path']]
+        results = [
+            fileurl for fileurl in multipool.starmap(download_UNR, stat_year_tup)
+            if fileurl['path']
+        ]
 
     # Write results to file
     statDF = pd.DataFrame(results).set_index('ID')
     statDF.to_csv(os.path.join(writeDir, 'gnssStationList_overbbox_withpaths.csv'))
 
-    return
 
-
-def download_UNR(statID, year, writeDir='.', download=False, verbose=False, baseURL=_UNR_URL):
+def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
     '''
     Download a zip file containing tropospheric delays for a given station and year
     The URL format is http://geodesy.unr.edu/gps_timeseries/trop/<ssss>/<ssss>.<yyyy>.trop.zip
@@ -196,39 +202,36 @@ def download_UNR(statID, year, writeDir='.', download=False, verbose=False, base
     '''
     URL = "{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip".format(
         baseURL, statID.upper(), year)
-    if verbose:
-        print('Currently checking station {} in {}'.format(statID, year))
+    log.debug('Currently checking station %s in %s', statID, year)
     if download:
         saveLoc = os.path.abspath(os.path.join(
             writeDir, '{0}.{1}.trop.zip'.format(statID.upper(), year)))
-        filepath = download_url(URL, saveLoc, verbose=verbose)
+        filepath = download_url(URL, saveLoc)
     else:
-        filepath = check_url(URL, verbose=verbose)
+        filepath = check_url(URL)
     return {'ID': statID, 'year': year, 'path': filepath}
 
 
-def download_url(url, save_path, verbose=False, chunk_size=2048):
+def download_url(url, save_path, chunk_size=2048):
     '''
-    Download a file from a URL. Modified from 
+    Download a file from a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
     '''
     r = requests.get(url, stream=True)
     if r.status_code == 404:
         return ''
     else:
-        if verbose:
-            print('Beginning download of {} to {}'.format(url, save_path))
+        log.debug('Beginning download of %s to %s', url, save_path)
         with open(save_path, 'wb') as fd:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 fd.write(chunk)
-        if verbose:
-            print('Completed download of {} to {}'.format(url, save_path))
+        log.debug('Completed download of %s to %s', url, save_path)
         return save_path
 
 
-def check_url(url, verbose=False):
+def check_url(url):
     '''
-    Check whether a file exists at a URL. Modified from 
+    Check whether a file exists at a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
     '''
     r = requests.head(url)
@@ -296,24 +299,34 @@ def parse_cpus(cpustr):
         raise Exception("Specified invalid negative --cpus argument. Relaunch with valid integer argument or 'all'.")
     else:
         raise Exception("Cannot understand the --cpus argument. Valid integer argument or 'all' not specified.")
-    
+
     return cpus
 
 
-def query_repos(inps=None):
+def query_repos(
+    station_file,
+    bounding_box,
+    out,
+    years,
+    returnTime,
+    download,
+    verbose
+):
     """
     Main workflow for querying supported GPS repositories for zenith delay information.
     """
+    if verbose:
+        logger.setLevel(logging.DEBUG)
 
     # Create specified output directory if it does not exist.
-    if not os.path.exists(inps.out):
-        os.mkdir(inps.out)
+    if not os.path.exists(out):
+        os.mkdir(out)
 
     # Setup bounding box
-    if inps.bounding_box:
-        if not os.path.isfile(inps.bounding_box):
+    if bounding_box:
+        if not os.path.isfile(bounding_box):
             try:
-                bbox = [float(val) for val in inps.bounding_box.split()]
+                bbox = [float(val) for val in bounding_box.split()]
             except ValueError:
                 raise Exception(
                     'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
@@ -328,28 +341,28 @@ def query_repos(inps=None):
 
     # Handle station query
     stats, origstatsFile = get_station_list(
-        bbox=bbox, writeLoc=inps.out, userstatList=inps.station_file)
+        bbox=bbox, writeLoc=out, userstatList=station_file)
 
     # iterate over years
     download_tropo_delays(
-        stats, inps.years, writeDir=inps.out, download=inps.download, verbose=inps.verbose)
+        stats, years, writeDir=out, download=download
+    )
 
     # Add lat/lon info
     origstatsFile = pd.read_csv(origstatsFile)
     statsFile = pd.read_csv(os.path.join(
-        inps.out, 'gnssStationList_overbbox_withpaths.csv'))
+        out, 'gnssStationList_overbbox_withpaths.csv'))
     statsFile = pd.merge(left=statsFile, right=origstatsFile,
                          how='left', left_on='ID', right_on='ID')
     statsFile.to_csv(os.path.join(
-        inps.out, 'gnssStationList_overbbox_withpaths.csv'), index=False)
+        out, 'gnssStationList_overbbox_withpaths.csv'), index=False)
     del origstatsFile, statsFile
 
     # Extract delays for each station
-    get_station_data(os.path.join(inps.out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=inps.numCPUs,
-                   outDir=inps.out, returnTime=inps.returnTime)
+    get_station_data(os.path.join(out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=numCPUs,
+                     outDir=out, returnTime=returnTime)
 
-    if inps.verbose:
-        print('Completed processing')
+    log.debug('Completed processing')
 
 
 if __name__ == "__main__":

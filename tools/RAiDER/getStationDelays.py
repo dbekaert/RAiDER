@@ -6,10 +6,10 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 import datetime as dt
 import gzip
 import io
+import logging
 import multiprocessing
 import os
 import zipfile
@@ -18,19 +18,21 @@ import numpy as np
 import pandas as pd
 import requests
 
+log = logging.getLogger(__name__)
+
 
 def get_delays(stationFile, filename, returnTime=None):
     '''
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
-    at the closest times to to returnTime. 
-    Inputs: 
-         stationFile - a .gz station delay file 
+    at the closest times to to returnTime.
+    Inputs:
+         stationFile - a .gz station delay file
          returnTime  - specified time of GPS delay
     Outputs:
          a dict and CSV file containing the times and delay information
          (delay in mm, delay uncertainty, delay gradients)
-    *NOTE: Due to a formatting error in the tropo SINEX files, the two tropospheric gradient columns 
+    *NOTE: Due to a formatting error in the tropo SINEX files, the two tropospheric gradient columns
     (TGNTOT and TGETOT) are interchanged, as are the formal error columns (_SIG).
     (source=http://geodesy.unr.edu/gps_timeseries/README_trop2.txt)
     '''
@@ -68,7 +70,7 @@ def get_delays(stationFile, filename, returnTime=None):
                     continue
                 # Attempt to read data
                 try:
-                    split_lines=line.split()
+                    split_lines = line.split()
                     # units: mm, mm, mm, deg, deg, deg, deg, mm, mm, K
                     trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
                         [float(t) for t in split_lines[2:]]
@@ -79,8 +81,11 @@ def get_delays(stationFile, filename, returnTime=None):
                                       for n in split_lines[1].split(':')]
                 # Break iteration if time from line in file does not match date reported in filename
                 if doy != doyFromFile:
-                    print('WARNING: time {} from line in conflict with time {} from file {}, will continue reading next tarfile(s)' \
-                          .format(doy, doyFromFile, j))
+                    log.warning(
+                        'time %s from line in conflict with time %s from file '
+                        '%s, will continue reading next tarfile(s)',
+                        doy, doyFromFile, j
+                    )
                     continue
                 d.append(trotot)
                 ngrad.append(tgntot)
@@ -92,7 +97,10 @@ def get_delays(stationFile, filename, returnTime=None):
         del f
         # Break iteration if file contains no data.
         if d == []:
-            print('WARNING: file {} for station {} is empty, will continue reading next tarfile(s)'.format(j, j.split('.')[0]))
+            log.warning(
+                'file %s for station %s is empty, will continue reading next '
+                'tarfile(s)', j, j.split('.')[0]
+            )
             continue
 
         # check for missing times
@@ -158,8 +166,10 @@ def get_station_data(inFile, numCPUs=8, outDir=None, returnTime=None):
             np.abs(np.array(list(range(0, 86400, 300))) - returnTime))
         updatedreturnTime = str(dt.timedelta(
             seconds=list(range(0, 86400, 300))[index]))
-        print('Waring: input time %s not divisble by 3 seconds, so next closest time %s will be chosen'
-              % (returnTime, updatedreturnTime))
+        log.warning(
+            'input time %s not divisble by 3 seconds, so next closest time %s '
+            'will be chosen', returnTime, updatedreturnTime
+        )
         returnTime = updatedreturnTime
 
     # get list of station zip files
