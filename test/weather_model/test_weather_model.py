@@ -55,7 +55,7 @@ def test_uniform_in_z_small(model):
     interpolated = np.array([
         # Note that when the lower bound is exactly equal we get a value, but
         # when the upper bound is exactly equal we get the fill
-        [[0, nan],
+        [[0, 1],
          [2.5, nan]],
 
         [[4., 4.625],
