@@ -209,7 +209,9 @@ class VariogramAnalysis():
         return a binned empirical variogram
         '''
         if xBin is None:
-            xBin = np.linspace(0, np.nanmax(hEff)*.67, 20)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+                xBin = np.linspace(0, np.nanmax(hEff)*.67, 20)
 
         nBins = len(xBin)-1
         hExp, expVario = [], []
@@ -242,8 +244,10 @@ class VariogramAnalysis():
             return (m(x, d) - v)
 
         if ub is None:
-            ub = np.array([np.nanmax(dists)*0.8, np.nanmax(vario)
-                           * 0.8, np.nanmax(vario)*0.8])
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+                ub = np.array([np.nanmax(dists)*0.8, np.nanmax(vario)
+                               * 0.8, np.nanmax(vario)*0.8])
 
         if x0 is None and Nparm is None:
             raise RuntimeError(
@@ -263,7 +267,9 @@ class VariogramAnalysis():
                                    loss='soft_l1', f_scale=0.1,
                                    args=(d, v, model))
 
-        d_test = np.linspace(0, np.nanmax(dists), 100)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+            d_test = np.linspace(0, np.nanmax(dists), 100)
         # v_test is my y., # res_robust.x =a, b, c, where a = range, b = sill, and c = nugget model, d_test=x
         v_test = model(res_robust.x, d_test)
 
@@ -377,7 +383,7 @@ class VariogramAnalysis():
         else:
             self.sparse_grids.append(grid_ind)
 
-        return
+        return self.TOT_good_slices, self.TOT_res_robust_arr, self.gridcenterlist
 
     def create_variograms(self):
         '''
@@ -400,11 +406,15 @@ class VariogramAnalysis():
             args.append((i, grid_subset))
         # Parallelize iteration through all grid-cells and time slices
         with multiprocessing.Pool(self.numCPUs) as multipool:
-            multipool.starmap(self._append_variogram, args)
+            for i,j,k in multipool.starmap(self._append_variogram, args):
+                self.TOT_good_slices.extend(i)
+                self.TOT_res_robust_arr.extend(j)
+                self.gridcenterlist.extend(k)
 
         # save grid-center lookup table
         self.gridcenterlist = [list(i) for i in set(tuple(j)
                                                for j in self.gridcenterlist)]
+        self.gridcenterlist.sort(key=lambda x: int(x[0][4:6]))
         gridcenter = open(
             (os.path.join(self.workdir, 'variograms/gridlocation_lookup.txt')), "w")
         for element in self.gridcenterlist:
