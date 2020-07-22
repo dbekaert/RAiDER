@@ -84,7 +84,7 @@ Can be a single value or a comma-separated list. If two years non-consecutive ye
     misc.add_argument(
         '--cpus',
         help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.',
-        dest='numCPUs', type=parse_cpus, default=4)
+        dest='numCPUs', type=parse_cpus, default=8)
 
     misc.add_argument(
         '--verbose', '-v',
@@ -170,15 +170,13 @@ def download_tropo_delays(stats, years, writeDir='.', numCPUs=8, download=False,
         raise TypeError('years should be an int or a list of ints')
 
     # Iterate over stations and years and check or download data
-    results = []
     stat_year_tup = itertools.product(stats, years)
-    stat_year_tup = (tup + (writeDir,) + (download,) + (verbose,) for tup in stat_year_tup)
+    stat_year_tup = ((*tup, writeDir, download, verbose) for tup in stat_year_tup)
     # Parallelize remote querying of station locations
     with multiprocessing.Pool(numCPUs) as multipool:
-        for fileurl in multipool.starmap(download_UNR,stat_year_tup):
-            # only record valid path
-            if fileurl['path']:
-                results.append(fileurl)
+        # only record valid path
+        results = [fileurl for fileurl in multipool.starmap(download_UNR,stat_year_tup) \
+            if fileurl['path']]
 
     # Write results to file
     statDF = pd.DataFrame(results).set_index('ID')

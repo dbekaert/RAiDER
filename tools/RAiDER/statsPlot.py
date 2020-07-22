@@ -10,7 +10,6 @@
 import argparse
 import datetime as dt
 import itertools
-import multiprocessing
 import os
 
 import matplotlib.pyplot as plt
@@ -51,8 +50,6 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           help='Specified input unit. Input will be converted into m if not already in m.')
     userinps.add_argument('-w', '--workdir', dest='workdir', default='./',
                           help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
-    userinps.add_argument('--cpus', dest='numCPUs', type=parse_cpus, default=8,
-                          help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.')
 
     # Spatiotemporal subset options
     dtsubsets = parser.add_argument_group(
@@ -540,12 +537,12 @@ class RaiderStats(object):
         coord = Point((self.unique_points[1][self.unique_points[0].index(
             stat_ID)], self.unique_points[2][self.unique_points[0].index(stat_ID)]))
         # Get grid cell polygon which intersect with station coordinate
-        grid_int = self.polygon_tree.query(coord)[0]
+        grid_int = self.polygon_tree.query(coord)
         # Pass corresponding grid cell index
-        if grid_int == []:
-            return stat_ID, 'NaN'
-        else:
-            return stat_ID, self.polygon_dict[id(grid_int)]
+        if grid_int:
+            return self.polygon_dict[id(grid_int[0])]
+
+        return 'NaN'
 
     def _reader(self):
         '''
@@ -626,14 +623,13 @@ class RaiderStats(object):
         # Initiate R-tree of gridded array domain
         self.polygon_dict = dict((id(pt), i) for i, pt in enumerate(append_poly))
         self.polygon_tree = STRtree(append_poly)
-        # Parallelize check of station intersection with grid cells
-        with multiprocessing.Pool(self.numCPUs) as multipool:
-            for stat_ID,grd_index in multipool.starmap(self._check_stationgrid_intersection, itertools.product(self.unique_points[0])):
-                idtogrid_dict[stat_ID] = grd_index
+        for stat_ID in self.unique_points[0]:
+            grd_index = self._check_stationgrid_intersection(stat_ID)
+            idtogrid_dict[stat_ID] = grd_index
 
         # map gridnode dictionary to dataframe
         self.df['gridnode'] = self.df['ID'].map(idtogrid_dict)
-        del self.unique_points, self.polygon_dict, self.polygon_tree, idtogrid_dict
+        del self.unique_points, self.polygon_dict, self.polygon_tree, idtogrid_dict, append_poly
         # sort by grid and date
         self.df.sort_values(['gridnode', 'Date'])
 
