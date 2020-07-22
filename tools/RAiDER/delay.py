@@ -9,10 +9,18 @@
 import os
 import traceback
 
+import h5py
 import numpy as np
 
-from RAiDER.constants import _STEP, _ZREF
-from RAiDER.utilFcns import make_weather_model_filename
+import RAiDER.delayFcns
+from RAiDER.constants import _STEP, _ZREF, Zenith
+from RAiDER.interpolator import interp_along_axis
+from RAiDER.llreader import getHeights
+from RAiDER.losreader import getLookVectors
+from RAiDER.processWM import prepareWeatherModel
+from RAiDER.utilFcns import (
+    make_weather_model_filename, writeDelays, writePnts2HDF5
+)
 
 
 def interpolateDelay(weather_model_file_name, pnts_file_name,
@@ -40,7 +48,6 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
      delays     - A list containing the wet and hydrostatic delays for each ground point in
                   meters.
     """
-    import RAiDER.delayFcns
 
     if verbose:
         import time as timing
@@ -64,16 +71,6 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
                                          weather_model_file_name, interpType=interpType,
                                          verbose=verbose, delayType=delayType)
     return delays
-
-
-# call the interpolator on each ray
-def interpRay(tup):
-    fcn, ray = tup
-    return fcn(ray)[0]
-
-
-def _integrateZenith(zs, pw):
-    return 1e-6*np.trapz(pw, zs, axis=-1)
 
 
 def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
@@ -100,7 +97,6 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
 
     # If weather model nodes only are desired, the calculation is very quick
     if useWeatherNodes:
-        import h5py
         # Get the weather model data
         with h5py.File(weather_model_file_name, 'r') as f:
             zs_wm = f['z'][()].copy()
@@ -109,7 +105,6 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         if zlevels is None:
             return total_wet, total_hydro
         else:
-            from RAiDER.interpolator import interp_along_axis
             wet_delays = interp_along_axis(zs_wm, zlevels, total_wet, axis=-1)
             hydro_delays = interp_along_axis(zs_wm, zlevels, total_hydro, axis=-1)
             return wet_delays, hydro_delays
@@ -128,12 +123,6 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     """
     raiderDelay main function.
     """
-    from RAiDER.llreader import getHeights
-    from RAiDER.losreader import getLookVectors
-    from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays, writePnts2HDF5
-    from RAiDER.constants import Zenith
-
     if verbose:
         print('Starting to run the weather model calculation')
         print('Time type: {}'.format(type(time)))

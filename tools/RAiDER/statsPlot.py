@@ -135,8 +135,8 @@ class VariogramAnalysis():
         '''
         pull samples from a 2D image for variogram analysis
         '''
-        import random
         import itertools
+        import random
         if len(data) < self.densitythreshold:
             print('WARNING: Less than {} points for this gridcell'.format(
                 self.densitythreshold))
@@ -476,7 +476,7 @@ class RaiderStats(object):
             userbbox_poly = Polygon(np.column_stack((np.array([self.bbox[2], self.bbox[3], self.bbox[3], self.bbox[2], self.bbox[2]]),
                                                      np.array([self.bbox[0], self.bbox[0], self.bbox[1], self.bbox[1], self.bbox[0]]))))
             if userbbox_poly.intersects(dfextents_poly):
-                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]),np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
+                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]), np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
             else:
                 raise Exception("User-specified bounds do not overlap with dataset bounds, adjust bounds and re-run program.")
             if extent[0] < -180. or extent[1] > 180. or extent[2] < -90. or extent[3] > 90.:
@@ -636,12 +636,12 @@ class RaiderStats(object):
         '''
         import cartopy.crs as ccrs
         import cartopy.feature as cfeature
-        import cartopy.io.img_tiles as cimgt
         import matplotlib as mpl
         import matplotlib.ticker as mticker
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         from pandas.plotting import register_matplotlib_converters
+
         # supress matplotlib postscript warnings
         mpl._log.setLevel('ERROR')
         register_matplotlib_converters()
@@ -688,7 +688,7 @@ class RaiderStats(object):
             if plottype == "station_distribution":
                 axes.set_title(" ".join(plottype.split('_')), zorder=2)
                 im = axes.scatter(gridarr[0], gridarr[1], zorder=1, s=0.5,
-                    marker='.', color='b', transform=ccrs.PlateCarree())
+                                  marker='.', color='b', transform=ccrs.PlateCarree())
 
             # passing 3rd column as z-value
             if len(gridarr) > 2:
@@ -708,12 +708,12 @@ class RaiderStats(object):
 
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=cbounds[0],
-                    vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
+                                  vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
                 # initiate colorbar and control height of colorbar
                 divider = make_axes_locatable(axes)
                 cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
                 cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional',
-                    ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                                       ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
         # If gridded area passed
         else:
@@ -737,12 +737,12 @@ class RaiderStats(object):
 
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0], 
-                vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
+                             vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
             # initiate colorbar and control height of colorbar
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
             cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds, 
-                    boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                                   boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
             # superimpose your gridded array with a supplementary list of point, if specified
             if self.stationsongrids:
@@ -770,14 +770,14 @@ class RaiderStats(object):
             elif plottype == "grid_delay_mean" or plottype == "grid_delay_stdev" or \
                 plottype == "station_delay_mean" or plottype == "station_delay_stdev":
                 cbar_ax.set_label(" ".join(plottype.split('_'))+' ({})'.format(self.unit), 
-                    rotation=-90, labelpad=10)
+                                  rotation=-90, labelpad=10)
             # gridmap of station density has no units
             else:
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype +'.'+plotFormat), 
-            format=plotFormat, bbox_inches='tight')
+        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype + '.'+plotFormat), 
+                    format=plotFormat, bbox_inches='tight')
         plt.close()
 
         return
@@ -792,7 +792,7 @@ def stats_analyses(inps=None):
     print("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(inps.fname, inps.col_name, inps.unit, inps.workdir, inps.bbox, inps.spacing,  \
-        inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.cbounds, inps.colorpercentile, inps.verbose)
+                           inps.timeinterval, inps.seasonalinterval, inps.stationsongrids, inps.cbounds, inps.colorpercentile, inps.verbose)
 
     # If user requests to generate all plots.
     if inps.plotall:

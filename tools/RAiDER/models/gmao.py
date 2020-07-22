@@ -1,14 +1,13 @@
 import datetime as dt
-import numpy as np
 import os
-from pyproj import CRS
 import re
-from RAiDER.interpolator import interp_along_axis
+
+import numpy as np
+from pyproj import CRS
+
+from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.models.weatherModel import WeatherModel
 
-
-def Model():
-    return GMAO()
 
 class GMAO(WeatherModel):
     # I took this from GMAO model level weblink
@@ -66,10 +65,10 @@ class GMAO(WeatherModel):
         '''
         Get the variables from the GMAO link using OpenDAP
         '''
-        
-        import pydap.client
+
         import pydap.cas.urs
-        
+        import pydap.client
+
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
         lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)
@@ -133,9 +132,9 @@ class GMAO(WeatherModel):
         _hs = np.flip(_hs, axis=2)
 
         # interpolate (p,q,t) along the vertical axis from irregular grid to regular grid
-        p_intrpl = interp_along_axis(h, _hs, p, axis=2)
-        q_intrpl = interp_along_axis(h, _hs, q, axis=2)
-        t_intrpl = interp_along_axis(h, _hs, t, axis=2)
+        p_intrpl = interpolate_along_axis(h, _hs, p, axis=2)
+        q_intrpl = interpolate_along_axis(h, _hs, q, axis=2)
+        t_intrpl = interpolate_along_axis(h, _hs, t, axis=2)
 
         # assign the regular-grid (lat/lon/h) variables
 
