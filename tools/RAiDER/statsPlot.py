@@ -14,11 +14,16 @@ import multiprocessing
 import os
 import warnings
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
+from pandas.plotting import register_matplotlib_converters
 from shapely.geometry import Point, Polygon
 from shapely.strtree import STRtree
+# supress matplotlib postscript warnings
+mpl._log.setLevel('ERROR')
+register_matplotlib_converters()
 
 from RAiDER.downloadGNSSDelays import parse_cpus
 from RAiDER.logger import logger
@@ -624,6 +629,7 @@ class RaiderStats(object):
 
         # seasonal filter
         if self.seasonalinterval:
+            self.seasonalinterval = self.seasonalinterval.split()
             # get day of year
             self.seasonalinterval = [dt.datetime.strptime('2001-'+self.seasonalinterval[0], '%Y-%m-%d').timetuple(
             ).tm_yday, dt.datetime.strptime('2001-'+self.seasonalinterval[-1], '%Y-%m-%d').timetuple().tm_yday]
@@ -690,18 +696,12 @@ class RaiderStats(object):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
-        import matplotlib as mpl
-        from cartopy import crs as ccrs
-        from cartopy import feature as cfeature
-        from cartopy.io import img_tiles as cimgt
+        import cartopy.crs as ccrs
+        import cartopy.feature as cfeature
+        import cartopy.io.img_tiles as cimgt
+        import matplotlib.ticker as mticker
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
-        from matplotlib import ticker as mticker
         from mpl_toolkits.axes_grid1 import make_axes_locatable
-        from pandas.plotting import register_matplotlib_converters
-
-        # supress matplotlib postscript warnings
-        mpl._log.setLevel('ERROR')
-        register_matplotlib_converters()
 
         # If specified workdir doesn't exist, create it
         if not os.path.exists(workdir):
