@@ -843,6 +843,8 @@ def stats_analyses(
     col_name,
     unit,
     workdir,
+    numCPUs,
+    verbose,
     bbox,
     spacing,
     timeinterval,
@@ -862,7 +864,7 @@ def stats_analyses(
     grid_delay_stdev,
     variogramplot,
     binnedvariogram,
-    variogram_per_timeslice,
+    variogram_per_timeslice
 ):
     '''
     Main workflow for generating a suite of plots to illustrate spatiotemporal distribution
@@ -968,6 +970,8 @@ if __name__ == "__main__":
         inps.col_name,
         inps.unit,
         inps.workdir,
+        inps.numCPUs,
+        inps.verbose,
         inps.bbox,
         inps.spacing,
         inps.timeinterval,
@@ -987,5 +991,5 @@ if __name__ == "__main__":
         inps.grid_delay_stdev,
         inps.variogramplot,
         inps.binnedvariogram,
-        inps.variogram_per_timeslice,
+        inps.variogram_per_timeslice
     )

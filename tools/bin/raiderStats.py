@@ -37,5 +37,5 @@ if __name__ == "__main__":
         inps.grid_delay_stdev,
         inps.variogramplot,
         inps.binnedvariogram,
-        inps.variogram_per_timeslice,
+        inps.variogram_per_timeslice
     )
