@@ -50,7 +50,6 @@ def test_computeDelay(tmp_path):
            time=datetime(2020, 1, 3, 23, 0, 0), 
            out=tmp_path, 
            download_only=False, 
-           verbose=True, 
            wetFilename=wetFile, 
            hydroFilename=hydroFile
            )

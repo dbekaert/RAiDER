@@ -44,8 +44,6 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
         outRasterName = os.path.join(outLoc, outName)
     else:
         outRasterName = outName
-    if verbose:
-        print('DEM will be downloaded to {}'.format(outRasterName))
 
     if os.path.exists(outRasterName):
         log.warning(
