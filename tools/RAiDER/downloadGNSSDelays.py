@@ -375,5 +375,6 @@ if __name__ == "__main__":
         inps.years,
         inps.returnTime,
         inps.download,
+        inps.numCPUs,
         inps.verbose
     )
