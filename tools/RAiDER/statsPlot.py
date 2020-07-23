@@ -21,9 +21,6 @@ import pandas as pd
 from pandas.plotting import register_matplotlib_converters
 from shapely.geometry import Point, Polygon
 from shapely.strtree import STRtree
-# supress matplotlib postscript warnings
-mpl._log.setLevel('ERROR')
-register_matplotlib_converters()
 
 from RAiDER.downloadGNSSDelays import parse_cpus
 from RAiDER.logger import logger
@@ -465,7 +462,7 @@ class VariogramAnalysis():
         plt.xlabel('Distance (°)')
         plt.ylabel('Dissimilarity (m\u00b2)')
         plt.legend(bbox_to_anchor=(1.02, 1),
-                   loc='upper left', borderaxespad=0.)
+                   loc='upper left', borderaxespad=0., framealpha=1.)
         # Plot empirical variogram
         if d_test is None and v_test is None:
             plt.title('Empirical variogram'+title_str)
