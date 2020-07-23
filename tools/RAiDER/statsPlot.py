@@ -35,7 +35,7 @@ Perform basic statistical analyses concerning the spatiotemporal distribution of
 
 Specifically, make any of the following specified plot(s):
 scatterplot of station locations, total empirical and experimental variogram fits for data in each grid cell
-(and for each valid time-slice if -verbose specified), and gridded heatmaps of data, station distribution,
+(and for each valid time-slice if -variogram_per_timeslice specified), and gridded heatmaps of data, station distribution,
 range and sill values associated with experimental variogram fits. The default is to generate all of these.
 
 Example call to plot gridded station mean delay in a specific time interval :
@@ -61,6 +61,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
     userinps.add_argument('--cpus', dest='numCPUs', type=parse_cpus, default=8,
                           help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.')
+    userinps.add_argument('-verbose', '--verbose', action='store_true', dest='verbose',
+                          help="Run in verbose (debug) mode. Default False")
 
     # Spatiotemporal subset options
     dtsubsets = parser.add_argument_group(
@@ -118,8 +120,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           dest='variogramplot', help="Plot gridded station variogram.")
     pltvario.add_argument('-binnedvariogram', '--binnedvariogram', action='store_true', dest='binnedvariogram',
                           help="Apply experimental variogram fit to total binned empirical variograms for each time slice. Default is to pass total unbinned empiricial variogram.")
-    pltvario.add_argument('-verbose', '--verbose', action='store_true', dest='verbose',
-                          help="Toggle verbose mode on. Must be specified to generate variogram plots per gridded station AND time-slice.")
+    pltvario.add_argument('-variogram_per_timeslice', '--variogram_per_timeslice', action='store_true', dest='variogram_per_timeslice',
+                          help="Generate variogram plots per gridded station AND time-slice.")
 
     return parser
 
@@ -134,7 +136,7 @@ class VariogramAnalysis():
         Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis.
     '''
 
-    def __init__(self, filearg, gridpoints, col_name, workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, verbose=False):
+    def __init__(self, filearg, gridpoints, col_name, workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, variogram_per_timeslice=False):
         self.df = filearg
         self.col_name = col_name
         self.gridpoints = gridpoints
@@ -143,7 +145,7 @@ class VariogramAnalysis():
         self.densitythreshold = densitythreshold
         self.binnedvariogram = binnedvariogram
         self.numCPUs = numCPUs
-        self.verbose = verbose
+        self.variogram_per_timeslice = variogram_per_timeslice
 
     def _get_samples(self, data, Nsamp=None):
         '''
@@ -339,9 +341,8 @@ class VariogramAnalysis():
                 if not os.path.exists(os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind))):
                     os.makedirs(os.path.join(
                         self.workdir, 'variograms/grid{}'.format(grid_ind)))
-                # Make variogram plots for each time-slice if verbose mode specified.
-                # FIXME: This is not what "verbose" is for. Use a different argument
-                if self.verbose:
+                # Make variogram plots for each time-slice
+                if self.variogram_per_timeslice:
                     # Plot empirical variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
                         workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists, vario=vario,
@@ -861,7 +862,7 @@ def stats_analyses(
     grid_delay_stdev,
     variogramplot,
     binnedvariogram,
-    verbose,
+    variogram_per_timeslice,
 ):
     '''
     Main workflow for generating a suite of plots to illustrate spatiotemporal distribution
@@ -942,7 +943,7 @@ def stats_analyses(
         log.info("***Variogram Analysis Function:***")
         make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, col_name, workdir,
                                             df_stats.seasonalinterval, densitythreshold, binnedvariogram,
-                                            numCPUs, verbose)
+                                            numCPUs, variogram_per_timeslice)
         TOT_grids, TOT_res_robust_arr = make_variograms.create_variograms()
         # plot range heatmap
         log.info("- Plot variogram range per gridcell.")
@@ -986,5 +987,5 @@ if __name__ == "__main__":
         inps.grid_delay_stdev,
         inps.variogramplot,
         inps.binnedvariogram,
-        inps.verbose,
+        inps.variogram_per_timeslice,
     )
