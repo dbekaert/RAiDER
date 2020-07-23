@@ -16,6 +16,8 @@ if __name__ == "__main__":
         inps.col_name,
         inps.unit,
         inps.workdir,
+        inps.numCPUs,
+        inps.verbose,
         inps.bbox,
         inps.spacing,
         inps.timeinterval,
@@ -35,5 +37,5 @@ if __name__ == "__main__":
         inps.grid_delay_stdev,
         inps.variogramplot,
         inps.binnedvariogram,
-        inps.verbose,
+        inps.variogram_per_timeslice,
     )
