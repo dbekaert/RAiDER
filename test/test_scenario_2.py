@@ -13,6 +13,7 @@ from RAiDER.utilFcns import gdal_open, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
 
+
 def test_computeDelay(tmp_path):
     '''
     Scenario to use: 
@@ -20,7 +21,8 @@ def test_computeDelay(tmp_path):
     '''
     wetName = 'stations_with_Delays.csv'
     wetFile = os.path.join(SCENARIO_DIR, wetName)
-    hydroFile = wetFile  # Not used for station file input, only passed for consistent input arguments
+    # Not used for station file input, only passed for consistent input arguments
+    hydroFile = wetFile
 
     # load the weather model type and date for the given scenario
     wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
@@ -37,29 +39,31 @@ def test_computeDelay(tmp_path):
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
-           los=Zenith, 
-           lats=lats, 
-           lons=lons, 
-           ll_bounds=(33.746, 36.795, -118.312, -114.892),
-           heights=('merge', [wetFile]), 
-           flag='station_file', 
-           weather_model={'type': model_obj(), 'files': None, 'name': 'ERA5'},
-           wmLoc=None, 
-           zref=20000., 
-           outformat='csv', 
-           time=datetime(2020, 1, 3, 23, 0, 0), 
-           out=tmp_path, 
-           download_only=False, 
-           wetFilename=wetFile, 
-           hydroFilename=hydroFile
-           )
+            los=Zenith,
+            lats=lats,
+            lons=lons,
+            ll_bounds=(33.746, 36.795, -118.312, -114.892),
+            heights=('merge', [wetFile]),
+            flag='station_file',
+            weather_model={'type': model_obj(), 'files': None, 'name': 'ERA5'},
+            wmLoc=None,
+            zref=20000.,
+            outformat='csv',
+            time=datetime(2020, 1, 3, 23, 0, 0),
+            out=tmp_path,
+            download_only=False,
+            wetFilename=wetFile,
+            hydroFilename=hydroFile
+        )
 
     # get the results
-    est_delay  = pd.read_csv(wetFile)
+    est_delay = pd.read_csv(wetFile)
     true_delay = pd.read_csv(true_delay)
 
     # get the true delay from the weather model
-    assert np.allclose(est_delay['totalDelay'].values, true_delay['totalDelay'].values, equal_nan=True)
-    assert np.allclose(est_delay['wetDelay'].values, true_delay['wetDelay'].values, equal_nan=True)
-    assert np.allclose(est_delay['hydroDelay'].values, true_delay['hydroDelay'].values, equal_nan=True)
-
+    assert np.allclose(est_delay['totalDelay'].values,
+                       true_delay['totalDelay'].values, equal_nan=True)
+    assert np.allclose(est_delay['wetDelay'].values,
+                       true_delay['wetDelay'].values, equal_nan=True)
+    assert np.allclose(est_delay['hydroDelay'].values,
+                       true_delay['hydroDelay'].values, equal_nan=True)

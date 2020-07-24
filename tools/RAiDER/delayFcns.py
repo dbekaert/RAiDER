@@ -118,7 +118,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']), 
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
                          chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
         with mp.Pool() as pool:
@@ -131,9 +131,9 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     time_elapse = (time.time() - t0)
     with open('get_delays_time_elapse.txt', 'w') as f:
         f.write('{}'.format(time_elapse))
-    time_elapse_hr = int(np.floor(time_elapse/3600.0))
-    time_elapse_min = int(np.floor((time_elapse - time_elapse_hr*3600.0)/60.0))
-    time_elapse_sec = (time_elapse - time_elapse_hr*3600.0 - time_elapse_min*60.0)
+    time_elapse_hr = int(np.floor(time_elapse / 3600.0))
+    time_elapse_min = int(np.floor((time_elapse - time_elapse_hr * 3600.0) / 60.0))
+    time_elapse_sec = (time_elapse - time_elapse_hr * 3600.0 - time_elapse_min * 60.0)
     log.debug(
         "Delay estimation cost %d hour(s) %d minute(s) %d second(s) using %d cpu threads",
         time_elapse_hr, time_elapse_min, time_elapse_sec, cpu_num
@@ -157,7 +157,7 @@ def chunk(chunkSize, in_shape):
     '''
     Create a set of indices to use as chunks
     '''
-    startInds =  makeChunkStartInds(chunkSize, in_shape)
+    startInds = makeChunkStartInds(chunkSize, in_shape)
     chunkInds = makeChunksFromInds(startInds, chunkSize, in_shape)
     return chunkInds
 
@@ -186,11 +186,11 @@ def makeChunkStartInds(chunkSize, in_shape):
         chunkInds = [(i,) for i in range(0, in_shape[0], chunkSize[0])]
 
     elif len(in_shape) == 2:
-        chunkInds = [(i, j) for i, j in itertools.product(range(0, in_shape[0], chunkSize[0]), 
+        chunkInds = [(i, j) for i, j in itertools.product(range(0, in_shape[0], chunkSize[0]),
                                                           range(0, in_shape[1], chunkSize[1]))]
     elif len(in_shape) == 3:
-        chunkInds = [(i, j, k) for i, j, k in itertools.product(range(0, in_shape[0], chunkSize[0]), 
-                                                                range(0, in_shape[1], chunkSize[1]), 
+        chunkInds = [(i, j, k) for i, j, k in itertools.product(range(0, in_shape[0], chunkSize[0]),
+                                                                range(0, in_shape[1], chunkSize[1]),
                                                                 range(0, in_shape[2], chunkSize[2]))]
     else:
         raise NotImplementedError('makeChunkStartInds: ndim > 3 not supported')
@@ -222,10 +222,10 @@ def makeChunksFromInds(startInd, chunkSize, in_shape):
     for ci in startInd:
         index = []
         for si, k, dim in zip(ci, chunkSize, range(len(chunkSize))):
-            if si+k > in_shape[dim]:
+            if si + k > in_shape[dim]:
                 dend = in_shape[dim]
             else:
-                dend = si+k
+                dend = si + k
             index.append(np.array(range(si, dend)))
         indices.append(index)
 
@@ -237,7 +237,7 @@ def makeChunksFromInds(startInd, chunkSize, in_shape):
     else:
         chunks = indices
 
-    return chunks 
+    return chunks
 
 
 def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file):
@@ -260,13 +260,13 @@ def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, ma
         row, col = chunkInds
         ray = makePoints1D(max_len, SP[row, col, :].astype(_DTYPE), SLV[row, col, :].astype(_DTYPE), stepSize)
     elif len(chunkSize) == 3:
-        row, col, zind  = chunkInds
+        row, col, zind = chunkInds
         ray = makePoints1D(max_len, SP[row, col, zind, :].astype(_DTYPE), SLV[row, col, zind, :].astype(_DTYPE), stepSize)
     else:
         raise RuntimeError('Data in more than 4 dimensions is not supported')
 
     ray_x, ray_y, ray_z = t.transform(ray[..., 0, :], ray[..., 1, :], ray[..., 2, :])
-    delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
+    delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
     delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
     int_delays = _integrateLOS(stepSize, delay_wet, delay_hydro)
 
@@ -318,4 +318,4 @@ def _integrate_delays(stepSize, refr, Npts=None):
 
 
 def int_fcn(y, dx, N=None):
-    return 1e-6*dx*np.nansum(y[:N])
+    return 1e-6 * dx * np.nansum(y[:N])

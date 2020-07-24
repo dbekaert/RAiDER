@@ -5,7 +5,7 @@ from pyproj import CRS, Transformer
 from RAiDER.models.weatherModel import WeatherModel
 
 
-# Need to incorporate this snippet into this part of the code. 
+# Need to incorporate this snippet into this part of the code.
 # was formally in delay.py
 # if weather_model_name == 'wrf':
 #    # Let lats and lons to weather model nodes if necessary
@@ -42,12 +42,12 @@ class WRF(WeatherModel):
             self._get_wm_nodes(file2)
             self._read_netcdf(file1)
 
-        # WRF doesn't give us the coordinates of the points in the native projection, 
-        # only the coordinates in lat/long. Ray transformed these to the native 
+        # WRF doesn't give us the coordinates of the points in the native projection,
+        # only the coordinates in lat/long. Ray transformed these to the native
         # projection, then used an average to enforce a regular grid. It does matter
         # for the interpolation whether the grid is regular.
         lla = CRS.from_epsg(4326)
-        t = Transformer.from_proj(lla, self._proj) 
+        t = Transformer.from_proj(lla, self._proj)
         xs, ys = t.transform(lons.flatten(), lats.flatten())
         xs = xs.reshape(lons.shape)
         ys = ys.reshape(lats.shape)
@@ -102,8 +102,8 @@ class WRF(WeatherModel):
 
             checkUnits(spvar.units.decode('utf-8'), 'pressure')
             checkUnits(temp.units.decode('utf-8'), 'temperature')
-            checkUnits(humid.units.decode('utf-8'), 'relative humidity') 
-            checkUnits(geohvar.units.decode('utf-8'), 'geopotential') 
+            checkUnits(humid.units.decode('utf-8'), 'relative humidity')
+            checkUnits(geohvar.units.decode('utf-8'), 'geopotential')
 
             # _FillValue is not always set, but when it is we want to read it
             tNull = getNullValue(temp)
@@ -138,9 +138,9 @@ class WRF(WeatherModel):
         self._t = temps
         self._rh = humids
 
-        # Zs are problematic because any z below the topography is nan. 
-        # For a temporary fix, I will assign any nan value to equal the 
-        # nanmean of that level. 
+        # Zs are problematic because any z below the topography is nan.
+        # For a temporary fix, I will assign any nan value to equal the
+        # nanmean of that level.
         zmeans = np.nanmean(geoh, axis=(1, 2))
         nz, ny, nx = geoh.shape
         Zmeans = np.tile(zmeans, (nx, ny, 1))
@@ -151,9 +151,9 @@ class WRF(WeatherModel):
 
         if len(sp.shape) == 1:
             self._p = np.broadcast_to(
-                         sp[:, np.newaxis, np.newaxis], self._zs.shape)
+                sp[:, np.newaxis, np.newaxis], self._zs.shape)
         else:
-            self._p = sp 
+            self._p = sp
 
 
 class UnitTypeError(Exception):
@@ -173,7 +173,8 @@ def checkUnits(unitCheck, varName):
     '''
     unitDict = {'pressure': 'Pa', 'temperature': 'K', 'relative humidity': '%', 'geopotential': 'm'}
     if unitCheck != unitDict[varName]:
-        raise UnitTypeError(varName, unitCheck) 
+        raise UnitTypeError(varName, unitCheck)
+
 
 def getNullValue(var):
     '''
@@ -191,5 +192,3 @@ def getNullValue(var):
         var_fill = _default_fill_value
 
     return var_fill
-
-

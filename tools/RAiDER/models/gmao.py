@@ -22,7 +22,7 @@ class GMAO(WeatherModel):
         self._classname = 'gmao'
         self._dataset = 'gmao'
 
-        # Tuple of min/max years where data is available. 
+        # Tuple of min/max years where data is available.
         self._valid_range = (dt.datetime(2017, 12, 1), "Present")
         self._lag_time = dt.timedelta(hours=7.5)  # Availability lag time in hours
 
@@ -87,16 +87,16 @@ class GMAO(WeatherModel):
         session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
         ds = pydap.client.open_url(url, session=session)
 
-        q = ds['qv'].array[time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
-        p = ds['pl'].array[time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
-        t = ds['t'].array[time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
-        h = ds['h'].array[time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
+        q = ds['qv'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        p = ds['pl'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        t = ds['t'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        h = ds['h'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
 
         # calculate the lat, lon and mean h for each layer in the regular grid
         hs = np.mean(h, axis=(1, 2))
 
-        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind+1) * self._lat_res), self._lat_res)
-        lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind+1) * self._lon_res), self._lon_res)
+        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
+        lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res)
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)

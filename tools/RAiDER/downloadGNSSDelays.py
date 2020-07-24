@@ -281,7 +281,7 @@ def parse_years(timestr):
     years = list(map(int, timestr.split(',')))
     # If two years non-consecutive years are given, query for each year in between
     if len(years) == 2:
-        years = list(range(years[0], years[1]+1))
+        years = list(range(years[0], years[1] + 1))
     return years
 
 

@@ -182,7 +182,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    outName, zlevels=hgts,  outformat=outformat, delayType=delayType)
+                    outName, zlevels=hgts, outformat=outformat, delayType=delayType)
         log.info('Finished writing data to %s', outName)
     elif useWeatherNodes:
         log.info(

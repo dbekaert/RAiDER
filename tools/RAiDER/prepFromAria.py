@@ -61,8 +61,8 @@ def makeLatLonGrid(inFile, lonFileName, latFileName, fmt='ENVI'):
     xStep = gt[1]
     yStep = gt[-1]
 
-    xEnd = xStart + xStep*xSize-xStep
-    yEnd = yStart + yStep*ySize-yStep
+    xEnd = xStart + xStep * xSize - xStep
+    yEnd = yStart + yStep * ySize - yStep
 
     x = np.arange(xStart, xEnd, xStep)
     y = np.arange(yStart, yEnd, yStep)
@@ -94,7 +94,7 @@ def makeLOSFile(incFile, azFile, fmt='ENVI', filename='los.rdr'):
 
     # Write the data to a file
     driver = gdal.GetDriverByName(fmt)
-    ds = driver.Create(filename, array_shp[1], array_shp[0],  2, dType)
+    ds = driver.Create(filename, array_shp[1], array_shp[0], 2, dType)
     ds.SetProjection(az_proj)
     ds.SetGeoTransform(az_gt)
     b1 = ds.GetRasterBand(1)

@@ -59,7 +59,7 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
                 )
         except RuntimeError:
             hgts = RAiDER.utilFcns.read_hgt_file(outRasterName)
-        except: 
+        except:
             raise RuntimeError('Could not read the existing DEM; either delete it or fix it.')
 
         hgts[hgts == ndv] = np.nan

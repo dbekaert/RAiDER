@@ -125,7 +125,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         dType = gdal.GDT_Byte
 
     driver = gdal.GetDriverByName(fmt)
-    ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
+    ds = driver.Create(filename, array_shp[1], array_shp[0], 1, dType)
     if proj is not None:
         ds.SetProjection(proj)
     if gt is not None:
@@ -204,7 +204,7 @@ def _get_g_ll(lats):
     Compute the variation in gravity constant with latitude
     '''
     # TODO: verify these constants. In particular why is the reference g different from self._g0?
-    return 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
+    return 9.80616 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
 
 
 def _get_Re(lats):
@@ -214,7 +214,7 @@ def _get_Re(lats):
     # TODO: verify constants, add to base class constants?
     Rmax = 6378137
     Rmin = 6356752
-    return np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
+    return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
 def _geo_to_ht(lats, hts, g0=9.80556):
@@ -226,7 +226,7 @@ def _geo_to_ht(lats, hts, g0=9.80556):
     Re = _get_Re(lats)
 
     # Calculate Geometric Height, h
-    h = (hts*Re)/(g_ll/g0*Re - hts)
+    h = (hts * Re) / (g_ll / g0 * Re - hts)
 
     return h
 
@@ -285,9 +285,9 @@ def checkShapes(los, lats, lons, hts):
 
     if not test1 and test2:
         raise ValueError(
-         'I need lats, lons, heights, and los to all be the same shape. ' +
-         'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
-         'heights had shape {}, and los was not Zenith'.format(hts.shape))
+            'I need lats, lons, heights, and los to all be the same shape. ' +
+            'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
+            'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
 def checkLOS(los, Npts):
@@ -460,7 +460,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         minChunkSize = 100
         maxChunkSize = 10000
         cpu_count = mp.cpu_count()
-        chunkSize = tuple(max(min(maxChunkSize, s//cpu_count), min(s, minChunkSize)) for s in in_shape)
+        chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
 
     if verbose:
         print('Chunk size is {}'.format(chunkSize))
@@ -508,8 +508,8 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
             raise NotImplemented
 
         start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
-        lengths = f.create_dataset('Rays_len',  in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
+        lengths = f.create_dataset('Rays_len', in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
+        scaled_look_vecs = f.create_dataset('Rays_SLV', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
@@ -517,5 +517,3 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
-
-

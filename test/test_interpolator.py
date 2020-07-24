@@ -60,7 +60,8 @@ def test_fillna3D(grid):
 
     filled = fillna3D(values_with_nans)
     denom = np.abs(values[index])
-    error = np.abs(filled[index] - values[index]) / np.where(denom == 0, 1, denom)
+    error = np.abs(filled[index] - values[index]) / \
+        np.where(denom == 0, 1, denom)
 
     assert np.mean(error) < 0.1
 
@@ -160,7 +161,8 @@ def test_interp_along_axis_1d_out_of_bounds():
         equal_nan=True
     )
     assert np.allclose(
-        interpolate_along_axis(xs, ys, points, axis=0, max_threads=1, fill_value=np.nan),
+        interpolate_along_axis(xs, ys, points, axis=0,
+                               max_threads=1, fill_value=np.nan),
         np.array([np.nan, np.nan]),
         equal_nan=True
     )
@@ -356,7 +358,8 @@ def test_2d_basic():
     xs = np.array([0, 1])
     ys = np.array([0, 1])
 
-    values = (lambda x, y: x + y)(*np.meshgrid(xs, ys, indexing="ij", sparse=True))
+    values = (lambda x, y: x + y)(*np.meshgrid(xs,
+                                               ys, indexing="ij", sparse=True))
 
     ans = interpolate(
         points=(xs, ys),
@@ -477,7 +480,8 @@ def test_3d_basic():
     ys = np.array([0, 1])
     zs = np.array([0, 1])
 
-    values = (lambda x, y, z: x + y + z)(*np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
+    values = (lambda x, y, z: x + y + z)(*
+                                         np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
 
     ans = interpolate(
         points=(xs, ys, zs),
@@ -663,7 +667,8 @@ def test_4d_basic():
     zs = np.array([0, 1])
     ws = np.array([0, 1])
 
-    values = (lambda x, y, z, w: x + y + z + w)(*np.meshgrid(xs, ys, zs, ws, indexing="ij", sparse=True))
+    values = (lambda x, y, z, w: x + y + z + w)(*
+                                                np.meshgrid(xs, ys, zs, ws, indexing="ij", sparse=True))
 
     ans = interpolate(
         points=(xs, ys, zs, ws),

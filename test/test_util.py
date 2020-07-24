@@ -17,10 +17,10 @@ from RAiDER.utilFcns import (
 def make_points_0d_data():
     return (
         np.stack([
-                np.zeros(200),
-                np.zeros(200),
-                np.arange(0, 1000, 5)
-            ],
+            np.zeros(200),
+            np.zeros(200),
+            np.arange(0, 1000, 5)
+        ],
             axis=-1
         ).T,
         (1000., np.array([0., 0., 0.]), np.array([0., 0., 1.]), 5.)
@@ -30,17 +30,17 @@ def make_points_0d_data():
 @pytest.fixture
 def make_points_1d_data():
     ray1 = np.stack([
-            np.zeros(200),
-            np.zeros(200),
-            np.arange(0, 1000, 5)
-        ],
+        np.zeros(200),
+        np.zeros(200),
+        np.arange(0, 1000, 5)
+    ],
         axis=-1
     ).T
     ray2 = np.stack([
-            np.zeros(200),
-            np.arange(0, 1000, 5),
-            np.zeros(200),
-        ],
+        np.zeros(200),
+        np.arange(0, 1000, 5),
+        np.zeros(200),
+    ],
         axis=-1
     ).T
     rays = np.stack([ray1, ray2], axis=0)
@@ -62,18 +62,18 @@ def make_points_2d_data():
     slv[1, 1, 0] = -1
     make_points_args = (20., sp, slv, 5)
 
-    rays = np.array([[[[  0.,   5.,  10.,  15.],
-                       [  0.,   0.,   0.,   0.],
-                       [  0.,   0.,   0.,   0.]],
-                      [[  0.,   0.,   0.,   0.],
-                       [  0.,   5.,  10.,  15.],
-                       [  0.,   0.,   0.,   0.]]],
-                     [[[  0.,   0.,   0.,   0.],
-                       [  0.,   0.,   0.,   0.],
-                       [  0.,   5.,  10.,  15.]],
-                      [[  0.,  -5., -10., -15.],
-                       [  0.,   0.,   0.,   0.],
-                       [  0.,   0.,   0.,   0.]]]])
+    rays = np.array([[[[0.,   5.,  10.,  15.],
+                       [0.,   0.,   0.,   0.],
+                       [0.,   0.,   0.,   0.]],
+                      [[0.,   0.,   0.,   0.],
+                       [0.,   5.,  10.,  15.],
+                       [0.,   0.,   0.,   0.]]],
+                     [[[0.,   0.,   0.,   0.],
+                       [0.,   0.,   0.,   0.],
+                       [0.,   5.,  10.,  15.]],
+                      [[0.,  -5., -10., -15.],
+                       [0.,   0.,   0.,   0.],
+                       [0.,   0.,   0.,   0.]]]])
 
     return rays, make_points_args
 
@@ -194,13 +194,13 @@ def test_makeDelayFileNames():
         (
             "dir/model_name_wet_01_02_03_ztd.h5",
             "dir/model_name_hydro_01_02_03_ztd.h5"
-        )
+    )
 
     assert makeDelayFileNames(time(1, 2, 3), "los", "h5", "model_name", "dir") == \
         (
             "dir/model_name_wet_01_02_03_std.h5",
             "dir/model_name_hydro_01_02_03_std.h5"
-        )
+    )
 
 
 def test_least_nonzero():

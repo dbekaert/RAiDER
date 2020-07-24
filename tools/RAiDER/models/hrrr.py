@@ -33,8 +33,8 @@ class HRRR(WeatherModel):
         self._k3 = 3.75e3  # [K^2/Pa]
 
         # 3 km horizontal grid spacing
-        self._lat_res = 3./111
-        self._lon_res = 3./111
+        self._lat_res = 3. / 111
+        self._lon_res = 3. / 111
         self._x_res = 3.
         self._y_res = 3.
 
@@ -79,7 +79,7 @@ class HRRR(WeatherModel):
 
         # read data from grib file
         xArr, yArr, lats, lons, temps, qs, geo_hgt, pl = \
-        self._makeDataCubes(filename, verbose=False)
+            self._makeDataCubes(filename, verbose=False)
 
         Ny, Nx = lats.shape
 
@@ -88,9 +88,9 @@ class HRRR(WeatherModel):
         # data cube format should be lats,lons,heights
         lats, lons = lats.T, lons.T
         geo_hgt, temps, qs = geo_hgt.swapaxes(0, 1), temps.swapaxes(0, 1), qs.swapaxes(0, 1)
-        _xs = np.broadcast_to(xArr[ np.newaxis, :, np.newaxis],
+        _xs = np.broadcast_to(xArr[np.newaxis, :, np.newaxis],
                               geo_hgt.shape)
-        _ys = np.broadcast_to(yArr[ :, np.newaxis, np.newaxis],
+        _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
                               geo_hgt.shape)
         _lons = np.broadcast_to(lons[..., np.newaxis],
                                 geo_hgt.shape)
@@ -146,7 +146,7 @@ class HRRR(WeatherModel):
         return t, z, q, xArr, yArr, lats, lons
 
     def _getPresLevels(self, low=50, high=1013.2, inc=25):
-        presList = [float(v) for v in range(int(low//1), int(high//1), int(inc//1))]
+        presList = [float(v) for v in range(int(low // 1), int(high // 1), int(inc // 1))]
         presList.append(high)
         outDict = {'Values': presList, 'units': 'mb', 'Name': 'Pressure_levels'}
         return outDict
@@ -157,7 +157,7 @@ class HRRR(WeatherModel):
         '''
         fxx = '00'
         grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{}.grib2' \
-        .format(model, field,  DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
+            .format(model, field, DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
 
         log.debug('Downloading %s to %s', grib2file, out)
 

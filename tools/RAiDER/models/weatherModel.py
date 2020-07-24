@@ -177,7 +177,7 @@ class WeatherModel(ABC):
             # TODO: lengths and LOS return from GEO2RDR are not correct
             lengths = np.linalg.norm(los, axis=-1)
             max_len = np.nanmax(lengths)
-            los_slv = los/lengths[..., np.newaxis]
+            los_slv = los / lengths[..., np.newaxis]
 
             # Transform each point to ECEF
             rays_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
@@ -192,7 +192,7 @@ class WeatherModel(ABC):
             # Transform from ECEF to weather model native projection
             ray_x, ray_y, ray_z = t.transform(ray[..., 0], ray[..., 1], ray[..., 2], always_xy=True)
 
-            delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
+            delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
             delays = _integrateLOS(_STEP, delay_wet, delay_hydro, Npts)
 
@@ -251,7 +251,7 @@ class WeatherModel(ABC):
         '''
         Convert pressure in millibars to Pascals
         '''
-        return 100*pres
+        return 100 * pres
 
     def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan):
         '''
@@ -275,25 +275,25 @@ class WeatherModel(ABC):
         """Calculate e, partial pressure of water vapor."""
         self._find_svp()
         # We have q = w/(w + 1), so w = q/(1 - q)
-        w = self._q/(1 - self._q)
-        self._e = w*self._R_v*(self._p - self._svp)/self._R_d
+        w = self._q / (1 - self._q)
+        self._e = w * self._R_v * (self._p - self._svp) / self._R_d
 
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
         self._find_svp()
-        self._e = self._rh/100 * self._svp
+        self._e = self._rh / 100 * self._svp
 
     def _get_wet_refractivity(self):
         '''
         Calculate the wet delay from pressure, temperature, and e
         '''
-        self._wet_refractivity = self._k2*self._e/self._t + self._k3*self._e/self._t**2
+        self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
     def _get_hydro_refractivity(self):
         '''
         Calculate the hydrostatic delay from pressure and temperature
         '''
-        self._hydrostatic_refractivity = self._k1*self._p/self._t
+        self._hydrostatic_refractivity = self._k1 * self._p / self._t
 
     def getWetRefractivity(self):
         return self._wet_refractivity
@@ -382,13 +382,13 @@ class WeatherModel(ABC):
         # subset around points of interest
         self._lons = self._lons[index1:index2, index3:index4, :]
         self._lats = self._lats[index1:index2, index3:index4, ...]
-        self._xs  = self._xs[index3:index4]
-        self._ys  = self._ys[index1:index2]
-        self._p   = self._p[index1:index2, index3:index4, ...]
-        self._t   = self._t[index1:index2, index3:index4, ...]
-        self._e   = self._e[index1:index2, index3:index4, ...]
+        self._xs = self._xs[index3:index4]
+        self._ys = self._ys[index1:index2]
+        self._p = self._p[index1:index2, index3:index4, ...]
+        self._t = self._t[index1:index2, index3:index4, ...]
+        self._e = self._e[index1:index2, index3:index4, ...]
 
-        self._wet_refractivity         = self._wet_refractivity[index1:index2, index3:index4, ...]
+        self._wet_refractivity = self._wet_refractivity[index1:index2, index3:index4, ...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2, index3:index4, :]
 
     def _find_svp(self):
@@ -412,11 +412,11 @@ class WeatherModel(ABC):
         t2 = 250.15  # -23 Celsius
 
         tref = self._t - t1
-        wgt = (self._t - t2)/(t1 - t2)
-        svpw = (6.1121 * np.exp((17.502*tref)/(240.97 + tref)))
-        svpi = (6.1121 * np.exp((22.587*tref)/(273.86 + tref)))
+        wgt = (self._t - t2) / (t1 - t2)
+        svpw = (6.1121 * np.exp((17.502 * tref) / (240.97 + tref)))
+        svpi = (6.1121 * np.exp((22.587 * tref) / (273.86 + tref)))
 
-        svp = svpi + (svpw - svpi)*wgt**2
+        svp = svpi + (svpw - svpi) * wgt**2
         ix_bound1 = self._t > t1
         svp[ix_bound1] = svpw[ix_bound1]
         ix_bound2 = self._t < t2
@@ -456,7 +456,7 @@ class WeatherModel(ABC):
                 'and b have lengths {} and {} respectively. Of '.format(len(self._a), len(self._b)) +
                 'course, these three numbers should be equal.')
 
-        Ph_levplusone = self._a[levelSize] + (self._b[levelSize]*sp)
+        Ph_levplusone = self._a[levelSize] + (self._b[levelSize] * sp)
 
         # Integrate up into the atmosphere from *lowest level*
         z_h = 0  # initial value
@@ -471,31 +471,31 @@ class WeatherModel(ABC):
             ilevel = lev - 1
 
             # compute moist temperature
-            t_level = t_level*(1 + 0.609133*q_level)
+            t_level = t_level * (1 + 0.609133 * q_level)
 
             # compute the pressures (on half-levels)
-            Ph_lev = self._a[lev-1] + (self._b[lev-1] * sp)
+            Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
 
             pressurelvs[ilevel] = Ph_lev
 
             if lev == 1:
-                dlogP = np.log(Ph_levplusone/0.1)
+                dlogP = np.log(Ph_levplusone / 0.1)
                 alpha = np.log(2)
             else:
-                dlogP = np.log(Ph_levplusone/Ph_lev)
+                dlogP = np.log(Ph_levplusone / Ph_lev)
                 dP = Ph_levplusone - Ph_lev
-                alpha = 1 - ((Ph_lev/dP)*dlogP)
+                alpha = 1 - ((Ph_lev / dP) * dlogP)
 
-            TRd = t_level*self._R_d
+            TRd = t_level * self._R_d
 
             # z_f is the geopotential of this full level
             # integrate from previous (lower) half-level z_h to the full level
-            z_f = z_h + TRd*alpha
+            z_f = z_h + TRd * alpha
             # geoheight[ilevel] = z_f/self._g0
 
             # Geopotential (add in surface geopotential)
             geopotential[ilevel] = z_f + z
-            geoheight[ilevel] = geopotential[ilevel]/self._g0
+            geoheight[ilevel] = geopotential[ilevel] / self._g0
 
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
@@ -509,10 +509,10 @@ class WeatherModel(ABC):
         '''
         returns the extents of lat/lon plus a buffer
         '''
-        lat_min = np.nanmin(lats) - Nextra*self._lat_res
-        lat_max = np.nanmax(lats) + Nextra*self._lat_res
-        lon_min = np.nanmin(lons) - Nextra*self._lon_res
-        lon_max = np.nanmax(lons) + Nextra*self._lon_res
+        lat_min = np.nanmin(lats) - Nextra * self._lat_res
+        lat_max = np.nanmax(lats) + Nextra * self._lat_res
+        lon_min = np.nanmin(lons) - Nextra * self._lon_res
+        lon_max = np.nanmax(lons) + Nextra * self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
 
@@ -538,10 +538,10 @@ class WeatherModel(ABC):
         # make regular point grid
         pixelSizeX = trans[1]
         pixelSizeY = trans[5]
-        eastOrigin = trans[0] + 0.5*pixelSizeX
-        northOrigin = trans[3] + 0.5*pixelSizeY
-        xArray = np.arange(eastOrigin,  eastOrigin + pixelSizeX*xSize,  pixelSizeX)
-        yArray = np.arange(northOrigin, northOrigin + pixelSizeY*ySize, pixelSizeY)
+        eastOrigin = trans[0] + 0.5 * pixelSizeX
+        northOrigin = trans[3] + 0.5 * pixelSizeY
+        xArray = np.arange(eastOrigin, eastOrigin + pixelSizeX * xSize, pixelSizeX)
+        yArray = np.arange(northOrigin, northOrigin + pixelSizeY * ySize, pixelSizeY)
 
         return xArray, yArray
 

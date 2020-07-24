@@ -40,8 +40,8 @@ def interpVector(vec, Nx):
     number of original x-points.
     '''
     x = vec[:Nx]
-    y = vec[Nx:2*Nx]
-    xnew = vec[2*Nx:]
+    y = vec[Nx:2 * Nx]
+    xnew = vec[2 * Nx:]
     f = interp1d(x, y, bounds_error=False, copy=False, assume_sorted=True)
     return f(xnew)
 
@@ -56,7 +56,7 @@ def fillna3D(array, axis=-1):
     y = narr.flatten()
 
     test_nan = np.isnan(y)
-    finder = lambda z: z.nonzero()[0]
+    def finder(z): return z.nonzero()[0]
 
     try:
         y[test_nan] = np.interp(finder(test_nan), finder(~test_nan), y[~test_nan])

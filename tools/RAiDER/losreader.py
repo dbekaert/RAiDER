@@ -98,7 +98,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
         # Geo2rdr is picky about the type of height
         height_array = height_array.astype(np.double)
 
-        lon_start, lat_start = np.radians(360-lon), np.radians(lat)
+        lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
         geo2rdr_obj.set_geo_coordinate(lon_start, lat_start, 1, 1, height_array)
 
         # compute the radar coordinate for each geo coordinate
@@ -142,7 +142,7 @@ def read_shelve(filename):
     vz = np.ones(numSV)
 
     for i, st in enumerate(obj.orbit.stateVectors):
-        t[i] = st.time.second + st.time.minute*60.0
+        t[i] = st.time.second + st.time.minute * 60.0
         x[i] = st.position[0]
         y[i] = st.position[1]
         z[i] = st.position[2]
@@ -167,9 +167,9 @@ def read_txt_file(filename):
                 t_, x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in line.split()]
             except ValueError:
                 raise ValueError(
-                        "I need {} to be a 7 column text file, with ".format(filename) +
-                        "columns t, x, y, z, vx, vy, vz (Couldn't parse line " +
-                        "{})".format(repr(line)))
+                    "I need {} to be a 7 column text file, with ".format(filename) +
+                    "columns t, x, y, z, vx, vy, vz (Couldn't parse line " +
+                    "{})".format(repr(line)))
             t.append(t_)
             x.append(x_)
             y.append(y_)
@@ -253,8 +253,8 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     a_0 = incidence
     a_1 = heading
 
-    east = utilFcns.sind(a_0)*utilFcns.cosd(a_1 + 90)
-    north = utilFcns.sind(a_0)*utilFcns.sind(a_1 + 90)
+    east = utilFcns.sind(a_0) * utilFcns.cosd(a_1 + 90)
+    north = utilFcns.sind(a_0) * utilFcns.sind(a_1 + 90)
     up = utilFcns.cosd(a_0)
     east, north, up = np.stack((east, north, up))
 
@@ -267,8 +267,8 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     east, north, up = np.stack((east, north, up)) * ranges
 
     xyz = utilFcns.enu2ecef(
-            east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
-            lons.flatten(), heights.flatten())
+        east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
+        lons.flatten(), heights.flatten())
 
     sp_xyz = utilFcns.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten())
     los = np.stack(xyz, axis=-1) - np.stack(sp_xyz, axis=-1)
@@ -314,10 +314,10 @@ def _getZenithLookVecs(lats, lons, heights, zref=_ZREF):
     if hasattr(zref, "__len__") | isinstance(zref, str):
         raise RuntimeError('_getZenithLookVecs: zref must be a scalar')
 
-    e = np.cos(np.radians(lats))*np.cos(np.radians(lons))
-    n = np.cos(np.radians(lats))*np.sin(np.radians(lons))
+    e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
+    n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
-    zenLookVecs = (np.array((e, n, u)).T*(zref - heights)[..., np.newaxis])
+    zenLookVecs = (np.array((e, n, u)).T * (zref - heights)[..., np.newaxis])
     return zenLookVecs.astype(np.float64)
 
 

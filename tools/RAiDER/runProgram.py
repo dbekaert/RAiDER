@@ -17,7 +17,7 @@ def read_date(s):
     '''
     try:
         date1, date2 = [parse_date(d) for d in s.split(',')]
-        dateList = [date1 + k*timedelta(days=1) for k in range((date2 - date1).days+1)]
+        dateList = [date1 + k * timedelta(days=1) for k in range((date2 - date1).days + 1)]
         return dateList
     except ValueError:
         date = parse_date(s)
@@ -27,8 +27,8 @@ def read_date(s):
 def parse_args():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
-          formatter_class=argparse.RawDescriptionHelpFormatter,
-          description="""
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="""
 Calculate tropospheric delay from a weather model.
 Usage examples:
 raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
@@ -144,8 +144,8 @@ def parseCMD():
 
     # Argument checking
     los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
-    times, out, download_only, verbose, \
-    wetNames, hydroNames = checkArgs(args, p)
+        times, out, download_only, verbose, \
+        wetNames, hydroNames = checkArgs(args, p)
 
     if verbose:
         logger.setLevel(logging.DEBUG)

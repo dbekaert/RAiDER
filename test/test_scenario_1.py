@@ -11,6 +11,7 @@ from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
+
 def test_tropo_delay(tmp_path):
     '''
     Scenario: 
@@ -40,7 +41,8 @@ def test_tropo_delay(tmp_path):
             lats=lats,
             lons=lons,
             ll_bounds=(15.75, 18.25, -103.24, -99.75),
-            heights=("download", os.path.join(DATA_DIR, "geom", "warpedDEM.dem")),
+            heights=("download", os.path.join(
+                DATA_DIR, "geom", "warpedDEM.dem")),
             flag="files",
             weather_model={
                 "type": model_obj(),
@@ -60,11 +62,12 @@ def test_tropo_delay(tmp_path):
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)
-        true_wet = gdal_open(os.path.join(SCENARIO_DIR, "wet.envi"), userNDV=0.)
-        true_hydro = gdal_open(os.path.join(SCENARIO_DIR, "hydro.envi"), userNDV=0.)
+        true_wet = gdal_open(os.path.join(
+            SCENARIO_DIR, "wet.envi"), userNDV=0.)
+        true_hydro = gdal_open(os.path.join(
+            SCENARIO_DIR, "hydro.envi"), userNDV=0.)
         print(true_wet)
 
         # get the true delay from the weather model
         assert np.allclose(wet, true_wet, equal_nan=True)
         assert np.allclose(hydro, true_hydro, equal_nan=True)
-
