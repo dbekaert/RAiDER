@@ -480,8 +480,9 @@ def test_3d_basic():
     ys = np.array([0, 1])
     zs = np.array([0, 1])
 
-    values = (lambda x, y, z: x + y + z)(*
-                                         np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
+    values = (lambda x, y, z: x + y + z)(
+        *np.meshgrid(xs, ys, zs, indexing="ij", sparse=True)
+    )
 
     ans = interpolate(
         points=(xs, ys, zs),
@@ -667,8 +668,9 @@ def test_4d_basic():
     zs = np.array([0, 1])
     ws = np.array([0, 1])
 
-    values = (lambda x, y, z, w: x + y + z + w)(*
-                                                np.meshgrid(xs, ys, zs, ws, indexing="ij", sparse=True))
+    values = (lambda x, y, z, w: x + y + z + w)(
+        *np.meshgrid(xs, ys, zs, ws, indexing="ij", sparse=True)
+    )
 
     ans = interpolate(
         points=(xs, ys, zs, ws),
