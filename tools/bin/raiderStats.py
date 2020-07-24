@@ -16,7 +16,7 @@ if __name__ == "__main__":
         inps.col_name,
         inps.unit,
         inps.workdir,
-        inps.numCPUs,
+        inps.cpus,
         inps.verbose,
         inps.bbox,
         inps.spacing,

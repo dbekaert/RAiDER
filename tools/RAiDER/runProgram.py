@@ -1,30 +1,17 @@
 import argparse
 import logging
-from datetime import timedelta
 
 from RAiDER.checkArgs import checkArgs
+from RAiDER.cli.parser import add_bbox, add_out, add_verbose
+from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
 from RAiDER.logger import logger
-from RAiDER.utilFcns import parse_date, parse_time
 
 log = logging.getLogger(__name__)
 
 
-def read_date(s):
-    '''
-    Read and parse an input date or datestring
-    '''
-    try:
-        date1, date2 = [parse_date(d) for d in s.split(',')]
-        dateList = [date1 + k * timedelta(days=1) for k in range((date2 - date1).days + 1)]
-        return dateList
-    except ValueError:
-        date = parse_date(s)
-        return [date]
-
-
-def parse_args():
+def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -40,12 +27,17 @@ raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/lat
     datetime.add_argument(
         '--date', dest='dateList',
         help="""Date to calculate delay.
-Can be a single date or a comma-separated list of two dates (earlier, later).
+Can be a single date or a list of two dates (earlier, later).
 Example accepted formats:
    YYYYMMDD or
-   YYYYMMDD,YYYYMMDD
+   YYYYMMDD YYYYMMDD
 """,
-        type=read_date, required=True)
+        nargs="+",
+        action=DateListAction,
+        type=date_type,
+        required=True
+    )
+
     datetime.add_argument(
         '--time', dest='time',
         help='''Calculate delay at this time.
@@ -53,25 +45,24 @@ Example formats:
    THHMMSS,
    HHMMSS, or
    HH:MM:SS''',
-        type=parse_time, required=True)
+        type=time_type, required=True)
 
     # Area
-    area = p.add_argument_group('Area of Interest (Supply one)')
+    area = p.add_argument_group('Area of Interest (Supply one)').add_mutually_exclusive_group(required=True)
     area.add_argument(
         '--latlon', '-ll', nargs=2, default=None,
         help=('GDAL-readable latitude and longitude raster files (2 single-band files)'),
         metavar=('LAT', 'LONG'))
-    area.add_argument(
-        '--BBOX', '-b', nargs=4, dest='bounding_box',
-        help="""Bounding box""",
-        metavar=('N', 'W', 'S', 'E'))
+    add_bbox(area)
     area.add_argument(
         '--station_file', default=None, type=str, dest='station_file',
         help=('CSV file with a list of stations, containing at least '
               'the columns "Lat" and "Lon"'))
 
     # Line of sight
-    los = p.add_argument_group('Specify a Line-of-sight or state vector file, or if neither is supplied, the Zenith delay will be returned')
+    los = p.add_argument_group(
+        'Specify a Line-of-sight or state vector file. If neither argument is supplied, the Zenith delay will be returned'
+    ).add_mutually_exclusive_group()
     los.add_argument(
         '--lineofsight', '-l',
         help='GDAL-readable two-band line-of-sight file (B1: inclination, B2: heading)',
@@ -110,28 +101,23 @@ Example formats:
     misc.add_argument(
         '--zref', '-z',
         help=('Height limit when integrating (meters) (default: {} km)'.format(_ZREF)),
+        type=float,
         default=_ZREF)
     misc.add_argument(
         '--outformat',
         help='GDAL-compatible file format if surface delays are requested.',
         default=None)
 
-    misc.add_argument(
-        '--out',
-        help='Output file directory',
-        default='.')
+    add_out(misc)
 
     misc.add_argument(
         '--download_only',
         help='Download weather model only without processing? Default False',
         action='store_true', dest='download_only', default=False)
 
-    misc.add_argument(
-        '--verbose', '-v',
-        help='Run in verbose (debug) mode? Default False',
-        action='store_true', dest='verbose', default=False)
+    add_verbose(misc)
 
-    return p.parse_args(), p
+    return p
 
 
 def parseCMD():
@@ -140,7 +126,8 @@ def parseCMD():
     We'll parse arguments and call delay.py.
     """
 
-    args, p = parse_args()
+    p = create_parser()
+    args = p.parse_args()
 
     # Argument checking
     los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \

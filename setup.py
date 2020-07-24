@@ -6,13 +6,12 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 import glob
 import os
 import re
 
 import numpy as np
-from setuptools import Extension, setup
+from setuptools import Extension, find_packages, setup
 
 # Cythonize should be imported after setuptools. See:
 # https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#configuring-the-c-build
@@ -95,10 +94,9 @@ setup(
     description='This is the RAiDER package',
     package_dir={
         'tools': 'tools',
-        'RAiDER': 'tools/RAiDER',
-        'RAiDER.models': 'tools/RAiDER/models',
+        '': 'tools'
     },
-    packages=['tools', 'RAiDER', 'RAiDER.models'],
+    packages=['tools'] + find_packages('tools'),
     ext_modules=cythonize(
         cython_extensions,
         quiet=True,

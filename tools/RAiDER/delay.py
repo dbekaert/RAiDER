@@ -116,7 +116,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     log.debug('DEM/height type is "%s"', heights[0])
 
     # Flags
-    useWeatherNodes = [True if flag == 'bounding_box' else False][0]
+    useWeatherNodes = flag == 'bounding_box'
     delayType = ["Zenith" if los is Zenith else "LOS"]
 
     # location of the weather model files
