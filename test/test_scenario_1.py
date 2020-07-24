@@ -66,7 +66,6 @@ def test_tropo_delay(tmp_path):
             SCENARIO_DIR, "wet.envi"), userNDV=0.)
         true_hydro = gdal_open(os.path.join(
             SCENARIO_DIR, "hydro.envi"), userNDV=0.)
-        print(true_wet)
 
         # get the true delay from the weather model
         assert np.allclose(wet, true_wet, equal_nan=True)

@@ -2,6 +2,7 @@
 import h5py
 import importlib
 import itertools
+import logging
 import os
 import re
 import pyproj
@@ -16,6 +17,7 @@ from RAiDER import Geo2rdr
 from RAiDER.constants import Zenith
 
 gdal.UseExceptions()
+log = logging.getLogger(__name__)
 
 
 def sind(x):
@@ -67,14 +69,14 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
         data = b.ReadAsArray()
         if userNDV is not None:
-            print('Using user-supplied NoDataValue')
+            log.debug('Using user-supplied NoDataValue')
             data[data == userNDV] = np.nan
         else:
             try:
                 ndv = b.GetNoDataValue()
                 data[data == ndv] = np.nan
             except:
-                print('NoDataValue attempt failed*******')
+                log.debug('NoDataValue attempt failed*******')
         val.append(data)
         b = None
     ds = None
@@ -443,7 +445,7 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0., verbose=False):
+def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -462,9 +464,8 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         cpu_count = mp.cpu_count()
         chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
 
-    if verbose:
-        print('Chunk size is {}'.format(chunkSize))
-        print('Array shape is {}'.format(in_shape))
+    log.debug('Chunk size is {}'.format(chunkSize))
+    log.debug('Array shape is {}'.format(in_shape))
 
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
