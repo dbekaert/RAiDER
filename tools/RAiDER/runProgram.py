@@ -1,5 +1,6 @@
 import argparse
 import logging
+from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
@@ -16,23 +17,25 @@ def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="""
-Calculate tropospheric delay from a weather model.
-Usage examples:
-raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
-raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v
-raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/lat.dat test/scenario_1/geom/lon.dat --model ERA5 --zref 20000 -v --out test/scenario_1/
-""")
+        description=dedent("""\
+            Calculate tropospheric delay from a weather model.
+            Usage examples:
+            raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 -v
+            raiderDelay.py --date 20200103 --time 23:00:00 -b 40 -79 39 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v
+            raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/lat.dat test/scenario_1/geom/lon.dat --model ERA5 --zref 20000 -v --out test/scenario_1/
+            """)
+    )
 
     datetime = p.add_argument_group('Datetime')
     datetime.add_argument(
         '--date', dest='dateList',
-        help="""Date to calculate delay.
-Can be a single date or a list of two dates (earlier, later).
-Example accepted formats:
-   YYYYMMDD or
-   YYYYMMDD YYYYMMDD
-""",
+        help=dedent("""\
+            Date to calculate delay.
+            Can be a single date or a list of two dates (earlier, later).
+            Example accepted formats:
+               YYYYMMDD or
+               YYYYMMDD YYYYMMDD
+            """),
         nargs="+",
         action=DateListAction,
         type=date_type,
@@ -41,18 +44,19 @@ Example accepted formats:
 
     datetime.add_argument(
         '--time', dest='time',
-        help='''Calculate delay at this time.
-Example formats:
-   THHMMSS,
-   HHMMSS, or
-   HH:MM:SS''',
+        help=dedent('''\
+        Calculate delay at this time.
+        Example formats:
+           THHMMSS,
+           HHMMSS, or
+           HH:MM:SS'''),
         type=time_type, required=True)
 
     # Area
     area = p.add_argument_group('Area of Interest (Supply one)').add_mutually_exclusive_group(required=True)
     area.add_argument(
         '--latlon', '-ll', nargs=2, default=None,
-        help=('GDAL-readable latitude and longitude raster files (2 single-band files)'),
+        help='GDAL-readable latitude and longitude raster files (2 single-band files)',
         metavar=('LAT', 'LONG'))
     add_bbox(area)
     area.add_argument(
@@ -70,8 +74,8 @@ Example formats:
              metavar='LOS', default=None)
     los.add_argument(
         '--statevectors', '-s', default=None, metavar='SV',
-        help=('An ESA orbit file or text file containing state vectors specifying ' \
-              'the orbit of the sensor.'))
+        help='An ESA orbit file or text file containing state vectors specifying '
+             'the orbit of the sensor.')
 
     # heights
     heights = p.add_argument_group('Height data. Default is ground surface for specified lat/lons, height levels otherwise')
@@ -103,7 +107,7 @@ Example formats:
     misc = p.add_argument_group("Run parameters")
     misc.add_argument(
         '--zref', '-z',
-        help=('Height limit when integrating (meters) (default: {} km)'.format(_ZREF)),
+        help='Height limit when integrating (meters) (default: {} km)'.format(_ZREF),
         type=float,
         default=_ZREF)
     misc.add_argument(
