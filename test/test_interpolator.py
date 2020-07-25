@@ -358,8 +358,9 @@ def test_2d_basic():
     xs = np.array([0, 1])
     ys = np.array([0, 1])
 
-    values = (lambda x, y: x + y)(*np.meshgrid(xs,
-                                               ys, indexing="ij", sparse=True))
+    values = (lambda x, y: x + y)(
+        *np.meshgrid(xs, ys, indexing="ij", sparse=True)
+    )
 
     ans = interpolate(
         points=(xs, ys),
