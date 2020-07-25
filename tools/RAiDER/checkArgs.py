@@ -14,7 +14,6 @@ import numpy as np
 import RAiDER.utilFcns
 from RAiDER.constants import Zenith
 from RAiDER.llreader import readLL
-from RAiDER.models.allowed import AllowedModels
 
 
 def checkArgs(args, p):
@@ -63,9 +62,7 @@ def checkArgs(args, p):
         los = Zenith
 
     # Weather
-    weather_model_name = args.model.upper().replace('-', '')
-    if weather_model_name not in AllowedModels():
-        raise NotImplementedError('Model {} has not been implemented'.format(args.model))
+    weather_model_name = args.model
     if weather_model_name == 'WRF' and args.files is None:
         raise RuntimeError('Argument --files is required with --model WRF')
     _, model_obj = RAiDER.utilFcns.modelName2Module(args.model)

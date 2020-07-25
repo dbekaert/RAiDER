@@ -14,7 +14,6 @@ from datetime import datetime
 
 import numpy as np
 
-from RAiDER.models.allowed import checkIfImplemented
 from RAiDER.utilFcns import getTimeFromFile
 
 log = logging.getLogger(__name__)
@@ -55,8 +54,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
 
     # Make weather
     weather_model, weather_files, weather_model_name = \
-        weatherDict['type'], weatherDict['files'], weatherDict['name']
-    checkIfImplemented(weather_model_name.upper().replace('-', ''))
+    weatherDict['type'], weatherDict['files'], weatherDict['name']
 
     # check whether weather model files are supplied
     if weather_files is None:

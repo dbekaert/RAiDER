@@ -7,6 +7,7 @@ from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
 from RAiDER.logger import logger
+from RAiDER.models.allowed import ALLOWED_MODELS
 
 log = logging.getLogger(__name__)
 
@@ -86,8 +87,10 @@ Example formats:
     weather = p.add_argument_group("Weather model. See documentation for details")
     weather.add_argument(
         '--model',
-        help="""Weather model option to use: ERA5/HRRR/MERRA2/NARR/WRF/HDF5. """,
-        default='ERA-5T')
+        help="Weather model option to use.",
+        type=lambda s: s.upper().replace("-", ""),
+        choices=ALLOWED_MODELS,
+        default='ERA5T')
     weather.add_argument(
         '--files',
         help="""OUT/PLEV or HDF5 file(s) """,

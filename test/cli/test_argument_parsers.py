@@ -100,3 +100,21 @@ def test_delay_aoi_mutually_exclusive(delay_parser):
             '--date', '20200103',
             '--time', '23:00:00',
         ])
+
+
+def test_delay_model(delay_parser):
+    with pytest.raises(SystemExit):
+        delay_parser.parse_args([
+            '--date', '20200103',
+            '--time', '23:00:00',
+            '--station_file', 'station_file',
+            '--model', 'FOOBAR'
+        ])
+
+    args = delay_parser.parse_args([
+        '--date', '20200103',
+        '--time', '23:00:00',
+        '--station_file', 'station_file',
+        '--model', 'era-5'
+    ])
+    assert args.model == "ERA5"
