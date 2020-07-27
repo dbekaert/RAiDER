@@ -15,14 +15,14 @@ import os
 import warnings
 
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 from pandas.plotting import register_matplotlib_converters
 from shapely.geometry import Point, Polygon
 from shapely.strtree import STRtree
 
-from RAiDER.downloadGNSSDelays import parse_cpus
+from RAiDER.cli.parser import add_cpus
 from RAiDER.logger import logger
 
 log = logging.getLogger(__name__)
@@ -59,8 +59,7 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           help='Specified input unit. Input will be converted into m if not already in m.')
     userinps.add_argument('-w', '--workdir', dest='workdir', default='./',
                           help='Specify directory to deposit all outputs. Default is local directory where script is launched.')
-    userinps.add_argument('--cpus', dest='numCPUs', type=parse_cpus, default=8,
-                          help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.')
+    add_cpus(userinps)
     userinps.add_argument('-verbose', '--verbose', action='store_true', dest='verbose',
                           help="Run in verbose (debug) mode. Default False")
 
@@ -698,11 +697,11 @@ class RaiderStats(object):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
-        import cartopy.crs as ccrs
-        import cartopy.feature as cfeature
-        import cartopy.io.img_tiles as cimgt
-        import matplotlib.ticker as mticker
+        from cartopy import crs as ccrs
+        from cartopy import feature as cfeature
+        from cartopy.io import img_tiles as cimgt
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
+        from matplotlib import ticker as mticker
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
         # If specified workdir doesn't exist, create it
@@ -974,7 +973,7 @@ if __name__ == "__main__":
         inps.col_name,
         inps.unit,
         inps.workdir,
-        inps.numCPUs,
+        inps.cpus,
         inps.verbose,
         inps.bbox,
         inps.spacing,

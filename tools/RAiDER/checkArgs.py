@@ -7,13 +7,13 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+from datetime import datetime
 
 import numpy as np
 
 import RAiDER.utilFcns
 from RAiDER.constants import Zenith
 from RAiDER.llreader import readLL
-from RAiDER.models.allowed import AllowedModels
 
 
 def checkArgs(args, p):
@@ -32,7 +32,7 @@ def checkArgs(args, p):
     # flag depending on the type of input
     if args.latlon is not None:
         flag = 'files'
-    elif args.bounding_box is not None:
+    elif args.bbox is not None:
         flag = 'bounding_box'
     elif args.station_file is not None:
         flag = 'station_file'
@@ -40,13 +40,9 @@ def checkArgs(args, p):
         flag = None
 
     if args.latlon is not None:
-        if args.bounding_box is not None or args.station_file is not None:
-            raise RuntimeError("Please specify only one AOI: either files, a bounding box, or a file of stations")
         lat, lon, latproj, lonproj, bounds = readLL(*args.latlon)
-    elif args.bounding_box is not None:
-        if args.station_file is not None:
-            raise RuntimeError("Please specify only one AOI: either files, a bounding box, or a file of stations")
-        lat, lon, latproj, lonproj, bounds = readLL(*args.bounding_box)
+    elif args.bbox is not None:
+        lat, lon, latproj, lonproj, bounds = readLL(*args.bbox)
     elif args.station_file is not None:
         lat, lon, latproj, lonproj, bounds = readLL(args.station_file)
     elif args.files is None:
@@ -58,8 +54,6 @@ def checkArgs(args, p):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc
-    if args.lineofsight is not None and args.statevectors is not None:
-        raise RuntimeError('Please supply only one of a line-of-sight file or a statevector file')
     if args.lineofsight is not None:
         los = ('los', args.lineofsight)
     elif args.statevectors is not None:
@@ -68,9 +62,7 @@ def checkArgs(args, p):
         los = Zenith
 
     # Weather
-    weather_model_name = args.model.upper().replace('-', '')
-    if weather_model_name not in AllowedModels():
-        raise NotImplementedError('Model {} has not been implemented'.format(args.model))
+    weather_model_name = args.model
     if weather_model_name == 'WRF' and args.files is None:
         raise RuntimeError('Argument --files is required with --model WRF')
     _, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
@@ -85,13 +77,13 @@ def checkArgs(args, p):
             weathers = {'type': model_obj(), 'files': args.files,
                         'name': args.model}
         except:
-            raise NotImplemented('{} is not implemented'.format(weather_model_name))
+            raise NotImplementedError('{} is not implemented'.format(weather_model_name))
 
     # zref
-    zref = float(args.zref)
+    zref = args.zref
 
     # handle the datetimes requested
-    datetimeList = [d + args.time for d in args.dateList]
+    datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
 
     # Misc
     download_only = args.download_only

@@ -15,6 +15,7 @@ import os
 import pandas as pd
 import requests
 
+from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.getStationDelays import get_station_data
 from RAiDER.logger import logger
 
@@ -64,10 +65,7 @@ downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:0
         help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
 
     misc = p.add_argument_group("Run parameters")
-    misc.add_argument(
-        '--out', dest='out',
-        help='Directory to deposit outputs',
-        default='.')
+    add_out(misc)
 
     misc.add_argument(
         '--years', '-y', dest='years',
@@ -85,15 +83,8 @@ Can be a single value or a comma-separated list. If two years non-consecutive ye
         help='Physically download data. Note this option is not necessary to proceed with statistical analyses, as data can be handled virtually in the program.',
         action='store_true', dest='download', default=False)
 
-    misc.add_argument(
-        '--cpus',
-        help='Specify number of cpus to be used for multiprocessing. May specify "all" at your own discretion.',
-        dest='numCPUs', type=parse_cpus, default=8)
-
-    misc.add_argument(
-        '--verbose', '-v',
-        help='Run in verbose (debug) mode? Default False',
-        action='store_true', dest='verbose', default=False)
+    add_cpus(misc)
+    add_verbose(misc)
 
     return p
 
@@ -285,24 +276,6 @@ def parse_years(timestr):
     return years
 
 
-def parse_cpus(cpustr):
-    '''
-    Takes string input and returns integer number of cpus for multiprocessing
-    '''
-    cpus = cpustr.lower()
-    # If user specifies 'all', pass maximum number of CPUs allowed by system. Otherwise, pass specified integer.
-    if cpus == 'all':
-        cpus = os.cpu_count()
-    elif cpus.isdigit():
-        cpus = int(cpus)
-    elif cpus.lstrip("-").isdigit():
-        raise Exception("Specified invalid negative --cpus argument. Relaunch with valid integer argument or 'all'.")
-    else:
-        raise Exception("Cannot understand the --cpus argument. Valid integer argument or 'all' not specified.")
-
-    return cpus
-
-
 def query_repos(
     station_file,
     bounding_box,
@@ -310,6 +283,7 @@ def query_repos(
     years,
     returnTime,
     download,
+    cpus,
     verbose
 ):
     """
@@ -359,8 +333,12 @@ def query_repos(
     del origstatsFile, statsFile
 
     # Extract delays for each station
-    get_station_data(os.path.join(out, 'gnssStationList_overbbox_withpaths.csv'), numCPUs=numCPUs,
-                     outDir=out, returnTime=returnTime)
+    get_station_data(
+        os.path.join(out, 'gnssStationList_overbbox_withpaths.csv'),
+        numCPUs=cpus,
+        outDir=out,
+        returnTime=returnTime
+    )
 
     log.debug('Completed processing')
 
@@ -375,6 +353,6 @@ if __name__ == "__main__":
         inps.years,
         inps.returnTime,
         inps.download,
-        inps.numCPUs,
+        inps.cpus,
         inps.verbose
     )
