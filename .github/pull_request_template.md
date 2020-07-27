@@ -2,6 +2,7 @@
 
 ## Description
 <!--- Describe your changes in detail -->
+<!--- When creating a new PR, make sure to request a review and tag related issues -->
 
 ## Motivation and Context
 <!--- Why is this change required? What problem does it solve? -->
