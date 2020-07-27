@@ -1,5 +1,5 @@
-# create environment : conda env create -f environment.yml
-# update dependencies: conda env update -f environment.yml
+# create environment : conda env create -f environment-dev.yml
+# update dependencies: conda env update -f environment-dev.yml
 # remove environment : conda env remove -n RAiDER
 # enter  environment : conda activate RAiDER
 # exit   environment : conda deactivate
@@ -9,6 +9,7 @@ channels:
  - anaconda
  - defaults
 dependencies:
+# Regular dependencies. Keep these in sync with environment.yml
  - python>=3
  - cartopy
  - cdsapi
@@ -30,3 +31,6 @@ dependencies:
  - xarray
  - shapely
  - pydap>3.2.2|<3.2.2
+ # Dev dependencies. Only needed for contributing
+ - pytest
+ - pytest-cov
