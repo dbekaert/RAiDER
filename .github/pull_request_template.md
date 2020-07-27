@@ -2,7 +2,6 @@
 
 ## Description
 <!--- Describe your changes in detail -->
-<!--- When creating a new PR, make sure to request a review and tag related issues -->
 
 ## Motivation and Context
 <!--- Why is this change required? What problem does it solve? -->
@@ -33,9 +32,8 @@
 ## Checklist:
 <!--- Go over all the following points, and put an `x` in all the boxes that apply. -->
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
-- [ ] Have you added an explanation of what your changes do and why you'd like us to include them?
-- [ ] Have you written new tests for your core changes, as applicable?
-- [ ] Have you successfully ran tests with your changes locally?
-- [ ] My code is consistent with the code style of this project.
+- [ ] I have added an explanation of what your changes do and why you'd like us to include them.
+- [ ] I have written new tests for your core changes, as applicable.
+- [ ] I have successfully ran tests with your changes locally.
 - [ ] My change requires a change to the documentation.
 - [ ] I have updated the documentation accordingly.
