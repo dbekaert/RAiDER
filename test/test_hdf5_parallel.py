@@ -1,5 +1,6 @@
 import os
 from test import TEST_DIR, pushd
+import pytest
 
 import numpy as np
 
@@ -18,10 +19,13 @@ MODEL_FILE = os.path.join(
     TEST_DIR,
     "scenario_1",
     "weather_files",
-    "ERA5_2020-01-03T23_00_00_15.75N_18.25N_-103.25E_-99.75E.h5"
+    "ERA5_2020-01-03T23_00_00_15.75N_18.25N_-103.24E_-99.75E.h5"
 )
 
 
+@pytest.mark.skipif(~os.path.exists(MODEL_FILE) or
+                    ~os.path.exists(POINTS_FILE),
+                    reason="Will not pass until the test_scenario_*'s have run")
 def test_get_delays_accuracy(tmp_path):
     stepSize = 15.0
     interpType = 'rgi'

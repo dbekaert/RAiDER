@@ -90,8 +90,11 @@ def test_uniform_in_z_large(model):
 
     interpolated = np.tile(np.arange(y), (x, 1))
 
-    assert np.allclose(np.nanmean(model._p, axis=-1), interpolated, equal_nan=True, rtol=0)
-    assert np.allclose(np.nanmean(model._t, axis=-1), interpolated * 2, equal_nan=True, rtol=0)
-    assert np.allclose(np.nanmean(model._e, axis=-1), interpolated * 3, equal_nan=True, rtol=0)
+    assert np.allclose(np.nanmean(model._p, axis=-1),
+                       interpolated, equal_nan=True, rtol=0)
+    assert np.allclose(np.nanmean(model._t, axis=-1),
+                       interpolated * 2, equal_nan=True, rtol=0)
+    assert np.allclose(np.nanmean(model._e, axis=-1),
+                       interpolated * 3, equal_nan=True, rtol=0)
 
     assert np.allclose(model._zs, zlevels, atol=0.05, rtol=0)

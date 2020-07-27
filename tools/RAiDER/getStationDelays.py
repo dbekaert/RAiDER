@@ -109,7 +109,7 @@ def get_delays(stationFile, filename, returnTime=None):
             missing = [
                 True if t not in timesList else False for t in true_times]
             mask = np.array(missing)
-            delay, sig, east_grad, north_grad = [np.full((288,), np.nan)]*4
+            delay, sig, east_grad, north_grad = [np.full((288,), np.nan)] * 4
             delay[~mask] = d
             sig[~mask] = Sig
             east_grad[~mask] = egrad
@@ -124,7 +124,7 @@ def get_delays(stationFile, filename, returnTime=None):
 
         # if time not specified, pass all times
         if returnTime == None:
-            filtoutput = {'ID': [site]*len(north_grad), 'Date': [time]*len(north_grad), 'ZTD': delay, 'north_grad': north_grad,
+            filtoutput = {'ID': [site] * len(north_grad), 'Date': [time] * len(north_grad), 'ZTD': delay, 'north_grad': north_grad,
                           'east_grad': east_grad, 'times': times, 'sigZTD': sig}
             filtoutput = [{key: value[k] for key, value in filtoutput.items()}
                           for k in range(len(filtoutput['ID']))]

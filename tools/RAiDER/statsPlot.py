@@ -161,7 +161,7 @@ class VariogramAnalysis():
             indpars = list(itertools.combinations(range(len(data)), 2))
             random.shuffle(indpars)
             # subsample
-            Nsamp = int((len(data)*len(data))/2)
+            Nsamp = int((len(data) * len(data)) / 2)
             # Only downsample if Nsamps>1000
             if Nsamp > 1000:
                 indpars = indpars[:Nsamp]
@@ -193,7 +193,7 @@ class VariogramAnalysis():
             from scipy.spatial.distance import cdist
             return np.diag(cdist(XY[:, :, 0], XY[:, :, 1], metric='euclidean'))
         else:
-            return 0.5*np.square(XY - xy)  # XY = 1st col xy= 2nd col
+            return 0.5 * np.square(XY - xy)  # XY = 1st col xy= 2nd col
 
     def _emp_vario(self, x, y, data, Nsamp=1e3):
         '''
@@ -202,7 +202,7 @@ class VariogramAnalysis():
         # deramp
         A = np.array([x, y, np.ones(len(x))]).T
         ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
-        data = data-(np.matmul(A, ramp))
+        data = data - (np.matmul(A, ramp))
 
         samples, indpars = self._get_samples(data)
         x, y = self._get_XY(x, y, indpars)
@@ -219,13 +219,13 @@ class VariogramAnalysis():
         if xBin is None:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-                xBin = np.linspace(0, np.nanmax(hEff)*.67, 20)
+                xBin = np.linspace(0, np.nanmax(hEff) * .67, 20)
 
-        nBins = len(xBin)-1
+        nBins = len(xBin) - 1
         hExp, expVario = [], []
 
         for iBin in range(nBins):
-            iBinMask = np.logical_and(xBin[iBin] < hEff, hEff <= xBin[iBin+1])
+            iBinMask = np.logical_and(xBin[iBin] < hEff, hEff <= xBin[iBin + 1])
             # circumvent indexing
             try:
                 with warnings.catch_warnings():
@@ -242,7 +242,7 @@ class VariogramAnalysis():
 
         return np.array(hExp), np.array(expVario)
 
-    def _fit_vario(self, dists, vario, model=None, x0=None, Nparm=None,  ub=None):
+    def _fit_vario(self, dists, vario, model=None, x0=None, Nparm=None, ub=None):
         '''
         Fit a variogram model to data
         '''
@@ -254,8 +254,8 @@ class VariogramAnalysis():
         if ub is None:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-                ub = np.array([np.nanmax(dists)*0.8, np.nanmax(vario)
-                               * 0.8, np.nanmax(vario)*0.8])
+                ub = np.array([np.nanmax(dists) * 0.8, np.nanmax(vario)
+                               * 0.8, np.nanmax(vario) * 0.8])
 
         if x0 is None and Nparm is None:
             raise RuntimeError(
@@ -264,7 +264,7 @@ class VariogramAnalysis():
             lb = np.zeros(len(x0))
         if Nparm is not None:
             lb = np.zeros(Nparm)
-            x0 = (ub-lb)/2
+            x0 = (ub - lb) / 2
         bounds = (lb, ub)
 
         mask = np.isnan(dists) | np.isnan(vario)
@@ -293,7 +293,7 @@ class VariogramAnalysis():
         a, b, c = parms
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message="overflow encountered in true_divide")
-            return b*(1 - np.exp(-h/a)) + c
+            return b * (1 - np.exp(-h / a)) + c
 
     # this would be gaussian plus nugget
     def __gaussian__(self, parms, h):
@@ -301,7 +301,7 @@ class VariogramAnalysis():
         returns a Gaussian variogram model
         '''
         a, b, c = parms
-        return b*(1 - np.exp(-np.square(h)/(a**2))) + c
+        return b * (1 - np.exp(-np.square(h) / (a**2))) + c
 
     def _append_variogram(self, grid_ind, grid_subset):
         '''
@@ -322,7 +322,7 @@ class VariogramAnalysis():
                 self.skipped_slices.append([grid_ind, j.strftime("%Y-%m-%d")])
             else:
                 self.gridcenterlist.append(['grid{} '.format(
-                    grid_ind)+'Lat:{} Lon:{}'.format(
+                    grid_ind) + 'Lat:{} Lon:{}'.format(
                     str(self.gridpoints[grid_ind][1]), str(self.gridpoints[grid_ind][0]))])
                 lonarr = np.array(
                     grid_subset[grid_subset['Date'] == j]['Lon'])
@@ -345,12 +345,12 @@ class VariogramAnalysis():
                 if self.variogram_per_timeslice:
                     # Plot empirical variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists, vario=vario,
-                        dists_binned=dists_binned, vario_binned=vario_binned)
+                                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists, vario=vario,
+                                        dists_binned=dists_binned, vario_binned=vario_binned)
                     # Plot experimental variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=d_test, v_test=v_test,
-                        res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)
+                                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=d_test, v_test=v_test,
+                                        res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)
                 # append for plotting
                 self.good_slices.append([grid_ind, j.strftime("%Y%m%d")])
                 dists_arr.append(dists)
@@ -375,18 +375,18 @@ class VariogramAnalysis():
             TOT_res_robust, TOT_d_test, TOT_v_test = self._fit_vario(
                 dists_binned_arr, vario_binned_arr, model=self.__exponential__, x0=None, Nparm=3)
             # Plot empirical variogram for this gridnode and timeslice
-            tot_timetag = self.good_slices[0][1]+'–'+self.good_slices[-1][1]
+            tot_timetag = self.good_slices[0][1] + '–' + self.good_slices[-1][1]
             # Append TOT arrays
             self.TOT_good_slices.append([grid_ind, tot_timetag])
             self.TOT_res_robust_arr.append(TOT_res_robust.x)
             self.TOT_tot_timetag.append(tot_timetag)
             self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists_arr, vario=vario_arr,
-                dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
+                                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists_arr, vario=vario_arr,
+                                dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
             # Plot experimental variogram for this gridnode and timeslice
             self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=TOT_d_test, v_test=TOT_v_test,
-                res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
+                                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=TOT_d_test, v_test=TOT_v_test,
+                                res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval)
         # Record sparse grids which didn't have sufficient sample size of data through any of the timeslices
         else:
             self.sparse_grids.append(grid_ind)
@@ -414,14 +414,14 @@ class VariogramAnalysis():
             args.append((i, grid_subset))
         # Parallelize iteration through all grid-cells and time slices
         with multiprocessing.Pool(self.numCPUs) as multipool:
-            for i,j,k in multipool.starmap(self._append_variogram, args):
+            for i, j, k in multipool.starmap(self._append_variogram, args):
                 self.TOT_good_slices.extend(i)
                 self.TOT_res_robust_arr.extend(j)
                 self.gridcenterlist.extend(k)
 
         # save grid-center lookup table
         self.gridcenterlist = [list(i) for i in set(tuple(j)
-                                               for j in self.gridcenterlist)]
+                                                    for j in self.gridcenterlist)]
         self.gridcenterlist.sort(key=lambda x: int(x[0][4:6]))
         gridcenter = open(
             (os.path.join(self.workdir, 'variograms/gridlocation_lookup.txt')), "w")
@@ -466,13 +466,13 @@ class VariogramAnalysis():
                    loc='upper left', borderaxespad=0., framealpha=1.)
         # Plot empirical variogram
         if d_test is None and v_test is None:
-            plt.title('Empirical variogram'+title_str)
+            plt.title('Empirical variogram' + title_str)
             plt.tight_layout()
             plt.savefig(os.path.join(
                 workdir, 'grid{}_timeslice{}_justEMPvariogram.eps'.format(gridID, timeslice)))
         # Plot just experimental variogram
         else:
-            plt.title('Experimental variogram'+title_str)
+            plt.title('Experimental variogram' + title_str)
             plt.tight_layout()
             plt.savefig(os.path.join(
                 workdir, 'grid{}_timeslice{}_justEXPvariogram.eps'.format(gridID, timeslice)))
@@ -511,7 +511,7 @@ class RaiderStats(object):
 
         self.create_DF()
 
-    def _get_extent(self):  #dataset, spacing=1, userbbox=None
+    def _get_extent(self):  # dataset, spacing=1, userbbox=None
         """ Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees """
         extent = [np.floor(min(self.df['Lon'])), np.ceil(max(self.df['Lon'])),
                   np.floor(min(self.df['Lat'])), np.ceil(max(self.df['Lat']))]
@@ -521,7 +521,7 @@ class RaiderStats(object):
             userbbox_poly = Polygon(np.column_stack((np.array([self.bbox[2], self.bbox[3], self.bbox[3], self.bbox[2], self.bbox[2]]),
                                                      np.array([self.bbox[0], self.bbox[0], self.bbox[1], self.bbox[1], self.bbox[0]]))))
             if userbbox_poly.intersects(dfextents_poly):
-                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]),np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
+                extent = [np.floor(self.bbox[2]), np.ceil(self.bbox[-1]), np.floor(self.bbox[0]), np.ceil(self.bbox[1])]
             else:
                 raise Exception("User-specified bounds do not overlap with dataset bounds, adjust bounds and re-run program.")
             if extent[0] < -180. or extent[1] > 180. or extent[2] < -90. or extent[3] > 90.:
@@ -529,23 +529,27 @@ class RaiderStats(object):
             del dfextents_poly, userbbox_poly
 
         # ensure that extents do not exceed -180/180 lon and -90/90 lat
-        if extent[0] < -180.: extent[0] = -180.
-        if extent[1] > 180.: extent[1] = 180.
-        if extent[2] < -90.: extent[2] = -90.
-        if extent[3] > 90.: extent[3] = 90.
+        if extent[0] < -180.:
+            extent[0] = -180.
+        if extent[1] > 180.:
+            extent[1] = 180.
+        if extent[2] < -90.:
+            extent[2] = -90.
+        if extent[3] > 90.:
+            extent[3] = 90.
 
         # ensure even spacing, set spacing to 1 if specified spacing is not even multiple of bounds
-        if (extent[1]-extent[0]) % self.spacing != 0 or (extent[-1]-extent[-2]) % self.spacing:
+        if (extent[1] - extent[0]) % self.spacing != 0 or (extent[-1] - extent[-2]) % self.spacing:
             log.warning("User-specified spacing %s is not even multiple of bounds, resetting spacing to 1\N{DEGREE SIGN}", self.spacing)
             self.spacing = 1
 
         # Create corners of rectangle to be transformed to a grid
-        nw = [extent[0]+(self.spacing/2), extent[-1]-(self.spacing/2)]
-        se = [extent[1]-(self.spacing/2), extent[2]+(self.spacing/2)]
+        nw = [extent[0] + (self.spacing / 2), extent[-1] - (self.spacing / 2)]
+        se = [extent[1] - (self.spacing / 2), extent[2] + (self.spacing / 2)]
 
         # Store grid dimension [y,x]
-        grid_dim = [int((extent[1]-extent[0])/self.spacing),
-                    int((extent[-1]-extent[-2])/self.spacing)]
+        grid_dim = [int((extent[1] - extent[0]) / self.spacing),
+                    int((extent[-1] - extent[-2]) / self.spacing)]
 
         # Iterate over 2D area
         gridpoints = []
@@ -570,7 +574,7 @@ class RaiderStats(object):
         '''
         SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.}
 
-        return val*SI[unit_in]/SI[unit_out]
+        return val * SI[unit_in] / SI[unit_out]
 
     def _check_stationgrid_intersection(self, stat_ID):
         '''
@@ -629,13 +633,13 @@ class RaiderStats(object):
         if self.seasonalinterval:
             self.seasonalinterval = self.seasonalinterval.split()
             # get day of year
-            self.seasonalinterval = [dt.datetime.strptime('2001-'+self.seasonalinterval[0], '%Y-%m-%d').timetuple(
-            ).tm_yday, dt.datetime.strptime('2001-'+self.seasonalinterval[-1], '%Y-%m-%d').timetuple().tm_yday]
+            self.seasonalinterval = [dt.datetime.strptime('2001-' + self.seasonalinterval[0], '%Y-%m-%d').timetuple(
+            ).tm_yday, dt.datetime.strptime('2001-' + self.seasonalinterval[-1], '%Y-%m-%d').timetuple().tm_yday]
             # non leap-year
             filtered_self = self.df[(self.df['Date'].dt.is_leap_year == False) & (
                 self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])]
             # leap-year
-            self.seasonalinterval = [i+1 if i >
+            self.seasonalinterval = [i + 1 if i >
                                      59 else i for i in self.seasonalinterval]
             self.df = filtered_self.append(self.df[(self.df['Date'].dt.is_leap_year == True) & (
                 self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])], ignore_index=True)
@@ -654,8 +658,8 @@ class RaiderStats(object):
         # generate list of grid-polygons
         append_poly = []
         for i in self.gridpoints:
-            bbox = [i[1]-(self.spacing/2), i[1]+(self.spacing/2),
-                    i[0]-(self.spacing/2), i[0]+(self.spacing/2)]
+            bbox = [i[1] - (self.spacing / 2), i[1] + (self.spacing / 2),
+                    i[0] - (self.spacing / 2), i[0] + (self.spacing / 2)]
             append_poly.append(Polygon(np.column_stack((np.array([bbox[2], bbox[3], bbox[3], bbox[2], bbox[2]]),
                                                         np.array([bbox[0], bbox[0], bbox[1], bbox[1], bbox[0]])))))  # Pass lons/lats to create polygon
 
@@ -743,7 +747,7 @@ class RaiderStats(object):
             if plottype == "station_distribution":
                 axes.set_title(" ".join(plottype.split('_')), zorder=2)
                 im = axes.scatter(gridarr[0], gridarr[1], zorder=1, s=0.5,
-                    marker='.', color='b', transform=ccrs.PlateCarree())
+                                  marker='.', color='b', transform=ccrs.PlateCarree())
 
             # passing 3rd column as z-value
             if len(gridarr) > 2:
@@ -763,12 +767,12 @@ class RaiderStats(object):
 
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=cbounds[0],
-                    vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
+                                  vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
                 # initiate colorbar and control height of colorbar
                 divider = make_axes_locatable(axes)
                 cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
                 cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional',
-                    ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                                       ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
         # If gridded area passed
         else:
@@ -792,12 +796,12 @@ class RaiderStats(object):
 
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0],
-                vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
+                             vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
             # initiate colorbar and control height of colorbar
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
             cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds,
-                    boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                                   boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
             # superimpose your gridded array with a supplementary list of point, if specified
             if self.stationsongrids:
@@ -809,30 +813,30 @@ class RaiderStats(object):
                 gl = axes.gridlines(crs=ccrs.PlateCarree(
                 ), linewidth=2, color='black', alpha=0.5, linestyle='-', zorder=3)
                 gl.xlocator = mticker.FixedLocator(np.arange(
-                    self.plotbbox[0], self.plotbbox[1]+self.spacing, self.spacing).tolist())
+                    self.plotbbox[0], self.plotbbox[1] + self.spacing, self.spacing).tolist())
                 gl.ylocator = mticker.FixedLocator(np.arange(
-                    self.plotbbox[2], self.plotbbox[3]+self.spacing, self.spacing).tolist())
+                    self.plotbbox[2], self.plotbbox[3] + self.spacing, self.spacing).tolist())
 
         # Add labels to colorbar, if necessary
         if 'cbar_ax' in locals():
             # experimental variogram fit range heatmap
             if plottype == "range_heatmap":
-                cbar_ax.set_label(" ".join(plottype.split('_'))+' (°)', rotation=-90, labelpad=10)
+                cbar_ax.set_label(" ".join(plottype.split('_')) + ' (°)', rotation=-90, labelpad=10)
             # experimental variogram fit sill heatmap
             elif plottype == "sill_heatmap":
-                cbar_ax.set_label(" ".join(plottype.split('_'))+' (cm\u00b2)', rotation=-90, labelpad=10)
+                cbar_ax.set_label(" ".join(plottype.split('_')) + ' (cm\u00b2)', rotation=-90, labelpad=10)
             # specify appropriate units for mean/std
             elif plottype == "grid_delay_mean" or plottype == "grid_delay_stdev" or \
-                plottype == "station_delay_mean" or plottype == "station_delay_stdev":
-                cbar_ax.set_label(" ".join(plottype.split('_'))+' ({})'.format(self.unit),
-                    rotation=-90, labelpad=10)
+                    plottype == "station_delay_mean" or plottype == "station_delay_stdev":
+                cbar_ax.set_label(" ".join(plottype.split('_')) + ' ({})'.format(self.unit),
+                                  rotation=-90, labelpad=10)
             # gridmap of station density has no units
             else:
                 cbar_ax.set_label(" ".join(plottype.split('_')), rotation=-90, labelpad=10)
 
         # save/close figure
-        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype +'.'+plotFormat),
-            format=plotFormat, bbox_inches='tight')
+        plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype + '.' + plotFormat),
+                    format=plotFormat, bbox_inches='tight')
         plt.close()
 
         return
@@ -876,7 +880,7 @@ def stats_analyses(
     log.info("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing,  \
-        timeinterval, seasonalinterval, stationsongrids, cbounds, colorpercentile)
+                           timeinterval, seasonalinterval, stationsongrids, cbounds, colorpercentile)
 
     # If user requests to generate all plots.
     if plotall:
@@ -957,7 +961,7 @@ def stats_analyses(
         log.info("- Plot variogram sill per gridcell.")
         gridarr_sill = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        gridarr_sill = gridarr_sill*(10 ^ 4)  # convert to cm
+        gridarr_sill = gridarr_sill * (10 ^ 4)  # convert to cm
         df_stats(gridarr_sill.T, 'sill_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
                  colorbarfmt='%.3e', stationsongrids=stationsongrids, plotFormat=plot_fmt)
 

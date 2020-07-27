@@ -1,23 +1,23 @@
 """Geodesy-related utility functions."""
+import h5py
 import importlib
 import itertools
+import logging
 import os
 import re
-from datetime import datetime
+import pyproj
 
-import h5py
+from datetime import datetime
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import pyproj
 from osgeo import gdal, osr
 
+from RAiDER import Geo2rdr
 from RAiDER.constants import Zenith
 
 gdal.UseExceptions()
-
-
-# Top of the troposphere
-zref = 15000
+log = logging.getLogger(__name__)
 
 
 def sind(x):
@@ -54,7 +54,7 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
     return my_ecef
 
 
-def gdal_open(fname, returnProj=False):
+def gdal_open(fname, returnProj=False, userNDV=None):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     try:
@@ -67,13 +67,17 @@ def gdal_open(fname, returnProj=False):
     val = []
     for band in range(ds.RasterCount):
         b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
-        d = b.ReadAsArray()
-        try:
-            ndv = b.GetNoDataValue()
-            d[d == ndv] = np.nan
-        except:
-            pass
-        val.append(d)
+        data = b.ReadAsArray()
+        if userNDV is not None:
+            log.debug('Using user-supplied NoDataValue')
+            data[data == userNDV] = np.nan
+        else:
+            try:
+                ndv = b.GetNoDataValue()
+                data[data == ndv] = np.nan
+            except:
+                log.debug('NoDataValue attempt failed*******')
+        val.append(data)
         b = None
     ds = None
 
@@ -112,6 +116,8 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     write a numpy array to a GDAL-readable raster
     '''
     array_shp = np.shape(array)
+    if array.ndim != 2:
+        raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
     dType = array.dtype
     if 'complex' in str(dType):
         dType = gdal.GDT_CFloat32
@@ -121,7 +127,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         dType = gdal.GDT_Byte
 
     driver = gdal.GetDriverByName(fmt)
-    ds = driver.Create(filename, array_shp[1], array_shp[0],  1, dType)
+    ds = driver.Create(filename, array_shp[1], array_shp[0], 1, dType)
     if proj is not None:
         ds.SetProjection(proj)
     if gt is not None:
@@ -200,7 +206,7 @@ def _get_g_ll(lats):
     Compute the variation in gravity constant with latitude
     '''
     # TODO: verify these constants. In particular why is the reference g different from self._g0?
-    return 9.80616*(1 - 0.002637*cosd(2*lats) + 0.0000059*(cosd(2*lats))**2)
+    return 9.80616 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
 
 
 def _get_Re(lats):
@@ -210,7 +216,7 @@ def _get_Re(lats):
     # TODO: verify constants, add to base class constants?
     Rmax = 6378137
     Rmin = 6356752
-    return np.sqrt(1/(((cosd(lats)**2)/Rmax**2) + ((sind(lats)**2)/Rmin**2)))
+    return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
 def _geo_to_ht(lats, hts, g0=9.80556):
@@ -222,7 +228,7 @@ def _geo_to_ht(lats, hts, g0=9.80556):
     Re = _get_Re(lats)
 
     # Calculate Geometric Height, h
-    h = (hts*Re)/(g_ll/g0*Re - hts)
+    h = (hts * Re) / (g_ll / g0 * Re - hts)
 
     return h
 
@@ -281,9 +287,9 @@ def checkShapes(los, lats, lons, hts):
 
     if not test1 and test2:
         raise ValueError(
-         'I need lats, lons, heights, and los to all be the same shape. ' +
-         'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
-         'heights had shape {}, and los was not Zenith'.format(hts.shape))
+            'I need lats, lons, heights, and los to all be the same shape. ' +
+            'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
+            'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
 def checkLOS(los, Npts):
@@ -439,13 +445,10 @@ def getTimeFromFile(filename):
         raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
+def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.):
     '''
     Write query points to an HDF5 file for storage and access
     '''
-
-    from RAiDER.utilFcns import checkLOS
-
     epsg = 4326
     projname = 'projection'
 
@@ -455,22 +458,27 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
     # create directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
+    if chunkSize is None:
+        minChunkSize = 100
+        maxChunkSize = 10000
+        cpu_count = mp.cpu_count()
+        chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
+
+    log.debug('Chunk size is {}'.format(chunkSize))
+    log.debug('Array shape is {}'.format(in_shape))
+
     with h5py.File(outName, 'w') as f:
-    # with h5py.File(outName, 'w', chunk_cache_mem_size=1024**2*4000) as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
-        if chunkSize is None:
-            x = f.create_dataset('lon', data=lons.astype(np.float64), chunks=True)
-        else:
-            x = f.create_dataset('lon', data=lons.astype(np.float64), chunks=chunkSize)
-
-        y = f.create_dataset('lat', data=lats.astype(np.float64), chunks=x.chunks)
-        z = f.create_dataset('hgt', data=hgts.astype(np.float64), chunks=x.chunks)
-        los = f.create_dataset('LOS', data=los.astype(np.float64), chunks=x.chunks + (3,))
+        x = f.create_dataset('lon', data=lons, chunks=chunkSize, fillvalue=noDataValue)
+        y = f.create_dataset('lat', data=lats, chunks=chunkSize, fillvalue=noDataValue)
+        z = f.create_dataset('hgt', data=hgts, chunks=chunkSize, fillvalue=noDataValue)
+        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,), fillvalue=noDataValue)
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
         f.attrs['ChunkSize'] = chunkSize
+        f.attrs['NoDataValue'] = noDataValue
 
         # CF 1.8 Convention stuff
         srs = osr.SpatialReference()
@@ -500,9 +508,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
         else:
             raise NotImplemented
 
-        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8')
-        lengths = f.create_dataset('Rays_len',  in_shape, chunks=x.chunks, dtype='<f8')
-        scaled_look_vecs = f.create_dataset('Rays_SLV',  in_shape + (3,), chunks=los.chunks, dtype='<f8')
+        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
+        lengths = f.create_dataset('Rays_len', in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
+        scaled_look_vecs = f.create_dataset('Rays_SLV', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
@@ -510,51 +518,3 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None):
         scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
-
-
-def makePoints1D(max_len, Rays_SP, Rays_SLV, stepSize):
-    '''
-    Python version of cython code to create the rays needed for ray-tracing
-    Inputs:
-      max_len: maximum length of the rays
-      Rays_SP: 1 x 3 numpy array of the location of the ground pixels in an earth-centered,
-               earth-fixed coordinate system
-      Rays_SLV: 1 x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
-      stepSize: Distance between points along the ray-path
-    Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
-           line-of-sight vectors, up to the maximum length specified.
-    '''
-    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize != 0. else 0][0]
-    ray = np.empty((3, Npts), dtype=np.float64)
-    basespace = np.arange(0, max_len, stepSize)  # max_len+stepSize
-    for k3 in range(3):
-        ray[k3, :] = Rays_SP[k3] + basespace*Rays_SLV[k3]
-    return ray
-
-def makePoints3D(max_len, Rays_SP, Rays_SLV, stepSize):
-    '''
-    Python version of cython code to create the rays needed for ray-tracing
-    Inputs:
-      max_len: maximum length of the rays
-      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered,
-               earth-fixed coordinate system
-      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
-      stepSize: Distance between points along the ray-path
-    Output:
-      ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
-           line-of-sight vectors, up to the maximum length specified.
-    '''
-    Npts  = int(max_len//stepSize) + [1 if max_len % stepSize != 0. else 0][0]
-    nrow = Rays_SP.shape[0]
-    ncol = Rays_SP.shape[1]
-    nz = Rays_SP.shape[2]
-    ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
-    basespace = np.arange(0, max_len, stepSize)  # max_len+stepSize
-
-    for k1 in range(nrow):
-        for k2 in range(ncol):
-            for k2a in range(nz):
-                for k3 in range(3):
-                    ray[k1, k2, k2a, k3, :] = Rays_SP[k1, k2, k2a, k3] + basespace*Rays_SLV[k1, k2, k2a, k3]
-    return ray

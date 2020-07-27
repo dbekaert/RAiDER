@@ -88,7 +88,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
             for ht in hts:
                 latlist.append(lats.flatten())
                 lonlist.append(lons.flatten())
-                hgtlist.append(np.array([ht]*len(lats.flatten())))
+                hgtlist.append(np.array([ht] * len(lats.flatten())))
             lats = np.array(latlist).reshape(in_shape + (len(height_data),))
             lons = np.array(lonlist).reshape(in_shape + (len(height_data),))
             hts = np.array(hgtlist).reshape(in_shape + (len(height_data),))
@@ -123,6 +123,7 @@ def enforceNumpyArray(*args):
     Raise an error on failure.
     '''
     return [checkArg(a) for a in args]
+
 
 def checkArg(arg):
 
