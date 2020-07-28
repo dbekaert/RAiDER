@@ -106,14 +106,14 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, lats, lons, time, out):
+    def fetch(self, time, *args, **kwargs):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
         '''
-        self.check(time)
+        self.checkTime(time)
         self._time = time
-        self._fetch(lats, lons, time, out)
+        self._fetch(time, *args, **kwargs)
 
     @abstractmethod
     def _fetch(self, lats, lons, time, out):
@@ -232,7 +232,7 @@ class WeatherModel(ABC):
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         return plot
 
-    def check(self, time):
+    def checkTime(self, time):
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
