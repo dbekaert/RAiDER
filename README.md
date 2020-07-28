@@ -5,8 +5,9 @@ Raytracing Atmospheric Delay Estimation for RADAR
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/dbekaert/RAiDER/blob/dev/LICENSE)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/486716578ab549738e3b0485be1b0047)](https://www.codacy.com/manual/bekaertdavid/RAiDER?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=dbekaert/RAiDER&amp;utm_campaign=Badge_Grade)
 [![CircleCI](https://circleci.com/gh/dbekaert/RAiDER.svg?style=svg)](https://circleci.com/gh/dbekaert/RAiDER)
+[![Coverage Status](https://coveralls.io/repos/github/dbekaert/RAiDER/badge.svg?branch=dev)](https://coveralls.io/github/dbekaert/RAiDER?branch=dev)
 
-RAiDER-tools is a package in Python which contains tools to calculate tropospheric corrections for Radar using a raytracing implementation. Its development was funded under the NASA Sea-level Change Team (NSLCT) program and the Earth Surface and Interior (ESI) program (NTR-51433). U.S. Government sponsorship acknowledged. 
+RAiDER-tools is a package in Python which contains tools to calculate tropospheric corrections for Radar using a raytracing implementation. Its development was funded under the NASA Sea-level Change Team (NSLCT) program and the Earth Surface and Interior (ESI) program (NTR-51433). U.S. Government sponsorship acknowledged.
 
 
 Copyright (c) 2019-2020, California Institute of Technology ("Caltech"). All rights reserved.  
@@ -90,17 +91,17 @@ setenv PYTHONPATH $PYTHONPATH:/RAiDERREPO/tools/RAiDER
 set PATH $PATH:'/RAiDERREPO/tools/bin'
 ```
 
-### Setup for weather model access 
+### Setup for weather model access
 The setup notes for accessing various weather model data can be found [here](./weather_setup.md).
 
 ### Other installation options
 The following pages might be of use to those trying to build third party packages from source.
 
-### Common Issues 
+### Common Issues
 
 1. This package uses GDAL and g++, both of which can be tricky to set up correctly.
 GDAL in particular will often break after installing a new program
-If you receive error messages such as the following: 
+If you receive error messages such as the following:
 
 ```
 ImportError: ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/../../../libstdc++.so.6: version `CXXABI_1.3.9' not found (required by ~/anaconda3/envs/RAiDER/lib/python3.7/site-packages/matplotlib/ft2font.cpython-37m-x86_64-linux-gnu.so)
@@ -120,7 +121,7 @@ conda update --force-reinstall gdal libgdal
  xcode-select --install
  open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg
  ```
- 
+
 
 ------
 ## Running RAiDER
@@ -148,4 +149,3 @@ TODO
 * [_other community members_](https://github.com/dbekaert/RAiDER/graphs/contributors)
 
 We welcome community contributions. For instructions see [here](https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md).
-
