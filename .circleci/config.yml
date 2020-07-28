@@ -10,10 +10,8 @@ jobs:
       - run:
           name: Setup Miniconda
           command: |
-            apt update
-            apt install -y wget
-            apt-get update --yes && apt-get upgrade --yes
-            apt-get install g++ --yes
+            apt update --yes && apt-get upgrade --yes
+            apt install -y --no-install-recommends wget ca-certificates g++
             cd $HOME
             wget "https://repo.anaconda.com/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh" -O miniconda.sh
             printf '%s' "8a324adcc9eaf1c09e22a992bb6234d91a94146840ee6b11c114ecadafc68121  miniconda.sh" | sha256sum -c
@@ -25,8 +23,9 @@ jobs:
             conda update -y conda
             conda create -n myenv python=$PYTHON_VERSION -c conda-forge
             source activate myenv
-            conda env create -f environment.yml
+            conda env create -f environment-dev.yml
             conda activate RAiDER
+            pip install coveralls
             echo $'url: https://cds.climate.copernicus.eu/api/v2\nkey: 43214:de6dbdf6-ccf2-4a95-b26e-e1ceb24969e1' > $HOME/.cdsapirc
             python --version
             python -c "import numpy; print(numpy.__version__)"
@@ -41,7 +40,7 @@ jobs:
             python setup.py install
             python -c "import RAiDER; from RAiDER.delay import computeDelay, interpolateDelay; print(computeDelay)"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis; print(interp_along_axis)"
-            raiderDelay.py -h 
+            raiderDelay.py -h
             raiderStats.py -h
             raiderDownloadGNSS.py -h
       - run:
@@ -50,4 +49,14 @@ jobs:
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate myenv
             conda activate RAiDER
-            py.test test/
+            COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
+            py.test test/ $COV_OPTIONS --cov-report=
+      - run:
+          name: Report coverage
+          command: |
+            export PATH="$HOME/miniconda/bin:$PATH"
+            source activate myenv
+            conda activate RAiDER
+            python .circleci/fix_coverage_paths.py .coverage $(pwd)/tools/RAiDER/
+            coverage report -mi
+            coveralls
