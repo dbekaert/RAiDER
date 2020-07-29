@@ -37,5 +37,5 @@ def add_bbox(parser):
         nargs=4,
         type=float,
         action=BBoxAction,
-        metavar=('N', 'W', 'S', 'E')
+        metavar=('S', 'N', 'W', 'E')
     )
