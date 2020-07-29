@@ -35,7 +35,7 @@ Check for and download tropospheric zenith delays for a set of GNSS stations fro
 Example call to virtually access and append zenith delay information to a CSV table in specified output
 directory, across specified range of years and all available times of day, and confined to specified
 geographic bounding box :
-downloadGNSSdelay.py --out products -y '2010,2014' -b '40 -79 39 -78'
+downloadGNSSdelay.py --out products -y '2010,2014' -b '39 40 -79 -78'
 
 Example call to virtually access and append zenith delay information to a CSV table in specified output
 directory, across specified range of years and specified time of day, and distributed globally :
@@ -51,7 +51,7 @@ necessary for most applications.
 Example call to physically download and append zenith delay information to a CSV table in specified output
 directory, across specified range of years and specified time of day, and confined to specified
 geographic bounding box :
-downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:00:00' -b '40 -79 39 -78'
+downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:00:00' -b '39 40 -79 -78'
 """)
 
     # Stations to check/download
