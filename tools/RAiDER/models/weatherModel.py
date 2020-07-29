@@ -1,21 +1,27 @@
-# standard imports
 import datetime
+import logging
+import os
+from abc import ABC, abstractmethod
+
+import h5py
 import numpy as np
 from pyproj import CRS, Transformer
-import os
 
-# local imports
-import RAiDER.constants as const
-import RAiDER.models.plotWeather as plots
-import RAiDER.utilFcns as util
-from RAiDER.utilFcns import robmin, robmax, parallel_apply_along_axis
-from RAiDER.interpolator import fillna3D, interp_along_axis
+from RAiDER import constants as const
+from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
-#from RAiDER.makePoints import makePoints3D
-from RAiDER.delayFcns import makePoints3D
+from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
+from RAiDER.interpolate import interpolate_along_axis
+from RAiDER.interpolator import fillna3D
+from RAiDER.losreader import getLookVectors
+from RAiDER.makePoints import makePoints3D
+from RAiDER.models import plotWeather as plots
+from RAiDER.utilFcns import lla2ecef, robmax, robmin
+
+log = logging.getLogger(__name__)
 
 
-class WeatherModel():
+class WeatherModel(ABC):
     '''
     Implement a generic weather model for getting estimated SAR delays
     '''
@@ -34,10 +40,10 @@ class WeatherModel():
         self._x_res = None
         self._y_res = None
 
-        self._classname = None 
+        self._classname = None
         self._dataset = None
         self._model_level_type = 'ml'
-        self._valid_range = (datetime.date(1900, 1, 1),)  # Tuple of min/max years where data is available. 
+        self._valid_range = (datetime.date(1900, 1, 1),)  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
 
@@ -47,18 +53,16 @@ class WeatherModel():
         self._g0 = const._g0  # gravity constant
         self._zmin = const._ZMIN  # minimum integration height
         self._zmax = const._ZREF  # max integration height
-        self._llaproj = CRS.from_epsg(4326)
-        self._ecefproj = CRS.from_epsg(4978)
         self._proj = None
 
-        # setup data structures  
+        # setup data structures
         self._levels = []
         self._xs = np.empty((1, 1, 1))  # Use generic x/y/z instead of lon/lat/height
         self._ys = np.empty((1, 1, 1))
         self._zs = np.empty((1, 1, 1))
 
-        self._lats = None 
-        self._lons = None 
+        self._lats = None
+        self._lons = None
 
         self._p = None
         self._q = None
@@ -71,7 +75,7 @@ class WeatherModel():
         self._hydrostatic_total = None
         self._svp = None
 
-    def __repr__(self):
+    def __str__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
         string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
@@ -103,18 +107,16 @@ class WeatherModel():
     def Model(self):
         return self._Name
 
-    def ModelObj(self):
-        return self
-
     def fetch(self, lats, lons, time, out):
         '''
-        Checks the input datetime against the valid date range for the model and then 
+        Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
         '''
         self.check(time)
         self._time = time
         self._fetch(lats, lons, time, out)
 
+    @abstractmethod
     def _fetch(self, lats, lons, time, out):
         '''
         Placeholder method. Should be implemented in each weather model type class
@@ -123,8 +125,8 @@ class WeatherModel():
 
     def load(self, *args, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
         '''
-        Calls the load_weather method. Each model class should define a load_weather 
-        method appropriate for that class. 'args' should be one or more filenames. 
+        Calls the load_weather method. Each model class should define a load_weather
+        method appropriate for that class. 'args' should be one or more filenames.
         '''
         if zref is not None:
             self._zmax = zref
@@ -134,7 +136,7 @@ class WeatherModel():
         self._uniform_in_z(_zlevels=_zlevels)
         self._checkForNans()
         self._get_wet_refractivity()
-        self._get_hydro_refractivity() 
+        self._get_hydro_refractivity()
         self._adjust_grid(lats=outLats, lons=outLons)
         los_flag = self._checkLOS(los)
         self._runLOS(los, zref, los_flag)
@@ -142,21 +144,18 @@ class WeatherModel():
     def _checkLOS(self, los):
         '''
         I will check to see if a state vector has been supplied. If so, I will calculate the integrated
-        delay at the weather model grid nodes. 
+        delay at the weather model grid nodes.
         '''
         if los is Zenith:
             return False
-        else:
-            return [True if los[0] == 'sv' else False][0]
+
+        return los[0] == 'sv'
 
     def _runLOS(self, los, zref, los_flag):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
-        from RAiDER.utilFcns import lla2ecef
-        from RAiDER.delayFcns import getIntFcn, _ray_helper, interpolate2, _integrateLOS
-        from RAiDER.losreader import getLookVectors
 
         _STEP = 10  # stepsize in meters
 
@@ -171,21 +170,21 @@ class WeatherModel():
         # if a state vector was available, can compute the line-of-sight delays
         if los_flag:
             # ECEF to Lat/Lon reference frame
-            p1 = CRS.from_epsg(4978) 
+            p1 = CRS.from_epsg(4978)
             t = Transformer.from_proj(p1, self._proj)
 
             # Get the look vectors
             # TODO: lengths and LOS return from GEO2RDR are not correct
             lengths = np.linalg.norm(los, axis=-1)
             max_len = np.nanmax(lengths)
-            los_slv = los/lengths[..., np.newaxis]
+            los_slv = los / lengths[..., np.newaxis]
 
             # Transform each point to ECEF
             rays_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
 
             # Calculate the integrated delays
-            ifWet = getIntFcn(self._xs, self._ys, self._zs, wet)
-            ifHydro = getIntFcn(self._xs, self._ys, self._zs, hydro)
+            ifWet = make_interpolator(self._xs, self._ys, self._zs, wet)
+            ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
 
             # Create the rays
             ray = makePoints3D(max_len, rays_ecef, los_slv, _STEP)
@@ -193,7 +192,7 @@ class WeatherModel():
             # Transform from ECEF to weather model native projection
             ray_x, ray_y, ray_z = t.transform(ray[..., 0], ray[..., 1], ray[..., 2], always_xy=True)
 
-            delay_wet   = interpolate2(ifWet, ray_x, ray_y, ray_z)
+            delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
             delays = _integrateLOS(_STEP, delay_wet, delay_hydro, Npts)
 
@@ -203,14 +202,15 @@ class WeatherModel():
         else:
             # If LOS is not supplied, return integrated ZTD
             wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-            # TODO: This returns zero for the last level because of the way trapz handles single points. 
+            # TODO: This returns zero for the last level because of the way trapz handles single points.
             # Should probably try to re-implement the integral function
             for level in range(wet.shape[2]):
-                wet_total[..., level] = 1e-6*np.apply_along_axis(np.trapz, 2, wet[..., level:], x=self._zs[level:])
-                hydro_total[..., level]  = 1e-6*np.apply_along_axis(np.trapz, 2, hydro[..., level:], x=self._zs[level:])
+                wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
+                hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
             self._hydrostatic_total = hydro_total
             self._wet_total = wet_total
 
+    @abstractmethod
     def load_weather(self, *args, **kwargs):
         '''
         Placeholder method. Should be implemented in each weather model type class
@@ -233,28 +233,29 @@ class WeatherModel():
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
-        print('Weather model {} is available from {}-{}'.format(self.Model(), self._valid_range[0], self._valid_range[1]))
+        log.info(
+            'Weather model %s is available from %s-%s',
+            self.Model(), self._valid_range[0], self._valid_range[1]
+        )
         if time < self._valid_range[0]:
             raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-        if self._valid_range[1] is not None: 
+        if self._valid_range[1] is not None:
             if self._valid_range[1] == 'Present':
                 pass
             elif self._valid_range[1] < time:
                 raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-        if time > datetime.datetime.today() - self._lag_time:
-            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-
-    def setLevelType(self, levelType='ml'):
-        ''' 
-        Update the level type to use in fetching data from the weather models
-        '''
-        self._model_level_type = levelType
+        if (self.Model() is 'GMAO') | (self.Model() is 'MERRA2'):
+            if time > datetime.datetime.utcnow() - self._lag_time:
+                raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
+        else:
+            if time > datetime.datetime.today() - self._lag_time:
+                raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
 
     def _convertmb2Pa(self, pres):
         '''
         Convert pressure in millibars to Pascals
         '''
-        return 100*pres
+        return 100 * pres
 
     def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan):
         '''
@@ -278,25 +279,25 @@ class WeatherModel():
         """Calculate e, partial pressure of water vapor."""
         self._find_svp()
         # We have q = w/(w + 1), so w = q/(1 - q)
-        w = self._q/(1 - self._q)
-        self._e = w*self._R_v*(self._p - self._svp)/self._R_d
+        w = self._q / (1 - self._q)
+        self._e = w * self._R_v * (self._p - self._svp) / self._R_d
 
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
         self._find_svp()
-        self._e = self._rh/100 * self._svp
+        self._e = self._rh / 100 * self._svp
 
     def _get_wet_refractivity(self):
         '''
         Calculate the wet delay from pressure, temperature, and e
         '''
-        self._wet_refractivity = self._k2*self._e/self._t + self._k3*self._e/self._t**2
+        self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
     def _get_hydro_refractivity(self):
         '''
         Calculate the hydrostatic delay from pressure and temperature
         '''
-        self._hydrostatic_refractivity = self._k1*self._p/self._t
+        self._hydrostatic_refractivity = self._k1 * self._p / self._t
 
     def getWetRefractivity(self):
         return self._wet_refractivity
@@ -306,8 +307,8 @@ class WeatherModel():
 
     def _adjust_grid(self, lats=None, lons=None):
         '''
-        This function pads the weather grid with a level at self._zmin, if 
-        it does not already go that low. 
+        This function pads the weather grid with a level at self._zmin, if
+        it does not already go that low.
         <<The functionality below has been removed.>>
         <<It also removes levels that are above self._zmax, since they are not needed.>>
         '''
@@ -329,12 +330,14 @@ class WeatherModel():
             in_extent = self._getExtent(lats, lons)
             self_extent = self._getExtent(self._lats, self._lons)
             if self._isOutside(in_extent, self_extent):
-                print('Extent of the input lats/lons is: {}'.format(in_extent))
-                print('Extent of the weather model is: {}'.format(self_extent))
-                print('The weather model passed does not cover all of the \n \
-                                  input points; you need to download a larger area.')
+                log.info('Extent of the input lats/lons is: {}'.format(in_extent))
+                log.info('Extent of the weather model is: {}'.format(self_extent))
+                log.info(
+                    'The weather model passed does not cover all of the input '
+                    'points; you need to download a larger area.'
+                )
                 raise RuntimeError('Check the weather model')
-            self._trimExtent(in_extent) 
+            self._trimExtent(in_extent)
 
     def _getExtent(self, lats, lons):
         '''
@@ -383,13 +386,13 @@ class WeatherModel():
         # subset around points of interest
         self._lons = self._lons[index1:index2, index3:index4, :]
         self._lats = self._lats[index1:index2, index3:index4, ...]
-        self._xs  = self._xs[index3:index4]
-        self._ys  = self._ys[index1:index2]
-        self._p   = self._p[index1:index2, index3:index4, ...]
-        self._t   = self._t[index1:index2, index3:index4, ...]
-        self._e   = self._e[index1:index2, index3:index4, ...]
+        self._xs = self._xs[index3:index4]
+        self._ys = self._ys[index1:index2]
+        self._p = self._p[index1:index2, index3:index4, ...]
+        self._t = self._t[index1:index2, index3:index4, ...]
+        self._e = self._e[index1:index2, index3:index4, ...]
 
-        self._wet_refractivity         = self._wet_refractivity[index1:index2, index3:index4, ...]
+        self._wet_refractivity = self._wet_refractivity[index1:index2, index3:index4, ...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2, index3:index4, :]
 
     def _find_svp(self):
@@ -406,18 +409,18 @@ class WeatherModel():
 
         # TODO: figure out the sources of all these magic numbers and move
         # them somewhere more visible.
-        # TODO: (Jeremy) - Need to fix/get the equation for the other 
-        # weather model types. Right now this will be used for all models, 
+        # TODO: (Jeremy) - Need to fix/get the equation for the other
+        # weather model types. Right now this will be used for all models,
         # except WRF, which is yet to be implemented in my new structure.
         t1 = 273.15  # O Celsius
         t2 = 250.15  # -23 Celsius
 
         tref = self._t - t1
-        wgt = (self._t - t2)/(t1 - t2)
-        svpw = (6.1121 * np.exp((17.502*tref)/(240.97 + tref)))
-        svpi = (6.1121 * np.exp((22.587*tref)/(273.86 + tref)))
+        wgt = (self._t - t2) / (t1 - t2)
+        svpw = (6.1121 * np.exp((17.502 * tref) / (240.97 + tref)))
+        svpi = (6.1121 * np.exp((22.587 * tref) / (273.86 + tref)))
 
-        svp = svpi + (svpw - svpi)*wgt**2
+        svp = svpi + (svpw - svpi) * wgt**2
         ix_bound1 = self._t > t1
         svp[ix_bound1] = svpw[ix_bound1]
         ix_bound2 = self._t < t2
@@ -428,18 +431,18 @@ class WeatherModel():
     def _calculategeoh(self, z, lnsp):
         '''
         Function to calculate pressure, geopotential, and geopotential height
-        from the surface pressure and model levels provided by a weather model. 
+        from the surface pressure and model levels provided by a weather model.
         The model levels are numbered from the highest eleveation to the lowest.
-        Inputs: 
+        Inputs:
             self - weather model object with parameters a, b defined
             z    - 3-D array of surface heights for the location(s) of interest
             lnsp - log of the surface pressure
-        Outputs: 
+        Outputs:
             geopotential - The geopotential in units of height times acceleration
-            pressurelvs  - The pressure at each of the model levels for each of 
+            pressurelvs  - The pressure at each of the model levels for each of
                            the input points
             geoheight    - The geopotential heights
-        ''' 
+        '''
         geopotential = np.zeros_like(self._t)
         pressurelvs = np.zeros_like(geopotential)
         geoheight = np.zeros_like(geopotential)
@@ -453,11 +456,11 @@ class WeatherModel():
 
         if len(self._a) != levelSize + 1 or len(self._b) != levelSize + 1:
             raise ValueError(
-                'I have here a model with {} levels, but parameters a '.format(levelSize) + 
-                'and b have lengths {} and {} respectively. Of '.format(len(self._a), len(self._b)) + 
+                'I have here a model with {} levels, but parameters a '.format(levelSize) +
+                'and b have lengths {} and {} respectively. Of '.format(len(self._a), len(self._b)) +
                 'course, these three numbers should be equal.')
 
-        Ph_levplusone = self._a[levelSize] + (self._b[levelSize]*sp)
+        Ph_levplusone = self._a[levelSize] + (self._b[levelSize] * sp)
 
         # Integrate up into the atmosphere from *lowest level*
         z_h = 0  # initial value
@@ -466,37 +469,37 @@ class WeatherModel():
 
             # lev is the level number 1-60, we need a corresponding index
             # into ts and qs
-            # ilevel = levelSize - lev # << this was Ray's original, but is a typo 
-            # because indexing like that results in pressure and height arrays that 
-            # are in the opposite orientation to the t/q arrays. 
+            # ilevel = levelSize - lev # << this was Ray's original, but is a typo
+            # because indexing like that results in pressure and height arrays that
+            # are in the opposite orientation to the t/q arrays.
             ilevel = lev - 1
 
             # compute moist temperature
-            t_level = t_level*(1 + 0.609133*q_level)
+            t_level = t_level * (1 + 0.609133 * q_level)
 
             # compute the pressures (on half-levels)
-            Ph_lev = self._a[lev-1] + (self._b[lev-1] * sp)
+            Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
 
             pressurelvs[ilevel] = Ph_lev
 
             if lev == 1:
-                dlogP = np.log(Ph_levplusone/0.1)
+                dlogP = np.log(Ph_levplusone / 0.1)
                 alpha = np.log(2)
             else:
-                dlogP = np.log(Ph_levplusone/Ph_lev)
+                dlogP = np.log(Ph_levplusone / Ph_lev)
                 dP = Ph_levplusone - Ph_lev
-                alpha = 1 - ((Ph_lev/dP)*dlogP)
+                alpha = 1 - ((Ph_lev / dP) * dlogP)
 
-            TRd = t_level*self._R_d
+            TRd = t_level * self._R_d
 
             # z_f is the geopotential of this full level
             # integrate from previous (lower) half-level z_h to the full level
-            z_f = z_h + TRd*alpha
-            #geoheight[ilevel] = z_f/self._g0
+            z_f = z_h + TRd * alpha
+            # geoheight[ilevel] = z_f/self._g0
 
             # Geopotential (add in surface geopotential)
             geopotential[ilevel] = z_f + z
-            geoheight[ilevel] = geopotential[ilevel]/self._g0
+            geoheight[ilevel] = geopotential[ilevel] / self._g0
 
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
@@ -510,10 +513,10 @@ class WeatherModel():
         '''
         returns the extents of lat/lon plus a buffer
         '''
-        lat_min = np.nanmin(lats) - Nextra*self._lat_res
-        lat_max = np.nanmax(lats) + Nextra*self._lat_res
-        lon_min = np.nanmin(lons) - Nextra*self._lon_res
-        lon_max = np.nanmax(lons) + Nextra*self._lon_res
+        lat_min = np.nanmin(lats) - Nextra * self._lat_res
+        lat_max = np.nanmax(lats) + Nextra * self._lat_res
+        lon_min = np.nanmin(lons) - Nextra * self._lon_res
+        lon_max = np.nanmax(lons) + Nextra * self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
 
@@ -526,14 +529,11 @@ class WeatherModel():
     def getPoints(self):
         return self._xs.copy(), self._ys.copy(), self._zs.copy()
 
-    def getLL(self):
-        return self._lats[..., 0].copy(), self._lons[..., 0].copy()
-
     def getXY_gdal(self, filename):
         '''
         Pull the grid info (x,y) from a gdal-readable file
         '''
-        import gdal
+        from osgeo import gdal
         ds = gdal.Open(filename, gdal.GA_ReadOnly)
         xSize, ySize = ds.RasterXSize, ds.RasterYSize
         trans = ds.GetGeoTransform()
@@ -542,10 +542,10 @@ class WeatherModel():
         # make regular point grid
         pixelSizeX = trans[1]
         pixelSizeY = trans[5]
-        eastOrigin = trans[0] + 0.5*pixelSizeX
-        northOrigin = trans[3] + 0.5*pixelSizeY
-        xArray = np.arange(eastOrigin,  eastOrigin + pixelSizeX*xSize,  pixelSizeX)
-        yArray = np.arange(northOrigin, northOrigin + pixelSizeY*ySize, pixelSizeY)
+        eastOrigin = trans[0] + 0.5 * pixelSizeX
+        northOrigin = trans[3] + 0.5 * pixelSizeY
+        xArray = np.arange(eastOrigin, eastOrigin + pixelSizeX * xSize, pixelSizeX)
+        yArray = np.arange(northOrigin, northOrigin + pixelSizeY * ySize, pixelSizeY)
 
         return xArray, yArray
 
@@ -555,16 +555,16 @@ class WeatherModel():
         '''
         nx, ny = self._p.shape[:2]
 
-        # new regular z-spacing 
+        # new regular z-spacing
         if _zlevels is None:
             _zlevels = np.nanmean(self._zs, axis=(0, 1))
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
         # re-assign values to the uniform z
         # new variables
-        self._t = interp_along_axis(self._zs, new_zs, self._t, axis=2)
-        self._p = interp_along_axis(self._zs, new_zs, self._p, axis=2)
-        self._e = interp_along_axis(self._zs, new_zs, self._e, axis=2)
+        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
+        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
+        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
@@ -604,16 +604,17 @@ class WeatherModel():
         Write the main (i.e., needed for external calculations) data to an HDF5 file
         that can be accessed by external programs.
 
-        The point of doing this is to alleviate some of the memory load of keeping 
-        the full model in memory and make it easier to scale up the program. 
+        The point of doing this is to alleviate some of the memory load of keeping
+        the full model in memory and make it easier to scale up the program.
         '''
-        import datetime
-        import h5py
-        import os
 
         if outName is None:
-            outName = os.path.join(os.getcwd(), 
-                                   self._Name + datetime.datetime.strftime(self._time, '%Y_%m_%d_T%H_%M_%S') + '.h5')
+            outName = os.path.join(
+                os.getcwd(),
+                self._Name + datetime.datetime.strftime(
+                    self._time, '%Y_%m_%d_T%H_%M_%S'
+                ) + '.h5'
+            )
 
         with h5py.File(outName, 'w') as f:
             x = f.create_dataset('x', data=self._xs.astype(np.float64))
@@ -668,4 +669,3 @@ class WeatherModel():
             hydro_total.dims[2].attach_scale(z)
 
             f.create_dataset('Projection', data=self._proj.to_json())
-
