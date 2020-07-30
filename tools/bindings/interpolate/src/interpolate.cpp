@@ -24,6 +24,7 @@ void interpolate_2d(
     double * interpolation_points,
     double * out,
     size_t N,
+    std::optional<double> fill_value,
     bool assume_sorted
 ) {
     size_t lox = 0;
@@ -39,15 +40,18 @@ void interpolate_2d(
             hix = bisect_left(data_xs, data_xs + data_x_N, x);
             hiy = bisect_left(data_ys, data_ys + data_y_N, y);
         }
-        if (hix < 1) {
-            hix = 1;
-        } else if (hix > data_x_N - 1) {
-            hix = data_x_N - 1;
+
+        if (fill_value.has_value()) {
+            if (fill_out_of_bounds(hix, 1, data_x_N - 1, *fill_value, &out[i])) {
+                continue;
+            }
+            if (fill_out_of_bounds(hiy, 1, data_y_N - 1, *fill_value, &out[i])) {
+                continue;
+            }
         }
-        if (hiy < 1) {
-            hiy = 1;
-        } else if (hiy > data_y_N - 1) {
-            hiy = data_y_N - 1;
+        else {
+            hix = clamp_bounds(hix, 1, data_x_N - 1);
+            hiy = clamp_bounds(hiy, 1, data_y_N - 1);
         }
 
         lox = hix - 1;
@@ -89,6 +93,7 @@ void interpolate_3d(
     double * interpolation_points,
     double * out,
     size_t N,
+    std::optional<double> fill_value,
     bool assume_sorted
 ) {
     size_t lox = 0;
@@ -108,20 +113,21 @@ void interpolate_3d(
             hiy = bisect_left(data_ys, data_ys + data_y_N, y);
             hiz = bisect_left(data_zs, data_zs + data_z_N, z);
         }
-        if (hix < 1) {
-            hix = 1;
-        } else if (hix > data_x_N - 1) {
-            hix = data_x_N - 1;
+        if (fill_value.has_value()) {
+            if (fill_out_of_bounds(hix, 1, data_x_N - 1, *fill_value, &out[i])) {
+                continue;
+            }
+            if (fill_out_of_bounds(hiy, 1, data_y_N - 1, *fill_value, &out[i])) {
+                continue;
+            }
+            if (fill_out_of_bounds(hiz, 1, data_z_N - 1, *fill_value, &out[i])) {
+                continue;
+            }
         }
-        if (hiy < 1) {
-            hiy = 1;
-        } else if (hiy > data_y_N - 1) {
-            hiy = data_y_N - 1;
-        }
-        if (hiz < 1) {
-            hiz = 1;
-        } else if (hiz > data_z_N - 1) {
-            hiz = data_z_N - 1;
+        else {
+            hix = clamp_bounds(hix, 1, data_x_N - 1);
+            hiy = clamp_bounds(hiy, 1, data_y_N - 1);
+            hiz = clamp_bounds(hiz, 1, data_z_N - 1);
         }
 
         lox = hix - 1;
@@ -174,6 +180,7 @@ void interpolate(
     const slice<double> &values,
     const slice<double> &interpolation_points,
     slice<double> &out,
+    std::optional<double> fill_value,
     bool assume_sorted
 ) {
     // Only up to 64 dimensions is supported because at that point we run out
@@ -205,10 +212,14 @@ void interpolate(
             } else {
                 hi = bisect_left(xs.ptr, xs.ptr + xs.size, x);
             }
-            if (hi < 1) {
-                hi = 1;
-            } else if (hi > xs.size - 1) {
-                hi = xs.size - 1;
+            if (fill_value.has_value()) {
+                if (fill_out_of_bounds(hi, 1, xs.size - 1, *fill_value, &out.ptr[i])) {
+                    // continue the outer loop
+                    goto NEXT_POINT;
+                }
+            }
+            else {
+                hi = clamp_bounds(hi, 1, xs.size - 1);
             }
             size_t lo = hi - 1;
 
@@ -242,6 +253,7 @@ void interpolate(
         }
 
         out.ptr[i] /= total_volume;
+NEXT_POINT: ;
     }
 }
 
