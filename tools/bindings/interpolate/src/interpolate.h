@@ -55,6 +55,24 @@ inline size_t find_left(RAIter begin, RAIter end, double x) {
     return bisect_left(begin + left, end, x) + left;
 }
 
+template<typename T>
+inline bool fill_out_of_bounds(size_t x, size_t lo, size_t hi, T fill_value, T * out) {
+    if (x < lo || x > hi) {
+        *out = fill_value;
+        return true;
+    }
+    return false;
+}
+
+inline size_t clamp_bounds(size_t x, size_t lo, size_t hi) {
+    if (x < lo) {
+        x = lo;
+    } else if (x > hi) {
+        x = hi;
+    }
+    return x;
+}
+
 // TODO: Don't store grid points as an array, just derive them from a formula?
 // TODO: Same for interpolation points?
 template<typename T, typename RAIter>
@@ -77,18 +95,13 @@ void interpolate_1d(
         } else {
             hi = bisect_left(data_xs, data_xs + data_N, x);
         }
-        if (hi < 1) {
-            if (fill_value.has_value()) {
-                out[i] = *fill_value;
+        if (fill_value.has_value()) {
+            if (fill_out_of_bounds(hi, 1, data_N - 1, *fill_value, &out[i])) {
                 continue;
             }
-            hi = 1;
-        } else if (hi > data_N - 1) {
-            if (fill_value.has_value()) {
-                out[i] = *fill_value;
-                continue;
-            }
-            hi = data_N - 1;
+        }
+        else {
+            hi = clamp_bounds(hi, 1, data_N - 1);
         }
 
         lo = hi - 1;
@@ -113,6 +126,7 @@ void interpolate_2d(
     double * interpolation_points,
     double * out,
     size_t N,
+    std::optional<double> fill_value,
     bool assume_sorted
 );
 
@@ -127,6 +141,7 @@ void interpolate_3d(
     double * interpolation_points,
     double * out,
     size_t N,
+    std::optional<double> fill_value,
     bool assume_sorted
 );
 
@@ -142,6 +157,7 @@ void interpolate(
     const slice<double> &values,
     const slice<double> &interpolation_points,
     slice<double> &out,
+    std::optional<double> fill_value,
     bool assume_sorted
 );
 

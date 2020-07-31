@@ -21,12 +21,13 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(interpolate, m) {
-    m.doc() = "Fast linear interpolator";
+    m.doc() = "Fast linear interpolator over a regular grid";
 
     m.def("interpolate", [](
             std::vector<py::array_t<double, py::array::c_style>> points,
             py::array_t<double, py::array::c_style> values,
             py::array_t<double, py::array::c_style> interp_points,
+            std::optional<double> fill_value,
             bool assume_sorted,
             size_t max_threads
         ) {
@@ -104,7 +105,7 @@ PYBIND11_MODULE(interpolate, m) {
                         interp_points_ptr,
                         out,
                         num_elements,
-                        std::nullopt,
+                        fill_value,
                         assume_sorted
                     );
                 } else {
@@ -121,7 +122,7 @@ PYBIND11_MODULE(interpolate, m) {
                                 &interp_points_ptr[index],
                                 &out[index],
                                 index + stride < num_elements ? stride : num_elements - index,
-                                std::nullopt,
+                                fill_value,
                                 assume_sorted
                             )
                         );
@@ -147,6 +148,7 @@ PYBIND11_MODULE(interpolate, m) {
                         interp_points_ptr,
                         out,
                         num_elements,
+                        fill_value,
                         assume_sorted
                     );
                 } else {
@@ -165,6 +167,7 @@ PYBIND11_MODULE(interpolate, m) {
                                 &interp_points_ptr[index * num_dims],
                                 &out[index],
                                 index + stride < num_elements ? stride : num_elements - index,
+                                fill_value,
                                 assume_sorted
                             )
                         );
@@ -194,6 +197,7 @@ PYBIND11_MODULE(interpolate, m) {
                         interp_points_ptr,
                         out,
                         num_elements,
+                        fill_value,
                         assume_sorted
                     );
                 } else {
@@ -214,6 +218,7 @@ PYBIND11_MODULE(interpolate, m) {
                                 &interp_points_ptr[index * num_dims],
                                 &out[index],
                                 index + stride < num_elements ? stride : num_elements - index,
+                                fill_value,
                                 assume_sorted
                             )
                         );
@@ -246,6 +251,7 @@ PYBIND11_MODULE(interpolate, m) {
                     values_slice,
                     interpolation_points_slice,
                     out_slice,
+                    fill_value,
                     assume_sorted
                 );
             }
@@ -272,6 +278,8 @@ PYBIND11_MODULE(interpolate, m) {
             :param interp_points: List of points to interpolate, should have
                 dimension (x, N). If this list is guaranteed to be sorted make sure
                 to use the `assume_sorted` option.
+            :param fill_value: The value to return for interpolation points
+                  outside of the grid range.
             :param assume_sorted: Enable optimization when the list of interpolation
                 points is sorted.
             :param max_threads: Limit the number of threads to a certain amount.
@@ -280,6 +288,7 @@ PYBIND11_MODULE(interpolate, m) {
         py::arg("points"),
         py::arg("values"),
         py::arg("interp_points"),
+        py::arg("fill_value") = std::nullopt,
         py::arg("assume_sorted") = false,
         py::arg("max_threads") = 8
     );
@@ -464,6 +473,8 @@ PYBIND11_MODULE(interpolate, m) {
                 specified by 'axis'. For example if 'points' has shape (1, 2, 3)
                 and 'axis' is 2, then and shape like (1, 2, X) is valid.
           :param axis: The axis to interpolate along.
+          :param fill_value: The value to return for interpolation points
+                outside of the grid range.
           :param assume_sorted: Enable optimization when the list of interpolation
                 points is sorted along the axis of interpolation.
           :param max_threads: Limit the number of threads to a certain amount.
