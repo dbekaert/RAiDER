@@ -18,48 +18,6 @@ import RAiDER.utilFcns as utilFcns
 from RAiDER import Geo2rdr
 from RAiDER.constants import _ZREF, Zenith
 
-# def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
-#    import Geo2rdr
-#
-#    real_shape = lats.shape
-#    lats = lats.flatten()
-#    lons = lons.flatten()
-#    heights = heights.flatten()
-#
-#    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
-#    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
-#
-#    loss = np.zeros((3, len(lats)))
-#    slant_ranges = np.zeros_like(lats)
-#
-#    for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
-#        height_array = np.array(((height,),))
-#
-#        # Geo2rdr is picky about the type of height
-#        height_array = height_array.astype(np.double)
-#
-#        geo2rdr_obj.set_geo_coordinate(np.radians(lon),
-#                                       np.radians(lat),
-#                                       1, 1,
-#                                       height_array)
-#        # compute the radar coordinate for each geo coordinate
-#        geo2rdr_obj.geo2rdr()
-#
-#        # get back the line of sight unit vector
-#        los_x, los_y, los_z = geo2rdr_obj.get_los()
-#        loss[:, i] = los_x, los_y, los_z
-#
-#        # get back the slant ranges
-#        slant_range = geo2rdr_obj.get_slant_range()
-#        slant_ranges[i] = slant_range
-#
-#    los = loss * slant_ranges
-#
-#    # Have to think about traversal order here. It's easy, though, since
-#    # in both orders xs come first, followed by all ys, followed by all
-#    # zs.
-#    return los.reshape((3,) + real_shape)
-
 
 def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
     '''
@@ -99,14 +57,18 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
         height_array = height_array.astype(np.double)
 
         lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
-        geo2rdr_obj.set_geo_coordinate(lon_start, lat_start, 1, 1, height_array)
+        geo2rdr_obj.set_geo_coordinate(
+            np.radians(lon),
+            np.radians(lat),
+            1, 1,
+            height_array
+        )
 
         # compute the radar coordinate for each geo coordinate
         geo2rdr_obj.geo2rdr()
 
         # get back the line of sight unit vector
-        los_x, los_y, los_z = geo2rdr_obj.get_los()
-        loss[:, i] = los_x, los_y, los_z
+        loss[:, i] = geo2rdr_obj.get_los()
 
         # get back the slant ranges
         # slant_range = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
@@ -117,6 +79,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
     #pt_rng = np.linalg.norm(sp,axis=-1)
     #slant_ranges = slant_ranges - pt_rng
     los = -loss  # * slant_ranges
+#    los = loss * slant_ranges
 
     # Have to think about traversal order here. It's easy, though, since
     # in both orders xs come first, followed by all ys, followed by all
@@ -178,46 +141,6 @@ def read_txt_file(filename):
             vy.append(vy_)
             vz.append(vz_)
     return [np.array(a) for a in [t, x, y, z, vx, vy, vz]]
-
-
-def read_ESA_Orbit_file(filename, time=None):
-    '''
-    Read orbit data from an orbit file supplied by ESA
-    '''
-    tree = ET.parse(filename)
-    root = tree.getroot()
-    data_block = root[1]
-    numOSV = len(data_block[0])
-
-    t = np.ones(numOSV)
-    x = np.ones(numOSV)
-    y = np.ones(numOSV)
-    z = np.ones(numOSV)
-    vx = np.ones(numOSV)
-    vy = np.ones(numOSV)
-    vz = np.ones(numOSV)
-
-    for i, st in enumerate(data_block[0]):
-        t[i] = (datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f') - datetime.datetime(1970, 1, 1)).total_seconds()
-        x[i] = float(st[4].text)
-        y[i] = float(st[5].text)
-        z[i] = float(st[6].text)
-        vx[i] = float(st[7].text)
-        vy[i] = float(st[8].text)
-        vz[i] = float(st[9].text)
-
-    # Get the reference time
-    if time is not None:
-        time = (time - datetime.datetime(1970, 1, 1)).total_seconds()
-        time = time - t[0]
-
-    t = t - t[0]
-
-    # if time is not None:
-    #    mask = np.abs(t - time) < 3600
-    #    t, x, y, z, vx, vy, vz = t[mask], x[mask], y[mask], z[mask], vx[mask], vy[mask], vz[mask]
-
-    return [t, x, y, z, vx, vy, vz]
 
 
 def infer_sv(los_file, lats, lons, heights, time=None):
