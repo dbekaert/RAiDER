@@ -13,8 +13,3 @@ _ZREF = np.float64(15000)  # maximum requierd height
 _STEP = np.float64(15.0)     # integration step size in meters
 
 _g0 = np.float64(9.80665)
-
-
-class Zenith:
-    """Special value indicating a look vector of "zenith"."""
-    pass
