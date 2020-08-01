@@ -3,6 +3,7 @@ import pytest
 from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.interpolate import interpolate, interpolate_along_axis
+from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.interpolator import fillna3D, interp_along_axis, interpVector
 
 
@@ -850,3 +851,31 @@ def test_4d_cube_small():
     ans_scipy = rgi(points)
 
     assert np.allclose(ans, ans_scipy, 1e-15)
+
+
+def test_interpolate_wrapper():
+    def f(x, y, z):
+        return x ** 2 + 3 * y - z
+
+    xs = np.linspace(0, 1000, 100)
+    ys = np.linspace(0, 1000, 100)
+    zs = np.linspace(0, 1000, 100)
+
+    values = f(*np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
+    points_x = np.linspace(10, 990, 5)
+    points_y = np.linspace(10, 890, 5)
+    points_z = np.linspace(10, 890, 5)
+    points = np.stack((
+        points_x,
+        points_y,
+        points_z
+    ), axis=-1)
+
+    interp = Interpolator((xs, ys, zs), values)
+    ans = interp(points)
+    ans2 = interp((points_x, points_y, points_z))
+    rgi = RegularGridInterpolator((xs, ys, zs), values)
+    ans_scipy = rgi(points)
+
+    assert np.allclose(ans, ans_scipy, 1e-15)
+    assert np.allclose(ans2, ans_scipy, 1e-15)

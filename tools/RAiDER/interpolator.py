@@ -6,13 +6,57 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 import numpy as np
 from scipy.interpolate import interp1d
+
+from RAiDER.interpolate import interpolate
+
+
+class RegularGridInterpolator(object):
+    """
+    Provides a wrapper around RAiDER.interpolate.interpolate with a similar
+    interface to scipy.interpolate.RegularGridInterpolator.
+    """
+
+    def __init__(
+        self,
+        grid,
+        values,
+        fill_value=None,
+        assume_sorted=False,
+        max_threads=8
+    ):
+        self.grid = grid
+        self.values = values
+        self.fill_value = fill_value
+        self.assume_sorted = assume_sorted
+        self.max_threads = max_threads
+
+    def __call__(self, points):
+        if isinstance(points, tuple):
+            shape = points[0].shape
+            for arr in points:
+                assert arr.shape == shape, "All dimensions must contain the same number of points!"
+            interp_points = np.stack(points, axis=-1)
+        else:
+            interp_points = points
+
+        return interpolate(
+            self.grid,
+            self.values,
+            interp_points,
+            fill_value=self.fill_value,
+            assume_sorted=self.assume_sorted,
+            max_threads=self.max_threads
+        )
 
 
 def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
     '''
+    DEPRECATED: Use RAiDER.interpolate.interpolate_along_axis instead (it is
+    much faster). This function now primarily exists to verify the behavior of
+    the new one.
+
     Interpolate an array of 3-D data along one axis. This function
     assumes that the x-coordinate increases monotonically.
     '''
