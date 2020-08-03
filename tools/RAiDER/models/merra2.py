@@ -14,6 +14,9 @@ class MERRA2(WeatherModel):
     # I took this from MERRA-2 model level weblink
     # https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/
     def __init__(self):
+        
+        import calendar
+        
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -26,10 +29,10 @@ class MERRA2(WeatherModel):
         # Tuple of min/max years where data is available.
         utcnow = dt.datetime.utcnow()
         enddate = dt.datetime(utcnow.year, utcnow.month, 15) - dt.timedelta(days=60)
-        enddate = dt.datetime(enddate.year, enddate.month, 30)
+        enddate = dt.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month))
         self._valid_range = (dt.datetime(1980, 1, 1), "Present")
-        lag_days = utcnow - enddate
-        self._lag_time = dt.timedelta(days=lag_days.days)  # Availability lag time in days
+        lag_time = utcnow - enddate
+        self._lag_time = dt.timedelta(days=lag_time.days)  # Availability lag time in days
 
         # model constants
         self._k1 = 0.776  # [K/Pa]
