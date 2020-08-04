@@ -7,6 +7,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import argparse
+import copy
 import datetime as dt
 import itertools
 import logging
@@ -66,7 +67,7 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     # Spatiotemporal subset options
     dtsubsets = parser.add_argument_group(
         'Controls for spatiotemporal subsetting.')
-    dtsubsets.add_argument('-b', '--bbox', dest='bbox', type=str, default=None,
+    dtsubsets.add_argument('-b', '--bounding_box', dest='bounding_box', type=str, default=None,
                            help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
     dtsubsets.add_argument('-sp', '--spacing', dest='spacing', type=float, default='1',
                            help='Specify spacing of grid-cells for statistical analyses. By default 1 deg.')
@@ -651,7 +652,7 @@ class RaiderStats(object):
                 self.bbox = [float(val) for val in self.bbox.split()]
             except:
                 raise Exception(
-                    'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
+                    'Cannot understand the --bounding_box argument. String input is incorrect or path does not exist.')
         self.plotbbox, self.grid_dim, self.gridpoints = self._get_extent()
 
         # generate list of grid-polygons
@@ -718,7 +719,7 @@ class RaiderStats(object):
         axes.set_extent(self.plotbbox, ccrs.PlateCarree())
         # add coastlines
         axes.coastlines(linewidth=0.2, color="gray", zorder=4)
-        cmap = plt.cm.hot_r
+        cmap = copy.copy(mpl.cm.get_cmap("hot_r"))
         cmap.set_bad('black', 0.)
         # extract all colors from the hot map
         cmaplist = [cmap(i) for i in range(cmap.N)]
@@ -750,6 +751,11 @@ class RaiderStats(object):
 
             # passing 3rd column as z-value
             if len(gridarr) > 2:
+                # set land/water background to light gray/blue respectively so station point data can be seen
+                axes.add_feature(cfeature.NaturalEarthFeature(
+                    'physical', 'land', '50m', facecolor='#A9A9A9'), zorder=0)
+                axes.add_feature(cfeature.NaturalEarthFeature(
+                    'physical', 'ocean', '50m', facecolor='#ADD8E6'), zorder=0)
                 zvalues = gridarr[2]
                 # define the bins and normalize
                 if cbounds is None:
@@ -765,12 +771,12 @@ class RaiderStats(object):
                 zvalues = np.ma.masked_where(zvalues == 0, zvalues)
 
                 # plot data and initiate colorbar
-                im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm, vmin=cbounds[0],
-                                  vmax=cbounds[1], zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
+                im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm,
+                                  zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
                 # initiate colorbar and control height of colorbar
                 divider = make_axes_locatable(axes)
                 cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
-                cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional',
+                cbar_ax = fig.colorbar(im, spacing='proportional',
                                        ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
         # If gridded area passed
@@ -794,12 +800,12 @@ class RaiderStats(object):
             gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
 
             # plot data
-            im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox, vmin=cbounds[0],
-                             vmax=cbounds[1], zorder=1, origin='upper', transform=ccrs.PlateCarree())
+            im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,
+                             zorder=1, origin='upper', transform=ccrs.PlateCarree())
             # initiate colorbar and control height of colorbar
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
-            cbar_ax = fig.colorbar(im, cmap=cmap, norm=norm, spacing='proportional', ticks=colorbounds,
+            cbar_ax = fig.colorbar(im, spacing='proportional', ticks=colorbounds,
                                    boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
             # superimpose your gridded array with a supplementary list of point, if specified
@@ -975,7 +981,7 @@ if __name__ == "__main__":
         inps.workdir,
         inps.cpus,
         inps.verbose,
-        inps.bbox,
+        inps.bounding_box,
         inps.spacing,
         inps.timeinterval,
         inps.seasonalinterval,

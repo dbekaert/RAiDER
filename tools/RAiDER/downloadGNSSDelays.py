@@ -61,7 +61,7 @@ downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:0
         '--station_file', '-f', default=None, dest='station_file',
         help=('Text file containing a list of 4-char station IDs separated by newlines'))
     area.add_argument(
-        '--BBOX', '-b', dest='bounding_box', type=str, default=None,
+        '-b', '--bounding_box', dest='bounding_box', type=str, default=None,
         help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
 
     misc = p.add_argument_group("Run parameters")
