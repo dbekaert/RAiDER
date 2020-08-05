@@ -198,7 +198,7 @@ class WeatherModel(ABC):
 
             delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-            delays = _integrateLOS(_STEP, delay_wet, delay_hydro, Npts)
+            delays = _integrateLOS(_STEP, delay_wet, delay_hydro)
 
             self._wet_total = delays[..., 0]
             self._hydrostatic_total = delays[..., 1]
