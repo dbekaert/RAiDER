@@ -171,7 +171,7 @@ class WeatherModel(ABC):
         if los_flag:
             # ECEF to Lat/Lon reference frame
             p1 = CRS.from_epsg(4978)
-            t = Transformer.from_proj(p1, self._proj)
+            t = Transformer.from_proj(p1, self._proj, always_xy=True)
 
             # Get the look vectors
             # TODO: lengths and LOS return from GEO2RDR are not correct
@@ -190,7 +190,11 @@ class WeatherModel(ABC):
             ray = makePoints3D(max_len, rays_ecef, los_slv, _STEP)
 
             # Transform from ECEF to weather model native projection
-            ray_x, ray_y, ray_z = t.transform(ray[..., 0], ray[..., 1], ray[..., 2], always_xy=True)
+            ray_x, ray_y, ray_z = t.transform(
+                ray[..., 0, :],
+                ray[..., 1, :],
+                ray[..., 2, :]
+            )
 
             delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
