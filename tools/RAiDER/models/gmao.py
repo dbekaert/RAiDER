@@ -19,7 +19,7 @@ class GMAO(WeatherModel):
 
         # Tuple of min/max years where data is available.
         self._valid_range = (dt.datetime(2017, 12, 1), "Present")
-        self._lag_time = dt.timedelta(hours=7.5)  # Availability lag time in hours
+        self._lag_time = dt.timedelta(hours=24.0)  # Availability lag time in hours
 
         # model constants
         self._k1 = 0.776  # [K/Pa]
@@ -129,3 +129,6 @@ class GMAO(WeatherModel):
         self._xs = _lons
         self._ys = _lats
         self._zs = h
+
+        import scipy.io as sio
+        sio.savemat('test_gmao.mat',{'p':p,'q':q,'t':t,'lats':_lats,'lons':_lons,'h':h})

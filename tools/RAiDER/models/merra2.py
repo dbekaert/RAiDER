@@ -26,7 +26,7 @@ class MERRA2(WeatherModel):
         # Tuple of min/max years where data is available.
         utcnow = dt.datetime.utcnow()
         enddate = dt.datetime(utcnow.year, utcnow.month, 15) - dt.timedelta(days=60)
-        enddate = dt.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month))
+        enddate = dt.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month)[1])
         self._valid_range = (dt.datetime(1980, 1, 1), "Present")
         lag_time = utcnow - enddate
         self._lag_time = dt.timedelta(days=lag_time.days)  # Availability lag time in days
@@ -149,3 +149,6 @@ class MERRA2(WeatherModel):
         self._xs = _lons
         self._ys = _lats
         self._zs = h
+
+        import scipy.io as sio
+        sio.savemat('test_merra2.mat',{'p':p,'q':q,'t':t,'lats':_lats,'lons':_lons,'h':h})
