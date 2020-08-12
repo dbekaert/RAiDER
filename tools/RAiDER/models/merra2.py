@@ -149,6 +149,3 @@ class MERRA2(WeatherModel):
         self._xs = _lons
         self._ys = _lats
         self._zs = h
-
-        import scipy.io as sio
-        sio.savemat('test_merra2.mat',{'p':p,'q':q,'t':t,'lats':_lats,'lons':_lons,'h':h})
