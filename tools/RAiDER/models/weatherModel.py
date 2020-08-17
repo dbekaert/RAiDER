@@ -12,7 +12,7 @@ from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
-from RAiDER.interpolator import fillna3D
+from RAiDER.interpolator import fillna3D, interp_along_axis
 from RAiDER.losreader import getLookVectors
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
@@ -244,12 +244,8 @@ class WeatherModel(ABC):
                 pass
             elif self._valid_range[1] < time:
                 raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-        if (self.Model() is 'GMAO') | (self.Model() is 'MERRA2'):
-            if time > datetime.datetime.utcnow() - self._lag_time:
-                raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-        else:
-            if time > datetime.datetime.today() - self._lag_time:
-                raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
+        if time > datetime.datetime.utcnow() - self._lag_time:
+            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
 
     def _convertmb2Pa(self, pres):
         '''
@@ -562,9 +558,12 @@ class WeatherModel(ABC):
 
         # re-assign values to the uniform z
         # new variables
-        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
-        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
-        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
+#        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
+#        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
+#        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
+        self._t = interp_along_axis(self._zs, new_zs, self._t, axis=2)
+        self._p = interp_along_axis(self._zs, new_zs, self._p, axis=2)
+        self._e = interp_along_axis(self._zs, new_zs, self._e, axis=2)
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
