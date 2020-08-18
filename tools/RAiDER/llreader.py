@@ -38,7 +38,7 @@ def readLL(*args):
         lats, latproj, _ = gdal_open(lat, returnProj=True)
         lons, lonproj, _ = gdal_open(lon, returnProj=True)
     elif flag == 'bounding_box':
-        N, W, S, E = args
+        S, N, W, E = args
         lats = np.array([float(N), float(S)])
         lons = np.array([float(E), float(W)])
         latproj = lonproj = 'EPSG:4326'
