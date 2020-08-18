@@ -393,6 +393,9 @@ PYBIND11_MODULE(interpolate, m) {
 
                 for (size_t i = 0; i < num_threads; i++) {
                     size_t index = i * thread_stride;
+                    if (index >= points_info.shape[0]) {
+                        break;
+                    }
                     size_t num_elements =
                         index + thread_stride < points_info.shape[0]
                         ? thread_stride : points_info.shape[0] - index;

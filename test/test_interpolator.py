@@ -192,6 +192,40 @@ def test_interp_along_axis_2d():
     )
 
 
+def test_interp_along_axis_2d_threads_edge_case():
+    def f(x):
+        return 2 * x
+
+    # Max of 4 threads but 5 rows to interpolate over. Each thread will get 2
+    # rows which means only 3 threads will be used
+    max_threads = 4
+    xs = np.array([
+        [1, 2, 3, 4],
+        [3, 4, 5, 6],
+        [7, 8, 9, 10],
+        [11, 12, 13, 14],
+        [15, 16, 17, 18]
+    ])
+    ys = f(xs)
+
+    points = np.array([
+        [1.5, 3.1, 3.6],
+        [3.5, 5.1, 5.2],
+        [7.5, 9.1, 9.9],
+        [11.1, 12.2, 13.3],
+        [15.1, 16.2, 17.3]
+    ])
+
+    assert np.allclose(
+        interp_along_axis(xs, points, ys, axis=1),
+        2 * points
+    )
+    assert np.allclose(
+        interpolate_along_axis(xs, ys, points, axis=1, max_threads=max_threads),
+        2 * points
+    )
+
+
 def test_interp_along_axis_3d():
     def f(x):
         return 2 * x
