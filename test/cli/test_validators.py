@@ -120,7 +120,7 @@ def test_date_list_action(parser):
         date(2020, 1, 1), date(2020, 1, 2), date(2020, 1, 3)
     ]
 
-    with pytest.raises(TypeError):
+    with pytest.raises(SystemExit):
         parser.parse_args(["--datelist", "2020-1-1", "2020-1-2", "2020-1-3"])
 
 
@@ -151,9 +151,9 @@ def test_bbox_action(parser):
     args = parser.parse_args(["--bbox_int", "10", "20", "30", "40"])
     assert args.bbox_int == [10, 20, 30, 40]
 
-    with pytest.raises(ValueError):
-        parser.parse_args(["--bbox_int", "10", "20", "10", "20"])
-    with pytest.raises(ValueError):
-        parser.parse_args(["--bbox_int", "100", "20", "30", "40"])
-    with pytest.raises(ValueError):
-        parser.parse_args(["--bbox_int", "10", "190", "30", "40"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--bbox_int", "10", "10", "20", "20"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--bbox_int", "30", "100", "20", "40"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--bbox_int", "10", "30", "40", "190"])

@@ -6,18 +6,18 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import itertools
 import logging
 import multiprocessing as mp
 import time
 
 import h5py
-import itertools
-import multiprocessing as mp
 import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.constants import _STEP
+from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
 
 log = logging.getLogger(__name__)
@@ -104,8 +104,8 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
         wet = f['wet'][()].copy()
         hydro = f['hydro'][()].copy()
 
-    ifWet = make_interpolator(xs_wm, ys_wm, zs_wm, wet)
-    ifHydro = make_interpolator(xs_wm, ys_wm, zs_wm, hydro)
+    ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
+    ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
 
     with h5py.File(pnts_file, 'r') as f:
         Nrays = f.attrs['NumRays']
@@ -146,7 +146,7 @@ def make_interpolator(xs, ys, zs, data):
     Function to create and return an Interpolator object
     '''
     return RegularGridInterpolator(
-        (ys.flatten(), xs.flatten(), zs.flatten()),
+        (ys.ravel(), xs.ravel(), zs.ravel()),
         data,
         bounds_error=False,
         fill_value=np.nan
@@ -164,12 +164,12 @@ def chunk(chunkSize, in_shape):
 
 def makeChunkStartInds(chunkSize, in_shape):
     '''
-    Create a list of start indices for chunking a numpy D-dimensional array. 
-    Inputs: 
+    Create a list of start indices for chunking a numpy D-dimensional array.
+    Inputs:
         chunkSize - length-D tuple containing chunk sizes
         in_shape  - length-D tuple containing the shape of the array to be chunked
     Outputs
-        chunkInds - a list of length-D tuples, where each tuple is the starting 
+        chunkInds - a list of length-D tuples, where each tuple is the starting
                     multi-index of each chunk
     Example:
         makeChunkStartInds((2,2,16), (4,8,16))
@@ -200,17 +200,17 @@ def makeChunkStartInds(chunkSize, in_shape):
 
 def makeChunksFromInds(startInd, chunkSize, in_shape):
     '''
-    From a length-N list of tuples containing starting indices, 
-    create a list of indices into chunks of a numpy D-dimensional array. 
+    From a length-N list of tuples containing starting indices,
+    create a list of indices into chunks of a numpy D-dimensional array.
     Inputs:
-       startInd  - A length-N list of D-dimensional tuples containing the 
+       startInd  - A length-N list of D-dimensional tuples containing the
                    starting indices of a set of chunks
        chunkSize - A D-dimensional tuple containing chunk size in each dimension
        in_shape  - A D-dimensional tuple containing the size of each dimension
-    Outputs: 
-       chunks    - A length-N list of length-D lists, where each element of the 
-                   length-D list is a numpy array of indices     
-    Example: 
+    Outputs:
+       chunks    - A length-N list of length-D lists, where each element of the
+                   length-D list is a numpy array of indices
+    Example:
         makeChunksFromInds([(0, 0), (0, 2), (2, 0), (2, 2)],(4,4),(2,2))
     Output:
         [[np.array([0, 0, 1, 1]), np.array([0, 1, 0, 1])],

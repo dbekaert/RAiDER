@@ -1,5 +1,5 @@
 import itertools
-from argparse import Action, ArgumentTypeError
+from argparse import Action, ArgumentError, ArgumentTypeError
 from datetime import date, time, timedelta
 from time import strptime
 
@@ -128,7 +128,7 @@ class DateListAction(Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         if len(values) > 2 or not values:
-            raise TypeError("Only 1 or 2 dates may be supplied")
+            raise ArgumentError(self, "Only 1 or 2 dates may be supplied")
 
         if len(values) == 2:
             start, end = values
@@ -171,19 +171,18 @@ class BBoxAction(Action):
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
-        N, W, S, E = values
+        S, N, W, E = values
 
-        lat = [N, S]
-        lon = [W, E]
+        if N <= S or E <= W:
+            raise ArgumentError(self, 'Bounding box must have a size!')
 
-        if N == S or E == W:
-            raise ValueError('Bounding box must have a size!')
+        for sn in (S, N):
+            if sn < -90 or sn > 90:
+                raise ArgumentError(self, 'Lats are out of S/N bounds')
 
-        if min(lat) < -90 or max(lat) > 90:
-            raise ValueError('Lats are out of N/S bounds')
-
-        if min(lon) < -180 or max(lon) > 180:
-            raise ValueError('Lons are out of W/E bounds')
+        for we in (W, E):
+            if we < -180 or we > 180:
+                raise ArgumentError(self, 'Lons are out of W/E bounds')
 
         setattr(namespace, self.dest, values)
 

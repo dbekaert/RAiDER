@@ -3,9 +3,8 @@ import pytest
 from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.interpolate import interpolate, interpolate_along_axis
-from RAiDER.interpolator import (
-    fillna3D, interp_along_axis, interpVector
-)
+from RAiDER.interpolator import RegularGridInterpolator as Interpolator
+from RAiDER.interpolator import fillna3D, interp_along_axis, interpVector
 
 
 @pytest.fixture
@@ -321,6 +320,32 @@ def test_basic():
     assert ans == np.array([0.5])
 
 
+def test_1d_out_of_bounds():
+    ans = interpolate(
+        points=(np.array([0, 1]),),
+        values=np.array([0, 1]),
+        interp_points=np.array([[100]]),
+        max_threads=1,
+        assume_sorted=True
+    )
+
+    # Output is extrapolated
+    assert ans == np.array([100])
+
+
+def test_1d_fill_value():
+    ans = interpolate(
+        points=(np.array([0, 1]),),
+        values=np.array([0, 1]),
+        interp_points=np.array([[100]]),
+        max_threads=1,
+        fill_value=np.nan,
+        assume_sorted=True
+    )
+
+    assert np.all(np.isnan(ans))
+
+
 def test_small():
     ans = interpolate(
         points=(np.array([1, 2, 3, 4, 5, 6]),),
@@ -369,6 +394,42 @@ def test_2d_basic():
     )
 
     assert ans == np.array([1])
+
+
+def test_2d_out_of_bounds():
+    xs = np.array([0, 1])
+    ys = np.array([0, 1])
+
+    values = (lambda x, y: x + y)(
+        *np.meshgrid(xs, ys, indexing="ij", sparse=True)
+    )
+
+    ans = interpolate(
+        points=(xs, ys),
+        values=values,
+        interp_points=np.array([[100, 100]])
+    )
+
+    # Output is extrapolated
+    assert ans == np.array([200])
+
+
+def test_2d_fill_value():
+    xs = np.array([0, 1])
+    ys = np.array([0, 1])
+
+    values = (lambda x, y: x + y)(
+        *np.meshgrid(xs, ys, indexing="ij", sparse=True)
+    )
+
+    ans = interpolate(
+        points=(xs, ys),
+        values=values,
+        interp_points=np.array([[100, 100]]),
+        fill_value=np.nan
+    )
+
+    assert np.all(np.isnan(ans))
 
 
 def test_2d_square_small():
@@ -493,6 +554,46 @@ def test_3d_basic():
     )
 
     assert ans == np.array([1.5])
+
+
+def test_3d_out_of_bounds():
+    xs = np.array([0, 1])
+    ys = np.array([0, 1])
+    zs = np.array([0, 1])
+
+    values = (lambda x, y, z: x + y + z)(
+        *np.meshgrid(xs, ys, zs, indexing="ij", sparse=True)
+    )
+
+    ans = interpolate(
+        points=(xs, ys, zs),
+        values=values,
+        interp_points=np.array([[100, 100, 100]]),
+        assume_sorted=True
+    )
+
+    # Output is extrapolated
+    assert ans == np.array([300])
+
+
+def test_3d_fill_value():
+    xs = np.array([0, 1])
+    ys = np.array([0, 1])
+    zs = np.array([0, 1])
+
+    values = (lambda x, y, z: x + y + z)(
+        *np.meshgrid(xs, ys, zs, indexing="ij", sparse=True)
+    )
+
+    ans = interpolate(
+        points=(xs, ys, zs),
+        values=values,
+        interp_points=np.array([[100, 100, 100]]),
+        fill_value=np.nan,
+        assume_sorted=True
+    )
+
+    assert np.all(np.isnan(ans))
 
 
 def test_3d_cube_small():
@@ -682,6 +783,46 @@ def test_4d_basic():
     assert ans == np.array([2])
 
 
+def test_4d_out_of_bounds():
+    xs = np.array([0, 1])
+    ys = np.array([0, 1])
+    zs = np.array([0, 1])
+    ws = np.array([0, 1])
+
+    values = (lambda x, y, z, w: x + y + z + w)(
+        *np.meshgrid(xs, ys, zs, ws, indexing="ij", sparse=True)
+    )
+
+    ans = interpolate(
+        points=(xs, ys, zs, ws),
+        values=values,
+        interp_points=np.array([[100, 100, 100, 100]])
+    )
+
+    # Output is extrapolated
+    assert ans == np.array([400])
+
+
+def test_4d_fill_value():
+    xs = np.array([0, 1])
+    ys = np.array([0, 1])
+    zs = np.array([0, 1])
+    ws = np.array([0, 1])
+
+    values = (lambda x, y, z, w: x + y + z + w)(
+        *np.meshgrid(xs, ys, zs, ws, indexing="ij", sparse=True)
+    )
+
+    ans = interpolate(
+        points=(xs, ys, zs, ws),
+        values=values,
+        interp_points=np.array([[100, 100, 100, 100]]),
+        fill_value=np.nan
+    )
+
+    assert np.all(np.isnan(ans))
+
+
 def test_4d_cube_small():
     def f(x, y, z, w):
         return x ** 2 + 3 * y - z * w
@@ -710,3 +851,31 @@ def test_4d_cube_small():
     ans_scipy = rgi(points)
 
     assert np.allclose(ans, ans_scipy, 1e-15)
+
+
+def test_interpolate_wrapper():
+    def f(x, y, z):
+        return x ** 2 + 3 * y - z
+
+    xs = np.linspace(0, 1000, 100)
+    ys = np.linspace(0, 1000, 100)
+    zs = np.linspace(0, 1000, 100)
+
+    values = f(*np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
+    points_x = np.linspace(10, 990, 5)
+    points_y = np.linspace(10, 890, 5)
+    points_z = np.linspace(10, 890, 5)
+    points = np.stack((
+        points_x,
+        points_y,
+        points_z
+    ), axis=-1)
+
+    interp = Interpolator((xs, ys, zs), values)
+    ans = interp(points)
+    ans2 = interp((points_x, points_y, points_z))
+    rgi = RegularGridInterpolator((xs, ys, zs), values)
+    ans_scipy = rgi(points)
+
+    assert np.allclose(ans, ans_scipy, 1e-15)
+    assert np.allclose(ans2, ans_scipy, 1e-15)

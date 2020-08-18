@@ -30,3 +30,5 @@ dependencies:
  - xarray
  - shapely
  - pydap>3.2.2|<3.2.2
+ - cxx-compiler
+ - sysroot_linux-64

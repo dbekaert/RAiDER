@@ -18,7 +18,7 @@ if __name__ == "__main__":
         inps.workdir,
         inps.cpus,
         inps.verbose,
-        inps.bbox,
+        inps.bounding_box,
         inps.spacing,
         inps.timeinterval,
         inps.seasonalinterval,
