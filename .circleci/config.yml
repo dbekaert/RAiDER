@@ -11,7 +11,7 @@ jobs:
           name: Setup Miniconda
           command: |
             apt update --yes && apt-get upgrade --yes
-            apt install -y --no-install-recommends wget ca-certificates g++
+            apt install -y --no-install-recommends wget ca-certificates
             cd $HOME
             wget "https://repo.anaconda.com/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh" -O miniconda.sh
             printf '%s' "8a324adcc9eaf1c09e22a992bb6234d91a94146840ee6b11c114ecadafc68121  miniconda.sh" | sha256sum -c
