@@ -12,7 +12,7 @@ from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
-from RAiDER.interpolator import fillna3D, interp_along_axis
+from RAiDER.interpolator import fillna3D
 from RAiDER.losreader import getLookVectors
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
@@ -558,17 +558,11 @@ class WeatherModel(ABC):
 
         # re-assign values to the uniform z
         # new variables
-        
-#        # use C++ interpolator
-#        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
-#        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
-#        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
+        # forced the "max_threads" to 1 for now. Using multiple threads fail to handle large data size. Need to double check later.
+        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan, max_threads=1)
+        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan, max_threads=1)
+        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan, max_threads=1)
 
-        # use Python interpolator
-        self._t = interp_along_axis(self._zs, new_zs, self._t, axis=2)
-        self._p = interp_along_axis(self._zs, new_zs, self._p, axis=2)
-        self._e = interp_along_axis(self._zs, new_zs, self._e, axis=2)
-        
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
