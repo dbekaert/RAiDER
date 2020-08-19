@@ -174,7 +174,7 @@ class BBoxAction(Action):
         S, N, W, E = values
 
         if N <= S or E <= W:
-            raise ArgumentError(self, 'Bounding box must have a size!')
+            raise ArgumentError(self, 'Bounding box has no size; make sure you use "S N W E"')
 
         for sn in (S, N):
             if sn < -90 or sn > 90:
