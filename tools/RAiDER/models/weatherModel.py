@@ -248,7 +248,7 @@ class WeatherModel(ABC):
                 pass
             elif self._valid_range[1] < time:
                 raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-        if time > datetime.datetime.today() - self._lag_time:
+        if time > datetime.datetime.utcnow() - self._lag_time:
             raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
 
     def _convertmb2Pa(self, pres):
