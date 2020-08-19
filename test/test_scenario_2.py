@@ -1,35 +1,32 @@
 # Unit and other tests
 from datetime import datetime
-import numpy as np
-import os
-import pandas as pd
-import pytest
 from shutil import copyfile
-from test import DATA_DIR, TEST_DIR, pushd
+from test import TEST_DIR, pushd
+
+import numpy as np
+import pandas as pd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
-from RAiDER.utilFcns import gdal_open, modelName2Module
+from RAiDER.utilFcns import modelName2Module
 
-SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
+SCENARIO_DIR = TEST_DIR / "scenario_2"
 
 
 def test_computeDelay(tmp_path):
     '''
-    Scenario to use: 
+    Scenario to use:
     2: GNSS station list
     '''
     wetName = 'stations_with_Delays.csv'
-    wetFile = os.path.join(SCENARIO_DIR, wetName)
+    wetFile = SCENARIO_DIR / wetName
     # Not used for station file input, only passed for consistent input arguments
     hydroFile = wetFile
 
     # load the weather model type and date for the given scenario
-    wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
+    true_delay = SCENARIO_DIR / 'ERA5_true_GNSS.csv'
 
-    true_delay = os.path.join(SCENARIO_DIR, 'ERA5_true_GNSS.csv')
-
-    station_file = os.path.join(SCENARIO_DIR, 'stations.csv')
+    station_file = SCENARIO_DIR / 'stations.csv'
     copyfile(station_file, wetFile)
     stats = pd.read_csv(station_file)
     lats = stats['Lat'].values

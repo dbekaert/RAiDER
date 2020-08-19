@@ -90,7 +90,7 @@ def make_points_3d_data():
 
     make_points_args = (100., sp, slv, 5)
 
-    df = np.loadtxt(os.path.join(TEST_DIR, "test_result_makePoints3D.txt"))
+    df = np.loadtxt(TEST_DIR / "test_result_makePoints3D.txt")
 
     return df.reshape((3, 3, 3, 3, 20)), make_points_args
 
@@ -110,7 +110,7 @@ def test_cosd():
 
 
 def test_gdal_open():
-    out = gdal_open(os.path.join(TEST_DIR, "test_geom", "lat.rdr"), False)
+    out = gdal_open(TEST_DIR / "test_geom" / "lat.rdr", False)
 
     assert np.allclose(out.shape, (45, 226))
 

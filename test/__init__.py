@@ -1,5 +1,6 @@
 import inspect
 import os
+import pathlib
 from contextlib import contextmanager
 
 
@@ -15,15 +16,15 @@ def get_test_dir():
 
 
 @contextmanager
-def pushd(dir):
+def pushd(directory):
     """
     Change the current working directory within a context.
     """
     prevdir = os.getcwd()
-    os.chdir(dir)
+    os.chdir(directory)
     yield
     os.chdir(prevdir)
 
 
-TEST_DIR = get_test_dir()
-DATA_DIR = os.path.join(TEST_DIR, "data")
+TEST_DIR = pathlib.Path(get_test_dir())
+DATA_DIR = TEST_DIR / "data"

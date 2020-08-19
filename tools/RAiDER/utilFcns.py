@@ -12,7 +12,6 @@ import pandas as pd
 import pyproj
 from osgeo import gdal, osr
 
-from RAiDER import Geo2rdr
 from RAiDER.rays import Zenith
 
 gdal.UseExceptions()
@@ -54,6 +53,8 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
 
 
 def gdal_open(fname, returnProj=False, userNDV=None):
+    fname = str(fname)
+
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     try:
