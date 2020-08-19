@@ -171,7 +171,7 @@ class WeatherModel(ABC):
         if los_flag:
             # ECEF to Lat/Lon reference frame
             p1 = CRS.from_epsg(4978)
-            t = Transformer.from_proj(p1, self._proj, always_xy=True)
+            t = Transformer.from_proj(p1, self._proj)
 
             # Get the look vectors
             # TODO: lengths and LOS return from GEO2RDR are not correct
@@ -190,15 +190,11 @@ class WeatherModel(ABC):
             ray = makePoints3D(max_len, rays_ecef, los_slv, _STEP)
 
             # Transform from ECEF to weather model native projection
-            ray_x, ray_y, ray_z = t.transform(
-                ray[..., 0, :],
-                ray[..., 1, :],
-                ray[..., 2, :]
-            )
+            ray_x, ray_y, ray_z = t.transform(ray[..., 0], ray[..., 1], ray[..., 2], always_xy=True)
 
             delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
             delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-            delays = _integrateLOS(_STEP, delay_wet, delay_hydro)
+            delays = _integrateLOS(_STEP, delay_wet, delay_hydro, Npts)
 
             self._wet_total = delays[..., 0]
             self._hydrostatic_total = delays[..., 1]
@@ -248,7 +244,7 @@ class WeatherModel(ABC):
                 pass
             elif self._valid_range[1] < time:
                 raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-        if time > datetime.datetime.today() - self._lag_time:
+        if time > datetime.datetime.utcnow() - self._lag_time:
             raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
 
     def _convertmb2Pa(self, pres):
@@ -562,9 +558,11 @@ class WeatherModel(ABC):
 
         # re-assign values to the uniform z
         # new variables
-        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
-        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
-        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
+        # forced the "max_threads" to 1 for now. Using multiple threads fail to handle large data size. Need to double check later.
+        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan, max_threads=1)
+        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan, max_threads=1)
+        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan, max_threads=1)
+
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
