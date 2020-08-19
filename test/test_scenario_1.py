@@ -1,9 +1,7 @@
 import datetime
-import os
 from test import DATA_DIR, TEST_DIR, pushd
 
 import numpy as np
-import pytest
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
@@ -15,21 +13,16 @@ _RTOL = 1e-4
 
 def test_tropo_delay(tmp_path):
     '''
-    Scenario: 
+    Scenario:
     1: Small area, ERA5, Zenith delay
     '''
-    lats = gdal_open(os.path.join(
-        SCENARIO_DIR, 'geom', 'lat.dat'
-    ))
-    lons = gdal_open(os.path.join(
-        SCENARIO_DIR, 'geom', 'lon.dat'
-    ))
+    lats = gdal_open(SCENARIO_DIR / 'geom' / 'lat.dat')
+    lons = gdal_open(SCENARIO_DIR / 'geom' / 'lon.dat')
 
     time = datetime.datetime(2020, 1, 3, 23, 0)
 
-    wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
-    if not os.path.exists(wmLoc):
-        os.mkdir(wmLoc)
+    wmLoc = SCENARIO_DIR / 'weather_files'
+    wmLoc.mkdir(exist_ok=True)
 
     _, model_obj = modelName2Module("ERA5")
     wet_file, hydro_file = makeDelayFileNames(
@@ -63,6 +56,7 @@ def test_tropo_delay(tmp_path):
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)
+<<<<<<< HEAD
         true_wet = gdal_open(
             os.path.join(
                 SCENARIO_DIR, 
@@ -77,6 +71,10 @@ def test_tropo_delay(tmp_path):
             ), 
             userNDV=0.
         )
+=======
+        true_wet = gdal_open(SCENARIO_DIR / "wet.envi", userNDV=0.)
+        true_hydro = gdal_open(SCENARIO_DIR / "hydro.envi", userNDV=0.)
+>>>>>>> Use pathlib for test paths
 
         # get the true delay from the weather model
         assert np.allclose(

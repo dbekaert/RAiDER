@@ -72,6 +72,8 @@ def gdal_extents(fname):
 
 
 def gdal_open(fname, returnProj=False, userNDV=None):
+    fname = str(fname)
+
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     try:
