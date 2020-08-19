@@ -1,11 +1,6 @@
 import datetime as dt
-import os
-import re
-
 import numpy as np
 from pyproj import CRS
-
-from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.models.weatherModel import WeatherModel
 
 
@@ -24,7 +19,7 @@ class GMAO(WeatherModel):
 
         # Tuple of min/max years where data is available.
         self._valid_range = (dt.datetime(2017, 12, 1), "Present")
-        self._lag_time = dt.timedelta(hours=7.5)  # Availability lag time in hours
+        self._lag_time = dt.timedelta(hours=24.0)  # Availability lag time in hours
 
         # model constants
         self._k1 = 0.776  # [K/Pa]
@@ -92,16 +87,12 @@ class GMAO(WeatherModel):
         t = ds['t'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
         h = ds['h'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
 
-        # calculate the lat, lon and mean h for each layer in the regular grid
-        hs = np.mean(h, axis=(1, 2))
-
         lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
         lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res)
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)
         _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], t.shape)
-        _hs = np.broadcast_to(hs[:, np.newaxis, np.newaxis], t.shape)
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         p = np.transpose(p)
@@ -110,7 +101,6 @@ class GMAO(WeatherModel):
         h = np.transpose(h)
         _lats = np.transpose(_lats)
         _lons = np.transpose(_lons)
-        _hs = np.transpose(_hs)
 
         # check this
         # data cube format should be lats,lons,heights
@@ -120,7 +110,6 @@ class GMAO(WeatherModel):
         h = h.swapaxes(0, 1)
         _lats = _lats.swapaxes(0, 1)
         _lons = _lons.swapaxes(0, 1)
-        _hs = _hs.swapaxes(0, 1)
 
         # For some reason z is opposite the others
         p = np.flip(p, axis=2)
@@ -129,20 +118,14 @@ class GMAO(WeatherModel):
         h = np.flip(h, axis=2)
         _lats = np.flip(_lats, axis=2)
         _lons = np.flip(_lons, axis=2)
-        _hs = np.flip(_hs, axis=2)
-
-        # interpolate (p,q,t) along the vertical axis from irregular grid to regular grid
-        p_intrpl = interpolate_along_axis(h, _hs, p, axis=2)
-        q_intrpl = interpolate_along_axis(h, _hs, q, axis=2)
-        t_intrpl = interpolate_along_axis(h, _hs, t, axis=2)
 
         # assign the regular-grid (lat/lon/h) variables
 
-        self._p = p_intrpl
-        self._q = q_intrpl
-        self._t = t_intrpl
+        self._p = p
+        self._q = q
+        self._t = t
         self._lats = _lats
         self._lons = _lons
         self._xs = _lons
         self._ys = _lats
-        self._zs = _hs
+        self._zs = h
