@@ -22,6 +22,9 @@ class Points():
         self.lons = llh[...,1]
         self.hgts = llh[...,2]
 
+    def getLLH(self, llh):
+        return self.lats, self.lons, self.hgts
+
     def _checkLLH(self):
         if self.lats is None:
             raise ValueError(
@@ -32,16 +35,21 @@ class Points():
 class LookVector(ABC):
     ''' A base class for RADAR look vectors '''
     def __init__(self):
-        self.points = None 
-        self.vectors = None
+        self.points = None  #TODO: should this be "points" or lat/lon/hgt separately? 
+        self.vectors = None #TODO: vectors should be in earth-centered, earth-fixed reference frame, but "points" are in LLH
+        self._proj = None
 
     @abstractmethod
     def setVectors(self):
         pass
 
-    #TODO: flesh out how this uses the Points object
-    def setPoints(self, points):
-        self.points = points
+    def setPoints(self, lats, lons, hgts):
+        self.lats = lats 
+        self.lons = lons 
+        self.hgts = hgts 
+
+    def transform(self, new_proj):
+        pass # TODO: implement this base class method
 
 
 class Zenith(LookVector):
@@ -59,6 +67,7 @@ class Slant(LookVector):
     def __init__(self):
         LookVector.__init__(self)
         self.reader = None
+
 
 
 #TODO: figure out how to best call the readers from the LookVector Object
