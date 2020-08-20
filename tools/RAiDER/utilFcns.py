@@ -13,7 +13,7 @@ import pyproj
 from osgeo import gdal, osr
 
 from RAiDER import Geo2rdr
-from RAiDER.constants import Zenith
+from RAiDER.rays import Zenith
 
 gdal.UseExceptions()
 log = logging.getLogger(__name__)
