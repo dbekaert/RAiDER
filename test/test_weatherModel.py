@@ -66,22 +66,22 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         f1 = lndi(points, wrf.flatten())
         f2 = lndi(points, hrf.flatten())
         zint = zs[zmask]
-        ray = np.stack([-101*np.ones(len(zint)), 17 *
+        ray = np.stack([-101 * np.ones(len(zint)), 17 *
                         np.ones(len(zint)), zint]).T
         testwet = f1(ray)
         testhydro = f2(ray)
         dx = ray[1, 2] - ray[0, 2]
         mask = np.isnan(testwet) | np.isnan(testhydro)
-        totalwet = 1e-6*dx*np.sum(testwet[~mask])
-        totalhydro = 1e-6*dx*np.sum(testhydro[~mask])
-        totalwet = 1e-6*np.trapz(testwet[~mask], zint[~mask])
-        totalhydro = 1e-6*np.trapz(testhydro[~mask], zint[~mask])
+        totalwet = 1e-6 * dx * np.sum(testwet[~mask])
+        totalhydro = 1e-6 * dx * np.sum(testhydro[~mask])
+        totalwet = 1e-6 * np.trapz(testwet[~mask], zint[~mask])
+        totalhydro = 1e-6 * np.trapz(testhydro[~mask], zint[~mask])
 
-        total_wet = 1e-6*np.trapz(wrf[5, 9, zmask], zs[zmask])
-        total_hydro = 1e-6*np.trapz(hrf[5, 9, zmask], zs[zmask])
+        total_wet = 1e-6 * np.trapz(wrf[5, 9, zmask], zs[zmask])
+        total_hydro = 1e-6 * np.trapz(hrf[5, 9, zmask], zs[zmask])
 
-        self.assertTrue(np.abs(totalwet-total_wet) < 0.01)
-        self.assertTrue(np.abs(totalhydro-total_hydro) < 0.01)
+        self.assertTrue(np.abs(totalwet - total_wet) < 0.01)
+        self.assertTrue(np.abs(totalhydro - total_hydro) < 0.01)
 
     @unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_ERA5(self):

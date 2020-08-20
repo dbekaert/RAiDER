@@ -12,15 +12,16 @@ from RAiDER.utilFcns import gdal_open, sind, cosd
 
 class Points():
     ''' A class object to store point locations '''
+
     def __init__(self, llh):
-        self.lats = None 
-        self.lons = None 
-        self.hgts = None 
+        self.lats = None
+        self.lons = None
+        self.hgts = None
 
     def setLLH(self, llh):
-        self.lats = llh[...,0]
-        self.lons = llh[...,1]
-        self.hgts = llh[...,2]
+        self.lats = llh[..., 0]
+        self.lons = llh[..., 1]
+        self.hgts = llh[..., 2]
 
     def getLLH(self, llh):
         return self.lats, self.lons, self.hgts
@@ -34,9 +35,10 @@ class Points():
 
 class LookVector(ABC):
     ''' A base class for RADAR look vectors '''
+
     def __init__(self):
-        self.points = None  #TODO: should this be "points" or lat/lon/hgt separately? 
-        self.vectors = None #TODO: vectors should be in earth-centered, earth-fixed reference frame, but "points" are in LLH
+        self.points = None  # TODO: should this be "points" or lat/lon/hgt separately?
+        self.vectors = None  # TODO: vectors should be in earth-centered, earth-fixed reference frame, but "points" are in LLH
         self._proj = None
 
     @abstractmethod
@@ -44,16 +46,17 @@ class LookVector(ABC):
         pass
 
     def setPoints(self, lats, lons, hgts):
-        self.lats = lats 
-        self.lons = lons 
-        self.hgts = hgts 
+        self.lats = lats
+        self.lons = lons
+        self.hgts = hgts
 
     def transform(self, new_proj):
-        pass # TODO: implement this base class method
+        pass  # TODO: implement this base class method
 
 
 class Zenith(LookVector):
     """A Zenith look vector."""
+
     def __init__(self):
         LookVector.__init__(self)
 
@@ -64,20 +67,21 @@ class Zenith(LookVector):
 
 class Slant(LookVector):
     """A slant (i.e., true line-of-sight) look vector."""
+
     def __init__(self):
         LookVector.__init__(self)
         self.reader = None
 
 
-
-#TODO: figure out how to best call the readers from the LookVector Object
+# TODO: figure out how to best call the readers from the LookVector Object
 class Reader(ABC):
     ''' Generic object for reading look vectors from files '''
+
     def __init__(self):
         self.lv = None
         self.points = None
 
-    #TODO: Need to set the points using the Points object
+    # TODO: Need to set the points using the Points object
 
     def ReadVectors(self, filename):
         self._checkLLH()
@@ -94,37 +98,38 @@ class RasterReader(Reader):
     Get line-of-sight vectors from an ISCE dual-band raster file
     containing inclination (band 1) and heading (band 2) information
     '''
+
     def __init__(self):
         Reader.__init__(self)
 
     def _read(self, filename)
-        inc, hd = [f for f in gdal_open(filename)]
-        east = sind(inc) * cosd(hd + 90)
-        north = sind(inc) * sind(hd + 90)
-        up = cosd(inc)
+    inc, hd = [f for f in gdal_open(filename)]
+    east = sind(inc) * cosd(hd + 90)
+     north = sind(inc) * sind(hd + 90)
+      up = cosd(inc)
 
-        # ensure shape compatibility
-        if up.shape != self.lats.shape:
+       # ensure shape compatibility
+       if up.shape != self.lats.shape:
             east = east.flatten()
             north = north.flatten()
             up = up.flatten()
         if east.shape != self.lats.flatten().shape:
             raise ValueError(
-                'The number or shape of the input LOS vectors is different ' 
+                'The number or shape of the input LOS vectors is different '
                 'from the ground pixels, please check  your inputs'
             )
 
         # Convert unit vectors to Earth-centered, earth-fixed
         if self.lats is not None:
             self.lv = enu2ecef(
-                east, 
-                north, 
-                up, 
-                self.lats, 
-                self.lons, 
+                east,
+                north,
+                up,
+                self.lats,
+                self.lons,
                 self.hgts
             )
-        else: 
+        else:
             raise ValueError(
                 'You need to assign pixel locations. Use <self>.setLLH(llh)'
             )
@@ -134,13 +139,14 @@ class OrbitFileReader(Reader):
     '''
     Get line-of-sight vectors from an ESA orbit file
     '''
+
     def __init__(self, llh, filename):
         Reader.__init__(self, llh)
 
     def _read(self, filename)
-        svs = read_ESA_Orbit_file(filename)
-        self.lv = state_to_los(svs, self.lats, self.lons, self.hgts)
- 
+    svs = read_ESA_Orbit_file(filename)
+    self.lv = state_to_los(svs, self.lats, self.lons, self.hgts)
+
 
 def zenithLookVectors(llh):
     '''
@@ -151,9 +157,9 @@ def zenithLookVectors(llh):
     Outputs:
        los   - an Nx3 numpy array with the look vectors.
     '''
-    lats = llh[...,0]
-    lons = llh[...,1]
-    hgts = llh[...,2]
+    lats = llh[..., 0]
+    lons = llh[..., 1]
+    hgts = llh[..., 2]
 
     e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
     n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
@@ -237,7 +243,7 @@ def state_to_los(svs, lats, lons, heights):
         lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
         geo2rdr_obj.set_geo_coordinate(
             np.radians(lon),
-           np.radians(lon),
+            np.radians(lon),
             np.radians(lat),
             1, 1,
             height_array
@@ -268,5 +274,3 @@ def getLookVectors(look_vecs, llh):
         Zenith
     '''
     pass
-    
-
