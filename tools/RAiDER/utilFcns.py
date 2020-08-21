@@ -291,26 +291,6 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def checkShapes(los, lats, lons, hts):
-    '''
-    Make sure that by the time the code reaches here, we have a
-    consistent set of line-of-sight and position data.
-    '''
-    if los is None:
-        los = Zenith
-    test1 = hts.shape == lats.shape == lons.shape
-    try:
-        test2 = los.shape[:-1] == hts.shape
-    except AttributeError:
-        test2 = los is Zenith
-
-    if not test1 and test2:
-        raise ValueError(
-            'I need lats, lons, heights, and los to all be the same shape. ' +
-            'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
-            'heights had shape {}, and los was not Zenith'.format(hts.shape))
-
-
 def checkLOS(los, Npts):
     '''
     Check that los is either:
