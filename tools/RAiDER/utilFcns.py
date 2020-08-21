@@ -12,7 +12,7 @@ import pandas as pd
 import pyproj
 from osgeo import gdal, osr
 
-from RAiDER.rays import Zenith
+from RAiDER.constants import Zenith
 
 gdal.UseExceptions()
 log = logging.getLogger(__name__)
@@ -270,26 +270,6 @@ def make_weather_model_filename(name, time, ll_bounds):
     return '{}_{}_{}N_{}N_{}E_{}E.h5'.format(
         name, time.strftime("%Y-%m-%dT%H_%M_%S"), *ll_bounds
     )
-
-
-def checkShapes(los, lats, lons, hts):
-    '''
-    Make sure that by the time the code reaches here, we have a
-    consistent set of line-of-sight and position data.
-    '''
-    if los is None:
-        los = Zenith
-    test1 = hts.shape == lats.shape == lons.shape
-    try:
-        test2 = los.shape[:-1] == hts.shape
-    except AttributeError:
-        test2 = los is Zenith
-
-    if not test1 and test2:
-        raise ValueError(
-            'I need lats, lons, heights, and los to all be the same shape. ' +
-            'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
-            'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
 def checkLOS(los, Npts):

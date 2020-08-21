@@ -13,9 +13,9 @@ from RAiDER.constants import Zenith
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
-from RAiDER.losreader import getLookVectors
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
+from RAiDER.rays import getLookVectors
 from RAiDER.utilFcns import lla2ecef, robmax, robmin
 
 log = logging.getLogger(__name__)
@@ -163,7 +163,7 @@ class WeatherModel(ABC):
             zref = const._ZREF
 
         hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
-        los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
+        los = getLookVectors(los, np.stack((self._lats, self._lons, hgts), axis=-1))
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 

@@ -4,232 +4,206 @@
 #  Author: Jeremy Maurer
 #  Copyright 2020. ALL RIGHTS RESERVED.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import pathlib
 from abc import ABC, abstractmethod
 
-from RAiDER.constants import Slant, Zenith
-from RAiDER.losreader import read_ESA_Orbit_file
-from RAiDER.utilFcns import cosd, gdal_open, sind
+import numpy as np
+
+from RAiDER import Geo2rdr
+from RAiDER.constants import Zenith
+from RAiDER.losreader import read_ESA_Orbit_file, read_shelve, read_txt_file
+from RAiDER.utilFcns import cosd, enu2ecef, gdal_open, lla2ecef, sind
 
 
 class Points():
     ''' A class object to store point locations '''
 
     def __init__(self, llh):
-        self.lats = None
-        self.lons = None
-        self.hgts = None
-
-    def setLLH(self, llh):
         self.lats = llh[..., 0]
         self.lons = llh[..., 1]
         self.hgts = llh[..., 2]
 
-    def getLLH(self, llh):
-        return self.lats, self.lons, self.hgts
 
-    def _checkLLH(self):
-        if self.lats is None:
-            raise ValueError(
-                'Please set the point locations using "<self>.setLLH(llh)"'
-            )
-
-
-class LookVector(ABC):
-    ''' A base class for RADAR look vectors '''
-
-    def __init__(self):
-        self.points = None  #TODO: should this be "points" or lat/lon/hgt separately?
-        self.vectors = None #TODO: vectors should be in earth-centered, earth-fixed reference frame, but "points" are in LLH
-        self._proj = None
+class LVGenerator(ABC):
+    """Look vector generator"""
 
     @abstractmethod
-    def setVectors(self):
-        pass
+    def generate(self, llh):
+        """
+        Generate look vectors for a set of locations
 
-    def setPoints(self, lats, lons, hgts):
-        self.lats = lats
-        self.lons = lons
-        self.hgts = hgts
-
-    def transform(self, new_proj):
-        pass  # TODO: implement this base class method
+        :param llh: 3d numpy array of pixel locations in llh coordinates.
+        :return: 3d numpy array of look vectors at teach location.
+        """
+        ...
 
 
-class Zenith(LookVector):
-    """A Zenith look vector."""
+class ZenithLVGenerator(LVGenerator):
+    """Generate look vectors pointing towards the zenith"""
 
-    def __init__(self):
-        LookVector.__init__(self)
+    def __init__(self, zref=None):
+        """
+        zref  - float, integration height in meters
+        """
+        self.zref = zref
 
-    def setVectors(self):
-        self._checkLLH()
-        self.los = zenithLookVectors(llh)
+    def generate(self, llh):
+        '''
+        Returns look vectors when Zenith is used.
+        Inputs:
+           llh   - ... x 3 numpy array numpy of pixel locations
+        Outputs:
+           los   - an Nx3 numpy array with the look vectors.
+        '''
+        lats = llh[..., 0]
+        lons = llh[..., 1]
+        if self.zref:
+            hgts = llh[..., 2] # TODO: Do something with the integration height
 
+        e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
+        n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
+        u = np.sin(np.radians(lats))
 
-class Slant(LookVector):
-    """A slant (i.e., true line-of-sight) look vector."""
-
-    def __init__(self):
-        LookVector.__init__(self)
-        self.reader = None
-
-
-# TODO: figure out how to best call the readers from the LookVector Object
-class Reader(ABC):
-    ''' Generic object for reading look vectors from files '''
-
-    def __init__(self):
-        self.lv = None
-        self.points = None
-
-    # TODO: Need to set the points using the Points object
-
-    def ReadVectors(self, filename):
-        self._checkLLH()
-        self._read(filename)
-        return self.lv
-
-    @abstractmethod
-    def _read(self, filename):
-        pass
+        return np.stack((e, n, u), axis=-1)
 
 
-class RasterReader(Reader):
-    '''
-    Get line-of-sight vectors from an ISCE dual-band raster file
-    containing inclination (band 1) and heading (band 2) information
-    '''
+class OrbitLVGenerator(LVGenerator):
+    """Generate look vectors from orbital state information"""
 
-    def __init__(self):
-        Reader.__init__(self)
+    def __init__(self, states):
+        """
+        states  -
+        """
+        self.states = states
 
-    def _read(self, filename):
-        inc, hd = [f for f in gdal_open(filename)]
-        east = sind(inc) * cosd(hd + 90)
-        north = sind(inc) * sind(hd + 90)
-        up = cosd(inc)
+    def generate(self, llh):
+        '''
+        Converts information from a state vector for a satellite orbit, given
+        in terms of position and velocity, to line-of-sight information at each
+        (lon,lat, height) coordinate requested by the user.
 
-       # ensure shape compatibility
-       if up.shape != self.lats.shape:
-            east = east.flatten()
-            north = north.flatten()
-            up = up.flatten()
-        if east.shape != self.lats.flatten().shape:
+        *Note*:
+        The LOS returned should be a vector pointing from the ground pixel to
+        the sensor, truncating at the top of the troposphere, in an earth-
+        centered, earth-fixed coordinate system.
+        '''
+        assert self.states.t.size >= 4, \
+            "At least 4 state vectors are required for orbit interpolation"
+        assert self.states.t.shape == self.states. x.shape, \
+            "t and x must be the same size"
+
+        real_shape = llh.shape[:-1]
+        lats = llh[..., 0].flatten()
+        lons = llh[..., 1].flatten()
+        heights = llh[..., 2].flatten()
+
+        geo2rdr_obj = Geo2rdr.PyGeo2rdr()
+        geo2rdr_obj.set_orbit(*self.states)
+
+        los = np.zeros((3, len(lats)))
+        slant_ranges = np.zeros_like(lats)
+
+        for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
+            height_array = np.array(((height,),))
+
+            # Geo2rdr is picky about the type of height
+            height_array = height_array.astype(np.double)
+
+            lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
+            geo2rdr_obj.set_geo_coordinate(
+                np.radians(lon),
+                np.radians(lon),
+                np.radians(lat),
+                1, 1,
+                height_array
+            )
+
+            # compute the radar coordinate for each geo coordinate
+            geo2rdr_obj.geo2rdr()
+
+            # get back the line of sight unit vector
+            los[:, i] = geo2rdr_obj.get_los()
+
+        los = los.T.reshape(real_shape + (3,))
+
+        return los
+
+
+class IHLVGenerator(LVGenerator):
+    """Generate look vectors from incidence and heading information"""
+
+    def __init__(self, incidence, heading, zref, ranges=None):
+        """
+        incidence  -
+        heading    -
+        zref       - float, integration height in meters
+        ranges     -
+        """
+        assert incidence.shape == heading.shape, \
+            "Incidence and heading must have the same shape!"
+        self.incidence = incidence
+        self.heading = heading
+        self.zref = zref
+        self.ranges = ranges
+
+    def generate(self, llh):
+        """
+        Convert incidence and heading to line-of-sight vectors from the ground
+        to the top of the troposphere.
+
+        *NOTE*:
+        LOS here is defined in an Earth-centered, earth-referenced
+        coordinate system as pointing from the ground pixel to the sensor,
+        truncating at the top of the troposphere.
+
+        Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
+        """
+        lats, lons, heights = llh[..., 0], llh[..., 1], llh[..., 2]
+        a_0 = self.incidence
+        a_1 = self.heading
+        ranges = self.ranges
+        zref = self.zref
+
+        if self.incidence.shape != heights.shape:
             raise ValueError(
-                'The number or shape of the input LOS vectors is different '
-                'from the ground pixels, please check  your inputs'
+                "Incidence/heading values had wrong shape! Incidence shape "
+                "{} Heading shape {} coordinate shape {}".format(
+                    self.incidence.shape,
+                    self.heading.shape,
+                    heights.shape
+                )
             )
 
-        # Convert unit vectors to Earth-centered, earth-fixed
-        if self.lats is not None:
-            self.lv = enu2ecef(
-                east,
-                north,
-                up,
-                self.lats,
-                self.lons,
-                self.hgts
-            )
-        else:
-            raise ValueError(
-                'You need to assign pixel locations. Use <self>.setLLH(llh)'
-            )
+        east = sind(a_0) * cosd(a_1 + 90)
+        north = sind(a_0) * sind(a_1 + 90)
+        up = cosd(a_0)
+        east, north, up = np.stack((east, north, up))
 
+        # Pick reasonable range to top of troposphere if not provided
+        if ranges is None:
+            ranges = (zref - heights) / up
+        # slant_range = ranges = (zref - heights) / utilFcns.cosd(inc)
 
-class OrbitFileReader(Reader):
-    '''
-    Get line-of-sight vectors from an ESA orbit file
-    '''
+        # Scale look vectors by range
+        east, north, up = np.stack((east, north, up)) * ranges
 
-    def __init__(self, llh, filename):
-        Reader.__init__(self, llh)
-
-    def _read(self, filename):
-        svs = read_ESA_Orbit_file(filename)
-        self.lv = state_to_los(svs, self.lats, self.lons, self.hgts)
-
-
-def zenithLookVectors(llh):
-    '''
-    Returns look vectors when Zenith is used.
-    Inputs:
-       llh   - ... x 3 numpy array numpy of pixel locations
-       zref  - float, integration height in meters
-    Outputs:
-       los   - an Nx3 numpy array with the look vectors.
-    '''
-    lats = llh[..., 0]
-    lons = llh[..., 1]
-    hgts = llh[..., 2]
-
-    e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
-    n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
-    u = np.sin(np.radians(lats))
-
-    return np.array((e, n, u)).T
-
-
-def state_to_los(svs, lats, lons, heights):
-    '''
-    Converts information from a state vector for a satellite orbit, given in terms of
-    position and velocity, to line-of-sight information at each (lon,lat, height)
-    coordinate requested by the user.
-
-    *Note*:
-    The LOS returned should be a vector pointing from the ground pixel to the sensor,
-    truncating at the top of the troposphere, in an earth-centered, earth-fixed
-    coordinate system.
-    '''
-    # check the inputs
-    if t.size < 4:
-        raise RuntimeError('state_to_los: At least 4 state vectors are required for orbit interpolation')
-    if t.shape != x.shape:
-        raise RuntimeError('state_to_los: t and x must be the same size')
-    if lats.shape != lons.shape:
-        raise RuntimeError('state_to_los: lats and lons must be the same size')
-
-    real_shape = lats.shape
-    lats = lats.flatten()
-    lons = lons.flatten()
-    heights = heights.flatten()
-
-    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
-    geo2rdr_obj.set_orbit(*svs)
-
-    los = np.zeros((3, len(lats)))
-    slant_ranges = np.zeros_like(lats)
-
-    for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
-        height_array = np.array(((height,),))
-
-        # Geo2rdr is picky about the type of height
-        height_array = height_array.astype(np.double)
-
-        lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
-        geo2rdr_obj.set_geo_coordinate(
-            np.radians(lon),
-            np.radians(lon),
-            np.radians(lat),
-            1, 1,
-            height_array
+        xyz = enu2ecef(
+            east.ravel(), north.ravel(), up.ravel(), lats.ravel(),
+            lons.ravel(), heights.ravel()
         )
 
-        # compute the radar coordinate for each geo coordinate
-        geo2rdr_obj.geo2rdr()
+        sp_xyz = lla2ecef(lats.ravel(), lons.ravel(), heights.ravel())
+        los = np.stack(xyz, axis=-1) - np.stack(sp_xyz, axis=-1)
+        los = los.reshape(east.shape + (3,))
 
-        # get back the line of sight unit vector
-        los[:, i] = geo2rdr_obj.get_los()
-
-    los = los.T.reshape(real_shape + (3,))
-
-    return los
+        return los
 
 
-def getLookVectors(look_vecs, llh):
+def getLookVectors(los_mode, llh):
     '''
     Returns unit look vectors for each query point specified as a lat/lon/height.
     Inputs:
-        look_vecs    - Can be a Zenith object, a two-band file containing line-of-
+        los_mode     - Can be a Zenith object, a two-band file containing line-of-
                        sight vectors (inclination, heading), or an ESA orbit file
                        for the time period of interest.
         llh          - latitude, longitude, heights for the query points
@@ -238,4 +212,47 @@ def getLookVectors(look_vecs, llh):
         Unit look vectors pointing from each ground point towards the sensor or
         Zenith
     '''
-    pass
+    if los_mode is None:
+        los_mode = Zenith
+
+    gen = get_lv_generator(los_mode)
+    look_vectors = gen.generate(llh)
+
+    lats, lons, heights = llh[..., 0], llh[..., 1], llh[..., 2]
+
+    mask = np.isnan(heights) | np.isnan(lats) | np.isnan(lons)
+    look_vectors[mask, :] = np.nan
+
+    return look_vectors
+
+
+def get_lv_generator(los_mode):
+    if los_mode is Zenith:
+        return ZenithLVGenerator()
+
+    # TODO: Do we actually need this type flag here or is it always
+    # unambiguous from the file extension?
+    los_type, filepath = los_mode
+
+    if los_type == "sv":
+        # Using orbital state information
+        ext = pathlib.Path(filepath).suffix
+
+        reader_func = {
+            ".txt": read_txt_file,
+            ".eof": read_ESA_Orbit_file
+        }.get(ext.lower()) or read_shelve
+
+        states = reader_func(filepath)
+        return OrbitLVGenerator(states)
+
+    if los_type == "los":
+        # Using incidence and heading information
+        incidence, heading = [f.flatten() for f in gdal_open(filepath)]
+        if incidence.shape != heading.shape:
+            raise ValueError(
+                "Malformed los file. Incidence shape {} and heading shape {} "
+                "do not match!".format(incidence.shape, heading.shape)
+            )
+
+        return IHLVGenerator(incidence, heading)
