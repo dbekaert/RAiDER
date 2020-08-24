@@ -15,9 +15,8 @@ from RAiDER.losreader import read_ESA_Orbit_file, read_shelve, read_txt_file
 from RAiDER.utilFcns import cosd, enu2ecef, gdal_open, lla2ecef, sind
 
 
-class Points():
+class Points(NamedTuple):
     ''' A class object to store point locations '''
-
     def __init__(self, llh):
         self.lats = llh[..., 0]
         self.lons = llh[..., 1]
