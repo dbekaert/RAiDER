@@ -148,7 +148,7 @@ def get_delays(stationFile, filename, returnTime=None):
     return
 
 
-def get_station_data(inFile, numCPUs=8, outDir=None, returnTime=None):
+def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=None):
     '''
     Pull tropospheric delay data for a given station name
     '''
@@ -190,7 +190,7 @@ def get_station_data(inFile, numCPUs=8, outDir=None, returnTime=None):
             multipool.starmap(get_delays, args)
 
     # Consolidate all CSV files into one object
-    name = os.path.join(outDir, 'CombinedGPS_ztd.csv')
+    name = os.path.join(outDir, '{}combinedGPS_ztd.csv'.format(gps_repo))
     statsFile = pd.concat([pd.read_csv(i) for i in outputfiles])
     # drop all duplicate lines
     statsFile.drop_duplicates(inplace=True)
