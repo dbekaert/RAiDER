@@ -14,7 +14,6 @@ if __name__ == "__main__":
     query_repos(
         inps.station_file,
         inps.bounding_box,
-        inps.gps_repo,
         inps.out,
         inps.years,
         inps.returnTime,

@@ -63,9 +63,6 @@ downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:0
     area.add_argument(
         '-b', '--bounding_box', dest='bounding_box', type=str, default=None,
         help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
-    area.add_argument(
-        '--gpsrepo', '-gr', default='UNR', dest='gps_repo',
-        help=('Specify GPS repository you wish to query. Currently supported archives: UNR.'))
 
     misc = p.add_argument_group("Run parameters")
     add_out(misc)
@@ -158,7 +155,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     return stations
 
 
-def download_tropo_delays(stats, years, gps_repo=None, writeDir='.', numCPUs=8, download=False):
+def download_tropo_delays(stats, years, writeDir='.', numCPUs=8, download=False):
     '''
     Check for and download GNSS tropospheric delays from an archive. If download is True then
     files will be physically downloaded, which again is not necessary as data can be virtually accessed.
@@ -176,15 +173,14 @@ def download_tropo_delays(stats, years, gps_repo=None, writeDir='.', numCPUs=8, 
     # Parallelize remote querying of station locations
     with multiprocessing.Pool(numCPUs) as multipool:
         # only record valid path
-        if gps_repo == 'UNR':
-            results = [
-                fileurl for fileurl in multipool.starmap(download_UNR, stat_year_tup)
-                if fileurl['path']
-            ]
+        results = [
+            fileurl for fileurl in multipool.starmap(download_UNR, stat_year_tup)
+            if fileurl['path']
+        ]
 
     # Write results to file
     statDF = pd.DataFrame(results).set_index('ID')
-    statDF.to_csv(os.path.join(writeDir, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
+    statDF.to_csv(os.path.join(writeDir, 'gnssStationList_overbbox_withpaths.csv'))
 
 
 def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
@@ -283,7 +279,6 @@ def parse_years(timestr):
 def query_repos(
     station_file,
     bounding_box,
-    gps_repo,
     out,
     years,
     returnTime,
@@ -324,23 +319,22 @@ def query_repos(
 
     # iterate over years
     download_tropo_delays(
-        stats, years, gps_repo=gps_repo, writeDir=out, download=download
+        stats, years, writeDir=out, download=download
     )
 
     # Add lat/lon info
     origstatsFile = pd.read_csv(origstatsFile)
     statsFile = pd.read_csv(os.path.join(
-        out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
+        out, 'gnssStationList_overbbox_withpaths.csv'))
     statsFile = pd.merge(left=statsFile, right=origstatsFile,
                          how='left', left_on='ID', right_on='ID')
     statsFile.to_csv(os.path.join(
-        out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)), index=False)
+        out, 'gnssStationList_overbbox_withpaths.csv'), index=False)
     del origstatsFile, statsFile
 
     # Extract delays for each station
     get_station_data(
-        os.path.join(out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)),
-        gps_repo=gps_repo,
+        os.path.join(out, 'gnssStationList_overbbox_withpaths.csv'),
         numCPUs=cpus,
         outDir=out,
         returnTime=returnTime
@@ -355,7 +349,6 @@ if __name__ == "__main__":
     query_repos(
         inps.station_file,
         inps.bounding_box,
-        inps.gps_repo,
         inps.out,
         inps.years,
         inps.returnTime,
