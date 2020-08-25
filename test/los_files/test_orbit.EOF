@@ -1,0 +1,58 @@
+<?xml version="1.0" ?>
+<Earth_Explorer_File>
+  <Earth_Explorer_Header>
+    <Fixed_Header>
+      <File_Name>S1A_OPER_AUX_POEORB_OPOD_20200123T120833_V20200102T225942_20200104T005942</File_Name>
+      <File_Description>Precise Orbit Ephemerides (POE) Orbit File</File_Description>
+      <Notes></Notes>
+      <Mission>Sentinel-1A</Mission>
+      <File_Class>OPER</File_Class>
+      <File_Type>AUX_POEORB</File_Type>
+      <Validity_Period>
+        <Validity_Start>UTC=2020-01-02T22:59:42</Validity_Start>
+        <Validity_Stop>UTC=2020-01-04T00:59:42</Validity_Stop>
+      </Validity_Period>
+      <File_Version>0001</File_Version>
+      <Source>
+        <System>OPOD</System>
+        <Creator>OPOD</Creator>
+        <Creator_Version>1.5.5</Creator_Version>
+        <Creation_Date>UTC=2020-01-23T12:08:33</Creation_Date>
+      </Source>
+    </Fixed_Header>
+    <Variable_Header>
+      <Ref_Frame>EARTH_FIXED</Ref_Frame>
+      <Time_Reference>UTC</Time_Reference>
+    </Variable_Header>
+  </Earth_Explorer_Header>
+  <Data_Block type="xml">
+    <List_of_OSVs count="2">
+      <OSV>
+        <TAI>TAI=2020-01-02T23:00:19.000000</TAI>
+        <UTC>UTC=2020-01-02T22:59:42.000000</UTC>
+        <UT1>UT1=2020-01-02T22:59:41.821915</UT1>
+        <Absolute_Orbit>+30628</Absolute_Orbit>
+        <X unit="m">777807.283170</X>
+        <Y unit="m">-5326950.100710</Y>
+        <Z unit="m">4583342.946432</Z>
+        <VX unit="m/s">-2469.328881</VX>
+        <VY unit="m/s">4480.112758</VY>
+        <VZ unit="m/s">5610.695699</VZ>
+        <Quality>NOMINAL</Quality>
+      </OSV>
+      <OSV>
+        <TAI>TAI=2020-01-02T23:00:29.000000</TAI>
+        <UTC>UTC=2020-01-02T22:59:52.000000</UTC>
+        <UT1>UT1=2020-01-02T22:59:51.821915</UT1>
+        <Absolute_Orbit>+30628</Absolute_Orbit>
+        <X unit="m">753103.689876</X>
+        <Y unit="m">-5281833.274981</Y>
+        <Z unit="m">4639190.094438</Z>
+        <VX unit="m/s">-2471.328262</VX>
+        <VY unit="m/s">4543.168347</VY>
+        <VZ unit="m/s">5558.629043</VZ>
+        <Quality>NOMINAL</Quality>
+      </OSV>
+    </List_of_OSVs>
+  </Data_Block>
+</Earth_Explorer_File>
