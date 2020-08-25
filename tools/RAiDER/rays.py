@@ -130,7 +130,6 @@ class OrbitLVGenerator(LVGenerator):
             lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
             geo2rdr_obj.set_geo_coordinate(
                 np.radians(lon),
-                np.radians(lon),
                 np.radians(lat),
                 1, 1,
                 height_array
