@@ -3,9 +3,13 @@ from test import TEST_DIR
 import numpy as np
 import pytest
 
-from RAiDER.losreader import read_ESA_Orbit_file
-from RAiDER.rays import OrbitLVGenerator, Points, ZenithLVGenerator
+from RAiDER.losreader import read_ESA_Orbit_file, read_los_file
+from RAiDER.rays import (
+    OrbitLVGenerator, Points, ZenithLVGenerator, incidence_heading_to_los
+)
 from RAiDER.utilFcns import gdal_open
+
+LOS_FILE = TEST_DIR / "test_geom" / "los.rdr"
 
 
 
@@ -143,3 +147,10 @@ def test_generator_returns_unit_vectors(lvgen_param):
 
     magnitude = np.sqrt(ans[..., 0] ** 2 + ans[..., 1] ** 2 + ans[..., 2] ** 2)
     assert np.allclose(magnitude, 1.)
+
+
+def test_incidence_heading_to_los_returns_unit_vectors():
+    los = incidence_heading_to_los(*read_los_file(LOS_FILE))
+
+    magnitude = np.sqrt(los[..., 0] ** 2 + los[..., 1] ** 2 + los[..., 2] ** 2)
+    assert np.allclose(magnitude[~np.isnan(magnitude)], 1.)

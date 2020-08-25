@@ -13,6 +13,8 @@ from xml.etree import ElementTree as ET
 
 import numpy as np
 
+from RAiDER.utilFcns import gdal_open
+
 
 class OrbitStates(NamedTuple):
     t: np.ndarray
@@ -37,24 +39,18 @@ def read_shelve(filename):
 
     numSV = len(obj.orbit.stateVectors)
 
-    t = np.ones(numSV)
-    x = np.ones(numSV)
-    y = np.ones(numSV)
-    z = np.ones(numSV)
-    vx = np.ones(numSV)
-    vy = np.ones(numSV)
-    vz = np.ones(numSV)
+    states = OrbitStates.empty(numSV)
 
     for i, st in enumerate(obj.orbit.stateVectors):
-        t[i] = st.time.second + st.time.minute * 60.0
-        x[i] = st.position[0]
-        y[i] = st.position[1]
-        z[i] = st.position[2]
-        vx[i] = st.velocity[0]
-        vy[i] = st.velocity[1]
-        vz[i] = st.velocity[2]
+        states.t[i] = st.time.second + st.time.minute * 60.0
+        states.x[i] = st.position[0]
+        states.y[i] = st.position[1]
+        states.z[i] = st.position[2]
+        states.vx[i] = st.velocity[0]
+        states.vy[i] = st.velocity[1]
+        states.vz[i] = st.velocity[2]
 
-    return t, x, y, z, vx, vy, vz
+    return states
 
 
 def read_txt_file(filename):
@@ -111,3 +107,16 @@ def read_ESA_Orbit_file(filename):
     t -= states.t[0]
 
     return states
+
+
+def read_los_file(filepath):
+    """
+    Read incidence-heading information from a .rdr line of site file.
+    """
+    incidence, heading = [f.flatten() for f in gdal_open(filepath)]
+    if incidence.shape != heading.shape:
+        raise ValueError(
+            "Malformed los file. Incidence shape {} and heading shape {} "
+            "do not match!".format(incidence.shape, heading.shape)
+        )
+    return incidence, heading
