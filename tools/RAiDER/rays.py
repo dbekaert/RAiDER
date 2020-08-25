@@ -42,14 +42,13 @@ class LVGenerator(ABC):
         """
         ...
 
-    def _calculate_lengths(self, los):
+    def _calculate_lengths(self, enu):
         ''' 
         Calculate the length from the ground pixel to the reference 
         height along the look direction specified by the unit look
         vector los.
         '''
-        #TOImplement
-        ...
+        return self.zref/(np.sqrt(1 - 1/(np.square(enu[..., 0]) + np.square(enu[...,1]))))
 
 
 class ZenithLVGenerator(LVGenerator):
@@ -79,6 +78,8 @@ class ZenithLVGenerator(LVGenerator):
         n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
         u = np.sin(np.radians(lats))
 
+        lengths = self._calculate_length(enu)
+
         los = enu2ecef(
             e.ravel(), 
             n.ravel(), 
@@ -87,8 +88,6 @@ class ZenithLVGenerator(LVGenerator):
             lons.ravel(), 
             hgts.ravel()
         )
-
-        lengths = self._calculate_length(los)
 
         return los.reshape(e.shape + (3,)), lengths.reshape(e.shape)
 
@@ -147,7 +146,9 @@ class OrbitLVGenerator(LVGenerator):
 
         los = los.T.reshape(real_shape + (3,))
 
-        return los
+        
+
+        return los, lengths
 
 
 class IHLVGenerator(LVGenerator):
