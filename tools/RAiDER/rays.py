@@ -10,10 +10,16 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 from RAiDER import Geo2rdr
-from RAiDER.constants import Zenith
+from RAiDER.constants import Zenith, _ZREF
 from RAiDER.losreader import read_ESA_Orbit_file, read_shelve, read_txt_file
 from RAiDER.utilFcns import cosd, enu2ecef, gdal_open, lla2ecef, sind
 
+'''
+*Note*:
+The line-of-sight look vector should be a unit-length 3-component vector 
+pointing from the ground pixel to the sensor. The associated projection 
+is earth-centered, earth-fixed.
+'''
 
 class Points(NamedTuple):
     ''' A class object to store point locations '''
@@ -36,15 +42,26 @@ class LVGenerator(ABC):
         """
         ...
 
+    def _calculate_lengths(self, los):
+        ''' 
+        Calculate the length from the ground pixel to the reference 
+        height along the look direction specified by the unit look
+        vector los.
+        '''
+        #TOImplement
+        ...
+
 
 class ZenithLVGenerator(LVGenerator):
     """Generate look vectors pointing towards the zenith"""
 
-    def __init__(self, zref=None):
+    def __init__(self, zref=_ZREF):
         """
         zref  - float, integration height in meters
         """
         self.zref = zref
+        self.los = None
+        self.length = None
 
     def generate(self, llh):
         '''
@@ -56,14 +73,24 @@ class ZenithLVGenerator(LVGenerator):
         '''
         lats = llh[..., 0]
         lons = llh[..., 1]
-        if self.zref:
-            hgts = llh[..., 2] # TODO: Do something with the integration height
+        hgts = llh[..., 2]
 
         e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
         n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
         u = np.sin(np.radians(lats))
 
-        return np.stack((e, n, u), axis=-1)
+        los = enu2ecef(
+            e.ravel(), 
+            n.ravel(), 
+            u.ravel(), 
+            lats.ravel(),
+            lons.ravel(), 
+            hgts.ravel()
+        )
+
+        lengths = self._calculate_length(los)
+
+        return los.reshape(e.shape + (3,)), lengths.reshape(e.shape)
 
 
 class OrbitLVGenerator(LVGenerator):
@@ -80,11 +107,6 @@ class OrbitLVGenerator(LVGenerator):
         Converts information from a state vector for a satellite orbit, given
         in terms of position and velocity, to line-of-sight information at each
         (lon,lat, height) coordinate requested by the user.
-
-        *Note*:
-        The LOS returned should be a vector pointing from the ground pixel to
-        the sensor, truncating at the top of the troposphere, in an earth-
-        centered, earth-fixed coordinate system.
         '''
         assert self.states.t.size >= 4, \
             "At least 4 state vectors are required for orbit interpolation"
