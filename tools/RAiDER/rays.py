@@ -34,8 +34,9 @@ class LVGenerator(ABC):
         """
         Generate look vectors for a set of locations
 
-        :param llh: 3d numpy array of pixel locations in llh coordinates.
-        :return: 3d numpy array of look vectors at teach location.
+        :param llh: 3d numpy array of pixel locations in LLA coordinates.
+        :return: 3d numpy array of unit look vectors at each location in ECEF
+            coordinates.
         """
         ...
 
@@ -196,7 +197,6 @@ class IHLVGenerator(LVGenerator):
         east = sind(a_0) * cosd(a_1 + 90)
         north = sind(a_0) * sind(a_1 + 90)
         up = cosd(a_0)
-        east, north, up = np.stack((east, north, up))
 
         # Pick reasonable range to top of troposphere if not provided
         if ranges is None:
