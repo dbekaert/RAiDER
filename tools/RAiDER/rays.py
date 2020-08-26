@@ -5,9 +5,10 @@
 #  Copyright 2020. ALL RIGHTS RESERVED.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import pathlib
-from abc import ABC, abstractmethod
-
 import numpy as np
+
+from abc import ABC, abstractmethod
+from typing import NamedTuple
 
 from RAiDER import Geo2rdr
 from RAiDER.constants import Zenith, _ZREF
@@ -21,12 +22,8 @@ pointing from the ground pixel to the sensor. The associated projection
 is earth-centered, earth-fixed.
 '''
 
-class Points(NamedTuple):
-    ''' A class object to store point locations '''
-    def __init__(self, llh):
-        self.lats = llh[..., 0]
-        self.lons = llh[..., 1]
-        self.hgts = llh[..., 2]
+class Points(NamedTuple('Points', ['lats', 'lons', 'hgts'])):
+    __slots__ = ()
 
 
 class LVGenerator(ABC):
