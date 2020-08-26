@@ -145,12 +145,12 @@ def test_generator_returns_unit_vectors(lvgen_param):
 
     ans = gen.generate(llh)
 
-    magnitude = np.sqrt(ans[..., 0] ** 2 + ans[..., 1] ** 2 + ans[..., 2] ** 2)
+    magnitude = np.linalg.norm(ans, axis=-1)
     assert np.allclose(magnitude, 1.)
 
 
 def test_incidence_heading_to_los_returns_unit_vectors():
     los = incidence_heading_to_los(*read_los_file(LOS_FILE))
 
-    magnitude = np.sqrt(los[..., 0] ** 2 + los[..., 1] ** 2 + los[..., 2] ** 2)
+    magnitude = np.linalg.norm(los, axis=-1)
     assert np.allclose(magnitude[~np.isnan(magnitude)], 1.)
