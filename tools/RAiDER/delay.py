@@ -27,7 +27,7 @@ from RAiDER.utilFcns import (
 def interpolateDelay(weather_model_file_name, pnts_file_name,
                      zlevels=None, zref=_ZREF, stepSize=_STEP,
                      interpType='rgi', nproc=8,
-                     useDask=False, delayType="Zenith"):
+                     useDask=False):
     """
     This function calculates the line-of-sight vectors, estimates the point-wise refractivity
     index for each one, and then integrates to get the total delay in meters. The point-wise
@@ -56,13 +56,12 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
     RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize)
     return RAiDER.delayFcns.get_delays(
         stepSize, pnts_file_name, weather_model_file_name,
-        interpType=interpType, delayType=delayType
+        interpType=interpType, zref=zref
     )
 
 
 def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
-                 zlevels=None, zref=_ZREF, out=None, parallel=False,
-                 delayType="Zenith"):
+                 zlevels=None, zref=_ZREF, out=None, parallel=False):
     """Calculate troposphere delay from command-line arguments.
 
     We do a little bit of preprocessing, then call
@@ -174,8 +173,11 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
     wetDelay, hydroDelay = computeDelay(
-        weather_model_file, pnts_file, useWeatherNodes, zref, out,
-        delayType=delayType
+        weather_model_file_name=weather_model_file,
+        pnts_file_name=pnts_file,
+        useWeatherNodes=useWeatherNodes,
+        zref=zref,
+        out=out
     )
 
     if heights[0] == 'lvs':
