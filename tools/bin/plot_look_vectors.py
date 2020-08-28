@@ -2,12 +2,17 @@ import argparse
 
 import numpy as np
 import pyproj
-from matplotlib import pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 from RAiDER.losreader import read_ESA_Orbit_file
+from RAiDER.makePoints import intersect_altitude, makePoints1D
 from RAiDER.rays import OrbitLVGenerator, ZenithLVGenerator
 from RAiDER.utilFcns import gdal_open
+
+try:
+    from matplotlib import pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+except ImportError:
+    plt = None
 
 
 def lla2ecef(lat, lon, alt):
@@ -19,19 +24,48 @@ def lla2ecef(lat, lon, alt):
     return t.transform(lon, lat, alt)
 
 
-def plot_earth(ax, surface=False, detail=10):
+class MPLPlotter():
+    def __init__(self):
+        assert plt is not None, "Matplotlib not installed!"
+
+        self.fig = plt.figure()
+        self.ax = self.fig.add_axes((0, 0, 1, 1), projection='3d')
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.ax.set_zlabel('Z')
+
+        self.colormap = {
+
+        }
+
+    def show(self):
+        plt.show()
+
+    def add_scatter(self, x, y, z, color):
+        self.ax.scatter3D(x, y, z, c=color)
+
+    def add_line(self, x, y, z, color):
+        self.ax.plot(x, y, z, c=color)
+
+    def add_surface(self, x, y, z, color):
+        self.ax.plot_surface(x, y, z, color=color)
+
+    def add_wireframe(self, x, y, z, color):
+        self.ax.plot_wireframe(x, y, z, color=color)
+
+
+def generate_earth(surface=False, detail=10):
     # Using ECEF coordinates
 
+    semimajor = 6378137.0
+    semiminor = 6356752.3142
     u = np.linspace(0, 2 * np.pi, detail)
     v = np.linspace(0, np.pi, detail)
-    x = 6378137.0 * np.outer(np.cos(u), np.sin(v))
-    y = 6378137.0 * np.outer(np.sin(u), np.sin(v))
-    z = 6356752.314245179 * np.outer(np.ones(np.size(u)), np.cos(v))
+    x = semimajor * np.outer(np.cos(u), np.sin(v))
+    y = semimajor * np.outer(np.sin(u), np.sin(v))
+    z = semiminor * np.outer(np.ones(np.size(u)), np.cos(v))
 
-    if surface:
-        ax.plot_surface(x, y, z, color='b', zorder=1)
-    else:
-        ax.plot_wireframe(x, y, z, color='b', zorder=1)
+    return x, y, z
 
 
 if __name__ == '__main__':
@@ -45,15 +79,17 @@ if __name__ == '__main__':
 
     args = p.parse_args()
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    # Could add other plotters as well. I tried plotly, but I couldn't get it
+    # to cooperate on hardly anything, so I gave up.
+    plotter = MPLPlotter()
 
     if args.orbit:
         states = read_ESA_Orbit_file(args.orbit)
         gen = OrbitLVGenerator(states)
 
-        orbit_x, orbit_y, orbit_z = states.x[:50], states.y[:50], states.z[:50]
-        ax.scatter3D(orbit_x, orbit_y, orbit_z, c="r")
+        idx = slice(None, 50, 1)
+        orbit_x, orbit_y, orbit_z = states.x[idx], states.y[idx], states.z[idx]
+        plotter.add_scatter(orbit_x, orbit_y, orbit_z, color="red")
     else:
         gen = ZenithLVGenerator()
 
@@ -82,22 +118,29 @@ if __name__ == '__main__':
             [45, -75., 0.],
             [35, -85., 0.],
             [35, -80., 0.],
-            [35, -75., 0.]
+            [35, -75., 0.],
         ])
+        llh = np.stack((
+            np.arange(-90, 90, 10),
+            np.arange(-180, 180, 20),
+            np.zeros(18)
+        ), axis=-1)
 
     look = gen.generate(llh)
 
     ground_x, ground_y, ground_z = lla2ecef(llh[..., 0], llh[..., 1], llh[..., 2])
+    ground = np.stack((ground_x, ground_y, ground_z), axis=-1)
     look_x, look_y, look_z = look[..., 0], look[..., 1], look[..., 2]
 
-    plot_earth(ax, args.surface, args.detail)
-    ax.scatter3D(ground_x, ground_y, ground_z, c="g")
-    for i in range(llh.shape[0]):
-        ax.plot3D(
-            np.array([ground_x[i], ground_x[i] + look_x[i] * 2_000_000]),
-            np.array([ground_y[i], ground_y[i] + look_y[i] * 2_000_000]),
-            np.array([ground_z[i], ground_z[i] + look_z[i] * 2_000_000]),
-            color="gray"
-        )
+    tropo = intersect_altitude(ground, look, 3_000_000.)
 
-    plt.show()
+    rays = makePoints1D(3_000_000., ground, look, 100_000.)
+
+    plotter.add_wireframe(*generate_earth(args.surface, args.detail), color="blue")
+    plotter.add_scatter(ground_x, ground_y, ground_z, color="green")
+    plotter.add_scatter(tropo[..., 0], tropo[..., 1], tropo[..., 2], color="orange")
+
+    for ray in rays:
+        plotter.add_line(ray[0], ray[1], ray[2], color="green")
+
+    plotter.show()
