@@ -34,9 +34,9 @@ class MPLPlotter():
         self.ax.set_ylabel('Y')
         self.ax.set_zlabel('Z')
 
-        self.colormap = {
-
-        }
+        self.ax.set_xlim3d(-10**7, 10**7)
+        self.ax.set_ylim3d(-10**7, 10**7)
+        self.ax.set_zlim3d(-10**7, 10**7)
 
     def show(self):
         plt.show()
