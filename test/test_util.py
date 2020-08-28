@@ -1,4 +1,3 @@
-import os
 from datetime import time
 from test import TEST_DIR
 
@@ -7,6 +6,7 @@ import numpy as np
 import pytest
 from osgeo import gdal
 
+from RAiDER.makePoints import makePoints1D
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
     writeArrayToRaster, writeResultsToHDF5
@@ -45,11 +45,14 @@ def make_points_1d_data():
     ).T
     rays = np.stack([ray1, ray2], axis=0)
 
-    sp = np.array([[0., 0., 0.],
-                   [0., 0., 0.]])
+    sp = np.array([[6378137., 0., 0.],
+                   [6378137., 0., 0.]])
     slv = np.array([[0., 0., 1.],
                     [0., 1., 0.]])
-    return rays, (1000., sp, slv, 5.)
+    # Since our rays are pointing parallel to the surface, it will take them a
+    # long time to reach any sort of altitude. So we use a small number for the
+    # altitude cutoff.
+    return rays, (.078, sp, slv, 5.)
 
 
 @pytest.fixture
@@ -154,9 +157,71 @@ def test_makePoints0D_cython(make_points_0d_data):
     assert np.allclose(test_result, true_ray)
 
 
-def test_makePoints1D_cython(make_points_1d_data):
-    from RAiDER.makePoints import makePoints1D
+def test_makePoints1D_along_axis():
+    rays = makePoints1D(
+        200,
+        np.array([[6378137., 0., 0.]]),
+        np.array([[1., 0., 0.]]),
+        100.
+    )
 
+    assert np.allclose(rays, np.array([
+        [
+            [6378137., 6378237., 6378337.],
+            [0., 0., 0.],
+            [0., 0., 0.]
+        ]
+    ]))
+
+    rays = makePoints1D(
+        200,
+        np.array([[0., 6378137., 0.]]),
+        np.array([[0., 1., 0.]]),
+        100.
+    )
+
+    assert np.allclose(rays, np.array([
+        [
+            [0., 0., 0.],
+            [6378137., 6378237., 6378337.],
+            [0., 0., 0.]
+        ]
+    ]))
+
+    rays = makePoints1D(
+        200,
+        np.array([[0., 0., 6356752.]]),
+        np.array([[0., 0., 1.]]),
+        100.
+    )
+
+    assert np.allclose(rays, np.array([
+        [
+            [0., 0., 0.],
+            [0., 0., 0.],
+            [6356752., 6356852., 6356952.]
+        ]
+    ]))
+
+
+def test_makePoints1D_along_zenith():
+    rays = makePoints1D(
+        200,
+        np.array([[3909067., -3909067., -3170373.]]),
+        np.array([[0.61237244, -0.61237244, -0.49999999]]),
+        20.
+    )
+
+    assert np.allclose(rays, np.array([
+        [
+            np.linspace(3909067., 3909189.47, num=11),
+            np.linspace(-3909067., -3909190.23, num=11),
+            np.linspace(-3170373., -3170473.74, num=11)
+        ]
+    ]))
+
+
+def test_makePoints1D_cython(make_points_1d_data):
     true_ray, args = make_points_1d_data
 
     test_result = makePoints1D(*args)
