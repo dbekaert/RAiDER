@@ -26,12 +26,13 @@ jobs:
             conda env create -f environment-dev.yml
             conda activate RAiDER
             pip install coveralls
-            echo $'url: https://cds.climate.copernicus.eu/api/v2\nkey: $cdsak' > $HOME/.cdsapirc
+            echo url: https://cds.climate.copernicus.eu/api/v2 > $HOME/.cdsapirc
+            echo key: $cdsak >> $HOME/.cdsapirc
          
             echo { > $HOME/.ecmwfapi
-            echo "url": "https://api.ecmwf.int/v1", >> $HOME/.ecmwfapi
-            echo "email": "$ecmwfu" >> $HOME/.ecmwfapi
-            echo "key": "$ecmwfk" >> $HOME/.ecmwfapi
+            echo '"url": "https://api.ecmwf.int/v1",' >> $HOME/.ecmwfapi
+            echo '"email": "'$ecmwfu'",' >> $HOME/.ecmwfapi
+            echo '"key": "'$ecmwfk'"' >> $HOME/.ecmwfapi
             echo } >> $HOME/.ecmwfapi
 
             python --version
