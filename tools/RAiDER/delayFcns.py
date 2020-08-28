@@ -16,7 +16,7 @@ import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
-from RAiDER.constants import _STEP
+from RAiDER.constants import _STEP, _ZREF
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
 
@@ -31,44 +31,9 @@ def calculate_rays(pnts_file, stepSize=_STEP):
     log.debug('calculate_rays: Starting look vector calculation')
     log.debug('The integration stepsize is %f m', stepSize)
 
-    # get the lengths of each ray for doing the interpolation
-    getUnitLVs(pnts_file)
-
     # This projects the ground pixels into earth-centered, earth-fixed coordinate
     # system and sorts by position
     lla2ecef(pnts_file)
-
-
-def getUnitLVs(pnts_file):
-    '''
-    Get a set of look vectors normalized by their lengths
-    '''
-    get_lengths(pnts_file)
-    with h5py.File(pnts_file, 'r+') as f:
-        slv = f['LOS'][()] / f['Rays_len'][()][..., np.newaxis]
-        f['Rays_SLV'][...] = slv
-
-
-def get_lengths(pnts_file):
-    '''
-    Returns the lengths of a vector or set of vectors, fast.
-    Inputs:
-       looks_vecs  - an Nx3 numpy array containing look vectors with absolute
-                     lengths; i.e., the absolute position of the top of the
-                     atmosphere.
-    Outputs:
-       lengths     - an Nx1 numpy array containing the absolute distance in
-                     meters of the top of the atmosphere from the ground pnt.
-    '''
-    with h5py.File(pnts_file, 'r+') as f:
-        lengths = np.linalg.norm(f['LOS'][()], axis=-1)
-        try:
-            lengths[~np.isfinite(lengths)] = 0
-        except TypeError:
-            if ~np.isfinite(lengths):
-                lengths = 0
-        f['Rays_len'][:] = lengths.astype(np.float64)
-        f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
 
 def lla2ecef(pnts_file):
@@ -85,11 +50,10 @@ def lla2ecef(pnts_file):
         lat[lat == ndv] = np.nan
         hgt[hgt == ndv] = np.nan
         sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
-        f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
+        f['ray_start'][...] = sp.astype(np.float64)  # ensure double is maintained
 
 
-def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
-               delayType="Zenith", cpu_num=0):
+def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_num=0):
     '''
     Create the integration points for each ray path.
     '''
@@ -108,18 +72,15 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
 
     with h5py.File(pnts_file, 'r') as f:
-        Nrays = f.attrs['NumRays']
         chunkSize = f.attrs['ChunkSize']
         in_shape = f['lon'].attrs['Shape']
-        arrSize = f['lon'].shape
-        max_len = np.nanmax(f['Rays_len'])
 
     CHUNKS = chunk(chunkSize, in_shape)
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
-                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['ray_start']), np.array(f['LOS']),
+                         chunkSize, stepSize, ifWet, ifHydro, zref, wm_file) for kk in range(Nchunks)]
 
         with mp.Pool() as pool:
             individual_results = pool.starmap(process_chunk, chunk_inputs)
@@ -240,7 +201,7 @@ def makeChunksFromInds(startInd, chunkSize, in_shape):
     return chunks
 
 
-def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file):
+def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, zref, wm_file):
     """
     Perform the interpolation and integration over a single chunk.
     """
@@ -255,13 +216,13 @@ def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, ma
     # H5PY does not support fancy indexing with tuples, hence this if/else check
     if len(chunkSize) == 1:
         row = chunkInds[0]
-        ray = makePoints1D(max_len, SP[row, :].astype(_DTYPE), SLV[row, :].astype(_DTYPE), stepSize)
+        ray = makePoints1D(zref, SP[row, :].astype(_DTYPE), SLV[row, :].astype(_DTYPE), stepSize)
     elif len(chunkSize) == 2:
         row, col = chunkInds
-        ray = makePoints1D(max_len, SP[row, col, :].astype(_DTYPE), SLV[row, col, :].astype(_DTYPE), stepSize)
+        ray = makePoints1D(zref, SP[row, col, :].astype(_DTYPE), SLV[row, col, :].astype(_DTYPE), stepSize)
     elif len(chunkSize) == 3:
         row, col, zind = chunkInds
-        ray = makePoints1D(max_len, SP[row, col, zind, :].astype(_DTYPE), SLV[row, col, zind, :].astype(_DTYPE), stepSize)
+        ray = makePoints1D(zref, SP[row, col, zind, :].astype(_DTYPE), SLV[row, col, zind, :].astype(_DTYPE), stepSize)
     else:
         raise RuntimeError('Data in more than 4 dimensions is not supported')
 

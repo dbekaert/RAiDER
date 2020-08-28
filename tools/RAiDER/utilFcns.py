@@ -423,15 +423,13 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
             z.attrs['standard_name'] = np.string_("height")
             z.attrs['units'] = np.string_("m")
         else:
-            raise NotImplemented
+            raise NotImplementedError()
 
-        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
+        start_positions = f.create_dataset('ray_start', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
         lengths = f.create_dataset('Rays_len', in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
-        scaled_look_vecs = f.create_dataset('Rays_SLV', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
 
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
         lengths.attrs['grid_mapping'] = np.string_(projname)
-        scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
