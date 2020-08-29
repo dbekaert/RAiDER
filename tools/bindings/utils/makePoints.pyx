@@ -41,7 +41,7 @@ def intersect_altitude(pos, dir, altitude):
     # Quadratic formula
     t = (-B + np.sqrt(B ** 2 - 4 * A * C)) / (2 * A)
 
-    return pos + (t * dir.T).T
+    return pos + t.reshape(-1, 1) * dir
 
 
 @cython.boundscheck(False)  # turn off array bounds check
