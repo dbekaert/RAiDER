@@ -96,26 +96,19 @@ def makePoints1D(
     cdef np.ndarray[npy_float64, ndim=2] end = intersect_altitude(start, direction, altitude)
     cdef double[:] distances = np.linalg.norm(start - end, axis=-1)
     cdef double maxlen = np.nanmax(distances)
-    cdef np.ndarray[npy_float64, ndim=2] sign = np.sign(direction)
 
     cdef long max_points = (<long>cround(maxlen / step_size)) + 1
     cdef long num_rays = start.shape[0]
     cdef np.ndarray[npy_float64, ndim=3, mode='c'] ray = np.empty((num_rays, 3, max_points), dtype=np.float64)
     cdef np.ndarray[npy_float64, ndim=1, mode='c'] basespace = np.arange(0, maxlen + step_size, step_size)
 
-    cdef double dim_start, dim_end, dim_dir, curr, fill, dim_sign
     cdef long k1, k3, k4, num_points
     for k1 in range(num_rays):
         num_points = (<long>cround(distances[k1] / step_size)) + 1
         for k3 in range(3):
-            dim_start = start[k1, k3]
-            dim_end = end[k1, k3]
-            dim_dir = direction[k1, k3]
-            dim_sign = sign[k1, k3]
-
             # Compute the ray points
             for k4 in range(num_points):
-                ray[k1, k3, k4] = dim_start + basespace[k4] * dim_dir
+                ray[k1, k3, k4] = start[k1, k3] + basespace[k4] * direction[k1, k3]
 
             # Fill the rest of values with 'no data'. This is needed since
             # numpy arrays must be rectangular.
