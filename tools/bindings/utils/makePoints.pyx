@@ -113,12 +113,6 @@ def makePoints1D(
             dim_dir = direction[k1, k3]
             dim_sign = sign[k1, k3]
 
-            # Handle special case where the ray is exactly aligned with an axis
-            if dim_dir == 0.:
-                for k4 in range(max_points):
-                    ray[k1, k3, k4] = 0.
-                continue
-
             # Compute the ray points
             for k4 in range(num_points):
                 ray[k1, k3, k4] = dim_start + basespace[k4] * dim_dir

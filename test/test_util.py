@@ -30,14 +30,14 @@ def make_points_0d_data():
 @pytest.fixture
 def make_points_1d_data():
     ray1 = np.stack([
-        np.zeros(200),
+        np.full(200, 6378137.),
         np.zeros(200),
         np.arange(0, 1000, 5)
     ],
         axis=-1
     ).T
     ray2 = np.stack([
-        np.zeros(200),
+        np.full(200, 6378137.),
         np.arange(0, 1000, 5),
         np.zeros(200),
     ],
