@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import h5py
 import numpy as np
-from pyproj import CRS, Transformer
+from pyproj import Transformer
 
 from RAiDER import constants as const
 from RAiDER import utilFcns as util
@@ -153,7 +153,7 @@ class WeatherModel(ABC):
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
         sp_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
-        rays = makePoints3D(zref, sp_ecef, los, _STEP)
+        rays = makeRays3D(zref, sp_ecef, los, _STEP)
 
         # Transform from ECEF to weather model native projection
         t = Transformer.from_crs(4978, self._proj, always_xy=True)

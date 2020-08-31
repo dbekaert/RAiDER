@@ -47,7 +47,7 @@ def intersect_altitude(pos, dir, altitude):
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.cdivision(True)
-def makePoints1D(
+def makeRays1D(
     double altitude,
     np.ndarray[npy_float64, ndim=2] start,
     np.ndarray[npy_float64, ndim=2] direction,
@@ -90,7 +90,7 @@ def makePoints1D(
 @cython.boundscheck(False)  # turn off array bounds check
 @cython.wraparound(False)   # turn off negative indices ([-1,-1])
 @cython.cdivision(True)
-def makePoints3D(
+def makeRays3D(
     double altitude,
     np.ndarray[npy_float64, ndim=4] start,
     np.ndarray[npy_float64, ndim=4] direction,
