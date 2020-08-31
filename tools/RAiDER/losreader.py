@@ -6,8 +6,9 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import datetime
 import shelve
+import time
+from datetime import datetime, timezone
 from typing import NamedTuple
 from xml.etree import ElementTree as ET
 
@@ -92,19 +93,18 @@ def read_ESA_Orbit_file(filename):
     states = OrbitStates.empty(numOSV)
 
     for i, st in enumerate(data_block[0]):
-        states.t[i] = datetime.datetime.strptime(
-            st[1].text,
-            '%Z=%Y-%m-%dT%H:%M:%S.%f'
-        ).timestamp()
+        # datetime.strptime does not support timezone aware datetimes
+        dt = datetime(
+            *(time.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f')[0:6]),
+            tzinfo=timezone.utc
+        )
+        states.t[i] = dt.timestamp()
         states.x[i] = float(st[4].text)
         states.y[i] = float(st[5].text)
         states.z[i] = float(st[6].text)
         states.vx[i] = float(st[7].text)
         states.vy[i] = float(st[8].text)
         states.vz[i] = float(st[9].text)
-
-    t = states.t
-    t -= states.t[0]
 
     return states
 

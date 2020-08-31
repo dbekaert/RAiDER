@@ -1,14 +1,13 @@
+from datetime import datetime, timezone
 from test import TEST_DIR
 
 import numpy as np
 import pytest
 
-from RAiDER.losreader import read_ESA_Orbit_file, read_los_file
-from RAiDER.rays import (
-    OrbitLVGenerator, ZenithLVGenerator
-)
-from RAiDER.utilFcns import gdal_open
 from RAiDER.cli.validators import incidence_heading_to_los
+from RAiDER.losreader import read_ESA_Orbit_file, read_los_file
+from RAiDER.rays import OrbitLVGenerator, ZenithLVGenerator
+from RAiDER.utilFcns import gdal_open
 
 LOS_FILE = TEST_DIR / "test_geom" / "los.rdr"
 
@@ -53,6 +52,11 @@ def orbitgen(state_vector):
     return OrbitLVGenerator(state_vector)
 
 
+@pytest.fixture
+def acq_time():
+    return datetime(2020, 1, 2, 22, 59, 42, 0, timezone.utc)
+
+
 def test_zenith_generator_simple(zenithgen):
     _2 = 1 / np.sqrt(2)
     _3 = 1 / np.sqrt(3)
@@ -93,7 +97,7 @@ def test_zenith_generator_simple(zenithgen):
     ]))
 
 
-def test_orbit_generator_simple(orbitgen):
+def test_orbit_generator_simple(orbitgen, acq_time):
     llh = np.array([
         [40, -80., 0.],
         [40, -85., 0.],
@@ -105,7 +109,7 @@ def test_orbit_generator_simple(orbitgen):
         [35, -80., 0.],
         [35, -75., 0.],
     ])
-    ans = orbitgen.generate(llh)
+    ans = orbitgen.generate(llh, acq_time)
 
     # These values are copy/pasted generated values from the above call. We
     # visually plotted them and they looked right, so we assume they are and
@@ -130,7 +134,7 @@ def lvgen_param(request):
     return request.getfixturevalue(request.param)
 
 
-def test_generator_returns_unit_vectors(lvgen_param):
+def test_generator_returns_unit_vectors(lvgen_param, acq_time):
     gen = lvgen_param
 
     lats = np.random.rand(100, 100) * 180 - 90
@@ -138,7 +142,7 @@ def test_generator_returns_unit_vectors(lvgen_param):
     heights = np.random.rand(100, 100) * 20000
     llh = np.stack((lats, lons, heights), axis=-1)
 
-    ans = gen.generate(llh)
+    ans = gen.generate(llh, acq_time)
 
     magnitude = np.linalg.norm(ans, axis=-1)
     assert np.allclose(magnitude, 1.)

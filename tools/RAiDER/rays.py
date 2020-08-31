@@ -4,23 +4,17 @@
 #  Author: Jeremy Maurer
 #  Copyright 2020. ALL RIGHTS RESERVED.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import pathlib
+from abc import ABC, abstractmethod
+
 import numpy as np
 
-from abc import ABC, abstractmethod
-from typing import NamedTuple
-
 from RAiDER import Geo2rdr
-from RAiDER.constants import Zenith, _ZREF
-from RAiDER.losreader import (
-    read_ESA_Orbit_file, read_los_file, read_shelve, read_txt_file
-)
-from RAiDER.utilFcns import cosd, sind, enu2ecef, gdal_open, lla2ecef
+from RAiDER.utilFcns import cosd, sind
 
 '''
 *Note*:
-The line-of-sight look vector should be a unit-length 3-component vector 
-pointing from the ground pixel to the sensor. The associated projection 
+The line-of-sight look vector should be a unit-length 3-component vector
+pointing from the ground pixel to the sensor. The associated projection
 is earth-centered, earth-fixed.
 '''
 
@@ -29,11 +23,12 @@ class LVGenerator(ABC):
     """Look vector generator"""
 
     @abstractmethod
-    def generate(self, llh):
+    def generate(self, llh, acq_time):
         """
         Generate look vectors for a set of locations
 
         :param llh: 3d numpy array of pixel locations in LLA coordinates.
+        :param acq_time: Time of data acquisition as a datetime object.
         :return: 3d numpy array of unit look vectors at each location in ECEF
             coordinates.
         """
@@ -69,17 +64,17 @@ class ZenithLVGenerator(LVGenerator):
         """
         self._los_type = 'ZTD'
 
-    def generate(self, llh):
+    def generate(self, llh, acq_time=None):
         '''
         Returns look vectors when Zenith is used.
         Inputs:
-           llh   - ... x 3 numpy array numpy of pixel locations
+           llh      - ... x 3 numpy array numpy of pixel locations
+           acq_time - ignored
         Outputs:
            los   - an Nx3 numpy array with the look vectors.
         '''
         lats = llh[..., 0]
         lons = llh[..., 1]
-        hgts = llh[..., 2]
 
         e = cosd(lats) * cosd(lons)
         n = cosd(lats) * sind(lons)
@@ -98,7 +93,7 @@ class OrbitLVGenerator(LVGenerator):
         self._los_type = 'STD'
         self.states = states
 
-    def generate(self, llh):
+    def generate(self, llh, acq_time):
         '''
         Converts information from a state vector for a satellite orbit, given
         in terms of position and velocity, to line-of-sight information at each
@@ -108,14 +103,21 @@ class OrbitLVGenerator(LVGenerator):
             "At least 4 state vectors are required for orbit interpolation"
         assert self.states.t.shape == self.states. x.shape, \
             "t and x must be the same size"
+        assert acq_time is not None, (
+            "Acquisition time must be set in order to generate accurate look "
+            "vectors from orbital state information!"
+        )
 
         real_shape = llh.shape[:-1]
         lats = llh[..., 0].flatten()
         lons = llh[..., 1].flatten()
         heights = llh[..., 2].flatten()
 
+        # Transform timestamps into time deltas from acquisition time
+        t = self.states.t - acq_time.timestamp()
+
         geo2rdr_obj = Geo2rdr.PyGeo2rdr()
-        geo2rdr_obj.set_orbit(*self.states)
+        geo2rdr_obj.set_orbit(t, *self.states[1:])
 
         los = np.zeros((3, len(lats)))
         slant_ranges = np.zeros_like(lats)
@@ -145,7 +147,7 @@ class OrbitLVGenerator(LVGenerator):
         return los
 
 
-def getLookVectors(generator, llh):
+def getLookVectors(generator, llh, acq_time=None):
     '''
     Returns unit look vectors for each query point specified as a lat/lon/height.
     Inputs:
@@ -153,13 +155,14 @@ def getLookVectors(generator, llh):
                        sight vectors (inclination, heading), or an ESA orbit file
                        for the time period of interest.
         llh          - latitude, longitude, heights for the query points
+        acq_time     - Acquisition time as datetime object.
 
     Returns:
         Unit look vectors pointing from each ground point towards the sensor or
         Zenith
         The length of rays in the vector directions
     '''
-    look_vectors = generator.generate(llh)
+    look_vectors = generator.generate(llh, acq_time)
     mask = np.isnan(np.mean(llh, axis=-1))
     look_vectors[mask, :] = np.nan
 
@@ -167,7 +170,7 @@ def getLookVectors(generator, llh):
 
 
 def calculate_ray_lengths(los, zref):
-    ''' 
+    '''
     Calculate the length of the ray paths (for non-Zenith only)
     '''
     return zref / (np.sqrt(1 - 1 / (np.square(los[..., 0]) + np.square(los[..., 1]))))

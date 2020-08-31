@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from test import TEST_DIR
 
 import numpy as np
@@ -19,8 +20,10 @@ def txt_file():
 def test_read_orbit_file(eof_file):
     t, x, y, z, vx, vy, vz = read_ESA_Orbit_file(eof_file)
 
-    # Note that offsets are returned (in seconds) relative to the first time
-    assert np.allclose(t, [0, 10])
+    assert np.allclose(t, [
+        datetime(2020, 1, 2, 22, 59, 42, 0, timezone.utc).timestamp(),
+        datetime(2020, 1, 2, 22, 59, 52, 0, timezone.utc).timestamp()
+    ])
     assert np.allclose(x, [777807.283170, 753103.689876])
     assert np.allclose(y, [-5326950.100710, -5281833.274981])
     assert np.allclose(z, [4583342.946432, 4639190.094438])
