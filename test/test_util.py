@@ -148,15 +148,6 @@ def test_writeArrayToRaster(tmp_path):
     assert np.allclose(band.ReadAsArray(), array)
 
 
-def test_makePoints0D_cython(make_points_0d_data):
-    from RAiDER.makePoints import makePoints0D
-
-    true_ray, args = make_points_0d_data
-
-    test_result = makePoints0D(*args)
-    assert np.allclose(test_result, true_ray)
-
-
 def test_makePoints1D_along_axis():
     rays = makePoints1D(
         200,
@@ -225,15 +216,6 @@ def test_makePoints1D_cython(make_points_1d_data):
     true_ray, args = make_points_1d_data
 
     test_result = makePoints1D(*args)
-    assert np.allclose(test_result, true_ray)
-
-
-def test_makePoints2D_cython(make_points_2d_data):
-    from RAiDER.makePoints import makePoints2D
-
-    true_ray, args = make_points_2d_data
-
-    test_result = makePoints2D(*args)
     assert np.allclose(test_result, true_ray)
 
 
