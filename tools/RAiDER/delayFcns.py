@@ -226,27 +226,9 @@ def interpolate2(fun, x, y, z):
 def _integrateLOS(stepSize, wet_pw, hydro_pw, Npts=None):
     delays = []
     for d in (wet_pw, hydro_pw):
-        if d.ndim == 1:
-            delays.append(np.array([int_fcn(d, stepSize)]))
-        else:
-            delays.append(_integrate_delays(stepSize, d, Npts))
+        delays.append(int_fcn(d, stepSize, Npts))
     return np.stack(delays, axis=0)
 
 
-def _integrate_delays(stepSize, refr, Npts=None):
-    '''
-    This function gets the actual delays by integrating the refractivity in
-    each node. Refractivity is given in the 'refr' variable.
-    '''
-    delays = []
-    if Npts is not None:
-        for n, ray in zip(Npts, refr):
-            delays.append(int_fcn(ray, stepSize, n))
-    else:
-        for ray in refr:
-            delays.append(int_fcn(ray, stepSize))
-    return np.array(delays)
-
-
 def int_fcn(y, dx, N=None):
-    return 1e-6 * dx * np.nansum(y[:N])
+    return 1e-6 * dx * np.nansum(y[:N], axis=-1)
