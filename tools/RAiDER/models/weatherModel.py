@@ -9,7 +9,7 @@ from pyproj import CRS, Transformer
 
 from RAiDER import constants as const
 from RAiDER import utilFcns as util
-from RAiDER.constants import _ZREF, _ZMIN
+from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
@@ -155,10 +155,6 @@ class WeatherModel(ABC):
         sp_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
         rays = makePoints3D(zref, sp_ecef, los, _STEP)
 
-        # Calculate the integrated delays
-        ifWet = make_interpolator(self._xs, self._ys, self._zs, wet)
-        ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
-
         # Transform from ECEF to weather model native projection
         t = Transformer.from_crs(4978, self._proj, always_xy=True)
         ray_x, ray_y, ray_z = t.transform(
@@ -167,6 +163,9 @@ class WeatherModel(ABC):
             rays[..., 2, :]
         )
 
+        # Calculate the integrated delays
+        ifWet = make_interpolator(self._xs, self._ys, self._zs, wet)
+        ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
         delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
         delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
         delays = _integrateLOS(_STEP, delay_wet, delay_hydro)
