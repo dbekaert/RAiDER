@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 import h5py
 import numpy as np
-from pyproj import CRS, Transformer
+from pyproj import Transformer
 
 from RAiDER import constants as const
 from RAiDER import utilFcns as util
@@ -13,7 +13,7 @@ from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
-from RAiDER.makePoints import makePoints3D
+from RAiDER.makeRays import makeRays3D
 from RAiDER.models import plotWeather as plots
 from RAiDER.rays import getLookVectors
 from RAiDER.utilFcns import lla2ecef, robmax, robmin
@@ -153,7 +153,7 @@ class WeatherModel(ABC):
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
         sp_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
-        rays = makePoints3D(zref, sp_ecef, los, _STEP)
+        rays = makeRays3D(zref, sp_ecef, los, _STEP)
 
         # Transform from ECEF to weather model native projection
         t = Transformer.from_crs(4978, self._proj, always_xy=True)

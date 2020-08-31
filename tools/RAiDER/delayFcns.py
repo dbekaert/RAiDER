@@ -18,7 +18,7 @@ from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.constants import _STEP, _ZREF
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
-from RAiDER.makePoints import makePoints1D
+from RAiDER.makeRays import makeRays1D
 
 log = logging.getLogger(__name__)
 
@@ -180,19 +180,19 @@ def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, zr
     proj_wm = getProjFromWMFile(wm_file)
     t = Transformer.from_proj(p1, proj_wm, always_xy=True)
 
-    # datatype must be specific for the cython makePoints* function
+    # datatype must be specific for the cython makeRays* function
     _DTYPE = np.float64
 
     # H5PY does not support fancy indexing with tuples, hence this if/else check
     if len(chunkSize) == 1:
         row = chunkInds[0]
-        ray = makePoints1D(zref, SP[row, :].astype(_DTYPE), SLV[row, :].astype(_DTYPE), stepSize)
+        ray = makeRays1D(zref, SP[row, :].astype(_DTYPE), SLV[row, :].astype(_DTYPE), stepSize)
     elif len(chunkSize) == 2:
         row, col = chunkInds
-        ray = makePoints1D(zref, SP[row, col, :].astype(_DTYPE), SLV[row, col, :].astype(_DTYPE), stepSize)
+        ray = makeRays1D(zref, SP[row, col, :].astype(_DTYPE), SLV[row, col, :].astype(_DTYPE), stepSize)
     elif len(chunkSize) == 3:
         row, col, zind = chunkInds
-        ray = makePoints1D(zref, SP[row, col, zind, :].astype(_DTYPE), SLV[row, col, zind, :].astype(_DTYPE), stepSize)
+        ray = makeRays1D(zref, SP[row, col, zind, :].astype(_DTYPE), SLV[row, col, zind, :].astype(_DTYPE), stepSize)
     else:
         raise RuntimeError('Data in more than 4 dimensions is not supported')
 

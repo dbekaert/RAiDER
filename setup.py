@@ -82,8 +82,8 @@ cython_extensions = [
         language="c++"
     ),
     Extension(
-        name="RAiDER.makePoints",
-        sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")),
+        name="RAiDER.makeRays",
+        sources=[os.path.join(UTIL_DIR, "makeRays.pyx")],
         include_dirs=[np.get_include()]
     ),
 ]

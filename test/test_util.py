@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from osgeo import gdal
 
-from RAiDER.makePoints import makePoints1D
+from RAiDER.makeRays import makeRays1D, makeRays3D
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
     writeArrayToRaster, writeResultsToHDF5
@@ -28,7 +28,7 @@ def make_points_0d_data():
 
 
 @pytest.fixture
-def make_points_1d_data():
+def make_rays_1d_data():
     ray1 = np.stack([
         np.full(200, 6378137.),
         np.zeros(200),
@@ -82,7 +82,7 @@ def make_points_2d_data():
 
 
 @pytest.fixture
-def make_points_3d_data():
+def make_rays_3d_data():
     sp = np.zeros((3, 3, 3, 3))
     sp[:, :, 1, 2] = 10
     sp[:, :, 2, 2] = 100
@@ -93,7 +93,7 @@ def make_points_3d_data():
 
     make_points_args = (100., sp, slv, 5)
 
-    df = np.loadtxt(TEST_DIR / "test_result_makePoints3D.txt")
+    df = np.loadtxt(TEST_DIR / "test_result_makeRays3D.txt")
 
     return df.reshape((3, 3, 3, 3, 20)), make_points_args
 
@@ -148,8 +148,8 @@ def test_writeArrayToRaster(tmp_path):
     assert np.allclose(band.ReadAsArray(), array)
 
 
-def test_makePoints1D_along_axis():
-    rays = makePoints1D(
+def test_makeRays1D_along_axis():
+    rays = makeRays1D(
         200,
         np.array([[6378137., 0., 0.]]),
         np.array([[1., 0., 0.]]),
@@ -164,7 +164,7 @@ def test_makePoints1D_along_axis():
         ]
     ]))
 
-    rays = makePoints1D(
+    rays = makeRays1D(
         200,
         np.array([[0., 6378137., 0.]]),
         np.array([[0., 1., 0.]]),
@@ -179,7 +179,7 @@ def test_makePoints1D_along_axis():
         ]
     ]))
 
-    rays = makePoints1D(
+    rays = makeRays1D(
         200,
         np.array([[0., 0., 6356752.]]),
         np.array([[0., 0., 1.]]),
@@ -195,8 +195,8 @@ def test_makePoints1D_along_axis():
     ]))
 
 
-def test_makePoints1D_along_zenith():
-    rays = makePoints1D(
+def test_makeRays1D_along_zenith():
+    rays = makeRays1D(
         200,
         np.array([[3909067., -3909067., -3170373.]]),
         np.array([[0.61237244, -0.61237244, -0.49999999]]),
@@ -212,19 +212,17 @@ def test_makePoints1D_along_zenith():
     ]))
 
 
-def test_makePoints1D_cython(make_points_1d_data):
-    true_ray, args = make_points_1d_data
+def test_makeRays1D_cython(make_rays_1d_data):
+    true_ray, args = make_rays_1d_data
 
-    test_result = makePoints1D(*args)
+    test_result = makeRays1D(*args)
     assert np.allclose(test_result, true_ray)
 
 
-def test_makePoints3D_Cython_values(make_points_3d_data):
-    from RAiDER.makePoints import makePoints3D
+def test_makeRays3D_Cython_values(make_rays_3d_data):
+    true_rays, args = make_rays_3d_data
 
-    true_rays, args = make_points_3d_data
-
-    test_result = makePoints3D(*args)
+    test_result = makeRays3D(*args)
 
     assert test_result.ndim == 5
     assert np.allclose(test_result, true_rays)

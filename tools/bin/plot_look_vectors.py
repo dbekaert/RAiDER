@@ -4,7 +4,7 @@ import numpy as np
 import pyproj
 
 from RAiDER.losreader import read_ESA_Orbit_file
-from RAiDER.makePoints import intersect_altitude, makePoints1D
+from RAiDER.makeRays import intersect_altitude, makeRays1D
 from RAiDER.rays import OrbitLVGenerator, ZenithLVGenerator
 from RAiDER.utilFcns import gdal_open
 
@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
     tropo = intersect_altitude(ground, look, 3_000_000.)
 
-    rays = makePoints1D(3_000_000., ground, look, 100_000.)
+    rays = makeRays1D(3_000_000., ground, look, 100_000.)
 
     plotter.add_wireframe(*generate_earth(args.surface, args.detail), color="blue")
     plotter.add_scatter(ground_x, ground_y, ground_z, color="green")
