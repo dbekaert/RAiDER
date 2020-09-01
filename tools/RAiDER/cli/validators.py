@@ -187,6 +187,59 @@ class BBoxAction(Action):
         setattr(namespace, self.dest, values)
 
 
+class LOSAction(Action):
+    '''
+    An Action that checks for and parses a valid method for computing line-of-sight
+    vectors, and stores the result as a generator object
+    '''
+
+    def __init__(
+        self,
+        option_strings,
+        dest,
+        nargs=None,
+        const=None,
+        default=None,
+        type=None,
+        choices=None,
+        required=False,
+        help=None,
+        metavar=None
+    ):
+
+        super().__init__(
+            option_strings=option_strings,
+            dest=dest,
+            nargs=nargs,
+            const=const,
+            default=default,
+            type=type,
+            choices=choices,
+            required=required,
+            help=help,
+            metavar=metavar
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            los = Zenith
+        else:
+            try:
+                generator = parseAsRaster(values)
+            except AttributeError:
+                pass
+
+            try:
+                generator = parseAsStateVectorFile(values)
+            except AttributeError:
+                pass
+
+           #TODO: Add in ARIA file reader
+
+            raise ValueError('The format of the line-of-sight file(s) is not recognized')
+          
+        setattr(namespace, self.dest, values)
+
 def date_type(arg):
     """
     Parse a date from a string in pseudo-ISO 8601 format.
