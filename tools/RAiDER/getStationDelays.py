@@ -21,7 +21,7 @@ import requests
 log = logging.getLogger(__name__)
 
 
-def get_delays(stationFile, filename, returnTime=None):
+def get_delays_UNR(stationFile, filename, returnTime=None):
     '''
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
@@ -57,7 +57,7 @@ def get_delays(stationFile, filename, returnTime=None):
         # get the date of the file
         time, yearFromFile, doyFromFile = get_date(os.path.basename(j).split('.'))
         # initialize variables
-        d, ngrad, egrad, timesList, Sig = [], [], [], [], []
+        d, Sig, dwet, ddry, timesList = [], [], [], [], []
         flag = False
         for line in f.readlines():
             try:
@@ -87,11 +87,12 @@ def get_delays(stationFile, filename, returnTime=None):
                         doy, doyFromFile, j
                     )
                     continue
-                d.append(trotot)
-                ngrad.append(tgntot)
-                egrad.append(tgetot)
+                # convert units from mm to m
+                d.append(trotot*0.001)
+                Sig.append(trototSD*0.001)
+                dwet.append(trwet*0.001)
+                ddry.append((trotot-trwet)*0.001)
                 timesList.append(seconds)
-                Sig.append(trototSD)
             if 'TROP/SOLUTION' in line:
                 flag = True
         del f
@@ -109,29 +110,29 @@ def get_delays(stationFile, filename, returnTime=None):
             missing = [
                 True if t not in timesList else False for t in true_times]
             mask = np.array(missing)
-            delay, sig, east_grad, north_grad = [np.full((288,), np.nan)] * 4
+            delay, sig, wet_delay, dry_delay = [np.full((288,), np.nan)] * 4
             delay[~mask] = d
             sig[~mask] = Sig
-            east_grad[~mask] = egrad
-            north_grad[~mask] = ngrad
+            wet_delay[~mask] = dwet
+            dry_delay[~mask] = ddry
             times = true_times.copy()
         else:
             delay = np.array(d)
             times = np.array(timesList)
             sig = np.array(Sig)
-            east_grad = np.array(egrad)
-            north_grad = np.array(ngrad)
+            wet_delay = np.array(dwet)
+            dry_delay = np.array(ddry)
 
         # if time not specified, pass all times
         if returnTime == None:
-            filtoutput = {'ID': [site] * len(north_grad), 'Date': [time] * len(north_grad), 'ZTD': delay, 'north_grad': north_grad,
-                          'east_grad': east_grad, 'times': times, 'sigZTD': sig}
+            filtoutput = {'ID': [site] * len(wet_delay), 'Date': [time] * len(wet_delay), 'ZTD': delay, 'wet_delay': wet_delay,
+                          'dry_delay': dry_delay, 'times': times, 'sigZTD': sig}
             filtoutput = [{key: value[k] for key, value in filtoutput.items()}
                           for k in range(len(filtoutput['ID']))]
         else:
             index = np.argmin(np.abs(np.array(timesList) - returnTime))
-            filtoutput = [{'ID': site, 'Date': time, 'ZTD': delay[index], 'north_grad': north_grad[index],
-                           'east_grad': east_grad[index], 'times': times[index], 'sigZTD': sig[index]}]
+            filtoutput = [{'ID': site, 'Date': time, 'ZTD': delay[index], 'wet_delay': wet_delay[index],
+                           'dry_delay': dry_delay[index], 'times': times[index], 'sigZTD': sig[index]}]
         # setup pandas array and write output to CSV, making sure to update existing CSV.
         filtoutput = pd.DataFrame(filtoutput)
         if not os.path.exists(filename):
@@ -180,14 +181,16 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
     if len(stationFiles) > 0:
         outputfiles = []
         args = []
-        for sf in stationFiles:
-            StationID = os.path.basename(sf).split('.')[0]
-            name = os.path.join(pathbase, StationID + '_ztd.csv')
-            args.append((sf, name, returnTime))
-            outputfiles.append(name)
-        # Parallelize remote querying of zenith delays
-        with multiprocessing.Pool(numCPUs) as multipool:
-            multipool.starmap(get_delays, args)
+        # parse delays from UNR
+        if gps_repo == 'UNR':
+            for sf in stationFiles:
+                StationID = os.path.basename(sf).split('.')[0]
+                name = os.path.join(pathbase, StationID + '_ztd.csv')
+                args.append((sf, name, returnTime))
+                outputfiles.append(name)
+            # Parallelize remote querying of zenith delays
+            with multiprocessing.Pool(numCPUs) as multipool:
+                multipool.starmap(get_delays_UNR, args)
 
     # Consolidate all CSV files into one object
     name = os.path.join(outDir, '{}combinedGPS_ztd.csv'.format(gps_repo))

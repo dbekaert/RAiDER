@@ -499,8 +499,6 @@ class RaiderStats(object):
 
     def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, cbounds=None, colorpercentile='25 95'):
         self.fname = filearg
-        # get source GPS repository from input filename
-        self.gps_repo = os.path.basename(filearg).split('combinedGPS_ztd.csv')[0]
         self.col_name = col_name
         self.unit = unit
         self.workdir = workdir
@@ -615,10 +613,9 @@ class RaiderStats(object):
                 'User-specified key {} not found in inpuit file {}. Must specify valid key.' .format(self.col_name, self.fname))
 
         # convert to specified output unit
-        if self.gps_repo == 'UNR':
-            inputunit = 'mm'
-            data[self.col_name] = self._convert_SI(
-                data[self.col_name], inputunit, self.unit)
+        inputunit = 'm'
+        data[self.col_name] = self._convert_SI(
+            data[self.col_name], inputunit, self.unit)
 
         return data
 
