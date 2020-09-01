@@ -39,9 +39,6 @@ class LVGenerator(ABC):
         """
         ...
 
-    def setZRef(self, zref=_ZREF):
-        self._zref = zref
-
     def getLOSType(self):
         return self._los_type
 
@@ -49,10 +46,9 @@ class LVGenerator(ABC):
 class LOSGenerator(LVGenerator):
     """ A dummy class for holding line-of-sight vectors from rasters """
 
-    def __init__(self, los, zref=_ZREF):
+    def __init__(self, los):
         self._los_type = 'STD'
         self._los = los
-        self._zref = zref
 
     def generate(self, llh):
         if self._los.shape != llh.shape:
@@ -67,12 +63,11 @@ class LOSGenerator(LVGenerator):
 class ZenithLVGenerator(LVGenerator):
     """Generate look vectors pointing towards the zenith"""
 
-    def __init__(self, zref=_ZREF):
+    def __init__(self):
         """
         zref  - float, integration height in meters
         """
         self._los_type = 'ZTD'
-        self._zref = zref
 
     def generate(self, llh):
         '''
@@ -90,28 +85,18 @@ class ZenithLVGenerator(LVGenerator):
         n = cosd(lats) * sind(lons)
         u = sind(lats)
 
-        los = enu2ecef(
-            e.ravel(),
-            n.ravel(),
-            u.ravel(),
-            lats.ravel(),
-            lons.ravel(),
-            hgts.ravel()
-        ).reshape(e.shape + (3,))
-
-        return los
+        return np.stack([e, n, u], axis=-1)
 
 
 class OrbitLVGenerator(LVGenerator):
     """Generate look vectors from orbital state information"""
 
-    def __init__(self, states, zref=_ZREF):
+    def __init__(self, states):
         """
         states  - Orbital state vectors
         """
         self._los_type = 'STD'
         self.states = states
-        self._zref = zref
 
     def generate(self, llh):
         '''
@@ -160,7 +145,7 @@ class OrbitLVGenerator(LVGenerator):
         return los
 
 
-def getLookVectors(generator, llh, zref=_ZREF):
+def getLookVectors(generator, llh):
     '''
     Returns unit look vectors for each query point specified as a lat/lon/height.
     Inputs:
@@ -168,14 +153,12 @@ def getLookVectors(generator, llh, zref=_ZREF):
                        sight vectors (inclination, heading), or an ESA orbit file
                        for the time period of interest.
         llh          - latitude, longitude, heights for the query points
-        zref         - vertical integration height
 
     Returns:
         Unit look vectors pointing from each ground point towards the sensor or
         Zenith
         The length of rays in the vector directions
     '''
-    generator.setZRef(zref)
     look_vectors = generator.generate(llh)
     mask = np.isnan(np.mean(llh, axis=-1))
     look_vectors[mask, :] = np.nan

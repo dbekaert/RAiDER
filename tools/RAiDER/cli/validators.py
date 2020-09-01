@@ -197,6 +197,61 @@ class BBoxAction(Action):
         setattr(namespace, self.dest, values)
 
 
+class LOSFileTypeAction(Action):
+    ''' An Action that parses line-of-sight file options and reads them '''
+
+    def __init__(
+        self,
+        option_strings,
+        dest,
+        nargs=None,
+        const=None,
+        default=None,
+        type=None,
+        choices=None,
+        required=False,
+        help=None,
+        metavar=None
+    ):
+
+        super().__init__(
+            option_strings=option_strings,
+            dest=dest,
+            nargs=nargs,
+            const=const,
+            default=default,
+            type=type,
+            choices=choices,
+            required=required,
+            help=help,
+            metavar=metavar
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        filename = values
+
+        if filename is None:
+            return ZenithLVGenerator()
+        else:
+            try:
+                return parseAsLOSRaster(filename)
+            except RuntimeError:
+                pass
+
+            try:
+                return parseAsStateVectorFile(filename)
+            except ValueError:
+                pass
+
+           # TODO: Add in ARIA file reader
+
+            raise ValueError(
+                'The format of the line-of-sight file(s) is not recognized'
+            )
+
+        setattr(namespace, self.dest, values)
+
+
 def date_type(arg):
     """
     Parse a date from a string in pseudo-ISO 8601 format.

@@ -4,12 +4,11 @@ from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
-from RAiDER.cli.validators import DateListAction, date_type, time_type, los_type
+from RAiDER.cli.validators import DateListAction, LOSFileTypeAction, date_type, time_type
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
 from RAiDER.logger import logger
 from RAiDER.models.allowed import ALLOWED_MODELS
-from RAiDER.rays import ZenithLVGenerator
 
 log = logging.getLogger(__name__)
 
@@ -73,29 +72,33 @@ def create_parser():
         '--LOS_file_option', '-l',
         help=dedent('''\
         Can be:
-            A GDAL-readable two-band file (B1: inclination, B2: heading)
-            An ESA orbit file (time must correspond to the input query time)
+            A GDAL-readable two-band file (B1: inclination, B2: heading), 
+            An ESA orbit file (time must correspond to the input query time), or
             A 7-column text file containing state vectors
             '''),
         metavar='LOS',
-        type=los_type,
+        action=LOSFileTypeAction,
         dest='lineofsight',
-        default=None)
+        default=None,
+    )
     los.add_argument(
         '--zref', '-z',
         help='Reference vertical integration height limit (meters) (default: {} m)'.format(_ZREF),
         type=float,
-        default=_ZREF)
+        default=_ZREF
+    )
 
     # heights
     heights = p.add_argument_group('Height data. Default is ground surface for specified lat/lons, height levels otherwise')
     heights.add_argument(
         '--dem', '-d', default=None,
-        help="""Specify a DEM to use with lat/lon inputs.""")
+        help="""Specify a DEM to use with lat/lon inputs."""
+    )
     heights.add_argument(
         '--heightlvs',
         help=("""A space-deliminited list of heights"""),
-        default=None, nargs='+', type=float)
+        default=None, nargs='+', type=float
+    )
 
     # Weather model
     weather = p.add_argument_group("Weather model. See documentation for details")

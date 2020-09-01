@@ -54,7 +54,6 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
     log.debug('ZREF = %f', zref)
     log.debug('stepSize = %f', stepSize)
 
-    RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize)
     return RAiDER.delayFcns.get_delays(
         stepSize, pnts_file_name, weather_model_file_name,
         interpType=interpType, zref=zref
@@ -166,7 +165,7 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
                 np.nanmin(hgts), np.nanmax(hgts)
             )
             log.debug('Beginning line-of-sight calculation')
-            los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1), zref)
+            los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
 
             # write to an HDF5 file
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)

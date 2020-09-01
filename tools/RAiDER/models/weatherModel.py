@@ -160,7 +160,7 @@ class WeatherModel(ABC):
         ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
 
         # Transform from ECEF to weather model native projection
-        t = Transformer.from_crs(4978, self._proj, always_xy=True) 
+        t = Transformer.from_crs(4978, self._proj, always_xy=True)
         ray_x, ray_y, ray_z = t.transform(
             rays[..., 0, :],
             rays[..., 1, :],
@@ -173,7 +173,6 @@ class WeatherModel(ABC):
 
         self._wet_total = delays[..., 0]
         self._hydrostatic_total = delays[..., 1]
-
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):

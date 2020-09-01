@@ -4,8 +4,6 @@ from datetime import date, time
 
 import RAiDER.runProgram
 
-from RAiDER.rays import ZenithLVGenerator
-
 
 @pytest.fixture
 def delay_parser():
@@ -38,7 +36,7 @@ def test_delay_args(delay_parser):
     assert args.latlon == ['latfile.dat', 'lonfile.dat']
     assert args.bbox is None
     assert args.station_file is None
-    assert args.lineofsight is ZenithLVGenerator
+    assert args.lineofsight is None
     assert args.dem is None
     assert args.heightlvs is None
     assert args.model == "ERA5"
