@@ -78,7 +78,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_nu
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['ray_start']), np.array(f['LOS']),
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Ray_start']), np.array(f['LOS']),
                          chunkSize, stepSize, ifWet, ifHydro, zref, wm_file) for kk in range(Nchunks)]
 
     if Nchunks == 1:

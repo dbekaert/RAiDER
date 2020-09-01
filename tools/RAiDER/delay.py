@@ -101,7 +101,7 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         return wet, hydro
 
 
-def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
+def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                 outformat, time, out, download_only, wetFilename, hydroFilename):
     """
     raiderDelay main function.
@@ -115,7 +115,6 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
 
     # Flags
     useWeatherNodes = flag == 'bounding_box'
-    delayType = ["Zenith" if los is Zenith else "LOS"]
 
     # location of the weather model files
     logger.debug('Beginning weather model pre-processing')
@@ -128,7 +127,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
-            weather_model, wmLoc, out, lats=lats, lons=lons, los=los, zref=zref,
+            weather_model, wmLoc, out, lats=lats, lons=lons, los=losGen, zref=zref,
             time=time, download_only=download_only, makePlots=True
         )
         try:

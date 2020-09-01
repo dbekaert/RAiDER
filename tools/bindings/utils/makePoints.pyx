@@ -155,37 +155,50 @@ def makePoints2D(double max_len, np.ndarray[double, ndim=3] Rays_SP, np.ndarray[
 
 @cython.boundscheck(False)  # turn off array bounds check
 @cython.wraparound(False)   # turn off negative indices ([-1,-1])
-def makePoints3D(double max_len, np.ndarray[double, ndim=4] Rays_SP, np.ndarray[double, ndim=4] Rays_SLV, double stepSize):
+@cython.cdivision(True)
+def makePoints3D(
+    double altitude,
+    np.ndarray[npy_float64, ndim=4] start,
+    np.ndarray[npy_float64, ndim=4] direction,
+    double step_size
+):
     '''
-    Fast cython code to create the rays needed for ray-tracing
-    Inputs:
-      max_len: maximum length of the rays
-      Rays_SP: Nx x Ny x Nz x 3 numpy array of the location of the ground pixels in an earth-centered,
-               earth-fixed coordinate system
-      Rays_SLV: Nx x Ny x Nz x 3 numpy array of the look vectors pointing from the ground pixel to the sensor
-      stepSize: Distance between points along the ray-path
+    Cast rays along direction until they reach a certain altitude. Ray starting
+    points are assumed to be located near the surface of the Earth.
+
+    :param altitude: Maximum ray height in meters measured from the surface of
+        the Earth.
+    :param start: Ray starting points in ECEF
+    :param direction: Ray unit direction vectors in ECEF
+    :param step_size: Distance between points on a ray in meters. Must not be 0!
+
     Output:
       ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
            line-of-sight vectors, up to the maximum length specified.
     '''
+    cdef np.ndarray[npy_float64, ndim=2] end = intersect_altitude(start, direction, altitude)
+    cdef double[:] distances = np.linalg.norm(start - end, axis=-1)
+    cdef double max_len = np.nanmax(distances)
+
+    cdef long max_points = (<long>cround(max_len / step_size)) + 1
     cdef int k1, k2, k2a, k3, k4
 
     cdef int Npts
-    if max_len % stepSize != 0:
-        Npts = int(max_len//stepSize) + 1
+    if max_len % step_size != 0:
+        Npts = int(max_len//step_size) + 1
     else:
-        Npts = int(max_len//stepSize)
+        Npts = int(max_len//step_size)
 
-    cdef int nrow = Rays_SP.shape[0]
-    cdef int ncol = Rays_SP.shape[1]
-    cdef int nz = Rays_SP.shape[2]
+    cdef int nrow = start.shape[0]
+    cdef int ncol = start.shape[1]
+    cdef int nz = start.shape[2]
     cdef np.ndarray[npy_float64, ndim = 5, mode = 'c'] ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
-    cdef np.ndarray[npy_float64, ndim = 1, mode = 'c'] basespace = np.arange(0, max_len+stepSize, stepSize)
+    cdef np.ndarray[npy_float64, ndim = 1, mode = 'c'] basespace = np.arange(0, max_len+step_size, step_size)
 
     for k1 in range(nrow):
         for k2 in range(ncol):
             for k2a in range(nz):
                 for k3 in range(3):
                     for k4 in range(Npts):
-                        ray[k1, k2, k2a, k3, k4] = Rays_SP[k1, k2, k2a, k3] + basespace[k4]*Rays_SLV[k1, k2, k2a, k3]
+                        ray[k1, k2, k2a, k3, k4] = start[k1, k2, k2a, k3] + basespace[k4]*direction[k1, k2, k2a, k3]
     return ray

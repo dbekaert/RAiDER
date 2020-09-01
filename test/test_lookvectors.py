@@ -5,18 +5,17 @@ import pytest
 
 from RAiDER.losreader import read_ESA_Orbit_file, read_los_file
 from RAiDER.rays import (
-    OrbitLVGenerator, Points, ZenithLVGenerator, incidence_heading_to_los
+    OrbitLVGenerator, ZenithLVGenerator
 )
 from RAiDER.utilFcns import gdal_open
+from RAiDER.cli.validators import incidence_heading_to_los
 
 LOS_FILE = TEST_DIR / "test_geom" / "los.rdr"
-
 
 
 @pytest.fixture
 def los():
     return gdal_open(TEST_DIR / "test_geom" / "los.rdr")
-
 
 
 @pytest.fixture
@@ -41,7 +40,7 @@ def llh(lat, lon, hgt):
 
 @pytest.fixture
 def state_vector():
-    return read_ESA_Orbit_file(TEST_DIR / '..' / 'S1A_OPER_AUX_POEORB_OPOD_20200123T120833_V20200102T225942_20200104T005942.EOF')
+    return read_ESA_Orbit_file(TEST_DIR / 'test_geom' / 'S1A_OPER_AUX_POEORB_OPOD_20200122T120701_V20200101T225942_20200103T005942.EOF')
 
 
 @pytest.fixture
@@ -52,22 +51,6 @@ def zenithgen():
 @pytest.fixture
 def orbitgen(state_vector):
     return OrbitLVGenerator(state_vector)
-
-
-def test_Points_1():
-    pts = Points(np.random.randn(10, 3))
-
-
-def test_Points_2():
-    pts = Points(np.random.randn(10, 10, 3))
-
-
-def test_Points_3():
-    pts = Points(np.random.randn(10, 10, 10, 3))
-
-
-def test_Points_4(llh):
-    pts = Points(llh)
 
 
 def test_zenith_generator_simple(zenithgen):
@@ -82,7 +65,7 @@ def test_zenith_generator_simple(zenithgen):
         [45., 90., 0.],
         [45., 0., 0.],
         [0., 45., 0.],
-        [90.-np.degrees(np.arccos(_3)), 45., 0.],  # zenith is the line x=y=z
+        [90. - np.degrees(np.arccos(_3)), 45., 0.],  # zenith is the line x=y=z
     ])
     ans = zenithgen.generate(llh)
 

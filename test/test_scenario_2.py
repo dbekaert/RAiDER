@@ -9,6 +9,7 @@ import pandas as pd
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import modelName2Module
+from RAiDER.rays import ZenithLVGenerator
 
 SCENARIO_DIR = TEST_DIR / "scenario_2"
 
@@ -32,11 +33,13 @@ def test_computeDelay(tmp_path):
     lats = stats['Lat'].values
     lons = stats['Lon'].values
 
+    zref = 20000.
+
     _, model_obj = modelName2Module('ERA5')
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
-            los=Zenith,
+            losGen=ZenithLVGenerator(zref=zref),
             lats=lats,
             lons=lons,
             ll_bounds=(33.746, 36.795, -118.312, -114.892),
@@ -44,7 +47,7 @@ def test_computeDelay(tmp_path):
             flag='station_file',
             weather_model={'type': model_obj(), 'files': None, 'name': 'ERA5'},
             wmLoc=None,
-            zref=20000.,
+            zref=zref,
             outformat='csv',
             time=datetime(2020, 1, 3, 23, 0, 0),
             out=tmp_path,
