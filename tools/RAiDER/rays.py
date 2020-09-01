@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from typing import NamedTuple
 
 from RAiDER import Geo2rdr
-from RAiDER.constants import Zenith
+from RAiDER.constants import Zenith, _ZREF
 from RAiDER.losreader import (
     read_ESA_Orbit_file, read_los_file, read_shelve, read_txt_file
 )
@@ -23,10 +23,6 @@ The line-of-sight look vector should be a unit-length 3-component vector
 pointing from the ground pixel to the sensor. The associated projection 
 is earth-centered, earth-fixed.
 '''
-
-class Points(NamedTuple('Points', ['lats', 'lons', 'hgts'])):
-    __slots__ = ()
-
 
 class LVGenerator(ABC):
     """Look vector generator"""
@@ -42,14 +38,6 @@ class LVGenerator(ABC):
         """
         ...
 
-    def _calculate_lengths(self, enu):
-        ''' 
-        Calculate the length from the ground pixel to the reference 
-        height along the look direction specified by the unit look
-        vector los.
-        '''
-        return self.zref/(np.sqrt(1 - 1/(np.square(enu[..., 0]) + np.square(enu[...,1]))))
-
 
 class ZenithLVGenerator(LVGenerator):
     """Generate look vectors pointing towards the zenith"""
@@ -59,8 +47,6 @@ class ZenithLVGenerator(LVGenerator):
         zref  - float, integration height in meters
         """
         self.zref = zref
-        self.los = None
-        self.length = None
 
     def generate(self, llh):
         '''
@@ -74,11 +60,12 @@ class ZenithLVGenerator(LVGenerator):
         lons = llh[..., 1]
         hgts = llh[..., 2]
 
-        e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
-        n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
-        u = np.sin(np.radians(lats))
+        e = cosd(lats) * np.cosd(lons)
+        n = cosd(lats) * np.sind(lons)
+        u = sind(lats)
 
-        lengths = self._calculate_length(enu)
+        # Because the ray lengths are just zref in the Zenith case
+        lengths = self.zref*np.ones(e.shape[:-1])
 
         los = enu2ecef(
             e.ravel(), 
@@ -87,19 +74,20 @@ class ZenithLVGenerator(LVGenerator):
             lats.ravel(),
             lons.ravel(), 
             hgts.ravel()
-        )
+        ).reshape(e.shape + (3,))
 
-        return los.reshape(e.shape + (3,)), lengths.reshape(e.shape)
+        return los, lengths
 
 
 class OrbitLVGenerator(LVGenerator):
     """Generate look vectors from orbital state information"""
 
-    def __init__(self, states):
+    def __init__(self, states, zref=_ZREF):
         """
         states  - Orbital state vectors
         """
         self.states = states
+        self._zref = zref
 
     def generate(self, llh):
         '''
@@ -144,34 +132,31 @@ class OrbitLVGenerator(LVGenerator):
             los[:, i] = geo2rdr_obj.get_los()
 
         los = los.T.reshape(real_shape + (3,))
-
-        
+        lengths = calculate_ray_lengths(self._zref, los)
 
         return los, lengths
 
 
-def getLookVectors(los_mode, llh):
+def getLookVectors(generator, llh, zref = _ZREF):
+    #TODO: finish implementing this in the argument caller
     '''
     Returns unit look vectors for each query point specified as a lat/lon/height.
     Inputs:
-        los_mode     - Can be a Zenith object, a two-band file containing line-of-
+        generator    - Can be a Zenith object, a two-band file containing line-of-
                        sight vectors (inclination, heading), or an ESA orbit file
                        for the time period of interest.
         llh          - latitude, longitude, heights for the query points
+        zref         - vertical integration height
 
     Returns:
         Unit look vectors pointing from each ground point towards the sensor or
         Zenith
+        The length of rays in the vector directions
     '''
-    if los_mode is None:
-        los_mode = Zenith
-
-    # TODO: This method of passing in the los mode is really ugly
     if los_mode is not Zenith and los_mode[0] == "los":
         # We already have state vectors so we just need to transform them into
         # the right coordinate system
-        a_0, a_1 = read_los_file(los_mode[1])
-        los = incidence_heading_to_los(a_0, a_1)
+        los = incidence_heading_to_los(*read_los_file(los_mode[1]))
         if los.shape != llh.shape[:-1]:
             raise ValueError(
                 "Incidence/heading values had wrong shape! Incidence/heading "
@@ -192,17 +177,24 @@ def getLookVectors(los_mode, llh):
     return look_vectors
 
 
-def incidence_heading_to_los(a_0, a_1):
+def incidence_heading_to_los(inc, hd):
     """
     Convert incidence-heading information into unit vectors in ECEF coordinates.
     """
-    assert a_0.shape == a_1.shape, "Incompatible dimensions!"
+    assert inc.shape == hd.shape, "Incompatible dimensions!"
 
-    east = sind(a_0) * cosd(a_1 + 90)
-    north = sind(a_0) * sind(a_1 + 90)
-    up = cosd(a_0)
+    east = sind(inc) * cosd(hd + 90)
+    north = sind(inc) * sind(hd + 90)
+    up = cosd(inc)
 
     return np.stack((east, north, up), axis=-1)
+
+
+def calculate_ray_lengths(zref, los):
+    ''' 
+    Calculate the length of the ray paths (for non-Zenith only)
+    '''
+    return self.zref/(np.sqrt(1 - 1/(np.square(self.los[..., 0]) + np.square(self.los[...,1]))))
 
 
 def get_lv_generator(los_mode):
