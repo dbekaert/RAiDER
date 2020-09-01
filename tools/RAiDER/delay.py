@@ -53,7 +53,6 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
     logger.debug('ZREF = %s', zref)
     logger.debug('stepSize = %f', stepSize)
 
-    RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize)
     return RAiDER.delayFcns.get_delays(
         stepSize, pnts_file_name, weather_model_file_name,
         interpType=interpType, zref=zref

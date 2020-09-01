@@ -4,8 +4,6 @@ from datetime import date, time
 
 import RAiDER.runProgram
 
-from RAiDER.rays import ZenithLVGenerator
-
 
 @pytest.fixture
 def delay_parser():

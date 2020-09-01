@@ -14,7 +14,7 @@ LOS_FILE = TEST_DIR / "test_geom" / "los.rdr"
 
 
 @pytest.fixture
-def los():
+def LOS():
     return gdal_open(TEST_DIR / "test_geom" / "los.rdr")
 
 
@@ -68,6 +68,18 @@ def test_zenith_generator_simple(zenithgen):
         [90. - np.degrees(np.arccos(_3)), 45., 0.],  # zenith is the line x=y=z
     ])
     ans = zenithgen.generate(llh)
+
+    print(ans)
+    print(np.array([
+        [1., 0., 0.],
+        [1., 0., 0.],
+        [0., 1., 0.],
+        [0., 0., 1.],
+        [0., _2, _2],
+        [_2, 0., _2],
+        [_2, _2, 0.],
+        [_3, _3, _3],
+    ]))
 
     assert np.allclose(ans, np.array([
         [1., 0., 0.],
