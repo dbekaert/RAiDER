@@ -23,36 +23,6 @@ from RAiDER.makePoints import makePoints1D
 log = logging.getLogger(__name__)
 
 
-def calculate_rays(pnts_file, stepSize=_STEP):
-    '''
-    From a set of lats/lons/hgts, compute ray paths from the ground to the
-    top of the atmosphere, using either a set of look vectors or the zenith
-    '''
-    log.debug('calculate_rays: Starting look vector calculation')
-    log.debug('The integration stepsize is %f m', stepSize)
-
-    # This projects the ground pixels into earth-centered, earth-fixed coordinate
-    # system and sorts by position
-    lla2ecef(pnts_file)
-
-
-def lla2ecef(pnts_file):
-    '''
-    reproject a set of lat/lon/hgts to a new coordinate system
-    '''
-    t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
-    with h5py.File(pnts_file, 'r+') as f:
-        ndv = f.attrs['NoDataValue']
-        lon = f['lon'][()]
-        lat = f['lat'][()]
-        hgt = f['hgt'][()]
-        lon[lon == ndv] = np.nan
-        lat[lat == ndv] = np.nan
-        hgt[hgt == ndv] = np.nan
-        sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
-        f['ray_start'][...] = sp.astype(np.float64)  # ensure double is maintained
-
-
 def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_num=0):
     '''
     Create the integration points for each ray path.
@@ -79,7 +49,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_nu
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['ray_start']), np.array(f['LOS']),
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Ray_start']), np.array(f['LOS']),
                          chunkSize, stepSize, ifWet, ifHydro, zref, wm_file) for kk in range(Nchunks)]
 
         with mp.Pool() as pool:

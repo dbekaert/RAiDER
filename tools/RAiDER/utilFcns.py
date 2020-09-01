@@ -1,16 +1,18 @@
 """Geodesy-related utility functions."""
 import importlib
-import logging
-import multiprocessing as mp
-import os
-import re
-from datetime import datetime
-
 import h5py
+import logging
+import os
+import pyproj
+import re
+
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import pyproj
+
+from datetime import datetime
 from osgeo import gdal, osr
+from pyproj import CRS, Transformer
 
 from RAiDER.constants import Zenith
 
@@ -272,24 +274,6 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def checkLOS(los, Npts):
-    '''
-    Check that los is either:
-       (1) Zenith,
-       (2) a set of scalar values of the same size as the number
-           of points, which represent the projection value), or
-       (3) a set of vectors, same number as the number of points.
-     '''
-    # los is a bunch of vectors or Zenith
-    if los is not Zenith:
-        los = los.reshape(-1, 3)
-
-    if los is not Zenith and los.shape[0] != Npts:
-        raise RuntimeError('Found {} line-of-sight values and only {} points'
-                           .format(los.shape[0], Npts))
-    return los
-
-
 def modelName2Module(model_name):
     """Turn an arbitrary string into a module name.
     Takes as input a model name, which hopefully looks like ERA-I, and
@@ -368,13 +352,12 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
     '''
     epsg = 4326
     projname = 'projection'
-
-    checkLOS(los, np.prod(lats.shape))
     in_shape = lats.shape
 
-    # create directory if needed
+    # create output file directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
+    # Chunk the HDF5 file for efficient reading
     if chunkSize is None:
         minChunkSize = 100
         maxChunkSize = 10000
@@ -384,13 +367,21 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
     log.debug('Chunk size is {}'.format(chunkSize))
     log.debug('Array shape is {}'.format(in_shape))
 
+    # Get query points in ECEF
+    t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
+    sp = np.moveaxis(np.array(t.transform(lons, lats, hgts)), 0, -1)
+
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
+        # write Datasets
         x = f.create_dataset('lon', data=lons, chunks=chunkSize, fillvalue=noDataValue)
         y = f.create_dataset('lat', data=lats, chunks=chunkSize, fillvalue=noDataValue)
         z = f.create_dataset('hgt', data=hgts, chunks=chunkSize, fillvalue=noDataValue)
         los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,), fillvalue=noDataValue)
+        start_positions = f.create_dataset('Ray_start', data=sp, chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
+
+        # write attributes
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
@@ -425,11 +416,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         else:
             raise NotImplementedError()
 
-        start_positions = f.create_dataset('ray_start', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
-        lengths = f.create_dataset('Rays_len', in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
-
         los.attrs['grid_mapping'] = np.string_(projname)
         start_positions.attrs['grid_mapping'] = np.string_(projname)
-        lengths.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)

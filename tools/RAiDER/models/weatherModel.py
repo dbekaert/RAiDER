@@ -9,7 +9,7 @@ from pyproj import CRS, Transformer
 
 from RAiDER import constants as const
 from RAiDER import utilFcns as util
-from RAiDER.constants import Zenith
+from RAiDER.constants import _ZREF, _ZMIN
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
@@ -51,8 +51,8 @@ class WeatherModel(ABC):
         self._R_v = 461.524
         self._R_d = 287.053
         self._g0 = const._g0  # gravity constant
-        self._zmin = const._ZMIN  # minimum integration height
-        self._zmax = const._ZREF  # max integration height
+        self._zmin = _ZMIN  # minimum integration height
+        self._zmax = _ZREF  # max integration height
         self._proj = None
 
         # setup data structures
@@ -138,20 +138,9 @@ class WeatherModel(ABC):
         self._get_wet_refractivity()
         self._get_hydro_refractivity()
         self._adjust_grid(lats=outLats, lons=outLons)
-        los_flag = self._checkLOS(los)
-        self._runLOS(los, zref, los_flag)
+        self._runLOS(los, zref)
 
-    def _checkLOS(self, los):
-        '''
-        I will check to see if a state vector has been supplied. If so, I will calculate the integrated
-        delay at the weather model grid nodes.
-        '''
-        if los is Zenith:
-            return False
-
-        return los[0] == 'sv'
-
-    def _runLOS(self, los, zref, los_flag):
+    def _runLOS(self, losGenerator, zref=_ZREF):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
@@ -159,60 +148,32 @@ class WeatherModel(ABC):
 
         _STEP = 10  # stepsize in meters
 
-        if zref is None:
-            zref = const._ZREF
-
         hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
-        los = getLookVectors(los, np.stack((self._lats, self._lons, hgts), axis=-1))
+        los = getLookVectors(losGenerator, np.stack((self._lats, self._lons, hgts), axis=-1), zref)
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
+        sp_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
+        rays = makePoints3D(zref, sp_ecef, los, _STEP)
 
-        # if a state vector was available, can compute the line-of-sight delays
-        if los_flag:
-            # ECEF to Lat/Lon reference frame
-            p1 = CRS.from_epsg(4978)
-            t = Transformer.from_proj(p1, self._proj, always_xy=True)
+        # Calculate the integrated delays
+        ifWet = make_interpolator(self._xs, self._ys, self._zs, wet)
+        ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
 
-            # Get the look vectors
-            # TODO: lengths and LOS return from GEO2RDR are not correct
-            lengths = np.linalg.norm(los, axis=-1)
-            max_len = np.nanmax(lengths)
-            los_slv = los / lengths[..., np.newaxis]
+        # Transform from ECEF to weather model native projection
+        t = Transformer.from_crs(4978, self._proj, always_xy=True) 
+        ray_x, ray_y, ray_z = t.transform(
+            rays[..., 0, :],
+            rays[..., 1, :],
+            rays[..., 2, :]
+        )
 
-            # Transform each point to ECEF
-            rays_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
+        delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
+        delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
+        delays = _integrateLOS(_STEP, delay_wet, delay_hydro)
 
-            # Calculate the integrated delays
-            ifWet = make_interpolator(self._xs, self._ys, self._zs, wet)
-            ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
+        self._wet_total = delays[..., 0]
+        self._hydrostatic_total = delays[..., 1]
 
-            # Create the rays
-            ray = makePoints3D(max_len, rays_ecef, los_slv, _STEP)
-
-            # Transform from ECEF to weather model native projection
-            ray_x, ray_y, ray_z = t.transform(
-                ray[..., 0, :],
-                ray[..., 1, :],
-                ray[..., 2, :]
-            )
-
-            delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
-            delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-            delays = _integrateLOS(_STEP, delay_wet, delay_hydro)
-
-            self._wet_total = delays[..., 0]
-            self._hydrostatic_total = delays[..., 1]
-
-        else:
-            # If LOS is not supplied, return integrated ZTD
-            wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-            # TODO: This returns zero for the last level because of the way trapz handles single points.
-            # Should probably try to re-implement the integral function
-            for level in range(wet.shape[2]):
-                wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
-                hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
-            self._hydrostatic_total = hydro_total
-            self._wet_total = wet_total
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):

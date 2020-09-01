@@ -6,6 +6,7 @@ import numpy as np
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
+from RAiDER.rays import ZenithLVGenerator
 
 SCENARIO_DIR = TEST_DIR / "scenario_1"
 
@@ -23,6 +24,8 @@ def test_tropo_delay(tmp_path):
     wmLoc = SCENARIO_DIR / 'weather_files'
     wmLoc.mkdir(exist_ok=True)
 
+    zref = 20000.
+
     _, model_obj = modelName2Module("ERA5")
     wet_file, hydro_file = makeDelayFileNames(
         time, Zenith, "envi", "ERA5", tmp_path
@@ -30,7 +33,7 @@ def test_tropo_delay(tmp_path):
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
-            los=Zenith,
+            losGen=ZenithLVGenerator(zref=zref),
             lats=lats,
             lons=lons,
             ll_bounds=(15.75, 18.25, -103.24, -99.75),
@@ -42,7 +45,7 @@ def test_tropo_delay(tmp_path):
                 "name": "ERA5"
             },
             wmLoc=wmLoc,
-            zref=20000.,
+            zref=zref,
             outformat="envi",
             time=time,
             out=tmp_path,

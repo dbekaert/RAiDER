@@ -4,11 +4,12 @@ from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
-from RAiDER.cli.validators import DateListAction, date_type, time_type
+from RAiDER.cli.validators import DateListAction, date_type, time_type, los_type
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
 from RAiDER.logger import logger
 from RAiDER.models.allowed import ALLOWED_MODELS
+from RAiDER.rays import ZenithLVGenerator
 
 log = logging.getLogger(__name__)
 
@@ -66,16 +67,25 @@ def create_parser():
 
     # Line of sight
     los = p.add_argument_group(
-        'Specify a Line-of-sight or state vector file. If neither argument is supplied, the Zenith delay will be returned'
-    ).add_mutually_exclusive_group()
+        'Specify a Line-of-sight or state vector file. If neither is supplied, the Zenith delay will be returned'
+    )
     los.add_argument(
-        '--lineofsight', '-l',
-        help='GDAL-readable two-band line-of-sight file (B1: inclination, B2: heading)',
-             metavar='LOS', default=None)
+        '--LOS_file_option', '-l',
+        help=dedent('''\
+        Can be:
+            A GDAL-readable two-band file (B1: inclination, B2: heading)
+            An ESA orbit file (time must correspond to the input query time)
+            A 7-column text file containing state vectors
+            '''),
+        metavar='LOS',
+        type=los_type,
+        dest='lineofsight',
+        default=None)
     los.add_argument(
-        '--statevectors', '-s', default=None, metavar='SV',
-        help='An ESA orbit file or text file containing state vectors specifying '
-             'the orbit of the sensor.')
+        '--zref', '-z',
+        help='Reference vertical integration height limit (meters) (default: {} m)'.format(_ZREF),
+        type=float,
+        default=_ZREF)
 
     # heights
     heights = p.add_argument_group('Height data. Default is ground surface for specified lat/lons, height levels otherwise')
@@ -105,11 +115,6 @@ def create_parser():
         default=None, dest='wmLoc')
 
     misc = p.add_argument_group("Run parameters")
-    misc.add_argument(
-        '--zref', '-z',
-        help='Height limit when integrating (meters) (default: {} km)'.format(_ZREF),
-        type=float,
-        default=_ZREF)
     misc.add_argument(
         '--outformat',
         help='GDAL-compatible file format if surface delays are requested.',

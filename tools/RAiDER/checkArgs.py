@@ -54,12 +54,7 @@ def checkArgs(args, p):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc
-    if args.lineofsight is not None:
-        los = ('los', args.lineofsight)
-    elif args.statevectors is not None:
-        los = ('sv', args.statevectors)
-    else:
-        los = Zenith
+    los = args.lineofsight
 
     # Weather
     weather_model_name = args.model
@@ -126,7 +121,7 @@ def checkArgs(args, p):
             indf.to_csv(wetFilename, index=False)
         else:
             wetFilename, hydroFilename = \
-                RAiDER.utilFcns.makeDelayFileNames(time, los, outformat, weather_model_name, out)
+                RAiDER.utilFcns.makeDelayFileNames(time, los.getLOSType(), outformat, weather_model_name, out)
 
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)

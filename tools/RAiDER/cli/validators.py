@@ -1,7 +1,17 @@
 import itertools
+import numpy as np
+
 from argparse import Action, ArgumentError, ArgumentTypeError
 from datetime import date, time, timedelta
 from time import strptime
+
+from RAiDER.losreader import (
+    read_ESA_Orbit_file, read_los_file, read_shelve, read_txt_file
+)
+from RAiDER.rays import (
+    LOSGenerator, ZenithLVGenerator, OrbitLVGenerator
+)
+from RAiDER.utilFcns import sind, cosd
 
 
 class MappingType(object):
@@ -187,59 +197,6 @@ class BBoxAction(Action):
         setattr(namespace, self.dest, values)
 
 
-class LOSAction(Action):
-    '''
-    An Action that checks for and parses a valid method for computing line-of-sight
-    vectors, and stores the result as a generator object
-    '''
-
-    def __init__(
-        self,
-        option_strings,
-        dest,
-        nargs=None,
-        const=None,
-        default=None,
-        type=None,
-        choices=None,
-        required=False,
-        help=None,
-        metavar=None
-    ):
-
-        super().__init__(
-            option_strings=option_strings,
-            dest=dest,
-            nargs=nargs,
-            const=const,
-            default=default,
-            type=type,
-            choices=choices,
-            required=required,
-            help=help,
-            metavar=metavar
-        )
-
-    def __call__(self, parser, namespace, values, option_string=None):
-        if values is None:
-            los = Zenith
-        else:
-            try:
-                generator = parseAsRaster(values)
-            except AttributeError:
-                pass
-
-            try:
-                generator = parseAsStateVectorFile(values)
-            except AttributeError:
-                pass
-
-           #TODO: Add in ARIA file reader
-
-            raise ValueError('The format of the line-of-sight file(s) is not recognized')
-          
-        setattr(namespace, self.dest, values)
-
 def date_type(arg):
     """
     Parse a date from a string in pseudo-ISO 8601 format.
@@ -297,3 +254,72 @@ def time_type(arg):
     raise ArgumentTypeError(
         'Unable to coerce {} to a time. Try T%H:%M:%S'.format(arg)
     )
+
+
+def los_type(arg):
+    '''
+    Parse an input file for the line-of-sight option or return Zenith
+    '''
+    if arg is None:
+        return ZenithLVGenerator()
+    else:
+        try:
+            return parseAsLOSRaster(arg)
+        except RuntimeError:
+            pass
+
+        try:
+            return parseAsStateVectorFile(arg)
+        except ValueError:
+            pass
+
+       # TODO: Add in ARIA file reader
+
+        raise ValueError(
+            'The format of the line-of-sight file(s) is not recognized'
+        )
+
+
+def parseAsLOSRaster(filename):
+    ''' 
+    Read a 2-band raster file (B1: incidence angle, B2: heading) and return 
+    line-of-sight generator 
+    '''
+    return LOSGenerator(incidence_heading_to_los(*read_los_file(filename)))
+
+
+def parseAsStateVectorFile(filename):
+    ''' Read an file containing state vectors '''
+    states = None
+    try:
+        states = read_ESA_Orbit_file(filename)
+    except Exception:
+        pass
+
+    try:
+        states = read_txt_file(filename)
+    except Exception:
+        pass
+
+    try:
+        states = read_shelve_file(filename)
+    except Exception:
+        pass
+
+    if states is None:
+        raise ValueError()
+    else:
+        return OrbitLVGenerator(states)
+
+
+def incidence_heading_to_los(inc, hd):
+    """
+    Convert incidence-heading information into unit vectors in ECEF coordinates.
+    """
+    assert inc.shape == hd.shape, "Incompatible dimensions!"
+
+    east = sind(inc) * cosd(hd + 90)
+    north = sind(inc) * sind(hd + 90)
+    up = cosd(inc)
+
+    return np.stack((east, north, up), axis=-1)

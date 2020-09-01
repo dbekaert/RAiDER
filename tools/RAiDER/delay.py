@@ -101,7 +101,7 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         return wet, hydro
 
 
-def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
+def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                 outformat, time, out, download_only, wetFilename, hydroFilename):
     """
     raiderDelay main function.
@@ -115,7 +115,6 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
 
     # Flags
     useWeatherNodes = flag == 'bounding_box'
-    delayType = ["Zenith" if los is Zenith else "LOS"]
 
     # location of the weather model files
     log.debug('Beginning weather model pre-processing')
@@ -128,7 +127,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
-            weather_model, wmLoc, out, lats=lats, lons=lons, los=los, zref=zref,
+            weather_model, wmLoc, out, lats=lats, lons=lons, los=losGen, zref=zref,
             time=time, download_only=download_only
         )
         try:
@@ -167,7 +166,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
                 np.nanmin(hgts), np.nanmax(hgts)
             )
             log.debug('Beginning line-of-sight calculation')
-            los = getLookVectors(los, np.stack((lats, lons, hgts), axis=-1))
+            los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1), zref)
 
             # write to an HDF5 file
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
@@ -183,7 +182,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    outName, zlevels=hgts, outformat=outformat, delayType=delayType)
+                    outName, zlevels=hgts, outformat=outformat, delayType=losGen.getLOSType())
         log.info('Finished writing data to %s', outName)
     elif useWeatherNodes:
         log.info(
