@@ -149,7 +149,7 @@ class WeatherModel(ABC):
         _STEP = 10  # stepsize in meters
 
         hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
-        los = getLookVectors(losGenerator, np.stack((self._lats, self._lons, hgts), axis=-1), zref)
+        los = getLookVectors(losGenerator, np.stack((self._lats, self._lons, hgts), axis=-1))
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
         sp_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)

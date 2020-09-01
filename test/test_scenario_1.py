@@ -33,7 +33,7 @@ def test_tropo_delay(tmp_path):
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
-            losGen=ZenithLVGenerator(zref=zref),
+            losGen=ZenithLVGenerator(),
             lats=lats,
             lons=lons,
             ll_bounds=(15.75, 18.25, -103.24, -99.75),

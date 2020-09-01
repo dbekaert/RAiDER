@@ -55,7 +55,7 @@ class LOSGenerator(LVGenerator):
             raise ValueError(
                 "The shape of the input lat/lon points didn't match "
                 "the line-of-sight vector. llh shape: {}, los shape: {}"
-                .format(los.shape, llh.shape)
+                .format(self._los.shape, llh.shape)
             )
         return self._los
 
