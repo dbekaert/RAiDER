@@ -12,7 +12,6 @@ from datetime import datetime
 import numpy as np
 
 import RAiDER.utilFcns
-from RAiDER.rays import Zenith
 from RAiDER.llreader import readLL
 
 
