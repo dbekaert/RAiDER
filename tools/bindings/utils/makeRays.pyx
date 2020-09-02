@@ -41,7 +41,7 @@ def intersect_altitude(pos, dir, altitude):
     # Quadratic formula
     t = (-B + np.sqrt(B ** 2 - 4 * A * C)) / (2 * A)
 
-    return pos + t.reshape(-1, 1) * dir
+    return pos + t[..., np.newaxis] * dir
 
 
 @cython.boundscheck(False)
@@ -110,29 +110,30 @@ def makeRays3D(
       ray: a Nx x Ny x Nz x 3 x Npts array containing the rays tracing a path from the ground pixels, along the
            line-of-sight vectors, up to the maximum length specified.
     '''
-    cdef np.ndarray[npy_float64, ndim=2] end = intersect_altitude(start, direction, altitude)
-    cdef double[:] distances = np.linalg.norm(start - end, axis=-1)
+    cdef np.ndarray[npy_float64, ndim=4] end = intersect_altitude(start, direction, altitude)
+    cdef double[:, :, :] distances = np.linalg.norm(start - end, axis=-1)
     cdef double max_len = np.nanmax(distances)
 
     cdef long max_points = (<long>cround(max_len / step_size)) + 1
     cdef int k1, k2, k2a, k3, k4
 
-    cdef int Npts
-    if max_len % step_size != 0:
-        Npts = int(max_len//step_size) + 1
-    else:
-        Npts = int(max_len//step_size)
-
     cdef int nrow = start.shape[0]
     cdef int ncol = start.shape[1]
     cdef int nz = start.shape[2]
-    cdef np.ndarray[npy_float64, ndim = 5, mode = 'c'] ray = np.empty((nrow, ncol, nz, 3, Npts), dtype=np.float64)
-    cdef np.ndarray[npy_float64, ndim = 1, mode = 'c'] basespace = np.arange(0, max_len+step_size, step_size)
+    cdef np.ndarray[npy_float64, ndim = 5, mode = 'c'] ray = np.empty((nrow, ncol, nz, 3, max_points), dtype=np.float64)
+    cdef np.ndarray[npy_float64, ndim = 1, mode = 'c'] basespace = np.arange(0, max_len + step_size, step_size)
 
     for k1 in range(nrow):
         for k2 in range(ncol):
             for k2a in range(nz):
+                num_points = (<long>cround(distances[k1, k2, k2a] / step_size)) + 1
                 for k3 in range(3):
-                    for k4 in range(Npts):
+                    # Compute the ray points
+                    for k4 in range(num_points):
                         ray[k1, k2, k2a, k3, k4] = start[k1, k2, k2a, k3] + basespace[k4]*direction[k1, k2, k2a, k3]
+
+                    # Fill the rest of values with 'no data'. This is needed since
+                    # numpy arrays must be rectangular.
+                    for k4 in range(num_points, max_points):
+                        ray[k1, k2, k2a, k3, k4] = NAN
     return ray

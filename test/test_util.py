@@ -14,35 +14,31 @@ from RAiDER.utilFcns import (
 
 
 @pytest.fixture
-def make_points_0d_data():
-    return (
-        np.stack([
-            np.zeros(200),
+def ray1():
+    return np.stack(
+        (
+            np.full(200, 6378137.),
             np.zeros(200),
             np.arange(0, 1000, 5)
-        ],
-            axis=-1
-        ).T,
-        (1000., np.array([0., 0., 0.]), np.array([0., 0., 1.]), 5.)
+        ),
+        axis=0
     )
 
 
 @pytest.fixture
-def make_rays_1d_data():
-    ray1 = np.stack([
-        np.full(200, 6378137.),
-        np.zeros(200),
-        np.arange(0, 1000, 5)
-    ],
-        axis=-1
-    ).T
-    ray2 = np.stack([
-        np.full(200, 6378137.),
-        np.arange(0, 1000, 5),
-        np.zeros(200),
-    ],
-        axis=-1
-    ).T
+def ray2():
+    return np.stack(
+        (
+            np.full(200, 6378137.),
+            np.arange(0, 1000, 5),
+            np.zeros(200)
+        ),
+        axis=0
+    )
+
+
+@pytest.fixture
+def make_rays_1d_data(ray1, ray2):
     rays = np.stack([ray1, ray2], axis=0)
 
     sp = np.array([[6378137., 0., 0.],
@@ -56,46 +52,17 @@ def make_rays_1d_data():
 
 
 @pytest.fixture
-def make_points_2d_data():
-    sp = np.zeros((2, 2, 3))
-    slv = np.zeros((2, 2, 3))
-    slv[0, 0, 0] = 1
-    slv[0, 1, 1] = 1
-    slv[1, 0, 2] = 1
-    slv[1, 1, 0] = -1
-    make_points_args = (20., sp, slv, 5)
+def make_rays_3d_data(ray1, ray2):
+    rays = np.array([[[ray1, ray2]]])
 
-    rays = np.array([[[[0., 5., 10., 15.],
-                       [0., 0., 0., 0.],
-                       [0., 0., 0., 0.]],
-                      [[0., 0., 0., 0.],
-                       [0., 5., 10., 15.],
-                       [0., 0., 0., 0.]]],
-                     [[[0., 0., 0., 0.],
-                       [0., 0., 0., 0.],
-                       [0., 5., 10., 15.]],
-                      [[0., -5., -10., -15.],
-                       [0., 0., 0., 0.],
-                       [0., 0., 0., 0.]]]])
+    sp = np.array([[[[6378137., 0., 0.],
+                   [6378137., 0., 0.]]]])
+    slv = np.array([[[[0., 0., 1.],
+                    [0., 1., 0.]]]])
+
+    make_points_args = (.078, sp, slv, 5.)
 
     return rays, make_points_args
-
-
-@pytest.fixture
-def make_rays_3d_data():
-    sp = np.zeros((3, 3, 3, 3))
-    sp[:, :, 1, 2] = 10
-    sp[:, :, 2, 2] = 100
-    slv = np.zeros((3, 3, 3, 3))
-    slv[0, :, :, 2] = 1
-    slv[1, :, :, 1] = 1
-    slv[2, :, :, 0] = 1
-
-    make_points_args = (100., sp, slv, 5)
-
-    df = np.loadtxt(TEST_DIR / "test_result_makeRays3D.txt")
-
-    return df.reshape((3, 3, 3, 3, 20)), make_points_args
 
 
 def test_sind():
@@ -224,7 +191,7 @@ def test_makeRays3D_Cython_values(make_rays_3d_data):
 
     test_result = makeRays3D(*args)
 
-    assert test_result.ndim == 5
+    assert test_result.shape == true_rays.shape
     assert np.allclose(test_result, true_rays)
 
 
