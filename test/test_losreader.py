@@ -22,14 +22,16 @@ def test_read_orbit_file(eof_file):
 
     assert np.allclose(t, [
         datetime(2020, 1, 2, 22, 59, 42, 0, timezone.utc).timestamp(),
-        datetime(2020, 1, 2, 22, 59, 52, 0, timezone.utc).timestamp()
+        datetime(2020, 1, 2, 22, 59, 52, 0, timezone.utc).timestamp(),
+        datetime(2020, 1, 2, 23, 0, 2, 0, timezone.utc).timestamp(),
+        datetime(2020, 1, 2, 23, 0, 12, 0, timezone.utc).timestamp()
     ])
-    assert np.allclose(x, [777807.283170, 753103.689876])
-    assert np.allclose(y, [-5326950.100710, -5281833.274981])
-    assert np.allclose(z, [4583342.946432, 4639190.094438])
-    assert np.allclose(vx, [-2469.328881, -2471.328262])
-    assert np.allclose(vy, [4480.112758, 4543.168347])
-    assert np.allclose(vz, [5610.695699, 5558.629043])
+    assert np.allclose(x, [777807.283170, 753103.689876, 728381.947308, 703645.740783])
+    assert np.allclose(y, [-5326950.100710, -5281833.274981, -5236088.427631, -5189720.677640])
+    assert np.allclose(z, [4583342.946432, 4639190.094438, 4694513.439786, 4749306.750152])
+    assert np.allclose(vx, [-2469.328881, -2471.328262, -2472.958826, -2474.221153])
+    assert np.allclose(vy, [4480.112758, 4543.168347, 4605.715817, 4667.747622])
+    assert np.allclose(vz, [5610.695699, 5558.629043, 5505.936161, 5452.623056])
 
 
 def test_read_txt_file(txt_file):
