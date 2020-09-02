@@ -73,18 +73,6 @@ def test_zenith_generator_simple(zenithgen):
     ])
     ans = zenithgen.generate(llh)
 
-    print(ans)
-    print(np.array([
-        [1., 0., 0.],
-        [1., 0., 0.],
-        [0., 1., 0.],
-        [0., 0., 1.],
-        [0., _2, _2],
-        [_2, 0., _2],
-        [_2, _2, 0.],
-        [_3, _3, _3],
-    ]))
-
     assert np.allclose(ans, np.array([
         [1., 0., 0.],
         [1., 0., 0.],
