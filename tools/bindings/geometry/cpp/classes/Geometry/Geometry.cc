@@ -119,7 +119,7 @@ pixel Geo2rdr::get_radar_coordinate( Orbit &orbit, point &xyz, double t0)
         ii++;
     }
     double t_azimuth = t;
-    
+
     double slant_range = sqrt(pow(xyz.x - st.position.x ,2) + pow(xyz.y - st.position.y, 2) + pow(xyz.z - st.position.z, 2));
     return pixel(t_azimuth, slant_range);
 }
@@ -146,7 +146,7 @@ void Geo2rdr::get_radar_coordinate( point &xyz, point &sensor_xyz, double &slant
 
         //slant_range = sqrt(pow(xyz.x - st.position.x ,2) + pow(xyz.y - st.position.y, 2) + pow(xyz.z - st.position.z, 2));
 
-        //std::cout << setprecision(10) << " ii, dt: " << ii << " , " << dt << " , " << slant_range << std::endl;    
+        //std::cout << setprecision(10) << " ii, dt: " << ii << " , " << dt << " , " << slant_range << std::endl;
         ii++;
 
     }
@@ -167,12 +167,8 @@ void Geo2rdr::get_radar_coordinate( point &xyz, point &sensor_xyz, double &slant
 
 void Geo2rdr::geo2rdr()
 {
-
-    std::cout << "geo2rdr" << std::endl;
-
     ellipsoid elp;
-    elp.wgs84(); 
-    elp.info();
+    elp.wgs84();
     int middle_stvec = nr_state_vectors/2;
     double t0 = orbit.t[5]; // middle_stvec];
 
@@ -180,7 +176,7 @@ void Geo2rdr::geo2rdr()
     //statevector st = orbit.get_statevector(t0);
     //std::cout << " state vector at : " << t0 << std::endl;
     //std::cout << std::setprecision(10) << st.position.x << " , " << st.position.y << " , "<< st.position.z << std::endl;
-    
+
     //
 
     double lat;
