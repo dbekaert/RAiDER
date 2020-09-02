@@ -53,6 +53,32 @@
         <VZ unit="m/s">5558.629043</VZ>
         <Quality>NOMINAL</Quality>
       </OSV>
+      <OSV>
+        <TAI>TAI=2020-01-02T23:00:39.000000</TAI>
+        <UTC>UTC=2020-01-02T23:00:02.000000</UTC>
+        <UT1>UT1=2020-01-02T23:00:01.821915</UT1>
+        <Absolute_Orbit>+30628</Absolute_Orbit>
+        <X unit="m">728381.947308</X>
+        <Y unit="m">-5236088.427631</Y>
+        <Z unit="m">4694513.439786</Z>
+        <VX unit="m/s">-2472.958826</VX>
+        <VY unit="m/s">4605.715817</VY>
+        <VZ unit="m/s">5505.936161</VZ>
+        <Quality>NOMINAL</Quality>
+      </OSV>
+      <OSV>
+        <TAI>TAI=2020-01-02T23:00:49.000000</TAI>
+        <UTC>UTC=2020-01-02T23:00:12.000000</UTC>
+        <UT1>UT1=2020-01-02T23:00:11.821915</UT1>
+        <Absolute_Orbit>+30628</Absolute_Orbit>
+        <X unit="m">703645.740783</X>
+        <Y unit="m">-5189720.677640</Y>
+        <Z unit="m">4749306.750152</Z>
+        <VX unit="m/s">-2474.221153</VX>
+        <VY unit="m/s">4667.747622</VY>
+        <VZ unit="m/s">5452.623056</VZ>
+        <Quality>NOMINAL</Quality>
+      </OSV>
     </List_of_OSVs>
   </Data_Block>
 </Earth_Explorer_File>
