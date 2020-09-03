@@ -13,7 +13,7 @@ from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
-from RAiDER.makeRays import makeRays1D
+from RAiDER.makeRays import makeRays3D
 from RAiDER.models import plotWeather as plots
 from RAiDER.rays import getLookVectors
 from RAiDER.utilFcns import lla2ecef, robmax, robmin
