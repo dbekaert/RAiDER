@@ -59,7 +59,7 @@ jobs:
             source activate myenv
             conda activate RAiDER
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            py.test test/ $COV_OPTIONS --cov-report=
+            py.test test/ -s $COV_OPTIONS --cov-report=
       - run:
           name: Report coverage
           command: |
