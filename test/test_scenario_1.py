@@ -11,6 +11,7 @@ from RAiDER.rays import ZenithLVGenerator
 SCENARIO_DIR = TEST_DIR / "scenario_1"
 
 
+@pytest.mark.skipif(True)
 def test_tropo_delay(tmp_path):
     '''
     Scenario:
@@ -30,6 +31,19 @@ def test_tropo_delay(tmp_path):
     wet_file, hydro_file = makeDelayFileNames(
         time, Zenith, "envi", "ERA5", tmp_path
     )
+
+    print("download", DATA_DIR / "geom" / "warpedDEM.dem"),
+
+    print(" ")
+    print(SCENARIO_DIR)
+    print(SCENARIO_DIR / 'geom' / 'lon.dat')
+    print(SCENARIO_DIR / "wet.envi")
+    print(SCENARIO_DIR / "hydro.envi")
+    print(" ")
+
+    print("Weather model file location is {}".format(wmLoc))
+    print("Wet filename is {}".format(hydro_file))
+    print("Hydrostatic filename is {}".format(hydro_file))
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
