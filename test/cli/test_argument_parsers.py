@@ -49,7 +49,6 @@ def test_delay_args(delay_parser):
     assert args.verbose == 1
 
 
-@pytest.mark.xfail(reason='Have to update test to handle new LOS generator objects')
 def test_delay_los_mutually_exclusive(delay_parser):
     with pytest.raises(SystemExit):
         delay_parser.parse_args([
