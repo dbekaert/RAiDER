@@ -1,7 +1,9 @@
 import datetime
-from test import DATA_DIR, TEST_DIR, pushd
+import pytest
 
 import numpy as np
+
+from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
@@ -11,7 +13,7 @@ from RAiDER.rays import ZenithLVGenerator
 SCENARIO_DIR = TEST_DIR / "scenario_1"
 
 
-@pytest.mark.skipif(True)
+@pytest.mark.skipif(True,reason="Testing scenario 2 on circleCI")
 def test_tropo_delay(tmp_path):
     '''
     Scenario:
