@@ -13,6 +13,10 @@ from RAiDER.rays import ZenithLVGenerator
 SCENARIO_DIR = TEST_DIR / "scenario_1"
 
 
+@pytest.mark.skipif(
+    True,
+    reason="Temporarily skipping to check other tests"
+)
 def test_tropo_delay(tmp_path):
     '''
     Scenario:
