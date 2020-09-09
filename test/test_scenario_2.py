@@ -1,4 +1,6 @@
 # Unit and other tests
+import pytest
+
 from datetime import datetime
 from shutil import copyfile
 from test import TEST_DIR, pushd
