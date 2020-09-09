@@ -14,7 +14,7 @@ import pandas as pd
 
 from RAiDER.logger import *
 from RAiDER.utilFcns import gdal_open
-
+from RAiDER.logger import *
 
 def readLL(*args):
     '''

@@ -12,6 +12,7 @@ import h5py
 import numpy as np
 
 import RAiDER.delayFcns
+
 from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.dem import getHeights
@@ -105,6 +106,8 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
     """
     raiderDelay main function.
     """
+    # Parameters
+    stepSize = _STEP
 
     logger.debug('Starting to run the weather model calculation')
     logger.debug('Time type: %s', type(time))
@@ -122,7 +125,7 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
-    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
+    wm_filename = make_weather_model_filename(weather_model.Model(), time, ll_bounds)
     weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
@@ -154,34 +157,43 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
         pnts_file = os.path.join(out, 'geom', 'query_points.h5')
         if not os.path.exists(pnts_file):
 
-            # Convert the line-of-sight inputs to look vectors
-            logger.debug('Lats shape is %s', lats.shape)
-            logger.debug(
-                'lat/lon box is %f/%f/%f/%f (SNWE)',
-                np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
-            )
-            logger.debug(
-                'DEM height range is %.2f-%.2f m',
-                np.nanmin(hgts), np.nanmax(hgts)
-            )
             logger.debug('Beginning line-of-sight calculation')
-            los = getLookVectors(los, lats, lons, hgts, zref)
+            los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
 
             # write to an HDF5 file
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
-    wetDelay, hydroDelay = computeDelay(
-        weather_model_file_name=weather_model_file,
-        pnts_file_name=pnts_file,
-        useWeatherNodes=useWeatherNodes,
-        zref=zref,
-        out=out
-    )
+    logger.debug('Beginning delay calculation')
+    logger.debug('Reference z-value (max z for integration) is %f m', zref)
+    logger.debug('Beginning ray calculation')
+    logger.debug('stepSize = %f', stepSize)
 
+    # Calculate the delays
+    if useWeatherNodes:
+        # If weather model nodes only are desired, the calculation is very quick
+        with h5py.File(weather_model_file, 'r') as f:
+            zs_wm = f['z'][()].copy()
+            wet_delays = f['wet_total'][()].copy()
+            hydro_delays = f['hydro_total'][()].copy()
+        if heights[0] == 'lvs':
+            zlevels = heights[1]
+            wet_delays = interp_along_axis(zs_wm, zlevels, wet_delays, axis=-1)
+            hydro_delays = interp_along_axis(zs_wm, zlevels, hydro_delays, axis=-1)
+    else:
+        wet_delays, hydro_delays = RAiDER.delayFcns.get_delays(
+            stepSize, 
+            pnts_file, 
+            weather_model_file,
+            zref=zref
+        )
+
+    logger.debug('Finished delay calculation')
+
+    # write results to file
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    outName, zlevels=hgts, outformat=outformat, delayType=delayType)
+        writeDelays(flag, wet_delays, hydro_delays, lats, lons,
+                    outName, zlevels=heights[1], outformat='hdf5', delayType=losGen.getLOSType())
         logger.info('Finished writing data to %s', outName)
     elif useWeatherNodes:
         logger.info(
@@ -189,7 +201,7 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
             weather_model_file
         )
     else:
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+        writeDelays(flag, wet_delays, hydro_delays, lats, lons,
                     wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
         logger.info('Finished writing data to %s', wetFilename)
@@ -234,3 +246,4 @@ def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
         )
 
     return 1
+

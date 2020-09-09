@@ -9,13 +9,20 @@
 import contextlib
 import os
 import sys
-from datetime import datetime
 
 import numpy as np
+
+<<<<<<< HEAD
+from RAiDER.logger import *
+from RAiDER.utilFcns import getTimeFromFile
+
+=======
+from datetime import datetime
 
 from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
 
+>>>>>>> Update unit tests, fix bugs, and clean up
 
 def getWMFilename(weather_model_name, time, outLoc):
     '''
@@ -35,15 +42,17 @@ def getWMFilename(weather_model_name, time, outLoc):
 
     logger.debug('Storing weather model at: %s', f)
 
-    download_flag = True
     if os.path.exists(f):
         logger.warning('Weather model already exists, skipping download')
+<<<<<<< HEAD
         download_flag = False
+=======
+>>>>>>> Update unit tests, fix bugs, and clean up
 
-    return download_flag, f
+    return f
 
 
-def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
+def prepareWeatherModel(weather_model, wmFileLoc, lats=None, lons=None,
                         los=None, zref=None, time=None,
                         download_only=False, makePlots=False):
     '''
@@ -51,6 +60,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     '''
 
     # Make weather
+<<<<<<< HEAD
     weather_model, weather_files, weather_model_name = \
         weatherDict['type'], weatherDict['files'], weatherDict['name']
 
@@ -76,10 +86,26 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
                 'download_only flag selected. No further processing will happen.'
             )
             return None, None, None
+=======
+    if weather_model.files is not None:
+        time = getTimeFromFile(weather_model.files[0])
+
+    # Download the weather model file unless it already exists
+    f = getWMFilename(weather_model.Model(), time, wmFileLoc)
+    if ~os.path.exists(f):
+        weather_model.fetch(lats, lons, time, f)
+
+    # exit on download if download_only requested
+    if download_only:
+        logger.warning(
+            'download_only flag selected. No further processing will happen.'
+        )
+        return None, None, None
+>>>>>>> Update unit tests, fix bugs, and clean up
 
     # Load the weather model data
-    if weather_files is not None:
-        weather_model.load(*weather_files, outLats=lats, outLons=lons, los=los, zref=zref)
+    if weather_model.files is not None:
+        weather_model.load(*weather_model.files, outLats=lats, outLons=lons, los=los, zref=zref)
         download_flag = False
     else:
         weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)

@@ -15,40 +15,11 @@ import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
+
 from RAiDER.constants import _STEP, _ZREF
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.logger import *
-from RAiDER.makePoints import makePoints1D
-
-
-def calculate_rays(pnts_file, stepSize=_STEP):
-    '''
-    From a set of lats/lons/hgts, compute ray paths from the ground to the
-    top of the atmosphere, using either a set of look vectors or the zenith
-    '''
-    logger.debug('calculate_rays: Starting look vector calculation')
-    logger.debug('The integration stepsize is %f m', stepSize)
-
-    # This projects the ground pixels into earth-centered, earth-fixed coordinate
-    # system and sorts by position
-    lla2ecef(pnts_file)
-
-
-def lla2ecef(pnts_file):
-    '''
-    reproject a set of lat/lon/hgts to a new coordinate system
-    '''
-    t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
-    with h5py.File(pnts_file, 'r+') as f:
-        ndv = f.attrs['NoDataValue']
-        lon = f['lon'][()]
-        lat = f['lat'][()]
-        hgt = f['hgt'][()]
-        lon[lon == ndv] = np.nan
-        lat[lat == ndv] = np.nan
-        hgt[hgt == ndv] = np.nan
-        sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
-        f['ray_start'][...] = sp.astype(np.float64)  # ensure double is maintained
+from RAiDER.makeRays import makeRays1D
 
 
 def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_num=0):
@@ -90,16 +61,6 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_nu
     wet_delay = delays[0, ...].reshape(in_shape)
     hydro_delay = delays[1, ...].reshape(in_shape)
 
-    time_elapse = (time.time() - t0)
-    with open('get_delays_time_elapse.txt', 'w') as f:
-        f.write('{}'.format(time_elapse))
-    time_elapse_hr = int(np.floor(time_elapse / 3600.0))
-    time_elapse_min = int(np.floor((time_elapse - time_elapse_hr * 3600.0) / 60.0))
-    time_elapse_sec = (time_elapse - time_elapse_hr * 3600.0 - time_elapse_min * 60.0)
-    logger.debug(
-        "Delay estimation cost %d hour(s) %d minute(s) %d second(s) using %d cpu threads",
-        time_elapse_hr, time_elapse_min, time_elapse_sec, cpu_num
-    )
     return wet_delay, hydro_delay
 
 

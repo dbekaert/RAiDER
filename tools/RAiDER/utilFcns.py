@@ -13,6 +13,8 @@ from datetime import datetime
 from osgeo import gdal, osr
 from pyproj import CRS, Transformer
 
+from RAiDER.logger import *
+
 from RAiDER.constants import Zenith
 from RAiDER import Geo2rdr
 from RAiDER.logger import *

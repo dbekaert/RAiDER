@@ -35,6 +35,8 @@ class WeatherModel(ABC):
         self._a = []
         self._b = []
 
+        self.files = None
+
         self._lon_res = None
         self._lat_res = None
         self._x_res = None
@@ -103,6 +105,11 @@ class WeatherModel(ABC):
         string += 'A: {}\n'.format(self._a)
         string += 'B: {}\n'.format(self._b)
         return str(string)
+
+    def __eq__(self, other):
+        if not isinstance(other, WeatherModel):
+            return False
+        return self._Name == other._Name
 
     def Model(self):
         return self._Name

@@ -1,7 +1,9 @@
 import datetime
-from test import DATA_DIR, TEST_DIR, pushd
+import pytest
 
 import numpy as np
+
+from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
@@ -12,7 +14,10 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-4
 
 
-@pytest.mark.skipif(True)
+# @pytest.mark.skipif(
+#    True,
+#    reason="Temporarily skipping to check other tests"
+# )
 def test_tropo_delay(tmp_path):
     '''
     Scenario:
@@ -28,23 +33,10 @@ def test_tropo_delay(tmp_path):
 
     zref = 20000.
 
-    _, model_obj = modelName2Module("ERA5")
+    _, model_obj = modelName2Module("ERA5T")
     wet_file, hydro_file = makeDelayFileNames(
         time, Zenith, "envi", "ERA5", tmp_path
     )
-
-    print("download", DATA_DIR / "geom" / "warpedDEM.dem"),
-
-    print(" ")
-    print(SCENARIO_DIR)
-    print(SCENARIO_DIR / 'geom' / 'lon.dat')
-    print(SCENARIO_DIR / "wet.envi")
-    print(SCENARIO_DIR / "hydro.envi")
-    print(" ")
-
-    print("Weather model file location is {}".format(wmLoc))
-    print("Wet filename is {}".format(hydro_file))
-    print("Hydrostatic filename is {}".format(hydro_file))
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
@@ -55,11 +47,7 @@ def test_tropo_delay(tmp_path):
             heights=("download", os.path.join(
                 TEST_DIR, "test_geom", "warpedDEM.dem")),
             flag="files",
-            weather_model={
-                "type": model_obj(),
-                "files": None,
-                "name": "ERA5"
-            },
+            weather_model=model_obj(),
             wmLoc=wmLoc,
             zref=zref,
             outformat="envi",

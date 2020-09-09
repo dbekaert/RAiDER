@@ -122,14 +122,42 @@ class ECMWF(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at ECMWF
-        self._get_from_ecmwf(
-            lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
-            out)
+        try:
+            self._get_from_ecmwf(
+                lat_min,
+                lat_max,
+                self._lat_res,
+                lon_min,
+                lon_max,
+                self._lon_res,
+                time,
+                out
+            )
+        except Exception:
+            self._get_from_cds(
+                lat_min,
+                lat_max,
+                self._lat_res,
+                lon_min,
+                lon_max,
+                self._lon_res,
+                time,
+                out
+            )
 
-    def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
-                        lon_step, time, out):
+    def _get_from_ecmwf(
+        self,
+        lat_min,
+        lat_max,
+        lat_step,
+        lon_min,
+        lon_max,
+        lon_step,
+        time,
+        out
+    ):
+
         import ecmwfapi
-
         server = ecmwfapi.ECMWFDataServer()
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
@@ -164,8 +192,17 @@ class ECMWF(WeatherModel):
             "target": out,    # target: the name of the output file.
         })
 
-    def _get_from_cds(self, lat_min, lat_max, lat_step, lon_min, lon_max,
-                      lon_step, acqTime, outname):
+    def _get_from_cds(
+        self,
+        lat_min,
+        lat_max,
+        lat_step,
+        lon_min,
+        lon_max,
+        lon_step,
+        acqTime,
+        outname
+    ):
         import cdsapi
 
         pls = ['1', '2', '3', '5', '7', '10', '20', '30', '50', '70', '100', '125', '150', '175', '200', '225', '250', '300', '350', '400', '450', '500', '550', '600', '650', '700', '750', '775', '800', '825', '850', '875', '900', '925', '950', '975', '1000']

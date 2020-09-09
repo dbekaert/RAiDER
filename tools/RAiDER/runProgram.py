@@ -3,12 +3,13 @@ from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
-from RAiDER.cli.validators import DateListAction, LOSFileTypeAction, date_type, time_type
+from RAiDER.cli.validators import (
+    DateListAction, LOSFileTypeAction, date_type, time_type, weather_model_type, los_type
+)
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay, weather_model_debug
 from RAiDER.logger import *
 from RAiDER.models.allowed import ALLOWED_MODELS
-
 
 
 def create_parser():
@@ -84,9 +85,9 @@ def create_parser():
             A 7-column text file containing state vectors
             '''),
         metavar='LOS',
-        action=LOSFileTypeAction,
+        type=los_type,
+        default=ZenithLVGenerator(),
         dest='lineofsight',
-        default=None,
     )
     los.add_argument(
         '--zref', '-z',
@@ -112,9 +113,10 @@ def create_parser():
     weather.add_argument(
         '--model',
         help="Weather model option to use.",
-        type=lambda s: s.upper().replace("-", ""),
-        choices=ALLOWED_MODELS,
-        default='ERA5T')
+        type=weather_model_type,
+        default='ERA5T',
+        dest='model'
+    )
     weather.add_argument(
         '--files',
         help="""OUT/PLEV or HDF5 file(s) """,
@@ -199,4 +201,3 @@ def parseCMD_weather_model_debug():
 
         except RuntimeError:
             logger.exception("Date %s failed", t)
-            continue

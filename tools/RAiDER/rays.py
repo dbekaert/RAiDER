@@ -12,7 +12,7 @@ from RAiDER import Geo2rdr
 from RAiDER.utilFcns import cosd, sind
 
 '''
-*Note*:
+*...Note*:
 The line-of-sight look vector should be a unit-length 3-component vector
 pointing from the ground pixel to the sensor. The associated projection
 is earth-centered, earth-fixed.
@@ -37,6 +37,11 @@ class LVGenerator(ABC):
     def getLOSType(self):
         return self._los_type
 
+    def __eq__(self, other):
+        if not isinstance(other, LVGenerator):
+            return False
+        return self._los_type == other._los_type
+
 
 class LOSGenerator(LVGenerator):
     """ A dummy class for holding line-of-sight vectors from rasters """
@@ -59,9 +64,6 @@ class ZenithLVGenerator(LVGenerator):
     """Generate look vectors pointing towards the zenith"""
 
     def __init__(self):
-        """
-        zref  - float, integration height in meters
-        """
         self._los_type = 'ZTD'
 
     def generate(self, llh, acq_time=None):

@@ -8,10 +8,13 @@ from time import strptime
 from RAiDER.losreader import (
     read_ESA_Orbit_file, read_los_file, read_shelve, read_txt_file
 )
+from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.rays import (
     LOSGenerator, ZenithLVGenerator, OrbitLVGenerator
 )
-from RAiDER.utilFcns import sind, cosd
+from RAiDER.utilFcns import (
+    sind, cosd, modelName2Module
+)
 
 
 class MappingType(object):
@@ -208,46 +211,22 @@ class BBoxAction(Action):
 class LOSFileTypeAction(Action):
     ''' An Action that parses line-of-sight file options and reads them '''
 
-    def __init__(
-        self,
-        option_strings,
-        dest,
-        nargs=None,
-        const=None,
-        default=None,
-        type=None,
-        choices=None,
-        required=False,
-        help=None,
-        metavar=None
-    ):
-
-        super().__init__(
-            option_strings=option_strings,
-            dest=dest,
-            nargs=nargs,
-            const=const,
-            default=default,
-            type=type,
-            choices=choices,
-            required=required,
-            help=help,
-            metavar=metavar
-        )
-
     def __call__(self, parser, namespace, values, option_string=None):
+        ''' 
+        Override the call method for the argparse Action class to parse the input LOS file 
+        '''
         filename = values
 
         if filename is None:
-            return ZenithLVGenerator()
+            values = ZenithLVGenerator()
         else:
             try:
-                return parseAsLOSRaster(filename)
+                values = parseAsLOSRaster(filename)
             except RuntimeError:
                 pass
 
             try:
-                return parseAsStateVectorFile(filename)
+                values = parseAsStateVectorFile(filename)
             except ValueError:
                 pass
 
@@ -340,7 +319,7 @@ def los_type(arg):
        # TODO: Add in ARIA file reader
 
         raise ValueError(
-            'The format of the line-of-sight file(s) is not recognized'
+            'The line-of-sight file(s) has an unrecognized format or does not exist'
         )
 
 
@@ -382,8 +361,23 @@ def incidence_heading_to_los(inc, hd):
     """
     assert inc.shape == hd.shape, "Incompatible dimensions!"
 
-    east = sind(inc) * cosd(hd + 90)
-    north = sind(inc) * sind(hd + 90)
+    east = -sind(inc) * sind(hd)
+    north = sind(inc) * cosd(hd)
     up = cosd(inc)
 
     return np.stack((east, north, up), axis=-1)
+
+
+def weather_model_type(arg):
+    '''
+    Parse a weather model name to an object
+    '''
+    model = arg.upper().replace("-", "")
+    if model not in ALLOWED_MODELS:
+        raise ValueError('Weather model {} has not been implemented'.format(model))
+
+    if model == 'HDF5':
+        raise ValueError('The HDF5 option is not yet implemented')
+
+    _, model = modelName2Module(model)
+    return model()

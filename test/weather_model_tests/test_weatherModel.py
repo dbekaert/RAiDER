@@ -12,7 +12,7 @@ from scipy.interpolate import LinearNDInterpolator as lndi
 
 from RAiDER.constants import Zenith
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.utilFcns import modelName2Module
+from RAiDER.utilFcns import modelName2Module, make_weather_model_filename
 
 
 class WMTests(unittest.TestCase):
@@ -51,37 +51,11 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         self.assertTrue(
             np.sum(np.isnan(self.weather_model._hydrostatic_refractivity)) == 0)
 
-    @unittest.skip('skipping full model test until all other unit tests pass')
-    def test_interpVector(self):
-        wm = self.weather_model
-        [X, Y, Z] = np.meshgrid(wm._xs, wm._ys, wm._zs)
-        points = np.stack([X.flatten(), Y.flatten(), Z.flatten()], axis=-1)
-        wrf = wm._wet_refractivity
-        hrf = wm._hydrostatic_refractivity
-        zs = wm._zs
-        zref = 15000
-        zmask = zs < zref
-        stepSize = 10
-
-        f1 = lndi(points, wrf.flatten())
-        f2 = lndi(points, hrf.flatten())
-        zint = zs[zmask]
-        ray = np.stack([-101 * np.ones(len(zint)), 17 *
-                        np.ones(len(zint)), zint]).T
-        testwet = f1(ray)
-        testhydro = f2(ray)
-        dx = ray[1, 2] - ray[0, 2]
-        mask = np.isnan(testwet) | np.isnan(testhydro)
-        totalwet = 1e-6 * dx * np.sum(testwet[~mask])
-        totalhydro = 1e-6 * dx * np.sum(testhydro[~mask])
-        totalwet = 1e-6 * np.trapz(testwet[~mask], zint[~mask])
-        totalhydro = 1e-6 * np.trapz(testhydro[~mask], zint[~mask])
-
-        total_wet = 1e-6 * np.trapz(wrf[5, 9, zmask], zs[zmask])
-        total_hydro = 1e-6 * np.trapz(hrf[5, 9, zmask], zs[zmask])
-
-        self.assertTrue(np.abs(totalwet - total_wet) < 0.01)
-        self.assertTrue(np.abs(totalhydro - total_hydro) < 0.01)
+    def test_makeWMFilename(self):
+        self.assertTrue(
+            make_weather_model_filename('ERA5', datetime.datetime(2020, 1, 1, 0, 0, 0), (15, 17, -72, -70)) ==
+            'ERA5_2020-01-01T00_00_00_15N_17N_-72E_-70E.h5'
+        )
 
     @unittest.skip("skipping full model test until all other unit tests pass")
     def test_prepareWeatherModel_ERA5(self):

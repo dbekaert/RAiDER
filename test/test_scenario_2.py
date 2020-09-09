@@ -1,4 +1,6 @@
 # Unit and other tests
+import pytest
+
 from datetime import datetime
 from shutil import copyfile
 from test import TEST_DIR, pushd
@@ -14,6 +16,10 @@ from RAiDER.rays import ZenithLVGenerator
 SCENARIO_DIR = TEST_DIR / "scenario_2"
 
 
+# @pytest.mark.skipif(
+#    True,
+#    reason="Temporarily skipping to check other tests"
+# )
 def test_computeDelay(tmp_path):
     '''
     Scenario to use:
@@ -35,7 +41,7 @@ def test_computeDelay(tmp_path):
 
     zref = 20000.
 
-    _, model_obj = modelName2Module('ERA5')
+    _, model_obj = modelName2Module('ERA5T')
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
@@ -45,7 +51,7 @@ def test_computeDelay(tmp_path):
             ll_bounds=(33.746, 36.795, -118.312, -114.892),
             heights=('merge', [wetFile]),
             flag='station_file',
-            weather_model={'type': model_obj(), 'files': None, 'name': 'ERA5'},
+            weather_model=model_obj(),
             wmLoc=None,
             zref=zref,
             outformat='csv',
