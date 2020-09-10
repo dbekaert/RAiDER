@@ -1,5 +1,4 @@
 import datetime
-import ecmwfapi
 
 import numpy as np
 from pyproj import CRS
@@ -147,6 +146,7 @@ class ECMWF(WeatherModel):
         out
     ):
 
+        import ecmwfapi
         server = ecmwfapi.ECMWFDataServer()
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
