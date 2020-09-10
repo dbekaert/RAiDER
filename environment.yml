@@ -9,12 +9,11 @@ channels:
  - anaconda
  - defaults
 dependencies:
- - python>=3
  - cartopy
  - cdsapi
  - cfgrib
  - cmake
- - netcdf4
+ - cxx-compiler
  - cython
  - dask
  - gdal>=3.0
@@ -22,13 +21,17 @@ dependencies:
  - jupyterlab
  - libgdal
  - matplotlib
+ - netcdf4
  - numpy
  - pandas
+ - pydap>3.2.2|<3.2.2
  - pygrib
  - pyproj>=2.1.0
+ - python>=3
  - scipy
- - xarray
  - shapely
- - pydap>3.2.2|<3.2.2
- - cxx-compiler
  - sysroot_linux-64
+ - xarray
+- pip
+- pip:
+  - ecmwf-api-client
