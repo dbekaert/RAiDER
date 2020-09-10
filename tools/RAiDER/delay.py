@@ -172,8 +172,8 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
 
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
-    #    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-    #                outName, zlevels=hgts, outformat=outformat, delayType=losGen.getLOSType())
+        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                    outName, zlevels=hgts, outformat=outformat, delayType=losGen.getLOSType())
         log.info('Finished writing data to %s', outName)
     elif useWeatherNodes:
         log.info(
@@ -181,9 +181,9 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
             weather_model_file
         )
     else:
-    #    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-    #                wetFilename, hydroFilename, outformat=outformat,
-    #                proj=None, gt=None, ndv=0.)
+        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+                    wetFilename, hydroFilename, outformat=outformat,
+                    proj=None, gt=None, ndv=0.)
         log.info('Finished writing data to %s', wetFilename)
 
     return wetDelay, hydroDelay
