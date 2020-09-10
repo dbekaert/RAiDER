@@ -124,22 +124,22 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
     # weather model calculation
     wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
     weather_model_file = os.path.join(wmLoc, wm_filename)
-    #if not os.path.exists(weather_model_file):
-    #    weather_model, lats, lons = prepareWeatherModel(
-    #        weather_model, wmLoc, out, lats=lats, lons=lons, los=losGen, zref=zref,
-    #        time=time, download_only=download_only
-    #    )
-    #    try:
-    #        weather_model.write2HDF5(weather_model_file)
-    #    except Exception:
-    #        log.exception("Unable to save weathermodel to file")
+    if not os.path.exists(weather_model_file):
+        weather_model, lats, lons = prepareWeatherModel(
+            weather_model, wmLoc, out, lats=lats, lons=lons, los=losGen, zref=zref,
+            time=time, download_only=download_only
+        )
+        try:
+            weather_model.write2HDF5(weather_model_file)
+        except Exception:
+            log.exception("Unable to save weathermodel to file")
 
-    #    del weather_model
-    #else:
-    #    log.warning(
-    #        'Weather model already exists, please remove it ("%s") if you want '
-    #        'to create a new one.', weather_model_file
-    #    )
+        del weather_model
+    else:
+        log.warning(
+            'Weather model already exists, please remove it ("%s") if you want '
+            'to create a new one.', weather_model_file
+        )
 
     if download_only:
         return None, None
@@ -161,14 +161,13 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
             # write to an HDF5 file
     #        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
-    #wetDelay, hydroDelay = computeDelay(
-    #    weather_model_file_name=weather_model_file,
-    #    pnts_file_name=pnts_file,
-    #    useWeatherNodes=useWeatherNodes,
-    #    zref=zref,
-    #    out=out
-    #)
-    wetDelay, hydroDelay = np.ones(lats.shape), np.ones(lats.shape)
+    wetDelay, hydroDelay = computeDelay(
+        weather_model_file_name=weather_model_file,
+        pnts_file_name=pnts_file,
+        useWeatherNodes=useWeatherNodes,
+        zref=zref,
+        out=out
+    )
 
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
