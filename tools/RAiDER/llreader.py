@@ -114,6 +114,16 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 
+    log.debug('Lats shape is %s', lats.shape)
+    log.debug(
+        'lat/lon box is %f/%f/%f/%f (SNWE)',
+        np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
+    )
+    log.debug(
+        'DEM height range is %.2f-%.2f m',
+        np.nanmin(hts), np.nanmax(hts)
+    )
+
     return lats, lons, hts
 
 

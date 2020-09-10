@@ -154,18 +154,9 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
         pnts_file = os.path.join(out, 'geom', 'query_points.h5')
         if not os.path.exists(pnts_file):
 
-            # Convert the line-of-sight inputs to look vectors
-            log.debug('Lats shape is %s', lats.shape)
-            log.debug(
-                'lat/lon box is %f/%f/%f/%f (SNWE)',
-                np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
-            )
-            log.debug(
-                'DEM height range is %.2f-%.2f m',
-                np.nanmin(hgts), np.nanmax(hgts)
-            )
             log.debug('Beginning line-of-sight calculation')
-            los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
+            #los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
+            los = np.zeros(lats.shape + (3,)); los[...,-1] = 1
 
             # write to an HDF5 file
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
