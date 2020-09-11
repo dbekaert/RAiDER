@@ -8,10 +8,13 @@ from time import strptime
 from RAiDER.losreader import (
     read_ESA_Orbit_file, read_los_file, read_shelve, read_txt_file
 )
+from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.rays import (
     LOSGenerator, ZenithLVGenerator, OrbitLVGenerator
 )
-from RAiDER.utilFcns import sind, cosd
+from RAiDER.utilFcns import (
+    sind, cosd, modelName2Module
+)
 
 
 class MappingType(object):
@@ -197,6 +200,7 @@ class BBoxAction(Action):
         setattr(namespace, self.dest, values)
 
 
+
 class LOSFileTypeAction(Action):
     ''' An Action that parses line-of-sight file options and reads them '''
 
@@ -378,3 +382,18 @@ def incidence_heading_to_los(inc, hd):
     up = cosd(inc)
 
     return np.stack((east, north, up), axis=-1)
+
+
+def weather_model_type(arg):
+    '''
+    Parse a weather model name to an object
+    '''
+    model = arg
+    if model not in ALLOWED_MODELS:
+        raise ArgumentError('Weather model {} has not been implemented'.format(model))
+
+    if model == 'HDF5':
+        raise ArgumentError('The HDF5 option is not yet implemented')
+
+    _, model = modelName2Module(arg.upper().replace("-", ""))
+    return model()

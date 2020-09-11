@@ -4,11 +4,12 @@ from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
-from RAiDER.cli.validators import DateListAction, LOSFileTypeAction, date_type, time_type
+from RAiDER.cli.validators import (
+    DateListAction, LOSFileTypeAction, date_type, time_type, weather_model_type, los_type
+)
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
 from RAiDER.logger import logger
-from RAiDER.models.allowed import ALLOWED_MODELS
 
 log = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ def create_parser():
             '''),
         metavar='LOS',
         action=LOSFileTypeAction,
+        type = los_type,
         dest='lineofsight',
         default=None,
     )
@@ -105,9 +107,10 @@ def create_parser():
     weather.add_argument(
         '--model',
         help="Weather model option to use.",
-        type=lambda s: s.upper().replace("-", ""),
-        choices=ALLOWED_MODELS,
-        default='ERA5T')
+        type=weather_model_type,
+        default='ERA5T',
+        dest='model'
+    )
     weather.add_argument(
         '--files',
         help="""OUT/PLEV or HDF5 file(s) """,

@@ -35,6 +35,8 @@ class WeatherModel(ABC):
         self._a = []
         self._b = []
 
+        self.files = None
+
         self._lon_res = None
         self._lat_res = None
         self._x_res = None

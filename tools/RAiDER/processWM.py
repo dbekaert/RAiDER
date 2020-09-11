@@ -45,7 +45,7 @@ def getWMFilename(weather_model_name, time, outLoc):
     return download_flag, f
 
 
-def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
+def prepareWeatherModel(weather_model, wmFileLoc, lats=None, lons=None,
                         los=None, zref=None, time=None,
                         download_only=False, makePlots=False):
     '''
@@ -53,26 +53,20 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     '''
 
     # Make weather
-    weather_model, weather_files, weather_model_name = \
-        weatherDict['type'], weatherDict['files'], weatherDict['name']
+    if weather_model.files is not None:
+        time = getTimeFromFile(weather_model.files[0])
 
-    # check whether weather model files are supplied
-    if weather_files is None:
-        download_flag, f = getWMFilename(weather_model.Model(), time, wmFileLoc)
-    else:
-        download_flag = False
-        time = getTimeFromFile(weather_files[0])
+    f = getWMFilename(weather_model.Model(), time, wmFileLoc)
 
     # if no weather model files supplied, check the standard location
-    if download_flag:
-        weather_model.fetch(lats, lons, time, f)
+    weather_model.fetch(lats, lons, time, f)
 
-        # exit on download if download_only requested
-        if download_only:
-            log.warning(
-                'download_only flag selected. No further processing will happen.'
-            )
-            return None, None, None
+    # exit on download if download_only requested
+    if download_only:
+        log.warning(
+            'download_only flag selected. No further processing will happen.'
+        )
+        return None, None, None
 
     # Load the weather model data
     if weather_files is not None:

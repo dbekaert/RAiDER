@@ -56,22 +56,10 @@ def checkArgs(args, p):
     los = args.lineofsight
 
     # Weather
-    weather_model_name = args.model
-    if weather_model_name == 'WRF' and args.files is None:
-        raise RuntimeError('Argument --files is required with --model WRF')
-    _, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
-    if args.model == 'WRF':
-        weathers = {'type': 'wrf', 'files': args.files,
-                    'name': 'wrf'}
-    elif args.model == 'HDF5':
-        weathers = {'type': 'HDF5', 'files': args.files,
-                    'name': args.model}
-    else:
-        try:
-            weathers = {'type': model_obj(), 'files': args.files,
-                        'name': args.model}
-        except:
-            raise NotImplementedError('{} is not implemented'.format(weather_model_name))
+    weather_model = args.model
+    weather_model.files = args.files
+    if weather_model.Model() == 'WRF' and args.files is None:
+        raise ArgumentError('Argument --files is required with --model WRF')
 
     # zref
     zref = args.zref
@@ -111,7 +99,7 @@ def checkArgs(args, p):
     for time in datetimeList:
         if flag == 'station_file':
             wetFilename = os.path.join(out, '{}_Delay_{}_Zmax{}.csv'
-                                       .format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
+                                       .format(weather_model.Model(), time.strftime('%Y%m%dT%H%M%S'), zref))
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
@@ -120,7 +108,7 @@ def checkArgs(args, p):
             indf.to_csv(wetFilename, index=False)
         else:
             wetFilename, hydroFilename = \
-                RAiDER.utilFcns.makeDelayFileNames(time, los.getLOSType(), outformat, weather_model_name, out)
+                RAiDER.utilFcns.makeDelayFileNames(time, los.getLOSType(), outformat, weather_model.Model(), out)
 
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)
@@ -137,4 +125,4 @@ def checkArgs(args, p):
     else:
         heights = ('download', os.path.join(out, 'geom', 'warpedDEM.dem'))
 
-    return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames
+    return los, lat, lon, bounds, heights, flag, weather_model, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames

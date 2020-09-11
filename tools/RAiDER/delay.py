@@ -122,7 +122,7 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
-    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
+    wm_filename = make_weather_model_filename(weather_model.Model(), time, ll_bounds)
     weather_model_file = os.path.join(wmLoc, wm_filename)
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
