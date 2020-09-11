@@ -141,48 +141,48 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
             'to create a new one.', weather_model_file
         )
 
-    if download_only:
-        return None, None
+    #if download_only:
+    #    return None, None
 
-    # Pull the DEM.
-    log.debug('Beginning DEM calculation')
-    in_shape = lats.shape
-    lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
+    ## Pull the DEM.
+    #log.debug('Beginning DEM calculation')
+    #in_shape = lats.shape
+    #lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
-    pnts_file = None
-    if not useWeatherNodes:
-        pnts_file = os.path.join(out, 'geom', 'query_points.h5')
-        if not os.path.exists(pnts_file):
+    #pnts_file = None
+    #if not useWeatherNodes:
+    #    pnts_file = os.path.join(out, 'geom', 'query_points.h5')
+    #    if not os.path.exists(pnts_file):
 
-            log.debug('Beginning line-of-sight calculation')
-            los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
+    #        log.debug('Beginning line-of-sight calculation')
+    #        los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
 
-            # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+    #        # write to an HDF5 file
+    #        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
-    #wetDelay, hydroDelay = computeDelay(
-    #    weather_model_file_name=weather_model_file,
-    #    pnts_file_name=pnts_file,
-    #    useWeatherNodes=useWeatherNodes,
-    #    zref=zref,
-    #    out=out
-    #)
-    wetDelay, hydroDelay = np.ones(lats.shape),np.ones(lats.shape)
+    ##wetDelay, hydroDelay = computeDelay(
+    ##    weather_model_file_name=weather_model_file,
+    ##    pnts_file_name=pnts_file,
+    ##    useWeatherNodes=useWeatherNodes,
+    ##    zref=zref,
+    ##    out=out
+    ##)
+    #wetDelay, hydroDelay = np.ones(lats.shape),np.ones(lats.shape)
 
-    if heights[0] == 'lvs':
-        outName = wetFilename.replace('wet', 'delays')
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    outName, zlevels=hgts, outformat=outformat, delayType=losGen.getLOSType())
-        log.info('Finished writing data to %s', outName)
-    elif useWeatherNodes:
-        log.info(
-            'Delays have been written to the weather model file; see %s',
-            weather_model_file
-        )
-    else:
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    wetFilename, hydroFilename, outformat=outformat,
-                    proj=None, gt=None, ndv=0.)
-        log.info('Finished writing data to %s', wetFilename)
+    #if heights[0] == 'lvs':
+    #    outName = wetFilename.replace('wet', 'delays')
+    #    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+    #                outName, zlevels=hgts, outformat=outformat, delayType=losGen.getLOSType())
+    #    log.info('Finished writing data to %s', outName)
+    #elif useWeatherNodes:
+    #    log.info(
+    #        'Delays have been written to the weather model file; see %s',
+    #        weather_model_file
+    #    )
+    #else:
+    #    writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+    #                wetFilename, hydroFilename, outformat=outformat,
+    #                proj=None, gt=None, ndv=0.)
+    #    log.info('Finished writing data to %s', wetFilename)
 
-    return wetDelay, hydroDelay
+    #return wetDelay, hydroDelay
