@@ -155,19 +155,19 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
         if not os.path.exists(pnts_file):
 
             log.debug('Beginning line-of-sight calculation')
-            #los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
-            los = np.zeros(lats.shape + (3,)); los[...,-1] = 1
+            los = getLookVectors(losGen, np.stack((lats, lons, hgts), axis=-1))
 
             # write to an HDF5 file
-    #        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+            writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
-    wetDelay, hydroDelay = computeDelay(
-        weather_model_file_name=weather_model_file,
-        pnts_file_name=pnts_file,
-        useWeatherNodes=useWeatherNodes,
-        zref=zref,
-        out=out
-    )
+    #wetDelay, hydroDelay = computeDelay(
+    #    weather_model_file_name=weather_model_file,
+    #    pnts_file_name=pnts_file,
+    #    useWeatherNodes=useWeatherNodes,
+    #    zref=zref,
+    #    out=out
+    #)
+    wetDelay, hydroDelay = np.ones(lats.shape),np.ones(lats.shape)
 
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
