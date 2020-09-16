@@ -10,8 +10,10 @@ from RAiDER.cli.validators import (
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
 from RAiDER.logger import logger
+from RAiDER.rays import ZenithLVGenerator
 
-log = logging.getLogger(__name__)
+#log = logging.getLogger(__name__)
+import RAiDER.logger
 
 
 def create_parser():
@@ -78,10 +80,10 @@ def create_parser():
             A 7-column text file containing state vectors
             '''),
         metavar='LOS',
-        action=LOSFileTypeAction,
+#        action=LOSFileTypeAction,
         type = los_type,
+        default=ZenithLVGenerator(),
         dest='lineofsight',
-        default=None,
     )
     los.add_argument(
         '--zref', '-z',
@@ -158,7 +160,7 @@ def parseCMD():
     # Loop over each datetime and compute the delay
     for t, wfn, hfn in zip(times, wetNames, hydroNames):
         try:
-            (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
+            tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                                  outformat, t, out, download_only, wfn, hfn)
 
         except RuntimeError:
