@@ -14,10 +14,11 @@ from datetime import datetime
 from osgeo import gdal, osr
 from pyproj import CRS, Transformer
 
+import RAiDER.logger
+
 from RAiDER.constants import Zenith
 
 gdal.UseExceptions()
-log = logging.getLogger(__name__)
 
 
 def sind(x):
@@ -71,14 +72,14 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
         data = b.ReadAsArray()
         if userNDV is not None:
-            log.debug('Using user-supplied NoDataValue')
+            logger.debug('Using user-supplied NoDataValue')
             data[data == userNDV] = np.nan
         else:
             try:
                 ndv = b.GetNoDataValue()
                 data[data == ndv] = np.nan
             except:
-                log.debug('NoDataValue attempt failed*******')
+                logger.debug('NoDataValue attempt failed*******')
         val.append(data)
         b = None
     ds = None
@@ -364,8 +365,8 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         cpu_count = mp.cpu_count()
         chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
 
-    log.debug('Chunk size is {}'.format(chunkSize))
-    log.debug('Array shape is {}'.format(in_shape))
+    logger.debug('Chunk size is {}'.format(chunkSize))
+    logger.debug('Array shape is {}'.format(in_shape))
 
     # Get query points in ECEF
     t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric

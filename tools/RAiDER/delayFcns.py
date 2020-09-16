@@ -16,11 +16,11 @@ import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
+import RAiDER.logger
+
 from RAiDER.constants import _STEP, _ZREF
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makeRays import makeRays1D
-
-log = logging.getLogger(__name__)
 
 
 def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_num=0):

@@ -10,13 +10,14 @@ import contextlib
 import logging
 import os
 import sys
-from datetime import datetime
 
 import numpy as np
 
-from RAiDER.utilFcns import getTimeFromFile
+from datetime import datetime
 
-log = logging.getLogger(__name__)
+import RAiDER.logger
+
+from RAiDER.utilFcns import getTimeFromFile
 
 
 def getWMFilename(weather_model_name, time, outLoc):
@@ -35,14 +36,12 @@ def getWMFilename(weather_model_name, time, outLoc):
         )
     )
 
-    log.debug('Storing weather model at: %s', f)
+    logger.debug('Storing weather model at: %s', f)
 
-    download_flag = True
     if os.path.exists(f):
-        log.warning('Weather model already exists, skipping download')
-        download_flag = False
+        logger.warning('Weather model already exists, skipping download')
 
-    return download_flag, f
+    return f
 
 
 def prepareWeatherModel(weather_model, wmFileLoc, lats=None, lons=None,
@@ -56,42 +55,42 @@ def prepareWeatherModel(weather_model, wmFileLoc, lats=None, lons=None,
     if weather_model.files is not None:
         time = getTimeFromFile(weather_model.files[0])
 
+    # Download the weather model file unless it already exists
     f = getWMFilename(weather_model.Model(), time, wmFileLoc)
-
-    # if no weather model files supplied, check the standard location
-    weather_model.fetch(lats, lons, time, f)
+    if ~os.path.exists(f):
+        weather_model.fetch(lats, lons, time, f)
 
     # exit on download if download_only requested
     if download_only:
-        log.warning(
+        logger.warning(
             'download_only flag selected. No further processing will happen.'
         )
         return None, None, None
 
     # Load the weather model data
-    if weather_files is not None:
-        weather_model.load(*weather_files, outLats=lats, outLons=lons, los=los, zref=zref)
+    if weather_model.files is not None:
+        weather_model.load(*weather_model.files, outLats=lats, outLons=lons, los=los, zref=zref)
         download_flag = False
     else:
         weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
 
-    log.debug('Number of weather model nodes: %d', np.prod(weather_model.getWetRefractivity().shape))
-    log.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
-    log.debug(
+    logger.debug('Number of weather model nodes: %d', np.prod(weather_model.getWetRefractivity().shape))
+    logger.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
+    logger.debug(
         'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
         np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
         np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)
     )
-    log.debug('Weather model: %s', weather_model.Model())
-    log.debug(
+    logger.debug('Weather model: %s', weather_model.Model())
+    logger.debug(
         'Mean value of the wet refractivity: %f',
         np.nanmean(weather_model.getWetRefractivity())
     )
-    log.debug(
+    logger.debug(
         'Mean value of the hydrostatic refractivity: %f',
         np.nanmean(weather_model.getHydroRefractivity())
     )
-    log.debug(weather_model)
+    logger.debug(weather_model)
 
     if makePlots:
         p = weather_model.plot('wh', True)
