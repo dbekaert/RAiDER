@@ -13,11 +13,11 @@ import h5py
 import numpy as np
 
 import RAiDER.delayFcns
-import RAiDER.logger
 
 from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.llreader import getHeights
+from RAiDER.logger import *
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.rays import getLookVectors
 from RAiDER.utilFcns import (

@@ -14,8 +14,7 @@ import numpy as np
 from RAiDER.demdownload import download_dem
 from RAiDER.utilFcns import gdal_open
 
-#log = logging.getLogger(__name__)
-import RAiDER.logger
+from RAiDER.logger import *
 
 
 def readLL(*args):
@@ -73,11 +72,11 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
         try:
             hts = gdal_open(height_data)
         except:
-            log.warning(
+            logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
                 height_data, exc_info=True
             )
-            log.info('Proceeding with DEM download')
+            logger.info('Proceeding with DEM download')
             height_type = 'download'
 
     elif height_type == 'lvs':
@@ -115,12 +114,12 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
 
     [lats, lons, hts] = enforceNumpyArray(lats, lons, hts)
 
-    log.debug('Lats shape is %s', lats.shape)
-    log.debug(
+    logger.debug('Lats shape is %s', lats.shape)
+    logger.debug(
         'lat/lon box is %f/%f/%f/%f (SNWE)',
         np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
     )
-    log.debug(
+    logger.debug(
         'DEM height range is %.2f-%.2f m',
         np.nanmin(hts), np.nanmax(hts)
     )

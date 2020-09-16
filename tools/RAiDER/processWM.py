@@ -15,8 +15,7 @@ import numpy as np
 
 from datetime import datetime
 
-import RAiDER.logger
-
+from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
 
 

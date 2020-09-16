@@ -7,8 +7,7 @@ import requests
 
 from pyproj import CRS
 
-import RAiDER.logger
-
+from RAiDER.logger import *
 from RAiDER.models.weatherModel import WeatherModel
 
 

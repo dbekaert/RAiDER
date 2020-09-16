@@ -14,7 +14,7 @@ from datetime import datetime
 from osgeo import gdal, osr
 from pyproj import CRS, Transformer
 
-import RAiDER.logger
+from RAiDER.logger import *
 
 from RAiDER.constants import Zenith
 

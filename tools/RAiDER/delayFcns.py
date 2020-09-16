@@ -16,10 +16,10 @@ import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
-import RAiDER.logger
 
 from RAiDER.constants import _STEP, _ZREF
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
+from RAiDER.logger import *
 from RAiDER.makeRays import makeRays1D
 
 
