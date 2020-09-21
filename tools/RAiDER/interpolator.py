@@ -91,21 +91,20 @@ def interpVector(vec, Nx):
 
 
 def fillna3D(array, axis=-1):
-    '''
-    Fcn to fill in NaNs in a 3D array by interpolating over one axis only
-    '''
-    # Need to handle each axis
-    narr = np.moveaxis(array, axis, -1)
-    shape = narr.shape
-    y = narr.flatten()
-
-    test_nan = np.isnan(y)
-    def finder(z): return z.nonzero()[0]
-
-    try:
-        y[test_nan] = np.interp(finder(test_nan), finder(~test_nan), y[~test_nan])
-        newy = np.reshape(y, shape)
-        final = np.moveaxis(newy, -1, axis)
-        return final
-    except ValueError:
-        return array
+    import pandas as pd
+    
+    XX, YY, temp2 = array.shape
+    
+    if ((axis == 0)|(axis == 1)):
+        temp_pd = pd.DataFrame()
+        temp_pd = temp_pd.interpolate(method='linear',axis=axis,limit_direction='both')
+        array = temp_pd.to_numpy()
+    elif (axis == -1):
+        for yy in range(YY):
+            temp_pd = pd.DataFrame(data=array[:,yy,:], dtype=np.float32)
+            temp_pd = temp_pd.interpolate(method='linear',axis=1,limit_direction='both')
+            array[:,yy,:] = temp_pd.to_numpy()
+    else:
+        raise Exception("Axis out of the array shape")
+    
+    return array
