@@ -74,8 +74,6 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
     in_shape = lats.shape
-    if heights[0] == 'lvs':
-        zlevels = heights['levels']
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
     pnts_file = None
@@ -100,23 +98,24 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
             zs_wm = f['z'][()].copy()
             wet_delays = f['wet_total'][()].copy()
             hydro_delays = f['hydro_total'][()].copy()
-        if zlevels is None:
-            return total_wet, total_hydro
-        else:
-            wet_delays = interp_along_axis(zs_wm, zlevels, total_wet, axis=-1)
-            hydro_delays = interp_along_axis(zs_wm, zlevels, total_hydro, axis=-1)
+        if heights[0] == 'lvs':
+            zlevels = heights[1]
+            wet_delays = interp_along_axis(zs_wm, zlevels, wet_delays, axis=-1)
+            hydro_delays = interp_along_axis(zs_wm, zlevels, hydro_delays, axis=-1)
     else:
         wet_delays, hydro_delays = RAiDER.delayFcns.get_delays(
-            stepSize, pnts_file, weather_model_file,
-            interpType=interpType, zref=zref
+            stepSize, 
+            pnts_file, 
+            weather_model_file,
+            zref=zref
         )
 
     logger.debug('Finished delay calculation')
 
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    outName, zlevels=hgts, outformat=outformat, delayType=losGen.getLOSType())
+        writeDelays(flag, wet_delays, hydro_delays, lats, lons,
+                    outName, zlevels=heights[1], outformat='hdf5', delayType=losGen.getLOSType())
         logger.info('Finished writing data to %s', outName)
     elif useWeatherNodes:
         logger.info(
@@ -124,9 +123,9 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
             weather_model_file
         )
     else:
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+        writeDelays(flag, wet_delays, hydro_delays, lats, lons,
                     wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
         logger.info('Finished writing data to %s', wetFilename)
 
-    return wetDelay, hydroDelay
+    return wet_delays, hydro_delays

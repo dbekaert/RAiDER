@@ -52,23 +52,15 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D', zref=_ZREF, cpu_nu
         chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Ray_start']), np.array(f['LOS']),
                          chunkSize, stepSize, ifWet, ifHydro, zref, wm_file) for kk in range(Nchunks)]
 
-        with mp.Pool() as pool:
-            individual_results = pool.starmap(process_chunk, chunk_inputs)
+#        with mp.Pool() as pool:
+#            individual_results = pool.starmap(process_chunk, chunk_inputs)
+        for ch in chunk_inputs:
+            individual_results = process_chunk(ch)
         delays = np.concatenate(individual_results)
 
     wet_delay = delays[0, ...].reshape(in_shape)
     hydro_delay = delays[1, ...].reshape(in_shape)
 
-    time_elapse = (time.time() - t0)
-    with open('get_delays_time_elapse.txt', 'w') as f:
-        f.write('{}'.format(time_elapse))
-    time_elapse_hr = int(np.floor(time_elapse / 3600.0))
-    time_elapse_min = int(np.floor((time_elapse - time_elapse_hr * 3600.0) / 60.0))
-    time_elapse_sec = (time_elapse - time_elapse_hr * 3600.0 - time_elapse_min * 60.0)
-    logger.debug(
-        "Delay estimation cost %d hour(s) %d minute(s) %d second(s) using %d cpu threads",
-        time_elapse_hr, time_elapse_min, time_elapse_sec, cpu_num
-    )
     return wet_delay, hydro_delay
 
 
