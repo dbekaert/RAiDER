@@ -200,7 +200,6 @@ class BBoxAction(Action):
         setattr(namespace, self.dest, values)
 
 
-
 class LOSFileTypeAction(Action):
     ''' An Action that parses line-of-sight file options and reads them '''
 
@@ -353,8 +352,8 @@ def incidence_heading_to_los(inc, hd):
     """
     assert inc.shape == hd.shape, "Incompatible dimensions!"
 
-    east = sind(inc) * cosd(hd + 90)
-    north = sind(inc) * sind(hd + 90)
+    east = -sind(inc) * sind(hd)
+    north = sind(inc) * cosd(hd)
     up = cosd(inc)
 
     return np.stack((east, north, up), axis=-1)
@@ -364,12 +363,12 @@ def weather_model_type(arg):
     '''
     Parse a weather model name to an object
     '''
-    model = arg
+    model = arg.upper().replace("-", "")
     if model not in ALLOWED_MODELS:
-        raise ArgumentError('Weather model {} has not been implemented'.format(model))
+        raise ValueError('Weather model {} has not been implemented'.format(model))
 
     if model == 'HDF5':
-        raise ArgumentError('The HDF5 option is not yet implemented')
+        raise ValueError('The HDF5 option is not yet implemented')
 
-    _, model = modelName2Module(arg.upper().replace("-", ""))
+    _, model = modelName2Module(model)
     return model()

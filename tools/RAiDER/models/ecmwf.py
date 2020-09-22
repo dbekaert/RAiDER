@@ -113,36 +113,36 @@ class ECMWF(WeatherModel):
         # execute the search at ECMWF
         try:
             self._get_from_ecmwf(
-                lat_min, 
-                lat_max, 
-                self._lat_res, 
-                lon_min, 
-                lon_max, 
-                self._lon_res, 
+                lat_min,
+                lat_max,
+                self._lat_res,
+                lon_min,
+                lon_max,
+                self._lon_res,
                 time,
                 out
             )
         except Exception:
             self._get_from_cds(
-                lat_min, 
-                lat_max, 
-                self._lat_res, 
-                lon_min, 
-                lon_max, 
-                self._lon_res, 
+                lat_min,
+                lat_max,
+                self._lat_res,
+                lon_min,
+                lon_max,
+                self._lon_res,
                 time,
                 out
             )
 
     def _get_from_ecmwf(
-        self, 
-        lat_min, 
-        lat_max, 
-        lat_step, 
-        lon_min, 
+        self,
+        lat_min,
+        lat_max,
+        lat_step,
+        lon_min,
         lon_max,
-        lon_step, 
-        time, 
+        lon_step,
+        time,
         out
     ):
 
@@ -182,14 +182,14 @@ class ECMWF(WeatherModel):
         })
 
     def _get_from_cds(
-        self, 
-        lat_min, 
-        lat_max, 
-        lat_step, 
-        lon_min, 
+        self,
+        lat_min,
+        lat_max,
+        lat_step,
+        lon_min,
         lon_max,
-        lon_step, 
-        acqTime, 
+        lon_step,
+        acqTime,
         outname
     ):
         import cdsapi

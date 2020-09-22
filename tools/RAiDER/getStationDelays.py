@@ -40,7 +40,7 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
     # ftp://igs.org/pub/data/format/sinex_tropo.txt
     # http://geodesy.unr.edu/gps_timeseries/README_trop2.txt
     # Wet and hydrostratic delays were derived as so:
-    # Constants —> k1 = 0.704, k2 = 0.776, k3 = 3739.0, m = 18.0152/28.9644, 
+    # Constants —> k1 = 0.704, k2 = 0.776, k3 = 3739.0, m = 18.0152/28.9644,
     # k2' = k2-(k1*m) = 0.33812796398337275, Rv = 461.5 J/(kg·K), ρl = 997 kg/m^3
     # Note wet delays passed here may be computed as so
     # where PMV = precipitable water vapor, P = total atm pressure, Tm = mean temp of the column —>
@@ -96,10 +96,10 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
                     )
                     continue
                 # convert units from mm to m
-                d.append(trotot*0.001)
-                Sig.append(trototSD*0.001)
-                dwet.append(trwet*0.001)
-                dhydro.append((trotot-trwet)*0.001)
+                d.append(trotot * 0.001)
+                Sig.append(trototSD * 0.001)
+                dwet.append(trwet * 0.001)
+                dhydro.append((trotot - trwet) * 0.001)
                 timesList.append(seconds)
             if 'TROP/SOLUTION' in line:
                 flag = True

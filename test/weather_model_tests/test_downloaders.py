@@ -9,6 +9,7 @@ from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
 from RAiDER.models.erai import ERAI
 
+
 def test_era5():
     wm = ERA5()
     wm.fetch(np.array([10, 10.1, 10.2]), np.array([-72, -72, -72]), datetime(2020, 1, 1, 0, 0, 0), TEST_DIR / 'weather_model_tests' / 'test_era5.nc')
@@ -30,9 +31,8 @@ def test_erai2():
     wm = ERAI()
     with pytest.raises(RuntimeError):
         wm.fetch(
-            np.array([10, 10.1, 10.2]), 
-            np.array([-72, -72, -72]), 
-            datetime(2020, 1, 1, 0, 0, 0), 
+            np.array([10, 10.1, 10.2]),
+            np.array([-72, -72, -72]),
+            datetime(2020, 1, 1, 0, 0, 0),
             TEST_DIR / 'weather_files' / 'test_erai.nc'
         )
-

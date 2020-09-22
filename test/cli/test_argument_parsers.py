@@ -3,6 +3,8 @@ import pytest
 from datetime import date, time
 
 import RAiDER.runProgram
+from RAiDER.rays import ZenithLVGenerator
+from RAiDER.models.era5 import ERA5
 
 
 @pytest.fixture
@@ -36,10 +38,10 @@ def test_delay_args(delay_parser):
     assert args.latlon == ['latfile.dat', 'lonfile.dat']
     assert args.bbox is None
     assert args.station_file is None
-    assert args.lineofsight is None
+    assert args.lineofsight == ZenithLVGenerator()
     assert args.dem is None
     assert args.heightlvs is None
-    assert args.model == "ERA5"
+    assert args.model == ERA5()
     assert args.files is None
     assert args.wmLoc is None
     assert args.zref == 20000.0
@@ -115,4 +117,4 @@ def test_delay_model(delay_parser):
         '--station_file', 'station_file',
         '--model', 'era-5'
     ])
-    assert args.model == "ERA5"
+    assert args.model == ERA5()

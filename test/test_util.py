@@ -56,9 +56,9 @@ def make_rays_3d_data(ray1, ray2):
     rays = np.array([[[ray1, ray2]]])
 
     sp = np.array([[[[6378137., 0., 0.],
-                   [6378137., 0., 0.]]]])
+                     [6378137., 0., 0.]]]])
     slv = np.array([[[[0., 0., 1.],
-                    [0., 1., 0.]]]])
+                      [0., 1., 0.]]]])
 
     make_points_args = (.078, sp, slv, 5.)
 

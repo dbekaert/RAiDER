@@ -51,7 +51,6 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         self.assertTrue(
             np.sum(np.isnan(self.weather_model._hydrostatic_refractivity)) == 0)
 
-
     def test_makeWMFilename(self):
         self.assertTrue(
             make_weather_model_filename('ERA5', datetime.datetime(2020, 1, 1, 0, 0, 0), (15, 17, -72, -70)) ==

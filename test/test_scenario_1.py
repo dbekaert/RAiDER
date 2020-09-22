@@ -13,10 +13,10 @@ from RAiDER.rays import ZenithLVGenerator
 SCENARIO_DIR = TEST_DIR / "scenario_1"
 
 
-#@pytest.mark.skipif(
+# @pytest.mark.skipif(
 #    True,
 #    reason="Temporarily skipping to check other tests"
-#)
+# )
 def test_tropo_delay(tmp_path):
     '''
     Scenario:
@@ -45,11 +45,7 @@ def test_tropo_delay(tmp_path):
             ll_bounds=(15.75, 18.25, -103.24, -99.75),
             heights=("download", DATA_DIR / "geom" / "warpedDEM.dem"),
             flag="files",
-            weather_model={
-                "type": model_obj(),
-                "files": None,
-                "name": "ERA5"
-            },
+            weather_model=model_obj(),
             wmLoc=wmLoc,
             zref=zref,
             outformat="envi",

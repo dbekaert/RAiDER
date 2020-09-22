@@ -6,6 +6,14 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from RAiDER.logger import *
+from RAiDER.cli.parser import add_cpus
+from shapely.strtree import STRtree
+from shapely.geometry import Point, Polygon
+from pandas.plotting import register_matplotlib_converters
+from matplotlib import pyplot as plt
+import pandas as pd
+import numpy as np
 import argparse
 import copy
 import datetime as dt
@@ -18,17 +26,6 @@ import warnings
 import matplotlib as mpl
 # must switch to Agg to avoid multiprocessing crashes
 mpl.use('Agg')
-import numpy as np
-import pandas as pd
-from matplotlib import pyplot as plt
-from pandas.plotting import register_matplotlib_converters
-from shapely.geometry import Point, Polygon
-from shapely.strtree import STRtree
-
-from RAiDER.cli.parser import add_cpus
-from RAiDER.logger import logger
-
-log = logging.getLogger(__name__)
 
 
 def create_parser():
@@ -164,7 +161,7 @@ class VariogramAnalysis():
             indpars = list(itertools.combinations(range(len(data)), 2))
             random.shuffle(indpars)
             # subsample
-            Nvalidsamp = int(len(data)*(len(data)-1)/2)
+            Nvalidsamp = int(len(data) * (len(data) - 1) / 2)
             # Only downsample if Nsamps>specified value
             if Nvalidsamp > Nsamp:
                 indpars = indpars[:Nsamp]

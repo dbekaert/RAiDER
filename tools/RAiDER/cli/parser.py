@@ -39,4 +39,3 @@ def add_bbox(parser):
         action=BBoxAction,
         metavar=('S', 'N', 'W', 'E')
     )
-

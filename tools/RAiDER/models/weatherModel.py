@@ -18,7 +18,7 @@ from RAiDER.models import plotWeather as plots
 from RAiDER.rays import getLookVectors
 from RAiDER.utilFcns import lla2ecef, robmax, robmin
 
-log = logging.getLogger(__name__)
+from RAiDER.logger import *
 
 
 class WeatherModel(ABC):
@@ -105,6 +105,11 @@ class WeatherModel(ABC):
         string += 'A: {}\n'.format(self._a)
         string += 'B: {}\n'.format(self._b)
         return str(string)
+
+    def __eq__(self, other):
+        if not isinstance(other, WeatherModel):
+            return False
+        return self._Name == other._Name
 
     def Model(self):
         return self._Name
@@ -198,7 +203,7 @@ class WeatherModel(ABC):
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
-        log.info(
+        logger.info(
             'Weather model %s is available from %s-%s',
             self.Model(), self._valid_range[0], self._valid_range[1]
         )
@@ -291,9 +296,9 @@ class WeatherModel(ABC):
             in_extent = self._getExtent(lats, lons)
             self_extent = self._getExtent(self._lats, self._lons)
             if self._isOutside(in_extent, self_extent):
-                log.info('Extent of the input lats/lons is: {}'.format(in_extent))
-                log.info('Extent of the weather model is: {}'.format(self_extent))
-                log.info(
+                logger.info('Extent of the input lats/lons is: {}'.format(in_extent))
+                logger.info('Extent of the weather model is: {}'.format(self_extent))
+                logger.info(
                     'The weather model passed does not cover all of the input '
                     'points; you need to download a larger area.'
                 )
