@@ -41,7 +41,7 @@ def test_computeDelay(tmp_path):
 
     zref = 20000.
 
-    _, model_obj = modelName2Module('ERA5')
+    _, model_obj = modelName2Module('ERA5T')
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(
