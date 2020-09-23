@@ -48,6 +48,7 @@ jobs:
             python setup.py install
             python -c "import RAiDER; from RAiDER.delay import computeDelay, interpolateDelay; print(computeDelay)"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis; print(interp_along_axis)"
+            python test/test_scenario_1.py
             raiderDelay.py -h
             raiderStats.py -h
             raiderDownloadGNSS.py -h
