@@ -11,6 +11,8 @@ from scipy.interpolate import interp1d
 
 from RAiDER.interpolate import interpolate
 
+import pandas as pd
+
 
 class RegularGridInterpolator(object):
     """
@@ -91,7 +93,6 @@ def interpVector(vec, Nx):
 
 
 def fillna3D(array, axis=-1):
-    import pandas as pd
     
     XX, YY, temp2 = array.shape
     
