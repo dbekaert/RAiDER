@@ -48,8 +48,9 @@ jobs:
             python setup.py install
             python -c "import RAiDER; from RAiDER.delay import computeDelay, interpolateDelay; print(computeDelay)"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis; print(interp_along_axis)"
-            python test/test_scenario_1.py
             raiderDelay.py -h
+            raiderDelay.py --date 20200103 --time 23:00:00 -b 39 40 -79 -78 --model ERA5 --zref 15000 --heightlvs 0 100 200 -v
+            raiderDelay.py --date 20200103 --time 23:00:00 --latlon test/scenario_1/geom/lat.dat test/scenario_1/geom/lon.dat --model ERA5
             raiderStats.py -h
             raiderDownloadGNSS.py -h
       - run:
