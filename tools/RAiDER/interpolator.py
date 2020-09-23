@@ -94,18 +94,9 @@ def interpVector(vec, Nx):
 
 def fillna3D(array, axis=-1):
     
-    XX, YY, temp2 = array.shape
+    narr = np.moveaxis(array,axis,-1)
+    nars = narr.reshape((np.prod(narr.shape[:-1]),) +(narr.shape[-1],))
+    dfd = pd.DataFrame(data=nars).interpolate(axis=1,limit_direction='both')
+    out = dfd.values.reshape(array.shape)
     
-    if ((axis == 0)|(axis == 1)):
-        temp_pd = pd.DataFrame()
-        temp_pd = temp_pd.interpolate(method='linear',axis=axis,limit_direction='both')
-        array = temp_pd.to_numpy()
-    elif (axis == -1):
-        for yy in range(YY):
-            temp_pd = pd.DataFrame(data=array[:,yy,:], dtype=np.float32)
-            temp_pd = temp_pd.interpolate(method='linear',axis=1,limit_direction='both')
-            array[:,yy,:] = temp_pd.to_numpy()
-    else:
-        raise Exception("Axis out of the array shape")
-    
-    return array
+    return np.moveaxis(out,-1,axis)
