@@ -48,6 +48,7 @@ jobs:
             python setup.py install
             python -c "import RAiDER; from RAiDER.delay import computeDelay, interpolateDelay; print(computeDelay)"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis; print(interp_along_axis)"
+            python test/test_scenario_1.py
             raiderDelay.py -h
             raiderStats.py -h
             raiderDownloadGNSS.py -h
@@ -58,7 +59,7 @@ jobs:
             source activate myenv
             conda activate RAiDER
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            py.test test/ $COV_OPTIONS --cov-report=
+            py.test test/ -s $COV_OPTIONS --cov-report=
       - run:
           name: Report coverage
           command: |
