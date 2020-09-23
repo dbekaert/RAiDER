@@ -92,6 +92,7 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
     logger.debug('Beginning ray calculation')
     logger.debug('stepSize = %f', stepSize)
 
+    # Calculate the delays
     if useWeatherNodes:
         # If weather model nodes only are desired, the calculation is very quick
         with h5py.File(weather_model_file, 'r') as f:
@@ -112,6 +113,7 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
 
     logger.debug('Finished delay calculation')
 
+    # write results to file
     if heights[0] == 'lvs':
         outName = wetFilename.replace('wet', 'delays')
         writeDelays(flag, wet_delays, hydro_delays, lats, lons,
@@ -126,6 +128,7 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
         writeDelays(flag, wet_delays, hydro_delays, lats, lons,
                     wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
-        logger.info('Finished writing data to %s', wetFilename)
+
+    logger.info('Finished writing data to %s', wetFilename)
 
     return wet_delays, hydro_delays
