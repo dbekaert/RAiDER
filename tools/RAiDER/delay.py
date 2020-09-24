@@ -171,14 +171,19 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
     # Calculate the delays
     if useWeatherNodes:
         # If weather model nodes only are desired, the calculation is very quick
-        with h5py.File(weather_model_file, 'r') as f:
-            zs_wm = f['z'][()].copy()
-            wet_delays = f['wet_total'][()].copy()
-            hydro_delays = f['hydro_total'][()].copy()
         if heights[0] == 'lvs':
-            zlevels = heights[1]
-            wet_delays = interp_along_axis(zs_wm, zlevels, wet_delays, axis=-1)
-            hydro_delays = interp_along_axis(zs_wm, zlevels, hydro_delays, axis=-1)
+            with h5py.File(weather_model_file, 'r') as f:
+                zs_wm = f['z'][()].copy()
+                wd = f['wet'][()].copy()
+                hd = f['hydro'][()].copy()
+                zlevels = heights[1]
+                wet_delays = interp_along_axis(zs_wm, zlevels, wd, axis=-1)
+                hydro_delays = interp_along_axis(zs_wm, zlevels, hd, axis=-1)
+        else:
+            with h5py.File(weather_model_file, 'r') as f:
+                zs_wm = f['z'][()].copy()
+                wet_delays = f['wet_total'][()].copy()
+                hydro_delays = f['hydro_total'][()].copy()
     else:
         wet_delays, hydro_delays = RAiDER.delayFcns.get_delays(
             stepSize, 

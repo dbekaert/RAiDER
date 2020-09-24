@@ -37,7 +37,7 @@ def checkArgs(args, p):
     los = args.lineofsight
 
     # Weather
-    weather_model = args.model()
+    weather_model = args.model
     weather_model.files = args.files
     if weather_model.Model() == 'WRF' and args.files is None:
         raise ArgumentError('Argument --files is required with --model WRF')
