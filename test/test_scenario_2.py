@@ -16,11 +16,7 @@ from RAiDER.rays import ZenithLVGenerator
 SCENARIO_DIR = TEST_DIR / "scenario_2"
 
 
-# @pytest.mark.skipif(
-#    True,
-#    reason="Temporarily skipping to check other tests"
-# )
-def test_computeDelay(tmp_path):
+def test_gnssDelay(tmp_path):
     '''
     Scenario to use:
     2: GNSS station list

@@ -14,10 +14,6 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-4
 
 
-# @pytest.mark.skipif(
-#    True,
-#    reason="Temporarily skipping to check other tests"
-# )
 def test_tropo_delay(tmp_path):
     '''
     Scenario:
