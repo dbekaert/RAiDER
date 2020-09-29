@@ -131,7 +131,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
             weather_model, wmLoc, out, lats=lats, lons=lons, los=los, zref=zref,
-            time=time, download_only=download_only
+            time=time, download_only=download_only, makePlots=True
         )
         try:
             weather_model.write2HDF5(weather_model_file)
