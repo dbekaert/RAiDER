@@ -1,0 +1,59 @@
+import os
+import pytest
+
+import numpy as np
+
+from RAiDER.demdownload import getBufferedExtent, isOutside, isInside
+
+@pytest.fixture
+def llsimple():
+    lats = (10, 12)
+    lons = (-72, -74)
+    return lats, lons
+
+@pytest.fixture
+def latwrong():
+    lats = (12, 10)
+    lons = (-72, -74)
+    return lats, lons
+
+@pytest.fixture
+def lonwrong():
+    lats = (10, 12)
+    lons = (-72, -74)
+    return lats, lons
+
+@pytest.fixture
+def llarray():
+    lats = np.arange(10,12.1, 0.1)
+    lons = np.arange(-74, -71.9,0.2)
+    return lats, lons
+
+def test_ll1(llsimple):
+    lats, lons = llsimple
+    assert np.allclose(getBufferedExtent(lats, lons), np.array([10, 12, -74, -72]))
+
+def test_ll2(latwrong):
+    lats, lons = latwrong
+    assert np.allclose(getBufferedExtent(lats, lons), np.array([10, 12, -74, -72]))
+
+def test_ll3(lonwrong):
+    lats, lons = lonwrong
+    assert np.allclose(getBufferedExtent(lats, lons), np.array([10, 12, -74, -72]))
+
+def test_ll4(llarray):
+    lats, lons = llarray
+    assert np.allclose(getBufferedExtent(lats, lons), np.array([10, 12, -74, -72]))
+
+def test_isOutside1(llsimple):
+    assert isOutside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
+
+def test_isOutside2(llsimple):
+    assert not isOutside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple))
+
+def test_isInside(llsimple):
+    assert isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple))
+
+def test_isInside(llsimple):
+    assert not isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
+
