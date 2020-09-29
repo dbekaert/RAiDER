@@ -53,13 +53,28 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
     return my_ecef
 
 
+def gdal_extents(fname):
+    if os.path.exists(fname + '.vrt'):
+        fname = fname + '.vrt'
+    try:
+        ds = gdal.Open(fname, gdal.GA_ReadOnly)
+    except Exception:
+        raise OSError('File {} could not be opened'.format(fname))
+    gt = ds.GetGeoTransform()
+    if gt is None:
+        raise AttributeError('File {} does not contain geotransform information'.format(fname))
+    xSize, ySize = ds.GetRasterXSize,ds.GetRasterYSize
+
+    return [gt[0], gt[0] + (xSize-1)*gt[1] + (ySize - 1)*gt[2], gt[3], gt[3] + (xSize - 1)*gt[4] + (ySize-1)*gt[5]]
+
+
 def gdal_open(fname, returnProj=False, userNDV=None):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
     try:
         ds = gdal.Open(fname, gdal.GA_ReadOnly)
     except:
-        raise RuntimeError('File {} could not be opened'.format(fname))
+        raise OSError('File {} could not be opened'.format(fname))
     proj = ds.GetProjection()
     gt = ds.GetGeoTransform()
 

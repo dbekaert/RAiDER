@@ -100,3 +100,20 @@ def fillna3D(array, axis=-1):
     out = dfd.values.reshape(array.shape)
     
     return np.moveaxis(out,-1,axis)
+
+
+def interpolateDEM(demRaster, outLL, extent):
+    ''' Interpolate a DEM raster to a set of lat/lon query points '''
+    minlat, maxlat, minlon, maxlon = extent
+    nPixLat = demRaster.shape[0]
+    nPixLon = demRaster.shape[1]
+    xlats = np.linspace(minlat, maxlat, nPixLat)
+    xlons = np.linspace(minlon, maxlon, nPixLon)
+    interpolator = RegularGridInterpolator(
+        grid=(xlats, xlons), 
+        values=demRaster,
+        fill_value = np.nan
+    )
+    outInterp = interpolator(outLL)
+    return outInterp
+

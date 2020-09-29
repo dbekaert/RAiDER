@@ -15,7 +15,7 @@ import numpy as np
 import RAiDER.delayFcns
 from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
-from RAiDER.llreader import getHeights
+from RAiDER.dem import getHeights
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
