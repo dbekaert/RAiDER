@@ -11,6 +11,8 @@ from scipy.interpolate import interp1d
 
 from RAiDER.interpolate import interpolate
 
+import pandas as pd
+
 
 class RegularGridInterpolator(object):
     """
@@ -91,21 +93,10 @@ def interpVector(vec, Nx):
 
 
 def fillna3D(array, axis=-1):
-    '''
-    Fcn to fill in NaNs in a 3D array by interpolating over one axis only
-    '''
-    # Need to handle each axis
-    narr = np.moveaxis(array, axis, -1)
-    shape = narr.shape
-    y = narr.flatten()
-
-    test_nan = np.isnan(y)
-    def finder(z): return z.nonzero()[0]
-
-    try:
-        y[test_nan] = np.interp(finder(test_nan), finder(~test_nan), y[~test_nan])
-        newy = np.reshape(y, shape)
-        final = np.moveaxis(newy, -1, axis)
-        return final
-    except ValueError:
-        return array
+    
+    narr = np.moveaxis(array,axis,-1)
+    nars = narr.reshape((np.prod(narr.shape[:-1]),) +(narr.shape[-1],))
+    dfd = pd.DataFrame(data=nars).interpolate(axis=1,limit_direction='both')
+    out = dfd.values.reshape(array.shape)
+    
+    return np.moveaxis(out,-1,axis)
