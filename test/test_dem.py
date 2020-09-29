@@ -3,7 +3,7 @@ import pytest
 
 import numpy as np
 
-from RAiDER.demdownload import getBufferedExtent, isOutside, isInside
+from RAiDER.dem import getBufferedExtent, isOutside, isInside, getDEM, forceNDArray
 
 @pytest.fixture
 def llsimple():
@@ -56,4 +56,15 @@ def test_isInside(llsimple):
 
 def test_isInside(llsimple):
     assert not isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
+
+def test_getDEM():
+    dem = getDEM([18.5, 18.9, -73.2, -72.8])
+    assert dem.size >0
+    assert dem.ndim == 2
+
+def test_isNDArray():
+    assert np.allclose(forceNDArray(np.ones((10,))), np.ones((10,)))
+    assert np.allclose(forceNDArray(np.empty((10,))), np.empty((10,)))
+    assert np.allclose(forceNDArray([1, 2, 3, 4,5]), np.array([1, 2, 3, 4, 5]))
+    assert forceNDArray(None) is None
 

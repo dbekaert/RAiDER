@@ -110,15 +110,22 @@ def fillna3D(array, axis=-1):
 
 def interpolateDEM(demRaster, outLL, extent):
     ''' Interpolate a DEM raster to a set of lat/lon query points '''
+    from scipy.interpolate import RegularGridInterpolator as rgi
     minlat, maxlat, minlon, maxlon = extent
     nPixLat = demRaster.shape[0]
     nPixLon = demRaster.shape[1]
     xlats = np.linspace(minlat, maxlat, nPixLat)
     xlons = np.linspace(minlon, maxlon, nPixLon)
-    interpolator = RegularGridInterpolator(
-        grid=(xlats, xlons), 
+#    interpolator = RegularGridInterpolator(
+#        grid=(xlats, xlons), 
+#        values=demRaster,
+#        fill_value = np.nan
+#    )
+    interpolator = rgi(
+        points=(xlats, xlons), 
         values=demRaster,
-        fill_value = np.nan
+        fill_value = np.nan,
+        bounds_error = False
     )
     outInterp = interpolator(outLL)
     return outInterp
