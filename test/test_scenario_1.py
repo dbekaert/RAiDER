@@ -21,10 +21,11 @@ def test_tropo_delay(tmp_path):
     '''
     lats = gdal_open(SCENARIO_DIR / 'geom' / 'lat.dat')
     lons = gdal_open(SCENARIO_DIR / 'geom' / 'lon.dat')
+    ll_bounds = (15.75, 18.25, -103.24, -99.75)
 
     time = datetime.datetime(2020, 1, 3, 23, 0)
 
-    wmLoc = SCENARIO_DIR / 'weather_files'
+    wmLoc = TEST_DIR / 'weather_files'
     wmLoc.mkdir(exist_ok=True)
 
     zref = 20000.
@@ -33,6 +34,25 @@ def test_tropo_delay(tmp_path):
     wet_file, hydro_file = makeDelayFileNames(
         time, Zenith, "envi", "ERA5", tmp_path
     )
+    with pushd(tmp_path):
+        (_, _) = tropo_delay(
+            losGen=ZenithLVGenerator(),
+            lats=ll_bounds[:2],
+            lons=ll_bounds[2:],
+            ll_bounds=ll_bounds,
+            heights=("download", DATA_DIR / "geom" / "warpedDEM.dem"),
+            flag="files",
+            weather_model=model_obj(),
+            wmLoc=wmLoc,
+            zref=zref,
+            outformat="envi",
+            time=time,
+            out=tmp_path,
+            download_only=False,
+            wetFilename=wet_file,
+            hydroFilename=hydro_file
+        )
+
 
     with pushd(tmp_path):
         (_, _) = tropo_delay(

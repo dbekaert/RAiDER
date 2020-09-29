@@ -373,7 +373,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
     '''
     epsg = 4326
     projname = 'projection'
-    in_shape = lats.shape
+    in_shape = hgts.shape
 
     # create output file directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)

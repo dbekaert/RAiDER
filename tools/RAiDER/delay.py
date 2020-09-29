@@ -149,7 +149,6 @@ def tropo_delay(losGen, lats, lons, ll_bounds, heights, flag, weather_model, wmL
 
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
-    in_shape = lats.shape
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
     pnts_file = None

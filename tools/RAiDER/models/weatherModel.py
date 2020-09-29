@@ -309,15 +309,20 @@ class WeatherModel(ABC):
         '''
         get the bounding box around a set of lats/lons
         '''
-        if (lats.size == 1) & (lons.size == 1):
-            return [lats - self._lat_res, lats + self._lat_res, lons - self._lon_res, lons + self._lon_res]
-        elif (lats.size > 1) & (lons.size > 1):
-            return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
-        elif lats.size == 1:
-            return [lats - self._lat_res, lats + self._lat_res, np.nanmin(lons), np.nanmax(lons)]
-        elif lons.size == 1:
-            return [np.nanmin(lats), np.nanmax(lats), lons - self._lon_res, lons + self._lon_res]
-        else:
+        try:
+            if (lats.size == 1) & (lons.size == 1):
+                return [lats - self._lat_res, lats + self._lat_res, lons - self._lon_res, lons + self._lon_res]
+            elif (lats.size > 1) & (lons.size > 1):
+                return [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+            elif lats.size == 1:
+                return [lats - self._lat_res, lats + self._lat_res, np.nanmin(lons), np.nanmax(lons)]
+            elif lons.size == 1:
+                return [np.nanmin(lats), np.nanmax(lats), lons - self._lon_res, lons + self._lon_res]
+        except AttributeError:
+            if isinstance(lats, tuple) and len(lats)==2:
+                return [lats[0], lats[1], lons[0], lons[1]]
+        except Exception as e:
+            logger.error(e)
             raise RuntimeError('Not a valid lat/lon shape')
 
     def _isOutside(self, extent1, extent2):
