@@ -40,10 +40,15 @@ class RegularGridInterpolator(object):
             for arr in points:
                 assert arr.shape == shape, "All dimensions must contain the same number of points!"
             interp_points = np.stack(points, axis=-1)
+            in_shape = interp_points.shape
+        elif points.ndim > 2:
+            in_shape = points.shape
+            interp_points = points.reshape((np.prod(points.shape[:-1]),) + (points.shape[-1],))
         else:
             interp_points = points
+            in_shape = interp_points.shape
 
-        return interpolate(
+        out = interpolate(
             self.grid,
             self.values,
             interp_points,
@@ -51,6 +56,7 @@ class RegularGridInterpolator(object):
             assume_sorted=self.assume_sorted,
             max_threads=self.max_threads
         )
+        return out.reshape(in_shape[:-1])
 
 
 def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
