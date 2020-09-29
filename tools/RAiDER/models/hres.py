@@ -21,7 +21,7 @@ class HRES(WeatherModel):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-        # 9 km horizontal grid spacing
+        # 9 km horizontal grid spacing. This is only used for extending the download-buffer, i.e. not in subsequent processing.
         self._lon_res = 9. / 111
         self._lat_res = 9. / 111
         self._x_res = 9. / 111
