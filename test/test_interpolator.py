@@ -8,17 +8,22 @@ from RAiDER.interpolator import fillna3D, interp_along_axis, interpVector
 
 
 @pytest.fixture
-def grid():
-    x = np.linspace(0, 10, 100)
-    y = x.copy()
-    z = np.arange(-1, 21)
-
-    def f(x, y, z):
-        return np.sin(x) * np.cos(y) * (0.1 * z - 5)
-
-    values = f(*np.meshgrid(x, y, z, indexing='ij', sparse=True))
-
-    return (x, y, z), values
+def nanArr():
+    array = np.random.randn(2,2,3)
+    array[0,0,0] = np.nan
+    array[0,0,1] = np.nan
+    array[0,0,2] = np.nan
+    array[1,0,0] = np.nan
+    array[0,1,1] = np.nan
+    array[1,1,2] = np.nan
+    true_array = array.copy()
+    true_array[0,0,0] = np.nan
+    true_array[0,0,1] = np.nan
+    true_array[0,0,2] = np.nan
+    true_array[1,0,0] = true_array[1,0,1]
+    true_array[0,1,1] = (true_array[0,1,0] + true_array[0,1,2])/2
+    true_array[1,1,2] = true_array[1,1,1]
+    return array, true_array
 
 
 def test_interpVector():
@@ -35,34 +40,9 @@ def test_interpVector():
     )
 
 
-def test_fillna3D(grid):
-    _, values = grid
-
-    locations = np.array([
-        [3, 2, 2],
-        [0, 0, 4],
-        [3, 0, 0],
-        [2, 4, 3],
-        [1, 0, 1],
-        [3, 0, 3],
-        [2, 1, 1],
-        [0, 2, 1],
-        [2, 1, 3],
-        [3, 0, 3]
-    ]).transpose()
-    index = np.zeros(values.shape).astype("bool")
-    index[tuple(locations)] = True
-
-    values_with_nans = np.copy(values)
-    values_with_nans[index] = np.nan
-    denom = np.abs(values[index])
-
-    filled = fillna3D(values_with_nans)
-    denom = np.abs(values[index])
-    error = np.abs(filled[index] - values[index]) / \
-        np.where(denom == 0, 1, denom)
-
-    assert np.mean(error) < 0.1
+def test_fillna3D(nanArr):
+    arr, tarr = nanArr
+    assert np.allclose(fillna3D(arr), tarr, equal_nan=True)
 
 
 def test_interp_along_axis():
