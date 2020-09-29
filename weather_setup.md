@@ -1,6 +1,6 @@
 # Setup for accessing weather model data
 
-## For accessing ECMWF-type weather model data (e.g. ECMWF, ERA5, ERA5-T)
+## For accessing ECMWF-type weather model data with cdsapi (e.g. ERA5, ERA5-T)
 
 1. Create an account on the Copernicus servers [here](https://cds.climate.copernicus.eu/user)
 
@@ -22,6 +22,28 @@
    ___Note: this step has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
    
 4. You must accept the [license](https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products) for each product you wish to download.
+
+## For accessing ECMWF-type weather model data with ecmwfapi (e.g. ERA-Interim, HRES)
+
+1. Create an account on the Copernicus servers [here](https://accounts.ecmwf.int/auth/realms/ecmwf/protocol/openid-connect/auth?response_type=code&scope=openid%20email&client_id=apache-www&state=sBYlpcTRPhat8d6uuM9swLCxuP8&redirect_uri=https%3A%2F%2Fwww.ecmwf.int%2Foidc.cgi&nonce=RyEzBUy4m6oo_HxRQEmJxbc5jrKY4KFZd1Usgi8cpnM)
+
+2. Confirm your email, etc. 
+
+3. Install the public API key and client as instructed [here](https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key): 
+
+a. Copy the URL and API key from the webpage into a file in your home directory name ~/.cdsapirc 
+
+url: "https://api.ecmwf.int/v1"
+email: <EMAIL>
+key: <KEY>
+
+_Note the `<EMAIL>` represents the email that is used to register the user account, the `<KEY>` represents the API key obtained upon the registration of ECMWF API, and should be replaced with the user's own information._
+
+b. Install the ECMWF API using pip: 
+
+pip install ecmwf-api-client
+
+___Note: this step has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
 
 ## For accessing MERRA2-type weather model data with the use of OpenDAP  (e.g. MERRA-2, GMAO)
 

@@ -8,5 +8,6 @@ ALLOWED_MODELS = [
     'HRRR',
     'GMAO',
     'HDF5',
+    'HRES',
     'NCMR'
 ]
