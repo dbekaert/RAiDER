@@ -3,7 +3,7 @@ import pytest
 from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.interpolate import interpolate, interpolate_along_axis
-from RAiDER.interpolator import RegularGridInterpolator as Interpolator
+from RAiDER.interpolator import RegularGridInterpolator as Interpolator, interpolateDEM
 from RAiDER.interpolator import fillna3D, interp_along_axis, interpVector
 
 
@@ -928,4 +928,11 @@ def test_interpolate_wrapper2():
 #TODO: implement an interpolator test that is similar to test_scenario_1. 
 #Currently the scipy and C++ interpolators differ on that case.
 
+
+def test_interpolateDEM():
+    x = np.arange(10)
+    dem = np.outer(x, x)
+    extent = [0,9, 0, 9]
+    out = interpolateDEM(dem, np.array([[4.5, 4.5], [0.5, 0.5], [10, 10]]), extent)
+    assert np.allclose(out, np.array([20.25, 0.25, np.nan]), equal_nan=True)
 

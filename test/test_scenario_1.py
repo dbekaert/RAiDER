@@ -10,7 +10,7 @@ from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
-_RTOL = 1e-3
+_RTOL = 1e-4
 
 
 def test_tropo_delay(tmp_path):

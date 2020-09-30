@@ -60,10 +60,14 @@ def gdal_extents(fname):
         ds = gdal.Open(fname, gdal.GA_ReadOnly)
     except Exception:
         raise OSError('File {} could not be opened'.format(fname))
+
+    # Check whether the file is georeferenced
+    proj = ds.GetProjection()
     gt = ds.GetGeoTransform()
-    if gt is None:
+    if not proj or not gt:
         raise AttributeError('File {} does not contain geotransform information'.format(fname))
-    xSize, ySize = ds.GetRasterXSize,ds.GetRasterYSize
+
+    xSize, ySize = ds.RasterXSize,ds.RasterYSize
 
     return [gt[0], gt[0] + (xSize-1)*gt[1] + (ySize - 1)*gt[2], gt[3], gt[3] + (xSize - 1)*gt[4] + (ySize-1)*gt[5]]
 
