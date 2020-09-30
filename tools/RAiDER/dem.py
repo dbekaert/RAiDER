@@ -124,15 +124,16 @@ def download_dem(
                     buf=buf
                 )
             ):
-                raise RuntimeError(
+                raise ValueError(
                     'Existing DEM does not cover the area of the input lat/lon '
                     'points; either move the DEM, delete it, or change the input '
                      'points.'
                 )
             else:
-                return gdal_open(outName)
+                hgts = gdal_open(outName)
+                hgts[hgts == ndv] = np.nan
+                return hgts
 
-        #TOFIX: It's a little funny to stop on one error but move ahead on another
         #TOFIX: Even if the DEM covers the input extent we may still need to interpolate it
         except AttributeError:
             logging.warning(
@@ -140,8 +141,9 @@ def download_dem(
                 'I will download a new one.'
             )
         except OSError:
-        # TOFIX: the GNSS station data uses a .csv file instead of a gdal raster; might need to extend this to other file types.
-            pass
+            hgts = RAiDER.utilFcns.read_hgt_file(outName)
+            hgts[hgts == ndv] = np.nan
+            return hgts
        
 
     # Otherwise download a global DEM

@@ -876,7 +876,7 @@ def test_interpolate_wrapper():
     zs = np.linspace(0, 1000, 100)
 
     values = f(*np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
-    points_x = np.linspace(10, 990, 5)
+    points_x = np.linspace(10, 1090, 5)
     points_y = np.linspace(10, 890, 5)
     points_z = np.linspace(10, 890, 5)
     points = np.stack((
@@ -885,11 +885,45 @@ def test_interpolate_wrapper():
         points_z
     ), axis=-1)
 
-    interp = Interpolator((xs, ys, zs), values)
+    interp = Interpolator((xs, ys, zs), values, fill_value = np.nan)
     ans = interp(points)
     ans2 = interp((points_x, points_y, points_z))
-    rgi = RegularGridInterpolator((xs, ys, zs), values)
+    rgi = RegularGridInterpolator((xs, ys, zs), values, bounds_error=False)
     ans_scipy = rgi(points)
 
-    assert np.allclose(ans, ans_scipy, 1e-15)
-    assert np.allclose(ans2, ans_scipy, 1e-15)
+    assert np.allclose(ans, ans_scipy, 1e-15, equal_nan=True)
+    assert np.allclose(ans2, ans_scipy, 1e-15, equal_nan=True)
+
+
+def test_interpolate_wrapper2():
+    def f(x, y, z):
+        return x ** 2 + 3 * y - z
+
+    xs = np.linspace(0, 1000, 100)
+    ys = np.linspace(0, 1000, 100)
+    zs = np.linspace(0, 1000, 100)
+
+    values = f(*np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
+    nanInds = np.random.randint(0, 99, size=(100,3))
+    values[nanInds[:,0], nanInds[:,1], nanInds[:,2]] = np.nan
+   
+    points_x = np.linspace(10, 1090, 5)
+    points_y = np.linspace(10, 890, 5)
+    points_z = np.linspace(10, 890, 5)
+    points = np.stack((
+        points_x,
+        points_y,
+        points_z
+    ), axis=-1)
+
+    interp = Interpolator((xs, ys, zs), values, fill_value = np.nan)
+    ans = interp(points)
+    ans2 = interp((points_x, points_y, points_z))
+    rgi = RegularGridInterpolator((xs, ys, zs), values, bounds_error=False)
+    ans_scipy = rgi(points)
+
+    assert np.allclose(ans, ans_scipy, 1e-15, equal_nan=True)
+    assert np.allclose(ans2, ans_scipy, 1e-15, equal_nan=True)
+
+#TODO: implement an interpolator test that is similar to test_scenario_1. 
+#Currently the scipy and C++ interpolators differ on that case.

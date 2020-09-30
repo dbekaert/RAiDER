@@ -57,16 +57,12 @@ def download_dem(lats, lons, outLoc=None, save_flag='new', checkDEM=True,
                     'Existing DEM does not cover the area of the input lat/lon '
                     'points; either move the DEM, delete it, or change the inputs.'
                 )
-        except RuntimeError:
+            hgts[hgts == ndv] = np.nan
+            return hgts
+        except OSError:
             hgts = RAiDER.utilFcns.read_hgt_file(outRasterName)
-        except:
-            raise RuntimeError('Could not read the existing DEM; either delete it or fix it.')
-
-        hgts[hgts == ndv] = np.nan
-        return hgts
-
-        hgts[hgts == ndv] = np.nan
-        return hgts
+            hgts[hgts == ndv] = np.nan
+            return hgts
 
     # Specify filenames
     log.debug('Getting the DEM')
