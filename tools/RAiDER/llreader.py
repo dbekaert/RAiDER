@@ -11,7 +11,7 @@ import os
 
 import numpy as np
 
-from RAiDER.demdownload import download_dem
+from RAiDER.dem import download_dem
 from RAiDER.utilFcns import gdal_open
 
 log = logging.getLogger(__name__)
