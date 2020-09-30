@@ -1,4 +1,5 @@
 import datetime
+import os
 import pytest
 
 import numpy as np
@@ -19,14 +20,15 @@ def test_tropo_delay(tmp_path):
     Scenario:
     1: Small area, ERA5, Zenith delay
     '''
-    lats = gdal_open(SCENARIO_DIR / 'geom' / 'lat.dat')
-    lons = gdal_open(SCENARIO_DIR / 'geom' / 'lon.dat')
+    lats = gdal_open(os.path.join(SCENARIO_DIR, 'geom', 'lat.dat'))
+    lons = gdal_open(os.path.join(SCENARIO_DIR, 'geom', 'lon.dat'))
     ll_bounds = (15.75, 18.25, -103.24, -99.75)
 
     time = datetime.datetime(2020, 1, 3, 23, 0)
 
-    wmLoc = TEST_DIR / 'weather_files'
-    wmLoc.mkdir(exist_ok=True)
+    wmLoc = os.path.join(TEST_DIR, 'weather_files')
+    if not os.path.exists(wmLoc): 
+        os.mkdir(wmLoc)
 
     zref = 20000.
 
@@ -40,7 +42,7 @@ def test_tropo_delay(tmp_path):
             lats=ll_bounds[:2],
             lons=ll_bounds[2:],
             ll_bounds=ll_bounds,
-            heights=("download", DATA_DIR / "geom" / "warpedDEM.dem"),
+            heights=("download", os.path.join(DATA_DIR, "geom", "warpedDEM.dem")),
             flag="files",
             weather_model=model_obj(),
             wmLoc=wmLoc,
@@ -77,7 +79,6 @@ def test_tropo_delay(tmp_path):
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)
-<<<<<<< HEAD
         true_wet = gdal_open(
             os.path.join(
                 SCENARIO_DIR, 
@@ -96,6 +97,10 @@ def test_tropo_delay(tmp_path):
         true_wet = gdal_open(SCENARIO_DIR / "wet.envi", userNDV=0.)
         true_hydro = gdal_open(SCENARIO_DIR / "hydro.envi", userNDV=0.)
 >>>>>>> Use pathlib for test paths
+=======
+        true_wet = gdal_open(os.path.join(SCENARIO_DIR, "wet.envi", userNDV=0.))
+        true_hydro = gdal_open(os.path.join(SCENARIO_DIR, "hydro.envi", userNDV=0.))
+>>>>>>> temp commit to switch branches
 
         # get the true delay from the weather model
         assert np.allclose(

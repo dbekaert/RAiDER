@@ -17,7 +17,6 @@ from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.dem import getHeights
 from RAiDER.logger import *
-from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.rays import getLookVectors
 from RAiDER.utilFcns import (

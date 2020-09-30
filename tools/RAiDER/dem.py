@@ -30,7 +30,10 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     or will download one if needed.
     '''
     height_type, height_data = heights
-    in_shape = lats.shape
+    try:
+        in_shape = lats.shape
+    except AttributeError:
+        in_shape = ()
 
     if height_type == 'dem':
         try:

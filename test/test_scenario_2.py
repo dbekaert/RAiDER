@@ -1,4 +1,4 @@
-# Unit and other tests
+import os
 import pytest
 
 from datetime import datetime
@@ -13,7 +13,7 @@ from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import modelName2Module
 from RAiDER.rays import ZenithLVGenerator
 
-SCENARIO_DIR = TEST_DIR / "scenario_2"
+SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
 
 
 def test_gnssDelay(tmp_path):
@@ -22,14 +22,14 @@ def test_gnssDelay(tmp_path):
     2: GNSS station list
     '''
     wetName = 'stations_with_Delays.csv'
-    wetFile = SCENARIO_DIR / wetName
+    wetFile = os.path.join(SCENARIO_DIR, wetName)
     # Not used for station file input, only passed for consistent input arguments
     hydroFile = wetFile
 
     # load the weather model type and date for the given scenario
-    true_delay = SCENARIO_DIR / 'ERA5_true_GNSS.csv'
+    true_delay = os.path.join(SCENARIO_DIR, 'ERA5_true_GNSS.csv')
 
-    station_file = SCENARIO_DIR / 'stations.csv'
+    station_file = os.path.join(SCENARIO_DIR, 'stations.csv')
     copyfile(station_file, wetFile)
     stats = pd.read_csv(station_file)
     lats = stats['Lat'].values
