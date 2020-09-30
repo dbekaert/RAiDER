@@ -7,11 +7,11 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
-from scipy.interpolate import interp1d
+import pandas as pd
+
+from scipy.interpolate import interp1d,RegularGridInterpolator as rgi
 
 from RAiDER.interpolate import interpolate
-
-import pandas as pd
 
 
 class RegularGridInterpolator(object):
@@ -40,10 +40,15 @@ class RegularGridInterpolator(object):
             for arr in points:
                 assert arr.shape == shape, "All dimensions must contain the same number of points!"
             interp_points = np.stack(points, axis=-1)
+            in_shape = interp_points.shape
+        elif points.ndim > 2:
+            in_shape = points.shape
+            interp_points = points.reshape((np.prod(points.shape[:-1]),) + (points.shape[-1],))
         else:
             interp_points = points
+            in_shape = interp_points.shape
 
-        return interpolate(
+        out = interpolate(
             self.grid,
             self.values,
             interp_points,
@@ -51,6 +56,7 @@ class RegularGridInterpolator(object):
             assume_sorted=self.assume_sorted,
             max_threads=self.max_threads
         )
+        return out.reshape(in_shape[:-1])
 
 
 def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
@@ -100,3 +106,21 @@ def fillna3D(array, axis=-1):
     out = dfd.values.reshape(array.shape)
     
     return np.moveaxis(out,-1,axis)
+
+
+def interpolateDEM(demRaster, outLL, extent):
+    ''' Interpolate a DEM raster to a set of lat/lon query points '''
+    minlat, maxlat, minlon, maxlon = extent
+    nPixLat = demRaster.shape[0]
+    nPixLon = demRaster.shape[1]
+    xlats = np.linspace(minlat, maxlat, nPixLat)
+    xlons = np.linspace(minlon, maxlon, nPixLon)
+    interpolator = rgi(
+        points=(xlats, xlons), 
+        values=demRaster,
+        method='linear',
+        bounds_error = False
+    )
+    outInterp = interpolator(outLL)
+    return outInterp
+

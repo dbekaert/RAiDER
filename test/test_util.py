@@ -1,15 +1,17 @@
+import h5py
 import os
+import osr
+import pytest
+
+import numpy as np
+
 from datetime import time
 from test import TEST_DIR
-
-import h5py
-import numpy as np
-import pytest
 from osgeo import gdal
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
-    writeArrayToRaster, writeResultsToHDF5
+    writeArrayToRaster, writeResultsToHDF5, gdal_extents
 )
 
 
@@ -238,3 +240,20 @@ def test_least_nonzero_2():
         atol=1e-16,
         equal_nan=True
     )
+
+def test_gdal_extent():
+    # Create a simple georeferenced test file
+    ds = gdal.GetDriverByName('GTiff').Create('test.tif', 11, 11, 1, gdal.GDT_Float64)
+    ds.SetGeoTransform((17.0, 0.1, 0, 18.0, 0, -0.1))
+    band = ds.GetRasterBand(1)
+    band.WriteArray(np.random.randn(11,11))
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(4326)
+    ds.SetProjection(srs.ExportToWkt())
+    ds = None; band = None
+
+    assert gdal_extents('test.tif') == [17.0, 18.0, 18.0, 17.0]
+
+def test_gdal_extent2():
+    with pytest.raises(AttributeError):
+        gdal_extents(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
