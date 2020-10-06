@@ -28,27 +28,8 @@ def checkArgs(args, p):
             if args.outformat.lower() != 'hdf5':
                 raise RuntimeError('HDF5 must be used with height levels')
 
-    # Area
-    # flag depending on the type of input
-    if args.latlon is not None:
-        flag = 'files'
-    elif args.bbox is not None:
-        flag = 'bounding_box'
-    elif args.station_file is not None:
-        flag = 'station_file'
-    else:
-        flag = None
-
-    if args.latlon is not None:
-        lat, lon, latproj, lonproj, bounds = readLL(*args.latlon)
-    elif args.bbox is not None:
-        lat, lon, latproj, lonproj, bounds = readLL(*args.bbox)
-    elif args.station_file is not None:
-        lat, lon, latproj, lonproj, bounds = readLL(args.station_file)
-    elif args.files is None:
-        raise NotImplementedError("Reading lat/lon data from files is not implemented")
-    else:
-        raise RuntimeError('You must specify an area of interest')
+    # Query Area
+    lat, lon, llproj, bounds, flag = readLL(args.query_area)
 
     if (np.min(lat) < -90) | (np.max(lat) > 90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
@@ -97,7 +78,7 @@ def checkArgs(args, p):
     if args.outformat is None:
         if args.heightlvs is not None:
             outformat = 'hdf5'
-        elif args.station_file is not None:
+        elif flag=='station_file':
             outformat = 'csv'
         elif useWeatherNodes:
             outformat = 'hdf5'

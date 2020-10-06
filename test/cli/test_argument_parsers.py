@@ -33,9 +33,7 @@ def test_delay_args(delay_parser):
 
     assert args.dateList == [date(2020, 1, 3)]
     assert args.time == time(23, 0, 0)
-    assert args.latlon == ['latfile.dat', 'lonfile.dat']
-    assert args.bbox is None
-    assert args.station_file is None
+    assert args.query_area == ['latfile.dat', 'lonfile.dat']
     assert args.lineofsight is None
     assert args.statevectors is None
     assert args.dem is None
