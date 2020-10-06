@@ -36,6 +36,7 @@ def add_bbox(parser):
         help="Bounding box",
         nargs=4,
         type=float,
+        dest='query_area',
         action=BBoxAction,
         metavar=('S', 'N', 'W', 'E')
     )
