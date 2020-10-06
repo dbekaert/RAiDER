@@ -55,14 +55,22 @@ def create_parser():
     # Area
     area = p.add_argument_group('Area of Interest (Supply one)').add_mutually_exclusive_group(required=True)
     area.add_argument(
-        '--latlon', '-ll', nargs=2, default=None,
+        '--latlon', 
+        '-ll', 
+        nargs=2, 
+        dest='query_area',
         help='GDAL-readable latitude and longitude raster files (2 single-band files)',
-        metavar=('LAT', 'LONG'))
+        metavar=('LAT', 'LONG')
+    )
     add_bbox(area)
     area.add_argument(
-        '--station_file', default=None, type=str, dest='station_file',
+        '--station_file', 
+        default=None, 
+        type=str, 
+        dest='query_area',
         help=('CSV file with a list of stations, containing at least '
-              'the columns "Lat" and "Lon"'))
+              'the columns "Lat" and "Lon"')
+     )
 
     # Line of sight
     los = p.add_argument_group(

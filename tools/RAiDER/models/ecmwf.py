@@ -97,6 +97,17 @@ class ECMWF(WeatherModel):
         self._ys = self._lats.copy()
         self._xs = self._lons.copy()
 
+        # check this
+        # data cube format should be lats,lons,heights
+        self._lats = self._lats.swapaxes(0, 1)
+        self._lons = self._lons.swapaxes(0, 1)
+        self._xs = self._xs.swapaxes(0, 1)
+        self._ys = self._ys.swapaxes(0, 1)
+        self._zs = self._zs.swapaxes(0, 1)
+        self._p = self._p.swapaxes(0, 1)
+        self._q = self._q.swapaxes(0, 1)
+        self._t = self._t.swapaxes(0, 1)
+
         # Flip all the axis so that zs are in order from bottom to top
         self._p = np.flip(self._p, axis=2)
         self._t = np.flip(self._t, axis=2)

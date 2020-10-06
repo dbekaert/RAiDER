@@ -15,7 +15,7 @@ import numpy as np
 import RAiDER.delayFcns
 from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
-from RAiDER.llreader import getHeights
+from RAiDER.dem import getHeights
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
@@ -131,7 +131,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
             weather_model, wmLoc, out, lats=lats, lons=lons, los=los, zref=zref,
-            time=time, download_only=download_only
+            time=time, download_only=download_only, makePlots=True
         )
         try:
             weather_model.write2HDF5(weather_model_file)

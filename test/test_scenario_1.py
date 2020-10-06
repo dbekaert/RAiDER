@@ -10,6 +10,7 @@ from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
+_RTOL = 1e-4
 
 
 def test_tropo_delay(tmp_path):
@@ -68,5 +69,16 @@ def test_tropo_delay(tmp_path):
             SCENARIO_DIR, "hydro.envi"), userNDV=0.)
 
         # get the true delay from the weather model
-        assert np.allclose(wet, true_wet, equal_nan=True)
-        assert np.allclose(hydro, true_hydro, equal_nan=True)
+        assert np.allclose(
+            wet, 
+            true_wet, 
+            equal_nan=True,
+            rtol=_RTOL
+        )
+        assert np.allclose(
+            hydro, 
+            true_hydro, 
+            equal_nan=True,
+            rtol=_RTOL
+        )
+
