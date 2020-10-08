@@ -36,7 +36,6 @@ def test_delay_args(delay_parser):
     assert args.dateList == [date(2020, 1, 3)]
     assert args.time == time(23, 0, 0)
     assert args.query_area == ['latfile.dat', 'lonfile.dat']
-    assert args.statevectors is None
     assert args.lineofsight is ZenithLVGenerator
     assert args.dem is None
     assert args.heightlvs is None
