@@ -78,7 +78,7 @@ def checkArgs(args, p):
     if args.outformat is None:
         if args.heightlvs is not None:
             outformat = 'hdf5'
-        elif flag=='station_file':
+        elif flag == 'station_file':
             outformat = 'csv'
         elif useWeatherNodes:
             outformat = 'hdf5'
@@ -103,7 +103,7 @@ def checkArgs(args, p):
 
             # copy the input file to the output location for editing
             import pandas as pd
-            indf = pd.read_csv(args.station_file)
+            indf = pd.read_csv(args.query_area)
             indf.to_csv(wetFilename, index=False)
         else:
             wetFilename, hydroFilename = \
