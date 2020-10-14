@@ -6,7 +6,7 @@ from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
-from RAiDER.delay import tropo_delay
+from RAiDER.delay import tropo_delay, weather_model_debug
 from RAiDER.logger import logger
 from RAiDER.models.allowed import ALLOWED_MODELS
 
@@ -158,6 +158,33 @@ def parseCMD():
             (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                                  outformat, t, out, download_only, wfn, hfn)
 
+        except RuntimeError:
+            log.exception("Date %s failed", t)
+            continue
+
+
+def parseCMD_weather_model_debug():
+    """
+    Parse command-line arguments and pass to prepareWeatherModel
+    We'll parse arguments and call delay.py.
+    """
+    
+    p = create_parser()
+    args = p.parse_args()
+    
+    # Argument checking
+    los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
+        times, out, download_only, verbose, \
+        wetNames, hydroNames = checkArgs(args, p)
+    
+    if verbose:
+        logger.setLevel(logging.DEBUG)
+    
+    # Loop over each datetime
+    for t in times:
+        try:
+            weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref, t, out, download_only)
+                
         except RuntimeError:
             log.exception("Date %s failed", t)
             continue

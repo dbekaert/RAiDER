@@ -51,6 +51,7 @@ jobs:
             raiderDelay.py -h
             raiderStats.py -h
             raiderDownloadGNSS.py -h
+	    raiderWeatherModelDebug.py -h
       - run:
           name: Run unit tests
           command: |
