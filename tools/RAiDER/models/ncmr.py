@@ -94,14 +94,40 @@ class NCMR(WeatherModel):
         
         with Dataset(filename, 'r', maskandscale=True) as f:
              lats = f.variables['latitude'][lat_min_ind:(lat_max_ind + 1)].copy()
-             lons = f.variables['longitude'][lon_min_ind:(lon_max_ind + 1)].copy()
-             t = f.variables['air_temperature'][ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+             if (self._bounds[2] * self._bounds[3] < 0):
+                 lons1 = f.variables['longitude'][lon_min_ind:].copy()
+                 lons2 = f.variables['longitude'][0:(lon_max_ind + 1)].copy()
+                 lons = np.append(lons1, lons2)
+             else:
+                 lons = f.variables['longitude'][lon_min_ind:(lon_max_ind + 1)].copy()
+             if (self._bounds[2] * self._bounds[3] < 0):
+                 t1 = f.variables['air_temperature'][ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
+                 t2 = f.variables['air_temperature'][ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), 0:(lon_max_ind + 1)].copy()
+                 t = np.append(t1, t2, axis=2)
+             else:
+                 t = f.variables['air_temperature'][ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+
              # Skipping first pressure levels (below 20 meter)
-             q = f.variables['specific_humidity'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
-             p = f.variables['air_pressure'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+             if (self._bounds[2] * self._bounds[3] < 0):
+                 q1 = f.variables['specific_humidity'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
+                 q2 = f.variables['specific_humidity'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), 0:(lon_max_ind + 1)].copy()
+                 q = np.append(q1, q2, axis=2)
+             else:
+                 q = f.variables['specific_humidity'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+             if (self._bounds[2] * self._bounds[3] < 0):
+                 p1 = f.variables['air_pressure'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
+                 p2 = f.variables['air_pressure'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), 0:(lon_max_ind + 1)].copy()
+                 p = np.append(p1, p2, axis=2)
+             else:
+                 p = f.variables['air_pressure'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
              
              level_hgt = f.variables['level_height'][(ml_min+1):(ml_max + 1)].copy()
-             surface_alt = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+             if (self._bounds[2] * self._bounds[3] < 0):
+                 surface_alt1 = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
+                 surface_alt2 = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), 0:(lon_max_ind + 1)].copy()
+                 surface_alt = np.append(surface_alt1, surface_alt2, axis=1)
+             else:
+                 surface_alt = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
              
              hgt = np.zeros([len(level_hgt),len(surface_alt[:,1]),len(surface_alt[1,:])])
              for i in range(len(level_hgt)):
