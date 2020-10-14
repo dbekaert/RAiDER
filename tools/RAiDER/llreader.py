@@ -21,16 +21,16 @@ def readLL(*args):
     Parse lat/lon/height inputs and return
     the appropriate outputs
     '''
-    if len(*args) == 2:
+    if len(args) == 2:
         # If they are files, open them
         flag = 'files'
         lats, lons, llproj = readLLFromLLFiles(*args)
-    elif len(*args) == 4:
+    elif len(args) == 4:
         flag = 'bounding_box'
         lats, lons, llproj = readLLFromBBox(*args)
-    elif len(*args) == 1:
-        flag = 'station_list'
-        lats, lons, llproj = readLLFromStationFile(args)
+    elif len(args) == 1:
+        flag = 'station_file'
+        lats, lons, llproj = readLLFromStationFile(*args)
     else:
         raise RuntimeError('llreader: Cannot parse query region: {}'.format(args))
 
@@ -62,7 +62,7 @@ def readLLFromStationFile(fname):
     Helper fcn for checking argument compatibility
     '''
     stats = pd.read_csv(fname)
-    return stats['Lat'].values, stats['Lon'].values,  'EPSG:4326' 
+    return stats['Lat'].values, stats['Lon'].values, 'EPSG:4326'
 
 
 def forceNDArray(arg):
@@ -70,5 +70,3 @@ def forceNDArray(arg):
         return None
     else:
         return np.array(arg)
-
-
