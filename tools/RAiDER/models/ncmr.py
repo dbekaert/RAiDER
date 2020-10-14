@@ -1,12 +1,11 @@
 """
 Created on Wed Sep  9 10:26:44 2020 @author: prashant
+Modified by Yang Lei, GPS/Caltech
 """
 import datetime
 import numpy as np
 from pyproj import CRS
 from RAiDER import utilFcns as util
-
-#from RAiDER.models.ncmr import NCMR
 from RAiDER.models.weatherModel import WeatherModel
 
 class NCMR(WeatherModel):
@@ -40,6 +39,8 @@ class NCMR(WeatherModel):
         self._x_res   = .17578125                  # same as longitude
         self._y_res   = .11718750                  # same as latitude 
         
+        self._bounds = None
+        
         # Projection
         self._proj = CRS.from_epsg(4326)
 
@@ -57,67 +58,64 @@ class NCMR(WeatherModel):
         '''
         download data of the NCMR model and save it in desired location
         '''
-        # self._files = self._download_ncmr_file(out,'ncmr',time,self._bounds)    
+        self._files = self._download_ncmr_file(out,'ncmr',time,self._bounds)
 
     def load_weather(self, filename):
         '''
         Load NCMR model variables from existing file
         '''
-        #lats, lons, xs, ys, t, q, p, hgt = self._makeDataCubes(filename)
         self._makeDataCubes(filename)
         
-        '''
-        geopotential height from NCMR model defined as 'hgt'
-        '''
-#        self._zs = hgt
-        
-        '''
-        output of the weather model reader for delay calculations (all shoud be in 3-D data cubes)
-        '''
- #       self._t = t                    # Temperature
- #       self._q = q                    # Specific humidity for NCMR
- #       self._p = p                    # Pressure level
- #       self._xs = xs                  
- #       self._ys = ys
- #       self._lats = lats
- #       self._lons = lons
-        
-        
+
     def _download_ncmr_file(self, out, ncmr, date_time, bounding_box):
         '''
         Temporarily download data from NCMR ftp 'https://ftp.ncmrwf.gov.in/pub/outgoing/SAC/NCUM_OSF/' and copied in weather_models folder
         '''
+        pass
         
     def _makeDataCubes(self, filename):
+        
         from netCDF4 import Dataset
+        
+        # calculate the array indices for slicing the GMAO variable arrays
+        lat_min_ind = int((self._bounds[0] - (-89.94141)) / self._lat_res)
+        lat_max_ind = int((self._bounds[1] - (-89.94141)) / self._lat_res)
+        if (self._bounds[2] < 0.0):
+            lon_min_ind = int((self._bounds[2] + 360.0 - (0.087890625)) / self._lon_res)
+        else:
+            lon_min_ind = int((self._bounds[2] - (0.087890625)) / self._lon_res)
+        if (self._bounds[3] < 0.0):
+            lon_max_ind = int((self._bounds[3] + 360.0 - (0.087890625)) / self._lon_res)
+        else:
+            lon_max_ind = int((self._bounds[3] - (0.087890625)) / self._lon_res)
+        
+        ml_min = 0
+        ml_max = 70
+        
         with Dataset(filename, 'r', maskandscale=True) as f:
-             lats = f.variables['latitude'][:].copy()
-             lons = f.variables['longitude'][:].copy()
-             t = f.variables['air_temperature'][:].copy()
-             q = f.variables['specific_humidity'][:].copy()
-             p = f.variables['air_pressure'][:].copy() 
-             # z = f.variables['geopotential_height'][:].copy()             $ If available from NCUM models directly
-             level_hgt = f.variables['level_height'][:].copy()
-             level_hgt = level_hgt[1:71]
-             surface_alt = f.variables['surface_altitude'][:].copy()
+             lats = f.variables['latitude'][lat_min_ind:(lat_max_ind + 1)].copy()
+             lons = f.variables['longitude'][lon_min_ind:(lon_max_ind + 1)].copy()
+             t = f.variables['air_temperature'][ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+             # Skipping first pressure levels (below 20 meter)
+             q = f.variables['specific_humidity'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+             p = f.variables['air_pressure'][(ml_min+1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
+             
+             level_hgt = f.variables['level_height'][(ml_min+1):(ml_max + 1)].copy()
+             surface_alt = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
              
              hgt = np.zeros([len(level_hgt),len(surface_alt[:,1]),len(surface_alt[1,:])])
              for i in range(len(level_hgt)):
                  hgt[i,:,:] = surface_alt[:,:] + level_hgt[i]
-             
-             # Skipping first pressure levels (below 20 meter)
-             p = p[1:71,:,:]               
-             q = q[1:71,:,:]
               
              lons[lons > 180] -= 360
      
-             # #re-assign lons, lats to match heights
+             # re-assign lons, lats to match heights
              _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
                                           t.shape)
              _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
                                           t.shape)
 
-	     # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
+             # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
              _lats = np.transpose(_lats)
              _lons = np.transpose(_lons)
              t = np.transpose(t)
