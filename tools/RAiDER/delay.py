@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Author: Jeremy Maurer, Raymond Hogenson, David Bekaert & Yang Lei
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
@@ -201,7 +201,7 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
 def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
                         time, out, download_only):
     """
-    raiderDebug main function.
+    raiderWeatherModelDebug main function.
     """
     
     log.debug('Starting to run the weather model calculation with debugging plots')
