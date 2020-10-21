@@ -8,7 +8,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import argparse
 import itertools
-import logging
 import multiprocessing
 import os
 
@@ -16,10 +15,8 @@ import pandas as pd
 import requests
 
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
+from RAiDER.logger import *
 from RAiDER.getStationDelays import get_station_data
-from RAiDER.logger import logger
-
-log = logging.getLogger(__name__)
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
