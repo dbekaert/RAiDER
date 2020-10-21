@@ -9,13 +9,13 @@
 import contextlib
 import os
 import sys
-from datetime import datetime
 
 import numpy as np
 
+from datetime import datetime
+
 from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
-
 
 def getWMFilename(weather_model_name, time, outLoc):
     '''
@@ -35,74 +35,48 @@ def getWMFilename(weather_model_name, time, outLoc):
 
     logger.debug('Storing weather model at: %s', f)
 
-    download_flag = True
     if os.path.exists(f):
         logger.warning('Weather model already exists, skipping download')
         download_flag = False
 
-    return download_flag, f
+    return f
 
 
-def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
-                        los=None, zref=None, time=None,
-                        download_only=False, makePlots=False):
+def prepareWeatherModel(
+        weather_model, 
+        wmFileLoc, 
+        lats=None, 
+        lons=None,
+        los=None, 
+        zref=None, 
+        time=None,
+        download_only=False, 
+        makePlots=False
+    ):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
+    lats, lons = fixLL(lats, lons, weather_model)
 
     # Make weather
-    weather_model, weather_files, weather_model_name = \
-        weatherDict['type'], weatherDict['files'], weatherDict['name']
+    if weather_model.files is not None:
+        time = getTimeFromFile(weather_model.files[0])
 
-    # check whether weather model files are supplied
-    if weather_files is None:
-        download_flag, f = getWMFilename(weather_model.Model(), time, wmFileLoc)
-    else:
-        download_flag = False
-        time = getTimeFromFile(weather_files[0])
-            
-    # Not all of the weather models have valid data exactly bounded by -90/90 (lats) and -180/180 (lons);
-    # for GMAO and MERRA2, need to adjust the longitude higher end with an extra buffer;
-    # for other models, the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus
-    # can be rounded to the above regions (either in the downloading-file API or subsetting-data API) without problems.
-    if weather_model._Name is 'GMAO' or weather_model._Name is 'MERRA2':
-        ex_buffer_lon_max = weather_model._lon_res
-    else:
-        ex_buffer_lon_max = 0.0
+    # Download the weather model file unless it already exists
+    f = getWMFilename(weather_model.Model(), time, wmFileLoc)
+    if ~os.path.exists(f):
+        weather_model.fetch(lats, lons, time, f)
 
-    # These are generalized for potential extra buffer in future models
-    ex_buffer_lat_min = 0.0
-    ex_buffer_lat_max = 0.0
-    ex_buffer_lon_min = 0.0
-
-    # The same Nextra used in the weather model base class _get_ll_bounds
-    Nextra = 2
-    
-    # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
-    lats[lats < (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)] = (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)
-    lats[lats > (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)] = (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)
-    lons[lons < (-180.0 + Nextra * weather_model._lon_res + ex_buffer_lon_min)] = (-180.0 + Nextra * weather_model._lon_res + ex_buffer_lon_min)
-    lons[lons > (180.0 - Nextra * weather_model._lon_res - ex_buffer_lon_max)] = (180.0 - Nextra * weather_model._lon_res - ex_buffer_lon_max)
-    
-    # if no weather model files supplied, check the standard location
-    if download_flag:
-        try:
-            weather_model.fetch(lats, lons, time, f)
-        except Exception:
-            logger.exception('Unable to download weather data')
-            # TODO: Is this really an appropriate place to be calling sys.exit?
-            sys.exit(0)
-
-        # exit on download if download_only requested
-        if download_only:
-            logger.warning(
-                'download_only flag selected. No further processing will happen.'
-            )
-            return None, None, None
+    # exit on download if download_only requested
+    if download_only:
+        logger.warning(
+            'download_only flag selected. No further processing will happen.'
+        )
+        return None, None, None
 
     # Load the weather model data
-    if weather_files is not None:
-        weather_model.load(*weather_files, outLats=lats, outLons=lons, los=los, zref=zref)
+    if weather_model.files is not None:
+        weather_model.load(*weather_model.files, outLats=lats, outLons=lons, los=los, zref=zref)
         download_flag = False
     else:
         weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
@@ -130,3 +104,32 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         p = weather_model.plot('pqt', True)
 
     return weather_model, lats, lons
+
+def fixLL(lats, lons, weather_model):
+    ''' 
+    Need to correct lat/lon bounds because not all of the weather models have valid data 
+    exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, need to 
+    adjust the longitude higher end with an extra buffer; for other models, the exact 
+    bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be rounded to the 
+    above regions (either in the downloading-file API or subsetting-data API) without problems.
+    '''
+    if weather_model._Name is 'GMAO' or weather_model._Name is 'MERRA2':
+        ex_buffer_lon_max = weather_model._lon_res
+    else:
+        ex_buffer_lon_max = 0.0
+
+    # These are generalized for potential extra buffer in future models
+    ex_buffer_lat_min = 0.0
+    ex_buffer_lat_max = 0.0
+    ex_buffer_lon_min = 0.0
+
+    # The same Nextra used in the weather model base class _get_ll_bounds
+    Nextra = 2
+    
+    # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
+    lats[lats < (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)] = (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)
+    lats[lats > (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)] = (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)
+    lons[lons < (-180.0 + Nextra * weather_model._lon_res + ex_buffer_lon_min)] = (-180.0 + Nextra * weather_model._lon_res + ex_buffer_lon_min)
+    lons[lons > (180.0 - Nextra * weather_model._lon_res - ex_buffer_lon_max)] = (180.0 - Nextra * weather_model._lon_res - ex_buffer_lon_max)
+
+    return lats, lons
