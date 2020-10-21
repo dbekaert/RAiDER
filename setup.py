@@ -105,7 +105,8 @@ setup(
     scripts=[
         'tools/bin/raiderDelay.py',
         'tools/bin/raiderStats.py',
-        'tools/bin/raiderDownloadGNSS.py'
+        'tools/bin/raiderDownloadGNSS.py',
+        'tools/bin/raiderWeatherModelDebug.py'
     ],
     setup_requires=['pybind11>=2.5.0'],
     zip_safe=False,

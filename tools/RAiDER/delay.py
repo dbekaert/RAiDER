@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Author: Jeremy Maurer, Raymond Hogenson, David Bekaert & Yang Lei
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
@@ -196,3 +196,42 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
         log.info('Finished writing data to %s', wetFilename)
 
     return wetDelay, hydroDelay
+
+
+def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
+                        time, out, download_only):
+    """
+    raiderWeatherModelDebug main function.
+    """
+    
+    log.debug('Starting to run the weather model calculation with debugging plots')
+    log.debug('Time type: %s', type(time))
+    log.debug('Time: %s', time.strftime('%Y%m%d'))
+    
+    # location of the weather model files
+    log.debug('Beginning weather model pre-processing')
+    log.debug('Download-only is %s', download_only)
+    if wmLoc is None:
+        wmLoc = os.path.join(out, 'weather_files')
+
+    # weather model calculation
+    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
+    weather_model_file = os.path.join(wmLoc, wm_filename)
+    if not os.path.exists(weather_model_file):
+        weather_model, lats, lons = prepareWeatherModel(
+            weather_model, wmLoc, out, lats=lats, lons=lons, los=los, zref=zref,
+            time=time, download_only=download_only, makePlots=True
+        )
+        try:
+            weather_model.write2HDF5(weather_model_file)
+        except Exception:
+            log.exception("Unable to save weathermodel to file")
+
+        del weather_model
+    else:
+        log.warning(
+            'Weather model already exists, please remove it ("%s") if you want '
+            'to create a new one.', weather_model_file
+        )
+                
+    return 1
