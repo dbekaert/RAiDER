@@ -107,7 +107,7 @@ class ERA5(ECMWF):
             levels = f.variables['level'][:].copy() * 100
 
         z = np.flip(z, axis=1)
-    
+
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
             z = z[::-1]

@@ -203,11 +203,11 @@ def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
     """
     raiderWeatherModelDebug main function.
     """
-    
+
     log.debug('Starting to run the weather model calculation with debugging plots')
     log.debug('Time type: %s', type(time))
     log.debug('Time: %s', time.strftime('%Y%m%d'))
-    
+
     # location of the weather model files
     log.debug('Beginning weather model pre-processing')
     log.debug('Download-only is %s', download_only)
@@ -233,5 +233,5 @@ def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
             'Weather model already exists, please remove it ("%s") if you want '
             'to create a new one.', weather_model_file
         )
-                
+
     return 1

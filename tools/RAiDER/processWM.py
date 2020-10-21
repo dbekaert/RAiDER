@@ -54,7 +54,7 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
 
     # Make weather
     weather_model, weather_files, weather_model_name = \
-    weatherDict['type'], weatherDict['files'], weatherDict['name']
+        weatherDict['type'], weatherDict['files'], weatherDict['name']
 
     # check whether weather model files are supplied
     if weather_files is None:

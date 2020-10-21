@@ -26,7 +26,7 @@ class HRES(WeatherModel):
         self._lat_res = 9. / 111
         self._x_res = 9. / 111
         self._y_res = 9. / 111
-    
+
         self._humidityType = 'q'
         # Default, pressure levels are 'pl'
         self._model_level_type = 'ml'
@@ -34,12 +34,12 @@ class HRES(WeatherModel):
         self._classname = 'od'
         self._dataset = 'hres'
         self._Name = 'HRES'
-        
+
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(1983, 4, 20), "Present")
         # Availability lag time in days
         self._lag_time = datetime.timedelta(hours=6)
-        
+
         self._a = [
             0.000000, 2.000365, 3.102241, 4.666084, 6.827977,
             9.746966, 13.605424, 18.608931, 24.985718, 32.985710,
@@ -70,7 +70,7 @@ class HRES(WeatherModel):
             302.476563, 202.484375, 122.101563, 62.781250, 22.835938,
             3.757813, 0.000000, 0.000000
         ]
-            
+
         self._b = [
             0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
             0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
@@ -101,13 +101,13 @@ class HRES(WeatherModel):
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-        
+
         if filename is None:
             filename = self._files
-    
+
         # read data from grib file
-        lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(filename, verbose = False)
-        
+        lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(filename, verbose=False)
+
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
             z = z[::-1]
@@ -127,26 +127,26 @@ class HRES(WeatherModel):
         # they are the same
         lons[lons > 180] -= 360
         self._proj = CRS.from_epsg(4326)
-        
+
         self._t = t
         self._q = q
         geo_hgt, pres, hgt = self._calculategeoh(z, lnsp)
-        
+
         # re-assign lons, lats to match heights
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],hgt.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],hgt.shape)
+        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], hgt.shape)
+        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], hgt.shape)
         # ys is latitude
         self._get_heights(_lats, hgt)
         h = self._zs.copy()
-        
+
         # We want to support both pressure levels and true pressure grids.
         # If the shape has one dimension, we'll scale it up to act as a
         # grid, otherwise we'll leave it alone.
         if len(pres.shape) == 1:
-            p = np.broadcast_to(pres[:, np.newaxis, np.newaxis],self._zs.shape)
+            p = np.broadcast_to(pres[:, np.newaxis, np.newaxis], self._zs.shape)
         else:
             p = pres
-            
+
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         p = np.transpose(p)
         t = np.transpose(t)
@@ -154,7 +154,7 @@ class HRES(WeatherModel):
         h = np.transpose(h)
         _lats = np.transpose(_lats)
         _lons = np.transpose(_lons)
-        
+
         # check this
         # data cube format should be lats,lons,heights
         p = p.swapaxes(0, 1)
@@ -163,7 +163,7 @@ class HRES(WeatherModel):
         h = h.swapaxes(0, 1)
         _lats = _lats.swapaxes(0, 1)
         _lons = _lons.swapaxes(0, 1)
-        
+
         # Flip all the axis so that zs are in order from bottom to top
         p = np.flip(p, axis=2)
         t = np.flip(t, axis=2)
@@ -180,8 +180,8 @@ class HRES(WeatherModel):
         self._xs = _lons.copy()
         self._ys = _lats.copy()
         self._zs = h
-    
-    def _makeDataCubes(self, fname, verbose = False):
+
+    def _makeDataCubes(self, fname, verbose=False):
         '''
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
@@ -198,9 +198,9 @@ class HRES(WeatherModel):
             self._levels = f.variables['level'][:].copy()
             xs = lons.copy()
             ys = lats.copy()
-        
+
         return lats, lons, xs, ys, t, q, lnsp, z
-    
+
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
         Fetch a weather model from ECMWF
@@ -217,19 +217,19 @@ class HRES(WeatherModel):
         server = ECMWFService("mars")
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
-        
+
         server.execute({
-           'class':self._classname,
-           'date':datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
-           'expver':"{}".format(self._expver),
-           'levelist':"1/to/137",
-           'levtype':"ml",
-           'param':"129/130/133/152",
-           'stream':"oper",
-           'time':"00:00:00",
-           'type':"an",
-           'step': "0",
-           'grid': "{}/{}".format(lon_step, lat_step),
-           'area': "{}/{}/{}/{}".format(lat_max, lon_min, lat_min, lon_max),
-           'format': "netcdf",},
+            'class': self._classname,
+            'date': datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
+            'expver': "{}".format(self._expver),
+            'levelist': "1/to/137",
+            'levtype': "ml",
+            'param': "129/130/133/152",
+            'stream': "oper",
+            'time': "00:00:00",
+            'type': "an",
+            'step': "0",
+            'grid': "{}/{}".format(lon_step, lat_step),
+            'area': "{}/{}/{}/{}".format(lat_max, lon_min, lat_min, lon_max),
+            'format': "netcdf", },
             out)
