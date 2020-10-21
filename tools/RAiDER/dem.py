@@ -108,6 +108,7 @@ def download_dem(
             'A DEM already exists in {}, checking extents'
             .format(os.path.dirname(outName))
         )
+
         try:
             if isOutside(
                 inExtent,

@@ -9,7 +9,7 @@
 import numpy as np
 import pandas as pd
 
-from scipy.interpolate import interp1d,RegularGridInterpolator as rgi
+from scipy.interpolate import interp1d, RegularGridInterpolator as rgi
 
 from RAiDER.interpolate import interpolate
 
@@ -99,13 +99,13 @@ def interpVector(vec, Nx):
 
 
 def fillna3D(array, axis=-1):
-    
-    narr = np.moveaxis(array,axis,-1)
-    nars = narr.reshape((np.prod(narr.shape[:-1]),) +(narr.shape[-1],))
-    dfd = pd.DataFrame(data=nars).interpolate(axis=1,limit_direction='both')
+
+    narr = np.moveaxis(array, axis, -1)
+    nars = narr.reshape((np.prod(narr.shape[:-1]),) + (narr.shape[-1],))
+    dfd = pd.DataFrame(data=nars).interpolate(axis=1, limit_direction='both')
     out = dfd.values.reshape(array.shape)
-    
-    return np.moveaxis(out,-1,axis)
+
+    return np.moveaxis(out, -1, axis)
 
 
 def interpolateDEM(demRaster, outLL, extent):
@@ -116,11 +116,10 @@ def interpolateDEM(demRaster, outLL, extent):
     xlats = np.linspace(minlat, maxlat, nPixLat)
     xlons = np.linspace(minlon, maxlon, nPixLon)
     interpolator = rgi(
-        points=(xlats, xlons), 
+        points=(xlats, xlons),
         values=demRaster,
         method='linear',
-        bounds_error = False
+        bounds_error=False
     )
     outInterp = interpolator(outLL)
     return outInterp
-

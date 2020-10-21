@@ -120,7 +120,7 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
         chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
                          chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
-    if Nchunks==1:
+    if Nchunks == 1:
         delays = process_chunk(*chunk_inputs[0])
     else:
         with mp.Pool() as pool:

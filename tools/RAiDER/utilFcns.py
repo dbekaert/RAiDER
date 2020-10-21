@@ -66,9 +66,9 @@ def gdal_extents(fname):
     if not proj or not gt:
         raise AttributeError('File {} does not contain geotransform information'.format(fname))
 
-    xSize, ySize = ds.RasterXSize,ds.RasterYSize
+    xSize, ySize = ds.RasterXSize, ds.RasterYSize
 
-    return [gt[0], gt[0] + (xSize-1)*gt[1] + (ySize - 1)*gt[2], gt[3], gt[3] + (xSize - 1)*gt[4] + (ySize-1)*gt[5]]
+    return [gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2], gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]]
 
 
 def gdal_open(fname, returnProj=False, userNDV=None):
