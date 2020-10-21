@@ -17,7 +17,6 @@ from datetime import datetime, date
 from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
 
-
 def getWMFilename(weather_model_name, time, outLoc):
     '''
     Check whether the output weather model exists, and
@@ -47,7 +46,7 @@ def getWMFilename(weather_model_name, time, outLoc):
         logger.warning('Weather model already exists, skipping download')
         download_flag = False
 
-    return download_flag, f
+    return f
 
 
 def prepareWeatherModel(
@@ -121,3 +120,32 @@ def prepareWeatherModel(
         p = weather_model.plot('pqt', True)
 
     return weather_model, lats, lons
+
+def fixLL(lats, lons, weather_model):
+    ''' 
+    Need to correct lat/lon bounds because not all of the weather models have valid data 
+    exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, need to 
+    adjust the longitude higher end with an extra buffer; for other models, the exact 
+    bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be rounded to the 
+    above regions (either in the downloading-file API or subsetting-data API) without problems.
+    '''
+    if weather_model._Name is 'GMAO' or weather_model._Name is 'MERRA2':
+        ex_buffer_lon_max = weather_model._lon_res
+    else:
+        ex_buffer_lon_max = 0.0
+
+    # These are generalized for potential extra buffer in future models
+    ex_buffer_lat_min = 0.0
+    ex_buffer_lat_max = 0.0
+    ex_buffer_lon_min = 0.0
+
+    # The same Nextra used in the weather model base class _get_ll_bounds
+    Nextra = 2
+    
+    # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
+    lats[lats < (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)] = (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)
+    lats[lats > (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)] = (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)
+    lons[lons < (-180.0 + Nextra * weather_model._lon_res + ex_buffer_lon_min)] = (-180.0 + Nextra * weather_model._lon_res + ex_buffer_lon_min)
+    lons[lons > (180.0 - Nextra * weather_model._lon_res - ex_buffer_lon_max)] = (180.0 - Nextra * weather_model._lon_res - ex_buffer_lon_max)
+
+    return lats, lons

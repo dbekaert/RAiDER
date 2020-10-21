@@ -28,10 +28,20 @@ def era5():
     era5_wm = ERA5()
     return era5_wm
 
+WEATHER_FILE = 0# TODO
 
+@pytest.fixture
+def era5():
+    lats = np.arange(20, 20.5, 0.1)
+    lons = np.arrange(-73, -72.5, 0.1)
+    [lats, lons] = np.meshgrid(lat, lon)
+    time = datetime.datetime(2020,1,1,0,0,0)
+    era5_wm = ERA5()
+    era5_wm.load(WEATHER_FILE, lats, lons, los = Zenith, zref = 20000)
+    return era5_wm
+    
 def product(iterable):
     return reduce(operator.mul, iterable, 1)
-
 
 class MockWeatherModel(WeatherModel):
     """Implement abstract methods for testing."""
@@ -134,4 +144,3 @@ def test_checkLL_era5_2(era5):
     lats2, lons2 = era5.checkLL(lats, lons)
     assert np.allclose(lats2, lats_good)
     assert np.allclose(lons2, lons_good)
-
