@@ -139,14 +139,14 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
             lon = fix_lons(lon)
             stations.append({'ID': statID, 'Lat': lat, 'Lon': lon})
 
-    log.info('%d stations were found', len(stations))
+    logger.info('%d stations were found', len(stations))
     stations = pd.DataFrame(stations)
     # Report stations from user's list that do not cover bbox
     if userstatList:
         userstatList = [
             i for i in userstatList if i not in stations['ID'].to_list()]
         if userstatList:
-            log.warning(
+            logger.warning(
                 "The following user-input stations are not covered by the input "
                 "bounding box %s: %s",
                 str(llhBox).strip('[]'), str(userstatList).strip('[]')
@@ -194,7 +194,7 @@ def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
     '''
     URL = "{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip".format(
         baseURL, statID.upper(), year)
-    log.debug('Currently checking station %s in %s', statID, year)
+    logger.debug('Currently checking station %s in %s', statID, year)
     if download:
         saveLoc = os.path.abspath(os.path.join(
             writeDir, '{0}.{1}.trop.zip'.format(statID.upper(), year)))
@@ -213,11 +213,11 @@ def download_url(url, save_path, chunk_size=2048):
     if r.status_code == 404:
         return ''
     else:
-        log.debug('Beginning download of %s to %s', url, save_path)
+        logger.debug('Beginning download of %s to %s', url, save_path)
         with open(save_path, 'wb') as fd:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 fd.write(chunk)
-        log.debug('Completed download of %s to %s', url, save_path)
+        logger.debug('Completed download of %s to %s', url, save_path)
         return save_path
 
 
@@ -364,7 +364,7 @@ def query_repos(
         returnTime=returnTime
     )
 
-    log.debug('Completed processing')
+    logger.debug('Completed processing')
 
 
 if __name__ == "__main__":
