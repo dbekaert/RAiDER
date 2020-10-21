@@ -36,11 +36,11 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
         try:
             hts = gdal_open(height_data)
         except:
-            log.warning(
+            logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
                 height_data, exc_info=True
             )
-            log.info('Proceeding with DEM download')
+            logger.info('Proceeding with DEM download')
             height_type = 'download'
 
     elif height_type == 'lvs':

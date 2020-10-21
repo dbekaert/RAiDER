@@ -88,7 +88,7 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
                                       for n in split_lines[1].split(':')]
                 # Break iteration if time from line in file does not match date reported in filename
                 if doy != doyFromFile:
-                    log.warning(
+                    logger.warning(
                         'time %s from line in conflict with time %s from file '
                         '%s, will continue reading next tarfile(s)',
                         doy, doyFromFile, j
@@ -105,7 +105,7 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
         del f
         # Break iteration if file contains no data.
         if d == []:
-            log.warning(
+            logger.warning(
                 'file %s for station %s is empty, will continue reading next '
                 'tarfile(s)', j, j.split('.')[0]
             )
@@ -174,7 +174,7 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
             np.abs(np.array(list(range(0, 86400, 300))) - returnTime))
         updatedreturnTime = str(dt.timedelta(
             seconds=list(range(0, 86400, 300))[index]))
-        log.warning(
+        logger.warning(
             'input time %s not divisble by 3 seconds, so next closest time %s '
             'will be chosen', returnTime, updatedreturnTime
         )
