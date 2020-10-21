@@ -1,6 +1,5 @@
 """Geodesy-related utility functions."""
 import importlib
-import logging
 import multiprocessing as mp
 import os
 import re
@@ -12,11 +11,11 @@ import pandas as pd
 import pyproj
 from osgeo import gdal, osr
 
-from RAiDER import Geo2rdr
 from RAiDER.constants import Zenith
+from RAiDER import Geo2rdr
+from RAiDER.logger import *
 
 gdal.UseExceptions()
-log = logging.getLogger(__name__)
 
 
 def sind(x):

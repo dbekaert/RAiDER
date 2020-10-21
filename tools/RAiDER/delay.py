@@ -6,7 +6,6 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import logging
 import os
 
 import h5py
@@ -16,13 +15,14 @@ import RAiDER.delayFcns
 from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.dem import getHeights
+from RAiDER.logger import *
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
     make_weather_model_filename, writeDelays, writePnts2HDF5
 )
 
-log = logging.getLogger(__name__)
+
 
 
 def interpolateDelay(weather_model_file_name, pnts_file_name,

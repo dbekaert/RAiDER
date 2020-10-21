@@ -9,7 +9,6 @@
 import datetime as dt
 import gzip
 import io
-import logging
 import multiprocessing
 import os
 import zipfile
@@ -18,7 +17,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-log = logging.getLogger(__name__)
+from RAiDER.logger import *
 
 
 def get_delays_UNR(stationFile, filename, returnTime=None):

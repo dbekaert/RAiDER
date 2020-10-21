@@ -7,7 +7,6 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import itertools
-import logging
 import multiprocessing as mp
 import time
 
@@ -18,9 +17,9 @@ from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.constants import _STEP
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
+from RAiDER.logger import *
 from RAiDER.makePoints import makePoints1D
 
-log = logging.getLogger(__name__)
 
 
 def calculate_rays(pnts_file, stepSize=_STEP):

@@ -1,5 +1,4 @@
 import argparse
-import logging
 from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
@@ -10,7 +9,7 @@ from RAiDER.delay import tropo_delay, weather_model_debug
 from RAiDER.logger import logger
 from RAiDER.models.allowed import ALLOWED_MODELS
 
-log = logging.getLogger(__name__)
+from RAiDER.logger import *
 
 
 def create_parser():

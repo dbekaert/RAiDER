@@ -10,7 +10,6 @@ import argparse
 import copy
 import datetime as dt
 import itertools
-import logging
 import multiprocessing
 import os
 import warnings
@@ -28,7 +27,7 @@ from shapely.strtree import STRtree
 from RAiDER.cli.parser import add_cpus
 from RAiDER.logger import logger
 
-log = logging.getLogger(__name__)
+from RAiDER.logger import *
 
 
 def create_parser():

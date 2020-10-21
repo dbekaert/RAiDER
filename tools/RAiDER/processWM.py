@@ -7,16 +7,16 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import contextlib
-import logging
 import os
 import sys
 from datetime import datetime
 
 import numpy as np
 
+from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
 
-log = logging.getLogger(__name__)
+
 
 
 def getWMFilename(weather_model_name, time, outLoc):
