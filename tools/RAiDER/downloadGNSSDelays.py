@@ -97,14 +97,14 @@ def cmd_line_parse(iargs=None):
     return parser.parse_args(args=iargs)
 
 
-def get_station_list(bbox=None, writeLoc=None, userstatList=None):
+def get_station_list(bbox=None, writeLoc=None, userstatList=None, name_appendix=''):
     '''
     Creates a list of stations inside a lat/lon bounding box from a source
     Inputs:
         bbox    - length-4 list of floats that describes a bounding box. Format is
                   S N W E
     '''
-    writeLoc = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox.csv')
+    writeLoc = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox'+name_appendix+'.csv')
 
     if userstatList:
         userstatList = read_text_file(userstatList)
@@ -309,6 +309,10 @@ def query_repos(
             except ValueError:
                 raise Exception(
                     'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
+            if bbox[2]*bbox[3] < 0:
+                long_cross_zero = 1
+            else:
+                long_cross_zero = 0
             # if necessary, convert negative longitudes to positive
             if bbox[2] < 0:
                 bbox[2] += 360
@@ -319,8 +323,25 @@ def query_repos(
         bbox = [-90, 90, 0, 360]
 
     # Handle station query
-    stats, origstatsFile = get_station_list(
-        bbox=bbox, writeLoc=out, userstatList=station_file)
+    if long_cross_zero is 1:
+        bbox1 = bbox.copy()
+        bbox2 = bbox.copy()
+        bbox1[3] = 360.0
+        bbox2[2] = 0.0
+        stats1, origstatsFile1 = get_station_list(bbox=bbox1, writeLoc=out, userstatList=station_file, name_appendix='_a')
+        stats2, origstatsFile2 = get_station_list(bbox=bbox2, writeLoc=out, userstatList=station_file, name_appendix='_b')
+        stats = stats1 + stats2
+        origstatsFile = origstatsFile1[:-6] + '.csv'
+        file_a=pd.read_csv(origstatsFile1)
+        file_b=pd.read_csv(origstatsFile2)
+        frames=[file_a,file_b]
+        result = pd.concat(frames,ignore_index=True)
+        result.to_csv(origstatsFile,index=False)
+    else:
+        if bbox[3] < bbox[2]:
+            bbox[3] = 360.0
+        stats, origstatsFile = get_station_list(
+            bbox=bbox, writeLoc=out, userstatList=station_file)
 
     # iterate over years
     download_tropo_delays(
