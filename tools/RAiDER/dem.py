@@ -285,4 +285,3 @@ def readRaster(filename, band_num = None):
     ds = None
 
     return xSize, ySize, dType, geoProj, trans, noDataVal, Nbands
-
