@@ -69,6 +69,8 @@ def test_tropo_delay(tmp_path):
             SCENARIO_DIR, "hydro.envi"), userNDV=0.)
 
         # get the true delay from the weather model
+        print(np.nanmax(np.abs(wet - true_wet)))
+        print(np.nanmax(np.abs(hydro - true_hydro)))
         assert np.allclose(
             wet, 
             true_wet, 

@@ -8,6 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import logging
 import os
+import requests
 import time
 
 import numpy as np
@@ -20,8 +21,7 @@ from RAiDER.logger import *
 from RAiDER.utilFcns import gdal_open, gdal_extents
 
 
-_world_dem = ('https://cloud.sdsc.edu/v1/AUTH_opentopography/Raster/'
-              'SRTM_GL1_Ellip/SRTM_GL1_Ellip_srtm.vrt')
+DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1&south={}&north={}&west={}&east={}&outputFormat=GTiff"
 
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
@@ -36,11 +36,11 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
         try:
             hts = gdal_open(height_data)
         except:
-            log.warning(
+            logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
                 height_data, exc_info=True
             )
-            log.info('Proceeding with DEM download')
+            logger.info('Proceeding with DEM download')
             height_type = 'download'
 
     elif height_type == 'lvs':
@@ -89,17 +89,18 @@ def forceNDArray(arg):
 
 
 def download_dem(
-        lats, 
-        lons, 
-        save_flag='new', 
-        checkDEM=True,
-        outName=None, 
-        ndv=0., 
-        buf = 0.02
-    ):
+    lats,
+    lons,
+    save_flag='new',
+    checkDEM=True,
+    outName=None,
+    ndv=0.,
+    buf=0.02
+):
     '''
     Download a DEM if one is not already present.
     '''
+    folderName = os.sep.join(os.path.split(outName)[:-1])
     logger.debug('Getting the DEM')
 
     # Insert check for DEM noData values
@@ -115,40 +116,40 @@ def download_dem(
             'A DEM already exists in {}, checking extents'
             .format(os.path.dirname(outName))
         )
-        
+
         try:
             if isOutside(
-                inExtent, 
+                inExtent,
                 getBufferedExtent(
-                    gdal_extents(outName), 
+                    gdal_extents(outName),
                     buf=buf
                 )
             ):
                 raise ValueError(
                     'Existing DEM does not cover the area of the input lat/lon '
                     'points; either move the DEM, delete it, or change the input '
-                     'points.'
+                    'points.'
                 )
             else:
                 hgts = gdal_open(outName)
                 hgts[hgts == ndv] = np.nan
                 return hgts
 
-        #TOFIX: Even if the DEM covers the input extent we may still need to interpolate it
+        # TOFIX: Even if the DEM covers the input extent we may still need to interpolate it
         except AttributeError:
             logging.warning(
-                'Existing DEM does not contain geo-referencing info, so ' 
+                'Existing DEM does not contain geo-referencing info, so '
                 'I will download a new one.'
             )
         except OSError:
             hgts = RAiDER.utilFcns.read_hgt_file(outName)
             hgts[hgts == ndv] = np.nan
             return hgts
-       
 
     # Otherwise download a global DEM
     logger.debug('Getting the DEM')
-    out = getDEM(inExtent)
+    getDEM(inExtent, folderName)
+    out = openDEM(folderName)
     logger.debug('Loaded the DEM')
 
     # Interpolate to the query points
@@ -163,7 +164,6 @@ def download_dem(
     if save_flag == 'new':
         logger.debug('Saving DEM to disk')
         # ensure folders are created
-        folderName = os.sep.join(os.path.split(outName)[:-1])
         os.makedirs(folderName, exist_ok=True)
 
         # Need to ensure that noData values are consistently handled and
@@ -186,13 +186,13 @@ def download_dem(
     return outInterp
 
 
-def getBufferedExtent(lats, lons = None, buf = 0.):
+def getBufferedExtent(lats, lons=None, buf=0.):
     '''
     get the bounding box around a set of lats/lons
     '''
     if lons is None:
-        lats, lons = lats[...,0], lons[...,1]
-            
+        lats, lons = lats[..., 0], lons[..., 1]
+
     try:
         if (lats.size == 1) & (lons.size == 1):
             out = [lats - buf, lats + buf, lons - buf, lons + buf]
@@ -203,7 +203,7 @@ def getBufferedExtent(lats, lons = None, buf = 0.):
         elif lons.size == 1:
             out = [np.nanmin(lats), np.nanmax(lats), lons - buf, lons + buf]
     except AttributeError:
-        if isinstance(lats, tuple) and len(lats)==2:
+        if isinstance(lats, tuple) and len(lats) == 2:
             out = [min(lats) - buf, max(lats) + buf, min(lons) - buf, max(lons) + buf]
     except Exception as e:
         logger.warning('getBufferExtent failed: lats type: {}\n, content: {}'.format(type(lats), lats))
@@ -243,12 +243,12 @@ def isInside(extent1, extent2):
     return False
 
 
-def getDEM(extent, inRaster = '/vsicurl/{}'.format(_world_dem)):
-    memRaster = '/vsimem/warpedDEM'
-    gdal_extent = [extent[2], extent[0], extent[3], extent[1]]
-    gdal.BuildVRT(memRaster, inRaster, outputBounds=gdal_extent)
-    out = gdal_open(memRaster)
-    out = out[::-1] # GDAL returns rasters upside-down
-    return out
+def getDEM(extent, out, dem_raster = "SRTMGL1.dem"):
+    r = requests.get(DEM.format(*extent))
+    open(os.path.join(out, dem_raster), 'wb').write(r.content)
 
+    
+def openDEM(folder_name, dem_raster = "SRTMGL1.dem"):
+    out = gdal_open(os.path.join(folder_name, dem_raster))
+    return out[::-1]
 

@@ -3,7 +3,11 @@ import pytest
 
 import numpy as np
 
-from RAiDER.dem import getBufferedExtent, isOutside, isInside, getDEM, forceNDArray
+from test import DATA_DIR, pushd
+
+from RAiDER.dem import (
+    getBufferedExtent, isOutside, isInside, getDEM, openDEM, forceNDArray
+)
 
 @pytest.fixture
 def llsimple():
@@ -57,8 +61,12 @@ def test_isInside(llsimple):
 def test_isInside(llsimple):
     assert not isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
 
-def test_getDEM():
-    dem = getDEM([18.5, 18.9, -73.2, -72.8])
+def test_getDEM(tmp_path):
+    with pushd(tmp_path):
+        getDEM([18.5, 18.9, -73.2, -72.8], tmp_path)
+
+def test_openDEM():
+    dem = openDEM(os.path.join(DATA_DIR, 'geom'), dem_raster = 'warpedDEM.dem')
     assert dem.size >0
     assert dem.ndim == 2
 
