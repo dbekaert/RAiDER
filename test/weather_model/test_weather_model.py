@@ -15,29 +15,15 @@ from RAiDER.constants import Zenith
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.era5 import ERA5
-
 WEATHER_FILE = os.path.join(
-    DATA_DIR,
-    "weather_files",
-    "ERA-5_2018_07_01_T00_00_00.nc"
-)
-
+        DATA_DIR, 
+        "weather_files", 
+        "ERA-5_2018_07_01_T00_00_00.nc"
+    )
 
 @pytest.fixture
 def era5():
     era5_wm = ERA5()
-    return era5_wm
-
-WEATHER_FILE = 0# TODO
-
-@pytest.fixture
-def era5():
-    lats = np.arange(20, 20.5, 0.1)
-    lons = np.arrange(-73, -72.5, 0.1)
-    [lats, lons] = np.meshgrid(lat, lon)
-    time = datetime.datetime(2020,1,1,0,0,0)
-    era5_wm = ERA5()
-    era5_wm.load(WEATHER_FILE, lats, lons, los = Zenith, zref = 20000)
     return era5_wm
     
 def product(iterable):
