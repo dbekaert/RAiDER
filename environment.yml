@@ -30,5 +30,6 @@ dependencies:
  - xarray
  - shapely
  - pydap>3.2.2|<3.2.2
+ - ecmwf-api-client
  - cxx-compiler
  - sysroot_linux-64
