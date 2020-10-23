@@ -6,8 +6,8 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import logging
 import os
+import re
 import requests
 import time
 
@@ -21,7 +21,7 @@ from RAiDER.logger import *
 from RAiDER.utilFcns import gdal_open, gdal_extents
 
 
-DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&south={}&north={}&west={}&east={}&outputFormat=GTiff"
+_DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&south={}&north={}&west={}&east={}&outputFormat=GTiff"
 
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
@@ -89,34 +89,25 @@ def forceNDArray(arg):
 
 
 def download_dem(
-    lats,
-    lons,
-    save_flag='new',
-    checkDEM=True,
-    outName=None,
-    ndv=0.,
-    buf=0.02
-):
-    '''
-    Download a DEM if one is not already present.
-    '''
-    folderName = os.sep.join(os.path.split(outName)[:-1])
-    logger.debug('Getting the DEM')
-
-    # Insert check for DEM noData values
-    if checkDEM:
-        lats[lats == ndv] = np.nan
-        lons[lons == ndv] = np.nan
-
+        lats,
+        lons,
+        save_flag='new',
+        checkDEM=True,
+        outName=os.path.join(os.getcwd(), 'warpedDEM'),
+        buf=0.02
+    ):
+    '''  Download a DEM if one is not already present. '''
+    
+    # Get the lat/lon extents of the query points
     inExtent = getBufferedExtent(lats, lons, buf=buf)
 
-    # See if the DEM already exists
+    # Check if the DEM exists, use it if I can, otherwise download a new one
     if os.path.exists(outName):
+        do_download = False
         logger.warning(
             'A DEM already exists in {}, checking extents'
             .format(os.path.dirname(outName))
         )
-
         try:
             if isOutside(
                 inExtent,
@@ -131,48 +122,52 @@ def download_dem(
                     'points.'
                 )
             else:
-                hgts = gdal_open(outName)
-                hgts[hgts == ndv] = np.nan
-                return hgts
+                # Use the existing DEM!
+                _, _, _, geoProj, trans, noDataVal, _ = readRaster(outName)
+                out = gdal_open(outName)
+                logger.info('I am using an existing DEM')
 
-        # TOFIX: Even if the DEM covers the input extent we may still need to interpolate it
         except AttributeError:
-            logging.warning(
+            logger.warning(
                 'Existing DEM does not contain geo-referencing info, so '
                 'I will download a new one.'
             )
+            do_download = True
+
         except OSError:
             hgts = RAiDER.utilFcns.read_hgt_file(outName)
-            hgts[hgts == ndv] = np.nan
             return hgts
 
-    # Otherwise download a global DEM
-    logger.debug('Getting the DEM')
-    getDEM(inExtent, folderName)
-    out = openDEM(folderName)
-    logger.debug('Loaded the DEM')
+    else:
+        do_download = True
 
+    # Otherwise download a new DEM
+    if do_download:
+        folder = os.sep.join(os.path.split(outName)[:-1])
+        fname =  os.path.split(outName)[-1]
+        full_res_dem = getDEM(inExtent, folder)
+        _, _, _, geoProj, trans, noDataVal, _ = readRaster(full_res_dem)
+        out = gdal_open(full_res_dem)
+        logger.info('I am downloading a new DEM')
+
+    out = out[::-1]
     # Interpolate to the query points
     logger.debug('Beginning interpolation')
     outInterp = interpolateDEM(out, np.stack((lats, lons), axis=-1), inExtent)
     logger.debug('Interpolation finished')
 
-    # save the DEM
-    if outName is None:
-        outName = os.path.join(os.getcwd(), 'geom', 'warpedDEM.dem')
-
+    # Write the DEM to requested location
     if save_flag == 'new':
         logger.debug('Saving DEM to disk')
         # ensure folders are created
-        os.makedirs(folderName, exist_ok=True)
+        os.makedirs(folder, exist_ok=True)
 
         # Need to ensure that noData values are consistently handled and
         # can be passed on to GDAL
-        outInterp[np.isnan(outInterp)] = ndv
         if outInterp.ndim == 2:
-            RAiDER.utilFcns.writeArrayToRaster(outInterp, outName, noDataValue=ndv)
+            RAiDER.utilFcns.writeArrayToRaster(outInterp, outName, noDataValue=noDataVal)
         elif outInterp.ndim == 1:
-            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outName, noDataValue=ndv)
+            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outName, noDataValue=noDataVal)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':
@@ -243,12 +238,50 @@ def isInside(extent1, extent2):
     return False
 
 
-def getDEM(extent, out, dem_raster = "SRTMGL1.dem"):
-    r = requests.get(DEM.format(*extent))
-    open(os.path.join(out, dem_raster), 'wb').write(r.content)
+def getDEM(extent, out_dir):
+    r = requests.get(_DEM.format(*extent), allow_redirects=True)
+    dem_raster = get_filename_from_cd(r.headers.get('content-disposition'))
+    filename = os.path.join(out_dir, dem_raster)
+    open(filename, 'wb').write(r.content)
+    return filename
 
     
-def openDEM(folder_name, dem_raster = "SRTMGL1.dem"):
-    out = gdal_open(os.path.join(folder_name, dem_raster))
-    return out[::-1]
+def get_filename_from_cd(cd):
+    """
+    Get filename from content-disposition
+    """
+    if not cd:
+        return None
+    fname = re.findall('filename=(.+)', cd)
+    if len(fname) == 0:
+        return None
+    return fname[0]
+
+
+def readRaster(filename, band_num = None):
+    '''
+    Read a GDAL VRT file and return its attributes
+    '''
+    try:
+        ds = gdal.Open(filename, gdal.GA_ReadOnly)
+        if ds is None:
+            raise RuntimeError('readRaster: cannot find file {}'.format(filename))
+    except Exception as e:
+        ds = None
+        raise RuntimeError('readRaster: cannot open file {}. Reason: {}'.format(filename, e))
+
+    xSize = ds.RasterXSize
+    ySize = ds.RasterYSize
+    geoProj = ds.GetProjection()
+    trans = ds.GetGeoTransform()
+    Nbands = ds.RasterCount
+    if band_num is None:
+        band_num = 1
+        print('Using band one for dataType')
+
+    dType = ds.GetRasterBand(band_num).DataType
+    noDataVal = ds.GetRasterBand(band_num).GetNoDataValue()
+    ds = None
+
+    return xSize, ySize, dType, geoProj, trans, noDataVal, Nbands
 

@@ -43,7 +43,7 @@ def test_tropo_delay(tmp_path):
             lons=lons,
             ll_bounds=(15.75, 18.25, -103.24, -99.75),
             heights=("download", os.path.join(
-                DATA_DIR, "geom", "warpedDEM.dem")),
+                TEST_DIR, "test_geom", "warpedDEM.dem")),
             flag="files",
             weather_model={
                 "type": model_obj(),
@@ -63,14 +63,22 @@ def test_tropo_delay(tmp_path):
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)
-        true_wet = gdal_open(os.path.join(
-            SCENARIO_DIR, "wet.envi"), userNDV=0.)
-        true_hydro = gdal_open(os.path.join(
-            SCENARIO_DIR, "hydro.envi"), userNDV=0.)
+        true_wet = gdal_open(
+            os.path.join(
+                SCENARIO_DIR, 
+                "wet.envi"
+            ), 
+            userNDV=0.
+        )
+        true_hydro = gdal_open(
+            os.path.join(
+                SCENARIO_DIR, 
+                "hydro.envi"
+            ), 
+            userNDV=0.
+        )
 
         # get the true delay from the weather model
-        print(np.nanmax(np.abs(wet - true_wet)))
-        print(np.nanmax(np.abs(hydro - true_hydro)))
         assert np.allclose(
             wet, 
             true_wet, 
