@@ -7,16 +7,14 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import contextlib
-import logging
 import os
 import sys
 from datetime import datetime
 
 import numpy as np
 
+from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
-
-log = logging.getLogger(__name__)
 
 
 def getWMFilename(weather_model_name, time, outLoc):
@@ -35,11 +33,11 @@ def getWMFilename(weather_model_name, time, outLoc):
         )
     )
 
-    log.debug('Storing weather model at: %s', f)
+    logger.debug('Storing weather model at: %s', f)
 
     download_flag = True
     if os.path.exists(f):
-        log.warning('Weather model already exists, skipping download')
+        logger.warning('Weather model already exists, skipping download')
         download_flag = False
 
     return download_flag, f
@@ -68,13 +66,13 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
         try:
             weather_model.fetch(lats, lons, time, f)
         except Exception:
-            log.exception('Unable to download weather data')
+            logger.exception('Unable to download weather data')
             # TODO: Is this really an appropriate place to be calling sys.exit?
             sys.exit(0)
 
         # exit on download if download_only requested
         if download_only:
-            log.warning(
+            logger.warning(
                 'download_only flag selected. No further processing will happen.'
             )
             return None, None, None
@@ -86,23 +84,23 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
     else:
         weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
 
-    log.debug('Number of weather model nodes: %d', np.prod(weather_model.getWetRefractivity().shape))
-    log.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
-    log.debug(
+    logger.debug('Number of weather model nodes: %d', np.prod(weather_model.getWetRefractivity().shape))
+    logger.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
+    logger.debug(
         'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
         np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
         np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)
     )
-    log.debug('Weather model: %s', weather_model.Model())
-    log.debug(
+    logger.debug('Weather model: %s', weather_model.Model())
+    logger.debug(
         'Mean value of the wet refractivity: %f',
         np.nanmean(weather_model.getWetRefractivity())
     )
-    log.debug(
+    logger.debug(
         'Mean value of the hydrostatic refractivity: %f',
         np.nanmean(weather_model.getHydroRefractivity())
     )
-    log.debug(weather_model)
+    logger.debug(weather_model)
 
     if makePlots:
         p = weather_model.plot('wh', True)

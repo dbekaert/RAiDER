@@ -5,9 +5,8 @@ import numpy as np
 import requests
 from pyproj import CRS
 
+from RAiDER.logger import *
 from RAiDER.models.weatherModel import WeatherModel
-
-log = logging.getLogger(__name__)
 
 
 class HRRR(WeatherModel):
@@ -159,12 +158,12 @@ class HRRR(WeatherModel):
         grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{}.grib2' \
             .format(model, field, DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
 
-        log.debug('Downloading %s to %s', grib2file, out)
+        logger.debug('Downloading %s to %s', grib2file, out)
 
         r = requests.get(grib2file)
         with open(out, 'wb') as f:
             f.write(r.content)
 
-        log.debug('Success!')
+        logger.debug('Success!')
 
         return out

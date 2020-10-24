@@ -14,11 +14,10 @@ from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
 from RAiDER.losreader import getLookVectors
+from RAiDER.logger import *
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
 from RAiDER.utilFcns import lla2ecef, robmax, robmin
-
-log = logging.getLogger(__name__)
 
 
 class WeatherModel(ABC):
@@ -237,7 +236,7 @@ class WeatherModel(ABC):
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
-        log.info(
+        logger.info(
             'Weather model %s is available from %s-%s',
             self.Model(), self._valid_range[0], self._valid_range[1]
         )
@@ -330,9 +329,9 @@ class WeatherModel(ABC):
             in_extent = self._getExtent(lats, lons)
             self_extent = self._getExtent(self._lats, self._lons)
             if self._isOutside(in_extent, self_extent):
-                log.info('Extent of the input lats/lons is: {}'.format(in_extent))
-                log.info('Extent of the weather model is: {}'.format(self_extent))
-                log.info(
+                logger.info('Extent of the input lats/lons is: {}'.format(in_extent))
+                logger.info('Extent of the weather model is: {}'.format(self_extent))
+                logger.info(
                     'The weather model passed does not cover all of the input '
                     'points; you need to download a larger area.'
                 )

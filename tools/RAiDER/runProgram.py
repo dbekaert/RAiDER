@@ -1,5 +1,4 @@
 import argparse
-import logging
 from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
@@ -7,10 +6,9 @@ from RAiDER.cli.parser import add_bbox, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay, weather_model_debug
-from RAiDER.logger import logger
+from RAiDER.logger import *
 from RAiDER.models.allowed import ALLOWED_MODELS
 
-log = logging.getLogger(__name__)
 
 
 def create_parser():
@@ -159,7 +157,7 @@ def parseCMD():
                                  outformat, t, out, download_only, wfn, hfn)
 
         except RuntimeError:
-            log.exception("Date %s failed", t)
+            logger.exception("Date %s failed", t)
             continue
 
 
@@ -186,5 +184,5 @@ def parseCMD_weather_model_debug():
             weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref, t, out, download_only)
                 
         except RuntimeError:
-            log.exception("Date %s failed", t)
+            logger.exception("Date %s failed", t)
             continue

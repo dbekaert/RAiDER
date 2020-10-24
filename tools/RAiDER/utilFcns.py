@@ -1,6 +1,5 @@
 """Geodesy-related utility functions."""
 import importlib
-import logging
 import multiprocessing as mp
 import os
 import re
@@ -12,11 +11,11 @@ import pandas as pd
 import pyproj
 from osgeo import gdal, osr
 
-from RAiDER import Geo2rdr
 from RAiDER.constants import Zenith
+from RAiDER import Geo2rdr
+from RAiDER.logger import *
 
 gdal.UseExceptions()
-log = logging.getLogger(__name__)
 
 
 def sind(x):
@@ -87,14 +86,14 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
         data = b.ReadAsArray()
         if userNDV is not None:
-            log.debug('Using user-supplied NoDataValue')
+            logger.debug('Using user-supplied NoDataValue')
             data[data == userNDV] = np.nan
         else:
             try:
                 ndv = b.GetNoDataValue()
                 data[data == ndv] = np.nan
             except:
-                log.debug('NoDataValue attempt failed*******')
+                logger.debug('NoDataValue attempt failed*******')
         val.append(data)
         b = None
     ds = None
@@ -419,8 +418,8 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         cpu_count = mp.cpu_count()
         chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
 
-    log.debug('Chunk size is {}'.format(chunkSize))
-    log.debug('Array shape is {}'.format(in_shape))
+    logger.debug('Chunk size is {}'.format(chunkSize))
+    logger.debug('Array shape is {}'.format(in_shape))
 
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")

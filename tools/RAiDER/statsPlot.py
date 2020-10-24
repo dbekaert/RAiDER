@@ -10,7 +10,6 @@ import argparse
 import copy
 import datetime as dt
 import itertools
-import logging
 import multiprocessing
 import os
 import warnings
@@ -26,9 +25,7 @@ from shapely.geometry import Point, Polygon
 from shapely.strtree import STRtree
 
 from RAiDER.cli.parser import add_cpus
-from RAiDER.logger import logger
-
-log = logging.getLogger(__name__)
+from RAiDER.logger import *
 
 
 def create_parser():
@@ -156,8 +153,8 @@ class VariogramAnalysis():
         '''
         import random
         if len(data) < self.densitythreshold:
-            log.warning('Less than {} points for this gridcell', self.densitythreshold)
-            log.info('Will pass empty list')
+            logger.warning('Less than {} points for this gridcell', self.densitythreshold)
+            logger.info('Will pass empty list')
             d = []
             indpars = []
         else:
@@ -548,7 +545,7 @@ class RaiderStats(object):
 
         # ensure even spacing, set spacing to 1 if specified spacing is not even multiple of bounds
         if (extent[1] - extent[0]) % self.spacing != 0 or (extent[-1] - extent[-2]) % self.spacing:
-            log.warning("User-specified spacing %s is not even multiple of bounds, resetting spacing to 1\N{DEGREE SIGN}", self.spacing)
+            logger.warning("User-specified spacing %s is not even multiple of bounds, resetting spacing to 1\N{DEGREE SIGN}", self.spacing)
             self.spacing = 1
 
         # Create corners of rectangle to be transformed to a grid
@@ -893,14 +890,14 @@ def stats_analyses(
     if verbose:
         logger.setLevel(logging.DEBUG)
 
-    log.info("***Stats Function:***")
+    logger.info("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing,  \
                            timeinterval, seasonalinterval, stationsongrids, cbounds, colorpercentile)
 
     # If user requests to generate all plots.
     if plotall:
-        log.info('"-plotall" == True. All plots will be made.')
+        logger.info('"-plotall" == True. All plots will be made.')
         station_distribution = True
         station_delay_mean = True
         station_delay_stdev = True
@@ -912,13 +909,13 @@ def stats_analyses(
     # Station plots
     # Plot each individual station
     if station_distribution:
-        log.info("- Plot spatial distribution of stations.")
+        logger.info("- Plot spatial distribution of stations.")
         unique_points = df_stats.df.groupby(['Lon', 'Lat']).size()
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
         )], 'station_distribution', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
     # Plot mean delay per station
     if station_delay_mean:
-        log.info("- Plot mean delay for each station.")
+        logger.info("- Plot mean delay for each station.")
         unique_points = df_stats.df.groupby(
             ['Lon', 'Lat'])[col_name].mean()
         unique_points.dropna(how='any', inplace=True)
@@ -926,7 +923,7 @@ def stats_analyses(
         ), unique_points.values], 'station_delay_mean', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
     # Plot delay stdev per station
     if station_delay_stdev:
-        log.info("- Plot delay stdev for each station.")
+        logger.info("- Plot delay stdev for each station.")
         unique_points = df_stats.df.groupby(
             ['Lon', 'Lat'])[col_name].std()
         unique_points.dropna(how='any', inplace=True)
@@ -936,14 +933,14 @@ def stats_analyses(
     # Gridded station plots
     # Plot density of stations for each gridcell
     if grid_heatmap:
-        log.info("- Plot density of stations per gridcell.")
+        logger.info("- Plot density of stations per gridcell.")
         gridarr_heatmap = np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(
             df_stats.df['ID'][df_stats.df['gridnode'] == i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_heatmap.T, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
                  colorbarfmt='%1i', stationsongrids=stationsongrids, plotFormat=plot_fmt)
     # Plot mean delay for each gridcell
     if grid_delay_mean:
-        log.info("- Plot mean delay per gridcell.")
+        logger.info("- Plot mean delay per gridcell.")
         unique_points = df_stats.df.groupby(['gridnode'])[col_name].mean()
         unique_points.dropna(how='any', inplace=True)
         gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -952,7 +949,7 @@ def stats_analyses(
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
     # Plot mean delay for each gridcell
     if grid_delay_stdev:
-        log.info("- Plot delay stdev per gridcell.")
+        logger.info("- Plot delay stdev per gridcell.")
         unique_points = df_stats.df.groupby(['gridnode'])[col_name].std()
         unique_points.dropna(how='any', inplace=True)
         gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -962,19 +959,19 @@ def stats_analyses(
 
     # Perform variogram analysis
     if variogramplot:
-        log.info("***Variogram Analysis Function:***")
+        logger.info("***Variogram Analysis Function:***")
         make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, col_name, unit, workdir,
                                             df_stats.seasonalinterval, densitythreshold, binnedvariogram,
                                             numCPUs, variogram_per_timeslice)
         TOT_grids, TOT_res_robust_arr = make_variograms.create_variograms()
         # plot range heatmap
-        log.info("- Plot variogram range per gridcell.")
+        logger.info("- Plot variogram range per gridcell.")
         gridarr_range = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_range.T, 'range_heatmap', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
         # plot sill heatmap
-        log.info("- Plot variogram sill per gridcell.")
+        logger.info("- Plot variogram sill per gridcell.")
         gridarr_sill = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
         df_stats(gridarr_sill.T, 'sill_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
