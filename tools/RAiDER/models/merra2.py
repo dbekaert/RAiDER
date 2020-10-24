@@ -7,13 +7,14 @@ from RAiDER.models.weatherModel import WeatherModel
 def Model():
     return MERRA2()
 
+
 class MERRA2(WeatherModel):
     # I took this from MERRA-2 model level weblink
     # https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/
     def __init__(self):
-        
+
         import calendar
-        
+
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -70,16 +71,16 @@ class MERRA2(WeatherModel):
         '''
         Get the variables from the GMAO link using OpenDAP
         '''
-        
+
         import pydap.client
         import pydap.cas.urs
-        
+
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
         lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)
         lon_min_ind = int((self._bounds[2] - (-180.0)) / self._lon_res)
         lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
-        
+
         if self._time.year < 1992:
             url_sub = 100
         elif self._time.year < 2001:
@@ -88,7 +89,6 @@ class MERRA2(WeatherModel):
             url_sub = 300
         else:
             url_sub = 400
-
 
         T0 = dt.datetime(self._time.year, self._time.month, self._time.day, 0, 0, 0)
         DT = self._time - T0
@@ -101,14 +101,14 @@ class MERRA2(WeatherModel):
         url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/' + self._time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + self._time.strftime('%Y%m%d') + '.nc4'
         session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
         ds = pydap.client.open_url(url, session=session)
-        
-        q = ds['QV'][time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
-        p = ds['PL'][time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
-        t = ds['T'][time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
-        h = ds['H'][time_ind, ml_min:(ml_max+1), lat_min_ind:(lat_max_ind+1), lon_min_ind:(lon_max_ind+1)][0]
 
-        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind+1) * self._lat_res), self._lat_res)
-        lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind+1) * self._lon_res), self._lon_res)
+        q = ds['QV'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+
+        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
+        lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res)
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)

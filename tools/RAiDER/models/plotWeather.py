@@ -15,13 +15,12 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
     '''
     Create a plot with pressure, temp, and humidity at two heights
     '''
-    
+
     # Get the interpolator
 
-    intFcn_p = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._p.swapaxes(0,1))
-    intFcn_e = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._e.swapaxes(0,1))
-    intFcn_t = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._t.swapaxes(0,1))
-    
+    intFcn_p = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._p.swapaxes(0, 1))
+    intFcn_e = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._e.swapaxes(0, 1))
+    intFcn_t = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._t.swapaxes(0, 1))
 
     # get the points needed
     XY = np.meshgrid(weatherObj._xs, weatherObj._ys)
@@ -38,7 +37,6 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
     p2 = intFcn_p(pts2)
     e2 = intFcn_e(pts2)
     t2 = intFcn_t(pts2)
-    
 
     # Now get the data to plot
     plots = [p1 / 1e2, e1 / 1e2, t1 - 273.15, p2 / 1e2, e2 / 1e2, t2 - 273.15]
@@ -47,10 +45,10 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
     # setup the plot
     f = plt.figure(figsize=(18, 14))
     f.suptitle('{} Pressure/Humidity/Temperature at height {}m and {}m (values should drop as elevation increases)'.format(weatherObj._Name, z1, z2))
-    
+
     xind = int(np.floor(weatherObj._xs.shape[0] / 2))
     yind = int(np.floor(weatherObj._ys.shape[0] / 2))
-    
+
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(3, 3, ind + 1)
@@ -98,9 +96,9 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     '''
 
     # Get the interpolator
-    intFcn_w = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._wet_refractivity.swapaxes(0,1))
-    intFcn_h = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._hydrostatic_refractivity.swapaxes(0,1))
-    
+    intFcn_w = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._wet_refractivity.swapaxes(0, 1))
+    intFcn_h = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._hydrostatic_refractivity.swapaxes(0, 1))
+
     # get the points needed
     XY = np.meshgrid(weatherObj._xs, weatherObj._ys)
     x = XY[0]
@@ -109,12 +107,11 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     z2a = np.zeros(x.shape) + z2
     pts1 = np.stack((x.flatten(), y.flatten(), z1a.flatten()), axis=1)
     pts2 = np.stack((x.flatten(), y.flatten(), z2a.flatten()), axis=1)
-    
+
     w1 = intFcn_w(pts1)
     h1 = intFcn_h(pts1)
     w2 = intFcn_w(pts2)
     h2 = intFcn_h(pts2)
-
 
     # Now get the data to plot
     plots = [w1, h1, w2, h2]

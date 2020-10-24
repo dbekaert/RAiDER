@@ -21,14 +21,14 @@ def readLL(*args):
     Parse lat/lon/height inputs and return
     the appropriate outputs
     '''
-    if len(args) == 2:
+    if len(args[0]) == 2:
         # If they are files, open them
         flag = 'files'
-        lats, lons, llproj = readLLFromLLFiles(*args)
-    elif len(args) == 4:
+        lats, lons, llproj = readLLFromLLFiles(*args[0])
+    elif len(args[0]) == 4:
         flag = 'bounding_box'
         lats, lons, llproj = readLLFromBBox(*args)
-    elif len(args) == 1:
+    elif isinstance(args[0],str):
         flag = 'station_file'
         lats, lons, llproj = readLLFromStationFile(*args)
     else:

@@ -133,7 +133,7 @@ class DateListAction(Action):
         if len(values) == 2:
             start, end = values
             values = [start + timedelta(days=k)
-                      for k in range((end - start).days+1)]
+                      for k in range((end - start).days + 1)]
 
         setattr(namespace, self.dest, values)
 

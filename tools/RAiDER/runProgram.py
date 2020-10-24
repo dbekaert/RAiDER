@@ -53,22 +53,22 @@ def create_parser():
     # Area
     area = p.add_argument_group('Area of Interest (Supply one)').add_mutually_exclusive_group(required=True)
     area.add_argument(
-        '--latlon', 
-        '-ll', 
-        nargs=2, 
+        '--latlon',
+        '-ll',
+        nargs=2,
         dest='query_area',
         help='GDAL-readable latitude and longitude raster files (2 single-band files)',
         metavar=('LAT', 'LONG')
     )
     add_bbox(area)
     area.add_argument(
-        '--station_file', 
-        default=None, 
-        type=str, 
+        '--station_file',
+        default=None,
+        type=str,
         dest='query_area',
         help=('CSV file with a list of stations, containing at least '
               'the columns "Lat" and "Lon"')
-     )
+    )
 
     # Line of sight
     los = p.add_argument_group(
@@ -166,23 +166,23 @@ def parseCMD_weather_model_debug():
     Parse command-line arguments and pass to prepareWeatherModel
     We'll parse arguments and call delay.py.
     """
-    
+
     p = create_parser()
     args = p.parse_args()
-    
+
     # Argument checking
     los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
         times, out, download_only, verbose, \
         wetNames, hydroNames = checkArgs(args, p)
-    
+
     if verbose:
         logger.setLevel(logging.DEBUG)
-    
+
     # Loop over each datetime
     for t in times:
         try:
             weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref, t, out, download_only)
-                
+
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
