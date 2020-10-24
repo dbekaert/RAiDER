@@ -195,12 +195,16 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
                 StationID = os.path.basename(sf).split('.')[0]
                 name = os.path.join(pathbase, StationID + '_ztd.csv')
                 args.append((sf, name, returnTime))
-                outputfiles.append(name)
+                # confirm file exists (i.e. valid delays exists for specified time/region).
+                if os.path.exists(name):
+                    outputfiles.append(name)
             # Parallelize remote querying of zenith delays
             with multiprocessing.Pool(numCPUs) as multipool:
                 multipool.starmap(get_delays_UNR, args)
 
     # Consolidate all CSV files into one object
+    if outputfiles == []:
+        raise Exception('No valid delays found for specified time/region.')
     name = os.path.join(outDir, '{}combinedGPS_ztd.csv'.format(gps_repo))
     statsFile = pd.concat([pd.read_csv(i) for i in outputfiles])
     # drop all duplicate lines
