@@ -14,3 +14,7 @@ weather_files
 test/data
 *.log
 test/*/geom/*.dem
+.eggs/
+dist/
+tools/RAiDER.egg-info/
+tools/bindings/utils/makePoints.c

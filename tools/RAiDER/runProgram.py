@@ -29,10 +29,11 @@ def create_parser():
         '--date', dest='dateList',
         help=dedent("""\
             Date to calculate delay.
-            Can be a single date or a list of two dates (earlier, later).
+            Can be a single date, a list of two dates (earlier, later) with 1-day interval, or a list of two dates and interval in days (earlier, later, interval).
             Example accepted formats:
                YYYYMMDD or
                YYYYMMDD YYYYMMDD
+               YYYYMMDD YYYYMMDD N
             """),
         nargs="+",
         action=DateListAction,
@@ -113,7 +114,7 @@ def create_parser():
     misc = p.add_argument_group("Run parameters")
     misc.add_argument(
         '--zref', '-z',
-        help='Height limit when integrating (meters) (default: {} km)'.format(_ZREF),
+        help='Height limit when integrating (meters) (default: {} m)'.format(_ZREF),
         type=float,
         default=_ZREF)
     misc.add_argument(
