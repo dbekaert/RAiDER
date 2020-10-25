@@ -132,17 +132,13 @@ class DateListAction(Action):
 
         if len(values) == 2:
             start, end = values
-            values = [start + timedelta(days=k)
-                      for k in range(0,(end - start).days + 1,1)]
+            values = [start + timedelta(days=k) for k in range(0,(end - start).days + 1,1)]
         elif len(values) == 3:
             start, end, stepsize = values
-            try:
-                if not stepsize.year==0:
-                    raise ArgumentError(self, "The stepsize should be in integer days")
-             ...
-            start, end,stepsize = values
+            if not stepsize.year==0:
+                raise ArgumentError(self, "The stepsize should be in integer days")
             if not isinstance(stepsize.day, int):
-                raise ArgumentError(self, "interval needs to be supplied as integer number of days")
+                raise ArgumentError(self, "The stepsize should be in integer days")
 
             values = [start + timedelta(days=k)
                       for k in range(0,(end - start).days + 1,stepsize.day)]
