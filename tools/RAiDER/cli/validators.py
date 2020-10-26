@@ -127,13 +127,21 @@ class DateListAction(Action):
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
-        if len(values) > 2 or not values:
-            raise ArgumentError(self, "Only 1 or 2 dates may be supplied")
+        if len(values) > 3 or not values:
+            raise ArgumentError(self, "Only 1, 2 dates, or 2 dates and interval may be supplied")
 
         if len(values) == 2:
             start, end = values
+            values = [start + timedelta(days=k) for k in range(0,(end - start).days + 1,1)]
+        elif len(values) == 3:
+            start, end, stepsize = values
+            if not stepsize.year==0:
+                raise ArgumentError(self, "The stepsize should be in integer days")
+            if not isinstance(stepsize.day, int):
+                raise ArgumentError(self, "The stepsize should be in integer days")
+
             values = [start + timedelta(days=k)
-                      for k in range((end - start).days+1)]
+                      for k in range(0,(end - start).days + 1,stepsize.day)]
 
         setattr(namespace, self.dest, values)
 
@@ -193,7 +201,8 @@ def date_type(arg):
     """
     year_formats = (
         '%Y-%m-%d',
-        '%Y%m%d'
+        '%Y%m%d',
+        '%d',
     )
 
     for yf in year_formats:

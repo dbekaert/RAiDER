@@ -9,7 +9,6 @@
 import datetime as dt
 import gzip
 import io
-import logging
 import multiprocessing
 import os
 import zipfile
@@ -18,7 +17,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-log = logging.getLogger(__name__)
+from RAiDER.logger import *
 
 
 def get_delays_UNR(stationFile, filename, returnTime=None):
@@ -40,7 +39,7 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
     # ftp://igs.org/pub/data/format/sinex_tropo.txt
     # http://geodesy.unr.edu/gps_timeseries/README_trop2.txt
     # Wet and hydrostratic delays were derived as so:
-    # Constants —> k1 = 0.704, k2 = 0.776, k3 = 3739.0, m = 18.0152/28.9644, 
+    # Constants —> k1 = 0.704, k2 = 0.776, k3 = 3739.0, m = 18.0152/28.9644,
     # k2' = k2-(k1*m) = 0.33812796398337275, Rv = 461.5 J/(kg·K), ρl = 997 kg/m^3
     # Note wet delays passed here may be computed as so
     # where PMV = precipitable water vapor, P = total atm pressure, Tm = mean temp of the column —>
@@ -89,24 +88,24 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
                                       for n in split_lines[1].split(':')]
                 # Break iteration if time from line in file does not match date reported in filename
                 if doy != doyFromFile:
-                    log.warning(
+                    logger.warning(
                         'time %s from line in conflict with time %s from file '
                         '%s, will continue reading next tarfile(s)',
                         doy, doyFromFile, j
                     )
                     continue
                 # convert units from mm to m
-                d.append(trotot*0.001)
-                Sig.append(trototSD*0.001)
-                dwet.append(trwet*0.001)
-                dhydro.append((trotot-trwet)*0.001)
+                d.append(trotot * 0.001)
+                Sig.append(trototSD * 0.001)
+                dwet.append(trwet * 0.001)
+                dhydro.append((trotot - trwet) * 0.001)
                 timesList.append(seconds)
             if 'TROP/SOLUTION' in line:
                 flag = True
         del f
         # Break iteration if file contains no data.
         if d == []:
-            log.warning(
+            logger.warning(
                 'file %s for station %s is empty, will continue reading next '
                 'tarfile(s)', j, j.split('.')[0]
             )
@@ -175,7 +174,7 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
             np.abs(np.array(list(range(0, 86400, 300))) - returnTime))
         updatedreturnTime = str(dt.timedelta(
             seconds=list(range(0, 86400, 300))[index]))
-        log.warning(
+        logger.warning(
             'input time %s not divisble by 3 seconds, so next closest time %s '
             'will be chosen', returnTime, updatedreturnTime
         )
@@ -195,12 +194,16 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
                 StationID = os.path.basename(sf).split('.')[0]
                 name = os.path.join(pathbase, StationID + '_ztd.csv')
                 args.append((sf, name, returnTime))
-                outputfiles.append(name)
+                # confirm file exists (i.e. valid delays exists for specified time/region).
+                if os.path.exists(name):
+                    outputfiles.append(name)
             # Parallelize remote querying of zenith delays
             with multiprocessing.Pool(numCPUs) as multipool:
                 multipool.starmap(get_delays_UNR, args)
 
     # Consolidate all CSV files into one object
+    if outputfiles == []:
+        raise Exception('No valid delays found for specified time/region.')
     name = os.path.join(outDir, '{}combinedGPS_ztd.csv'.format(gps_repo))
     statsFile = pd.concat([pd.read_csv(i) for i in outputfiles])
     # drop all duplicate lines

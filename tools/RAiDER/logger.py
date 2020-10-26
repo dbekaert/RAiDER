@@ -59,6 +59,7 @@ logger.setLevel(logging.INFO)
 
 stdout_handler = StreamHandler(sys.stdout)
 stdout_handler.setFormatter(CustomFormatter(use_color=os.name != "nt"))
+stdout_handler.setLevel(logging.INFO)
 
 errorfile_handler = FileHandler("error.log")
 errorfile_handler.setFormatter(Formatter(

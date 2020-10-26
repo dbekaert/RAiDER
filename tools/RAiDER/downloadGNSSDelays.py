@@ -8,7 +8,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import argparse
 import itertools
-import logging
 import multiprocessing
 import os
 
@@ -16,10 +15,8 @@ import pandas as pd
 import requests
 
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
+from RAiDER.logger import *
 from RAiDER.getStationDelays import get_station_data
-from RAiDER.logger import logger
-
-log = logging.getLogger(__name__)
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
@@ -97,14 +94,14 @@ def cmd_line_parse(iargs=None):
     return parser.parse_args(args=iargs)
 
 
-def get_station_list(bbox=None, writeLoc=None, userstatList=None):
+def get_station_list(bbox=None, writeLoc=None, userstatList=None, name_appendix=''):
     '''
     Creates a list of stations inside a lat/lon bounding box from a source
     Inputs:
         bbox    - length-4 list of floats that describes a bounding box. Format is
                   S N W E
     '''
-    writeLoc = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox.csv')
+    writeLoc = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox'+name_appendix+'.csv')
 
     if userstatList:
         userstatList = read_text_file(userstatList)
@@ -142,14 +139,14 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
             lon = fix_lons(lon)
             stations.append({'ID': statID, 'Lat': lat, 'Lon': lon})
 
-    log.info('%d stations were found', len(stations))
+    logger.info('%d stations were found', len(stations))
     stations = pd.DataFrame(stations)
     # Report stations from user's list that do not cover bbox
     if userstatList:
         userstatList = [
             i for i in userstatList if i not in stations['ID'].to_list()]
         if userstatList:
-            log.warning(
+            logger.warning(
                 "The following user-input stations are not covered by the input "
                 "bounding box %s: %s",
                 str(llhBox).strip('[]'), str(userstatList).strip('[]')
@@ -197,7 +194,7 @@ def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
     '''
     URL = "{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip".format(
         baseURL, statID.upper(), year)
-    log.debug('Currently checking station %s in %s', statID, year)
+    logger.debug('Currently checking station %s in %s', statID, year)
     if download:
         saveLoc = os.path.abspath(os.path.join(
             writeDir, '{0}.{1}.trop.zip'.format(statID.upper(), year)))
@@ -216,11 +213,11 @@ def download_url(url, save_path, chunk_size=2048):
     if r.status_code == 404:
         return ''
     else:
-        log.debug('Beginning download of %s to %s', url, save_path)
+        logger.debug('Beginning download of %s to %s', url, save_path)
         with open(save_path, 'wb') as fd:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 fd.write(chunk)
-        log.debug('Completed download of %s to %s', url, save_path)
+        logger.debug('Completed download of %s to %s', url, save_path)
         return save_path
 
 
@@ -309,6 +306,10 @@ def query_repos(
             except ValueError:
                 raise Exception(
                     'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
+            if bbox[2]*bbox[3] < 0:
+                long_cross_zero = 1
+            else:
+                long_cross_zero = 0
             # if necessary, convert negative longitudes to positive
             if bbox[2] < 0:
                 bbox[2] += 360
@@ -319,8 +320,25 @@ def query_repos(
         bbox = [-90, 90, 0, 360]
 
     # Handle station query
-    stats, origstatsFile = get_station_list(
-        bbox=bbox, writeLoc=out, userstatList=station_file)
+    if long_cross_zero is 1:
+        bbox1 = bbox.copy()
+        bbox2 = bbox.copy()
+        bbox1[3] = 360.0
+        bbox2[2] = 0.0
+        stats1, origstatsFile1 = get_station_list(bbox=bbox1, writeLoc=out, userstatList=station_file, name_appendix='_a')
+        stats2, origstatsFile2 = get_station_list(bbox=bbox2, writeLoc=out, userstatList=station_file, name_appendix='_b')
+        stats = stats1 + stats2
+        origstatsFile = origstatsFile1[:-6] + '.csv'
+        file_a=pd.read_csv(origstatsFile1)
+        file_b=pd.read_csv(origstatsFile2)
+        frames=[file_a,file_b]
+        result = pd.concat(frames,ignore_index=True)
+        result.to_csv(origstatsFile,index=False)
+    else:
+        if bbox[3] < bbox[2]:
+            bbox[3] = 360.0
+        stats, origstatsFile = get_station_list(
+            bbox=bbox, writeLoc=out, userstatList=station_file)
 
     # iterate over years
     download_tropo_delays(
@@ -346,7 +364,7 @@ def query_repos(
         returnTime=returnTime
     )
 
-    log.debug('Completed processing')
+    logger.debug('Completed processing')
 
 
 if __name__ == "__main__":
