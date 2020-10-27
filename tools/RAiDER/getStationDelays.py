@@ -194,13 +194,13 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
                 StationID = os.path.basename(sf).split('.')[0]
                 name = os.path.join(pathbase, StationID + '_ztd.csv')
                 args.append((sf, name, returnTime))
-                # confirm file exists (i.e. valid delays exists for specified time/region).
-                if os.path.exists(name):
-                    outputfiles.append(name)
+                outputfiles.append(name)
             # Parallelize remote querying of zenith delays
             with multiprocessing.Pool(numCPUs) as multipool:
                 multipool.starmap(get_delays_UNR, args)
 
+    # confirm file exists (i.e. valid delays exists for specified time/region).
+    outputfiles = [i for i in outputfiles if os.path.exists(i)]
     # Consolidate all CSV files into one object
     if outputfiles == []:
         raise Exception('No valid delays found for specified time/region.')
@@ -218,6 +218,8 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
     statsFile = pd.merge(left=statsFile, right=origstatsFile[['ID', 'Lat', 'Lon']], how='left', left_on='ID', right_on='ID')
     # drop all lines with nans and sort by station ID and year
     statsFile.dropna(how='any', inplace=True)
+    # drop all duplicate lines
+    statsFile.drop_duplicates(inplace=True)
     statsFile.sort_values(['ID', 'Date'])
     statsFile.to_csv(name, index=False)
     del origstatsFile, statsFile
