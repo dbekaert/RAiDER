@@ -512,6 +512,19 @@ class WeatherModel(ABC):
         '''
         returns the extents of lat/lon plus a buffer
         '''
+        
+        # Not all of the weather models have valid data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, need to adjust the longitude higher end with an extra buffer; for other models, the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be rounded to them (either in the downloading-file API or subsetting-data API) without outputting errors.
+        if self._Name is 'GMAO' or self._Name is 'MERRA2':
+            ex_buffer = self._lon_res
+        else:
+            ex_buffer = 0.0
+        
+        # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
+        lats[0] = max(lats[0], (-90.0 + Nextra * self._lat_res))
+        lats[1] = min(lats[1], (90.0 - Nextra * self._lat_res))
+        lons[0] = max(lons[0], (-180.0 + Nextra * self._lon_res))
+        lons[1] = min(lons[1], (180.0 - Nextra * self._lon_res - ex_buffer))
+        
         lat_min = np.nanmin(lats) - Nextra * self._lat_res
         lat_max = np.nanmax(lats) + Nextra * self._lat_res
         lon_min = np.nanmin(lons) - Nextra * self._lon_res
