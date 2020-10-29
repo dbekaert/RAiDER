@@ -1,3 +1,4 @@
+import datetime
 import h5py
 import os
 import osr
@@ -11,7 +12,8 @@ from osgeo import gdal
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
-    writeArrayToRaster, writeResultsToHDF5, gdal_extents,modelName2Module
+    writeArrayToRaster, writeResultsToHDF5, gdal_extents,modelName2Module,
+    getTimeFromFile
 )
 
 
@@ -258,6 +260,11 @@ def test_gdal_extent2():
     with pytest.raises(AttributeError):
         gdal_extents(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
 
+def test_getTimeFromFile():
+    name1 = 'abcd_2020_01_01_T00_00_00jijk.xyz'
+    assert getTimeFromFile(name1) == datetime.datetime(2020,1,1,0,0,0)
+
 def test_model2module():
     model_module_name, model_obj = modelName2Module('ERA5')
-    assert model_module_name == model_obj().Model()
+    assert model_obj().Model() == 'ERA-5'
+

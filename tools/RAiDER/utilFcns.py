@@ -412,7 +412,7 @@ def getTimeFromFile(filename):
         out = p.search(filename).group()
         return datetime.strptime(out, fmt)
     except:
-        raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
+        raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
 
 
 def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.):
