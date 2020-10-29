@@ -261,4 +261,3 @@ def test_gdal_extent2():
 def test_model2module():
     model_module_name, model_obj = modelName2Module('ERA5')
     assert model_module_name == model_obj().Model()
-    assert model_module_name=='ERA-5'
