@@ -112,7 +112,7 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, lats, lons, time, out):
+    def fetch(self, out, lats, lons, time):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
