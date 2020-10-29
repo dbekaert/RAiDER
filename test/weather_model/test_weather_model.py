@@ -117,16 +117,18 @@ def test_uniform_in_z_large(model):
 
     assert np.allclose(model._zs, zlevels, atol=0.05, rtol=0)
 
-def test_checkLL(era5):
+def test_checkLL_era5(era5):
+    lats_good = np.array([-89, -45, 0, 45, 89])
+    lons_good = np.array([-179, -90, 0, 90, 179])
     lats = np.array([-90, -45, 0, 45, 90])
     lons = np.array([-180, -90, 0, 90, 180])
     lats2, lons2 = era5.checkLL(lats, lons)
     assert np.allclose(lats2, lats)
     assert np.allclose(lons2, lons)
 
-def test_checkLL2(era5):
-    lats_good = np.array([-90, -45, 0, 45, 90])
-    lons_good = np.array([-180, -90, 0, 90, 180])
+def test_checkLL_era5_2(era5):
+    lats_good = np.array([-89, -45, 0, 45, 89])
+    lons_good = np.array([-179, -90, 0, 90, 179])
     lats = np.array([-95, -45, 0, 45, 90])
     lons = np.array([-180, -90, 0, 90, 200])
     lats2, lons2 = era5.checkLL(lats, lons)
