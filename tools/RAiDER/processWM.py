@@ -17,6 +17,7 @@ from datetime import datetime
 from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
 
+
 def getWMFilename(weather_model_name, time, outLoc):
     '''
     Check whether the output weather model exists, and
@@ -40,7 +41,7 @@ def getWMFilename(weather_model_name, time, outLoc):
         logger.warning('Weather model already exists, skipping download')
         download_flag = False
 
-    return f
+    return download_flag, f
 
 
 def prepareWeatherModel(
