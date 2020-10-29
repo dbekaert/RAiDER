@@ -382,10 +382,6 @@ def get_filename_from_cd(cd):
         return None
     return fname[0]
 
-    
-def openDEM(folder_name, dem_raster = "SRTMGL1.dem"):
-    out = gdal_open(os.path.join(folder_name, dem_raster))
-    return out[::-1]
 
 def readRaster(filename, band_num=None):
     '''

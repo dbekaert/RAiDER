@@ -16,18 +16,21 @@ from RAiDER.processWM import prepareWeatherModel
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.era5 import ERA5
 WEATHER_FILE = os.path.join(
-        DATA_DIR, 
-        "weather_files", 
-        "ERA-5_2018_07_01_T00_00_00.nc"
-    )
+    DATA_DIR,
+    "weather_files",
+    "ERA-5_2018_07_01_T00_00_00.nc"
+)
+
 
 @pytest.fixture
 def era5():
     era5_wm = ERA5()
     return era5_wm
-    
+
+
 def product(iterable):
     return reduce(operator.mul, iterable, 1)
+
 
 class MockWeatherModel(WeatherModel):
     """Implement abstract methods for testing."""

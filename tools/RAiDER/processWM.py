@@ -51,16 +51,16 @@ def getWMFilename(weather_model_name, time, outLoc):
 
 
 def prepareWeatherModel(
-        weatherDict,
-        wmFileLoc,
-        lats=None,
-        lons=None,
-        los=None,
-        zref=None,
-        time=None,
-        download_only=False,
-        makePlots=False
-    ):
+    weatherDict,
+    wmFileLoc,
+    lats=None,
+    lons=None,
+    los=None,
+    zref=None,
+    time=None,
+    download_only=False,
+    makePlots=False
+):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
@@ -124,6 +124,7 @@ def prepareWeatherModel(
 
     return weather_model, lats, lons
 
+
 def fixLL(lats, lons, weather_model):
     ''' 
     Need to correct lat/lon bounds because not all of the weather models have valid data 
@@ -144,7 +145,7 @@ def fixLL(lats, lons, weather_model):
 
     # The same Nextra used in the weather model base class _get_ll_bounds
     Nextra = 2
-    
+
     # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
     lats[lats < (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)] = (-90.0 + Nextra * weather_model._lat_res + ex_buffer_lat_min)
     lats[lats > (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)] = (90.0 - Nextra * weather_model._lat_res - ex_buffer_lat_max)
