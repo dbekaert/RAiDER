@@ -6,11 +6,7 @@ import numpy as np
 from test import DATA_DIR, pushd
 
 from RAiDER.dem import (
-<<<<<<< HEAD
-    getBufferedExtent, isOutside, isInside, getDEM, forceNDArray
-=======
     getBufferedExtent, isOutside, isInside, getDEM, openDEM, forceNDArray
->>>>>>> Update dem downloader to handle new RESTful API
 )
 
 
@@ -81,14 +77,11 @@ def test_isInside(llsimple):
 def test_getDEM(tmp_path):
     with pushd(tmp_path):
         getDEM([18.5, 18.9, -73.2, -72.8], tmp_path)
-<<<<<<< HEAD
-=======
 
 def test_openDEM():
     dem = openDEM(os.path.join(DATA_DIR, 'geom'), dem_raster = 'warpedDEM.dem')
     assert dem.size >0
     assert dem.ndim == 2
->>>>>>> Update dem downloader to handle new RESTful API
 
 
 def test_isNDArray():

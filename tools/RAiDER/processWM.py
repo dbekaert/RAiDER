@@ -67,6 +67,8 @@ def prepareWeatherModel(
     weather_model, weather_files, weather_model_name = \
         weatherDict['type'], weatherDict['files'], weatherDict['name']
 
+    lats, lons = fixLL(lats, lons, weather_model)
+
     # check whether weather model files are supplied
     if weather_files is None:
         if time is None:
