@@ -675,19 +675,87 @@ class WeatherModel(ABC):
         x = xr.DataArray(self._xs.astype(np.float64).copy())
         y = xr.DataArray(self._ys.astype(np.float64).copy())
         z = xr.DataArray(self._zs.astype(np.float64).copy())
-        x.attrs['grid_type'] = 'native_x'
-        y.attrs['grid_type'] = 'native_y'
-        z.attrs['grid_type'] = 'native_z'
+        x.attrs['description'] = 'weather_model_native_x'
+        x.attrs['standard_name'] = 'projection_x_coordinate'
+        y.attrs['description'] = 'weather_model_native_y'
+        y.attrs['standard_name'] = 'projection_y_coordinate'
+        z.attrs['description'] = 'weather_model_native_z'
+        z.attrs['standard_name'] = 'projection_z_coordinate'
 
         ds = xr.Dataset(
             {
-            'lats': xr.DataArray(self._lats.astype(np.float64), coords=[x, y], dims=["x", "y"]),
-            'lons':  xr.DataArray(self._lons.astype(np.float64), coords=[x, y], dims=["x", "y"]),
-            't': xr.DataArray(self._t, coords=[x, y], dims=["x", "y", "z"]),
-            'p': xr.DataArray(self._p, coords=[x, y, z], dims=["x", "y", "z"]),
-            'e': xr.DataArray(self._e, coords=[x, y, z], dims=["x", "y", "z"]),
-            'wet': xr.DataArray(self._wet_refractivity, coords=[x, y, z], dims=["x", "y", "z"]),
-            'wet_total', xr.DataArray(self._wet_total, coords=[x, y, z], dims=["x", "y", "z"]),
-            'hydro': xr.DataArray(self._hydro_refractivity, coords=[x, y, z], dims=["x", "y", "z"]),
-            'hydro_total': xr.DataArray(self._hydro_total, coords=[x, y, z], dims=["x", "y", "z"])
+                'lats': xr.DataArray(
+                    self._lats.astype(np.float64), 
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'units': 'deg_north', 'grid_mapping':'spatial_ref'}
+                ),
+                'lons': xr.DataArray(
+                    self._lons.astype(np.float64), 
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'units': 'deg_north', 'grid_mapping':'spatial_ref'}
+                ),
 
+                't': xr.DataArray(
+                    self._t, 
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'units':'deg_K', 'grid_mapping': 'spatial_ref'}
+                ),
+                'p': xr.DataArray(
+                    self._p, 
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'units':'Pa', 'grid_mapping': 'spatial_ref'}
+                ),
+                'e': xr.DataArray(
+                    self._e, 
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'units':'water_vapor', 'grid_mapping':'spatial_ref'}
+                ),
+                'wet': xr.DataArray(
+                    self._wet_refractivity,
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'grid_mapping': 'spatial_ref'}
+                ),
+                'hydro': xr.DataArray(
+                    self._hydrostatic_refractivity,  
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'grid_mapping': 'spatial_ref'}
+                ),
+                'wet_total': xr.DataArray(
+                    self._wet_ztd,
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'grid_mapping': 'spatial_ref'}
+                ),
+                'hydro_total': xr.DataArray(
+                    self._hydrostatic_ztd,
+                    coords=[y, x, z], 
+                    dims=["y", "x", "z"], 
+                    attrs = {'grid_mapping': 'spatial_ref'}
+                ),
+                'spatial_ref': xr.DataArray(
+                    self._proj.to_wkt(), 
+                    dims = (), 
+                    coords = (), 
+                    attrs = {
+                        'grid_mapping_name': self._proj.name,
+                        'spatial_epsg': self._proj.to_epsg(), 
+                        'spatial_ref': self._proj.to_wkt()
+                    }
+                )
+            }
+        )
+        ds.attrs['GDAL_AREA_OR_POINT'] = 'AREA'
+        ds.attrs['Conventions'] = 'CF-1.6'
+        ds.attrs['date_created'] = datetime.datetime.now().strftime("Z%Y%m%dT%H%M%S")
+        ds.attrs['Conventions'] = 'CF-1.6'
+        
+        ds.to_netcdf(outName)
+
+        del ds

@@ -287,7 +287,7 @@ def getProjFromWMFile(wm_file):
     Returns the projection of an HDF5 file
     '''
     with h5py.File(wm_file, 'r') as f:
-        wm_proj = CRS.from_json(f['Projection'][()])
+        wm_proj = CRS.from_wkt(f['spatial_ref'][()])
     return wm_proj
 
 

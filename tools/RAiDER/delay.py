@@ -220,7 +220,7 @@ def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
             weather_model, wmLoc, lats=lats, lons=lons, los=los, zref=zref,
             time=time, download_only=download_only, makePlots=True)
         try:
-            weather_model.write2HDF5(weather_model_file)
+            weather_model.write(weather_model_file)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
