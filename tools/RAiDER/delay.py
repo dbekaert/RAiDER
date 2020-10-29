@@ -122,7 +122,10 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     logger.debug('Download-only is %s', download_only)
     if wmLoc is None:
         wmLoc = os.path.join(out, 'weather_files')
-
+    
+    if download_only:
+        return None, None
+    
     # weather model calculation
     wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
     weather_model_file = os.path.join(wmLoc, wm_filename)
@@ -143,8 +146,6 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
             'to create a new one.', weather_model_file
         )
 
-    if download_only:
-        return None, None
 
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
