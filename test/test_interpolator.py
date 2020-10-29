@@ -9,20 +9,20 @@ from RAiDER.interpolator import fillna3D, interp_along_axis, interpVector
 
 @pytest.fixture
 def nanArr():
-    array = np.random.randn(2,2,3)
-    array[0,0,0] = np.nan
-    array[0,0,1] = np.nan
-    array[0,0,2] = np.nan
-    array[1,0,0] = np.nan
-    array[0,1,1] = np.nan
-    array[1,1,2] = np.nan
+    array = np.random.randn(2, 2, 3)
+    array[0, 0, 0] = np.nan
+    array[0, 0, 1] = np.nan
+    array[0, 0, 2] = np.nan
+    array[1, 0, 0] = np.nan
+    array[0, 1, 1] = np.nan
+    array[1, 1, 2] = np.nan
     true_array = array.copy()
-    true_array[0,0,0] = np.nan
-    true_array[0,0,1] = np.nan
-    true_array[0,0,2] = np.nan
-    true_array[1,0,0] = true_array[1,0,1]
-    true_array[0,1,1] = (true_array[0,1,0] + true_array[0,1,2])/2
-    true_array[1,1,2] = true_array[1,1,1]
+    true_array[0, 0, 0] = np.nan
+    true_array[0, 0, 1] = np.nan
+    true_array[0, 0, 2] = np.nan
+    true_array[1, 0, 0] = true_array[1, 0, 1]
+    true_array[0, 1, 1] = (true_array[0, 1, 0] + true_array[0, 1, 2]) / 2
+    true_array[1, 1, 2] = true_array[1, 1, 1]
     return array, true_array
 
 
@@ -31,7 +31,7 @@ def test_interpVector():
         interpVector(
             np.array([
                 0, 1, 2, 3, 4, 5,
-                0, 0.84147098,  0.90929743,  0.14112001, -0.7568025, -0.95892427,
+                0, 0.84147098, 0.90929743, 0.14112001, -0.7568025, -0.95892427,
                 0.5, 1.5, 2.5, 3.5, 4.5
             ]),
             6
@@ -885,7 +885,7 @@ def test_interpolate_wrapper():
         points_z
     ), axis=-1)
 
-    interp = Interpolator((xs, ys, zs), values, fill_value = np.nan)
+    interp = Interpolator((xs, ys, zs), values, fill_value=np.nan)
     ans = interp(points)
     ans2 = interp((points_x, points_y, points_z))
     rgi = RegularGridInterpolator((xs, ys, zs), values, bounds_error=False)
@@ -904,9 +904,9 @@ def test_interpolate_wrapper2():
     zs = np.linspace(0, 1000, 100)
 
     values = f(*np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
-    nanInds = np.random.randint(0, 99, size=(100,3))
-    values[nanInds[:,0], nanInds[:,1], nanInds[:,2]] = np.nan
-   
+    nanInds = np.random.randint(0, 99, size=(100, 3))
+    values[nanInds[:, 0], nanInds[:, 1], nanInds[:, 2]] = np.nan
+
     points_x = np.linspace(10, 1090, 5)
     points_y = np.linspace(10, 890, 5)
     points_z = np.linspace(10, 890, 5)
@@ -916,7 +916,7 @@ def test_interpolate_wrapper2():
         points_z
     ), axis=-1)
 
-    interp = Interpolator((xs, ys, zs), values, fill_value = np.nan)
+    interp = Interpolator((xs, ys, zs), values, fill_value=np.nan)
     ans = interp(points)
     ans2 = interp((points_x, points_y, points_z))
     rgi = RegularGridInterpolator((xs, ys, zs), values, bounds_error=False)
@@ -925,14 +925,13 @@ def test_interpolate_wrapper2():
     assert np.allclose(ans, ans_scipy, 1e-15, equal_nan=True)
     assert np.allclose(ans2, ans_scipy, 1e-15, equal_nan=True)
 
-#TODO: implement an interpolator test that is similar to test_scenario_1. 
-#Currently the scipy and C++ interpolators differ on that case.
+# TODO: implement an interpolator test that is similar to test_scenario_1.
+# Currently the scipy and C++ interpolators differ on that case.
 
 
 def test_interpolateDEM():
     x = np.arange(10)
     dem = np.outer(x, x)
-    extent = [0,9, 0, 9]
+    extent = [0, 9, 0, 9]
     out = interpolateDEM(dem, np.array([[4.5, 4.5], [0.5, 0.5], [10, 10]]), extent)
     assert np.allclose(out, np.array([20.25, 0.25, np.nan]), equal_nan=True)
-

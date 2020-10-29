@@ -141,7 +141,7 @@ class WeatherModel(ABC):
         self._adjust_grid(lats=outLats, lons=outLons)
         self._getZTD(los, zref)
 
-    def _getZTD(self, los, zref = const._ZREF):
+    def _getZTD(self, los, zref=const._ZREF):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref

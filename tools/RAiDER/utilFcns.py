@@ -301,8 +301,8 @@ def make_weather_model_filename(name, time, ll_bounds):
     else:
         E = 'E'
     return '{}_{}_{}{}_{}{}_{}{}_{}{}.h5'.format(
-            name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]),S,np.abs(ll_bounds[1]),N,np.abs(ll_bounds[2]),W,np.abs(ll_bounds[3]),E
-        )
+        name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
+    )
 
 
 def checkShapes(los, lats, lons, hts):

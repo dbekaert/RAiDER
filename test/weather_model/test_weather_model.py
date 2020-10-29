@@ -17,18 +17,21 @@ from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.era5 import ERA5
 
 WEATHER_FILE = os.path.join(
-        DATA_DIR, 
-        "weather_files", 
-        "ERA-5_2018_07_01_T00_00_00.nc"
-    )
+    DATA_DIR,
+    "weather_files",
+    "ERA-5_2018_07_01_T00_00_00.nc"
+)
+
 
 @pytest.fixture
 def era5():
     era5_wm = ERA5()
     return era5_wm
-    
+
+
 def product(iterable):
     return reduce(operator.mul, iterable, 1)
+
 
 class MockWeatherModel(WeatherModel):
     """Implement abstract methods for testing."""
@@ -113,5 +116,3 @@ def test_uniform_in_z_large(model):
                        interpolated * 3, equal_nan=True, rtol=0)
 
     assert np.allclose(model._zs, zlevels, atol=0.05, rtol=0)
-
-

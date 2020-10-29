@@ -28,7 +28,7 @@ def readLL(*args):
     elif len(args[0]) == 4:
         flag = 'bounding_box'
         lats, lons, llproj = readLLFromBBox(*args)
-    elif isinstance(args[0],str):
+    elif isinstance(args[0], str):
         flag = 'station_file'
         lats, lons, llproj = readLLFromStationFile(*args)
     else:
