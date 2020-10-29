@@ -14,20 +14,20 @@ from RAiDER.models.erai import ERAI
 def test_era5():
     wm = ERA5()
     wm.fetch(
+        os.path.join(TEST_DIR, 'test_geom', 'test_era5.nc'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
-        datetime(2020, 1, 1, 0, 0, 0),
-        os.path.join(DATA_DIR, 'weather_files', 'test_era5.nc')
+        datetime(2020, 1, 1, 0, 0, 0)
     )
 
 
 def test_era5t():
     wm = ERA5T()
     wm.fetch(
+        os.path.join(TEST_DIR, 'test_geom', 'test_era5t.nc'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
-        datetime(2020, 1, 1, 0, 0, 0),
-        os.path.join(DATA_DIR, 'weather_files', 'test_era5t.nc')
+        datetime(2020, 1, 1, 0, 0, 0)
     )
 
 
@@ -35,8 +35,8 @@ def test_era5t():
 def test_erai():
     wm = ERAI()
     wm.fetch(
+        os.path.join(TEST_DIR, 'test_geom', 'test_erai.nc'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
-        datetime(2017, 1, 1, 0, 0, 0),
-        os.path.join(DATA_DIR, 'weather_files', 'test_erai.nc')
+        datetime(2017, 1, 1, 0, 0, 0)
     )
