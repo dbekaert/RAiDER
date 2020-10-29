@@ -45,7 +45,7 @@ def getWMFilename(weather_model_name, time, outLoc):
 
 
 def prepareWeatherModel(
-        weather_model,
+        weatherDict,
         wmFileLoc,
         lats=None,
         lons=None,
@@ -73,12 +73,7 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        try:
-            weather_model.fetch(lats, lons, time, f)
-        except Exception:
-            logger.exception('Unable to download weather data')
-            # TODO: Is this really an appropriate place to be calling sys.exit?
-            sys.exit(0)
+        weather_model.fetch(lats, lons, time, f)
 
         # exit on download if download_only requested
         if download_only:

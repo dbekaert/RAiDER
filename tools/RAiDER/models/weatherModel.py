@@ -70,8 +70,8 @@ class WeatherModel(ABC):
         self._e = None
         self._wet_refractivity = None
         self._hydrostatic_refractivity = None
-        self._wet_total = None
-        self._hydrostatic_total = None
+        self._wet_ztd = None
+        self._hydrostatic_ztd = None
         self._svp = None
 
     def __str__(self):
@@ -137,27 +137,13 @@ class WeatherModel(ABC):
         self._get_wet_refractivity()
         self._get_hydro_refractivity()
         self._adjust_grid(lats=outLats, lons=outLons)
-        los_flag = self._checkLOS(los)
-        self._runLOS(los, zref, los_flag)
+        self._getZTD(los, zref)
 
-    def _checkLOS(self, los):
-        '''
-        I will check to see if a state vector has been supplied. If so, I will calculate the integrated
-        delay at the weather model grid nodes.
-        '''
-        if los is Zenith:
-            return False
-
-        return los[0] == 'sv'
-
-    def _runLOS(self, los, zref, los_flag):
+    def _getZTD(self, los, zref = const._ZREF):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
-
-        _STEP = 10  # stepsize in meters
-
         if zref is None:
             zref = const._ZREF
 
@@ -166,52 +152,13 @@ class WeatherModel(ABC):
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 
-        # if a state vector was available, can compute the line-of-sight delays
-        if los_flag:
-            # ECEF to Lat/Lon reference frame
-            p1 = CRS.from_epsg(4978)
-            t = Transformer.from_proj(p1, self._proj, always_xy=True)
-
-            # Get the look vectors
-            # TODO: lengths and LOS return from GEO2RDR are not correct
-            lengths = np.linalg.norm(los, axis=-1)
-            max_len = np.nanmax(lengths)
-            los_slv = los / lengths[..., np.newaxis]
-
-            # Transform each point to ECEF
-            rays_ecef = np.stack(lla2ecef(self._lats, self._lons, hgts), axis=-1)
-
-            # Calculate the integrated delays
-            ifWet = make_interpolator(self._xs, self._ys, self._zs, wet)
-            ifHydro = make_interpolator(self._xs, self._ys, self._zs, hydro)
-
-            # Create the rays
-            ray = makePoints3D(max_len, rays_ecef, los_slv, _STEP)
-
-            # Transform from ECEF to weather model native projection
-            ray_x, ray_y, ray_z = t.transform(
-                ray[..., 0, :],
-                ray[..., 1, :],
-                ray[..., 2, :]
-            )
-
-            delay_wet = interpolate2(ifWet, ray_x, ray_y, ray_z)
-            delay_hydro = interpolate2(ifHydro, ray_x, ray_y, ray_z)
-            delays = _integrateLOS(_STEP, delay_wet, delay_hydro)
-
-            self._wet_total = delays[..., 0]
-            self._hydrostatic_total = delays[..., 1]
-
-        else:
-            # If LOS is not supplied, return integrated ZTD
-            wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-            # TODO: This returns zero for the last level because of the way trapz handles single points.
-            # Should probably try to re-implement the integral function
-            for level in range(wet.shape[2]):
-                wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
-                hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
-            self._hydrostatic_total = hydro_total
-            self._wet_total = wet_total
+        # Get the integrated ZTD
+        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
+        for level in range(wet.shape[2]):
+            wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
+            hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
+        self._hydrostatic_ztd = hydro_total
+        self._wet_ztd = wet_total
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -652,19 +599,19 @@ class WeatherModel(ABC):
             wet.dims[1].attach_scale(y)
             wet.dims[2].attach_scale(z)
 
-            wet_total = f.create_dataset('wet_total', data=self._wet_total)
-            wet_total.dims[0].attach_scale(x)
-            wet_total.dims[1].attach_scale(y)
-            wet_total.dims[2].attach_scale(z)
+            wet_ztd = f.create_dataset('wet_ztd', data=self._wet_ztd)
+            wet_ztd.dims[0].attach_scale(x)
+            wet_ztd.dims[1].attach_scale(y)
+            wet_ztd.dims[2].attach_scale(z)
 
             hydro = f.create_dataset('hydro', data=self._hydrostatic_refractivity)
             hydro.dims[0].attach_scale(x)
             hydro.dims[1].attach_scale(y)
             hydro.dims[2].attach_scale(z)
 
-            hydro_total = f.create_dataset('hydro_total', data=self._hydrostatic_total)
-            hydro_total.dims[0].attach_scale(x)
-            hydro_total.dims[1].attach_scale(y)
-            hydro_total.dims[2].attach_scale(z)
+            hydro_ztd = f.create_dataset('hydro_ztd', data=self._hydrostatic_ztd)
+            hydro_ztd.dims[0].attach_scale(x)
+            hydro_ztd.dims[1].attach_scale(y)
+            hydro_ztd.dims[2].attach_scale(z)
 
             f.create_dataset('Projection', data=self._proj.to_json())
