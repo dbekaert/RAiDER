@@ -186,11 +186,11 @@ class BBoxAction(Action):
 
         for sn in (S, N):
             if sn < -90 or sn > 90:
-                raise ArgumentError(self, 'Lats are out of S/N bounds')
+                raise ArgumentError(self, 'Lats are out of S/N bounds (-90 to 90).')
 
         for we in (W, E):
             if we < -180 or we > 180:
-                raise ArgumentError(self, 'Lons are out of W/E bounds')
+                raise ArgumentError(self, 'Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.')
 
         setattr(namespace, self.dest, values)
 

@@ -284,9 +284,25 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
 
 
 def make_weather_model_filename(name, time, ll_bounds):
-    return '{}_{}_{}N_{}N_{}E_{}E.h5'.format(
-        name, time.strftime("%Y-%m-%dT%H_%M_%S"), *ll_bounds
-    )
+    if ll_bounds[0] < 0:
+        S = 'S'
+    else:
+        S = 'N'
+    if ll_bounds[1] < 0:
+        N = 'S'
+    else:
+        N = 'N'
+    if ll_bounds[2] < 0:
+        W = 'W'
+    else:
+        W = 'E'
+    if ll_bounds[3] < 0:
+        E = 'W'
+    else:
+        E = 'E'
+    return '{}_{}_{}{}_{}{}_{}{}_{}{}.h5'.format(
+            name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]),S,np.abs(ll_bounds[1]),N,np.abs(ll_bounds[2]),W,np.abs(ll_bounds[3]),E
+        )
 
 
 def checkShapes(los, lats, lons, hts):
