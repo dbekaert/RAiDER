@@ -82,7 +82,7 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        weather_model.fetch(*weather_model.files, lats, lons, time)
+        weather_model.fetch(lats, lons, time, f)
 
         # exit on download if download_only requested
         if download_only:
