@@ -137,12 +137,14 @@ def tropo_delay(
     logger.debug('Download-only is %s', download_only)
     if wmLoc is None:
         wmLoc = os.path.join(out, 'weather_files')
-    
+        
+    # weather model download
+    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
+
+    # weather model calculation    
     if download_only:
         return None, None
-    
-    # weather model calculation
-    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
+
     weather_model_file = os.path.join(wmLoc, wm_filename)
 
     if not os.path.exists(weather_model_file):
