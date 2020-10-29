@@ -91,8 +91,8 @@ def prepareWeatherModel(
             return None, None, None
 
     # Load the weather model data
-    if weather_model.files is not None:
-        weather_model.load(*weather_model.files, outLats=lats, outLons=lons, los=los, zref=zref)
+    if weather_model['files'] is not None:
+        weather_model.load(*weather_model['files'], outLats=lats, outLons=lons, los=los, zref=zref)
         download_flag = False
     else:
         weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
