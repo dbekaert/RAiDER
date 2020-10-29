@@ -1,4 +1,4 @@
-import datetime
+
 import os
 import pytest
 
@@ -7,6 +7,7 @@ from RAiDER.processWM import getWMFilename
 
 
 def test_getWMFilename():
+    import datetime
     f = getWMFilename(
         'ERA5',
         datetime.datetime(2020, 1, 1, 0, 0, 0),

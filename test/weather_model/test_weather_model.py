@@ -115,37 +115,3 @@ def test_uniform_in_z_large(model):
     assert np.allclose(model._zs, zlevels, atol=0.05, rtol=0)
 
 
-def test_prepareWeatherModel_ERA5(era5):
-    #TODO: these aren't needed when the file is already downloaded
-    #lat = np.arange(20, 20.5, 0.1)
-    #lon = np.arange(-73, -72.5, 0.1)
-    #[lats, lons] = np.meshgrid(lat, lon)
-    #time = datetime.datetime(2020,1,1,0,0,0)
-
-    model = {
-        'type': era5, 
-        'files': glob.glob(wmFileLoc + os.sep + '*.nc'), 
-        'name': 'ERA5'
-    }
-
-    weather_model, lats, lons = prepareWeatherModel(
-        model, 
-        wmFileLoc, 
-        basedir, 
-    )
-
-    assert lats.shape == era5.lats_shape
-    assert lons.shape == era5.lons_shape
-    assert lons.shape == lats.shape
-    assert weather_model._wet_refractivity.shape[:2] == weather_model.lats_shape
-    assert weather_model.Model() == 'ERA-5'
-    assert np.sum(np.isnan(weather_model._xs)) == 0
-    assert np.sum(np.isnan(weather_model._ys)) == 0
-    assert np.sum(np.isnan(weather_model._zs)) == 0
-    assert np.sum(np.isnan(weather_model._p)) == 0
-    assert np.sum(np.isnan(weather_model._e)) == 0
-    assert np.sum(np.isnan(weather_model._t)) == 0
-    assert np.sum(np.isnan(weather_model._wet_refractivity)) == 0
-    assert np.sum(np.isnan(weather_model._hydrostatic_refractivity)) == 0
-
-
