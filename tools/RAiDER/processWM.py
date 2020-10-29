@@ -58,11 +58,10 @@ def prepareWeatherModel(
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
-    lats, lons = fixLL(lats, lons, weather_model)
-
-    # Make weather
     weather_model, weather_files, weather_model_name = \
         weatherDict['type'], weatherDict['files'], weatherDict['name']
+
+    lats, lons = fixLL(lats, lons, weather_model)
 
     # check whether weather model files are supplied
     if weather_files is None:
