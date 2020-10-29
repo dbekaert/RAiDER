@@ -651,3 +651,43 @@ class WeatherModel(ABC):
             hydro_ztd.dims[2].attach_scale(z)
 
             f.create_dataset('Projection', data=self._proj.to_json())
+
+    def write(self, outName=None):
+        '''
+        Write the main (i.e., needed for external calculations) data to an HDF5 file
+        that can be accessed by external programs.
+
+        The point of doing this is to alleviate some of the memory load of keeping
+        the full model in memory and make it easier to scale up the program.
+        '''
+        import xarray as xr
+
+        if outName is None:
+            outName = os.path.join(
+                os.getcwd(),
+                self._Name + 
+                datetime.datetime.strftime(
+                    self._time, '%Y_%m_%d_T%H_%M_%S'
+                ) + 
+                '.nc'
+            )
+
+        x = xr.DataArray(self._xs.astype(np.float64).copy())
+        y = xr.DataArray(self._ys.astype(np.float64).copy())
+        z = xr.DataArray(self._zs.astype(np.float64).copy())
+        x.attrs['grid_type'] = 'native_x'
+        y.attrs['grid_type'] = 'native_y'
+        z.attrs['grid_type'] = 'native_z'
+
+        ds = xr.Dataset(
+            {
+            'lats': xr.DataArray(self._lats.astype(np.float64), coords=[x, y], dims=["x", "y"]),
+            'lons':  xr.DataArray(self._lons.astype(np.float64), coords=[x, y], dims=["x", "y"]),
+            't': xr.DataArray(self._t, coords=[x, y], dims=["x", "y", "z"]),
+            'p': xr.DataArray(self._p, coords=[x, y, z], dims=["x", "y", "z"]),
+            'e': xr.DataArray(self._e, coords=[x, y, z], dims=["x", "y", "z"]),
+            'wet': xr.DataArray(self._wet_refractivity, coords=[x, y, z], dims=["x", "y", "z"]),
+            'wet_total', xr.DataArray(self._wet_total, coords=[x, y, z], dims=["x", "y", "z"]),
+            'hydro': xr.DataArray(self._hydro_refractivity, coords=[x, y, z], dims=["x", "y", "z"]),
+            'hydro_total': xr.DataArray(self._hydro_total, coords=[x, y, z], dims=["x", "y", "z"])
+
