@@ -138,19 +138,19 @@ def tropo_delay(
     if wmLoc is None:
         wmLoc = os.path.join(out, 'weather_files')
         
-    # weather model download
-    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
-
     # weather model calculation    
-    if download_only:
-        return None, None
-
+    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)   
     weather_model_file = os.path.join(wmLoc, wm_filename)
 
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
-            weather_model, wmLoc, lats=lats, lons=lons, los=los, zref=zref,
-            time=time, download_only=download_only, makePlots=True)
+            weather_model, wmLoc, out, lats=lats, lons=lons, los=los, zref=zref,
+            time=time, download_only=download_only, makePlots=True
+        )
+        
+        if download_only:
+            return None, None
+    
         try:
             weather_model.write2HDF5(weather_model_file)
         except Exception:
