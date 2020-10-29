@@ -237,7 +237,7 @@ def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
             weather_model, wmLoc, lats=lats, lons=lons, los=los, zref=zref,
-            time=time, download_only=download_only, makePlots=True
+            time=time, download_only=download_only, makePlots=True)
         try:
             weather_model.write2HDF5(weather_model_file)
         except Exception:

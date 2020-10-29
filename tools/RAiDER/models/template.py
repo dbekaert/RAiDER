@@ -1,5 +1,6 @@
 from RAiDER.models.weatherModel import WeatherModel
 
+
 class customModelReader(WeatherModel):
     def __init__(self):
         WeatherModel.__init__(self)
