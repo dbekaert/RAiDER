@@ -144,7 +144,7 @@ def tropo_delay(
 
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
-            weather_model, wmLoc, out, lats=lats, lons=lons, los=los, zref=zref,
+            weather_model, wmLoc, lats=lats, lons=lons, los=los, zref=zref,
             time=time, download_only=download_only, makePlots=True
         )
         
