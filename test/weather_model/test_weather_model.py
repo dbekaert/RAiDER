@@ -121,7 +121,7 @@ def test_checkLL_era5(era5):
     lons_good = np.array([-179, -90, 0, 90, 179])
     lats = np.array([-90, -45, 0, 45, 90])
     lons = np.array([-180, -90, 0, 90, 180])
-    lats2, lons2 = era5.checkLL(lats, lons)
+    bounds = era5._get_ll_bounds(lats, lons)
     assert np.allclose(lats2, lats)
     assert np.allclose(lons2, lons)
 
@@ -130,6 +130,7 @@ def test_checkLL_era5_2(era5):
     lons_good = np.array([-179, -90, 0, 90, 179])
     lats = np.array([-95, -45, 0, 45, 90])
     lons = np.array([-180, -90, 0, 90, 200])
-    lats2, lons2 = era5.checkLL(lats, lons)
+    bounds = era5._get_ll_bounds(lats, lons)
     assert np.allclose(lats2, lats_good)
     assert np.allclose(lons2, lons_good)
+

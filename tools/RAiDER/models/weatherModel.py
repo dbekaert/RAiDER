@@ -118,7 +118,6 @@ class WeatherModel(ABC):
         calls the model _fetch routine
         '''
         self.checkTime(time)
-        lats, lons = self.checkLL(lats, lons)
         self._time = time
         self._fetch(lats, lons, time, out)
 
@@ -128,32 +127,6 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-    def checkLL(self, lats, lons, Nextra = 2):
-        ''' 
-        Need to correct lat/lon bounds because not all of the weather models have valid data 
-        exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, need to 
-        adjust the longitude higher end with an extra buffer; for other models, the exact 
-        bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be rounded to the 
-        above regions (either in the downloading-file API or subsetting-data API) without problems.
-        '''
-        if self._Name is 'GMAO' or self._Name is 'MERRA2':
-            ex_buffer_lon_max = self._lon_res
-        else:
-            ex_buffer_lon_max = 0.0
-    
-        # These are generalized for potential extra buffer in future models
-        ex_buffer_lat_min = 0.0
-        ex_buffer_lat_max = 0.0
-        ex_buffer_lon_min = 0.0
-    
-        # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
-        lats[lats < ( -90.0 + Nextra * self._lat_res + ex_buffer_lat_min)] = ( -90.0 + Nextra * self._lat_res + ex_buffer_lat_min)
-        lats[lats > (  90.0 - Nextra * self._lat_res - ex_buffer_lat_max)] = (  90.0 - Nextra * self._lat_res - ex_buffer_lat_max)
-        lons[lons < (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)] = (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)
-        lons[lons > ( 180.0 - Nextra * self._lon_res - ex_buffer_lon_max)] = ( 180.0 - Nextra * self._lon_res - ex_buffer_lon_max)
-    
-        return lats, lons
 
     def load(self, *args, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
         '''
@@ -495,10 +468,10 @@ class WeatherModel(ABC):
         '''
         returns the extents of lat/lon plus a buffer
         '''
-        lat_min = np.nanmin(lats) - Nextra * self._lat_res
-        lat_max = np.nanmax(lats) + Nextra * self._lat_res
-        lon_min = np.nanmin(lons) - Nextra * self._lon_res
-        lon_max = np.nanmax(lons) + Nextra * self._lon_res
+        lat_min = max(np.nanmin(lats) - Nextra * self._lat_res, -90)
+        lat_max = min(np.nanmax(lats) + Nextra * self._lat_res, 90)
+        lon_min = max(np.nanmin(lons) - Nextra * self._lon_res, -180)
+        lon_max = min(np.nanmax(lons) + Nextra * self._lon_res, 180)
 
         return lat_min, lat_max, lon_min, lon_max
 
