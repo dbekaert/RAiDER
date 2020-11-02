@@ -554,78 +554,8 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-    def write2HDF5(self, outName=None):
-        '''
-        Write the main (i.e., needed for external calculations) data to an HDF5 file
-        that can be accessed by external programs.
 
-        The point of doing this is to alleviate some of the memory load of keeping
-        the full model in memory and make it easier to scale up the program.
-        '''
-
-        if outName is None:
-            outName = os.path.join(
-                os.getcwd(),
-                self._Name + datetime.datetime.strftime(
-                    self._time, '%Y_%m_%d_T%H_%M_%S'
-                ) + '.h5'
-            )
-
-        with h5py.File(outName, 'w') as f:
-            x = f.create_dataset('x', data=self._xs.astype(np.float64))
-            y = f.create_dataset('y', data=self._ys.astype(np.float64))
-            z = f.create_dataset('z', data=self._zs.astype(np.float64))
-            x.make_scale('x - weather model native')
-            y.make_scale('y - weather model native')
-            z.make_scale('z - weather model native')
-
-            lats = f.create_dataset('lat', data=self._lats.astype(np.float64))
-            lons = f.create_dataset('lon', data=self._lons.astype(np.float64))
-            lats.dims[0].attach_scale(x)
-            lats.dims[1].attach_scale(y)
-            lats.dims[2].attach_scale(z)
-            lons.dims[0].attach_scale(x)
-            lons.dims[1].attach_scale(y)
-            lons.dims[2].attach_scale(z)
-
-            t = f.create_dataset('t', data=self._t)
-            t.dims[0].attach_scale(x)
-            t.dims[1].attach_scale(y)
-            t.dims[2].attach_scale(z)
-
-            p = f.create_dataset('p', data=self._p)
-            p.dims[0].attach_scale(x)
-            p.dims[1].attach_scale(y)
-            p.dims[2].attach_scale(z)
-
-            e = f.create_dataset('e', data=self._e)
-            e.dims[0].attach_scale(x)
-            e.dims[1].attach_scale(y)
-            e.dims[2].attach_scale(z)
-
-            wet = f.create_dataset('wet', data=self._wet_refractivity)
-            wet.dims[0].attach_scale(x)
-            wet.dims[1].attach_scale(y)
-            wet.dims[2].attach_scale(z)
-
-            wet_ztd = f.create_dataset('wet_ztd', data=self._wet_ztd)
-            wet_ztd.dims[0].attach_scale(x)
-            wet_ztd.dims[1].attach_scale(y)
-            wet_ztd.dims[2].attach_scale(z)
-
-            hydro = f.create_dataset('hydro', data=self._hydrostatic_refractivity)
-            hydro.dims[0].attach_scale(x)
-            hydro.dims[1].attach_scale(y)
-            hydro.dims[2].attach_scale(z)
-
-            hydro_ztd = f.create_dataset('hydro_ztd', data=self._hydrostatic_ztd)
-            hydro_ztd.dims[0].attach_scale(x)
-            hydro_ztd.dims[1].attach_scale(y)
-            hydro_ztd.dims[2].attach_scale(z)
-
-            f.create_dataset('Projection', data=self._proj.to_json())
-
-    def write(self, outName=None):
+    def write(self, outName=None, fmt='HDF5'):
         '''
         Write the main (i.e., needed for external calculations) data to an HDF5 file
         that can be accessed by external programs.
@@ -645,90 +575,148 @@ class WeatherModel(ABC):
                 '.nc'
             )
 
-        x = xr.DataArray(self._xs.astype(np.float64).copy())
-        y = xr.DataArray(self._ys.astype(np.float64).copy())
-        z = xr.DataArray(self._zs.astype(np.float64).copy())
-        x.attrs['description'] = 'weather_model_native_x'
-        x.attrs['standard_name'] = 'projection_x_coordinate'
-        y.attrs['description'] = 'weather_model_native_y'
-        y.attrs['standard_name'] = 'projection_y_coordinate'
-        z.attrs['description'] = 'weather_model_native_z'
-        z.attrs['standard_name'] = 'projection_z_coordinate'
 
-        ds = xr.Dataset(
-            {
-                'lats': xr.DataArray(
-                    self._lats.astype(np.float64), 
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'units': 'deg_north', 'grid_mapping':'spatial_ref'}
-                ),
-                'lons': xr.DataArray(
-                    self._lons.astype(np.float64), 
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'units': 'deg_north', 'grid_mapping':'spatial_ref'}
-                ),
+        if fmt == 'HDF5':
+            with h5py.File(outName, 'w') as f:
+                x = f.create_dataset('x', data=self._xs.astype(np.float64))
+                y = f.create_dataset('y', data=self._ys.astype(np.float64))
+                z = f.create_dataset('z', data=self._zs.astype(np.float64))
+                x.make_scale('x - weather model native')
+                y.make_scale('y - weather model native')
+                z.make_scale('z - weather model native')
 
-                't': xr.DataArray(
-                    self._t, 
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'units':'deg_K', 'grid_mapping': 'spatial_ref'}
-                ),
-                'p': xr.DataArray(
-                    self._p, 
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'units':'Pa', 'grid_mapping': 'spatial_ref'}
-                ),
-                'e': xr.DataArray(
-                    self._e, 
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'units':'water_vapor', 'grid_mapping':'spatial_ref'}
-                ),
-                'wet': xr.DataArray(
-                    self._wet_refractivity,
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'grid_mapping': 'spatial_ref'}
-                ),
-                'hydro': xr.DataArray(
-                    self._hydrostatic_refractivity,  
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'grid_mapping': 'spatial_ref'}
-                ),
-                'wet_total': xr.DataArray(
-                    self._wet_ztd,
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'grid_mapping': 'spatial_ref'}
-                ),
-                'hydro_total': xr.DataArray(
-                    self._hydrostatic_ztd,
-                    coords=[y, x, z], 
-                    dims=["y", "x", "z"], 
-                    attrs = {'grid_mapping': 'spatial_ref'}
-                ),
-                'spatial_ref': xr.DataArray(
-                    self._proj.to_wkt(), 
-                    dims = (), 
-                    coords = (), 
-                    attrs = {
-                        'grid_mapping_name': self._proj.name,
-                        'spatial_epsg': self._proj.to_epsg(), 
-                        'spatial_ref': self._proj.to_wkt()
-                    }
-                )
-            }
-        )
-        ds.attrs['GDAL_AREA_OR_POINT'] = 'AREA'
-        ds.attrs['Conventions'] = 'CF-1.6'
-        ds.attrs['date_created'] = datetime.datetime.now().strftime("Z%Y%m%dT%H%M%S")
-        ds.attrs['Conventions'] = 'CF-1.6'
-        
-        ds.to_netcdf(outName)
+                lats = f.create_dataset('lat', data=self._lats.astype(np.float64))
+                lons = f.create_dataset('lon', data=self._lons.astype(np.float64))
+                lats.dims[0].attach_scale(x)
+                lats.dims[1].attach_scale(y)
+                lats.dims[2].attach_scale(z)
+                lons.dims[0].attach_scale(x)
+                lons.dims[1].attach_scale(y)
+                lons.dims[2].attach_scale(z)
 
-        del ds
+                t = f.create_dataset('t', data=self._t)
+                t.dims[0].attach_scale(x)
+                t.dims[1].attach_scale(y)
+                t.dims[2].attach_scale(z)
+
+                p = f.create_dataset('p', data=self._p)
+                p.dims[0].attach_scale(x)
+                p.dims[1].attach_scale(y)
+                p.dims[2].attach_scale(z)
+
+                e = f.create_dataset('e', data=self._e)
+                e.dims[0].attach_scale(x)
+                e.dims[1].attach_scale(y)
+                e.dims[2].attach_scale(z)
+
+                wet = f.create_dataset('wet', data=self._wet_refractivity)
+                wet.dims[0].attach_scale(x)
+                wet.dims[1].attach_scale(y)
+                wet.dims[2].attach_scale(z)
+
+                wet_ztd = f.create_dataset('wet_ztd', data=self._wet_ztd)
+                wet_ztd.dims[0].attach_scale(x)
+                wet_ztd.dims[1].attach_scale(y)
+                wet_ztd.dims[2].attach_scale(z)
+
+                hydro = f.create_dataset('hydro', data=self._hydrostatic_refractivity)
+                hydro.dims[0].attach_scale(x)
+                hydro.dims[1].attach_scale(y)
+                hydro.dims[2].attach_scale(z)
+
+                hydro_ztd = f.create_dataset('hydro_ztd', data=self._hydrostatic_ztd)
+                hydro_ztd.dims[0].attach_scale(x)
+                hydro_ztd.dims[1].attach_scale(y)
+                hydro_ztd.dims[2].attach_scale(z)
+
+                f.create_dataset('Projection', data=self._proj.to_json()) 
+
+        elif fmt=='NETCDF':
+
+            x = xr.DataArray(self._xs.astype(np.float64).copy())
+            y = xr.DataArray(self._ys.astype(np.float64).copy())
+            z = xr.DataArray(self._zs.astype(np.float64).copy())
+            x.attrs['description'] = 'weather_model_native_x'
+            x.attrs['standard_name'] = 'projection_x_coordinate'
+            y.attrs['description'] = 'weather_model_native_y'
+            y.attrs['standard_name'] = 'projection_y_coordinate'
+            z.attrs['description'] = 'weather_model_native_z'
+            z.attrs['standard_name'] = 'projection_z_coordinate'
+
+            ds = xr.Dataset(
+                {
+                    'lats': xr.DataArray(
+                        self._lats.astype(np.float64), 
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'units': 'deg_north', 'grid_mapping':'spatial_ref'}
+                    ),
+                    'lons': xr.DataArray(
+                        self._lons.astype(np.float64), 
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'units': 'deg_north', 'grid_mapping':'spatial_ref'}
+                    ),
+
+                    't': xr.DataArray(
+                        self._t, 
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'units':'deg_K', 'grid_mapping': 'spatial_ref'}
+                    ),
+                    'p': xr.DataArray(
+                        self._p, 
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'units':'Pa', 'grid_mapping': 'spatial_ref'}
+                    ),
+                    'e': xr.DataArray(
+                        self._e, 
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'units':'water_vapor', 'grid_mapping':'spatial_ref'}
+                    ),
+                    'wet': xr.DataArray(
+                        self._wet_refractivity,
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'grid_mapping': 'spatial_ref'}
+                    ),
+                    'hydro': xr.DataArray(
+                        self._hydrostatic_refractivity,  
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'grid_mapping': 'spatial_ref'}
+                    ),
+                    'wet_total': xr.DataArray(
+                        self._wet_ztd,
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'grid_mapping': 'spatial_ref'}
+                    ),
+                    'hydro_total': xr.DataArray(
+                        self._hydrostatic_ztd,
+                        coords=[y, x, z], 
+                        dims=["y", "x", "z"], 
+                        attrs = {'grid_mapping': 'spatial_ref'}
+                    ),
+                    'spatial_ref': xr.DataArray(
+                        self._proj.to_wkt(), 
+                        dims = (), 
+                        coords = (), 
+                        attrs = {
+                            'grid_mapping_name': self._proj.name,
+                            'spatial_epsg': self._proj.to_epsg(), 
+                            'spatial_ref': self._proj.to_wkt()
+                        }
+                    )
+                }
+            )
+            ds.attrs['GDAL_AREA_OR_POINT'] = 'AREA'
+            ds.attrs['Conventions'] = 'CF-1.6'
+            ds.attrs['date_created'] = datetime.datetime.now().strftime("Z%Y%m%dT%H%M%S")
+            ds.attrs['Conventions'] = 'CF-1.6'
+            
+            ds.to_netcdf(outName)
+
+            del ds
