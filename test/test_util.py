@@ -1,3 +1,4 @@
+import datetime
 import h5py
 import os
 import osr
@@ -11,7 +12,8 @@ from osgeo import gdal
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
-    writeArrayToRaster, writeResultsToHDF5, gdal_extents
+    writeArrayToRaster, writeResultsToHDF5, gdal_extents, modelName2Module,
+    getTimeFromFile
 )
 
 
@@ -64,18 +66,18 @@ def make_points_2d_data():
     slv[1, 1, 0] = -1
     make_points_args = (20., sp, slv, 5)
 
-    rays = np.array([[[[0.,   5.,  10.,  15.],
-                       [0.,   0.,   0.,   0.],
-                       [0.,   0.,   0.,   0.]],
-                      [[0.,   0.,   0.,   0.],
-                       [0.,   5.,  10.,  15.],
-                       [0.,   0.,   0.,   0.]]],
-                     [[[0.,   0.,   0.,   0.],
-                       [0.,   0.,   0.,   0.],
-                       [0.,   5.,  10.,  15.]],
-                      [[0.,  -5., -10., -15.],
-                       [0.,   0.,   0.,   0.],
-                       [0.,   0.,   0.,   0.]]]])
+    rays = np.array([[[[0., 5., 10., 15.],
+                       [0., 0., 0., 0.],
+                       [0., 0., 0., 0.]],
+                      [[0., 0., 0., 0.],
+                       [0., 5., 10., 15.],
+                       [0., 0., 0., 0.]]],
+                     [[[0., 0., 0., 0.],
+                       [0., 0., 0., 0.],
+                       [0., 5., 10., 15.]],
+                      [[0., -5., -10., -15.],
+                       [0., 0., 0., 0.],
+                       [0., 0., 0., 0.]]]])
 
     return rays, make_points_args
 
@@ -241,19 +243,32 @@ def test_least_nonzero_2():
         equal_nan=True
     )
 
+
 def test_gdal_extent():
     # Create a simple georeferenced test file
     ds = gdal.GetDriverByName('GTiff').Create('test.tif', 11, 11, 1, gdal.GDT_Float64)
     ds.SetGeoTransform((17.0, 0.1, 0, 18.0, 0, -0.1))
     band = ds.GetRasterBand(1)
-    band.WriteArray(np.random.randn(11,11))
+    band.WriteArray(np.random.randn(11, 11))
     srs = osr.SpatialReference()
     srs.ImportFromEPSG(4326)
     ds.SetProjection(srs.ExportToWkt())
-    ds = None; band = None
+    ds = None
+    band = None
 
     assert gdal_extents('test.tif') == [17.0, 18.0, 18.0, 17.0]
+
 
 def test_gdal_extent2():
     with pytest.raises(AttributeError):
         gdal_extents(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
+
+
+def test_getTimeFromFile():
+    name1 = 'abcd_2020_01_01_T00_00_00jijk.xyz'
+    assert getTimeFromFile(name1) == datetime.datetime(2020, 1, 1, 0, 0, 0)
+
+
+def test_model2module():
+    model_module_name, model_obj = modelName2Module('ERA5')
+    assert model_obj().Model() == 'ERA-5'
