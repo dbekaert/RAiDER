@@ -8,6 +8,7 @@ from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay, weather_model_debug
 from RAiDER.logger import *
 from RAiDER.models.allowed import ALLOWED_MODELS
+import numpy as np
 
 
 
@@ -144,35 +145,46 @@ def parseCMD():
     args = p.parse_args()
 
     # Argument checking
-    los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
-        times, out, download_only, verbose, \
-        wetNames, hydroNames = checkArgs(args, p)
+    args = list(checkArgs(args, p))
+    download_only, v    = args[-4:-2]
+    # los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
+    #     times, out, download_only, verbose, \
+    #     wetNames, hydroNames = checkArgs(args, p)
 
-    if verbose:
-        logger.setLevel(logging.DEBUG)
+    idxT, idxW, idxH            = 10, 14, 15
+    times, wetNames, hydroNames = args.pop(idxT), args.pop(idxW-1), args.pop(idxH-2)
+
+    if v: logger.setLevel(logging.DEBUG)
 
     if download_only:
-        
-        nt = 5
         import multiprocessing
         max_threads = multiprocessing.cpu_count()
+        nt     = 5
         if nt == 'all':
             nt = max_threads
         else:
             nt = int(nt)
-        nt = nt if nt < max_threads else max_threads
-
-        import pdb; pdb.set_trace()
+        nt     = nt if nt < max_threads else max_threads
 
 
+        chunked_args  = [] # dictionary for each process
         allTimesFiles = zip(times, wetNames, hydroNames)
         allTimesFiles_chunk = np.array_split(list(allTimesFiles), nt)
-        allTimesFiles_chunk = [chunk for chunk in allTimesFiles_chunk if chunk.size > 0]
+        lst_new_args  = []
 
+        for chunk in allTimesFiles_chunk:
+            chunk = chunk.squeeze()
+            if chunk.size == 0: continue
+            times, wetNames, hydroNames = chunk
+            args_copy = args[:]
+            args_copy.insert(idxT, times)
+            args_copy.insert(idxW, wetNames)
+            args_copy.insert(idxH, hydroNames)
+            lst_new_args.append(args_copy)
 
-        with multiprocessing.Pool(nt) as pool:
-            pool.map(_tropo_delay, allTimesFiles_chunk)
-                
+        with multiprocessing.Pool(len(lst_new_args)) as pool:
+            pool.map(_tropo_delay, lst_new_args)
+
     else:
     # Loop over each datetime and compute the delay
         for t, wfn, hfn in zip(times, wetNames, hydroNames):
@@ -184,17 +196,9 @@ def parseCMD():
                 logger.exception("Date %s failed", t)
                 continue
 
-def _tropo_delay(allTimesFiles_chunk):
-    
-    for los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
-        outformat, t, out, download_only, wfn, hfn in allTimesFiles_chunk:
-        try:
-            (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
-                                 outformat, t, out, download_only, wfn, hfn)
-                
-         except RuntimeError:
-             logger.exception("Date %s failed", t)
-             continue
+def _tropo_delay(chunk_params):
+    chunk_params.pop(-3) # no verbose parm
+    (_, _) = tropo_delay(*chunk_params)
 
 def parseCMD_weather_model_debug():
     """
