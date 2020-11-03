@@ -151,16 +151,50 @@ def parseCMD():
     if verbose:
         logger.setLevel(logging.DEBUG)
 
+    if download_only:
+        
+        nt = 5
+        import multiprocessing
+        max_threads = multiprocessing.cpu_count()
+        if nt == 'all':
+            nt = max_threads
+        else:
+            nt = int(nt)
+        nt = nt if nt < max_threads else max_threads
+
+        import pdb; pdb.set_trace()
+
+
+        allTimesFiles = zip(times, wetNames, hydroNames)
+        allTimesFiles_chunk = np.array_split(list(allTimesFiles), nt)
+        allTimesFiles_chunk = [chunk for chunk in allTimesFiles_chunk if chunk.size > 0]
+
+
+        with multiprocessing.Pool(nt) as pool:
+            pool.map(_tropo_delay, allTimesFiles_chunk)
+                
+    else:
     # Loop over each datetime and compute the delay
-    for t, wfn, hfn in zip(times, wetNames, hydroNames):
+        for t, wfn, hfn in zip(times, wetNames, hydroNames):
+            try:
+                (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
+                                     outformat, t, out, download_only, wfn, hfn)
+
+            except RuntimeError:
+                logger.exception("Date %s failed", t)
+                continue
+
+def _tropo_delay(allTimesFiles_chunk):
+    
+    for los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
+        outformat, t, out, download_only, wfn, hfn in allTimesFiles_chunk:
         try:
             (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                                  outformat, t, out, download_only, wfn, hfn)
-
-        except RuntimeError:
-            logger.exception("Date %s failed", t)
-            continue
-
+                
+         except RuntimeError:
+             logger.exception("Date %s failed", t)
+             continue
 
 def parseCMD_weather_model_debug():
     """
