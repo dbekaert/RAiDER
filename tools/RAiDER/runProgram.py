@@ -10,7 +10,6 @@ from RAiDER.logger import *
 from RAiDER.models.allowed import ALLOWED_MODELS
 
 
-
 def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
