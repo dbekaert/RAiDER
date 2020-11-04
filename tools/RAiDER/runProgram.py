@@ -179,8 +179,6 @@ def parseCMD():
             args_copy.insert(idxH, hydroNames.tolist())
             lst_new_args.append(args_copy)
 
-        _tropo_delay(lst_new_args[0])
-        # import pdb; pdb.set_trace()
         with multiprocessing.Pool(len(lst_new_args)) as pool:
             pool.map(_tropo_delay, lst_new_args)
         return
