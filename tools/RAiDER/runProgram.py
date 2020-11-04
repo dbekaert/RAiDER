@@ -146,7 +146,7 @@ def parseCMD():
 
     # Argument checking
     args = list(checkArgs(args, p))
-    download_only, v    = args[-4:-2]
+    download_only, verbose    = args[-4:-2]
     # los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
     #     times, out, download_only, verbose, \
     #     wetNames, hydroNames = checkArgs(args, p)
@@ -154,7 +154,7 @@ def parseCMD():
     idxT, idxW, idxH            = 10, 14, 15
     times, wetNames, hydroNames = args.pop(idxT), args.pop(idxW-1), args.pop(idxH-2)
 
-    if v: logger.setLevel(logging.DEBUG)
+    if verbose: logger.setLevel(logging.DEBUG)
 
     if download_only:
         import multiprocessing
@@ -186,7 +186,11 @@ def parseCMD():
             pool.map(_tropo_delay, lst_new_args)
 
     else:
-    # Loop over each datetime and compute the delay
+        los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
+        times, out, download_only, verbose, \
+        wetNames, hydroNames = checkArgs(args, p)
+        
+        # Loop over each datetime and compute the delay
         for t, wfn, hfn in zip(times, wetNames, hydroNames):
             try:
                 (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
