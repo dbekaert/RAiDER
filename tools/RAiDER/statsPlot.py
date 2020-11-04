@@ -6,6 +6,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from RAiDER.logger import *
 from RAiDER.logger import logger
 from RAiDER.cli.parser import add_cpus
 from shapely.strtree import STRtree
@@ -25,9 +26,6 @@ import warnings
 import matplotlib as mpl
 # must switch to Agg to avoid multiprocessing crashes
 mpl.use('Agg')
-
-from RAiDER.cli.parser import add_cpus
-from RAiDER.logger import *
 
 
 def create_parser():

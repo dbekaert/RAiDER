@@ -21,7 +21,6 @@ from RAiDER.logger import *
 from RAiDER.makePoints import makePoints1D
 
 
-
 def calculate_rays(pnts_file, stepSize=_STEP):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the

@@ -1,14 +1,32 @@
-"""
-Testing the base WeatherModel class
-"""
+import datetime
+import glob
+import os
 import operator
-from functools import reduce
+import pytest
 
 import numpy as np
-import pytest
-from numpy import nan
 
+from functools import reduce
+from numpy import nan
+from osgeo import gdal
+from test import DATA_DIR, TEST_DIR, pushd
+
+from RAiDER.constants import Zenith
+from RAiDER.processWM import prepareWeatherModel
 from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.era5 import ERA5
+
+WEATHER_FILE = os.path.join(
+    DATA_DIR,
+    "weather_files",
+    "ERA-5_2018_07_01_T00_00_00.nc"
+)
+
+
+@pytest.fixture
+def era5():
+    era5_wm = ERA5()
+    return era5_wm
 
 
 def product(iterable):
@@ -98,3 +116,22 @@ def test_uniform_in_z_large(model):
                        interpolated * 3, equal_nan=True, rtol=0)
 
     assert np.allclose(model._zs, zlevels, atol=0.05, rtol=0)
+
+def test_checkLL_era5(era5):
+    lats_good = np.array([-89, -45, 0, 45, 89])
+    lons_good = np.array([-179, -90, 0, 90, 179])
+    lats = np.array([-90, -45, 0, 45, 90])
+    lons = np.array([-180, -90, 0, 90, 180])
+    lats2, lons2 = era5.checkLL(lats, lons)
+    assert np.allclose(lats2, lats)
+    assert np.allclose(lons2, lons)
+
+def test_checkLL_era5_2(era5):
+    lats_good = np.array([-89, -45, 0, 45, 89])
+    lons_good = np.array([-179, -90, 0, 90, 179])
+    lats = np.array([-95, -45, 0, 45, 90])
+    lons = np.array([-180, -90, 0, 90, 200])
+    lats2, lons2 = era5.checkLL(lats, lons)
+    assert np.allclose(lats2, lats_good)
+    assert np.allclose(lons2, lons_good)
+

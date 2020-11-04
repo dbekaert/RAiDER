@@ -89,15 +89,15 @@ def forceNDArray(arg):
 
 
 def download_dem(
-        lats,
-        lons,
-        save_flag='new',
-        checkDEM=True,
-        outName=os.path.join(os.getcwd(), 'warpedDEM'),
-        buf=0.02
-    ):
+    lats,
+    lons,
+    save_flag='new',
+    checkDEM=True,
+    outName=os.path.join(os.getcwd(), 'warpedDEM'),
+    buf=0.02
+):
     '''  Download a DEM if one is not already present. '''
-    
+
     # Get the lat/lon extents of the query points
     inExtent = getBufferedExtent(lats, lons, buf=buf)
 
@@ -138,14 +138,13 @@ def download_dem(
         except OSError:
             hgts = RAiDER.utilFcns.read_hgt_file(outName)
             return hgts
-
     else:
         do_download = True
 
     # Otherwise download a new DEM
     if do_download:
         folder = os.sep.join(os.path.split(outName)[:-1])
-        fname =  os.path.split(outName)[-1]
+        fname = os.path.split(outName)[-1]
         full_res_dem = getDEM(inExtent, folder)
         _, _, _, geoProj, trans, noDataVal, _ = readRaster(full_res_dem)
         out = gdal_open(full_res_dem)
@@ -246,7 +245,7 @@ def getDEM(extent, out_dir):
     open(filename, 'wb').write(r.content)
     return filename
 
-    
+
 def get_filename_from_cd(cd):
     """
     Get filename from content-disposition
@@ -259,7 +258,7 @@ def get_filename_from_cd(cd):
     return fname[0]
 
 
-def readRaster(filename, band_num = None):
+def readRaster(filename, band_num=None):
     '''
     Read a GDAL VRT file and return its attributes
     '''
@@ -285,4 +284,3 @@ def readRaster(filename, band_num = None):
     ds = None
 
     return xSize, ySize, dType, geoProj, trans, noDataVal, Nbands
-

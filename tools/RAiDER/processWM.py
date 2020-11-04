@@ -9,9 +9,10 @@
 import contextlib
 import os
 import sys
-from datetime import datetime
 
 import numpy as np
+
+from datetime import datetime
 
 from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
@@ -25,6 +26,7 @@ def getWMFilename(weather_model_name, time, outLoc):
     with contextlib.suppress(FileExistsError):
         os.mkdir('weather_files')
 
+    download_flag = True
     f = os.path.join(
         outLoc,
         '{}_{}.nc'.format(
@@ -35,7 +37,6 @@ def getWMFilename(weather_model_name, time, outLoc):
 
     logger.debug('Storing weather model at: %s', f)
 
-    download_flag = True
     if os.path.exists(f):
         logger.warning('Weather model already exists, skipping download')
         download_flag = False
@@ -43,32 +44,36 @@ def getWMFilename(weather_model_name, time, outLoc):
     return download_flag, f
 
 
-def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
-                        los=None, zref=None, time=None,
-                        download_only=False, makePlots=False):
+def prepareWeatherModel(
+        weatherDict,
+        wmFileLoc,
+        lats=None,
+        lons=None,
+        los=None,
+        zref=None,
+        time=None,
+        download_only=False,
+        makePlots=False
+    ):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
-
-    # Make weather
     weather_model, weather_files, weather_model_name = \
         weatherDict['type'], weatherDict['files'], weatherDict['name']
 
     # check whether weather model files are supplied
     if weather_files is None:
-        download_flag, f = getWMFilename(weather_model.Model(), time, wmFileLoc)
+        if time is None:
+            raise RuntimeError('prepareWeatherModel: Either a file or a time must be specified')
+        download_flag,f = getWMFilename(weather_model.Model(), time, wmFileLoc)
+        weather_model.files = [f]
     else:
         download_flag = False
         time = getTimeFromFile(weather_files[0])
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        try:
-            weather_model.fetch(lats, lons, time, f)
-        except Exception:
-            logger.exception('Unable to download weather data')
-            # TODO: Is this really an appropriate place to be calling sys.exit?
-            sys.exit(0)
+        weather_model.fetch(*weather_model.files, lats, lons, time)
 
         # exit on download if download_only requested
         if download_only:
@@ -78,8 +83,8 @@ def prepareWeatherModel(weatherDict, wmFileLoc, out, lats=None, lons=None,
             return None, None, None
 
     # Load the weather model data
-    if weather_files is not None:
-        weather_model.load(*weather_files, outLats=lats, outLons=lons, los=los, zref=zref)
+    if weather_model.files is not None:
+        weather_model.load(*weather_model.files, outLats=lats, outLons=lons, los=los, zref=zref)
         download_flag = False
     else:
         weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
