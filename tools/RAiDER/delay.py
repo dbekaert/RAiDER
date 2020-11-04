@@ -147,7 +147,9 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
             'Weather model already exists, please remove it ("%s") if you want '
             'to create a new one.', weather_model_file
         )
-
+    
+        if download_only:
+            return None, None
 
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
