@@ -106,7 +106,6 @@ def tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc,
     """
     raiderDelay main function.
     """
-
     logger.debug('Starting to run the weather model calculation')
     logger.debug('Time type: %s', type(time))
     logger.debug('Time: %s', time.strftime('%Y%m%d'))

@@ -146,11 +146,8 @@ def parseCMD():
 
     # Argument checking
     args = list(checkArgs(args, p))
-    download_only, verbose    = args[-4:-2]
-    # los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
-    #     times, out, download_only, verbose, \
-    #     wetNames, hydroNames = checkArgs(args, p)
 
+    download_only, verbose    = args[-4:-2]
     idxT, idxW, idxH            = 10, 14, 15
     times, wetNames, hydroNames = args.pop(idxT), args.pop(idxW-1), args.pop(idxH-2)
 
@@ -173,19 +170,22 @@ def parseCMD():
         lst_new_args  = []
 
         for chunk in allTimesFiles_chunk:
-            chunk = chunk.squeeze()
             if chunk.size == 0: continue
-            times, wetNames, hydroNames = chunk
+            times, wetNames, hydroNames = chunk.transpose()
             args_copy = args[:]
-            args_copy.insert(idxT, times)
-            args_copy.insert(idxW, wetNames)
-            args_copy.insert(idxH, hydroNames)
+            args_copy.insert(idxT, times.tolist())
+            args_copy.insert(idxW, wetNames.tolist())
+            args_copy.insert(idxH, hydroNames.tolist())
             lst_new_args.append(args_copy)
 
+        _tropo_delay(lst_new_args[0])
+        import pdb; pdb.set_trace()
         with multiprocessing.Pool(len(lst_new_args)) as pool:
             pool.map(_tropo_delay, lst_new_args)
 
     else:
+        p = create_parser()
+        args = p.parse_args()
         los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
         times, out, download_only, verbose, \
         wetNames, hydroNames = checkArgs(args, p)
@@ -193,6 +193,7 @@ def parseCMD():
         # Loop over each datetime and compute the delay
         for t, wfn, hfn in zip(times, wetNames, hydroNames):
             try:
+                import pdb; pdb.set_trace()
                 (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                                      outformat, t, out, download_only, wfn, hfn)
 
@@ -201,8 +202,20 @@ def parseCMD():
                 continue
 
 def _tropo_delay(chunk_params):
+
     chunk_params.pop(-3) # no verbose parm
-    (_, _) = tropo_delay(*chunk_params)
+    times = chunk_params[-5]
+    wetNames = chunk_params[-2]
+    hydroNames = chunk_params[-1]
+    for t, wfn, hfn in zip(times, wetNames, hydroNames):
+        try:
+            chunk_params[-1]=hfn
+            chunk_params[-2]=wfn
+            chunk_params[-5]=t
+            (_, _) = tropo_delay(*chunk_params)
+        except RuntimeError:
+            logger.exception("Date %s failed", t)
+            continue
 
 def parseCMD_weather_model_debug():
     """
