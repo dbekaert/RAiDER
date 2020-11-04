@@ -70,7 +70,10 @@ def prepareWeatherModel(
     else:
         download_flag = False
         time = getTimeFromFile(weather_files[0])
-
+    
+    if (time < datetime(2013, 6, 26, 0, 0, 0)) and (weather_model._Name is 'HRES'):
+        weather_model.update_a_b()
+    
     # if no weather model files supplied, check the standard location
     if download_flag:
         weather_model.fetch(*weather_model.files, lats, lons, time)
