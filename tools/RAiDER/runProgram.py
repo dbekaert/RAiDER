@@ -191,7 +191,6 @@ def parseCMD():
         # Loop over each datetime and compute the delay
         for t, wfn, hfn in zip(times, wetNames, hydroNames):
             try:
-                import pdb; pdb.set_trace()
                 (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
                                      outformat, t, out, download_only, wfn, hfn)
 
@@ -224,7 +223,6 @@ def _tropo_delay(chunk_params):
             except RuntimeError:
                 logger.exception("Date %s failed", t)
                 continue
-    return
 
 def parseCMD_weather_model_debug():
     """
