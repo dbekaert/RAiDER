@@ -35,7 +35,7 @@ def getWMFilename(weather_model_name, time, outLoc):
         )
     )
 
-    if weather_model_name is 'GMAO' or 'MERRA2':
+    if weather_model_name is 'GMAO' or weather_model_name is 'MERRA2':
         f = f[:-2]+'h5'
 
     logger.debug('Storing weather model at: %s', f)

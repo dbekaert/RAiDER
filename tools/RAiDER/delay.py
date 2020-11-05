@@ -121,7 +121,6 @@ def tropo_delay(
     """
     raiderDelay main function.
     """
-
     logger.debug('Starting to run the weather model calculation')
     logger.debug('Time type: %s', type(time))
     logger.debug('Time: %s', time.strftime('%Y%m%d'))
@@ -160,9 +159,10 @@ def tropo_delay(
             'to create a new one.', weather_model_file
         )
 
-    if download_only:
-        return None, None
-   
+        if download_only:
+            return None, None
+
+
 
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
