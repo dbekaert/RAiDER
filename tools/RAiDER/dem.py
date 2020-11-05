@@ -239,10 +239,58 @@ def isInside(extent1, extent2):
 
 
 def getDEM(extent, out_dir):
-    r = requests.get(_DEM.format(*extent), allow_redirects=True)
-    dem_raster = get_filename_from_cd(r.headers.get('content-disposition'))
-    filename = os.path.join(out_dir, dem_raster)
-    open(filename, 'wb').write(r.content)
+    """Download the DEM over bounding box."""
+    # import dependencies
+    from pyproj import Proj
+    from shapely.geometry import shape
+    from shapely.geometry import Polygon
+
+    # Get area of bounding box
+    # use equal area projection centered on/bracketing AOI
+    pa = Proj("+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(min(extent[1::2]), max(extent[1::2]), 
+        (max(extent[1::2])+min(extent[1::2]))/2, (max(extent[::2])+min(extent[::2]))/2))
+    # Use shapely to get coordinates along box
+    bbox = Polygon(np.column_stack((np.array([min(extent[::2]),max(extent[::2]),max(extent[::2]),min(extent[::2]),min(extent[::2])]), 
+        np.array([min(extent[1::2]),min(extent[1::2]),max(extent[1::2]),max(extent[1::2]),min(extent[1::2])]))))
+    lon, lat = bbox.exterior.coords.xy
+    x, y = pa(lon, lat)
+    cop = {"type": "Polygon", "coordinates": [zip(x, y)]}
+    shape_area = shape(cop).area/1e6  # area in km^2
+
+    chunking_size = 2
+    # If area > 225000 km2, must split requests into chunks to successfully access data
+    if shape_area > 225000:
+        # Increase chunking size to discretize box into smaller grids
+        logger.warning("User-defined bounds %dkm\u00b2 supersedes DEM maximum download area of 225000km\u00b2, must download in chunks", shape_area)
+        chunking_size = int(np.ceil(shape_area/225000)) + 1
+
+    # Determine number of iterations to download DEM
+    bottomLeft = (min(extent[1::2]), min(extent[::2]))
+    bottomRight = (min(extent[1::2]), max(extent[::2]))
+    topLeft = (max(extent[1::2]), min(extent[::2]))
+    cols = np.linspace(bottomLeft[1], bottomRight[1], num=chunking_size)
+    rows = [bottomLeft[0], topLeft[0]]
+    # Download in chunks (if necessary)
+    chunked_files = []
+    for i in enumerate (cols[:-1]):
+        chunk_extent = [cols[i[0]], rows[0], cols[i[0]+1], rows[1]]
+        r = requests.get(_DEM.format(*chunk_extent), allow_redirects=True)
+        final_demname = get_filename_from_cd(r.headers.get('content-disposition'))
+        dem_raster = get_filename_from_cd(r.headers.get('content-disposition'))
+        # Do not create temp file if chunking not necessary
+        if len(cols) > 2:
+            dem_raster = 'tempdem_p{}'.format(i[0]) + dem_raster
+        chunked_files.append(dem_raster)
+        filename = os.path.join(out_dir, dem_raster)
+        open(filename, 'wb').write(r.content)
+        del r
+    # Tile chunked products together after last iteration (if necessary)
+    if len(cols) != 2:
+        final_demname = os.path.join(out_dir, final_demname)
+        gdal.Warp(final_demname, chunked_files)
+        # remove temp files
+        for i in glob.glob(os.path.join(out_dir, 'tempdem_p*')): os.remove(i)
+
     return filename
 
 
