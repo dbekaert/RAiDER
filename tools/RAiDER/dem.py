@@ -250,6 +250,7 @@ def getDEM(extent, out_dir):
     pa = Proj("+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(min(extent[1::2]), max(extent[1::2]), 
         (max(extent[1::2])+min(extent[1::2]))/2, (max(extent[::2])+min(extent[::2]))/2))
     # Use shapely to get coordinates along box
+    print('extent!!!!', extent)
     bbox = Polygon(np.column_stack((np.array([min(extent[::2]),max(extent[::2]),max(extent[::2]),min(extent[::2]),min(extent[::2])]), 
         np.array([min(extent[1::2]),min(extent[1::2]),max(extent[1::2]),max(extent[1::2]),min(extent[1::2])]))))
     lon, lat = bbox.exterior.coords.xy
