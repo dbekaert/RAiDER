@@ -1,14 +1,13 @@
 import datetime
 import h5py
 import os
-import osr
 import pytest
 
 import numpy as np
 
 from datetime import time
 from test import TEST_DIR
-from osgeo import gdal
+from osgeo import gdal, osr
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
