@@ -21,7 +21,7 @@ from RAiDER.logger import *
 from RAiDER.utilFcns import gdal_open, gdal_extents
 
 
-_DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&south={}&north={}&west={}&east={}&outputFormat=GTiff"
+_DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&west={}&south={}&east={}&north={}&outputFormat=GTiff"
 
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
