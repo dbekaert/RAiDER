@@ -3,6 +3,7 @@ import datetime
 import numpy as np
 from pyproj import CRS
 
+from RAiDER.logger import *
 from RAiDER import utilFcns as util
 from RAiDER.models.weatherModel import WeatherModel
 
@@ -122,9 +123,21 @@ class ECMWF(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at ECMWF
-        self._get_from_ecmwf(
-            lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
-            out)
+        try:
+            self._get_from_ecmwf(
+                lat_min, 
+                lat_max, 
+                self._lat_res, 
+                lon_min, 
+                lon_max, 
+                self._lon_res, 
+                time,
+                out
+            )
+        except Exception as e:
+            logger.warning('Query point bounds are {}/{}/{}/{}'.format(lat_min, lat_max, lon_min, lon_max))
+            logger.warning('Query time: {}'.format(time))
+            logger.exception(e)
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                         lon_step, time, out):
@@ -185,9 +198,6 @@ class ECMWF(WeatherModel):
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
         dataDict = {
-            # 'class': self._classname,
-            # 'dataset': self._dataset,
-            # "expver": "{}".format(self._expver),
             "product_type": "reanalysis",
             "{}".format(levType): levels,
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
@@ -204,4 +214,10 @@ class ECMWF(WeatherModel):
             "area": bbox,
             "format": "netcdf"}
 
-        c.retrieve('reanalysis-era5-pressure-levels', dataDict, outname)
+        try:
+            c.retrieve('reanalysis-era5-pressure-levels', dataDict, outname)
+        except Exception as e:
+            logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
+            logger.warning('Query time: {}'.format(acqTime))
+            logger.exception(e)
+            raise Exception

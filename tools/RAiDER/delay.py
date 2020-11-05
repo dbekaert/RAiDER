@@ -92,6 +92,7 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
             wet_delays = interp_along_axis(zs_wm, zlevels, total_wet, axis=-1)
             hydro_delays = interp_along_axis(zs_wm, zlevels, total_hydro, axis=-1)
             return wet_delays, hydro_delays
+
     else:
         wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels=zlevels,
                                       zref=zref, nproc=nproc, useDask=useDask,
@@ -172,6 +173,7 @@ def tropo_delay(
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
     in_shape = lats.shape
+    
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
     pnts_file = None
