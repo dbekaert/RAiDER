@@ -244,6 +244,7 @@ def getDEM(extent, out_dir):
     from pyproj import Proj
     from shapely.geometry import shape
     from shapely.geometry import Polygon
+    import glob
 
     # change order of extent to WESN
     extent = [extent[2], extent[3], extent[0], extent[1]]
