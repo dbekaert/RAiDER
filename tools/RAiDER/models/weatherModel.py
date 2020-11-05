@@ -26,6 +26,10 @@ class WeatherModel(ABC):
     '''
 
     def __init__(self):
+        # Without these two lines, logging.debug won't work. It is a bit weird but it works out so far.
+        import cdsapi
+        c = cdsapi.Client(verify=0)
+        
         # Initialize model-specific constants/parameters
         self._k1 = None
         self._k2 = None
