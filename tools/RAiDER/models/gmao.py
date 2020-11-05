@@ -2,6 +2,8 @@ import datetime as dt
 import numpy as np
 from pyproj import CRS
 from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.logger import *
+from RAiDER.utilFcns import savePyDAPWeatherModel2HDF5
 
 
 class GMAO(WeatherModel):
@@ -89,7 +91,12 @@ class GMAO(WeatherModel):
 
         lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
         lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res)
-
+        
+        try:
+            savePyDAPWeatherModel2HDF5(self, lats, lons, q, p, t, h, self.files[0])
+        except Exception:
+            logger.exception("Unable to save weathermodel to file")
+        
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)
         _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], t.shape)
