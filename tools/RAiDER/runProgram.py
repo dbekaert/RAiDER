@@ -12,7 +12,6 @@ import numpy as np
 import copy
 
 
-
 def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(

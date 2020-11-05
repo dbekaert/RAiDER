@@ -301,8 +301,8 @@ def make_weather_model_filename(name, time, ll_bounds):
     else:
         E = 'E'
     return '{}_{}_{}{}_{}{}_{}{}_{}{}.h5'.format(
-            name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]),S,np.abs(ll_bounds[1]),N,np.abs(ll_bounds[2]),W,np.abs(ll_bounds[3]),E
-        )
+        name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
+    )
 
 
 def checkShapes(los, lats, lons, hts):
@@ -412,7 +412,7 @@ def getTimeFromFile(filename):
         out = p.search(filename).group()
         return datetime.strptime(out, fmt)
     except:
-        raise RuntimeError('File {} is not named by datetime, you must pass a time to '.format(filename))
+        raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
 
 
 def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.):
@@ -488,3 +488,55 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
+
+
+def savePyDAPWeatherModel2HDF5(self, lats, lons, q, p, t, h, outName=None):
+    '''
+    Write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to an HDF5 file
+    that can be accessed by external programs.
+    
+    The point of doing this is to alleviate some of the memory load of keeping
+    the full model in memory and make it easier to scale up the program.
+    '''
+    
+    if outName is None:
+        outName = os.path.join(
+            os.getcwd()+'/weather_files',
+            self._Name + datetime.strftime(
+                self._time, '_%Y_%m_%d_T%H_%M_%S'
+            ) + '.h5'
+        )
+    
+    ml_dim = q.shape[0]
+    mls = np.arange(0,ml_dim)
+
+    with h5py.File(outName, 'w') as f:
+        lon = f.create_dataset('lon', data=lons.astype(np.float64))
+        lat = f.create_dataset('lat', data=lats.astype(np.float64))
+        ml = f.create_dataset('ml', data=mls.astype(np.float64))
+        lon.make_scale('lon - weather model native')
+        lat.make_scale('lat - weather model native')
+        ml.make_scale('ml - weather model native')
+        
+        
+        Q = f.create_dataset('q', data=q)
+        Q.dims[0].attach_scale(ml)
+        Q.dims[1].attach_scale(lat)
+        Q.dims[2].attach_scale(lon)
+        
+        P = f.create_dataset('p', data=p)
+        P.dims[0].attach_scale(ml)
+        P.dims[1].attach_scale(lat)
+        P.dims[2].attach_scale(lon)
+        
+        T = f.create_dataset('t', data=t)
+        T.dims[0].attach_scale(ml)
+        T.dims[1].attach_scale(lat)
+        T.dims[2].attach_scale(lon)
+        
+        H = f.create_dataset('h', data=h)
+        H.dims[0].attach_scale(ml)
+        H.dims[1].attach_scale(lat)
+        H.dims[2].attach_scale(lon)
+        
+        f.create_dataset('Projection', data=self._proj.to_json())
