@@ -490,7 +490,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         f.attrs['NumRays'] = len(x)
 
 
-def savePyDAPWeatherModel2HDF5(self, lats, lons, q, p, t, h, outName=None):
+def writeWeatherVars2HDF5(lon, lat, x, y, z, q, p, t, proj, outName=None):
     '''
     Write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to an HDF5 file
     that can be accessed by external programs.
@@ -507,36 +507,17 @@ def savePyDAPWeatherModel2HDF5(self, lats, lons, q, p, t, h, outName=None):
             ) + '.h5'
         )
     
-    ml_dim = q.shape[0]
-    mls = np.arange(0,ml_dim)
-
     with h5py.File(outName, 'w') as f:
         lon = f.create_dataset('lon', data=lons.astype(np.float64))
         lat = f.create_dataset('lat', data=lats.astype(np.float64))
-        ml = f.create_dataset('ml', data=mls.astype(np.float64))
-        lon.make_scale('lon - weather model native')
-        lat.make_scale('lat - weather model native')
-        ml.make_scale('ml - weather model native')
         
-        
+        X = f.create_dataset('x', data=x)
+        Y = f.create_dataset('y', data=y)
+        Z = f.create_dataset('z', data=z)
+
         Q = f.create_dataset('q', data=q)
-        Q.dims[0].attach_scale(ml)
-        Q.dims[1].attach_scale(lat)
-        Q.dims[2].attach_scale(lon)
-        
         P = f.create_dataset('p', data=p)
-        P.dims[0].attach_scale(ml)
-        P.dims[1].attach_scale(lat)
-        P.dims[2].attach_scale(lon)
-        
         T = f.create_dataset('t', data=t)
-        T.dims[0].attach_scale(ml)
-        T.dims[1].attach_scale(lat)
-        T.dims[2].attach_scale(lon)
-        
-        H = f.create_dataset('h', data=h)
-        H.dims[0].attach_scale(ml)
-        H.dims[1].attach_scale(lat)
-        H.dims[2].attach_scale(lon)
-        
+
         f.create_dataset('Projection', data=self._proj.to_json())
+

@@ -84,8 +84,8 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         # Get the weather model data
         with h5py.File(weather_model_file_name, 'r') as f:
             zs_wm = f['z'][()].copy()
-            total_wet = f['wet_total'][()].copy()
-            total_hydro = f['hydro_total'][()].copy()
+            total_wet = f['wet_ztd'][()].copy()
+            total_hydro = f['hydro_ztd'][()].copy()
         if zlevels is None:
             return total_wet, total_hydro
         else:

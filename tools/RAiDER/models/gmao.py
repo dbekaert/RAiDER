@@ -1,6 +1,10 @@
 import datetime as dt
 import numpy as np
+import pydap.cas.urs
+import pydap.client
+
 from pyproj import CRS
+
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
 from RAiDER.utilFcns import savePyDAPWeatherModel2HDF5
@@ -43,28 +47,11 @@ class GMAO(WeatherModel):
 
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
-        Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP
+        Fetch weather model data from GMAO
         '''
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
-
-    def load_weather(self, f):
-        '''
-        Consistent class method to be implemented across all weather model types.
-        As a result of calling this method, all of the variables (x, y, z, p, q,
-        t, wet_refractivity, hydrostatic refractivity, e) should be fully
-        populated.
-        '''
-        self._load_model_level(f)
-
-    def _load_model_level(self, f):
-        '''
-        Get the variables from the GMAO link using OpenDAP
-        '''
-
-        import pydap.cas.urs
-        import pydap.client
 
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
@@ -73,7 +60,7 @@ class GMAO(WeatherModel):
         lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
 
         T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
-        DT = self._time - T0
+        DT = time - T0
         time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
 
         ml_min = 0
@@ -84,18 +71,72 @@ class GMAO(WeatherModel):
         session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
         ds = pydap.client.open_url(url, session=session)
 
-        q = ds['qv'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        p = ds['pl'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        t = ds['t'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        h = ds['h'].array[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        q = ds['qv'].array[
+            time_ind, 
+            ml_min:(ml_max + 1), 
+            lat_min_ind:(lat_max_ind + 1), 
+            lon_min_ind:(lon_max_ind + 1)
+        ][0]
+        p = ds['pl'].array[
+            time_ind, 
+            ml_min:(ml_max + 1), 
+            lat_min_ind:(lat_max_ind + 1), 
+            lon_min_ind:(lon_max_ind + 1)
+        ][0]
+        t = ds['t'].array[
+            time_ind, 
+            ml_min:(ml_max + 1), 
+            lat_min_ind:(lat_max_ind + 1), 
+            lon_min_ind:(lon_max_ind + 1)
+        ][0]
+        h = ds['h'].array[
+            time_ind, 
+            ml_min:(ml_max + 1), 
+            lat_min_ind:(lat_max_ind + 1), 
+            lon_min_ind:(lon_max_ind + 1)
+        ][0]
 
-        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
-        lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res)
+        lats = np.arange(
+            (-90 + lat_min_ind * self._lat_res), 
+            (-90 + (lat_max_ind + 1) * self._lat_res), 
+            self._lat_res
+        )
+        lons = np.arange(
+            (-180 + lon_min_ind * self._lon_res), 
+            (-180 + (lon_max_ind + 1) * self._lon_res), 
+            self._lon_res
+        )
         
         try:
-            savePyDAPWeatherModel2HDF5(self, lats, lons, q, p, t, h, self.files[0])
+            # Note that lat/lon gets written twice for GMAO because they are the same as y/x
+            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
+
+
+    def load_weather(self, f):
+        '''
+        Consistent class method to be implemented across all weather model types.
+        As a result of calling this method, all of the variables (x, y, z, p, q,
+        t, wet_refractivity, hydrostatic refractivity, e) should be fully
+        populated.
+        '''
+        self._load_model_level(f)
+
+
+    def _load_model_level(self, filename):
+        '''
+        Get the variables from the GMAO link using OpenDAP
+        '''
+
+        with h5py.File(filename, 'r') as f:
+            lons = f['lons'].value.copy()
+            lats = f['lats'].value.copy()
+            hgts = f['hts'].value.copy()
+            p = f['p'].value.copy()
+            q = f['q'].value.copy()
+            t = f['t'].value.copy()
+        
         
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)
