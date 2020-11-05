@@ -246,8 +246,8 @@ def getDEM(extent, out_dir):
     from shapely.geometry import Polygon
     import glob
 
-    # change order of extent to WESN
-    extent = [extent[2], extent[3], extent[0], extent[1]]
+    # change order of extent to WSEN
+    extent = [extent[2], extent[0], extent[3], extent[1]]
     # Get area of bounding box
     # use equal area projection centered on/bracketing AOI
     pa = Proj("+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(min(extent[1::2]), max(extent[1::2]), 
