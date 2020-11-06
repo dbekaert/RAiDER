@@ -198,6 +198,7 @@ def parseCMD():
                 logger.exception("Date %s failed", t)
                 continue
     return
+
 def _tropo_delay(chunk_params):
     chunk_params = copy.deepcopy(chunk_params)
     chunk_params.pop(-3) # no verbose parm

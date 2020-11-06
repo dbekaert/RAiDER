@@ -27,7 +27,7 @@ from RAiDER.utilFcns import gdal_open, gdal_extents
 
 
 _DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&west={}&south={}&east={}&north={}&outputFormat=GTiff"
-
+_maxDEMSize = 2250000
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
     '''
@@ -273,11 +273,11 @@ def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
     query_area = getArea(extent)
     if query_area > _maxDEMSize:
         logger.warning(
-            "Query area encompasses {} km^2, supersedes DEM maximum download
-            area of 225000km, so I will download the DEM in chunks".format(shape_area)
+            'Query area encompasses {} km^2, supersedes DEM maximum download'
+            'area of 225000km, so I will download the DEM in chunks'.format(query_area)
         )        
 
-    Nchunks = max(int(np.ceil(shape_area/225000)) + 1, 2)
+    Nchunks = max(int(np.ceil(query_area/225000)) + 1, 2)
     chunk_size = (lon_max - lon_min)/Nchunks
     lon_starts = np.arange(lon_min, lon_max, chunk_size)
 
@@ -299,14 +299,14 @@ def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
         dload_dem(chunk_extent, filename = dem_raster)
 
     # Tile chunked products together after last iteration (if necessary)
-    if i > 1
+    if i > 1:
         gdal.Warp(
             final_dem_name, 
             chunked_files
 #            options = gdal.WarpOptions(
 #                 multithread=True, 
 #                 options=['NUM_THREADS={}'.format(num_threads)]
-             )
+#             )
         )
 
         # remove temp files

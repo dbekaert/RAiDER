@@ -7,7 +7,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import savePyDAPWeatherModel2HDF5
+from RAiDER.utilFcns import writeWeatherVars2HDF5
 
 
 class GMAO(WeatherModel):
