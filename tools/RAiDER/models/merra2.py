@@ -1,3 +1,5 @@
+import h5py
+
 import datetime as dt
 import numpy as np
 import pydap.cas.urs
@@ -63,6 +65,10 @@ class MERRA2(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
 
+        # check whether the file already exists
+        if os.path.exists(out):
+           return 
+
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
         lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)
@@ -107,7 +113,7 @@ class MERRA2(WeatherModel):
         h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
 
         try:
-            writeWeatherVars2HDF5(self, lats, lons, q, p, t, h, out)
+            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
@@ -122,14 +128,14 @@ class MERRA2(WeatherModel):
         self._load_model_level(f)
 
 
-    def _load_model_level(self, f):
+    def _load_model_level(self, filename):
         '''
         Get the variables from the GMAO link using OpenDAP
         '''
         with h5py.File(filename, 'r') as f:
             lons = f['lons'].value.copy()
             lats = f['lats'].value.copy()
-            hgts = f['hts'].value.copy()
+            h = f['z'].value.copy()
             p = f['p'].value.copy()
             q = f['q'].value.copy()
             t = f['t'].value.copy()

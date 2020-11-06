@@ -490,7 +490,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         f.attrs['NumRays'] = len(x)
 
 
-def writeWeatherVars2HDF5(lon, lat, x, y, z, q, p, t, proj, outName=None):
+def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
     '''
     Write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to an HDF5 file
     that can be accessed by external programs.
@@ -508,8 +508,8 @@ def writeWeatherVars2HDF5(lon, lat, x, y, z, q, p, t, proj, outName=None):
         )
     
     with h5py.File(outName, 'w') as f:
-        lon = f.create_dataset('lon', data=lons.astype(np.float64))
-        lat = f.create_dataset('lat', data=lats.astype(np.float64))
+        lon = f.create_dataset('lons', data=lon.astype(np.float64))
+        lat = f.create_dataset('lats', data=lat.astype(np.float64))
         
         X = f.create_dataset('x', data=x)
         Y = f.create_dataset('y', data=y)
@@ -519,5 +519,5 @@ def writeWeatherVars2HDF5(lon, lat, x, y, z, q, p, t, proj, outName=None):
         P = f.create_dataset('p', data=p)
         T = f.create_dataset('t', data=t)
 
-        f.create_dataset('Projection', data=self._proj.to_json())
+        f.create_dataset('Projection', data=proj.to_json())
 

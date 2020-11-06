@@ -132,7 +132,7 @@ class GMAO(WeatherModel):
         with h5py.File(filename, 'r') as f:
             lons = f['lons'].value.copy()
             lats = f['lats'].value.copy()
-            hgts = f['hts'].value.copy()
+            h = f['z'].value.copy()
             p = f['p'].value.copy()
             q = f['q'].value.copy()
             t = f['t'].value.copy()
