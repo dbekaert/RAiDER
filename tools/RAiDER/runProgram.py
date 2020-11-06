@@ -178,8 +178,10 @@ def parseCMD():
             args_copy.insert(idxH, hydroNames.tolist())
             lst_new_args.append(args_copy)
 
-        with multiprocessing.Pool(len(lst_new_args)) as pool:
-            pool.map(_tropo_delay, lst_new_args)
+        for arg in lst_new_args:
+            _tropo_delay(arg)
+        #with multiprocessing.Pool(len(lst_new_args)) as pool:
+        #    pool.map(_tropo_delay, lst_new_args)
 
     else:
         p = create_parser()
@@ -198,6 +200,7 @@ def parseCMD():
                 logger.exception("Date %s failed", t)
                 continue
     return
+
 def _tropo_delay(chunk_params):
     chunk_params = copy.deepcopy(chunk_params)
     chunk_params.pop(-3) # no verbose parm

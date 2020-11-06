@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 
 import numpy as np
+import pandas as pd
 
 import RAiDER.utilFcns
 from RAiDER.constants import Zenith
@@ -102,7 +103,6 @@ def checkArgs(args, p):
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
-            import pandas as pd
             indf = pd.read_csv(args.query_area)
             indf.to_csv(wetFilename, index=False)
         else:
@@ -118,7 +118,12 @@ def checkArgs(args, p):
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
     elif flag == 'station_file':
-        heights = ('merge', wetNames)
+        indf = pd.read_csv(args.query_area)
+        try:
+            hgts = indf['Hgt_m'].values
+            heights = ('pandas', wetNames)
+        except:
+            heights = ('merge', wetNames)
     elif useWeatherNodes:
         heights = ('skip', None)
     else:

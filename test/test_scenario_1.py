@@ -42,7 +42,7 @@ def test_tropo_delay(tmp_path):
             lats=lats,
             lons=lons,
             ll_bounds=(15.75, 18.25, -103.24, -99.75),
-            heights=("download", os.path.join(
+            heights=("dem", os.path.join(
                 TEST_DIR, "test_geom", "warpedDEM.dem")),
             flag="files",
             weather_model={

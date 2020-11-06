@@ -84,14 +84,15 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         # Get the weather model data
         with h5py.File(weather_model_file_name, 'r') as f:
             zs_wm = f['z'][()].copy()
-            total_wet = f['wet_total'][()].copy()
-            total_hydro = f['hydro_total'][()].copy()
+            total_wet = f['wet_ztd'][()].copy()
+            total_hydro = f['hydro_ztd'][()].copy()
         if zlevels is None:
             return total_wet, total_hydro
         else:
             wet_delays = interp_along_axis(zs_wm, zlevels, total_wet, axis=-1)
             hydro_delays = interp_along_axis(zs_wm, zlevels, total_hydro, axis=-1)
             return wet_delays, hydro_delays
+
     else:
         wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels=zlevels,
                                       zref=zref, nproc=nproc, useDask=useDask,
@@ -172,6 +173,7 @@ def tropo_delay(
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
     in_shape = lats.shape
+    
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
     pnts_file = None
