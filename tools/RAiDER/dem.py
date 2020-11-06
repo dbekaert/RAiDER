@@ -14,7 +14,10 @@ import time
 import multiprocessing as mp
 import numpy as np
 import pandas as pd
+
 from osgeo import gdal
+from pyproj import Proj
+from shapely.geometry import shape, Polygon
 
 import RAiDER.utilFcns
 
@@ -248,52 +251,124 @@ def isInside(extent1, extent2):
     return False
 
 
-def getDEM(extent, out_dir, num_threads = None):
-    ''' Get a DEM, chunking if needed '''
+def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
+    ''' 
+    Get a DEM, chunking if needed 
+    
+    Parameters
+    __________
+    extent      - A list containing [lat_min, lat_max, lon_min, lon_max]
+    out_dir     - Directory to write the full-resolution DEM
+    num_threads - Number of threads to use when warping
+
+    Returns
+    _______
+    final_dem_name - The name of the downloaded file
+
+    '''
     if num_threads is None:
         num_threads = mp.cpu_count()*3//4
 
-    lon_starts, lon_ends = chunkDEMByLong(extent)
+    lat_min, lat_max, lon_min, lon_max = extent
+    query_area = getArea(extent)
+    if query_area > _maxDEMSize:
+        logger.warning(
+            "Query area encompasses {} km^2, supersedes DEM maximum download
+            area of 225000km, so I will download the DEM in chunks".format(shape_area)
+        )        
 
+    Nchunks = max(int(np.ceil(shape_area/225000)) + 1, 2)
+    chunk_size = (lon_max - lon_min)/Nchunks
+    lon_starts = np.arange(lon_min, lon_max, chunk_size)
+
+    # Download the DEM (in chunks if necessary)
+    final_dem_name = os.path.join(out_dir, 'SRTM_1Sec.dem')
     chunked_files = []
-    for x_min,x_max in zip(lon_starts, lon_ends):
-        dst_tmp = os.path.join(out_dir, 'warpedDEM_{:.2f}_{:.2f}_uncropped.tif'.format(x_min, x_max))
-        chunked_files.append(dst_tmp)
-        chunk_extent = [extent[0], extent[1], x_min, x_max] 
-        dload_dem(chunk_extent, filename = dst_tmp)
+    for i, L in enumerate(lon_starts):
+        chunk_extent = [L, lat_min, L + chunk_size, lat_max]
 
-    # Tile chunked products together after last iteration
-    dst = os.path.join(out_dir, 'warpedDEM_uncropped.tif')
-    gdal.Warp(
-            dst, 
-            chunked_files, 
-            options = gdal.WarpOptions(multithread=True, options=['NUM_THREADS=%s'%(num_threads)])
+        # Do not create temp file if chunking not necessary
+        if len(lon_starts) > 2:
+            dem_raster = 'tempdem_p{}_SRTM_1Sec.dem'.format(i)
+        else:
+            dem_raster = final_dem_name
+
+        filename = os.path.join(out_dir, dem_raster)
+        chunked_files.append(filename)
+
+        dload_dem(chunk_extent, filename = dem_raster)
+
+    # Tile chunked products together after last iteration (if necessary)
+    if i > 1
+        gdal.Warp(
+            final_dem_name, 
+            chunked_files
+#            options = gdal.WarpOptions(
+#                 multithread=True, 
+#                 options=['NUM_THREADS={}'.format(num_threads)]
+             )
         )
 
-    # remove temp files
-    [os.remove(f) for f in chunked_files]
-    return dst
+        # remove temp files
+        [os.remove(i) for i in chunked_files]
+
+    return final_dem_name
 
 
-def chunkDEMByLong(extent):
-    ''' Divide a region into strips to be downloaded separately '''
+def getArea(extent):
+    ''' 
+    Get the area in square km encompassed by a lat/lon bounding box
+    '''
     lat_min, lat_max, lon_min, lon_max = extent
-    lon_starts = np.arange(lon_min, lon_max, 2)
-    lon_ends = np.arange(lon_min + 2, lon_max+2, 2)
-    lon_ends[-1] = min(lon_ends[-1], 180)
-    return lon_starts, lon_ends
+
+    # use equal area projection centered on/bracketing AOI
+    pa = Proj(
+        "+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(
+            lat_min,
+            lat_max,
+            (lat_max+lat_min)/2,
+            (lon_max+lon_min)/2
+        )
+    )
+
+    # Use shapely to get coordinates along box
+    bbox = Polygon(
+        np.column_stack(
+            (
+                np.array(
+                    [
+                        lon_min,
+                        lon_max,
+                        lon_max,
+                        lon_min,
+                        lon_min
+                    ]
+                ),
+                np.array(
+                    [
+                        lat_min,
+                        lat_min,
+                        lat_max,
+                        lat_max,
+                        lat_min
+                    ]
+                )
+            )
+        )
+    )
+
+    lon, lat = bbox.exterior.coords.xy
+    x, y = pa(lon, lat)
+    cop = {"type": "Polygon", "coordinates": [zip(x, y)]}
+    shape_area = shape(cop).area/1e6  # area in km^2
+
+    return shape_area
 
 
-def dload_dem(extent, out_dir = None, filename = None):
+def dload_dem(extent, filename = None):
     r = requests.get(_DEM.format(*extent), allow_redirects=True)
-    if filename is None:
-        dem_raster = get_filename_from_cd(r.headers.get('content-disposition'))
-        try:
-            filename = os.path.join(out_dir, dem_raster)
-        except TypeError:
-            raise RuntimeError('I could not get a filename for the DEM, probably the DEM is too large')
     open(filename, 'wb').write(r.content)
-    return filename
+    del r
 
 
 def get_filename_from_cd(cd):
