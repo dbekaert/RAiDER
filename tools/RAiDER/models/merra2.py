@@ -132,6 +132,10 @@ class MERRA2(WeatherModel):
         '''
         Get the variables from the GMAO link using OpenDAP
         '''
+
+        # adding the import here should become absolute when transition to netcdf
+        import h5py
+
         with h5py.File(filename, 'r') as f:
             lons = f['lons'].value.copy()
             lats = f['lats'].value.copy()
