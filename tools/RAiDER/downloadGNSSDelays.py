@@ -137,7 +137,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
         if in_box(lat, lon, llhBox) and (not userstatList or statID in userstatList):
             # convert lon into range [-180,180]
             lon = fix_lons(lon)
-            stations.append({'ID': statID, 'Lat': lat, 'Lon': lon, 'Height': height})
+            stations.append({'ID': statID, 'Lat': lat, 'Lon': lon, 'Hgt_m': height})
 
     logger.info('%d stations were found', len(stations))
     stations = pd.DataFrame(stations)
