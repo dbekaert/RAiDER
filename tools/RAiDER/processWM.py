@@ -84,21 +84,37 @@ def prepareWeatherModel(
     if download_flag:
         weather_model.fetch(*weather_model.files, lats, lons, time)
 
-        # exit on download if download_only requested
-        if download_only:
-            logger.warning(
-                'download_only flag selected. No further processing will happen.'
-            )
-            return None, None, None
+    # exit on download if download_only requested
+    if download_only:
+        logger.warning(
+            'download_only flag selected. No further processing will happen.'
+        )
+        return None, None, None
 
     # Load the weather model data
     if weather_model.files is not None:
-        weather_model.load(*weather_model.files, outLats=lats, outLons=lons, los=los, zref=zref)
+        weather_model.load(
+            *weather_model.files, 
+            outLats=lats, 
+            outLons=lons, 
+            los=los, 
+            zref=zref
+        )
         download_flag = False
     else:
-        weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
+        weather_model.load(
+            f, 
+            outLats=lats, 
+            outLons=lons, 
+            los=los, 
+            zref=zref
+        )
 
-    logger.debug('Number of weather model nodes: %d', np.prod(weather_model.getWetRefractivity().shape))
+    logger.debug(
+        'Number of weather model nodes: {}'.format(
+            np.prod(weather_model.getWetRefractivity().shape)
+        )
+    )
     logger.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
     logger.debug(
         'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
@@ -121,3 +137,4 @@ def prepareWeatherModel(
         p = weather_model.plot('pqt', True)
 
     return weather_model, lats, lons
+

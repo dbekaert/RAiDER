@@ -423,12 +423,16 @@ def getTimeFromFile(filename):
     Parse a filename to get a date-time
     '''
     fmt = '%Y_%m_%d_T%H_%M_%S'
-    p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
+    re_fmt = r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}'
+    p = re.compile(re_fmt)
     try:
         out = p.search(filename).group()
         return datetime.strptime(out, fmt)
     except:
-        raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
+        raise RuntimeError(
+            'getTimeFromFile: The filename for {} does not include a datetime '
+            'in the correct format, must be {}'.format(filename, re_fmt)
+        )
 
 
 def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.):

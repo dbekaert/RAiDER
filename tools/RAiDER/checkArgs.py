@@ -161,4 +161,3 @@ def checkArgs(args, p):
     outArgs['parallel']=parallel
 
     return outArgs
-    #return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
