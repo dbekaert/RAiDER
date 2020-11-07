@@ -119,6 +119,11 @@ def create_parser():
         type=float,
         default=_ZREF)
     misc.add_argument(
+        '--parallel', '-p',
+        help='Number of parallel delays computations or weather model downloads (with download_only enabled) that are ran concurrently  (default:  1)',
+        type=int,
+        default=1)
+    misc.add_argument(
         '--outformat',
         help='GDAL-compatible file format if surface delays are requested.',
         default=None)
@@ -145,84 +150,54 @@ def parseCMD():
     args = p.parse_args()
 
     # Argument checking
-    args = list(checkArgs(args, p))
+    args = checkArgs(args, p)
 
-    download_only, verbose    = args[-4:-2]
-    idxT, idxW, idxH            = 10, 14, 15
-    times, wetNames, hydroNames = args.pop(idxT), args.pop(idxW-1), args.pop(idxH-2)
-
-    if verbose: logger.setLevel(logging.DEBUG)
-
-    if download_only:
+    if args['verbose']: logger.setLevel(logging.DEBUG)
+    
+    # if pararallel processing is requested then call multi-processing approach
+    if not args['parallel']==1:
+    
         import multiprocessing
-        max_threads = multiprocessing.cpu_count()
-        nt     = 5
-        if nt == 'all':
-            nt = max_threads
-        else:
-            nt = int(nt)
-        nt     = nt if nt < max_threads else max_threads
-
-
-        chunked_args  = [] # dictionary for each process
-        allTimesFiles = zip(times, wetNames, hydroNames)
-        allTimesFiles_chunk = np.array_split(list(allTimesFiles), nt)
+        
+        # split the args evenly across the number of concurrent jobs
+        allTimesFiles = zip(args['times'], args['wetFilenames'],args['hydroFilenames'])
+        allTimesFiles_chunk = np.array_split(list(allTimesFiles), args['parallel'])
         lst_new_args  = []
 
         for chunk in allTimesFiles_chunk:
             if chunk.size == 0: continue
-            times, wetNames, hydroNames = chunk.transpose()
+            times, wetFilenames, hydroFilenames = chunk.transpose()
             args_copy = copy.deepcopy(args)
-            args_copy.insert(idxT, times.tolist())
-            args_copy.insert(idxW, wetNames.tolist())
-            args_copy.insert(idxH, hydroNames.tolist())
+            args_copy['times']=times.tolist()
+            args_copy['wetFilenames']=wetFilenames.tolist()
+            args_copy['hydroFilenames']=hydroFilenames.tolist()
             lst_new_args.append(args_copy)
 
-        for arg in lst_new_args:
-            _tropo_delay(arg)
-        #with multiprocessing.Pool(len(lst_new_args)) as pool:
-        #    pool.map(_tropo_delay, lst_new_args)
+        with multiprocessing.Pool(len(lst_new_args)) as pool:
+            pool.map(_tropo_delay, lst_new_args)
 
     else:
-        p = create_parser()
-        args = p.parse_args()
-        los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
-        times, out, download_only, verbose, \
-        wetNames, hydroNames = checkArgs(args, p)
+        _tropo_delay(args)
 
-        # Loop over each datetime and compute the delay
-        for t, wfn, hfn in zip(times, wetNames, hydroNames):
-            try:
-                (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
-                                     outformat, t, out, download_only, wfn, hfn)
-
-            except RuntimeError:
-                logger.exception("Date %s failed", t)
-                continue
     return
 
-def _tropo_delay(chunk_params):
-    chunk_params = copy.deepcopy(chunk_params)
-    chunk_params.pop(-3) # no verbose parm
-    times = chunk_params[-5]
-    wetNames = chunk_params[-2]
-    hydroNames = chunk_params[-1]
-    if len(times) < 2:
+def _tropo_delay(args):
+    
+    args_copy = copy.deepcopy(args)
+
+    if len(args['times']) < 2:
+        args_copy['times']=args['times'][0]
         try:
-            chunk_params[-1]=hydroNames[0]
-            chunk_params[-2]=wetNames[0]
-            chunk_params[-5]=times[0]
-            (_, _) = tropo_delay(*chunk_params)
+            (_, _) = tropo_delay(args_copy)
         except RuntimeError:
             logger.exception("Date %s failed", t)
-
     else:
-        for t, wfn, hfn in zip(times, wetNames, hydroNames):
+        for time, wetFilename, hydroFilename in zip(args['times'], args['wetFilenames'], args['hydroFilenames']):
             try:
-                chunk_params[-1]=hfn
-                chunk_params[-2]=wfn
-                chunk_params[-5]=t
-                (_, _) = tropo_delay(*chunk_params)
+                args_copy['times']=time
+                args_copy['wetFilenames']=wetFilename
+                args_copy['hydroFilenames']=hydroFilename
+                (_, _) = tropo_delay(args_copy)
             except RuntimeError:
                 logger.exception("Date %s failed", t)
                 continue
@@ -239,7 +214,7 @@ def parseCMD_weather_model_debug():
     # Argument checking
     los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
         times, out, download_only, verbose, \
-        wetNames, hydroNames = checkArgs(args, p)
+        wetFilenames, hydroFilenames = checkArgs(args, p)
 
     if verbose:
         logger.setLevel(logging.DEBUG)

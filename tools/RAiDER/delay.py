@@ -102,32 +102,35 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         return wet, hydro
 
 
-def tropo_delay(
-    los,
-    lats,
-    lons,
-    ll_bounds,
-    heights,
-    flag,
-    weather_model,
-    wmLoc,
-    zref,
-    outformat,
-    time,
-    out,
-    download_only,
-    wetFilename,
-    hydroFilename
-):
+def tropo_delay(args):
     """
     raiderDelay main function.
     """
+
+    # unpacking the dictionairy
+    los = args['los']
+    lats = args['lats']
+    lons = args['lons']
+    ll_bounds = args['ll_bounds']
+    heights = args['heights']
+    flag = args['flag']
+    weather_model = args['weather_model']
+    wmLoc = args['wmLoc']
+    zref = args['zref']
+    outformat = args['outformat']
+    time = args['times']
+    out = args['out']
+    download_only = args['download_only']
+    wetFilename = args['wetFilenames']
+    hydroFilename = args['hydroFilenames']
+    
+    # logging
     logger.debug('Starting to run the weather model calculation')
     logger.debug('Time type: %s', type(time))
     logger.debug('Time: %s', time.strftime('%Y%m%d'))
     logger.debug('Flag type is %s', flag)
     logger.debug('DEM/height type is "%s"', heights[0])
-
+    
     # Flags
     useWeatherNodes = flag == 'bounding_box'
     delayType = ["Zenith" if los is Zenith else "LOS"]
