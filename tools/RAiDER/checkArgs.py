@@ -64,6 +64,17 @@ def checkArgs(args, p):
     # zref
     zref = args.zref
 
+    # parallel or concurrent runs
+    parallel = args.parallel
+    if not parallel==1:
+        import multiprocessing
+        # asses the number of concurrent jobs to be executed
+        max_threads = multiprocessing.cpu_count()
+        if parallel == 'all':
+            parallel = max_threads
+        parallel = parallel if parallel < max_threads else max_threads
+
+
     # handle the datetimes requested
     datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
 
@@ -129,4 +140,25 @@ def checkArgs(args, p):
     else:
         heights = ('download', os.path.join(out, 'geom', 'warpedDEM.dem'))
 
-    return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames
+    # put all the arguments in a dictionary
+    outArgs = {}
+    outArgs['los']=los
+    outArgs['lats']=lat
+    outArgs['lons']=lon
+    outArgs['ll_bounds']=bounds
+    outArgs['heights']=heights
+    outArgs['flag']=flag
+    outArgs['weather_model']=weathers
+    outArgs['wmLoc']=wmLoc
+    outArgs['zref']=zref
+    outArgs['outformat']=outformat
+    outArgs['times']=datetimeList
+    outArgs['download_only']=download_only
+    outArgs['out']=out
+    outArgs['verbose']=verbose
+    outArgs['wetFilenames']=wetNames
+    outArgs['hydroFilenames']=hydroNames
+    outArgs['parallel']=parallel
+
+    return outArgs
+    #return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
