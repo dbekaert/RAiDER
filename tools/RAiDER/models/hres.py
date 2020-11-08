@@ -250,6 +250,7 @@ class HRES(WeatherModel):
 
         if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             levels = 91
+            self.update_a_b
         else:
             levels = 137
                 
