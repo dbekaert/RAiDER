@@ -39,7 +39,7 @@ def test_tropo_delay(tmp_path):
     with pushd(tmp_path):
         # packing the dictionairy
         args={}
-        args['los']=Zenith,
+        args['los']=Zenith
         args['lats']=lats
         args['lons']=lons
         args['ll_bounds']=(15.75, 18.25, -103.24, -99.75)
