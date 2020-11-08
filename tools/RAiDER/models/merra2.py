@@ -67,7 +67,7 @@ class MERRA2(WeatherModel):
 
         # check whether the file already exists
         if os.path.exists(out):
-           return 
+           return
 
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
@@ -76,16 +76,16 @@ class MERRA2(WeatherModel):
         lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
 
         lats = np.arange(
-            (-90 + lat_min_ind * self._lat_res), 
+            (-90 + lat_min_ind * self._lat_res),
             (-90 + (lat_max_ind + 1) * self._lat_res),
             self._lat_res
         )
         lons = np.arange(
-            (-180 + lon_min_ind * self._lon_res), 
-            (-180 + (lon_max_ind + 1) * self._lon_res), 
+            (-180 + lon_min_ind * self._lon_res),
+            (-180 + (lon_max_ind + 1) * self._lon_res),
             self._lon_res
             )
-        
+
         if time.year < 1992:
             url_sub = 100
         elif time.year < 2001:
@@ -137,12 +137,12 @@ class MERRA2(WeatherModel):
         import h5py
 
         with h5py.File(filename, 'r') as f:
-            lons = f['lons'].value.copy()
-            lats = f['lats'].value.copy()
-            h = f['z'].value.copy()
-            p = f['p'].value.copy()
-            q = f['q'].value.copy()
-            t = f['t'].value.copy()
+            lons = f['lons'][:].copy()
+            lats = f['lats'][:].copy()
+            h = f['z'][:].copy()
+            p = f['p'][:].copy()
+            q = f['q'][:].copy()
+            t = f['t'][:].copy()
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)

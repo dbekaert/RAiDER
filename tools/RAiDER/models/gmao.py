@@ -72,41 +72,41 @@ class GMAO(WeatherModel):
         ds = pydap.client.open_url(url, session=session)
 
         q = ds['qv'].array[
-            time_ind, 
-            ml_min:(ml_max + 1), 
-            lat_min_ind:(lat_max_ind + 1), 
+            time_ind,
+            ml_min:(ml_max + 1),
+            lat_min_ind:(lat_max_ind + 1),
             lon_min_ind:(lon_max_ind + 1)
         ][0]
         p = ds['pl'].array[
-            time_ind, 
-            ml_min:(ml_max + 1), 
-            lat_min_ind:(lat_max_ind + 1), 
+            time_ind,
+            ml_min:(ml_max + 1),
+            lat_min_ind:(lat_max_ind + 1),
             lon_min_ind:(lon_max_ind + 1)
         ][0]
         t = ds['t'].array[
-            time_ind, 
-            ml_min:(ml_max + 1), 
-            lat_min_ind:(lat_max_ind + 1), 
+            time_ind,
+            ml_min:(ml_max + 1),
+            lat_min_ind:(lat_max_ind + 1),
             lon_min_ind:(lon_max_ind + 1)
         ][0]
         h = ds['h'].array[
-            time_ind, 
-            ml_min:(ml_max + 1), 
-            lat_min_ind:(lat_max_ind + 1), 
+            time_ind,
+            ml_min:(ml_max + 1),
+            lat_min_ind:(lat_max_ind + 1),
             lon_min_ind:(lon_max_ind + 1)
         ][0]
 
         lats = np.arange(
-            (-90 + lat_min_ind * self._lat_res), 
-            (-90 + (lat_max_ind + 1) * self._lat_res), 
+            (-90 + lat_min_ind * self._lat_res),
+            (-90 + (lat_max_ind + 1) * self._lat_res),
             self._lat_res
         )
         lons = np.arange(
-            (-180 + lon_min_ind * self._lon_res), 
-            (-180 + (lon_max_ind + 1) * self._lon_res), 
+            (-180 + lon_min_ind * self._lon_res),
+            (-180 + (lon_max_ind + 1) * self._lon_res),
             self._lon_res
         )
-        
+
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
             writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
@@ -132,14 +132,14 @@ class GMAO(WeatherModel):
         # adding the import here should become absolute when transition to netcdf
         import h5py
         with h5py.File(filename, 'r') as f:
-            lons = f['lons'].value.copy()
-            lats = f['lats'].value.copy()
-            h = f['z'].value.copy()
-            p = f['p'].value.copy()
-            q = f['q'].value.copy()
-            t = f['t'].value.copy()
-        
-        
+            lons = f['lons'][:].copy()
+            lats = f['lats'][:].copy()
+            h = f['z'][:].copy()
+            p = f['p'][:].copy()
+            q = f['q'][:].copy()
+            t = f['t'][:].copy()
+
+
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)
         _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], t.shape)
