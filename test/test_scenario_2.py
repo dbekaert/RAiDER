@@ -41,7 +41,7 @@ def test_computeDelay(tmp_path):
         
         # packing the dictionairy
         args={}
-        args['los']=Zenith,
+        args['los']=Zenith
         args['lats']=lats
         args['lons']=lons
         args['ll_bounds']=(33.746, 36.795, -118.312, -114.892)
