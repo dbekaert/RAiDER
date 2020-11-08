@@ -1,8 +1,10 @@
+__pycache__
 *.pyc
 *~
 *.swp
 *.DS_Store
-__pycache__
+.ftpignore
+.ftpconfig
 .ipynb_checkpoints
 build
 *.so
@@ -13,6 +15,8 @@ dummy*
 weather_files
 test/data
 *.log
+*.pdf
+*.cpp
 test/*/geom/*.dem
 .eggs/
 dist/

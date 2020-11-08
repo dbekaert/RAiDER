@@ -8,6 +8,7 @@ from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay, weather_model_debug
 from RAiDER.logger import *
 from RAiDER.models.allowed import ALLOWED_MODELS
+import multiprocessing
 import numpy as np
 import copy
 
@@ -139,7 +140,6 @@ def create_parser():
 
     return p
 
-
 def parseCMD():
     """
     Parse command-line arguments and pass to tropo_delay
@@ -153,12 +153,10 @@ def parseCMD():
     args = checkArgs(args, p)
 
     if args['verbose']: logger.setLevel(logging.DEBUG)
-    
+
     # if pararallel processing is requested then call multi-processing approach
     if not args['parallel']==1:
-    
-        import multiprocessing
-        
+
         # split the args evenly across the number of concurrent jobs
         allTimesFiles = zip(args['times'], args['wetFilenames'],args['hydroFilenames'])
         allTimesFiles_chunk = np.array_split(list(allTimesFiles), args['parallel'])
@@ -182,7 +180,7 @@ def parseCMD():
     return
 
 def _tropo_delay(args):
-    
+
     args_copy = copy.deepcopy(args)
 
     if len(args['times']) < 2:
@@ -190,16 +188,16 @@ def _tropo_delay(args):
         try:
             (_, _) = tropo_delay(args_copy)
         except RuntimeError:
-            logger.exception("Date %s failed", t)
+            logger.exception("Date %s failed", times[0])
     else:
-        for time, wetFilename, hydroFilename in zip(args['times'], args['wetFilenames'], args['hydroFilenames']):
+        for tim, wetFilename, hydroFilename in zip(args['times'], args['wetFilenames'], args['hydroFilenames']):
             try:
-                args_copy['times']=time
+                args_copy['times']=tim
                 args_copy['wetFilenames']=wetFilename
                 args_copy['hydroFilenames']=hydroFilename
                 (_, _) = tropo_delay(args_copy)
             except RuntimeError:
-                logger.exception("Date %s failed", t)
+                logger.exception("Date %s failed", tim)
                 continue
 
 def parseCMD_weather_model_debug():
@@ -220,10 +218,10 @@ def parseCMD_weather_model_debug():
         logger.setLevel(logging.DEBUG)
 
     # Loop over each datetime
-    for t in times:
+    for tim in times:
         try:
-            weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref, t, out, download_only)
+            weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref, tim, out, download_only)
 
         except RuntimeError:
-            logger.exception("Date %s failed", t)
+            logger.exception("Date %s failed", tim)
             continue
