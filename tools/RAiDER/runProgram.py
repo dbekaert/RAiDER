@@ -188,7 +188,7 @@ def _tropo_delay(args):
         try:
             (_, _) = tropo_delay(args_copy)
         except RuntimeError:
-            logger.exception("Date %s failed", times[0])
+            logger.exception("Date %s failed", args_copy['times'])
     else:
         for tim, wetFilename, hydroFilename in zip(args['times'], args['wetFilenames'], args['hydroFilenames']):
             try:
