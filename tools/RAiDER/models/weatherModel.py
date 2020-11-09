@@ -555,7 +555,7 @@ class WeatherModel(ABC):
         self._e = fillna3D(self._e)
 
 
-    def write(self, outName=None, fmt='HDF5'):
+    def write(self, outName=None, fmt='NETCDF'):
         '''
         Write the main (i.e., needed for external calculations) data to an HDF5 file
         that can be accessed by external programs.

@@ -123,7 +123,7 @@ def tropo_delay(args):
             return None, None
 
         try:
-            weather_model.write2HDF5(weather_model_file)
+            weather_model.write(weather_model_file)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
