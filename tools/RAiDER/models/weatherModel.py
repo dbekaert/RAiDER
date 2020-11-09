@@ -633,6 +633,17 @@ class WeatherModel(ABC):
 
         elif fmt=='NETCDF':
 
+            if self._proj.to_epsg == '4326':
+                grid_dict = {
+                            'grid_mapping_name': "latitude_longitude", 
+                            'longitude_of_prime_meridian': 0.0,
+                            'semi_major_axis': 6378137.0,
+                            'inverse_flattening': 298.257223563,
+                            'epsg': self._proj.to_epsg(), 
+                    }
+            else:
+                raise NotImplementedError('Only EPSG: 4326 has been implemented in the NETCDF writer')
+
             x = xr.DataArray(self._xs.astype(np.float64).copy())
             y = xr.DataArray(self._ys.astype(np.float64).copy())
             z = xr.DataArray(self._zs.astype(np.float64).copy())
@@ -704,11 +715,7 @@ class WeatherModel(ABC):
                         self._proj.to_wkt(), 
                         dims = (), 
                         coords = (), 
-                        attrs = {
-                            'grid_mapping_name': self._proj.name,
-                            'spatial_epsg': self._proj.to_epsg(), 
-                            'spatial_ref': self._proj.to_wkt()
-                        }
+                        attrs = grid_dict
                     )
                 }
             )
