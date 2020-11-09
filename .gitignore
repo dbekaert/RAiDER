@@ -9,6 +9,7 @@ __pycache__
 build
 *.so
 *.cmake
+*Geo2rdr.cpp
 CMake*
 Makefile
 dummy*
