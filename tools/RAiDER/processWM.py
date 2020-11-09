@@ -37,10 +37,12 @@ def prepareWeatherModel(
 
     # check whether weather model files are supplied
     if weather_files is None:
+        download_flag = True
         if time is None:
             raise RuntimeError('prepareWeatherModel: Either a file or a time must be specified')
-        download_flag,f = getWMFilename(weather_model.Model(), time, wmFileLoc)
-        weather_model.files = [f]
+        weather_model.filename(time, wmFileLoc)
+        if os.path.exists(weather_model.files[0]):
+            download_flag = False
     else:
         download_flag = False
         time = getTimeFromFile(weather_files[0])
@@ -109,4 +111,6 @@ def prepareWeatherModel(
     except Exception:
         logger.exception("Unable to save weathermodel to file")
 
-    return lats, lons
+    f = weather_model.files[0]
+    del weather_model
+    return lats, lons, f

@@ -117,12 +117,12 @@ class WeatherModel(ABC):
         '''
         pass
 
-    @abstractmethod
-    def checkWeatherExtents(*args, **kwargs)
-        '''
-        Placeholder method. Should be implemented in each weather model type class
-        '''
-        pass
+#    @abstractmethod
+#    def checkWeatherExtents(*args, **kwargs):
+#        '''
+#        Placeholder method. Should be implemented in each weather model type class
+#        '''
+#        pass
 
     @abstractmethod
     def _fetch(self, lats, lons, time, out):
@@ -161,6 +161,7 @@ class WeatherModel(ABC):
         if time > datetime.datetime.utcnow() - self._lag_time:
             raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
 
+
     def load(self, *args, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
         '''
         Calls the load_weather method. Each model class should define a load_weather
@@ -168,7 +169,7 @@ class WeatherModel(ABC):
         '''
         if zref is not None:
             self._zmax = zref
-        self._checkWeatherExtents(*args, **kwargs)
+#        self._checkWeatherExtents(*args, **kwargs)
         self.load_weather(*args, **kwargs)
         self._find_e()
         self._checkNotMaskedArrays()
@@ -191,18 +192,23 @@ class WeatherModel(ABC):
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         return plot
 
-    def filename(self, outLoc = 'weather_files'):
+    def filename(self, time = None, outLoc = 'weather_files'):
         ''' Create a filename to store the weather model '''
-        with contextlib.suppress(FileExistsError):
-            os.mkdir(outLoc)
+        os.makedirs(outLoc, exist_ok = True)
         file_fmt = self._getFileType()
+
+        if time is None:
+            if self._time is None:
+                raise ValueError('Time must be specified before the file can be written')
+            else:
+                time = self._time
 
         download_flag = True
         f = os.path.join(
             outLoc,
             '{}_{}.{}'.format(
                 self.Model(),
-                datetime.strftime(self._time, '%Y_%m_%d_T%H_%M_%S'),
+                datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
                 file_fmt
             )
         )
@@ -598,12 +604,8 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-<<<<<<< HEAD
 
     def write(self, outName=None, fmt='NETCDF'):
-=======
-    def write2HDF5(self, outName=None, force_write=False):
->>>>>>> update weather model
         '''
         Write the main (i.e., needed for external calculations) data to an HDF5 file
         that can be accessed by external programs.
@@ -614,26 +616,13 @@ class WeatherModel(ABC):
         import xarray as xr
 
         if outName is None:
-<<<<<<< HEAD
-            outName = os.path.join(
-                os.getcwd(),
-                self._Name + 
-                datetime.datetime.strftime(
-                    self._time, '%Y_%m_%d_T%H_%M_%S'
-                ) + 
-                '.nc'
-=======
             outName = makeWeatherModelFilename(self._Name, self._time, self._get_ll_bounds())
 
         if os.path.exists(weather_model_file) and not force_write:
             logger.warning(
                 'Weather model already exists, please remove it ("{}")  or pass "force_write = True"'.format(outName) 
                 'if you want to create a new one.'
->>>>>>> update weather model
-            )
             return None
-
-<<<<<<< HEAD
 
         if fmt == 'HDF5':
             with h5py.File(outName, 'w') as f:
@@ -786,61 +775,6 @@ class WeatherModel(ABC):
             ds.to_netcdf(outName)
 
             del ds
-=======
-        with h5py.File(outName, 'w') as f:
-            x = f.create_dataset('x', data=self._xs.astype(np.float64))
-            y = f.create_dataset('y', data=self._ys.astype(np.float64))
-            z = f.create_dataset('z', data=self._zs.astype(np.float64))
-            x.make_scale('x - weather model native')
-            y.make_scale('y - weather model native')
-            z.make_scale('z - weather model native')
-
-            lats = f.create_dataset('lat', data=self._lats.astype(np.float64))
-            lons = f.create_dataset('lon', data=self._lons.astype(np.float64))
-            lats.dims[0].attach_scale(x)
-            lats.dims[1].attach_scale(y)
-            lats.dims[2].attach_scale(z)
-            lons.dims[0].attach_scale(x)
-            lons.dims[1].attach_scale(y)
-            lons.dims[2].attach_scale(z)
-
-            t = f.create_dataset('t', data=self._t)
-            t.dims[0].attach_scale(x)
-            t.dims[1].attach_scale(y)
-            t.dims[2].attach_scale(z)
-
-            p = f.create_dataset('p', data=self._p)
-            p.dims[0].attach_scale(x)
-            p.dims[1].attach_scale(y)
-            p.dims[2].attach_scale(z)
-
-            e = f.create_dataset('e', data=self._e)
-            e.dims[0].attach_scale(x)
-            e.dims[1].attach_scale(y)
-            e.dims[2].attach_scale(z)
-
-            wet = f.create_dataset('wet', data=self._wet_refractivity)
-            wet.dims[0].attach_scale(x)
-            wet.dims[1].attach_scale(y)
-            wet.dims[2].attach_scale(z)
-
-            wet_ztd = f.create_dataset('wet_ztd', data=self._wet_ztd)
-            wet_ztd.dims[0].attach_scale(x)
-            wet_ztd.dims[1].attach_scale(y)
-            wet_ztd.dims[2].attach_scale(z)
-
-            hydro = f.create_dataset('hydro', data=self._hydrostatic_refractivity)
-            hydro.dims[0].attach_scale(x)
-            hydro.dims[1].attach_scale(y)
-            hydro.dims[2].attach_scale(z)
-
-            hydro_ztd = f.create_dataset('hydro_ztd', data=self._hydrostatic_ztd)
-            hydro_ztd.dims[0].attach_scale(x)
-            hydro_ztd.dims[1].attach_scale(y)
-            hydro_ztd.dims[2].attach_scale(z)
-
-            f.create_dataset('Projection', data=self._proj.to_json())
-
 
 def makeWeatherModelFilename(name, time, ll_bounds):
     if ll_bounds[0] < 0:
@@ -863,5 +797,3 @@ def makeWeatherModelFilename(name, time, ll_bounds):
         name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
     )
 
-
->>>>>>> update weather model

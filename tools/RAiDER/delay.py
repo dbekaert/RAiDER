@@ -109,7 +109,7 @@ def tropo_delay(args):
     if wmLoc is None:
         wmLoc = os.path.join(out, 'weather_files')
         
-    lats, lons = prepareWeatherModel(
+    lats, lons, weather_model_file = prepareWeatherModel(
         weather_model, 
         wmLoc, 
         lats=lats, 
