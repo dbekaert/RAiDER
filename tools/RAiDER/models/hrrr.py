@@ -16,6 +16,8 @@ class HRRR(WeatherModel):
         # initialize a weather model
         WeatherModel.__init__(self)
 
+        self._model_file_type = 'nc'
+
         self._humidityType = 'q'
         self._model_level_type = 'pl'  # Default, pressure levels are 'pl'
         self._expver = '0001'

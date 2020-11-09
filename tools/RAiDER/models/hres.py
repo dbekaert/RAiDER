@@ -16,6 +16,8 @@ class HRES(WeatherModel):
         # initialize a weather model
         WeatherModel.__init__(self)
 
+        self._model_file_type = 'nc'
+        
         # model constants
         self._k1 = 0.776   # [K/Pa]
         self._k2 = 0.233   # [K/Pa]

@@ -110,8 +110,15 @@ def tropo_delay(args):
         wmLoc = os.path.join(out, 'weather_files')
         
     lats, lons = prepareWeatherModel(
-        weather_model, wmLoc, lats=lats, lons=lons, los=los, zref=zref,
-        time=time, download_only=download_only, makePlots=True
+        weather_model, 
+        wmLoc, 
+        lats=lats, 
+        lons=lons, 
+        los=los, 
+        zref=zref,
+        time=time, 
+        download_only=download_only, 
+        makePlots=True
     )
     
     if download_only:

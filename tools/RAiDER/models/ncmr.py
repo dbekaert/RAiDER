@@ -17,6 +17,7 @@ class NCMR(WeatherModel):
     def __init__(self):
         # initialize a weather model
         WeatherModel.__init__(self)
+        self._model_file_type = 'nc'
 
         self._humidityType = 'q'                     # q for specific humidity and rh for relative humidity
         self._model_level_type = 'ml'                # Default, pressure levels are 'pl', and model levels are "ml"

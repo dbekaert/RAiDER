@@ -25,6 +25,8 @@ class MERRA2(WeatherModel):
         # initialize a weather model
         WeatherModel.__init__(self)
 
+        self._model_file_type = 'h5'
+
         self._humidityType = 'q'
         self._model_level_type = 'ml'  # Default, pressure levels are 'pl'
 
