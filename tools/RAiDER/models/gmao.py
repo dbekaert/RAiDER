@@ -139,7 +139,7 @@ class GMAO(WeatherModel):
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
+            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, )
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
