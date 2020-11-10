@@ -29,7 +29,8 @@ class Variogram():
             self, 
             coordinates = None, 
             values = None, 
-            dist_func = None,
+            dist_func = 'euclidean',
+            bin_func = 'even',
             model = 'spherical',
             deramp = False,
             use_nugget = False, 
@@ -41,13 +42,13 @@ class Variogram():
 
         # Distance function can be a string or a function
         self._dist = None
-        self._set_dist_func(dist_func)
+        self.set_dist_function(dist_func)
 
         self._values = values
         
         # Model can be a function or a string
         self._model = None
-        self._set_model(model)
+        self.set_model(model)
 
         self._use_nugget = use_nugget
         self._deramp = deramp
@@ -60,11 +61,11 @@ class Variogram():
         self._bin_func = None
         self._groups = None
         self._bins = None
-        self._set_bin_func(bin_func=bin_func)
+        self.set_bin_func(bin_func=bin_func)
 
         self._lags = None
         self._n_lags = None
-        self._maxlag = maxLag
+        self._maxlag = maxlag
 
         if coordinates is None and values is None:
             pass
@@ -274,9 +275,6 @@ class Variogram():
         else:
             raise ValueError('Input not supported. Pass a string or callable.')
 
-        # re-calculate distances
-        self._calc_distances()
-
     @property
     def distance(self):
         if self._dist is None:
@@ -459,7 +457,7 @@ class Variogram():
     @property
     def deramp(self):
         if self._deramp:
-        self._values = deramp(self._X[:,0], self._X[:,1], self._values)
+            self._values = deramp(self._X[:,0], self._X[:,1], self._values)
 
     @property
     def fitted_model(self):
@@ -953,7 +951,7 @@ class VariogramAnalysis():
                     dists_arr, vario_arr)
             TOT_res_robust, TOT_d_test, TOT_v_test = self._fit_vario(
                 dists_binned_arr, vario_binned_arr, model=self.__exponential__, x0=None, Nparm=3)
-            tot_timetag = self.good_slices[0][1] + '–' + self.good_slices[-1][1]
+            tot_timetag = self.good_slices[0][1] + '-' + self.good_slices[-1][1]
             # Append TOT arrays
             self.TOT_good_slices.append([grid_ind, tot_timetag])
             self.TOT_res_robust_arr.append(TOT_res_robust.x)
