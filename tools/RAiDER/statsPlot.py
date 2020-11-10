@@ -13,6 +13,7 @@ from shapely.strtree import STRtree
 from shapely.geometry import Point, Polygon
 from pandas.plotting import register_matplotlib_converters
 from matplotlib import pyplot as plt
+from osgeo import gdal
 import pandas as pd
 import numpy as np
 import argparse
@@ -112,6 +113,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           dest='grid_delay_mean', help="Plot gridded station mean delay.")
     pltgrids.add_argument('-grid_delay_stdev', '--grid_delay_stdev', action='store_true',
                           dest='grid_delay_stdev', help="Plot gridded station delay stdev.")
+    pltgrids.add_argument('-grid_to_raster', '--grid_to_raster', action='store_true',
+                          dest='grid_to_raster', help="Save gridded array as raster. May directly load/plot in successive script call.")
 
     # Variogram plots
     pltvario = parser.add_argument_group('Supported types of variogram plots.')
@@ -122,6 +125,7 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     pltvario.add_argument('-variogram_per_timeslice', '--variogram_per_timeslice', action='store_true', dest='variogram_per_timeslice',
                           help="Generate variogram plots per gridded station AND time-slice.")
 
+
     return parser
 
 
@@ -129,6 +133,74 @@ def cmd_line_parse(iargs=None):
     parser = create_parser()
     return parser.parse_args(args=iargs)
 
+
+def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt='%.3f', stationsongrids=False, gdal_fmt='float32'):
+    '''
+        Function to save gridded-arrays as GDAL-readable file.
+    '''
+
+    gdalMap = { 'byte'   : 1,
+                'int16'  : 3,
+                'int32'    : 5,
+                'float32'  : 6,
+                'float64' : 7,
+                'cfloat32' : 10,
+                'cfloat64': 11}
+
+    # Write data to file
+    gdalfile=gdal.GetDriverByName('GTiff').Create(fname, df.shape[1], df.shape[0], 1, gdalMap[gdal_fmt])
+    gdalfile.GetRasterBand(1).WriteArray(df)
+
+    # Pass metadata
+    metadata_dict={}
+    metadata_dict['gridfile_type'] = gridfile_type
+    metadata_dict['plotbbox'] = ' '.join([str(i) for i in plotbbox]) 
+    metadata_dict['spacing'] = str(spacing)
+    metadata_dict['unit'] = unit
+    metadata_dict['colorbarfmt'] = colorbarfmt
+    if stationsongrids:
+        metadata_dict['stationsongrids'] = ' '.join([str(i) for i in stationsongrids])
+    else:
+        metadata_dict['stationsongrids'] = 'False'
+
+    # Write metadata to file
+    gdalfile.SetMetadata(metadata_dict)
+
+    #update with nodata val
+    gdalfile.GetRasterBand(1).SetNoDataValue(np.nan)
+    # Finalize VRT
+    gdal.Translate(fname+'.vrt', gdalfile, options=gdal.TranslateOptions(format="VRT", noData=np.nan))
+
+    gdalfile = None    
+
+    return
+
+
+def load_gridfile(fname):
+    '''
+        Function to load gridded-arrays saved from previous runs.
+    '''
+
+    df = gdal.Open(fname)
+    grid_array = df.ReadAsArray()
+    grid_array = np.ma.masked_where(grid_array == 0, grid_array)
+
+    # Read metadata variables needed for plotting
+    metadata_dict = df.GetMetadata_Dict()
+    # Make plotting command a global variable
+    gridfile_type = metadata_dict['gridfile_type']
+    globals()[gridfile_type] = True
+
+    plotbbox = [float(i) for i in metadata_dict['plotbbox'].split()]
+    spacing = float(metadata_dict['spacing'])
+    colorbarfmt = metadata_dict['colorbarfmt']
+    unit = metadata_dict['unit']
+    if metadata_dict['stationsongrids'] == 'False':
+        stationsongrids = False
+    else:
+        stationsongrids = [float(i) for i in metadata_dict['stationsongrids'.split()]]
+
+    return grid_array, plotbbox, spacing, colorbarfmt, unit, stationsongrids
 
 class VariogramAnalysis():
     '''
@@ -494,7 +566,9 @@ class RaiderStats(object):
     # import dependencies
     import glob
 
-    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, stationsongrids=False, cbounds=None, colorpercentile='25 95'):
+    def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, \
+                stationsongrids=False, cbounds=None, colorpercentile='25 95', grid_heatmap=False, grid_delay_mean=False, \
+                grid_delay_stdev=False, grid_to_raster=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -506,15 +580,43 @@ class RaiderStats(object):
         self.stationsongrids = stationsongrids
         self.cbounds = cbounds
         self.colorpercentile = colorpercentile
+        self.grid_heatmap = grid_heatmap
+        self.grid_delay_mean = grid_delay_mean
+        self.grid_delay_stdev = grid_delay_stdev
+        self.grid_to_raster = grid_to_raster
+        self.range_heatmap = False
+        self.sill_heatmap = False
 
         # create workdir if it doesn't exist
         if not os.path.exists(self.workdir):
             os.mkdir(self.workdir)
 
+        # get colorbounds
         if self.cbounds:
             self.cbounds = [float(val) for val in self.cbounds.split()]
 
-        self.create_DF()
+        # Pass color percentile and check for input error
+        if self.colorpercentile is None:
+            self.colorpercentile = [25, 95]
+        if self.colorpercentile[0] > self.colorpercentile[1]:
+            raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(
+                self.colorpercentile[0], self.colorpercentile[1]))
+
+        # load dataframe directly if previously generated TIF grid-file
+        if self.fname.endswith('.tif'):
+            if 'grid_heatmap' in self.fname:
+                self.grid_heatmap, self.plotbbox, self.spacing, self.colorbarfmt, self.unit, self.stationsongrids = load_gridfile(self.fname)
+            if 'grid_delay_mean' in self.fname:
+                self.grid_delay_mean, self.plotbbox, self.spacing, self.colorbarfmt, self.unit, self.stationsongrids = load_gridfile(self.fname)
+            if 'grid_delay_stdev' in self.fname:
+                self.grid_delay_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.unit, self.stationsongrids = load_gridfile(self.fname)
+            if 'range_heatmap' in self.fname:
+                self.range_heatmap, self.plotbbox, self.spacing, self.colorbarfmt, self.unit, self.stationsongrids = load_gridfile(self.fname)
+            if 'sill_heatmap' in self.fname:
+                self.sill_heatmap, self.plotbbox, self.spacing, self.colorbarfmt, self.unit, self.stationsongrids = load_gridfile(self.fname)
+        # setup dataframe for statistical analyses (if CSV)
+        if self.fname.endswith('.csv'):
+            self.create_DF()
 
     def _get_extent(self):  # dataset, spacing=1, userbbox=None
         """ Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees """
@@ -695,12 +797,37 @@ class RaiderStats(object):
             self.stationsongrids = [unique_points.index.get_level_values(
                 'Lon').tolist(), unique_points.index.get_level_values('Lat').tolist()]
 
-        # Pass color percentile and check for input error
-        if self.colorpercentile is None:
-            self.colorpercentile = [25, 95]
-        if self.colorpercentile[0] > self.colorpercentile[1]:
-            raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(
-                self.colorpercentile[0], self.colorpercentile[1]))
+        # If specified, setup gridded array(s)
+        if self.grid_heatmap:
+            self.grid_heatmap = np.array([np.nan if i[0] not in self.df['gridnode'].values[:] else float(len(np.unique(
+                self.df['ID'][self.df['gridnode'] == i[0]]))) for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            # If specified, save gridded array(s)
+            if self.grid_to_raster:
+                gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_heatmap' + '.tif')
+                save_gridfile(self.grid_heatmap, 'grid_heatmap', gridfile_name, self.plotbbox, self.spacing, \
+                              self.unit, colorbarfmt='%1i', stationsongrids=self.stationsongrids, gdal_fmt='int16')
+
+        if self.grid_delay_mean:
+            unique_points = self.df.groupby(['gridnode'])[self.col_name].mean()
+            unique_points.dropna(how='any', inplace=True)
+            self.grid_delay_mean = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            # If specified, save gridded array(s)
+            if self.grid_to_raster:
+                gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_mean' + '.tif')
+                save_gridfile(self.grid_delay_mean, 'grid_delay_mean', gridfile_name, self.plotbbox, self.spacing, \
+                              self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+
+        if self.grid_delay_stdev:
+            unique_points = self.df.groupby(['gridnode'])[self.col_name].std()
+            unique_points.dropna(how='any', inplace=True)
+            self.grid_delay_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            # If specified, save gridded array(s)
+            if self.grid_to_raster:
+                gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_stdev' + '.tif')
+                save_gridfile(self.grid_delay_stdev, 'grid_delay_stdev', gridfile_name, self.plotbbox, self.spacing, \
+                              self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
 
     def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.3f', stationsongrids=None, resValue=5, plotFormat='pdf'):
         '''
@@ -879,6 +1006,7 @@ def stats_analyses(
     grid_heatmap,
     grid_delay_mean,
     grid_delay_stdev,
+    grid_to_raster,
     variogramplot,
     binnedvariogram,
     variogram_per_timeslice
@@ -890,11 +1018,6 @@ def stats_analyses(
     if verbose:
         logger.setLevel(logging.DEBUG)
 
-    logger.info("***Stats Function:***")
-    # prep dataframe object for plotting/variogram analysis based off of user specifications
-    df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing,  \
-                           timeinterval, seasonalinterval, stationsongrids, cbounds, colorpercentile)
-
     # If user requests to generate all plots.
     if plotall:
         logger.info('"-plotall" == True. All plots will be made.')
@@ -905,6 +1028,13 @@ def stats_analyses(
         grid_delay_mean = True
         grid_delay_stdev = True
         variogramplot = True
+
+    logger.info("***Stats Function:***")
+    # prep dataframe object for plotting/variogram analysis based off of user specifications
+    df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing, \
+                           timeinterval, seasonalinterval, stationsongrids, cbounds, colorpercentile, \
+                           grid_heatmap, grid_delay_mean, grid_delay_stdev, grid_to_raster)
+
 
     # Station plots
     # Plot each individual station
@@ -932,49 +1062,54 @@ def stats_analyses(
 
     # Gridded station plots
     # Plot density of stations for each gridcell
-    if grid_heatmap:
+    if isinstance(df_stats.grid_heatmap, np.ndarray):
         logger.info("- Plot density of stations per gridcell.")
-        gridarr_heatmap = np.array([np.nan if i[0] not in df_stats.df['gridnode'].values[:] else float(len(np.unique(
-            df_stats.df['ID'][df_stats.df['gridnode'] == i[0]]))) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
+        df_stats(df_stats.grid_heatmap, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
                  colorbarfmt='%1i', stationsongrids=stationsongrids, plotFormat=plot_fmt)
     # Plot mean delay for each gridcell
-    if grid_delay_mean:
+    if isinstance(df_stats.grid_delay_mean, np.ndarray):
         logger.info("- Plot mean delay per gridcell.")
-        unique_points = df_stats.df.groupby(['gridnode'])[col_name].mean()
-        unique_points.dropna(how='any', inplace=True)
-        gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-        ) else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T, 'grid_delay_mean', workdir=os.path.join(workdir, 'figures'),
+        df_stats(df_stats.grid_delay_mean, 'grid_delay_mean', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
     # Plot mean delay for each gridcell
-    if grid_delay_stdev:
+    if isinstance(df_stats.grid_delay_stdev, np.ndarray):
         logger.info("- Plot delay stdev per gridcell.")
-        unique_points = df_stats.df.groupby(['gridnode'])[col_name].std()
-        unique_points.dropna(how='any', inplace=True)
-        gridarr_heatmap = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-        ) else unique_points[i[0]] for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_heatmap.T, 'grid_delay_stdev', workdir=os.path.join(workdir, 'figures'),
+        df_stats(df_stats.grid_delay_stdev, 'grid_delay_stdev', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
 
     # Perform variogram analysis
-    if variogramplot:
+    if variogramplot and not isinstance(df_stats.range_heatmap, np.ndarray) and not isinstance(df_stats.sill_heatmap, np.ndarray):
         logger.info("***Variogram Analysis Function:***")
         make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, col_name, unit, workdir,
                                             df_stats.seasonalinterval, densitythreshold, binnedvariogram,
                                             numCPUs, variogram_per_timeslice)
         TOT_grids, TOT_res_robust_arr = make_variograms.create_variograms()
+        # get range
+        df_stats.range_heatmap = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
+            i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
+        # get sill
+        df_stats.sill_heatmap = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
+            i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
+        # If specified, save gridded array(s)
+        if grid_to_raster:
+            gridfile_name = os.path.join(workdir, col_name + '_' + 'range_heatmap' + '.tif')
+            # write range
+            save_gridfile(df_stats.range_heatmap, 'grid_heatmap', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
+                          df_stats.unit, colorbarfmt='%1i', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+            gridfile_name = os.path.join(workdir, col_name + '_' + 'sill_heatmap' + '.tif')
+            # write sill
+            save_gridfile(df_stats.sill_heatmap, 'grid_heatmap', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
+                          df_stats.unit, colorbarfmt='%1i', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+
+    if isinstance(df_stats.range_heatmap, np.ndarray):
         # plot range heatmap
         logger.info("- Plot variogram range per gridcell.")
-        gridarr_range = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
-            i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_range.T, 'range_heatmap', workdir=os.path.join(workdir, 'figures'),
+        df_stats(df_stats.range_heatmap, 'range_heatmap', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
+    if isinstance(df_stats.sill_heatmap, np.ndarray):
         # plot sill heatmap
         logger.info("- Plot variogram sill per gridcell.")
-        gridarr_sill = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
-            i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim)
-        df_stats(gridarr_sill.T, 'sill_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
+        df_stats(df_stats.sill_heatmap, 'sill_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
                  colorbarfmt='%.3e', stationsongrids=stationsongrids, plotFormat=plot_fmt)
 
 
@@ -1005,6 +1140,7 @@ if __name__ == "__main__":
         inps.grid_heatmap,
         inps.grid_delay_mean,
         inps.grid_delay_stdev,
+        inps.grid_to_raster,
         inps.variogramplot,
         inps.binnedvariogram,
         inps.variogram_per_timeslice
