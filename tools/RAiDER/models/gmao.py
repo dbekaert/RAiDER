@@ -1,14 +1,16 @@
 import datetime as dt
 import numpy as np
+import pandas as pd
+import shutil
+import h5py
 import pydap.cas.urs
 import pydap.client
 import requests
-
 from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2HDF5
+from RAiDER.utilFcns import writeWeatherVars2HDF5, roundTime
 
 
 class GMAO(WeatherModel):
@@ -25,7 +27,6 @@ class GMAO(WeatherModel):
         self._dataset = 'gmao'
 
         # Tuple of min/max years where data is available.
-        # self._valid_range = (dt.datetime(2017, 12, 1), "Present") # BZ
         self._valid_range = (dt.datetime(2014, 2, 20), "Present")
         self._lag_time = dt.timedelta(hours=24.0)  # Availability lag time in hours
 
@@ -61,61 +62,60 @@ class GMAO(WeatherModel):
         lon_min_ind = int((self._bounds[2] - (-180.0)) / self._lon_res)
         lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
 
-        # T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
-        T0 = dt.datetime(2014, 2, 20, 0, 0, 0) # BZ
-        DT = time - T0
+        T0   = dt.datetime(2017, 12, 1, 0, 0, 0)
+        ## round time to nearest third hour
+        time = roundTime(time, 3*60*60)
+        DT   = time - T0
         time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
 
         ml_min = 0
         ml_max = 71
-        if time >= dt.datetime(2017, 12, 1, 0, 0, 0):
+        if time >= T0:
             # open the dataset and pull the data
             url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
             session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
             ds = pydap.client.open_url(url, session=session)
+            q  = ds['qv'].array[
+                time_ind,
+                ml_min:(ml_max + 1),
+                lat_min_ind:(lat_max_ind + 1),
+                lon_min_ind:(lon_max_ind + 1)
+            ][0]
+
+            p = ds['pl'].array[
+                time_ind,
+                ml_min:(ml_max + 1),
+                lat_min_ind:(lat_max_ind + 1),
+                lon_min_ind:(lon_max_ind + 1)
+            ][0]
+            t = ds['t'].array[
+                time_ind,
+                ml_min:(ml_max + 1),
+                lat_min_ind:(lat_max_ind + 1),
+                lon_min_ind:(lon_max_ind + 1)
+            ][0]
+            h = ds['h'].array[
+                time_ind,
+                ml_min:(ml_max + 1),
+                lat_min_ind:(lat_max_ind + 1),
+                lon_min_ind:(lon_max_ind + 1)
+            ][0]
+
         else:
-            import netCDF4
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
-            base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_0000.V01.nc4'
+            base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_{time.hour:02}00.V01.nc4'
             url  = f'{root.format(time.year, time.month, time.day)}/{base}'
             session = requests_retry_session()
             resp    = session.get(url, stream=True)
             assert resp.ok, f'Could not access url for time: {time}'
-            ## this may be teh way to do it
-            # z = zipfile.ZipFile(io.BytesIO(resp.content))
-            # z.extractall(op.dirname(DIRNAME))
-
-            # nc   = netCDF4.Dataset(zipped, 'r')
-            # print (nc)
-
-
-
-        quit()
-
-        q = ds['qv'].array[
-            time_ind,
-            ml_min:(ml_max + 1),
-            lat_min_ind:(lat_max_ind + 1),
-            lon_min_ind:(lon_max_ind + 1)
-        ][0]
-        p = ds['pl'].array[
-            time_ind,
-            ml_min:(ml_max + 1),
-            lat_min_ind:(lat_max_ind + 1),
-            lon_min_ind:(lon_max_ind + 1)
-        ][0]
-        t = ds['t'].array[
-            time_ind,
-            ml_min:(ml_max + 1),
-            lat_min_ind:(lat_max_ind + 1),
-            lon_min_ind:(lon_max_ind + 1)
-        ][0]
-        h = ds['h'].array[
-            time_ind,
-            ml_min:(ml_max + 1),
-            lat_min_ind:(lat_max_ind + 1),
-            lon_min_ind:(lon_max_ind + 1)
-        ][0]
+            out     = out.replace('h5', 'nc')
+            with open(out, 'wb') as fh:
+                shutil.copyfileobj(resp.raw, fh)
+            with h5py.File(out, 'r') as ds:
+                q = ds['QV'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                p = ds['PL'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                t = ds['T'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                h = ds['H'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
 
         lats = np.arange(
             (-90 + lat_min_ind * self._lat_res),

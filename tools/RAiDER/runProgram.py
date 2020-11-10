@@ -183,7 +183,7 @@ def _tropo_delay(args):
 
     args_copy = copy.deepcopy(args)
 
-    if len(args['times']) < 2:
+    if 0 < len(args['times']) < 2:
         args_copy['times']=args['times'][0]
         try:
             (_, _) = tropo_delay(args_copy)
