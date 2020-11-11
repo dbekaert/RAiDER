@@ -105,13 +105,18 @@ class GMAO(WeatherModel):
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
             base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_{time.hour:02}00.V01.nc4'
             url  = f'{root.format(time.year, time.month, time.day)}/{base}'
-            session = requests_retry_session()
-            resp    = session.get(url, stream=True)
-            assert resp.ok, f'Could not access url for time: {time}'
-            out     = out.replace('h5', 'nc')
-            with open(out, 'wb') as fh:
-                shutil.copyfileobj(resp.raw, fh)
-            with h5py.File(out, 'r') as ds:
+            f    = '{}_raw{}'.format(*os.path.splitext(out))
+            if not os.path.exists(f):
+                logger.info('Fetching URL: %s', url)
+                session = requests_retry_session()
+                resp    = session.get(url, stream=True)
+                assert resp.ok, f'Could not access url for time: {time}'
+                with open(f, 'wb') as fh:
+                    shutil.copyfileobj(resp.raw, fh)
+            else:
+                logger.warning('Weather model already exists, skipping download')
+
+            with h5py.File(f, 'r') as ds:
                 q = ds['QV'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
                 p = ds['PL'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
                 t = ds['T'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
@@ -127,7 +132,6 @@ class GMAO(WeatherModel):
             (-180 + (lon_max_ind + 1) * self._lon_res),
             self._lon_res
         )
-
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
