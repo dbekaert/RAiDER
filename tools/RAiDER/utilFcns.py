@@ -3,7 +3,7 @@ import importlib
 import multiprocessing as mp
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import h5py
 import numpy as np
@@ -370,6 +370,18 @@ def read_hgt_file(filename):
     return hgts
 
 
+def roundTime(dt, roundTo=60):
+   '''
+   Round a datetime object to any time lapse in seconds
+   dt: datetime.datetime object
+   roundTo: Closest number of seconds to round to, default 1 minute.
+   Source: https://stackoverflow.com/questions/3463930/how-to-round-the-minute-of-a-datetime-object/10854034#10854034
+   '''
+   seconds  = (dt.replace(tzinfo=None) - dt.min).seconds
+   rounding = (seconds+roundTo/2) // roundTo * roundTo
+   return dt + timedelta(0,rounding-seconds,-dt.microsecond)
+
+
 def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                 wetFilename, hydroFilename=None, zlevels=None, delayType=None,
                 outformat=None, proj=None, gt=None, ndv=0.):
@@ -494,11 +506,11 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
     '''
     Write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to an HDF5 file
     that can be accessed by external programs.
-    
+
     The point of doing this is to alleviate some of the memory load of keeping
     the full model in memory and make it easier to scale up the program.
     '''
-    
+
     if outName is None:
         outName = os.path.join(
             os.getcwd()+'/weather_files',
@@ -506,11 +518,11 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
                 self._time, '_%Y_%m_%d_T%H_%M_%S'
             ) + '.h5'
         )
-    
+
     with h5py.File(outName, 'w') as f:
         lon = f.create_dataset('lons', data=lon.astype(np.float64))
         lat = f.create_dataset('lats', data=lat.astype(np.float64))
-        
+
         X = f.create_dataset('x', data=x)
         Y = f.create_dataset('y', data=y)
         Z = f.create_dataset('z', data=z)
@@ -520,4 +532,3 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
         T = f.create_dataset('t', data=t)
 
         f.create_dataset('Projection', data=proj.to_json())
-
