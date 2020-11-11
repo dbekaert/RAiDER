@@ -1,8 +1,15 @@
+import h5py
+
 import datetime as dt
 import numpy as np
-from pyproj import CRS
-from RAiDER.models.weatherModel import WeatherModel
+import pydap.cas.urs
+import pydap.client
 
+from pyproj import CRS
+
+from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.logger import *
+from RAiDER.utilFcns import writeWeatherVars2HDF5
 
 def Model():
     return MERRA2()
@@ -58,6 +65,59 @@ class MERRA2(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
 
+        # check whether the file already exists
+        if os.path.exists(out):
+           return
+
+        # calculate the array indices for slicing the GMAO variable arrays
+        lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
+        lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)
+        lon_min_ind = int((self._bounds[2] - (-180.0)) / self._lon_res)
+        lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
+
+        lats = np.arange(
+            (-90 + lat_min_ind * self._lat_res),
+            (-90 + (lat_max_ind + 1) * self._lat_res),
+            self._lat_res
+        )
+        lons = np.arange(
+            (-180 + lon_min_ind * self._lon_res),
+            (-180 + (lon_max_ind + 1) * self._lon_res),
+            self._lon_res
+            )
+
+        if time.year < 1992:
+            url_sub = 100
+        elif time.year < 2001:
+            url_sub = 200
+        elif time.year < 2011:
+            url_sub = 300
+        else:
+            url_sub = 400
+
+        T0 = dt.datetime(time.year, time.month, time.day, 0, 0, 0)
+        DT = time - T0
+        time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
+
+        ml_min = 0
+        ml_max = 71
+
+        # open the dataset and pull the data
+        url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
+        session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
+        ds = pydap.client.open_url(url, session=session)
+
+        q = ds['QV'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+
+        try:
+            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
+        except Exception:
+            logger.exception("Unable to save weathermodel to file")
+
+
     def load_weather(self, f):
         '''
         Consistent class method to be implemented across all weather model types.
@@ -67,48 +127,22 @@ class MERRA2(WeatherModel):
         '''
         self._load_model_level(f)
 
-    def _load_model_level(self, f):
+
+    def _load_model_level(self, filename):
         '''
         Get the variables from the GMAO link using OpenDAP
         '''
 
-        import pydap.client
-        import pydap.cas.urs
+        # adding the import here should become absolute when transition to netcdf
+        import h5py
 
-        # calculate the array indices for slicing the GMAO variable arrays
-        lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
-        lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)
-        lon_min_ind = int((self._bounds[2] - (-180.0)) / self._lon_res)
-        lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
-
-        if self._time.year < 1992:
-            url_sub = 100
-        elif self._time.year < 2001:
-            url_sub = 200
-        elif self._time.year < 2011:
-            url_sub = 300
-        else:
-            url_sub = 400
-
-        T0 = dt.datetime(self._time.year, self._time.month, self._time.day, 0, 0, 0)
-        DT = self._time - T0
-        time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
-
-        ml_min = 0
-        ml_max = 71
-
-        # open the dataset and pull the data
-        url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/' + self._time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + self._time.strftime('%Y%m%d') + '.nc4'
-        session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
-        ds = pydap.client.open_url(url, session=session)
-
-        q = ds['QV'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-
-        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
-        lons = np.arange((-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res)
+        with h5py.File(filename, 'r') as f:
+            lons = f['lons'][:].copy()
+            lats = f['lats'][:].copy()
+            h = f['z'][:].copy()
+            p = f['p'][:].copy()
+            q = f['q'][:].copy()
+            t = f['t'][:].copy()
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)

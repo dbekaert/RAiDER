@@ -84,14 +84,15 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         # Get the weather model data
         with h5py.File(weather_model_file_name, 'r') as f:
             zs_wm = f['z'][()].copy()
-            total_wet = f['wet_total'][()].copy()
-            total_hydro = f['hydro_total'][()].copy()
+            total_wet = f['wet_ztd'][()].copy()
+            total_hydro = f['hydro_ztd'][()].copy()
         if zlevels is None:
             return total_wet, total_hydro
         else:
             wet_delays = interp_along_axis(zs_wm, zlevels, total_wet, axis=-1)
             hydro_delays = interp_along_axis(zs_wm, zlevels, total_hydro, axis=-1)
             return wet_delays, hydro_delays
+
     else:
         wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels=zlevels,
                                       zref=zref, nproc=nproc, useDask=useDask,
@@ -101,33 +102,35 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
         return wet, hydro
 
 
-def tropo_delay(
-    los,
-    lats,
-    lons,
-    ll_bounds,
-    heights,
-    flag,
-    weather_model,
-    wmLoc,
-    zref,
-    outformat,
-    time,
-    out,
-    download_only,
-    wetFilename,
-    hydroFilename
-):
+def tropo_delay(args):
     """
     raiderDelay main function.
     """
 
+    # unpacking the dictionairy
+    los = args['los']
+    lats = args['lats']
+    lons = args['lons']
+    ll_bounds = args['ll_bounds']
+    heights = args['heights']
+    flag = args['flag']
+    weather_model = args['weather_model']
+    wmLoc = args['wmLoc']
+    zref = args['zref']
+    outformat = args['outformat']
+    time = args['times']
+    out = args['out']
+    download_only = args['download_only']
+    wetFilename = args['wetFilenames']
+    hydroFilename = args['hydroFilenames']
+    
+    # logging
     logger.debug('Starting to run the weather model calculation')
     logger.debug('Time type: %s', type(time))
     logger.debug('Time: %s', time.strftime('%Y%m%d'))
     logger.debug('Flag type is %s', flag)
     logger.debug('DEM/height type is "%s"', heights[0])
-
+    
     # Flags
     useWeatherNodes = flag == 'bounding_box'
     delayType = ["Zenith" if los is Zenith else "LOS"]
@@ -141,13 +144,16 @@ def tropo_delay(
     # weather model calculation    
     wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)   
     weather_model_file = os.path.join(wmLoc, wm_filename)
-    
+
     if not os.path.exists(weather_model_file):
         weather_model, lats, lons = prepareWeatherModel(
             weather_model, wmLoc, lats=lats, lons=lons, los=los, zref=zref,
             time=time, download_only=download_only, makePlots=True
         )
         
+        if download_only:
+            return None, None
+
         try:
             weather_model.write2HDF5(weather_model_file)
         except Exception:
@@ -160,13 +166,17 @@ def tropo_delay(
             'to create a new one.', weather_model_file
         )
 
+
+
     if download_only:
         return None, None
-   
+
+
 
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
     in_shape = lats.shape
+    
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
     pnts_file = None

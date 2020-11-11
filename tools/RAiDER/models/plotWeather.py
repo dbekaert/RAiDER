@@ -4,6 +4,8 @@ class objects. It is not designed to be used on its own apart
 from this class.
 """
 
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable as mal

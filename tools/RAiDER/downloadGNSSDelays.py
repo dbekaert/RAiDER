@@ -131,13 +131,13 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     for ind, line in enumerate(data.text.splitlines()):  # files are iterable
         if ind == 0:
             continue
-        statID, lat, lon = get_ID(line)
+        statID, lat, lon, height = get_ID(line)
         # Only pass if in bbox
         # And if user list of stations specified, only pass info for stations within list
         if in_box(lat, lon, llhBox) and (not userstatList or statID in userstatList):
             # convert lon into range [-180,180]
             lon = fix_lons(lon)
-            stations.append({'ID': statID, 'Lat': lat, 'Lon': lon})
+            stations.append({'ID': statID, 'Lat': lat, 'Lon': lon, 'Hgt_m': height})
 
     logger.info('%d stations were found', len(stations))
     stations = pd.DataFrame(stations)
@@ -260,10 +260,10 @@ def fix_lons(lon):
 
 def get_ID(line):
     '''
-    Pulls the station ID, lat, and lon for a given entry in the UNR text file
+    Pulls the station ID, lat, lon, and height for a given entry in the UNR text file
     '''
-    stat_id, lat, lon = line.split()[:3]
-    return stat_id, float(lat), float(lon)
+    stat_id, lat, lon, height = line.split()[:4]
+    return stat_id, float(lat), float(lon), float(height)
 
 
 def parse_years(timestr):

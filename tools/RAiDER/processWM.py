@@ -12,7 +12,7 @@ import sys
 
 import numpy as np
 
-from datetime import datetime
+from datetime import datetime, date
 
 from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
@@ -34,6 +34,12 @@ def getWMFilename(weather_model_name, time, outLoc):
             datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')
         )
     )
+    if weather_model_name in ['GMAO', 'MERRA2']:
+        if time.date() < date(2017, 12, 1) and weather_model_name == 'GMAO':
+            ext = 'nc'
+        else:
+            ext = 'h5'
+        f = f[:-2]+ ext
 
     logger.debug('Storing weather model at: %s', f)
 
@@ -70,6 +76,9 @@ def prepareWeatherModel(
     else:
         download_flag = False
         time = getTimeFromFile(weather_files[0])
+
+    if (time < datetime(2013, 6, 26, 0, 0, 0)) and (weather_model._Name is 'HRES'):
+        weather_model.update_a_b()
 
     # if no weather model files supplied, check the standard location
     if download_flag:

@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 
 import numpy as np
+import pandas as pd
 
 import RAiDER.utilFcns
 from RAiDER.constants import Zenith
@@ -63,6 +64,17 @@ def checkArgs(args, p):
     # zref
     zref = args.zref
 
+    # parallel or concurrent runs
+    parallel = args.parallel
+    if not parallel==1:
+        import multiprocessing
+        # asses the number of concurrent jobs to be executed
+        max_threads = multiprocessing.cpu_count()
+        if parallel == 'all':
+            parallel = max_threads
+        parallel = parallel if parallel < max_threads else max_threads
+
+
     # handle the datetimes requested
     datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
 
@@ -102,7 +114,6 @@ def checkArgs(args, p):
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
-            import pandas as pd
             indf = pd.read_csv(args.query_area)
             indf.to_csv(wetFilename, index=False)
         else:
@@ -118,10 +129,36 @@ def checkArgs(args, p):
     elif args.heightlvs is not None:
         heights = ('lvs', args.heightlvs)
     elif flag == 'station_file':
-        heights = ('merge', wetNames)
+        indf = pd.read_csv(args.query_area)
+        try:
+            hgts = indf['Hgt_m'].values
+            heights = ('pandas', wetNames)
+        except:
+            heights = ('merge', wetNames)
     elif useWeatherNodes:
         heights = ('skip', None)
     else:
         heights = ('download', os.path.join(out, 'geom', 'warpedDEM.dem'))
 
-    return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames
+    # put all the arguments in a dictionary
+    outArgs = {}
+    outArgs['los']=los
+    outArgs['lats']=lat
+    outArgs['lons']=lon
+    outArgs['ll_bounds']=bounds
+    outArgs['heights']=heights
+    outArgs['flag']=flag
+    outArgs['weather_model']=weathers
+    outArgs['wmLoc']=wmLoc
+    outArgs['zref']=zref
+    outArgs['outformat']=outformat
+    outArgs['times']=datetimeList
+    outArgs['download_only']=download_only
+    outArgs['out']=out
+    outArgs['verbose']=verbose
+    outArgs['wetFilenames']=wetNames
+    outArgs['hydroFilenames']=hydroNames
+    outArgs['parallel']=parallel
+
+    return outArgs
+    #return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel

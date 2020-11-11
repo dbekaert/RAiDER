@@ -37,29 +37,26 @@ def test_tropo_delay(tmp_path):
     )
 
     with pushd(tmp_path):
-        (_, _) = tropo_delay(
-            los=Zenith,
-            lats=lats,
-            lons=lons,
-            ll_bounds=(15.75, 18.25, -103.24, -99.75),
-            heights=("download", os.path.join(
-                TEST_DIR, "test_geom", "warpedDEM.dem")),
-            flag="files",
-            weather_model={
-                "type": model_obj(),
-                "files": None,
-                "name": "ERA5"
-            },
-            wmLoc=wmLoc,
-            zref=20000.,
-            outformat="envi",
-            time=time,
-            out=tmp_path,
-            download_only=False,
-            wetFilename=wet_file,
-            hydroFilename=hydro_file
-        )
-
+        # packing the dictionairy
+        args={}
+        args['los']=Zenith
+        args['lats']=lats
+        args['lons']=lons
+        args['ll_bounds']=(15.75, 18.25, -103.24, -99.75)
+        args['heights']=("dem", os.path.join(TEST_DIR, "test_geom", "warpedDEM.dem"))
+        args['flag']="files"
+        args['weather_model']={"type": model_obj(),"files": None,"name": "ERA5"}
+        args['wmLoc']=wmLoc
+        args['zref']=20000.
+        args['outformat']="envi"
+        args['times']=time
+        args['out']=tmp_path
+        args['download_only']=False
+        args['wetFilenames']=wet_file
+        args['hydroFilenames']=hydro_file
+        
+        (_, _) = tropo_delay(args)
+      
         # get the results
         wet = gdal_open(wet_file)
         hydro = gdal_open(hydro_file)

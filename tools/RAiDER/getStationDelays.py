@@ -212,10 +212,10 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
     statsFile.to_csv(name, index=False, encoding="utf-8")
     del statsFile
 
-    # Add lat/lon info
+    # Add lat/lon/height info
     origstatsFile = pd.read_csv(inFile)
     statsFile = pd.read_csv(name)
-    statsFile = pd.merge(left=statsFile, right=origstatsFile[['ID', 'Lat', 'Lon']], how='left', left_on='ID', right_on='ID')
+    statsFile = pd.merge(left=statsFile, right=origstatsFile[['ID', 'Lat', 'Lon', 'Hgt_m']], how='left', left_on='ID', right_on='ID')
     # drop all lines with nans and sort by station ID and year
     statsFile.dropna(how='any', inplace=True)
     # drop all duplicate lines

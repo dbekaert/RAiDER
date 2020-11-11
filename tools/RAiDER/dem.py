@@ -11,8 +11,13 @@ import re
 import requests
 import time
 
+import multiprocessing as mp
 import numpy as np
+import pandas as pd
+
 from osgeo import gdal
+from pyproj import Proj
+from shapely.geometry import shape, Polygon
 
 import RAiDER.utilFcns
 
@@ -21,8 +26,8 @@ from RAiDER.logger import *
 from RAiDER.utilFcns import gdal_open, gdal_extents
 
 
-_DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&south={}&north={}&west={}&east={}&outputFormat=GTiff"
-
+_DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&west={}&south={}&east={}&north={}&outputFormat=GTiff"
+_maxDEMSize = 2250000
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
     '''
@@ -60,12 +65,16 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
             raise RuntimeError('Heights must be specified with height option "lvs"')
 
     elif height_type == 'merge':
-        import pandas as pd
         for f in height_data:
             data = pd.read_csv(f)
             lats = data['Lat'].values
             lons = data['Lon'].values
             hts = download_dem(lats, lons, outName=f, save_flag='merge')
+            data['Hgt_m'] = hts
+            data.to_csv(f)
+    elif height_type == 'pandas':
+        data = pd.read_csv(height_data[0])
+        hts = data['Hgt_m'].values
     else:
         if useWeatherNodes:
             hts = None
@@ -89,13 +98,13 @@ def forceNDArray(arg):
 
 
 def download_dem(
-    lats,
-    lons,
-    save_flag='new',
-    checkDEM=True,
-    outName=os.path.join(os.getcwd(), 'warpedDEM'),
-    buf=0.02
-):
+        lats,
+        lons,
+        save_flag='new',
+        checkDEM=True,
+        outName=os.path.join(os.getcwd(), 'warpedDEM'),
+        buf=0.02
+    ):
     '''  Download a DEM if one is not already present. '''
 
     # Get the lat/lon extents of the query points
@@ -136,8 +145,12 @@ def download_dem(
             do_download = True
 
         except OSError:
-            hgts = RAiDER.utilFcns.read_hgt_file(outName)
-            return hgts
+            try:
+                hgts = RAiDER.utilFcns.read_hgt_file(outName)
+                return hgts
+            except KeyError:
+                logger.warning('The station file does not contain height information, I will download it')
+                do_download = True
     else:
         do_download = True
 
@@ -238,12 +251,124 @@ def isInside(extent1, extent2):
     return False
 
 
-def getDEM(extent, out_dir):
+def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
+    ''' 
+    Get a DEM, chunking if needed 
+    
+    Parameters
+    __________
+    extent      - A list containing [lat_min, lat_max, lon_min, lon_max]
+    out_dir     - Directory to write the full-resolution DEM
+    num_threads - Number of threads to use when warping
+
+    Returns
+    _______
+    final_dem_name - The name of the downloaded file
+
+    '''
+    if num_threads is None:
+        num_threads = mp.cpu_count()*3//4
+
+    lat_min, lat_max, lon_min, lon_max = extent
+    query_area = getArea(extent)
+    if query_area > _maxDEMSize:
+        logger.warning(
+            'Query area encompasses {} km^2, supersedes DEM maximum download'
+            'area of 225000km, so I will download the DEM in chunks'.format(query_area)
+        )        
+
+    Nchunks = max(int(np.ceil(query_area/225000)) + 1, 2)
+    chunk_size = (lon_max - lon_min)/Nchunks
+    lon_starts = np.arange(lon_min, lon_max, chunk_size)
+
+    # Download the DEM (in chunks if necessary)
+    final_dem_name = os.path.join(out_dir, 'SRTM_1Sec.dem')
+    chunked_files = []
+    for i, L in enumerate(lon_starts):
+        chunk_extent = [L, lat_min, L + chunk_size, lat_max]
+
+        # Do not create temp file if chunking not necessary
+        if len(lon_starts) > 2:
+            dem_raster = 'tempdem_p{}_SRTM_1Sec.dem'.format(i)
+        else:
+            dem_raster = final_dem_name
+
+        filename = os.path.join(out_dir, dem_raster)
+        chunked_files.append(filename)
+
+        dload_dem(chunk_extent, filename = dem_raster)
+
+    # Tile chunked products together after last iteration (if necessary)
+    if i > 1:
+        gdal.Warp(
+            final_dem_name, 
+            chunked_files
+#            options = gdal.WarpOptions(
+#                 multithread=True, 
+#                 options=['NUM_THREADS={}'.format(num_threads)]
+#             )
+        )
+
+        # remove temp files
+        [os.remove(i) for i in chunked_files]
+
+    return final_dem_name
+
+
+def getArea(extent):
+    ''' 
+    Get the area in square km encompassed by a lat/lon bounding box
+    '''
+    lat_min, lat_max, lon_min, lon_max = extent
+
+    # use equal area projection centered on/bracketing AOI
+    pa = Proj(
+        "+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(
+            lat_min,
+            lat_max,
+            (lat_max+lat_min)/2,
+            (lon_max+lon_min)/2
+        )
+    )
+
+    # Use shapely to get coordinates along box
+    bbox = Polygon(
+        np.column_stack(
+            (
+                np.array(
+                    [
+                        lon_min,
+                        lon_max,
+                        lon_max,
+                        lon_min,
+                        lon_min
+                    ]
+                ),
+                np.array(
+                    [
+                        lat_min,
+                        lat_min,
+                        lat_max,
+                        lat_max,
+                        lat_min
+                    ]
+                )
+            )
+        )
+    )
+
+    lon, lat = bbox.exterior.coords.xy
+    x, y = pa(lon, lat)
+    cop = {"type": "Polygon", "coordinates": [zip(x, y)]}
+    shape_area = shape(cop).area/1e6  # area in km^2
+
+    return shape_area
+
+
+def dload_dem(extent, filename = None):
     r = requests.get(_DEM.format(*extent), allow_redirects=True)
-    dem_raster = get_filename_from_cd(r.headers.get('content-disposition'))
-    filename = os.path.join(out_dir, dem_raster)
     open(filename, 'wb').write(r.content)
-    return filename
+    del r
 
 
 def get_filename_from_cd(cd):

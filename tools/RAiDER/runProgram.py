@@ -8,6 +8,9 @@ from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay, weather_model_debug
 from RAiDER.logger import *
 from RAiDER.models.allowed import ALLOWED_MODELS
+import multiprocessing
+import numpy as np
+import copy
 
 
 def create_parser():
@@ -117,6 +120,11 @@ def create_parser():
         type=float,
         default=_ZREF)
     misc.add_argument(
+        '--parallel', '-p',
+        help='Number of parallel delays computations or weather model downloads (with download_only enabled) that are ran concurrently  (default:  1)',
+        type=int,
+        default=1)
+    misc.add_argument(
         '--outformat',
         help='GDAL-compatible file format if surface delays are requested.',
         default=None)
@@ -132,7 +140,6 @@ def create_parser():
 
     return p
 
-
 def parseCMD():
     """
     Parse command-line arguments and pass to tropo_delay
@@ -143,23 +150,55 @@ def parseCMD():
     args = p.parse_args()
 
     # Argument checking
-    los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
-        times, out, download_only, verbose, \
-        wetNames, hydroNames = checkArgs(args, p)
+    args = checkArgs(args, p)
 
-    if verbose:
-        logger.setLevel(logging.DEBUG)
+    if args['verbose']: logger.setLevel(logging.DEBUG)
 
-    # Loop over each datetime and compute the delay
-    for t, wfn, hfn in zip(times, wetNames, hydroNames):
+    # if pararallel processing is requested then call multi-processing approach
+    if not args['parallel']==1:
+
+        # split the args evenly across the number of concurrent jobs
+        allTimesFiles = zip(args['times'], args['wetFilenames'],args['hydroFilenames'])
+        allTimesFiles_chunk = np.array_split(list(allTimesFiles), args['parallel'])
+        lst_new_args  = []
+
+        for chunk in allTimesFiles_chunk:
+            if chunk.size == 0: continue
+            times, wetFilenames, hydroFilenames = chunk.transpose()
+            args_copy = copy.deepcopy(args)
+            args_copy['times']=times.tolist()
+            args_copy['wetFilenames']=wetFilenames.tolist()
+            args_copy['hydroFilenames']=hydroFilenames.tolist()
+            lst_new_args.append(args_copy)
+
+        with multiprocessing.Pool(len(lst_new_args)) as pool:
+            pool.map(_tropo_delay, lst_new_args)
+
+    else:
+        _tropo_delay(args)
+
+    return
+
+def _tropo_delay(args):
+
+    args_copy = copy.deepcopy(args)
+
+    if 0 < len(args['times']) < 2:
+        args_copy['times']=args['times'][0]
         try:
-            (_, _) = tropo_delay(los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref,
-                                 outformat, t, out, download_only, wfn, hfn)
-
+            (_, _) = tropo_delay(args_copy)
         except RuntimeError:
-            logger.exception("Date %s failed", t)
-            continue
-
+            logger.exception("Date %s failed", args_copy['times'])
+    else:
+        for tim, wetFilename, hydroFilename in zip(args['times'], args['wetFilenames'], args['hydroFilenames']):
+            try:
+                args_copy['times']=tim
+                args_copy['wetFilenames']=wetFilename
+                args_copy['hydroFilenames']=hydroFilename
+                (_, _) = tropo_delay(args_copy)
+            except RuntimeError:
+                logger.exception("Date %s failed", tim)
+                continue
 
 def parseCMD_weather_model_debug():
     """
@@ -173,16 +212,16 @@ def parseCMD_weather_model_debug():
     # Argument checking
     los, lats, lons, ll_bounds, heights, flag, weather_model, wmLoc, zref, outformat, \
         times, out, download_only, verbose, \
-        wetNames, hydroNames = checkArgs(args, p)
+        wetFilenames, hydroFilenames = checkArgs(args, p)
 
     if verbose:
         logger.setLevel(logging.DEBUG)
 
     # Loop over each datetime
-    for t in times:
+    for tim in times:
         try:
-            weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref, t, out, download_only)
+            weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref, tim, out, download_only)
 
         except RuntimeError:
-            logger.exception("Date %s failed", t)
+            logger.exception("Date %s failed", tim)
             continue

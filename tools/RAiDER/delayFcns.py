@@ -71,9 +71,10 @@ def get_lengths(pnts_file):
 
 def lla2ecef(pnts_file):
     '''
-    reproject a set of lat/lon/hgts to a new coordinate system
+    reproject a set of lat/lon/hgts to earth-centered, earth-fixed coordinate system
     '''
     t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
+    
     with h5py.File(pnts_file, 'r+') as f:
         ndv = f.attrs['NoDataValue']
         lon = f['lon'][()]
@@ -124,7 +125,10 @@ def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
     else:
         with mp.Pool() as pool:
             individual_results = pool.starmap(process_chunk, chunk_inputs)
-        delays = np.concatenate(individual_results)
+        try:
+            delays = np.concatenate(individual_results)
+        except ValueError:
+            delays = np.concatenate(individual_results, axis=-1)
 
     wet_delay = delays[0, ...].reshape(in_shape)
     hydro_delay = delays[1, ...].reshape(in_shape)
