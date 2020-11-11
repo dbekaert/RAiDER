@@ -45,7 +45,7 @@ def getDateTime(filename):
     return datetime.datetime.strptime(dt, '%Y%m%dT%H%M%S')
 
 
-def concatDelayFiles(fileList, sort_list = ['Datetime', 'ID'], return_df = False, outName = None):
+def concatDelayFiles(fileList, sort_list=['Datetime', 'ID'], return_df=False, outName=None):
     ''' 
     Read a list of .csv files containing the same columns and append them 
     together, sorting by specified columns 
@@ -189,4 +189,3 @@ def parseCMD():
     else:
         combineDelayFiles(args.raider_file, loc = args.raider_folder)
         mergeDelayFiles(args.raider_file, args.gnss_file, col_name = args.column_name, raider_delay = args.raider_column_name, outName = args.out_name)
-
