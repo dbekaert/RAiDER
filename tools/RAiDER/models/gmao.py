@@ -64,7 +64,11 @@ class GMAO(WeatherModel):
 
         T0   = dt.datetime(2017, 12, 1, 0, 0, 0)
         ## round time to nearest third hour
-        time = roundTime(time, 3*60*60)
+        time1 = time
+        time  = roundTime(time, 3*60*60)
+        if not time1 == time:
+            logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
+            
         DT   = time - T0
         time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
 
