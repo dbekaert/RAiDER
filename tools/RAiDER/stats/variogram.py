@@ -32,6 +32,7 @@ class Variogram():
             dist_func = 'euclidean',
             bin_func = 'even',
             model = 'spherical',
+            fit_method = 'trf',
             deramp = False,
             use_nugget = False, 
             maxlag = None,
@@ -41,12 +42,14 @@ class Variogram():
         self._X = np.array(coordinates)
 
         # Distance function can be a string or a function
+        self._diff = None
         self._dist = None
         self.set_dist_function(dist_func)
 
         self._values = values
         
         # Model can be a function or a string
+        self.fit_method =fit_method
         self._model = None
         self.set_model(model)
 
@@ -57,15 +60,14 @@ class Variogram():
         self.cov = None
         self.cof = None
 
-        # Experimental variogram parameters
-        self._bin_func = None
-        self._groups = None
-        self._bins = None
-        self.set_bin_func(bin_func=bin_func)
-
-        self._lags = None
-        self._n_lags = None
-        self._maxlag = maxlag
+#        # Experimental variogram parameters
+#        self._bin_func = None
+#        self._groups = None
+#        self._bins = None
+#        self.set_bin_func(bin_func=bin_func)
+#        self._lags = None
+        self._maxlag = None
+        self.maxlag = maxlag
 
         if coordinates is None and values is None:
             pass
@@ -167,8 +169,7 @@ class Variogram():
         self.cov = None
         self.cof = None
 
-    @property
-    def n_lags(self):
+    def empirical(self, x):
         """Number of lag bins
 
         Pass the number of lag bins to be used on
@@ -176,7 +177,8 @@ class Variogram():
         the grouping index and fitting parameters
 
         """
-        return self._n_lags
+        raise NotImplementedError
+
 
     @property
     def model(self):
@@ -300,7 +302,7 @@ class Variogram():
 
         # set new maxlag
         if value is None:
-            self._maxlag = None
+            self._maxlag = 0.67 * np.max(self.distance)
         elif isinstance(value, str):
             if value == 'median':
                 self._maxlag = np.median(self.distance)
@@ -336,6 +338,7 @@ class Variogram():
         self.deramp()
         self._calc_distances(force=force)
         self._calc_diff(force=force)
+
 
     def fit(self, force=False, method=None, **kwargs):
         """Fit the variogram
@@ -390,7 +393,7 @@ class Variogram():
 
         # load the data
         x = self.distance
-        y = self.semivar
+        y = self.expvar
 
         # overwrite fit setting if new params are given
         if method is not None:
@@ -408,7 +411,6 @@ class Variogram():
                 self._model,
                 _x, _y,
                 method='trf',
-                sigma=self.fit_sigma,
                 p0=bounds[1],
                 bounds=bounds,
                 **kwargs
@@ -420,7 +422,6 @@ class Variogram():
                 self.model,
                 _x, _y,
                 method='lm',
-                sigma=self.fit_sigma,
                 **kwargs
             )
 
@@ -454,10 +455,9 @@ class Variogram():
         # return the result
         return self.fitted_model(x)
 
-    @property
     def deramp(self):
         if self._deramp:
-            self._values = deramp(self._X[:,0], self._X[:,1], self._values)
+            self._values = deramp_bilinear(self._X[:,0], self._X[:,1], self._values)
 
     @property
     def fitted_model(self):
@@ -505,16 +505,26 @@ class Variogram():
         # else calculate the distances
         self._dist = self._dist_func_wrapper(_x)
 
-    @property
-    def raw_vario(self):
-        return self._raw_vario
+    def _calc_diff(self, force=False):
+        if self._diff is not None and not force:
+            return
+
+        v = self.values
+        l = len(v)
+
+        self._diff = np.zeros(int((l**2-l) / 2))
+
+        k = 0
+        for i in range(l):
+            for j in range(i+1,l):
+                self._diff[k] = 0.5 * np.square(v[i] - v[j])
+                k += 1
 
     @property
-    def _raw_vario(self):
+    def expvar(self):
         if self._diff is None:
-            raw_vario(self, force=False)
+            self._calc_diff()
         return self._diff
-
 
     def clone(self):
         """Deep copy of self
@@ -591,7 +601,7 @@ class Variogram():
 
     @property
     def parameters(self):
-        return self._cof
+        return self.cof
 
 
     def plot(self, axes=None, grid=True, show=True, hist=True):
@@ -629,7 +639,7 @@ class Variogram():
 
         """
         # get the parameters
-        _bins = self.bins
+        _bins = self.bin()
         _exp = self.experimental
         x = np.linspace(0, np.nanmax(_bins), 100)  # make the 100 a param?
                 # do the plotting
@@ -1076,7 +1086,7 @@ def sample(data, Nsamp):
 
     return d, indpars
 
-def deramp(x, y, data):
+def deramp_bilinear(x, y, data):
     ''' Deramp data '''
     A = np.array([x, y, np.ones(len(x))]).T
     ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
