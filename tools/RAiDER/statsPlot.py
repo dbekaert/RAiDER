@@ -9,6 +9,7 @@
 from RAiDER.logger import *
 from RAiDER.logger import logger
 from RAiDER.cli.parser import add_cpus
+from RAiDER.utilFcns import WGS84_to_UTM
 from shapely.strtree import STRtree
 from shapely.geometry import Point, Polygon
 from pandas.plotting import register_matplotlib_converters
@@ -276,6 +277,7 @@ class VariogramAnalysis():
             y = y[mask]
 
         # deramp
+        temp1, temp2, x, y = WGS84_to_UTM(x,y)
         A = np.array([x, y, np.ones(len(x))]).T
         ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
         data = data - (np.matmul(A, ramp))
@@ -537,7 +539,7 @@ class VariogramAnalysis():
                         linestyle='--', label='h\u0332(°)')
         if d_test is not None and v_test is not None:
             plt.plot(d_test, v_test, 'r-', label='experimental fit')
-        plt.xlabel('Distance (°)')
+        plt.xlabel('Distance (m)')
         plt.ylabel('Dissimilarity ({}\u00b2)'.format(self.unit))
         plt.legend(bbox_to_anchor=(1.02, 1),
                    loc='upper left', borderaxespad=0., framealpha=1.)
