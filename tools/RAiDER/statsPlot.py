@@ -787,6 +787,7 @@ class RaiderStats(object):
 
         # map gridnode dictionary to dataframe
         self.df['gridnode'] = self.df['ID'].map(idtogrid_dict)
+        self.df = self.df[self.df['gridnode'] != 'NaN']
         del self.unique_points, self.polygon_dict, self.polygon_tree, idtogrid_dict, append_poly
         # sort by grid and date
         self.df.sort_values(['gridnode', 'Date'])
