@@ -22,6 +22,7 @@ if __name__ == "__main__":
         inps.spacing,
         inps.timeinterval,
         inps.seasonalinterval,
+        inps.figdpi,
         inps.plot_fmt,
         inps.cbounds,
         inps.colorpercentile,
