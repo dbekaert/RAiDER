@@ -79,7 +79,7 @@ def create_parser():
         description=dedent("""\
             Combine delay files from a weather model and GPS Zenith delays
             Usage examples:
-            raiderCombine.py --gnss UNRCombined_gnss.csv --raiderLoc ERA5/ -o Combined_delays.csv 
+            raiderCombine.py --gnss UNRCombined_gnss.csv --raiderLoc ERA5/ --raider ERA5_combined_delays.csv -o Combined_delays.csv --column ERA5
             """)
     )
 
@@ -112,8 +112,8 @@ def create_parser():
     )
 
     p.add_argument(
-        '--name',
-        '-n' 
+        '--column',
+        '-c' 
         dest='column_name',
         help=dedent("""\
             Name of the column containing RAiDER delays.
