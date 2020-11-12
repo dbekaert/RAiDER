@@ -5,6 +5,8 @@ import os
 
 import pandas as pd
 
+from textwrap import dedent
+
 
 def combineDelayFiles(outName, loc = os.getcwd(), ext='.csv'):
     files = glob.glob(loc + '*' + ext)
@@ -113,7 +115,7 @@ def create_parser():
 
     p.add_argument(
         '--column',
-        '-c' 
+        '-c',
         dest='column_name',
         help=dedent("""\
             Name of the column containing RAiDER delays.
@@ -123,7 +125,7 @@ def create_parser():
 
     p.add_argument(
         '--out',
-        '-o' 
+        '-o', 
         dest='out_name',
         help=dedent("""\
             Name to use for the combined delay file
