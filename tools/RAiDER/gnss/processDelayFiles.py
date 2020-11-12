@@ -2,6 +2,7 @@ import argparse
 import datetime
 import glob
 import os
+from tqdm import tqdm
 
 import pandas as pd
 
@@ -10,17 +11,25 @@ from textwrap import dedent
 
 def combineDelayFiles(outName, loc = os.getcwd(), ext='.csv'):
     files = glob.glob(loc + '*' + ext)
+
+    print('Ensuring that "Datetime" column exists in files')
+
     addDateTimeToFiles(files)
+
+    print('Combining weather model delay files')
     concatDelayFiles(files, colList = ['Datetime', 'ID'], outName = outName)
 
 
 def addDateTimeToFiles(fileList, force=False):
     ''' Run through a list of files and add the datetime of each file as a column '''
-    for f in fileList:
+
+    print('Adding Datetime to delay files')
+
+    for f in tqdm(fileList):
         data = pd.read_csv(f)
 
         if 'Datetime' in data.columns and not force:
-            print('Files already have been processed, pass "force = True" if you want to continue')
+            print('Files already have a "Datetime" column, pass "force = True" if you want to override and re-process')
             return
         dt = getDateTime(f)
         data['Datetime'] = dt
@@ -41,10 +50,15 @@ def concatDelayFiles(fileList, colList = ['Datetime', 'ID'], return_df = False, 
     together, sorting by specified columns 
     '''
     dfList = []
-    for f in fileList:
+    
+    print('Concatenating delay files')
+
+    for f in tqdm(fileList):
         dfList.append(pd.read_csv(f))
+    
     df_c = pd.concat(dfList)
     df_c.sort_values(by=colList, inplace = True)
+
     if return_df or outName is None:
         return df_c
     else:
@@ -55,9 +69,18 @@ def mergeDelayFiles(raiderFile, ztdFile, outName = None):
     '''
     Merge a combined RAiDER delays file with a GPS ZTD delay file
     '''
-    dfr = pd.read_csv(raiderFile)
+    
+    print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
+
+    dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
     dfz = readZTDFile(ztdFile)
+
+    print('Beginning merge')
+
     dfc = dfr.merge(dfz[['ID', 'Datetime', 'ZTD']], how='inner', left_on=['Datetime', 'ID'], right_on=['Datetime', 'ID'], sort=True)
+
+    print('Merge finished')
+
     if outName is None:
         return dfc
     else:
