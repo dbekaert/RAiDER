@@ -1,4 +1,4 @@
-#!/data2/ssangha/conda_installation/stable_jan10_2020/ariatools_conda/envs/RAiDER/bin/python3
+#!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Simran Sangha, Jeremy Maurer, & David Bekaert
