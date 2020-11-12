@@ -390,6 +390,7 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
     '''
 
     # Need to consistently handle noDataValues
+    import pdb; pdb.set_trace()
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
 

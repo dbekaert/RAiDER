@@ -60,7 +60,7 @@ def interpolateDelay(weather_model_file_name, pnts_file_name,
 
 
 def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
-                 zlevels=None, zref=_ZREF, out=None, parallel=False,
+                 zref=_ZREF, out=None, parallel=False,
                  delayType="Zenith"):
     """Calculate troposphere delay from command-line arguments.
 
@@ -94,7 +94,7 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
             return wet_delays, hydro_delays
 
     else:
-        wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels=zlevels,
+        wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, 
                                       zref=zref, nproc=nproc, useDask=useDask,
                                       delayType=delayType)
         logger.debug('Finished delay calculation')

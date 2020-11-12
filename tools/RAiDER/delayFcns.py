@@ -30,6 +30,7 @@ def calculate_rays(pnts_file, stepSize=_STEP):
     logger.debug('The integration stepsize is %f m', stepSize)
 
     # get the lengths of each ray for doing the interpolation
+    import pdb; pdb.set_trace()
     getUnitLVs(pnts_file)
 
     # This projects the ground pixels into earth-centered, earth-fixed coordinate
