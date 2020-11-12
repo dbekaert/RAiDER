@@ -302,7 +302,7 @@ class VariogramAnalysis():
         x, y = self._get_XY(x, y, indpars)
         dists = self._get_distances(
             np.array([[x[:, 0], y[:, 0]], [x[:, 1], y[:, 1]]]).T)
-        # TODO temp fix first multiply by 110,000 m as crude conversion from degrees to km
+        # TODO temp fix first multiply by 110,000 m as crude conversion from degrees to m
         dists = dists*110000
         vario = self._get_variogram(samples[:, 0], samples[:, 1])
 
@@ -550,25 +550,25 @@ class VariogramAnalysis():
                 timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
 
         if dists is not None and vario is not None:
-            # scale from m to km
-            dists = [convert_SI(i, 'm', 'km') for i in dists]
+            # scale from m to user-defined units
+            dists = [convert_SI(i, 'm', self.unit) for i in dists]
             plt.scatter(dists, vario, s=1, facecolor='0.5', label='raw')
         if dists_binned is not None and vario_binned is not None:
-            # scale from m to km
-            dists_binned = [convert_SI(i, 'm', 'km') for i in dists_binned]
+            # scale from m to user-defined units
+            dists_binned = [convert_SI(i, 'm', self.unit) for i in dists_binned]
             plt.plot(dists_binned, vario_binned, 'bo', label='binned')
         if res_robust is not None:
             plt.axhline(y=res_robust[1], color='g',
                         linestyle='--', label='ɣ\u0332\u00b2({}\u00b2)'.format(self.unit))
-            # scale from m to km
-            res_robust[0] = convert_SI(res_robust[0], 'm', 'km')
+            # scale from m to user-defined units
+            res_robust[0] = convert_SI(res_robust[0], 'm', self.unit)
             plt.axvline(x=res_robust[0], color='c',
-                        linestyle='--', label='h (m)')
+                        linestyle='--', label='h ({})'.format(self.unit))
         if d_test is not None and v_test is not None:
-            # scale from m to km
-            d_test = [convert_SI(i, 'm', 'km') for i in d_test]
+            # scale from m to user-defined units
+            d_test = [convert_SI(i, 'm', self.unit) for i in d_test]
             plt.plot(d_test, v_test, 'r-', label='experimental fit')
-        plt.xlabel('Distance (km)')
+        plt.xlabel('Distance ({})'.format(self.unit))
         plt.ylabel('Dissimilarity ({}\u00b2)'.format(self.unit))
         plt.legend(bbox_to_anchor=(1.02, 1),
                    loc='upper left', borderaxespad=0., framealpha=1.)
@@ -1110,8 +1110,7 @@ def stats_analyses(
         df_stats.grid_range = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
         # convert range to specified output unit
-        # first multiply by 110,000 m as crude conversion from degrees to km
-        df_stats.grid_range = convert_SI(df_stats.grid_range, 'km', unit)
+        df_stats.grid_range = convert_SI(df_stats.grid_range, 'm', unit)
         # get sill
         df_stats.grid_variance = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
