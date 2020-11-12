@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import glob
 import os
@@ -71,3 +72,80 @@ def readZTDFile(filename):
     return data
 
     
+def create_parser():
+    """Parse command line arguments using argparse."""
+    p = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=dedent("""\
+            Combine delay files from a weather model and GPS Zenith delays
+            Usage examples:
+            raiderCombine.py --gnss UNRCombined_gnss.csv --raiderLoc ERA5/ -o Combined_delays.csv 
+            """)
+    )
+
+    p.add_argument(
+        '--gnss', dest='gnss_file',
+        help=dedent("""\
+            .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
+            """),
+        required=True
+    )
+
+    p.add_argument(
+        '--raider', dest='raider_file',
+        help=dedent("""\
+            .csv file containing RAiDER-derived Zenith Delays. 
+            Should contain columns "ID" and "Datetime" in addition to the delay column
+            If the file does not exist, I will attempt to create it from a directory of 
+            delay files. 
+            """),
+        required=True
+    )
+    p.add_argument(
+        '--raiderDir', '-d', dest='raider_folder',
+        help=dedent("""\
+            Directory containing RAiDER-derived Zenith Delay files.  
+            Files should be named with a Datetime in the name and contain the 
+            column "ID" as the delay column names.
+            """),
+        default = os.getcwd()
+    )
+
+    p.add_argument(
+        '--name',
+        '-n' 
+        dest='column_name',
+        help=dedent("""\
+            Name of the column containing RAiDER delays.
+            """),
+        default='raider'
+    )
+
+    p.add_argument(
+        '--out',
+        '-o' 
+        dest='out_name',
+        help=dedent("""\
+            Name to use for the combined delay file
+            """),
+        default='Combined_delays.csv'
+    )
+
+    return p
+
+
+def parseCMD():
+    """
+    Parse command-line arguments and pass to tropo_delay
+    We'll parse arguments and call delay.py.
+    """
+
+    p = create_parser()
+    args = p.parse_args()
+
+    if os.path.exists(args.raider_file):
+        mergeDelayFiles(args.raider_file, args.gnss_file, outName = args.out_name)
+    else:
+        combineDelayFiles(args.raider_file, loc = args.raider_folder)
+        mergeDelayFiles(args.raider_file, args.gnss_file, outName = args.out_name)
+

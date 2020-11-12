@@ -103,6 +103,8 @@ setup(
         compiler_directives={'language_level': 3}
     ) + pybind_extensions,
     scripts=[
+        'tools/bin/prepAria.py',
+        'tools/bin/raiderCombine.py',
         'tools/bin/raiderDelay.py',
         'tools/bin/raiderStats.py',
         'tools/bin/raiderDownloadGNSS.py',
