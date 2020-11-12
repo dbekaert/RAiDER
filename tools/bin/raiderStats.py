@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/data2/ssangha/conda_installation/stable_jan10_2020/ariatools_conda/envs/RAiDER/bin/python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Simran Sangha, Jeremy Maurer, & David Bekaert
@@ -22,6 +22,7 @@ if __name__ == "__main__":
         inps.spacing,
         inps.timeinterval,
         inps.seasonalinterval,
+        inps.figdpi,
         inps.plot_fmt,
         inps.cbounds,
         inps.colorpercentile,
