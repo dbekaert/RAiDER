@@ -400,12 +400,19 @@ def readRaster(filename, band_num=None):
     geoProj = ds.GetProjection()
     trans = ds.GetGeoTransform()
     Nbands = ds.RasterCount
+
+    # Read a band if I can
     if band_num is None:
         band_num = 1
         print('Using band one for dataType')
+    try:
+        dType = ds.GetRasterBand(band_num).DataType
+        noDataVal = ds.GetRasterBand(band_num).GetNoDataValue()
+        print('Could not access band {}, skipping noDataValue and dType'.format(band_num))
+    except AttributeError:
+        dType = None
+        noDataVal = None
 
-    dType = ds.GetRasterBand(band_num).DataType
-    noDataVal = ds.GetRasterBand(band_num).GetNoDataValue()
     ds = None
 
     return xSize, ySize, dType, geoProj, trans, noDataVal, Nbands
