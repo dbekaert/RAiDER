@@ -38,6 +38,7 @@ class WeatherModel(ABC):
         self._a = []
         self._b = []
 
+        self._fmt = 'nc'
         self.files = None
 
         self._lon_res = None
@@ -112,11 +113,12 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, out, lats, lons, time):
+    def fetch(self, outLoc, lats, lons, time):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
         '''
+        out = self._make_file_name(outLoc = outLoc)
         self.checkTime(time)
         lats, lons = self.checkLL(lats, lons)
         self._time = time
@@ -155,14 +157,14 @@ class WeatherModel(ABC):
     
         return lats, lons
 
-    def load(self, *args, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
+    def load(self, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
         '''
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
         if zref is not None:
             self._zmax = zref
-        self.load_weather(*args, **kwargs)
+        self.load_weather(*self._files, **kwargs)
         self._find_e()
         self._checkNotMaskedArrays()
         self._uniform_in_z(_zlevels=_zlevels)
@@ -651,3 +653,23 @@ class WeatherModel(ABC):
             hydro_ztd.dims[2].attach_scale(z)
 
             f.create_dataset('Projection', data=self._proj.to_json())
+
+
+
+    def make_file_name(self, outLoc = 'weather_files'):
+        '''
+        Check whether the output weather model exists, and
+        if not, download it.
+        '''
+        os.makedirs(outLoc, exists_ok = True)
+    
+        f = os.path.join(
+            outLoc,
+            '{}_{}.{}'.format(
+                self._Name, 
+                self._time.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
+                self._fmt
+            )
+        )
+        self.files = [f]
+        return f

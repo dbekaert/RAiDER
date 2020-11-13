@@ -16,6 +16,8 @@ class HRES(WeatherModel):
         # initialize a weather model
         WeatherModel.__init__(self)
 
+        self._T0_switch = datetime.datetime(2013, 6, 26, 0, 0, 0)
+
         # model constants
         self._k1 = 0.776   # [K/Pa]
         self._k2 = 0.233   # [K/Pa]
@@ -248,7 +250,7 @@ class HRES(WeatherModel):
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
 
-        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
+        if time < self._T0_switch:
             levels = 91
             self.update_a_b
         else:
