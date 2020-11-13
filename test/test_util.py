@@ -279,3 +279,5 @@ def test_make_weather_model_filename():
             datetime.datetime(2020,1,1),
             (-13, 13, -10.000001, 15.544)
         ) == 'ERA5_2020-01-01T00_00_00_13S_13N_10W_16E.h5'
+    )
+
