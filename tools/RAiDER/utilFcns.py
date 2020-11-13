@@ -395,7 +395,11 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
 
     # Do different things, depending on the type of input
     if flag == 'station_file':
-        df = pd.read_csv(wetFilename)
+        try:
+            df = pd.read_csv(wetFilename)
+        except ValueError:
+            wetFilename = wetFilename[0]
+            df = pd.read_csv(wetFilename)
 
         # quick check for consistency
         assert(np.all(np.abs(lats - df['Lat']) < 0.01))

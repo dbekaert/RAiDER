@@ -87,8 +87,12 @@ def lla2ecef(pnts_file):
         f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
 
 
-def get_delays(stepSize, pnts_file, wm_file, interpType='3D',
-               delayType="Zenith", cpu_num=0):
+def get_delays(
+        stepSize, 
+        pnts_file, 
+        wm_file, 
+        cpu_num=0
+    ):
     '''
     Create the integration points for each ray path.
     '''

@@ -23,61 +23,21 @@ from RAiDER.utilFcns import (
 )
 
 
-def interpolateDelay(weather_model_file_name, pnts_file_name,
-                     zlevels=None, zref=_ZREF, stepSize=_STEP,
-                     interpType='rgi', nproc=8,
-                     useDask=False, delayType="Zenith"):
+def computeDelay(
+        weather_model_file_name, 
+        pnts_file_name, 
+        useWeatherNodes=False,
+        zref=_ZREF, 
+        step=_STEP,
+        out=None, 
+    ):
     """
-    This function calculates the line-of-sight vectors, estimates the point-wise refractivity
-    index for each one, and then integrates to get the total delay in meters. The point-wise
-    delay is calculated by interpolating the weatherObj, which contains a weather model with
-    wet and hydrostatic refractivity at each weather model grid node, to the points along
-    the ray. The refractivity is integrated along the ray to get the final delay.
-
-    Inputs:
-     weatherObj - a weather model object
-     heights    - Grid of heights for each ground point
-     look_vecs  - Grid of look vectors streching from ground point to sensor (cut off at zref)
-     stepSize   - Integration step size in meters
-     intpType   - Can be one of 'scipy': LinearNDInterpolator, or 'sane': _sane_interpolate.
-                  Any other string will use the RegularGridInterpolate method
-     nproc      - Number of parallel processes to use if useDask is True
-     useDask    - use Dask to parallelize ray calculation
-
-    Outputs:
-     delays     - A list containing the wet and hydrostatic delays for each ground point in
-                  meters.
-    """
-    logger.debug('Beginning ray calculation')
-    logger.debug('ZREF = %s', zref)
-    logger.debug('stepSize = %f', stepSize)
-
-    RAiDER.delayFcns.calculate_rays(pnts_file_name, stepSize)
-    return RAiDER.delayFcns.get_delays(
-        stepSize, pnts_file_name, weather_model_file_name,
-        interpType=interpType, delayType=delayType
-    )
-
-
-def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
-                 zlevels=None, zref=_ZREF, out=None, parallel=False,
-                 delayType="Zenith"):
-    """Calculate troposphere delay from command-line arguments.
-
-    We do a little bit of preprocessing, then call
-    interpolateDelay.
+    Calculate troposphere delay using a weather model file and query 
+    points file. 
     """
     logger.debug('Beginning delay calculation')
-
-    if parallel:
-        useDask = True
-        nproc = 16
-    else:
-        useDask = False
-        nproc = 1
-
-    logger.debug('Reference z-value (max z for integration) is %s m', zref)
-    logger.debug('Number of processors to use: %d', nproc)
+    logger.debug('Reference z-value (max z for integration) is {} m'.format(zref))
+    logger.debug('Reference integration step is {} m'.format(step))
 
     # If weather model nodes only are desired, the calculation is very quick
     if useWeatherNodes:
@@ -94,9 +54,17 @@ def computeDelay(weather_model_file_name, pnts_file_name, useWeatherNodes=False,
             return wet_delays, hydro_delays
 
     else:
-        wet, hydro = interpolateDelay(weather_model_file_name, pnts_file_name, zlevels=zlevels,
-                                      zref=zref, nproc=nproc, useDask=useDask,
-                                      delayType=delayType)
+        RAiDER.delayFcns.calculate_rays(
+            pnts_file_name, 
+            step
+        )
+
+        wet, hydro = RAiDER.delayFcns.get_delays(
+            step,
+            pnts_file_name, 
+            weather_model_file_name,
+        )
+
         logger.debug('Finished delay calculation')
 
         return wet, hydro
@@ -201,8 +169,11 @@ def tropo_delay(args):
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
     wetDelay, hydroDelay = computeDelay(
-        weather_model_file, pnts_file, useWeatherNodes, zref, out,
-        delayType=delayType
+        weather_model_file, 
+        pnts_file, 
+        useWeatherNodes, 
+        zref, 
+        out = out,
     )
 
     if heights[0] == 'lvs':

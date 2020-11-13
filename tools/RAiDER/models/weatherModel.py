@@ -354,6 +354,9 @@ class WeatherModel(ABC):
                (self._lons[:, :, 0] > extent[2]) & (self._lons[:, :, 0] < extent[3])
         ma1 = np.sum(mask, axis=1).astype('bool')
         ma2 = np.sum(mask, axis=0).astype('bool')
+        if np.sum(ma1)==0 and np.sum(ma2)==0:
+            # Don't need to remove any points
+            return
 
         # indices of the part of the grid to keep
         ny, nx, nz = self._p.shape
