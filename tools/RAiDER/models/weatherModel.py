@@ -118,10 +118,10 @@ class WeatherModel(ABC):
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
         '''
-        out = self._make_file_name(outLoc = outLoc)
         self.checkTime(time)
         lats, lons = self.checkLL(lats, lons)
         self._time = time
+        out = self._make_file_name(outLoc = outLoc)
         self._fetch(lats, lons, time, out)
 
     @abstractmethod
@@ -139,7 +139,7 @@ class WeatherModel(ABC):
         bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be rounded to the 
         above regions (either in the downloading-file API or subsetting-data API) without problems.
         '''
-        if self._Name is 'GMAO' or self._Name is 'MERRA2':
+        if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
         else:
             ex_buffer_lon_max = 0.0
@@ -164,7 +164,7 @@ class WeatherModel(ABC):
         '''
         if zref is not None:
             self._zmax = zref
-        self.load_weather(*self._files, **kwargs)
+        self.load_weather(*self.files, **kwargs)
         self._find_e()
         self._checkNotMaskedArrays()
         self._uniform_in_z(_zlevels=_zlevels)
@@ -656,18 +656,16 @@ class WeatherModel(ABC):
 
 
 
-    def make_file_name(self, outLoc = 'weather_files'):
+    def _make_file_name(self, outLoc = 'weather_files'):
         '''
         Check whether the output weather model exists, and
         if not, download it.
         '''
-        os.makedirs(outLoc, exists_ok = True)
-    
         f = os.path.join(
             outLoc,
             '{}_{}.{}'.format(
                 self._Name, 
-                self._time.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
+                self._time.strftime('%Y_%m_%d_T%H_%M_%S'),
                 self._fmt
             )
         )

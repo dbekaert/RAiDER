@@ -14,7 +14,7 @@ from RAiDER.models.erai import ERAI
 def test_era5():
     wm = ERA5()
     wm.fetch(
-        os.path.join(TEST_DIR, 'test_geom', 'test_era5.nc'),
+        os.path.join(TEST_DIR, 'test_geom'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
         datetime(2020, 1, 1, 0, 0, 0)
@@ -24,7 +24,7 @@ def test_era5():
 def test_era5t():
     wm = ERA5T()
     wm.fetch(
-        os.path.join(TEST_DIR, 'test_geom', 'test_era5t.nc'),
+        os.path.join(TEST_DIR, 'test_geom'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
         datetime(2020, 1, 1, 0, 0, 0)

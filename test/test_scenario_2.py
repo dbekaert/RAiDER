@@ -39,6 +39,9 @@ def test_computeDelay(tmp_path):
 
     with pushd(tmp_path):
         
+        p = tmp_path / 'weather_files' 
+        p.mkdir()
+
         # packing the dictionairy
         args={}
         args['los']=Zenith
@@ -48,7 +51,7 @@ def test_computeDelay(tmp_path):
         args['heights']=('merge', [wetFile])
         args['flag']="station_file"
         args['weather_model']={"type": model_obj(),"files": None,"name": "ERA5"}
-        args['wmLoc']=None
+        args['wmLoc']=p
         args['zref']=20000.
         args['outformat']="csv"
         args['times']=datetime(2020, 1, 3, 23, 0, 0)
