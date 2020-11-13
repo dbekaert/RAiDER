@@ -283,7 +283,7 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     return wet_file_name, hydro_file_name
 
 
-def make_weather_model_filename(name, time, ll_bounds):
+def make_weather_model_filename(name, time, ll_bounds, fmt = 'h5'):
     if ll_bounds[0] < 0:
         S = 'S'
     else:
@@ -300,8 +300,18 @@ def make_weather_model_filename(name, time, ll_bounds):
         E = 'W'
     else:
         E = 'E'
-    return '{}_{}_{}{}_{}{}_{}{}_{}{}.h5'.format(
-        name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
+    return '{}_{}_{:3.0f}{}_{:3.0f}{}_{:3.0f}{}_{:3.0f}{}.{}'.format(
+        name, 
+        time.strftime("%Y-%m-%dT%H_%M_%S"), 
+        np.abs(ll_bounds[0]), 
+        S, 
+        np.abs(ll_bounds[1]), 
+        N, 
+        np.abs(ll_bounds[2]), 
+        W, 
+        np.abs(ll_bounds[3]), 
+        E,
+        fmt
     )
 
 

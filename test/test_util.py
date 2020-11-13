@@ -12,7 +12,7 @@ from osgeo import gdal, osr
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
     writeArrayToRaster, writeResultsToHDF5, gdal_extents, modelName2Module,
-    getTimeFromFile
+    getTimeFromFile, make_weather_model_filename
 )
 
 
@@ -271,3 +271,11 @@ def test_getTimeFromFile():
 def test_model2module():
     model_module_name, model_obj = modelName2Module('ERA5')
     assert model_obj().Model() == 'ERA-5'
+
+def test_make_weather_model_filename():
+    assert (
+        make_weather_model_filename(
+            'ERA5', 
+            datetime.datetime(2020,1,1),
+            (-13, 13, -10.000001, 15.544)
+        ) == 'ERA5_2020-01-01T00_00_00_13S_13N_10W_16E.h5'

@@ -109,8 +109,14 @@ def checkArgs(args, p):
     wetNames, hydroNames = [], []
     for time in datetimeList:
         if flag == 'station_file':
-            wetFilename = os.path.join(out, '{}_Delay_{}_Zmax{}.csv'
-                                       .format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
+            wetFilename = os.path.join(
+                out, 
+                '{}_Delay_{}_Zmax{}.csv'.format(
+                    weather_model_name, 
+                    time.strftime('%Y%m%dT%H%M%S'), 
+                    zref
+                )
+            )
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
@@ -161,4 +167,3 @@ def checkArgs(args, p):
     outArgs['parallel']=parallel
 
     return outArgs
-    #return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
