@@ -725,9 +725,11 @@ class RaiderStats(object):
         '''
         Read a input file
         '''
-        data = pd.read_csv(self.fname, parse_dates = ['Datetime', 'Date'])
-        if 'Datetime' in data.columns:
+        try:
+            data = pd.read_csv(self.fname, parse_dates = ['Datetime'])
             data['Date'] = data['Datetime'].apply(lambda x: x.date())
+        except:
+            data = pd.read_csv(self.fname, parse_dates = ['Date'])
 
         # check if user-specified key is valid
         if self.col_name not in data.keys():
