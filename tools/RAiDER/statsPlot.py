@@ -725,7 +725,10 @@ class RaiderStats(object):
         '''
         Read a input file
         '''
-        data = pd.read_csv(self.fname)
+        data = pd.read_csv(self.fname, parse_dates = ['Datetime', 'Date'])
+        if 'Datetime' in data.columns:
+            data['Date'] = data['Datetime'].apply(lambda x: x.date())
+
         # check if user-specified key is valid
         if self.col_name not in data.keys():
             raise Exception(
@@ -749,7 +752,6 @@ class RaiderStats(object):
         self.df.dropna(how='any', inplace=True)
         self.df.reset_index(drop=True, inplace=True)
         # convert to datetime object
-        self.df['Date'] = pd.to_datetime(self.df['Date'])
 
         # time-interval filter
         if self.timeinterval:
