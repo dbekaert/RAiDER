@@ -97,7 +97,7 @@ def tropo_delay(args):
     logger.debug('Time type: {}'.format(type(time)))
     logger.debug('Time: {}'.format(time.strftime('%Y%m%d')))
     logger.debug('Flag type is {}'.format(flag))
-    logger.debug('DEM/height type is "{:1.0f}"'.format(heights[0]))
+    logger.debug('DEM/height type is "{}"'.format(heights[0]))
     
     # Flags
     useWeatherNodes = flag == 'bounding_box'
