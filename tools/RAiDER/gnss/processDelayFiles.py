@@ -65,7 +65,7 @@ def concatDelayFiles(fileList, colList = ['Datetime', 'ID'], return_df = False, 
         df_c.to_csv(outName, index=False)
 
 
-def mergeDelayFiles(raiderFile, ztdFile, outName = None):
+def mergeDelayFiles(raiderFile, ztdFile, col_name = 'ZTD', outName = None):
     '''
     Merge a combined RAiDER delays file with a GPS ZTD delay file
     '''
@@ -73,7 +73,7 @@ def mergeDelayFiles(raiderFile, ztdFile, outName = None):
     print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
 
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
-    dfz = readZTDFile(ztdFile)
+    dfz = readZTDFile(ztdFile, col_name = col_name)
 
     print('Beginning merge')
 
@@ -87,13 +87,14 @@ def mergeDelayFiles(raiderFile, ztdFile, outName = None):
         dfc.to_csv(outName, index=False)
 
 
-def readZTDFile(filename):
+def readZTDFile(filename, col_name = 'ZTD'):
     '''
     Read and parse a GPS zenith delay file
     '''
     data = pd.read_csv(filename, parse_dates=['Date'])
     times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
     data['Datetime'] = data['Date'] + times
+    data.rename(columns={col_name: 'ZTD'}, inplace=True)
     return data
 
     
@@ -141,9 +142,9 @@ def create_parser():
         '-c',
         dest='column_name',
         help=dedent("""\
-            Name of the column containing RAiDER delays.
+            Name of the column containing GPS Zenith delays.
             """),
-        default='raider'
+        default='ZTD'
     )
 
     p.add_argument(
@@ -169,7 +170,7 @@ def parseCMD():
     args = p.parse_args()
 
     if os.path.exists(args.raider_file):
-        mergeDelayFiles(args.raider_file, args.gnss_file, outName = args.out_name)
+        mergeDelayFiles(args.raider_file, args.gnss_file, col_name = args.column_name, outName = args.out_name)
     else:
         combineDelayFiles(args.raider_file, loc = args.raider_folder)
         mergeDelayFiles(args.raider_file, args.gnss_file, outName = args.out_name)
