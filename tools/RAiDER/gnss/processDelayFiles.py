@@ -10,7 +10,7 @@ from textwrap import dedent
 
 
 def combineDelayFiles(outName, loc = os.getcwd(), ext='.csv'):
-    files = glob.glob(loc + '*' + ext)
+    files = glob.glob(os.path.join(loc, '*' + ext))
 
     print('Ensuring that "Datetime" column exists in files')
 
@@ -39,6 +39,7 @@ def addDateTimeToFiles(fileList, force=False):
 
 def getDateTime(filename):
     ''' Parse a datetime from a RAiDER delay filename '''
+    filename = os.path.basename(filename)
     parts = filename.split('_')
     dt = parts[2]
     return datetime.datetime.strptime(dt, '%Y%m%dT%H%M%S')
