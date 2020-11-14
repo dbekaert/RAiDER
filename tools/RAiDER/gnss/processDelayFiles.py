@@ -57,7 +57,7 @@ def concatDelayFiles(fileList, sort_list = ['Datetime', 'ID'], return_df = False
     for f in tqdm(fileList):
         dfList.append(pd.read_csv(f))
     
-    df_c = pd.concat(dfList, ignore_index=True)
+    df_c = pd.concat(dfList, ignore_index=True).drop_duplicates().reset_index(drop=True)
     df_c.sort_values(by=sort_list, inplace = True)
 
     if return_df or outName is None:
