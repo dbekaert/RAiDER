@@ -106,7 +106,6 @@ def checkArgs(args, p):
     if not os.path.exists(wmLoc):
         os.mkdir(wmLoc)
 
-    import pdb; pdb.set_trace()
     wetNames, hydroNames = [], []
     for time in datetimeList:
         if flag == 'station_file':
