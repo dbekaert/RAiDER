@@ -18,6 +18,7 @@ test/data
 *.pdf
 *.cpp
 test/*/geom/*.dem
+test/*/geom/*.nc
 .eggs/
 dist/
 tools/RAiDER.egg-info/
