@@ -17,7 +17,7 @@ def combineDelayFiles(outName, loc = os.getcwd(), ext='.csv'):
     addDateTimeToFiles(files)
 
     print('Combining weather model delay files')
-    concatDelayFiles(files, colList = ['Datetime', 'ID'], outName = outName)
+    concatDelayFiles(files, sort_list = ['Datetime', 'ID'], outName = outName)
 
 
 def addDateTimeToFiles(fileList, force=False):
@@ -45,7 +45,7 @@ def getDateTime(filename):
     return datetime.datetime.strptime(dt, '%Y%m%dT%H%M%S')
 
 
-def concatDelayFiles(fileList, colList = ['Datetime', 'ID'], return_df = False, outName = None):
+def concatDelayFiles(fileList, sort_list = ['Datetime', 'ID'], return_df = False, outName = None):
     ''' 
     Read a list of .csv files containing the same columns and append them 
     together, sorting by specified columns 
@@ -57,8 +57,8 @@ def concatDelayFiles(fileList, colList = ['Datetime', 'ID'], return_df = False, 
     for f in tqdm(fileList):
         dfList.append(pd.read_csv(f))
     
-    df_c = pd.concat(dfList)
-    df_c.sort_values(by=colList, inplace = True)
+    df_c = pd.concat(dfList, ignore_index=True)
+    df_c.sort_values(by=sort_list, inplace = True)
 
     if return_df or outName is None:
         return df_c
@@ -93,13 +93,17 @@ def readZTDFile(filename, col_name = 'ZTD'):
     '''
     Read and parse a GPS zenith delay file
     '''
-    data = pd.read_csv(filename, parse_dates=['Date'])
-    times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
-    data['Datetime'] = data['Date'] + times
+    try:
+        data = pd.read_csv(filename, parse_dates=['Date'])
+        times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
+        data['Datetime'] = data['Date'] + times
+    except KeyError:
+        data = pd.read_csv(filename, parse_dates=['Datetime'])
+
     data.rename(columns={col_name: 'ZTD'}, inplace=True)
     return data
-
     
+
 def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
