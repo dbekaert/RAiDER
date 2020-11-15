@@ -728,6 +728,7 @@ class RaiderStats(object):
         try:
             data = pd.read_csv(self.fname, parse_dates = ['Datetime'])
             data['Date'] = data['Datetime'].apply(lambda x: x.date())
+            data['Date'] = data['Date'].apply(lambda x: dt.datetime.strptime(x.strftime("%Y-%m-%d"),"%Y-%m-%d"))
         except:
             data = pd.read_csv(self.fname, parse_dates = ['Date'])
 
