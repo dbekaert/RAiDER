@@ -81,6 +81,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
         'Optional controls for plot formatting/options.')
     pltformat.add_argument('-figdpi', '--figdpi', dest='figdpi', type=int,
                            default=100, help='DPI to use for saving figures')
+    pltformat.add_argument('-title', '--user_title', dest='user_title', type=str,
+                           default=None, help='Specify custom title for plots.')
     pltformat.add_argument('-fmt', '--plot_format', dest='plot_fmt', type=str,
                            default='png', help='Plot format to use for saving figures')
     pltformat.add_argument('-cb', '--color_bounds', dest='cbounds', type=str,
@@ -854,7 +856,7 @@ class RaiderStats(object):
                 save_gridfile(self.grid_delay_stdev, 'grid_delay_stdev', gridfile_name, self.plotbbox, self.spacing, \
                               self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf'):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -905,7 +907,6 @@ class RaiderStats(object):
         if isinstance(gridarr, list):
             # spatial distribution of stations
             if plottype == "station_distribution":
-                axes.set_title(" ".join(plottype.split('_')), zorder=2)
                 im = axes.scatter(gridarr[0], gridarr[1], zorder=1, s=0.5,
                                   marker='.', color='b', transform=ccrs.PlateCarree())
 
@@ -997,6 +998,10 @@ class RaiderStats(object):
             else:
                 cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title(), rotation=-90, labelpad=10)
 
+        # Add title to plots, if specified
+        if userTitle:
+            axes.set_title(userTitle, zorder=2)    
+
         # save/close figure
         plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype + '.' + plotFormat),
                     format=plotFormat, bbox_inches='tight')
@@ -1017,6 +1022,7 @@ def stats_analyses(
     timeinterval,
     seasonalinterval,
     figdpi,
+    user_title,
     plot_fmt,
     cbounds,
     colorpercentile,
@@ -1069,7 +1075,7 @@ def stats_analyses(
         logger.info("- Plot spatial distribution of stations.")
         unique_points = df_stats.df.groupby(['Lon', 'Lat']).size()
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        )], 'station_distribution', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
+        )], 'station_distribution', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean delay per station
     if station_delay_mean:
         logger.info("- Plot mean delay for each station.")
@@ -1077,7 +1083,7 @@ def stats_analyses(
             ['Lon', 'Lat'])[col_name].mean()
         unique_points.dropna(how='any', inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        ), unique_points.values], 'station_delay_mean', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
+        ), unique_points.values], 'station_delay_mean', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt, userTitle=user_title)
     # Plot delay stdev per station
     if station_delay_stdev:
         logger.info("- Plot delay stdev for each station.")
@@ -1085,24 +1091,24 @@ def stats_analyses(
             ['Lon', 'Lat'])[col_name].std()
         unique_points.dropna(how='any', inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
-        ), unique_points.values], 'station_delay_stdev', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt)
+        ), unique_points.values], 'station_delay_stdev', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt, userTitle=user_title)
 
     # Gridded station plots
     # Plot density of stations for each gridcell
     if isinstance(df_stats.grid_heatmap, np.ndarray):
         logger.info("- Plot density of stations per gridcell.")
         df_stats(df_stats.grid_heatmap, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
-                 colorbarfmt='%1i', stationsongrids=stationsongrids, plotFormat=plot_fmt)
+                 colorbarfmt='%1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean delay for each gridcell
     if isinstance(df_stats.grid_delay_mean, np.ndarray):
         logger.info("- Plot mean delay per gridcell.")
         df_stats(df_stats.grid_delay_mean, 'grid_delay_mean', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean delay for each gridcell
     if isinstance(df_stats.grid_delay_stdev, np.ndarray):
         logger.info("- Plot delay stdev per gridcell.")
         df_stats(df_stats.grid_delay_stdev, 'grid_delay_stdev', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
     # Perform variogram analysis
     if variogramplot and not isinstance(df_stats.grid_range, np.ndarray) and not isinstance(df_stats.grid_variance, np.ndarray):
@@ -1134,12 +1140,12 @@ def stats_analyses(
         # plot range heatmap
         logger.info("- Plot variogram range per gridcell.")
         df_stats(df_stats.grid_range, 'grid_range', workdir=os.path.join(workdir, 'figures'),
-                 colorbarfmt='%1i', drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt)
+                 colorbarfmt='%1i', drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     if isinstance(df_stats.grid_variance, np.ndarray):
         # plot sill heatmap
         logger.info("- Plot variogram sill per gridcell.")
         df_stats(df_stats.grid_variance, 'grid_variance', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
-                 colorbarfmt='%.3e', stationsongrids=stationsongrids, plotFormat=plot_fmt)
+                 colorbarfmt='%.3e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
 
 if __name__ == "__main__":
