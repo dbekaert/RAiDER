@@ -851,7 +851,7 @@ class RaiderStats(object):
                               self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
                 
         if self.grid_delay_median:
-            unique_points = self.df.groupby(['gridnode'])[self.col_name].mean()
+            unique_points = self.df.groupby(['gridnode'])[self.col_name].median()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_median = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
                 ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
