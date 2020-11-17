@@ -536,3 +536,92 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
         T = f.create_dataset('t', data=t)
 
         f.create_dataset('Projection', data=proj.to_json())
+
+
+# Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
+# Credits go to Tom Payne
+
+_projections = {}
+
+
+def zone(coordinates):
+    if 56 <= coordinates[1] < 64 and 3 <= coordinates[0] < 12:
+        return 32
+    if 72 <= coordinates[1] < 84 and 0 <= coordinates[0] < 42:
+        if coordinates[0] < 9:
+            return 31
+        elif coordinates[0] < 21:
+            return 33
+        elif coordinates[0] < 33:
+            return 35
+        return 37
+    return int((coordinates[0] + 180) / 6) + 1
+
+
+def letter(coordinates):
+    return 'CDEFGHJKLMNPQRSTUVWXX'[int((coordinates[1] + 80) / 8)]
+
+
+def project(coordinates, z=None, l=None):
+    if z is None:
+        z = zone(coordinates)
+    if l is None:
+        l = letter(coordinates)
+    if z not in _projections:
+        _projections[z] = pyproj.Proj(proj='utm', zone=z, ellps='WGS84')
+    x, y = _projections[z](coordinates[0], coordinates[1])
+    if y < 0:
+        y += 10000000
+    return z, l, x, y
+
+
+def unproject(z, l, x, y):
+    if z not in _projections:
+        _projections[z] = pyproj.Proj(proj='utm', zone=z, ellps='WGS84')
+    if l < 'N':
+        y -= 10000000
+    lng, lat = _projections[z](x, y, inverse=True)
+    return (lng, lat)
+
+def WGS84_to_UTM(lon, lat, common_center=False):
+    shp = lat.shape
+    lon = np.ravel(lon)
+    lat = np.ravel(lat)
+    if common_center == True:
+        lon0 = np.median(lon)
+        lat0 = np.median(lat)
+        z0, l0, x0, y0 = project((lon0,lat0))
+    Z = lon.copy()
+    L = np.zeros(lon.shape,dtype='<U1')
+    X = lon.copy()
+    Y = lon.copy()
+    for ind in range(lon.__len__()):
+        longitude = lon[ind]
+        latitude = lat[ind]
+        if common_center == True:
+            z, l, x, y = project((longitude,latitude), z0, l0)
+        else:
+            z, l, x, y = project((longitude,latitude))
+        Z[ind] = z
+        L[ind] = l
+        X[ind] = x
+        Y[ind] = y
+    return np.reshape(Z,shp), np.reshape(L,shp), np.reshape(X,shp), np.reshape(Y,shp)
+
+def UTM_to_WGS84(z, l, x, y):
+    shp = x.shape
+    z = np.ravel(z)
+    l = np.ravel(l)
+    x = np.ravel(x)
+    y = np.ravel(y)
+    lat = x.copy()
+    lon = x.copy()
+    for ind in range(z.__len__()):
+        zz = z[ind]
+        ll = l[ind]
+        xx = x[ind]
+        yy = y[ind]
+        coordinates = unproject(zz, ll, xx, yy)
+        lat[ind] = coordinates[1]
+        lon[ind] = coordinates[0]
+    return np.reshape(lon,shp), np.reshape(lat,shp)
