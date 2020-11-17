@@ -36,6 +36,7 @@ if __name__ == "__main__":
         inps.station_delay_stdev,
         inps.grid_heatmap,
         inps.grid_delay_mean,
+        inps.grid_delay_median,
         inps.grid_delay_stdev,
         inps.grid_to_raster,
         inps.variogramplot,
