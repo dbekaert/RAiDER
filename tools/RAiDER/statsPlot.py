@@ -114,11 +114,17 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     pltgrids.add_argument('-grid_heatmap', '--grid_heatmap', action='store_true',
                           dest='grid_heatmap', help="Plot gridded station heatmap.")
     pltgrids.add_argument('-grid_delay_mean', '--grid_delay_mean', action='store_true',
-                          dest='grid_delay_mean', help="Plot gridded station mean delay.")
+                          dest='grid_delay_mean', help="Plot gridded station-wise mean delay.")
     pltgrids.add_argument('-grid_delay_median', '--grid_delay_median', action='store_true',
-                          dest='grid_delay_median', help="Plot gridded station median delay.")
+                          dest='grid_delay_median', help="Plot gridded station-wise median delay.")
     pltgrids.add_argument('-grid_delay_stdev', '--grid_delay_stdev', action='store_true',
-                          dest='grid_delay_stdev', help="Plot gridded station delay stdev.")
+                          dest='grid_delay_stdev', help="Plot gridded station-wise delay stdev.")
+    pltgrids.add_argument('-grid_delay_absolute_mean', '--grid_delay_absolute_mean', action='store_true',
+                          dest='grid_delay_absolute_mean', help="Plot absolute gridded station mean delay.")
+    pltgrids.add_argument('-grid_delay_absolute_median', '--grid_delay_absolute_median', action='store_true',
+                          dest='grid_delay_absolute_median', help="Plot absolute gridded station median delay.")
+    pltgrids.add_argument('-grid_delay_absolute_stdev', '--grid_delay_absolute_stdev', action='store_true',
+                          dest='grid_delay_absolute_stdev', help="Plot absolute gridded station delay stdev.")
     pltgrids.add_argument('-grid_to_raster', '--grid_to_raster', action='store_true',
                           dest='grid_to_raster', help="Save gridded array as raster. May directly load/plot in successive script call.")
 
@@ -603,7 +609,8 @@ class RaiderStats(object):
 
     def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, \
                 stationsongrids=False, cbounds=None, colorpercentile='25 95', grid_heatmap=False, grid_delay_mean=False, \
-                grid_delay_median=False, grid_delay_stdev=False, grid_to_raster=False):
+                grid_delay_median=False, grid_delay_stdev=False, grid_delay_absolute_mean=False, grid_delay_absolute_median=False, \
+                grid_delay_absolute_stdev=False, grid_to_raster=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -619,6 +626,9 @@ class RaiderStats(object):
         self.grid_delay_mean = grid_delay_mean
         self.grid_delay_median = grid_delay_median
         self.grid_delay_stdev = grid_delay_stdev
+        self.grid_delay_absolute_mean = grid_delay_absolute_mean
+        self.grid_delay_absolute_median = grid_delay_absolute_median
+        self.grid_delay_absolute_stdev = grid_delay_absolute_stdev
         self.grid_to_raster = grid_to_raster
         self.grid_range = False
         self.grid_variance = False
@@ -648,6 +658,12 @@ class RaiderStats(object):
                 self.grid_delay_median, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_stdev' in self.fname:
                 self.grid_delay_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_absolute_mean' in self.fname:
+                self.grid_delay_absolute_mean, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_absolute_median' in self.fname:
+                self.grid_delay_absolute_median, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_absolute_stdev' in self.fname:
+                self.grid_delay_absolute_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_range' in self.fname:
                 self.grid_range, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_variance' in self.fname:
@@ -840,7 +856,9 @@ class RaiderStats(object):
                               self.unit, colorbarfmt='%1i', stationsongrids=self.stationsongrids, gdal_fmt='int16')
 
         if self.grid_delay_mean:
-            unique_points = self.df.groupby(['gridnode'])[self.col_name].mean()
+            # Take mean of station-wise means per gridcell
+            unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)[self.col_name].mean()
+            unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_mean = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
                 ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
@@ -851,7 +869,9 @@ class RaiderStats(object):
                               self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
                 
         if self.grid_delay_median:
-            unique_points = self.df.groupby(['gridnode'])[self.col_name].median()
+            # Take mean of station-wise medians per gridcell
+            unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)[self.col_name].median()
+            unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_median = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
                 ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
@@ -862,7 +882,9 @@ class RaiderStats(object):
                               self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
 
         if self.grid_delay_stdev:
-            unique_points = self.df.groupby(['gridnode'])[self.col_name].std()
+            # Take mean of station-wise stdev per gridcell
+            unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)[self.col_name].std()
+            unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
                 ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
@@ -870,6 +892,42 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_stdev' + '.tif')
                 save_gridfile(self.grid_delay_stdev, 'grid_delay_stdev', gridfile_name, self.plotbbox, self.spacing, \
+                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+
+        if self.grid_delay_absolute_mean:
+            # Take mean of all data per gridcell
+            unique_points = self.df.groupby(['gridnode'])[self.col_name].mean()
+            unique_points.dropna(how='any', inplace=True)
+            self.grid_delay_absolute_mean = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            # If specified, save gridded array(s)
+            if self.grid_to_raster:
+                gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_mean' + '.tif')
+                save_gridfile(self.grid_delay_absolute_mean, 'grid_delay_absolute_mean', gridfile_name, self.plotbbox, self.spacing, \
+                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+                
+        if self.grid_delay_absolute_median:
+            # Take median of all data per gridcell
+            unique_points = self.df.groupby(['gridnode'])[self.col_name].median()
+            unique_points.dropna(how='any', inplace=True)
+            self.grid_delay_absolute_median = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            # If specified, save gridded array(s)
+            if self.grid_to_raster:
+                gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_median' + '.tif')
+                save_gridfile(self.grid_delay_absolute_median, 'grid_delay_absolute_median', gridfile_name, self.plotbbox, self.spacing, \
+                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+
+        if self.grid_delay_absolute_stdev:
+            # Take stdev of all data per gridcell
+            unique_points = self.df.groupby(['gridnode'])[self.col_name].std()
+            unique_points.dropna(how='any', inplace=True)
+            self.grid_delay_absolute_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            # If specified, save gridded array(s)
+            if self.grid_to_raster:
+                gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_stdev' + '.tif')
+                save_gridfile(self.grid_delay_absolute_stdev, 'grid_delay_absolute_stdev', gridfile_name, self.plotbbox, self.spacing, \
                               self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
 
     def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
@@ -1006,8 +1064,10 @@ class RaiderStats(object):
                 cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({}\u00b2)'.format(self.unit), 
                                   rotation=-90, labelpad=10)
             # specify appropriate units for mean/std/experimental variogram fit range heatmap
-            elif plottype == "grid_delay_mean" or plottype == "grid_delay_median" or plottype == "grid_delay_stdev" or  plottype == "grid_range" or \
-                    plottype == "station_delay_mean" or plottype == "station_delay_stdev":
+            elif plottype == "grid_delay_mean" or plottype == "grid_delay_median" or plottype == "grid_delay_stdev" or  \
+                    plottype == "grid_range" or plottype == "station_delay_mean" or plottype == "station_delay_stdev" or \
+                    plottype == "grid_delay_absolute_mean" or plottype == "grid_delay_absolute_median" or \
+                    plottype == "grid_delay_absolute_stdev":
                 cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({})'.format(self.unit),
                                   rotation=-90, labelpad=10)
             # gridmap of station density has no units
@@ -1053,6 +1113,9 @@ def stats_analyses(
     grid_delay_mean,
     grid_delay_median,
     grid_delay_stdev,
+    grid_delay_absolute_mean,
+    grid_delay_absolute_median,
+    grid_delay_absolute_stdev,
     grid_to_raster,
     variogramplot,
     binnedvariogram,
@@ -1078,13 +1141,17 @@ def stats_analyses(
         grid_delay_mean = True
         grid_delay_median = True
         grid_delay_stdev = True
+        grid_delay_absolute_mean = True
+        grid_delay_absolute_median = True
+        grid_delay_absolute_stdev = True
         variogramplot = True
 
     logger.info("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing, \
                            timeinterval, seasonalinterval, stationsongrids, cbounds, colorpercentile, \
-                           grid_heatmap, grid_delay_mean, grid_delay_median, grid_delay_stdev, grid_to_raster)
+                           grid_heatmap, grid_delay_mean, grid_delay_median, grid_delay_stdev, \
+                           grid_delay_absolute_mean, grid_delay_absolute_median, grid_delay_absolute_stdev, grid_to_raster)
 
 
     # Station plots
@@ -1117,20 +1184,35 @@ def stats_analyses(
         logger.info("- Plot density of stations per gridcell.")
         df_stats(df_stats.grid_heatmap, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
                  colorbarfmt='%1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
-    # Plot mean delay for each gridcell
+    # Plot mean of station-wise mean delay across each gridcell
     if isinstance(df_stats.grid_delay_mean, np.ndarray):
-        logger.info("- Plot mean delay per gridcell.")
+        logger.info("- Plot mean of station-wise mean delay across each gridcell.")
         df_stats(df_stats.grid_delay_mean, 'grid_delay_mean', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
-    # Plot median delay for each gridcell
+    # Plot mean of station-wise median delay across each gridcell
     if isinstance(df_stats.grid_delay_median, np.ndarray):
-        logger.info("- Plot mean delay per gridcell.")
+        logger.info("- Plot mean of station-wise median delay across each gridcell.")
         df_stats(df_stats.grid_delay_median, 'grid_delay_median', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
-    # Plot stdev delay for each gridcell
+    # Plot mean of station-wise stdev delay across each gridcell
     if isinstance(df_stats.grid_delay_stdev, np.ndarray):
-        logger.info("- Plot delay stdev per gridcell.")
+        logger.info("- Plot mean of station-wise stdev delay across each gridcell.")
         df_stats(df_stats.grid_delay_stdev, 'grid_delay_stdev', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot mean delay for each gridcell
+    if isinstance(df_stats.grid_delay_absolute_mean, np.ndarray):
+        logger.info("- Plot mean delay per gridcell.")
+        df_stats(df_stats.grid_delay_absolute_mean, 'grid_delay_absolute_mean', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot median delay for each gridcell
+    if isinstance(df_stats.grid_delay_absolute_median, np.ndarray):
+        logger.info("- Plot median delay per gridcell.")
+        df_stats(df_stats.grid_delay_absolute_median, 'grid_delay_absolute_median', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot stdev delay for each gridcell
+    if isinstance(df_stats.grid_delay_absolute_stdev, np.ndarray):
+        logger.info("- Plot delay stdev per gridcell.")
+        df_stats(df_stats.grid_delay_absolute_stdev, 'grid_delay_absolute_stdev', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
     # Perform variogram analysis
@@ -1200,6 +1282,9 @@ if __name__ == "__main__":
         inps.grid_delay_mean,
         inps.grid_delay_median,
         inps.grid_delay_stdev,
+        inps.grid_delay_absolute_mean,
+        inps.grid_delay_absolute_median,
+        inps.grid_delay_absolute_stdev,
         inps.grid_to_raster,
         inps.variogramplot,
         inps.binnedvariogram,
