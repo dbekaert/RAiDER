@@ -17,6 +17,7 @@ import requests
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.logger import *
 from RAiDER.getStationDelays import get_station_data
+from RAiDER.utilFcns import requests_retry_session
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
@@ -126,7 +127,9 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
 
     stationHoldings = '{}NGLStationPages/DataHoldings.txt'.format(baseURL)
     # it's a file like object and works just like a file
-    data = requests.get(stationHoldings)
+
+    session = requests_retry_session()
+    data    = session.get(stationHoldings)
     stations = []
     for ind, line in enumerate(data.text.splitlines()):  # files are iterable
         if ind == 0:
@@ -209,7 +212,9 @@ def download_url(url, save_path, chunk_size=2048):
     Download a file from a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
     '''
-    r = requests.get(url, stream=True)
+    session = requests_retry_session()
+    r       = session.get(url, stream=True)
+
     if r.status_code == 404:
         return ''
     else:
@@ -226,7 +231,8 @@ def check_url(url):
     Check whether a file exists at a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
     '''
-    r = requests.head(url)
+    session = requests_retry_session()
+    r = session.head(url)
     if r.status_code == 404:
         url = ''
     return url
