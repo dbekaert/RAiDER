@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 import h5py
 import numpy as np
 from pyproj import CRS, Transformer
+import netCDF4
 
 from RAiDER import constants as const
 from RAiDER import utilFcns as util
@@ -17,7 +18,7 @@ from RAiDER.losreader import getLookVectors
 from RAiDER.logger import *
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
-from RAiDER.utilFcns import lla2ecef, robmax, robmin
+from RAiDER.utilFcns import lla2ecef, robmax, robmin, getTimeFromFile
 
 
 class WeatherModel(ABC):
@@ -581,73 +582,203 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-    def write2HDF5(self, outName=None):
+    def write2NETCDF4(self, outName=None, NoDataValue=-3.4028234e+38, chunk=128):
         '''
-        Write the main (i.e., needed for external calculations) data to an HDF5 file
+        Write the main (i.e., needed for external calculations) data to an NETCDF4 file
         that can be accessed by external programs.
-
+        
         The point of doing this is to alleviate some of the memory load of keeping
         the full model in memory and make it easier to scale up the program.
         '''
-
+        from osgeo import osr
+        
         if outName is None:
             outName = os.path.join(
                 os.getcwd(),
                 self._Name + datetime.datetime.strftime(
                     self._time, '%Y_%m_%d_T%H_%M_%S'
-                ) + '.h5'
+                ) + '.nc'
             )
-
-        with h5py.File(outName, 'w') as f:
-            x = f.create_dataset('x', data=self._xs.astype(np.float64))
-            y = f.create_dataset('y', data=self._ys.astype(np.float64))
-            z = f.create_dataset('z', data=self._zs.astype(np.float64))
-            x.make_scale('x - weather model native')
-            y.make_scale('y - weather model native')
-            z.make_scale('z - weather model native')
-
-            lats = f.create_dataset('lat', data=self._lats.astype(np.float64))
-            lons = f.create_dataset('lon', data=self._lons.astype(np.float64))
-            lats.dims[0].attach_scale(x)
-            lats.dims[1].attach_scale(y)
-            lats.dims[2].attach_scale(z)
-            lons.dims[0].attach_scale(x)
-            lons.dims[1].attach_scale(y)
-            lons.dims[2].attach_scale(z)
-
-            t = f.create_dataset('t', data=self._t)
-            t.dims[0].attach_scale(x)
-            t.dims[1].attach_scale(y)
-            t.dims[2].attach_scale(z)
-
-            p = f.create_dataset('p', data=self._p)
-            p.dims[0].attach_scale(x)
-            p.dims[1].attach_scale(y)
-            p.dims[2].attach_scale(z)
-
-            e = f.create_dataset('e', data=self._e)
-            e.dims[0].attach_scale(x)
-            e.dims[1].attach_scale(y)
-            e.dims[2].attach_scale(z)
-
-            wet = f.create_dataset('wet', data=self._wet_refractivity)
-            wet.dims[0].attach_scale(x)
-            wet.dims[1].attach_scale(y)
-            wet.dims[2].attach_scale(z)
-
-            wet_ztd = f.create_dataset('wet_ztd', data=self._wet_ztd)
-            wet_ztd.dims[0].attach_scale(x)
-            wet_ztd.dims[1].attach_scale(y)
-            wet_ztd.dims[2].attach_scale(z)
-
-            hydro = f.create_dataset('hydro', data=self._hydrostatic_refractivity)
-            hydro.dims[0].attach_scale(x)
-            hydro.dims[1].attach_scale(y)
-            hydro.dims[2].attach_scale(z)
-
-            hydro_ztd = f.create_dataset('hydro_ztd', data=self._hydrostatic_ztd)
-            hydro_ztd.dims[0].attach_scale(x)
-            hydro_ztd.dims[1].attach_scale(y)
-            hydro_ztd.dims[2].attach_scale(z)
-
-            f.create_dataset('Projection', data=self._proj.to_json())
+        
+        self._time = getTimeFromFile(outName)
+        
+        dimidY, dimidX, dimidZ = self._t.shape
+        chunk_lines_Y = np.min([chunk, dimidY])
+        chunk_lines_X = np.min([chunk, dimidX])
+        ChunkSize = [dimidZ, chunk_lines_Y, chunk_lines_X]
+        
+        nc_outfile = netCDF4.Dataset(outName,'w',clobber=True,format='NETCDF4')
+        nc_outfile.setncattr('Conventions','CF-1.6')
+        nc_outfile.setncattr('datetime',datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
+        nc_outfile.setncattr('date_created',datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
+        title='Weather model data and delay calculations'
+        nc_outfile.setncattr('title',title)
+        
+        nc_outfile.createDimension('x',dimidX)
+        nc_outfile.createDimension('y',dimidY)
+        nc_outfile.createDimension('z',dimidZ)
+        
+        varname='x'
+        datatype=np.dtype('float64')
+        dimensions=('x')
+        FillValue=None
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue)
+        var.setncattr('standard_name','projection_x_coordinate')
+        var.setncattr('description','weather model native x')
+        var.setncattr('units','degrees_east')
+        var[:] = self._xs.astype(np.float64)
+        
+        varname='y'
+        datatype=np.dtype('float64')
+        dimensions=('y')
+        FillValue=None
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue)
+        var.setncattr('standard_name','projection_y_coordinate')
+        var.setncattr('description','weather model native y')
+        var.setncattr('units','degrees_north')
+        var[:] = self._ys.astype(np.float64)
+        
+        varname='z'
+        datatype=np.dtype('float32')
+        dimensions=('z')
+        FillValue=None
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue)
+        var.setncattr('standard_name','projection_z_coordinate')
+        var.setncattr('description','vertical coordinate')
+        var.setncattr('units','m')
+        var[:] = self._zs.astype(np.float32)
+        
+        epsg = 4326
+        srs=osr.SpatialReference()
+        srs.ImportFromEPSG(epsg)
+        tran = [self._xs[0], self._xs[1]-self._xs[0], 0.0, self._ys[0], 0.0, self._ys[1]-self._ys[0]]
+        
+        mapping_name='WGS84'
+        grid_mapping='WGS84'  # need to set this as an attribute for the image variables
+        datatype=np.dtype('S1')
+        dimensions=()
+        FillValue=None
+        
+        var = nc_outfile.createVariable(mapping_name,datatype,dimensions, fill_value=FillValue)
+        # variable made, now add attributes
+        
+        var.setncattr('grid_mapping_name',grid_mapping)
+        var.setncattr('straight_vertical_longitude_from_pole',srs.GetProjParm('central_meridian'))
+        var.setncattr('false_easting',srs.GetProjParm('false_easting'))
+        var.setncattr('false_northing',srs.GetProjParm('false_northing'))
+        var.setncattr('latitude_of_projection_origin',np.sign(srs.GetProjParm('latitude_of_origin'))*90.0)
+        var.setncattr('latitude_of_origin',srs.GetProjParm('latitude_of_origin'))
+        var.setncattr('semi_major_axis',float(srs.GetAttrValue('GEOGCS|SPHEROID',1)))
+        var.setncattr('scale_factor_at_projection_origin',1)
+        var.setncattr('inverse_flattening',float(srs.GetAttrValue('GEOGCS|SPHEROID',2)))
+        var.setncattr('spatial_ref',srs.ExportToWkt())
+        var.setncattr('spatial_proj4',srs.ExportToProj4())
+        var.setncattr('spatial_epsg',epsg)
+        var.setncattr('GeoTransform',' '.join(str(x) for x in tran))  # note this has pixel size in it - set  explicitly above
+        
+        varname='latitude'
+        datatype=np.dtype('float64')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','latitude')
+        var.setncattr('standard_name','latitude')
+        var.setncattr('units','degrees_north')
+        self._lats[np.isnan(self._lats)] = NoDataValue
+        var[:] = self._lats.swapaxes(0,2).swapaxes(1,2).astype(np.float64)
+        
+        varname='longitude'
+        datatype=np.dtype('float64')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','longitude')
+        var.setncattr('standard_name','longitude')
+        var.setncattr('units','degrees_east')
+        self._lons[np.isnan(self._lons)] = NoDataValue
+        var[:] = self._lons.swapaxes(0,2).swapaxes(1,2).astype(np.float64)
+        
+        varname='t'
+        datatype=np.dtype('float32')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','temperature')
+        var.setncattr('standard_name','temperature')
+        var.setncattr('units','K')
+        self._t[np.isnan(self._t)] = NoDataValue
+        var[:] = self._t.swapaxes(0,2).swapaxes(1,2).astype(np.float32)
+        
+        varname='p'
+        datatype=np.dtype('float32')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','pressure')
+        var.setncattr('standard_name','pressure')
+        var.setncattr('units','Pa')
+        self._p[np.isnan(self._p)] = NoDataValue
+        var[:] = self._p.swapaxes(0,2).swapaxes(1,2).astype(np.float32)
+        
+        varname='e'
+        datatype=np.dtype('float32')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','humidity')
+        var.setncattr('standard_name','humidity')
+        var.setncattr('units','Pa')
+        self._e[np.isnan(self._e)] = NoDataValue
+        var[:] = self._e.swapaxes(0,2).swapaxes(1,2).astype(np.float32)
+        
+        varname='wet'
+        datatype=np.dtype('float32')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','wet_refractivity')
+        var.setncattr('standard_name','wet_refractivity')
+        self._wet_refractivity[np.isnan(self._wet_refractivity)] = NoDataValue
+        var[:] = self._wet_refractivity.swapaxes(0,2).swapaxes(1,2).astype(np.float32)
+        
+        varname='hydro'
+        datatype=np.dtype('float32')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','hydrostatic_refractivity')
+        var.setncattr('standard_name','hydrostatic_refractivity')
+        self._hydrostatic_refractivity[np.isnan(self._hydrostatic_refractivity)] = NoDataValue
+        var[:] = self._hydrostatic_refractivity.swapaxes(0,2).swapaxes(1,2).astype(np.float32)
+        
+        varname='wet_total'
+        datatype=np.dtype('float32')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','total_wet_refractivity')
+        var.setncattr('standard_name','total_wet_refractivity')
+        self._wet_ztd[np.isnan(self._wet_ztd)] = NoDataValue
+        var[:] = self._wet_ztd.swapaxes(0,2).swapaxes(1,2).astype(np.float32)
+        
+        varname='hydro_total'
+        datatype=np.dtype('float32')
+        dimensions=('z','y','x')
+        FillValue=NoDataValue
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',mapping_name)
+        var.setncattr('description','total_hydrostatic_refractivity')
+        var.setncattr('standard_name','total_hydrostatic_refractivity')
+        self._hydrostatic_ztd[np.isnan(self._hydrostatic_ztd)] = NoDataValue
+        var[:] = self._hydrostatic_ztd.swapaxes(0,2).swapaxes(1,2).astype(np.float32)
+        
+        nc_outfile.sync() # flush data to disk
+        nc_outfile.close()
