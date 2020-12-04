@@ -4,6 +4,7 @@ import numpy as np
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
+from RAiDER.logger import *
 
 
 class ERA5(ECMWF):
@@ -87,9 +88,13 @@ class ERA5(ECMWF):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         # execute the search at ECMWF
-        self._get_from_cds(
-            lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
-            out)
+        try:
+            self._get_from_cds(
+                lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
+                out)
+        except Exception as e:
+            logger.warning(e)
+            raise RuntimeError('Could not access or download from the CDS API')
 
     def load_weather(self, f):
         self._load_pressure_level(f)
