@@ -27,6 +27,7 @@ def computeDelay(
         weather_model_file_name, 
         pnts_file_name, 
         useWeatherNodes=False,
+        zlevels=None,
         zref=_ZREF, 
         step=_STEP,
         out=None, 
@@ -147,11 +148,10 @@ def tropo_delay(args):
     
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
-    pnts_file = None
+    pnts_file = os.path.join(out, 'geom', 'query_points.h5')
     if not useWeatherNodes:
-        pnts_file = os.path.join(out, 'geom', 'query_points.h5')
+        zlevels = None
         if not os.path.exists(pnts_file):
-
             # Convert the line-of-sight inputs to look vectors
             logger.debug('Lats shape is %s', lats.shape)
             logger.debug(
@@ -168,16 +168,23 @@ def tropo_delay(args):
             # write to an HDF5 file
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
+    elif heights[0] == 'lvs':
+        zlevels = hgts
+
+    else:
+        zlevels = None
+
     wetDelay, hydroDelay = computeDelay(
         weather_model_file, 
         pnts_file, 
         useWeatherNodes, 
+        zlevels,
         zref, 
         out = out,
     )
 
     if heights[0] == 'lvs':
-        outName = wetFilename.replace('wet', 'delays')
+        outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                     outName, zlevels=hgts, outformat=outformat, delayType=delayType)
         logger.info('Finished writing data to %s', outName)
