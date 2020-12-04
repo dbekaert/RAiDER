@@ -17,7 +17,6 @@ from scipy.interpolate import RegularGridInterpolator
 
 from RAiDER.constants import _STEP
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
-from RAiDER.logger import *
 from RAiDER.makePoints import makePoints1D
 
 
@@ -26,9 +25,6 @@ def calculate_rays(pnts_file, stepSize=_STEP):
     From a set of lats/lons/hgts, compute ray paths from the ground to the
     top of the atmosphere, using either a set of look vectors or the zenith
     '''
-    logger.debug('calculate_rays: Starting look vector calculation')
-    logger.debug('The integration stepsize is %f m', stepSize)
-
     # get the lengths of each ray for doing the interpolation
     getUnitLVs(pnts_file)
 
@@ -143,10 +139,6 @@ def get_delays(
     time_elapse_hr = int(np.floor(time_elapse / 3600.0))
     time_elapse_min = int(np.floor((time_elapse - time_elapse_hr * 3600.0) / 60.0))
     time_elapse_sec = (time_elapse - time_elapse_hr * 3600.0 - time_elapse_min * 60.0)
-    logger.debug(
-        "Delay estimation cost %d hour(s) %d minute(s) %d second(s) using %d cpu threads",
-        time_elapse_hr, time_elapse_min, time_elapse_sec, cpu_num
-    )
     return wet_delay, hydro_delay
 
 
