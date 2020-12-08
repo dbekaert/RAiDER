@@ -300,8 +300,8 @@ def make_weather_model_filename(name, time, ll_bounds):
         E = 'W'
     else:
         E = 'E'
-    return '{}_{}_{}{}_{}{}_{}{}_{}{}.h5'.format(
-        name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
+    return '{}_{}_{}{}_{}{}_{}{}_{}{}.nc'.format(
+        name, time.strftime("%Y_%m_%d_T%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
     )
 
 
