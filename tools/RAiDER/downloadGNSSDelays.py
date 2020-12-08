@@ -17,7 +17,7 @@ import requests
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.logger import *
 from RAiDER.getStationDelays import get_station_data
-from RAiDER.utilFcns import requests_retry_session
+from RAiDER.ioFcns import requests_retry_session
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"

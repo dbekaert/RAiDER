@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from RAiDER.logger import *
-from RAiDER.utilFcns import gdal_open
+from RAiDER.ioFcns import gdal_open
 
 
 def readLL(*args):
