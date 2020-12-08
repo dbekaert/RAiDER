@@ -18,8 +18,10 @@ from RAiDER.dem import getHeights
 from RAiDER.logger import *
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.utilFcns import (
-    make_weather_model_filename, writeDelays, writePnts2HDF5
+from RAiDER.ioFcns import (
+    make_weather_model_filename, 
+    writeDelays, 
+    writePnts2HDF5
 )
 
 

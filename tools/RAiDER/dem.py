@@ -19,11 +19,15 @@ from osgeo import gdal
 from pyproj import Proj
 from shapely.geometry import shape, Polygon
 
-import RAiDER.utilFcns
-
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.logger import *
-from RAiDER.utilFcns import gdal_open, gdal_extents
+from RAiDER.ioFcns import (
+    gdal_open, 
+    gdal_extents, 
+    read_hgt_file
+    writeArrayToRaster
+    writeArrayToFile
+)
 
 
 _DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&west={}&south={}&east={}&north={}&outputFormat=GTiff"
@@ -146,7 +150,7 @@ def download_dem(
 
         except OSError:
             try:
-                hgts = RAiDER.utilFcns.read_hgt_file(outName)
+                hgts = read_hgt_file(outName)
                 return hgts
             except KeyError:
                 logger.warning('The station file does not contain height information, I will download it')
@@ -178,9 +182,9 @@ def download_dem(
         # Need to ensure that noData values are consistently handled and
         # can be passed on to GDAL
         if outInterp.ndim == 2:
-            RAiDER.utilFcns.writeArrayToRaster(outInterp, outName, noDataValue=noDataVal)
+            writeArrayToRaster(outInterp, outName, noDataValue=noDataVal)
         elif outInterp.ndim == 1:
-            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outName, noDataValue=noDataVal)
+            writeArrayToFile(lons, lats, outInterp, outName, noDataValue=noDataVal)
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':

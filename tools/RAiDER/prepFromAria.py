@@ -9,7 +9,7 @@
 import numpy as np
 from osgeo import gdal
 
-from RAiDER.utilFcns import gdal_open, writeArrayToRaster
+from RAiDER.ioFcns import gdal_open, writeArrayToRaster
 
 
 def parse_args():

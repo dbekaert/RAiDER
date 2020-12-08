@@ -14,9 +14,11 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
-import RAiDER.utilFcns as utilFcns
 from RAiDER import Geo2rdr
 from RAiDER.constants import _ZREF, Zenith
+from RAiDER.mathFcns import sind, cosd
+from RAiDER.geometry import enu2ecef, lla2ecef, checkShapes
+from RAiDER.ioFcns import gdal_open
 
 # def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 #    import Geo2rdr
@@ -253,9 +255,9 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     a_0 = incidence
     a_1 = heading
 
-    east = utilFcns.sind(a_0) * utilFcns.cosd(a_1 + 90)
-    north = utilFcns.sind(a_0) * utilFcns.sind(a_1 + 90)
-    up = utilFcns.cosd(a_0)
+    east = sind(a_0) * cosd(a_1 + 90)
+    north = sind(a_0) * sind(a_1 + 90)
+    up = cosd(a_0)
     east, north, up = np.stack((east, north, up))
 
     # Pick reasonable range to top of troposphere if not provided
@@ -266,11 +268,11 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     # Scale look vectors by range
     east, north, up = np.stack((east, north, up)) * ranges
 
-    xyz = utilFcns.enu2ecef(
+    xyz = enu2ecef(
         east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
         lons.flatten(), heights.flatten())
 
-    sp_xyz = utilFcns.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten())
+    sp_xyz = lla2ecef(lats.flatten(), lons.flatten(), heights.flatten())
     los = np.stack(xyz, axis=-1) - np.stack(sp_xyz, axis=-1)
     los = los.reshape(east.shape + (3,))
 
@@ -287,8 +289,8 @@ def infer_los(los, lats, lons, heights, zref, time=None):
     if los_type == 'sv':
         LOS = infer_sv(los_file, lats, lons, heights, time)
     elif los_type == 'los':
-        incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
-        utilFcns.checkShapes(np.stack((incidence, heading), axis=-1), lats, lons, heights)
+        incidence, heading = [f.flatten() for f in gdal_open(los_file)]
+        checkShapes(np.stack((incidence, heading), axis=-1), lats, lons, heights)
         LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
     else:
         raise ValueError("Unsupported los type '{}'".format(los_type))
