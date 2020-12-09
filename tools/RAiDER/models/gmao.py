@@ -10,7 +10,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2HDF5, roundTime
+from RAiDER.utilFcns import writeWeatherVars2HDF5, roundTime, requests_retry_session
 
 
 class GMAO(WeatherModel):
@@ -68,7 +68,7 @@ class GMAO(WeatherModel):
         time  = roundTime(time, 3*60*60)
         if not time1 == time:
             logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
-            
+
         DT   = time - T0
         time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
 
@@ -209,16 +209,3 @@ class GMAO(WeatherModel):
         self._xs = _lons
         self._ys = _lats
         self._zs = h
-
-def requests_retry_session(retries=10, session=None):
-    """ https://www.peterbe.com/plog/best-practice-with-retries-with-requests """
-    from requests.adapters import HTTPAdapter
-    from requests.packages.urllib3.util.retry import Retry
-    # add a retry strategy; https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
-    session = session or requests.Session()
-    retry   = Retry(total=retries, read=retries, connect=retries,
-                    backoff_factor=0.3, status_forcelist=list(range(429, 505)))
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-    return session
