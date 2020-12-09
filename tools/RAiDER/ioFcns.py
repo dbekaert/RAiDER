@@ -15,6 +15,8 @@ from osgeo import gdal, osr
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 
+from RAiDER.geometry import checkLOS
+
 gdal.UseExceptions()
 
 
@@ -58,6 +60,7 @@ def gdal_open(fname, returnProj=False, userNDV=None):
                 ndv = b.GetNoDataValue()
                 data[data == ndv] = np.nan
             except:
+                pass
         val.append(data)
         b = None
     ds = None
@@ -73,9 +76,13 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         return data, proj, gt
 
 
-
-
-def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
+def writeArrayToFile(
+        lats, 
+        lons, 
+        array, 
+        filename, 
+        noDataValue=-9999
+    ):
     '''
     Write a single-dim array of values to a file
     '''
@@ -392,14 +399,83 @@ def write(varDict,outName,fmt='h5'):
     else:
         writeVars2NETCDF4(varDict, outName)
 
-def writeVars2HDF5(varDict, outName):
-    ''' Write variables to an HDF5 file '''
+
+def writeVars2HDF5(
+        varDict, 
+        outName, 
+        attrs=None, 
+        chunkSize=None,
+        NoDataValue=None
+    ):
+    ''' 
+    Write variables to an HDF5 file 
+
+    Parameters
+    ----------
+    varDict     - Dict of dicts containing variables to write
+    outName     - Filename to write to
+    attrs       - Dict of attributes to write to file
+    chunkSize   - tuple to use for writing chunks
+    NoDataValue - A single NoDataValue for all variables
+
+    Example
+    -------
+    >>> d1 = np.random.randn(10,2)
+    >>> fname = 'test.h5'
+    >>> attrs = {'attribute': 'test'}
+    >>> d = {
+    >>>     'var1': {
+    >>>         'data': d1, 
+    >>>         'attrs': {
+    >>>             'NoDataValue': -999., 
+    >>>             'proj': 'wgs-84'
+    >>>         }
+    >>>     }
+    >>> }
+    >>> writeVars2HDF5(d, fname, attrs)
+    '''
     with h5py.File(outName, 'w') as f:
+
+        # Write the attributes dict to the file
+        if attrs is not None:
+            for var in attrs.keys():
+                f.attrs[var] = attrs[var]
+
+        # Write each var dict to the file
         for var in varDict.keys():
-            v = f.create_dataset(
+            tmp = f.create_dataset(
                     var, 
-                    data = varDict[var]['data']
+                    data = varDict[var]['data'],
+                    chunks = chunkSize,
+                    fillvalue = NoDataValue,
                 )
+            try:
+                for attr, value in varDict[var]['attrs'].items():
+                    tmp.attrs[attr] = value
+            except KeyError:
+                pass
+
+
+def writeVars2NETCDF4(varDict, outName):
+    '''
+    Write variables to NETCDF4. 
+
+    Parameters
+    ----------
+    varDict     - A dict of dicts. 
+    
+    Keys should be variable names, values should be dicts. 
+    Each dict should have the following form:
+        "coords": A dict of coordinate variable names, values, and attributes
+        "attrs": A dict of attributes for the variable
+        "dims": dimension name
+        "data": The multi-dimensional data itself
+        "name": The name of the variable
+
+    outName     - Output file name
+    '''
+    raise NotImplementedError
+
 
 def requests_retry_session(retries=10, session=None):
     """ 

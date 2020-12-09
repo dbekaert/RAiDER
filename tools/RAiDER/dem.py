@@ -24,9 +24,9 @@ from RAiDER.logger import *
 from RAiDER.ioFcns import (
     gdal_open, 
     gdal_extents, 
-    read_hgt_file
-    writeArrayToRaster
-    writeArrayToFile
+    read_hgt_file,
+    writeArrayToRaster,
+    writeArrayToFile,
 )
 
 

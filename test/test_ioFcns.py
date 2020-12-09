@@ -9,43 +9,73 @@ from datetime import time
 from test import TEST_DIR
 from osgeo import gdal, osr
 
-from RAiDER.utilFcns import (
+from RAiDER.ioFcns import (
     gdal_open, 
     makeDelayFileNames,
     writeArrayToRaster, 
     writeResultsToHDF5, 
     gdal_extents, 
-    getTimeFromFile
+    getTimeFromFile,
+    writeVars2HDF5,
 )
 
 
-def test_writeResultsToHDF5(tmp_path):
-    lats = np.array(
-            [15.0, 15.5, 16.0, 16.5, 17.5, -40, 60, 90]
-        )
-    lons = np.array(
-            [-100.0, -100.4, -91.2, 45.0, 0., -100, -100, -100]
-        )
-    hgts = np.array(
-            [0., 1000., 10000., 0., 0., 0., 0., 0.]
-        )
+@pytest.fixture
+def test_vars():
+    ''' Generate vars for file I/O tests '''
+    lats = np.arange(10, 50, 0.1)
+    lons = np.arange(-100, -60, 0.1)
+    hgts = np.random.randn(*lats.shape)
     wet = np.zeros(lats.shape)
     hydro = np.ones(lats.shape)
-    filename = str(tmp_path / 'dummy.hdf5')
 
-    writeResultsToHDF5(
-            lats, 
-            lons, 
-            hgts, 
-            wet, 
-            hydro, 
-            filename
-        )
+    d = {
+            'lats': {'data': lats, 'attrs': {'proj': 'wgs-84'}},
+            'lons': {'data': lons, 'attrs': {'proj': 'wgs-84'}},
+            'hgts': {'data': hgts},
+            'wet':  {'data': wet},
+            'hydro':{'data': hydro}
+        }
+        
+    return d
 
+
+def test_writeVars2HDF5_1(tmp_path, test_vars):
+    d = test_vars
+    filename = str(tmp_path / 'dummy.h5')
+
+    writeVars2HDF5(d, filename)
+    
     with h5py.File(filename, 'r') as f:
-        assert np.allclose(np.array(f['lat']), lats)
-        assert np.allclose(np.array(f['hydroDelay']), hydro)
+        assert len(f.keys()) == 5
+        lats = f['lats'][:]
+        assert np.allclose(d['lats']['data'], lats)
+
+
+def test_writeVars2HDF5_2(tmp_path, test_vars):
+    d = test_vars
+    filename = str(tmp_path / 'dummy2.h5')
+    attrs = {'DelayType': 'Zenith'}
+
+    writeVars2HDF5(d, filename, attrs)
+    
+    with h5py.File(filename, 'r') as f:
+        assert len(f.keys()) == 5
         assert f.attrs['DelayType'] == 'Zenith'
+
+
+def test_writeVars2HDF5_3(tmp_path, test_vars):
+    d = test_vars
+    filename = str(tmp_path / 'dummy2.h5')
+    NDV = 0.
+    chunkSize = (10,)
+
+    writeVars2HDF5(d, filename)
+    
+    with h5py.File(filename, 'r') as f:
+        assert len(f.keys()) == 5
+        assert f['lats'].chunks == chunkSize
+        assert f['lats'].fillvalue == NDV
 
 
 def test_writeArrayToRaster(tmp_path):
