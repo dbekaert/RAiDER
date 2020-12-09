@@ -9,6 +9,7 @@
 from RAiDER.logger import *
 from RAiDER.logger import logger
 from RAiDER.cli.parser import add_cpus
+from RAiDER.utilFcns import WGS84_to_UTM
 from shapely.strtree import STRtree
 from shapely.geometry import Point, Polygon
 from pandas.plotting import register_matplotlib_converters
@@ -304,6 +305,7 @@ class VariogramAnalysis():
             y = y[mask]
 
         # deramp
+        temp1, temp2, x, y = WGS84_to_UTM(x,y, common_center=True)
         A = np.array([x, y, np.ones(len(x))]).T
         ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
         data = data - (np.matmul(A, ramp))
