@@ -1,19 +1,19 @@
 """ General function related to file I/O """
-import importlib
-import multiprocessing as mp
-import os
-import re
-from datetime import datetime, timedelta
-
 import h5py
+import importlib
+import os
+import pyproj
+import re
+import requests
+
+import multiprocessing as mp
 import numpy as np
 import pandas as pd
-import pyproj
-from osgeo import gdal, osr
 
-from RAiDER.constants import Zenith
-from RAiDER import Geo2rdr
-from RAiDER.logger import *
+from datetime import datetime
+from osgeo import gdal, osr
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 
 gdal.UseExceptions()
 
@@ -52,14 +52,12 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
         data = b.ReadAsArray()
         if userNDV is not None:
-            logger.debug('Using user-supplied NoDataValue')
             data[data == userNDV] = np.nan
         else:
             try:
                 ndv = b.GetNoDataValue()
                 data[data == ndv] = np.nan
             except:
-                logger.debug('NoDataValue attempt failed*******')
         val.append(data)
         b = None
     ds = None
@@ -75,51 +73,6 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         return data, proj, gt
 
 
-def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
-    '''
-    write a 1-D array to a NETCDF5 file
-    '''
-    if delayType is None:
-        delayType = "Zenith"
-
-    with h5py.File(filename, 'w') as f:
-        f['lat'] = lats
-        f['lon'] = lons
-        f['hgts'] = hgts
-        f['wetDelay'] = wet
-        f['hydroDelay'] = hydro
-        f['wetDelayUnit'] = "m"
-        f['hydroDelayUnit'] = "m"
-        f['hgtsUnit'] = "m"
-        f.attrs['DelayType'] = delayType
-
-
-def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
-    '''
-    write a numpy array to a GDAL-readable raster
-    '''
-    array_shp = np.shape(array)
-    if array.ndim != 2:
-        raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
-    dType = array.dtype
-    if 'complex' in str(dType):
-        dType = gdal.GDT_CFloat32
-    elif 'float' in str(dType):
-        dType = gdal.GDT_Float32
-    else:
-        dType = gdal.GDT_Byte
-
-    driver = gdal.GetDriverByName(fmt)
-    ds = driver.Create(filename, array_shp[1], array_shp[0], 1, dType)
-    if proj is not None:
-        ds.SetProjection(proj)
-    if gt is not None:
-        ds.SetGeoTransform(gt)
-    b1 = ds.GetRasterBand(1)
-    b1.WriteArray(array)
-    b1.SetNoDataValue(noDataValue)
-    ds = None
-    b1 = None
 
 
 def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
@@ -189,11 +142,24 @@ def read_hgt_file(filename):
     return hgts
 
 
-def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                wetFilename, hydroFilename=None, zlevels=None, delayType=None,
-                outformat=None, proj=None, gt=None, ndv=0.):
+def writeDelays(
+        flag, 
+        wetDelay, 
+        hydroDelay, 
+        lats, 
+        lons,
+        wetFilename, 
+        hydroFilename=None, 
+        zlevels=None, 
+        delayType=None,
+        outformat=None, 
+        proj=None, 
+        gt=None, 
+        ndv=0.
+    ):
     '''
-    Write the delay numpy arrays to files in the format specified
+    Write the delay numpy arrays to files in the format 
+    specified
     '''
 
     # Need to consistently handle noDataValues
@@ -217,12 +183,79 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df.to_csv(wetFilename, index=False)
 
     elif outformat == 'hdf5':
-        writeResultsToHDF5(lats, lons, zlevels, wetDelay, hydroDelay, wetFilename, delayType=delayType)
+        writeResultsToHDF5(
+                lats, 
+                lons, 
+                zlevels, 
+                wetDelay, 
+                hydroDelay, 
+                wetFilename, 
+                delayType=delayType
+            )
     else:
-        writeArrayToRaster(wetDelay, wetFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
-        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(
+                wetDelay, 
+                wetFilename, 
+                noDataValue=ndv,
+                fmt=outformat, 
+                proj=proj, 
+                gt=gt
+            )
+        writeArrayToRaster(
+                hydroDelay, 
+                hydroFilename, 
+                noDataValue=ndv,
+                fmt=outformat, 
+                proj=proj, 
+                gt=gt
+            )
+
+
+def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
+    '''
+    write a 1-D array to a NETCDF5 file
+    '''
+    if delayType is None:
+        delayType = "Zenith"
+
+    with h5py.File(filename, 'w') as f:
+        f['lat'] = lats
+        f['lon'] = lons
+        f['hgts'] = hgts
+        f['wetDelay'] = wet
+        f['hydroDelay'] = hydro
+        f['wetDelayUnit'] = "m"
+        f['hydroDelayUnit'] = "m"
+        f['hgtsUnit'] = "m"
+        f.attrs['DelayType'] = delayType
+
+
+def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
+    '''
+    write a numpy array to a GDAL-readable raster
+    '''
+    array_shp = np.shape(array)
+    if array.ndim != 2:
+        raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
+    dType = array.dtype
+    if 'complex' in str(dType):
+        dType = gdal.GDT_CFloat32
+    elif 'float' in str(dType):
+        dType = gdal.GDT_Float32
+    else:
+        dType = gdal.GDT_Byte
+
+    driver = gdal.GetDriverByName(fmt)
+    ds = driver.Create(filename, array_shp[1], array_shp[0], 1, dType)
+    if proj is not None:
+        ds.SetProjection(proj)
+    if gt is not None:
+        ds.SetGeoTransform(gt)
+    b1 = ds.GetRasterBand(1)
+    b1.WriteArray(array)
+    b1.SetNoDataValue(noDataValue)
+    ds = None
+    b1 = None
 
 
 def getTimeFromFile(filename):
@@ -256,9 +289,6 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         maxChunkSize = 10000
         cpu_count = mp.cpu_count()
         chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
-
-    logger.debug('Chunk size is {}'.format(chunkSize))
-    logger.debug('Array shape is {}'.format(in_shape))
 
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
@@ -344,11 +374,11 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
 
         f.create_dataset('Projection', data=proj.to_json())
 
+
 def requests_retry_session(retries=10, session=None):
-    """ https://www.peterbe.com/plog/best-practice-with-retries-with-requests """
-    import requests
-    from requests.adapters import HTTPAdapter
-    from requests.packages.urllib3.util.retry import Retry
+    """ 
+    https://www.peterbe.com/plog/best-practice-with-retries-with-requests 
+    """
     # add a retry strategy; https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
     session = session or requests.Session()
     retry   = Retry(total=retries, read=retries, connect=retries,
