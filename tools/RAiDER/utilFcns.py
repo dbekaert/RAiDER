@@ -536,3 +536,17 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
         T = f.create_dataset('t', data=t)
 
         f.create_dataset('Projection', data=proj.to_json())
+
+def requests_retry_session(retries=10, session=None):
+    """ https://www.peterbe.com/plog/best-practice-with-retries-with-requests """
+    import requests
+    from requests.adapters import HTTPAdapter
+    from requests.packages.urllib3.util.retry import Retry
+    # add a retry strategy; https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
+    session = session or requests.Session()
+    retry   = Retry(total=retries, read=retries, connect=retries,
+                    backoff_factor=0.3, status_forcelist=list(range(429, 505)))
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+    return session

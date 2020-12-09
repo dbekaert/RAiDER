@@ -38,8 +38,8 @@ def computeDelay(
     points file. 
     """
     logger.debug('Beginning delay calculation')
-    logger.debug('Reference z-value (max z for integration) is {} m'.format(zref))
-    logger.debug('Reference integration step is {} m'.format(step))
+    logger.debug('Max integration height is {:1.1f} m'.format(zref))
+    logger.debug('Reference integration step is {:1.1f} m'.format(step))
 
     # If weather model nodes only are desired, the calculation is very quick
     if useWeatherNodes:
@@ -97,10 +97,10 @@ def tropo_delay(args):
     
     # logging
     logger.debug('Starting to run the weather model calculation')
-    logger.debug('Time type: %s', type(time))
-    logger.debug('Time: %s', time.strftime('%Y%m%d'))
-    logger.debug('Flag type is %s', flag)
-    logger.debug('DEM/height type is "%s"', heights[0])
+    logger.debug('Time type: {}'.format(type(time)))
+    logger.debug('Time: {}'.format(time.strftime('%Y%m%d')))
+    logger.debug('Flag type is {}'.format(flag))
+    logger.debug('DEM/height type is "{}"'.format(heights[0]))
     
     # Flags
     useWeatherNodes = flag == 'bounding_box'
@@ -108,7 +108,8 @@ def tropo_delay(args):
 
     # location of the weather model files
     logger.debug('Beginning weather model pre-processing')
-    logger.debug('Download-only is %s', download_only)
+    logger.debug('Download-only is {}'.format(download_only))
+
     if wmLoc is None:
         wmLoc = os.path.join(out, 'weather_files')
         
@@ -150,13 +151,12 @@ def tropo_delay(args):
     
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
-    pnts_file = None
+    pnts_file = os.path.join(out, 'geom', 'query_points.h5')
     if not useWeatherNodes:
-        pnts_file = os.path.join(out, 'geom', 'query_points.h5')
+        zlevels = None
         if not os.path.exists(pnts_file):
-
             # Convert the line-of-sight inputs to look vectors
-            logger.debug('Lats shape is %s', lats.shape)
+            logger.debug('Lats shape is {}'.format(lats.shape))
             logger.debug(
                 'lat/lon box is %f/%f/%f/%f (SNWE)',
                 np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
@@ -171,16 +171,23 @@ def tropo_delay(args):
             # write to an HDF5 file
             writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
+    elif heights[0] == 'lvs':
+        zlevels = hgts
+
+    else:
+        zlevels = None
+
     wetDelay, hydroDelay = computeDelay(
         weather_model_file, 
         pnts_file, 
         useWeatherNodes, 
+        zlevels,
         zref, 
         out = out,
     )
 
     if heights[0] == 'lvs':
-        outName = wetFilename.replace('wet', 'delays')
+        outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                     outName, zlevels=hgts, outformat=outformat, delayType=delayType)
         logger.info('Finished writing data to %s', outName)

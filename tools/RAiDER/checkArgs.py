@@ -7,14 +7,16 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
 
-import RAiDER.utilFcns
+from textwrap import dedent
+from datetime import datetime
+
 from RAiDER.constants import Zenith
 from RAiDER.llreader import readLL
+from RAiDER.utilFcns import makeDelayFileNames, modelName2Module
 
 
 def checkArgs(args, p):
@@ -44,22 +46,24 @@ def checkArgs(args, p):
         los = Zenith
 
     # Weather
-    weather_model_name = args.model
-    if weather_model_name == 'WRF' and args.files is None:
-        raise RuntimeError('Argument --files is required with --model WRF')
-    _, model_obj = RAiDER.utilFcns.modelName2Module(args.model)
-    if args.model == 'WRF':
-        weathers = {'type': 'wrf', 'files': args.files,
-                    'name': 'wrf'}
-    elif args.model == 'HDF5':
-        weathers = {'type': 'HDF5', 'files': args.files,
-                    'name': args.model}
-    else:
-        try:
-            weathers = {'type': model_obj(), 'files': args.files,
-                        'name': args.model}
-        except:
-            raise NotImplementedError('{} is not implemented'.format(weather_model_name))
+    try:
+        _, model_obj = modelName2Module(args.model)
+    except ModuleNotFoundError:
+        raise NotImplementedError(
+                dedent('''
+                Model {} is not yet fully implemented, 
+                please contribute!
+                '''.format(args.model))
+            )
+    if args.model in ['WRF', 'HDF5'] and args.files is None:
+        raise RuntimeError(
+                'Argument --files is required with model {}'.format(args.model)
+            )
+    weathers = {
+            'type': model_obj(), 
+            'files': args.files,
+            'name': args.model
+        }
 
     # zref
     zref = args.zref
@@ -109,16 +113,28 @@ def checkArgs(args, p):
     wetNames, hydroNames = [], []
     for time in datetimeList:
         if flag == 'station_file':
-            wetFilename = os.path.join(out, '{}_Delay_{}_Zmax{}.csv'
-                                       .format(weather_model_name, time.strftime('%Y%m%dT%H%M%S'), zref))
+            wetFilename = os.path.join(
+                    out, 
+                    '{}_Delay_{}_Zmax{}.csv'
+                    .format(
+                        args.model, 
+                        time.strftime('%Y%m%dT%H%M%S'), 
+                        zref
+                    )
+                )
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
             indf = pd.read_csv(args.query_area)
             indf.to_csv(wetFilename, index=False)
         else:
-            wetFilename, hydroFilename = \
-                RAiDER.utilFcns.makeDelayFileNames(time, los, outformat, weather_model_name, out)
+            wetFilename, hydroFilename = makeDelayFileNames(
+                    time, 
+                    los, 
+                    outformat, 
+                    args.model, 
+                    out
+                )
 
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)
