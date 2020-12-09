@@ -374,6 +374,32 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
 
         f.create_dataset('Projection', data=proj.to_json())
 
+def write(varDict,outName,fmt='h5'):
+    #lat, lon, x, y, z, q, p, t, proj
+    '''
+    Write variables to a file. 
+    '''
+    _allowed_fmts = ['h5', 'nc4']
+
+    if fmt not in _allowed_fmts:
+        raise ValueError(
+                'Format {} not allowed, must be h5 or nc4'
+                .format(fmt)
+            )
+
+    if fmt == 'h5':
+        writeVars2HDF5(varDict, outName)
+    else:
+        writeVars2NETCDF4(varDict, outName)
+
+def writeVars2HDF5(varDict, outName):
+    ''' Write variables to an HDF5 file '''
+    with h5py.File(outName, 'w') as f:
+        for var in varDict.keys():
+            v = f.create_dataset(
+                    var, 
+                    data = varDict[var]['data']
+                )
 
 def requests_retry_session(retries=10, session=None):
     """ 
