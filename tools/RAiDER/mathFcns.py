@@ -28,9 +28,6 @@ def cosd(x):
     return np.cos(np.radians(x))
 
 
-        return data, proj, gt
-
-
 def round_date(date, precision):
     # First try rounding up
     # Timedelta since the beginning of time
@@ -100,11 +97,3 @@ def roundTime(dt, roundTo=60):
    seconds  = (dt.replace(tzinfo=None) - dt.min).seconds
    rounding = (seconds+roundTo/2) // roundTo * roundTo
    return dt + timedelta(0,rounding-seconds,-dt.microsecond)
-
-
-    else:
-        writeArrayToRaster(wetDelay, wetFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
-        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
-
