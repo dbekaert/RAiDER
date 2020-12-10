@@ -9,7 +9,7 @@
 from RAiDER.logger import *
 from RAiDER.logger import logger
 from RAiDER.cli.parser import add_cpus
-from RAiDER.utilFcns import WGS84_to_UTM
+from RAiDER.geometry import WGS84_to_UTM
 from shapely.strtree import STRtree
 from shapely.geometry import Point, Polygon
 from pandas.plotting import register_matplotlib_converters
