@@ -9,7 +9,7 @@ from test import GEOM_DIR, TEST_DIR
 
 import RAiDER.runProgram
 
-from RAiDER.utilFcns import gdal_open
+from RAiDER.ioFcns import gdal_open
 from RAiDER.llreader import (
     readLLFromLLFiles, readLLFromBBox, readLLFromStationFile, forceNDArray
 )

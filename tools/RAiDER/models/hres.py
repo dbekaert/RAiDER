@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 from pyproj import CRS
 
-from RAiDER import utilFcns as util
+from RAiDER.mathFcns import round_date
 from RAiDER.models.weatherModel import WeatherModel
 
 
@@ -246,7 +246,7 @@ class HRES(WeatherModel):
 
         server = ECMWFService("mars")
 
-        corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        corrected_date = round_date(time, datetime.timedelta(hours=6))
 
         if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             levels = 91

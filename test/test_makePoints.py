@@ -1,18 +1,9 @@
-import datetime
-import h5py
 import os
 import pytest
 
 import numpy as np
 
-from datetime import time
 from test import TEST_DIR
-from osgeo import gdal, osr
-
-from RAiDER.utilFcns import (
-    gdal_open, makeDelayFileNames,writeArrayToRaster, 
-    writeResultsToHDF5, gdal_extents, getTimeFromFile
-)
 
 
 @pytest.fixture

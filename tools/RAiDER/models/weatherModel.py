@@ -8,16 +8,16 @@ import numpy as np
 from pyproj import CRS, Transformer
 
 from RAiDER import constants as const
-from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
+from RAiDER.geometry import lla2ecef, _geo_to_ht
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
 from RAiDER.losreader import getLookVectors
 from RAiDER.logger import *
 from RAiDER.makePoints import makePoints3D
+from RAiDER.mathFcns import robmax, robmin, padLower
 from RAiDER.models import plotWeather as plots
-from RAiDER.utilFcns import lla2ecef, robmax, robmin
 
 
 class WeatherModel(ABC):
@@ -237,7 +237,7 @@ class WeatherModel(ABC):
         Transform geo heights to actual heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        self._zs = util._geo_to_ht(lats, geo_ht_fix, self._g0)
+        self._zs = _geo_to_ht(lats, geo_ht_fix, self._g0)
 
     def _find_e(self):
         """Check the type of e-calculation needed"""
@@ -295,11 +295,11 @@ class WeatherModel(ABC):
             self._lons = np.concatenate((self._lons[:, :, 0][..., np.newaxis], self._lons), axis=2)
             self._lats = np.concatenate((self._lats[:, :, 0][..., np.newaxis], self._lats), axis=2)
 
-            self._p = util.padLower(self._p)
-            self._t = util.padLower(self._t)
-            self._e = util.padLower(self._e)
-            self._wet_refractivity = util.padLower(self._wet_refractivity)
-            self._hydrostatic_refractivity = util.padLower(self._hydrostatic_refractivity)
+            self._p = padLower(self._p)
+            self._t = padLower(self._t)
+            self._e = padLower(self._e)
+            self._wet_refractivity = padLower(self._wet_refractivity)
+            self._hydrostatic_refractivity = padLower(self._hydrostatic_refractivity)
 
         if lats is not None:
             in_extent = self._getExtent(lats, lons)

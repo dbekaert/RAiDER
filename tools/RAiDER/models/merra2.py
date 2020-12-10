@@ -9,7 +9,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2HDF5
+from RAiDER.ioFcns import write
 
 def Model():
     return MERRA2()
@@ -113,7 +113,20 @@ class MERRA2(WeatherModel):
         h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
 
         try:
-            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
+            write(
+                    {
+                        'lats': lats,
+                        'lons': lons, 
+                        'x': lons, 
+                        'y': lats, 
+                        'z': h, 
+                        'q': q, 
+                        'p': p, 
+                        't': t,
+                    },
+                    outName = out
+                    attrs = {'Projection': self._proj}
+                )
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

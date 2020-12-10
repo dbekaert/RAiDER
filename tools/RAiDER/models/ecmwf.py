@@ -4,7 +4,7 @@ import numpy as np
 from pyproj import CRS
 
 from RAiDER.logger import *
-from RAiDER import utilFcns as util
+from RAiDER.mathFcns import round_time, round_date
 from RAiDER.models.weatherModel import WeatherModel
 
 
@@ -145,7 +145,7 @@ class ECMWF(WeatherModel):
 
         server = ecmwfapi.ECMWFDataServer()
 
-        corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        corrected_date = round_date(time, datetime.timedelta(hours=6))
 
         server.retrieve({
             "class": self._classname,  # ERA-Interim
@@ -185,7 +185,7 @@ class ECMWF(WeatherModel):
         mls = np.arange(137) + 1
 
         c = cdsapi.Client(verify=0)
-        # corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        # corrected_date = round_date(time, datetime.timedelta(hours=6))
         if self._model_level_type == 'pl':
             var = ['geopotential', 'relative_humidity', 'specific_humidity', 'temperature']
             levels = 'all'

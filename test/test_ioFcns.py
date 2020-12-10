@@ -13,7 +13,6 @@ from RAiDER.ioFcns import (
     gdal_open, 
     makeDelayFileNames,
     writeArrayToRaster, 
-    writeResultsToHDF5, 
     gdal_extents, 
     getTimeFromFile,
     writeVars2HDF5,
@@ -70,7 +69,12 @@ def test_writeVars2HDF5_3(tmp_path, test_vars):
     NDV = 0.
     chunkSize = (10,)
 
-    writeVars2HDF5(d, filename)
+    writeVars2HDF5(
+            d, 
+            filename, 
+            chunkSize = chunkSize, 
+            NoDataValue = NDV
+        )
     
     with h5py.File(filename, 'r') as f:
         assert len(f.keys()) == 5
