@@ -105,7 +105,6 @@ def checkLOS(los, Npts):
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
 # Credits go to Tom Payne
-
 def WGS84_to_UTM(lon, lat, common_center=False):
     shp = lat.shape
     lon = np.ravel(lon)
