@@ -93,7 +93,13 @@ def writeArrayToFile(
             f.write('{},{},{}\n'.format(l, L, a))
 
 
-def makeDelayFileNames(time, los, outformat, weather_model_name, out):
+def makeDelayFileNames(
+        time, 
+        los, 
+        outformat, 
+        weather_model_name, 
+        out
+    ):
     '''
     return names for the wet and hydrostatic delays.
 
@@ -190,15 +196,21 @@ def writeDelays(
         df.to_csv(wetFilename, index=False)
 
     elif outformat == 'hdf5':
-        writeResultsToHDF5(
-                lats, 
-                lons, 
-                zlevels, 
-                wetDelay, 
-                hydroDelay, 
-                wetFilename, 
-                delayType=delayType
-            )
+        writeVars2HDF5(
+            {
+                'lats': lats,
+                'lons': lons,
+                'zlevels': zlevels,
+                'wetDelay': wetDelay,
+                'hydroDelay': hydroDelay,
+            },
+            outName = wetFilename, 
+            attrs = {
+                'DelayType': delayType
+            },
+            NoDataValue=ndv
+        )
+
     else:
         writeArrayToRaster(
                 wetDelay, 
@@ -216,25 +228,6 @@ def writeDelays(
                 proj=proj, 
                 gt=gt
             )
-
-
-def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
-    '''
-    write a 1-D array to a NETCDF5 file
-    '''
-    if delayType is None:
-        delayType = "Zenith"
-
-    with h5py.File(filename, 'w') as f:
-        f['lat'] = lats
-        f['lon'] = lons
-        f['hgts'] = hgts
-        f['wetDelay'] = wet
-        f['hydroDelay'] = hydro
-        f['wetDelayUnit'] = "m"
-        f['hydroDelayUnit'] = "m"
-        f['hgtsUnit'] = "m"
-        f.attrs['DelayType'] = delayType
 
 
 def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
@@ -381,8 +374,14 @@ def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
 
         f.create_dataset('Projection', data=proj.to_json())
 
-def write(varDict,outName,fmt='h5'):
-    #lat, lon, x, y, z, q, p, t, proj
+def write(
+        varDict,
+        outName, 
+        attrs = None, 
+        chunkSize = None, 
+        NoDataValue = None, 
+        fmt='h5'
+    ):
     '''
     Write variables to a file. 
     '''
@@ -395,7 +394,13 @@ def write(varDict,outName,fmt='h5'):
             )
 
     if fmt == 'h5':
-        writeVars2HDF5(varDict, outName)
+        writeVars2HDF5(
+                varDict, 
+                outName,
+                attrs = attrs,
+                chunkSize = chunkSize,
+                NoDataValue = NoDataValue
+            )
     else:
         writeVars2NETCDF4(varDict, outName)
 
