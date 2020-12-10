@@ -9,7 +9,8 @@ from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
-from RAiDER.utilFcns import gdal_open, modelName2Module
+from RAiDER.ioFcns import gdal_open
+from RAiDER.checkArgs import modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
 

@@ -7,7 +7,11 @@ import pytest
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
-from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
+from RAiDER.ioFcns import (
+    gdal_open, 
+    makeDelayFileNames, 
+)
+from RAiDER.checkArgs import modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-4

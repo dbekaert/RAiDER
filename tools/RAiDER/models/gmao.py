@@ -10,7 +10,10 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2HDF5, roundTime, requests_retry_session
+from RAiDER.ioFcns import (
+    write, requests_retry_session
+)
+from RAiDER.mathFcns import round_time
 
 
 class GMAO(WeatherModel):
@@ -65,7 +68,7 @@ class GMAO(WeatherModel):
         T0   = dt.datetime(2017, 12, 1, 0, 0, 0)
         ## round time to nearest third hour
         time1 = time
-        time  = roundTime(time, 3*60*60)
+        time  = round_time(time, 3*60*60)
         if not time1 == time:
             logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
 
@@ -138,10 +141,27 @@ class GMAO(WeatherModel):
         )
 
         try:
-            # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
+            # Note that lat/lon gets written twice for GMAO 
+            # because they are the same as y/x
+            write(
+                    {
+                        'lats': lats,
+                        'lons': lons, 
+                        'x': lons, 
+                        'y': lats, 
+                        'z': h, 
+                        'q': q, 
+                        'p': p, 
+                        't': t,
+                    },
+                    outName = out
+                    attrs = {'Projection': self._proj}
+                )
+
         except Exception:
-            logger.exception("Unable to save weathermodel to file")
+            logger.exception(
+                    "Unable to save weathermodel to file"
+                )
 
 
     def load_weather(self, f):

@@ -5,7 +5,6 @@ Modified by Yang Lei, GPS/Caltech
 import datetime
 import numpy as np
 from pyproj import CRS
-from RAiDER import utilFcns as util
 from RAiDER.models.weatherModel import WeatherModel
 
 
