@@ -197,7 +197,7 @@ def tropo_delay(args):
                             'ChunkSize': chunkSize,
                         },
                     },
-                    'hgt', {
+                    'hgt': {
                         'data': hgts, 
                         'attrs': {
                             'Shape': query_shape,
@@ -206,14 +206,14 @@ def tropo_delay(args):
                             'ChunkSize': chunkSize,
                         },
                     },
-                    'LOS', {
+                    'LOS': {
                         'data': los, 
                         'attrs': {
                             'Shape': query_shape + (3,),
                             'ChunkSize': chunkSize + (3,),
                         },
                     },
-                    'Rays_SP', {
+                    'Rays_SP': {
                         'data': None, 
                         'attrs': {
                             'Shape': query_shape + (3,),
@@ -221,7 +221,7 @@ def tropo_delay(args):
                             'dtype': '<f8',
                         },
                     },
-                    'Rays_SLV', {
+                    'Rays_SLV': {
                         'data': None, 
                         'attrs': {
                             'Shape': query_shape + (3,),
@@ -229,7 +229,7 @@ def tropo_delay(args):
                             'dtype': '<f8',
                         },
                     },
-                    'Rays_len', {
+                    'Rays_len': {
                         'data': None,
                         'attrs': {
                             'Shape': query_shape + (3,),

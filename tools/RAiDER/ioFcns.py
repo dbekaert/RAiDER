@@ -8,6 +8,7 @@ import requests
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 from datetime import datetime
 from osgeo import gdal, osr
@@ -335,7 +336,12 @@ def writeVars2HDF5(
                 pass
 
 
-def writeVars2NETCDF4(varDict, outName):
+def writeVars2NETCDF4(
+        varDict, 
+        outName,
+        attrs=None, 
+        NoDataValue=None
+    ):
     '''
     Write variables to NETCDF4. 
 
@@ -351,9 +357,31 @@ def writeVars2NETCDF4(varDict, outName):
         "data": The multi-dimensional data itself
         "name": The name of the variable
 
-    outName     - Output file name
+    outName     - Filename to write to
+    attrs       - Dict of attributes to write to file
+    chunkSize   - tuple to use for writing chunks
+    NoDataValue - A single NoDataValue for all variables
+
+    Example
+    -------
+    >>> d1 = np.random.randn(10,2)
+    >>> fname = 'test.h5'
+    >>> attrs = {'attribute': 'test'}
+    >>> d = {
+    >>>     'var1': {
+    >>>         'data': d1, 
+    >>>         'attrs': {
+    >>>             'NoDataValue': -999., 
+    >>>             'proj': 'wgs-84'
+    >>>         }
+    >>>     }
+    >>> }
+    >>> writeVars2NETCDF(d, fname, attrs)
     '''
-    raise NotImplementedError
+    ds = xr.Dataset.from_dict(varDict)
+    ds.attrs = attrs
+    
+
 
 
 def requests_retry_session(retries=10, session=None):
