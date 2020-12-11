@@ -192,3 +192,31 @@ def zone(coordinates):
     return int((coordinates[0] + 180) / 6) + 1
 
 
+def wgs84():
+    ''' Return a dict with WGS-84 info '''
+    epsg = 4326
+    projname = 'projection'
+
+    # CF 1.8 Convention stuff
+    srs = osr.SpatialReference()
+    srs.ImportFromEPSG(epsg)
+    projds = f.create_dataset(projname, (), dtype='i')
+    projds[()] = epsg
+
+    # WGS84 ellipsoid
+    attr_dict = {
+            'semi_major_axis': 6378137.0,
+            'inverse_flattening': 298.257223563,
+            'ellipsoid': np.string_("WGS84"),
+            'epsg_code': epsg,
+            'spatial_ref': np.string_(srs.ExportToWkt()),
+            'grid_mapping_name': np.string_('latitude_longitude'),
+            'longitude_of_prime_meridian': 0.0,
+        }
+
+            x.attrs['standard_name'] = np.string_("longitude")
+            x.attrs['units'] = np.string_("degrees_east")
+            y.attrs['standard_name'] = np.string_("latitude")
+            y.attrs['units'] = np.string_("degrees_north")
+            z.attrs['standard_name'] = np.string_("height")
+            z.attrs['units'] = np.string_("m")

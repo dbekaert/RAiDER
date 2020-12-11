@@ -198,3 +198,33 @@ def modelName2Module(model_name):
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name, wmObject
 
+
+def makeDelayFileNames(
+        time, 
+        los, 
+        outformat, 
+        weather_model_name, 
+        out
+    ):
+    '''
+    Return names for the wet and hydrostatic delays.
+
+    # Examples:
+    >>> makeDelayFileNames(time(0, 0, 0), None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
+    >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
+    '''
+    format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
+        model_name=weather_model_name,
+        time=time.strftime("%H_%M_%S_") if time is not None else "",
+        los="ztd" if los is None else "std",
+        ext=outformat
+    )
+    hydroname, wetname = (
+        format_string.format(dtyp) for dtyp in ('hydro', 'wet')
+    )
+
+    hydro_file_name = os.path.join(out, hydroname)
+    wet_file_name = os.path.join(out, wetname)
+    return wet_file_name, hydro_file_name

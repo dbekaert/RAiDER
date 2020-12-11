@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: Jeremy Maurer, Raymond Hogenson, David Bekaert & Yang Lei
+# Authors: Jeremy Maurer, Raymond Hogenson, David Bekaert & Yang Lei
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import h5py
 import os
 
-import h5py
 import numpy as np
 
 import RAiDER.delayFcns
+
 from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.dem import getHeights
@@ -151,7 +152,9 @@ def tropo_delay(args):
     
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
 
-    pnts_file = os.path.join(out, 'geom', 'query_points.h5')
+    pnts_dir = os.path.join(out, 'geom')
+    os.makedirs(os.path.abspath(pnts_dir, exists_ok = True)
+    pnts_file = os.path.join(pnts_dir, 'query_points.h5')
     if not useWeatherNodes:
         zlevels = None
         if not os.path.exists(pnts_file):
@@ -169,7 +172,81 @@ def tropo_delay(args):
             los = getLookVectors(los, lats, lons, hgts, zref)
 
             # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+            query_shape = lats.shape
+            checkLOS(los, np.prod(query_shape))
+            chunkSize = getChunkSize(query_shape)
+            NDV = 0.
+
+            write(
+                {
+                    'lat': {
+                        'data': lats,
+                        'attrs': {
+                            'Shape': query_shape,
+                            'standard_name': np.string_('latitude'),
+                            'units': np.string_('degrees_east'),
+                            'ChunkSize': chunkSize,
+                        },
+                    },
+                    'lon': {
+                        'data': lons,
+                        'attrs': {
+                            'Shape': query_shape,
+                            'standard_name': np.string_('longitude'),
+                            'units': np.string_('degrees_north'),
+                            'ChunkSize': chunkSize,
+                        },
+                    },
+                    'hgt', {
+                        'data': hgts, 
+                        'attrs': {
+                            'Shape': query_shape,
+                            'standard_name': np.string_('height'),
+                            'units': np.string_('m'),
+                            'ChunkSize': chunkSize,
+                        },
+                    },
+                    'LOS', {
+                        'data': los, 
+                        'attrs': {
+                            'Shape': query_shape + (3,),
+                            'ChunkSize': chunkSize + (3,),
+                        },
+                    },
+                    'Rays_SP', {
+                        'data': None, 
+                        'attrs': {
+                            'Shape': query_shape + (3,),
+                            'ChunkSize': chunkSize + (3,),
+                            'dtype': '<f8',
+                        },
+                    },
+                    'Rays_SLV', {
+                        'data': None, 
+                        'attrs': {
+                            'Shape': query_shape + (3,),
+                            'ChunkSize': chunkSize + (3,),
+                            'dtype': '<f8',
+                        },
+                    },
+                    'Rays_len', {
+                        'data': None,
+                        'attrs': {
+                            'Shape': query_shape + (3,),
+                            'ChunkSize': chunkSize + (3,),
+                            'dtype': '<f8',
+                        },
+                    },
+                },
+                attrs = {
+                    'ChunkSize': chunkSize,
+                    'NoDataValue': NDV,
+                    'NumRays': np.prod(query_shape),
+                },
+                outName = pnts_file,
+                chunkSize = chunkSize,
+                NoDataValue = NDV
+            )
 
     elif heights[0] == 'lvs':
         zlevels = hgts
@@ -242,3 +319,27 @@ def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
         )
 
     return 1
+
+ 
+def getChunkSize(in_shape):
+    ''' 
+    Try to estimate a reasonable chunk size for writing data 
+
+    Parameters
+    ----------
+    in_shape    - shape of the array to be chunked
+
+    Returns
+    -------
+    Tuple of chunk sizes for each dimension in in_shape
+    '''
+    minChunkSize = 100
+    maxChunkSize = 10000
+    cpu_count = mp.cpu_count()
+    chunkSize = tuple(
+            max(
+                min(maxChunkSize, s // cpu_count),
+                min(s, minChunkSize)
+            ) for s in in_shape
+        )
+    return chunkSize
