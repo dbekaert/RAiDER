@@ -11,6 +11,7 @@ import os
 import sys
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from datetime import datetime, date
 
@@ -119,5 +120,6 @@ def prepareWeatherModel(
     if makePlots:
         p = weather_model.plot('wh', True)
         p = weather_model.plot('pqt', True)
+        plt.close('all')
 
     return weather_model, lats, lons
