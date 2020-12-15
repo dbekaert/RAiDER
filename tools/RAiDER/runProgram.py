@@ -180,10 +180,9 @@ def parseCMD():
     if not args['parallel']==1:
 
         # split the args across the number of concurrent jobs
-        try:
-            Nprocs = len(lst_new_args)
-            with multiprocessing.Pool(Nprocs) as pool:
-                pool.map(_tropo_delay, lst_new_args)
+        Nprocs = len(lst_new_args)
+        with multiprocessing.Pool(Nprocs) as pool:
+            pool.map(_tropo_delay, lst_new_args)
 
     # Otherwise a regular for-loop
     else:
