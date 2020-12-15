@@ -119,5 +119,6 @@ def prepareWeatherModel(
     if makePlots:
         p = weather_model.plot('wh', True)
         p = weather_model.plot('pqt', True)
+        plt.close('all')
 
     return weather_model, lats, lons
