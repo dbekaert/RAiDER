@@ -178,6 +178,9 @@ def parseCMD():
 
     # multi-processing approach
     if not args['parallel']==1:
+        if not args['download_only']:
+            raise RuntimeError('Cannot process multiple delay calculations in parallel,' \
+                    ' either specify --download_only or set parallel = 1')
 
         # split the args across the number of concurrent jobs
         Nprocs = len(lst_new_args)
