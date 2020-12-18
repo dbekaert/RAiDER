@@ -9,7 +9,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2HDF5
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4
 
 def Model():
     return MERRA2()
@@ -113,7 +113,7 @@ class MERRA2(WeatherModel):
         h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
 
         try:
-            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
+            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
@@ -134,15 +134,14 @@ class MERRA2(WeatherModel):
         '''
 
         # adding the import here should become absolute when transition to netcdf
-        import h5py
-
-        with h5py.File(filename, 'r') as f:
-            lons = f['lons'][:].copy()
-            lats = f['lats'][:].copy()
-            h = f['z'][:].copy()
-            p = f['p'][:].copy()
-            q = f['q'][:].copy()
-            t = f['t'][:].copy()
+        from netCDF4 import Dataset
+        with Dataset(filename, mode='r') as f:
+            lons = np.array(f.variables['x'][:])
+            lats = np.array(f.variables['y'][:])
+            h = np.array(f.variables['H'][:])
+            q = np.array(f.variables['QV'][:])
+            p = np.array(f.variables['PL'][:])
+            t = np.array(f.variables['T'][:])
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)
