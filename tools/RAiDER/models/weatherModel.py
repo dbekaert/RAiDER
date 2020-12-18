@@ -27,11 +27,6 @@ class WeatherModel(ABC):
     '''
 
     def __init__(self):
-        # without a better way to solve the problem, suggest to add this back ; otherwise missing a lot of logging info needed for all other models e.g. GMAO (except those call cdsapi directly like ERA-5)  -- Yang (update: Dec 15 2020)
-        # Without these two lines, logging.debug won't work. It is a bit weird but it works out so far. -- Yang (update: Nov 4 2020)
-        import cdsapi
-        c = cdsapi.Client(verify=0)
-
         # Initialize model-specific constants/parameters
         self._k1 = None
         self._k2 = None
