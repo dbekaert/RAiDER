@@ -35,12 +35,6 @@ def getWMFilename(weather_model_name, time, outLoc):
             datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')
         )
     )
-    if weather_model_name in ['GMAO', 'MERRA2']:
-        if time.date() < date(2017, 12, 1) and weather_model_name == 'GMAO':
-            ext = 'nc'
-        else:
-            ext = 'h5'
-        f = f[:-2]+ ext
 
     logger.debug('Storing weather model at: %s', f)
 

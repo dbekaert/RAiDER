@@ -11,6 +11,7 @@ import multiprocessing as mp
 import time
 
 import h5py
+from netCDF4 import Dataset
 import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
@@ -96,12 +97,12 @@ def get_delays(
     t0 = time.time()
 
     # Get the weather model data
-    with h5py.File(wm_file, 'r') as f:
-        xs_wm = f['x'][()].copy()
-        ys_wm = f['y'][()].copy()
-        zs_wm = f['z'][()].copy()
-        wet = f['wet'][()].copy()
-        hydro = f['hydro'][()].copy()
+    with Dataset(wm_file, mode='r') as f:
+        xs_wm = np.array(f.variables['x'][:])
+        ys_wm = np.array(f.variables['y'][:])
+        zs_wm = np.array(f.variables['z'][:])
+        wet = np.array(f.variables['wet'][:]).swapaxes(1,2).swapaxes(0,2)
+        hydro = np.array(f.variables['hydro'][:]).swapaxes(1,2).swapaxes(0,2)
 
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
@@ -278,8 +279,8 @@ def getProjFromWMFile(wm_file):
     '''
     Returns the projection of an HDF5 file
     '''
-    with h5py.File(wm_file, 'r') as f:
-        wm_proj = CRS.from_json(f['Projection'][()])
+    with Dataset(wm_file, mode='r') as f:
+        wm_proj = CRS.from_string(f.variables['WGS84'].spatial_ref)
     return wm_proj
 
 

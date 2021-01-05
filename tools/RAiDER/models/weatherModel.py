@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 import h5py
 import numpy as np
 from pyproj import CRS, Transformer
+import netCDF4
 
 from RAiDER import constants as const
 from RAiDER import utilFcns as util
@@ -17,7 +18,7 @@ from RAiDER.losreader import getLookVectors
 from RAiDER.logger import *
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
-from RAiDER.utilFcns import lla2ecef, robmax, robmin
+from RAiDER.utilFcns import lla2ecef, robmax, robmin, getTimeFromFile, write2NETCDF4core
 
 
 class WeatherModel(ABC):
@@ -577,73 +578,160 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-    def write2HDF5(self, outName=None):
+    def write2NETCDF4(self, outName=None, NoDataValue=-3.4028234e+38, chunk=(1,128,128), mapping_name='WGS84'):
         '''
-        Write the main (i.e., needed for external calculations) data to an HDF5 file
+        By calling the abstract/modular netcdf writer (RAiDER.utilFcns.write2NETCDF4core), write the weather model data and refractivity to an NETCDF4 file
         that can be accessed by external programs.
-
+        
         The point of doing this is to alleviate some of the memory load of keeping
         the full model in memory and make it easier to scale up the program.
         '''
-
+        
         if outName is None:
             outName = os.path.join(
                 os.getcwd(),
                 self._Name + datetime.datetime.strftime(
                     self._time, '%Y_%m_%d_T%H_%M_%S'
-                ) + '.h5'
+                ) + '.nc'
             )
-
-        with h5py.File(outName, 'w') as f:
-            x = f.create_dataset('x', data=self._xs.astype(np.float64))
-            y = f.create_dataset('y', data=self._ys.astype(np.float64))
-            z = f.create_dataset('z', data=self._zs.astype(np.float64))
-            x.make_scale('x - weather model native')
-            y.make_scale('y - weather model native')
-            z.make_scale('z - weather model native')
-
-            lats = f.create_dataset('lat', data=self._lats.astype(np.float64))
-            lons = f.create_dataset('lon', data=self._lons.astype(np.float64))
-            lats.dims[0].attach_scale(x)
-            lats.dims[1].attach_scale(y)
-            lats.dims[2].attach_scale(z)
-            lons.dims[0].attach_scale(x)
-            lons.dims[1].attach_scale(y)
-            lons.dims[2].attach_scale(z)
-
-            t = f.create_dataset('t', data=self._t)
-            t.dims[0].attach_scale(x)
-            t.dims[1].attach_scale(y)
-            t.dims[2].attach_scale(z)
-
-            p = f.create_dataset('p', data=self._p)
-            p.dims[0].attach_scale(x)
-            p.dims[1].attach_scale(y)
-            p.dims[2].attach_scale(z)
-
-            e = f.create_dataset('e', data=self._e)
-            e.dims[0].attach_scale(x)
-            e.dims[1].attach_scale(y)
-            e.dims[2].attach_scale(z)
-
-            wet = f.create_dataset('wet', data=self._wet_refractivity)
-            wet.dims[0].attach_scale(x)
-            wet.dims[1].attach_scale(y)
-            wet.dims[2].attach_scale(z)
-
-            wet_ztd = f.create_dataset('wet_ztd', data=self._wet_ztd)
-            wet_ztd.dims[0].attach_scale(x)
-            wet_ztd.dims[1].attach_scale(y)
-            wet_ztd.dims[2].attach_scale(z)
-
-            hydro = f.create_dataset('hydro', data=self._hydrostatic_refractivity)
-            hydro.dims[0].attach_scale(x)
-            hydro.dims[1].attach_scale(y)
-            hydro.dims[2].attach_scale(z)
-
-            hydro_ztd = f.create_dataset('hydro_ztd', data=self._hydrostatic_ztd)
-            hydro_ztd.dims[0].attach_scale(x)
-            hydro_ztd.dims[1].attach_scale(y)
-            hydro_ztd.dims[2].attach_scale(z)
-
-            f.create_dataset('Projection', data=self._proj.to_json())
+        
+        self._time = getTimeFromFile(outName)
+        
+        dimidY, dimidX, dimidZ = self._t.shape
+        chunk_lines_Y = np.min([chunk[1], dimidY])
+        chunk_lines_X = np.min([chunk[2], dimidX])
+        ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
+        
+        nc_outfile = netCDF4.Dataset(outName,'w',clobber=True,format='NETCDF4')
+        nc_outfile.setncattr('Conventions','CF-1.6')
+        nc_outfile.setncattr('datetime',datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
+        nc_outfile.setncattr('date_created',datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
+        title='Weather model data and delay calculations'
+        nc_outfile.setncattr('title',title)
+        
+        tran = [self._xs[0], self._xs[1]-self._xs[0], 0.0, self._ys[0], 0.0, self._ys[1]-self._ys[0]]
+        
+        dimension_dict = {
+            'x':{'varname':'x',
+                'datatype':np.dtype('float64'),
+                'dimensions':('x'),
+                'length':dimidX,
+                'FillValue':None,
+                'standard_name':'projection_x_coordinate',
+                'description':'weather model native x',
+                'dataset':self._xs,
+                'units':'degrees_east'},
+            'y':{'varname':'y',
+                'datatype':np.dtype('float64'),
+                'dimensions':('y'),
+                'length':dimidY,
+                'FillValue':None,
+                'standard_name':'projection_y_coordinate',
+                'description':'weather model native y',
+                'dataset':self._ys,
+                'units':'degrees_north'},
+            'z':{'varname':'z',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z'),
+                'length':dimidZ,
+                'FillValue':None,
+                'standard_name':'projection_z_coordinate',
+                'description':'vertical coordinate',
+                'dataset':self._zs,
+                'units':'m'}
+        }
+        
+        
+        dataset_dict = {
+            'latitude':{'varname':'latitude',
+                'datatype':np.dtype('float64'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'latitude',
+                'description':'latitude',
+                'dataset':self._lats.swapaxes(0,2).swapaxes(1,2),
+                'units':'degrees_north'},
+            'longitude':{'varname':'longitude',
+                'datatype':np.dtype('float64'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'longitude',
+                'description':'longitude',
+                'dataset':self._lons.swapaxes(0,2).swapaxes(1,2),
+                'units':'degrees_east'},
+            't':{'varname':'t',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'temperature',
+                'description':'temperature',
+                'dataset':self._t.swapaxes(0,2).swapaxes(1,2),
+                'units':'K'},
+            'p':{'varname':'p',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'pressure',
+                'description':'pressure',
+                'dataset':self._p.swapaxes(0,2).swapaxes(1,2),
+                'units':'Pa'},
+            'e':{'varname':'e',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'humidity',
+                'description':'humidity',
+                'dataset':self._e.swapaxes(0,2).swapaxes(1,2),
+                'units':'Pa'},
+            'wet':{'varname':'wet',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'wet_refractivity',
+                'description':'wet_refractivity',
+                'dataset':self._wet_refractivity.swapaxes(0,2).swapaxes(1,2)},
+            'hydro':{'varname':'hydro',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'hydrostatic_refractivity',
+                'description':'hydrostatic_refractivity',
+                'dataset':self._hydrostatic_refractivity.swapaxes(0,2).swapaxes(1,2)},
+            'wet_total':{'varname':'wet_total',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'total_wet_refractivity',
+                'description':'total_wet_refractivity',
+                'dataset':self._wet_ztd.swapaxes(0,2).swapaxes(1,2)},
+            'hydro_total':{'varname':'hydro_total',
+                'datatype':np.dtype('float32'),
+                'dimensions':('z','y','x'),
+                'grid_mapping':mapping_name,
+                'FillValue':NoDataValue,
+                'ChunkSize':ChunkSize,
+                'standard_name':'total_hydrostatic_refractivity',
+                'description':'total_hydrostatic_refractivity',
+                'dataset':self._hydrostatic_ztd.swapaxes(0,2).swapaxes(1,2)}
+        }
+    
+        nc_outfile = write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84')
+        
+        nc_outfile.sync() # flush data to disk
+        nc_outfile.close()

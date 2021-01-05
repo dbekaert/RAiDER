@@ -10,6 +10,7 @@ import os
 
 import h5py
 import numpy as np
+from netCDF4 import Dataset
 
 import RAiDER.delayFcns
 from RAiDER.constants import _STEP, _ZREF, Zenith
@@ -43,10 +44,11 @@ def computeDelay(
     # If weather model nodes only are desired, the calculation is very quick
     if useWeatherNodes:
         # Get the weather model data
-        with h5py.File(weather_model_file_name, 'r') as f:
-            zs_wm = f['z'][()].copy()
-            total_wet = f['wet_ztd'][()].copy()
-            total_hydro = f['hydro_ztd'][()].copy()
+        with Dataset(weather_model_file_name, mode='r') as f:
+            zs_wm = np.array(f.variables['z'][:])
+            total_wet = np.array(f.variables['wet_total'][:]).swapaxes(1,2).swapaxes(0,2)
+            total_hydro = np.array(f.variables['hydro_total'][:]).swapaxes(1,2).swapaxes(0,2)
+        
         if zlevels is None:
             return total_wet, total_hydro
         else:
@@ -125,7 +127,7 @@ def tropo_delay(args):
             return None, None
 
         try:
-            weather_model.write2HDF5(weather_model_file)
+            weather_model.write2NETCDF4(weather_model_file)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
@@ -228,7 +230,7 @@ def weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, zref,
             weather_model, wmLoc, lats=lats, lons=lons, los=los, zref=zref,
             time=time, download_only=download_only, makePlots=True)
         try:
-            weather_model.write2HDF5(weather_model_file)
+            weather_model.write2NETCDF4(weather_model_file)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

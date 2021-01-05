@@ -300,8 +300,8 @@ def make_weather_model_filename(name, time, ll_bounds):
         E = 'W'
     else:
         E = 'E'
-    return '{}_{}_{}{}_{}{}_{}{}_{}{}.h5'.format(
-        name, time.strftime("%Y-%m-%dT%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
+    return '{}_{}_{}{}_{}{}_{}{}_{}{}.nc'.format(
+        name, time.strftime("%Y_%m_%d_T%H_%M_%S"), np.abs(ll_bounds[0]), S, np.abs(ll_bounds[1]), N, np.abs(ll_bounds[2]), W, np.abs(ll_bounds[3]), E
     )
 
 
@@ -639,3 +639,194 @@ def requests_retry_session(retries=10, session=None):
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session
+
+
+def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataValue=9.9999999e+14, chunk=(1,91,144), mapping_name='WGS84'):
+    '''
+    By calling the abstract/modular netcdf writer (RAiDER.utilFcns.write2NETCDF4core), write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to a NETCDF4 file
+    that can be accessed by external programs.
+    
+    The point of doing this is to alleviate some of the memory load of keeping
+    the full model in memory and make it easier to scale up the program.
+    '''
+    
+    import netCDF4
+    
+    if outName is None:
+        outName = os.path.join(
+            os.getcwd()+'/weather_files',
+            self._Name + datetime.strftime(
+                self._time, '_%Y_%m_%d_T%H_%M_%S'
+            ) + '.nc'
+        )
+
+    
+    self._time = getTimeFromFile(outName)
+
+    dimidZ, dimidY, dimidX = t.shape
+    chunk_lines_Y = np.min([chunk[1], dimidY])
+    chunk_lines_X = np.min([chunk[2], dimidX])
+    ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
+    
+    nc_outfile = netCDF4.Dataset(outName,'w',clobber=True,format='NETCDF4')
+    nc_outfile.setncattr('Conventions','CF-1.6')
+    nc_outfile.setncattr('datetime',datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
+    nc_outfile.setncattr('date_created',datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
+    title= self._Name + ' weather model data'
+    nc_outfile.setncattr('title',title)
+    
+    tran = [lon[0], lon[1]-lon[0], 0.0, lat[0], 0.0, lat[1]-lat[0]]
+    
+    dimension_dict = {
+        'x':{'varname':'x',
+            'datatype':np.dtype('float64'),
+            'dimensions':('x'),
+            'length':dimidX,
+            'FillValue':None,
+            'standard_name':'longitude',
+            'description':'longitude',
+            'dataset':lon,
+            'units':'degrees_east'},
+        'y':{'varname':'y',
+            'datatype':np.dtype('float64'),
+            'dimensions':('y'),
+            'length':dimidY,
+            'FillValue':None,
+            'standard_name':'latitude',
+            'description':'latitude',
+            'dataset':lat,
+            'units':'degrees_north'},
+        'z':{'varname':'z',
+            'datatype':np.dtype('float32'),
+            'dimensions':('z'),
+            'length':dimidZ,
+            'FillValue':None,
+            'standard_name':'model_layers',
+            'description':'model layers',
+            'dataset':np.arange(dimidZ),
+            'units':'layer'}
+    }
+
+
+    dataset_dict = {
+        'h':{'varname':'H',
+            'datatype':np.dtype('float32'),
+            'dimensions':('z','y','x'),
+            'grid_mapping':mapping_name,
+            'FillValue':NoDataValue,
+            'ChunkSize':ChunkSize,
+            'standard_name':'mid_layer_heights',
+            'description':'mid layer heights',
+            'dataset':h,
+            'units':'m'},
+        'q':{'varname':'QV',
+            'datatype':np.dtype('float32'),
+            'dimensions':('z','y','x'),
+            'grid_mapping':mapping_name,
+            'FillValue':NoDataValue,
+            'ChunkSize':ChunkSize,
+            'standard_name':'specific_humidity',
+            'description':'specific humidity',
+            'dataset':q,
+            'units':'kg kg-1'},
+        'p':{'varname':'PL',
+            'datatype':np.dtype('float32'),
+            'dimensions':('z','y','x'),
+            'grid_mapping':mapping_name,
+            'FillValue':NoDataValue,
+            'ChunkSize':ChunkSize,
+            'standard_name':'mid_level_pressure',
+            'description':'mid level pressure',
+            'dataset':p,
+            'units':'Pa'},
+        't':{'varname':'T',
+            'datatype':np.dtype('float32'),
+            'dimensions':('z','y','x'),
+            'grid_mapping':mapping_name,
+            'FillValue':NoDataValue,
+            'ChunkSize':ChunkSize,
+            'standard_name':'air_temperature',
+            'description':'air temperature',
+            'dataset':t,
+            'units':'K'}
+    }
+    
+    nc_outfile = write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84')
+    
+    nc_outfile.sync() # flush data to disk
+    nc_outfile.close()
+
+
+
+def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84'):
+    
+    '''
+    The abstract/modular netcdf writer that can be called by a wrapper function to write data to a NETCDF4 file
+    that can be accessed by external programs.
+    
+    The point of doing this is to alleviate some of the memory load of keeping
+    the full model in memory and make it easier to scale up the program.
+    '''
+    
+    from osgeo import osr
+    
+    if mapping_name == 'WGS84':
+        
+        epsg = 4326
+        srs=osr.SpatialReference()
+        srs.ImportFromEPSG(epsg)
+        
+        grid_mapping='WGS84'  # need to set this as an attribute for the image variables
+        datatype=np.dtype('S1')
+        dimensions=()
+        FillValue=None
+        
+        var = nc_outfile.createVariable(mapping_name,datatype,dimensions, fill_value=FillValue)
+        # variable made, now add attributes
+        
+        var.setncattr('grid_mapping_name',grid_mapping)
+        var.setncattr('straight_vertical_longitude_from_pole',srs.GetProjParm('central_meridian'))
+        var.setncattr('false_easting',srs.GetProjParm('false_easting'))
+        var.setncattr('false_northing',srs.GetProjParm('false_northing'))
+        var.setncattr('latitude_of_projection_origin',np.sign(srs.GetProjParm('latitude_of_origin'))*90.0)
+        var.setncattr('latitude_of_origin',srs.GetProjParm('latitude_of_origin'))
+        var.setncattr('semi_major_axis',float(srs.GetAttrValue('GEOGCS|SPHEROID',1)))
+        var.setncattr('scale_factor_at_projection_origin',1)
+        var.setncattr('inverse_flattening',float(srs.GetAttrValue('GEOGCS|SPHEROID',2)))
+        var.setncattr('spatial_ref',srs.ExportToWkt())
+        var.setncattr('spatial_proj4',srs.ExportToProj4())
+        var.setncattr('spatial_epsg',epsg)
+        var.setncattr('GeoTransform',' '.join(str(x) for x in tran))  # note this has pixel size in it - set  explicitly above
+    
+    else:
+        raise Exception ('Grid mapping name not supported; currently, only WGS84 (EPSG: 4326) is supported!')
+    
+    for dim in dimension_dict:
+        nc_outfile.createDimension(dim,dimension_dict[dim]['length'])
+        varname=dimension_dict[dim]['varname']
+        datatype=dimension_dict[dim]['datatype']
+        dimensions=dimension_dict[dim]['dimensions']
+        FillValue=dimension_dict[dim]['FillValue']
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue)
+        var.setncattr('standard_name',dimension_dict[dim]['standard_name'])
+        var.setncattr('description',dimension_dict[dim]['description'])
+        var.setncattr('units',dimension_dict[dim]['units'])
+        var[:] = dimension_dict[dim]['dataset'].astype(dimension_dict[dim]['datatype'])
+    #    import pdb
+    #    pdb.set_trace()
+    for data in dataset_dict:
+        varname=dataset_dict[data]['varname']
+        datatype=dataset_dict[data]['datatype']
+        dimensions=dataset_dict[data]['dimensions']
+        FillValue=dataset_dict[data]['FillValue']
+        ChunkSize=dataset_dict[data]['ChunkSize']
+        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var.setncattr('grid_mapping',dataset_dict[data]['grid_mapping'])
+        var.setncattr('standard_name',dataset_dict[data]['standard_name'])
+        var.setncattr('description',dataset_dict[data]['description'])
+        if 'units' in dataset_dict[data]:
+            var.setncattr('units',dataset_dict[data]['units'])
+        dataset_dict[data]['dataset'][np.isnan(dataset_dict[data]['dataset'])] = FillValue
+        var[:] = dataset_dict[data]['dataset'].astype(datatype)
+    
+    return nc_outfile
