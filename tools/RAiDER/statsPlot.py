@@ -640,10 +640,12 @@ class RaiderStats(object):
         self.grid_delay_median = grid_delay_median
         self.grid_delay_stdev = grid_delay_stdev
         self.grid_delay_phase = grid_delay_phase
+        self.grid_delay_amplitude = False
         self.grid_delay_absolute_mean = grid_delay_absolute_mean
         self.grid_delay_absolute_median = grid_delay_absolute_median
         self.grid_delay_absolute_stdev = grid_delay_absolute_stdev
         self.grid_delay_absolute_phase = grid_delay_absolute_phase
+        self.grid_delay_absolute_amplitude = False
         self.grid_to_raster = grid_to_raster
         self.numCPUs = numCPUs
         self.phaseamp_per_station = phaseamp_per_station
@@ -677,6 +679,8 @@ class RaiderStats(object):
                 self.grid_delay_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_phase' in self.fname:
                 self.grid_delay_phase, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_amplitude' in self.fname:
+                self.grid_delay_amplitude, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_mean' in self.fname:
                 self.grid_delay_absolute_mean, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_median' in self.fname:
@@ -685,6 +689,8 @@ class RaiderStats(object):
                 self.grid_delay_absolute_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_phase' in self.fname:
                 self.grid_delay_absolute_phase, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_absolute_amplitude' in self.fname:
+                self.grid_delay_absolute_amplitude, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_range' in self.fname:
                 self.grid_range, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_variance' in self.fname:
@@ -1358,7 +1364,7 @@ def stats_analyses(
         unique_points_amplitude.dropna(how='any', inplace=True)
         df_stats([unique_points_amplitude.index.get_level_values('Lon').tolist(), unique_points_amplitude.index.get_level_values('Lat').tolist(
         ), unique_points_amplitude.values], 'station_delay_amplitude', workdir=os.path.join(workdir, 'figures'),
-        plotFormat=plot_fmt, userTitle=user_title)
+        colorbarfmt='%.3f', plotFormat=plot_fmt, userTitle=user_title)
 
     # Gridded station plots
     # Plot density of stations for each gridcell
@@ -1381,13 +1387,16 @@ def stats_analyses(
         logger.info("- Plot mean of station-wise stdev delay across each gridcell.")
         df_stats(df_stats.grid_delay_stdev, 'grid_delay_stdev', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
-    # Plot mean of station-wise delay phase/amplitude across each gridcell
+    # Plot mean of station-wise delay phase across each gridcell
     if isinstance(df_stats.grid_delay_phase, np.ndarray):
-        logger.info("- Plot mean of station-wise delay phase/amplitude across each gridcell.")
+        logger.info("- Plot mean of station-wise delay phase across each gridcell.")
         df_stats(df_stats.grid_delay_phase, 'grid_delay_phase', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot mean of station-wise delay amplitude across each gridcell
+    if isinstance(df_stats.grid_delay_amplitude, np.ndarray):
+        logger.info("- Plot mean of station-wise delay amplitude across each gridcell.")
         df_stats(df_stats.grid_delay_amplitude, 'grid_delay_amplitude', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.3f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean delay for each gridcell
     if isinstance(df_stats.grid_delay_absolute_mean, np.ndarray):
         logger.info("- Plot mean delay per gridcell.")
@@ -1403,13 +1412,16 @@ def stats_analyses(
         logger.info("- Plot delay stdev per gridcell.")
         df_stats(df_stats.grid_delay_absolute_stdev, 'grid_delay_absolute_stdev', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
-    # Plot delay phase/amplitude for each gridcell
+    # Plot delay phase for each gridcell
     if isinstance(df_stats.grid_delay_absolute_phase, np.ndarray):
-        logger.info("- Plot delay phase/amplitude per gridcell.")
+        logger.info("- Plot delay phase per gridcell.")
         df_stats(df_stats.grid_delay_absolute_phase, 'grid_delay_absolute_phase', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot delay amplitude for each gridcell
+    if isinstance(df_stats.grid_delay_absolute_amplitude, np.ndarray):
+        logger.info("- Plot delay amplitude per gridcell.")
         df_stats(df_stats.grid_delay_absolute_amplitude, 'grid_delay_absolute_amplitude', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.3f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
     # Perform variogram analysis
     if variogramplot and not isinstance(df_stats.grid_range, np.ndarray) and not isinstance(df_stats.grid_variance, np.ndarray):
