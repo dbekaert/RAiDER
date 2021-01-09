@@ -24,7 +24,6 @@ def prepareWeatherModel(
         wmFileLoc,
         lats=None,
         lons=None,
-        los=None,
         zref=None,
         time=None,
         download_only=False,
@@ -37,10 +36,12 @@ def prepareWeatherModel(
         weatherDict['type'], weatherDict['files'], weatherDict['name']
 
     # check whether weather model files are supplied
+    download_flag = True
     if weather_files is None:
-        download_flag = True
         if time is None:
-            raise RuntimeError('prepareWeatherModel: Either a file or a time must be specified')
+            raise RuntimeError(
+                    'prepareWeatherModel: Either a file or a time must be specified'
+                )
         weather_model.filename(time, wmFileLoc)
         if os.path.exists(weather_model.files[0]):
             download_flag = False
@@ -68,7 +69,6 @@ def prepareWeatherModel(
             *weather_model.files, 
             outLats=lats, 
             outLons=lons, 
-            los=los, 
             zref=zref
         )
         download_flag = False
@@ -77,7 +77,6 @@ def prepareWeatherModel(
             f, 
             outLats=lats, 
             outLons=lons, 
-            los=los, 
             zref=zref
         )
 
