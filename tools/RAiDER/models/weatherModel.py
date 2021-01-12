@@ -302,12 +302,14 @@ class WeatherModel(ABC):
                 raise RuntimeError('Check the weather model')
             self._trimExtent(in_extent)
 
-    def _getZTD(self):
+    def _getZTD(self, zref=None):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
-        zref = self._zmax
+        if zref is None:
+            zref = self._zmax
+
         hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
