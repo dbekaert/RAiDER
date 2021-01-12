@@ -51,7 +51,7 @@ class MERRA2(WeatherModel):
         self._y_res = 0.5
 
         self._Name = 'MERRA2'
-        self._files = None
+        self.files = None
         self._bounds = None
 
         # Projection
@@ -118,13 +118,15 @@ class MERRA2(WeatherModel):
             logger.exception("Unable to save weathermodel to file")
 
 
-    def load_weather(self, f):
+    def load_weather(self, f=None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
+        if f is None:
+            f = self.files[0]
         self._load_model_level(f)
 
 

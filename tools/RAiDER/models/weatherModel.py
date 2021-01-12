@@ -599,14 +599,12 @@ class WeatherModel(ABC):
             else:
                 time = self._time
 
-        f = os.path.join(
-            outLoc,
-            '{}_{}.{}'.format(
-                self.Model(),
-                datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
-                '.nc'
+        f = make_raw_weather_data_filename(
+                outLoc,
+                self._Name,
+                time,
             )
-        )
+
         self.files = [f]
 
 
@@ -621,12 +619,21 @@ class WeatherModel(ABC):
         (RAiDER.utilFcns.write2NETCDF4core), write the weather model data 
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
+        # Generate the filename
+        outLoc = os.path.join(os.path.split(self.files)[:-1])
+        f = make_weather_model_filename(
+                outLoc,
+                self._Name,
+                self._time,
+                self._get_ll_bounds(self._lats, self._lats) 
+            )
+
         dimidY, dimidX, dimidZ = self._t.shape
         chunk_lines_Y = np.min([chunk[1], dimidY])
         chunk_lines_X = np.min([chunk[2], dimidX])
         ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
         
-        nc_outfile = netCDF4.Dataset(outName,'w',clobber=True,format='NETCDF4')
+        nc_outfile = netCDF4.Dataset(f,'w',clobber=True,format='NETCDF4')
         nc_outfile.setncattr('Conventions','CF-1.6')
         nc_outfile.setncattr('datetime',datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
         nc_outfile.setncattr('date_created',datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
@@ -755,7 +762,57 @@ class WeatherModel(ABC):
                 'dataset':self._hydrostatic_ztd.swapaxes(0,2).swapaxes(1,2)}
         }
     
-        nc_outfile = write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84')
+        nc_outfile = write2NETCDF4core(
+                nc_outfile, 
+                dimension_dict, 
+                dataset_dict, 
+                tran, 
+                mapping_name='WGS84'
+            )
         
         nc_outfile.sync() # flush data to disk
         nc_outfile.close()
+
+
+def make_weather_model_filename(outLoc, name, time, ll_bounds):
+    if ll_bounds[0] < 0:
+        S = 'S'
+    else:
+        S = 'N'
+    if ll_bounds[1] < 0:
+        N = 'S'
+    else:
+        N = 'N'
+    if ll_bounds[2] < 0:
+        W = 'W'
+    else:
+        W = 'E'
+    if ll_bounds[3] < 0:
+        E = 'W'
+    else:
+        E = 'E'
+    return '{}_{}_{}{}_{}{}_{}{}_{}{}.nc'.format(
+            name, 
+            time.strftime("%Y_%m_%d_T%H_%M_%S"), 
+            np.abs(ll_bounds[0]), 
+            S, 
+            np.abs(ll_bounds[1]), 
+            N, 
+            np.abs(ll_bounds[2]), 
+            W, 
+            np.abs(ll_bounds[3]), 
+            E
+        )
+
+
+def make_raw_weather_data_filename(outLoc, name, time):
+    ''' Filename generator for the raw downloaded weather model data '''
+    f = os.path.join(
+        outLoc,
+        '{}_{}.{}'.format(
+            name,
+            datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
+            '.nc'
+        )
+    )
+    return f

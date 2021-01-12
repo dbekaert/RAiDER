@@ -124,7 +124,7 @@ class HRES(WeatherModel):
                    0.897767,0.917651,0.935157,0.950274,0.963007,0.973466,0.982238,0.989153,0.994204,
                    0.997630,1.000000]
 
-    def load_weather(self, filename):
+    def load_weather(self, filename = None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -133,7 +133,7 @@ class HRES(WeatherModel):
         '''
 
         if filename is None:
-            filename = self._files
+            filename = self.files
 
         # read data from grib file
         lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(filename, verbose=False)
@@ -235,6 +235,9 @@ class HRES(WeatherModel):
         '''
         Fetch a weather model from ECMWF
         '''
+        if (time < datetime(2013, 6, 26, 0, 0, 0)):
+            weather_model.update_a_b()
+
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 

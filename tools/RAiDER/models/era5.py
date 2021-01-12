@@ -96,8 +96,8 @@ class ERA5(ECMWF):
             logger.warning(e)
             raise RuntimeError('Could not access or download from the CDS API')
 
-    def load_weather(self, f):
-        self._load_pressure_level(f)
+    def load_weather(self):
+        self._load_pressure_level(*self.files)
 
     def _load_pressure_level(self, filename):
         from scipy.io import netcdf as nc

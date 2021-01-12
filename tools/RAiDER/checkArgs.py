@@ -31,6 +31,8 @@ def checkArgs(args, p):
             if args.outformat.lower() != 'hdf5':
                 raise RuntimeError('HDF5 must be used with height levels')
 
+    if not os.path.exists(wmLoc):
+        os.mkdir(wmLoc)
     # Query Area
     lat, lon, llproj, bounds, flag = readLL(args.query_area)
 
@@ -59,11 +61,17 @@ def checkArgs(args, p):
         raise RuntimeError(
                 'Argument --files is required with model {}'.format(args.model)
             )
+
     weathers = {
             'type': model_obj(), 
             'files': args.files,
             'name': args.model
         }
+
+    if args.wmLoc is not None:
+        wmLoc = args.wmLoc
+    else:
+        wmLoc = os.path.join(args.out, 'weather_files')
 
     # zref
     zref = args.zref
@@ -102,13 +110,6 @@ def checkArgs(args, p):
             outformat = 'envi'
     else:
         outformat = args.outformat.lower()
-    if args.wmLoc is not None:
-        wmLoc = args.wmLoc
-    else:
-        wmLoc = os.path.join(args.out, 'weather_files')
-
-    if not os.path.exists(wmLoc):
-        os.mkdir(wmLoc)
 
     wetNames, hydroNames = [], []
     for time in datetimeList:
@@ -178,3 +179,5 @@ def checkArgs(args, p):
 
     return outArgs
     #return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
+
+
