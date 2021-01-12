@@ -46,6 +46,7 @@ if __name__ == "__main__":
         inps.grid_delay_absolute_stdev,
         inps.grid_delay_absolute_phase,
         inps.grid_to_raster,
+        inps.min_span,
         inps.variogramplot,
         inps.binnedvariogram,
         inps.variogram_per_timeslice
