@@ -81,6 +81,7 @@ class WeatherModel(ABC):
     def __str__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
+        string += 'Weather model time: {}\n'.format(self._time)
         string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
         string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
@@ -126,6 +127,15 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+    def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
+        ''' Set the time for a weather model '''
+        if isinstance(time, str):
+            self._time = datetime.datetime.strptime(time, fmt)
+        elif isinstance(time, datetime.datetime):
+            self._time = time
+        else:
+            raise ValueError('"time" must be a string or a datetime object')
 
     def checkLL(self, lats, lons, Nextra = 2):
         ''' 
@@ -183,6 +193,13 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+    def _get_time(self, filename=None):
+        if filename is None:
+            filename = self.files[0]
+        with netCDF4.Dataset(filename, mode='r') as f:
+            time = f.attrs['datetime'].copy()
+        self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
     def plot(self, plotType='pqt', savefig=True):
         '''
@@ -622,7 +639,7 @@ class WeatherModel(ABC):
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
         # Generate the filename
-        outLoc = os.path.join(os.path.split(self.files)[:-1])
+        outLoc = os.path.split(self.files[0])[:-1][0]
         f = make_weather_model_filename(
                 outLoc,
                 self._Name,
@@ -774,6 +791,7 @@ class WeatherModel(ABC):
         
         nc_outfile.sync() # flush data to disk
         nc_outfile.close()
+        return f
 
 
 def make_weather_model_filename(outLoc, name, time, ll_bounds):
@@ -814,7 +832,7 @@ def make_raw_weather_data_filename(outLoc, name, time):
         '{}_{}.{}'.format(
             name,
             datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
-            '.nc'
+            'nc'
         )
     )
     return f

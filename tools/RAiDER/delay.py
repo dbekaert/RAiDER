@@ -109,7 +109,7 @@ def tropo_delay(args):
     logger.debug('Beginning weather model pre-processing')
     logger.debug('Download-only is {}'.format(download_only))
     
-    prepareWeatherModel(
+    weather_model_file = prepareWeatherModel(
             weather_model, 
             time,
             wmLoc = wmLoc,

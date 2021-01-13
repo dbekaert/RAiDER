@@ -36,6 +36,7 @@ def prepareWeatherModel(
     '''
     weather_model, weather_files, weather_model_name = \
         weatherDict['type'], weatherDict['files'], weatherDict['name']
+    weather_model.files = weather_files
 
     # Ensure the file output location exists
     if wmLoc is None:
@@ -44,7 +45,7 @@ def prepareWeatherModel(
 
     # check whether weather model files are supplied or should be downloaded
     download_flag = True
-    if weather_files is None:
+    if weather_model.files is None:
         if time is None:
             raise RuntimeError(
                     'prepareWeatherModel: Either a file or a time must be specified'
@@ -58,11 +59,13 @@ def prepareWeatherModel(
             download_flag = False
     else:
         download_flag = False
-        time = getTimeFromFile(weather_files[0])
 
     # if no weather model files supplied, check the standard location
     if download_flag:
         weather_model.fetch(*weather_model.files, lats, lons, time)
+    else:
+        time = getTimeFromFile(weather_model.files[0])
+        weather_model.setTime(time)
 
     # If only downloading, exit now
     if download_only: 
@@ -75,7 +78,7 @@ def prepareWeatherModel(
     weather_model.load(
             outLats=lats, 
             outLons=lons, 
-            zref=zref
+            zref=zref,
         )
 
     # Logging some basic info
@@ -107,9 +110,13 @@ def prepareWeatherModel(
         plt.close('all')
 
     try:
-        weather_model.write()
-    except Exception:
+        f = weather_model.write()
+        return f
+    except Exception as e:
         logger.exception("Unable to save weathermodel to file")
+        logger.exception(e)
+        raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
+
 
