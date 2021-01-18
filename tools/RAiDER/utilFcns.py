@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 import h5py
+import netCDF4
 import numpy as np
 import pandas as pd
 import pyproj
@@ -844,10 +845,17 @@ def read_wm_file(filename):
     '''
     Read a weather model from a NETCDF4 file and put it into a weather model object
     '''
-    with Dataset(filename, mode='r') as f:
-        wm_type = f.attrs['Name']
-    _, model_obj = modelName2Module(args.model)
+    with netCDF4.Dataset(filename, mode='r') as f:
+        model = f.getncattr('Name')
+    _, model_obj = modelName2Module(model)
+    wm = model_obj()
 
-    with Dataset(filename, mode='r') as f:
-        model_obj.setVars(f['z'][:], f['wet'][:], f['hydro'][:])
-    return model_obj
+    with netCDF4.Dataset(filename, mode='r') as f:
+        wm.setVars(
+                f.variables['x'][:], 
+                f.variables['y'][:], 
+                f.variables['z'][:], 
+                f.variables['wet'][:], 
+                f.variables['hydro'][:]
+            )
+    return wm 

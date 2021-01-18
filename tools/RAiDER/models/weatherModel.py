@@ -712,7 +712,6 @@ class WeatherModel(ABC):
         nc_outfile.sync() # flush data to disk
         nc_outfile.close()
 
-
     def getZTD(self):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, 
@@ -735,7 +734,9 @@ class WeatherModel(ABC):
         return  _hydrostatic_ztd.swapaxes(1,2).swapaxes(0,2),  \
                 wet_total.swapaxes(1,2).swapaxes(0,2)
 
-    def setVars(self, z, wet, hydro):
+    def setVars(self, x, y, z, wet, hydro):
+        self._xs = x
+        self._ys = y
         self._zs = z
         self._wet_refractivity = wet
         self._hydrostatic_refractivity = hydro

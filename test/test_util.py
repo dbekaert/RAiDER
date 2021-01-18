@@ -15,6 +15,7 @@ from RAiDER.utilFcns import (
     getTimeFromFile
 )
 
+SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
 @pytest.fixture
 def make_points_0d_data():
@@ -352,3 +353,15 @@ def test_WGS84_to_UTM():
     cal_utm_common = np.array([Z,X,Y]).transpose()
     assert np.allclose(true_utm_common, cal_utm_common)
     assert np.all(true_utm_common_letter == L)
+
+
+def test_read_weather_model_file():
+    from RAiDER.utilFcns import read_wm_file
+    weather_model_obj = read_wm_file(
+            os.path.join(
+                SCENARIO_DIR,
+                'weather_files',
+                'ERA5_2020_01_03_T23_00_00_15.75N_18.25N_103.24W_99.75W.nc'
+            )
+        )
+    assert weather_model_obj.Model() == 'ERA-5'
