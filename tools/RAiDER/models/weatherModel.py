@@ -186,29 +186,6 @@ class WeatherModel(ABC):
         self._get_hydro_refractivity()
         self._adjust_grid(lats=outLats, lons=outLons)
 
-    def getZTD(self):
-        '''
-        Compute the full slant tropospheric delay for each weather model grid node, 
-        using the height zref
-        '''
-        wet = self.getWetRefractivity()
-        hydro = self.getHydroRefractivity()
-
-        # Get the integrated ZTD
-        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-        for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np.trapz(
-                    wet[..., level:], x=self._zs[level:], 
-                    axis=2
-                )
-            hydro_total[..., level] = 1e-6 * np.trapz(
-                    hydro[..., level:], x=self._zs[level:], 
-                    axis=2
-                )
-        return  _hydrostatic_ztd.swapaxes(1,2).swapaxes(0,2),  \
-                wet_total.swapaxes(1,2).swapaxes(0,2)
->>>>>>> Remove default zenith delay calculation
-
     @abstractmethod
     def load_weather(self, *args, **kwargs):
         '''
@@ -841,3 +818,31 @@ def make_raw_weather_data_filename(outLoc, name, time):
         )
     )
     return f
+
+    def getZTD(self):
+        '''
+        Compute the full slant tropospheric delay for each weather model grid node, 
+        using the height zref
+        '''
+        wet = self.getWetRefractivity()
+        hydro = self.getHydroRefractivity()
+
+        # Get the integrated ZTD
+        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
+        for level in range(wet.shape[2]):
+            wet_total[..., level] = 1e-6 * np.trapz(
+                    wet[..., level:], x=self._zs[level:], 
+                    axis=2
+                )
+            hydro_total[..., level] = 1e-6 * np.trapz(
+                    hydro[..., level:], x=self._zs[level:], 
+                    axis=2
+                )
+        return  _hydrostatic_ztd.swapaxes(1,2).swapaxes(0,2),  \
+                wet_total.swapaxes(1,2).swapaxes(0,2)
+
+    def setVars(self, z, wet, hydro):
+        self._zs = z
+        self._wet_refractivity = wet
+        self._hydrostatic_refractivity = hydro
+
