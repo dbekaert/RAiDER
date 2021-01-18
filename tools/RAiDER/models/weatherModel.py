@@ -775,6 +775,35 @@ class WeatherModel(ABC):
         nc_outfile.close()
         return f
 
+    def getZTD(self):
+        '''
+        Compute the full slant tropospheric delay for each weather model grid node, 
+        using the height zref
+        '''
+        wet = self.getWetRefractivity()
+        hydro = self.getHydroRefractivity()
+
+        # Get the integrated ZTD
+        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
+        for level in range(wet.shape[2]):
+            wet_total[..., level] = 1e-6 * np.trapz(
+                    wet[..., level:], x=self._zs[level:], 
+                    axis=2
+                )
+            hydro_total[..., level] = 1e-6 * np.trapz(
+                    hydro[..., level:], x=self._zs[level:], 
+                    axis=2
+                )
+        return  _hydrostatic_ztd.swapaxes(1,2).swapaxes(0,2),  \
+                wet_total.swapaxes(1,2).swapaxes(0,2)
+
+    def setVars(self, x, y, z, wet, hydro):
+        self._xs = x
+        self._ys = y
+        self._zs = z
+        self._wet_refractivity = wet
+        self._hydrostatic_refractivity = hydro
+
 
 def make_weather_model_filename(outLoc, name, time, ll_bounds):
     if ll_bounds[0] < 0:
@@ -806,7 +835,6 @@ def make_weather_model_filename(outLoc, name, time, ll_bounds):
             E
         )
 
-
 def make_raw_weather_data_filename(outLoc, name, time):
     ''' Filename generator for the raw downloaded weather model data '''
     f = os.path.join(
@@ -818,31 +846,3 @@ def make_raw_weather_data_filename(outLoc, name, time):
         )
     )
     return f
-
-    def getZTD(self):
-        '''
-        Compute the full slant tropospheric delay for each weather model grid node, 
-        using the height zref
-        '''
-        wet = self.getWetRefractivity()
-        hydro = self.getHydroRefractivity()
-
-        # Get the integrated ZTD
-        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-        for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np.trapz(
-                    wet[..., level:], x=self._zs[level:], 
-                    axis=2
-                )
-            hydro_total[..., level] = 1e-6 * np.trapz(
-                    hydro[..., level:], x=self._zs[level:], 
-                    axis=2
-                )
-        return  _hydrostatic_ztd.swapaxes(1,2).swapaxes(0,2),  \
-                wet_total.swapaxes(1,2).swapaxes(0,2)
-
-    def setVars(self, z, wet, hydro):
-        self._zs = z
-        self._wet_refractivity = wet
-        self._hydrostatic_refractivity = hydro
-
