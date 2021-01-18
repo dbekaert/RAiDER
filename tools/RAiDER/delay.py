@@ -44,10 +44,8 @@ def computeDelay(
     # If weather model nodes only are desired, the calculation is very quick
     if useWeatherNodes:
         # Get the weather model data
-        with Dataset(weather_model_file_name, mode='r') as f:
-            zs_wm = np.array(f.variables['z'][:])
-            total_wet = np.array(f.variables['wet_total'][:]).swapaxes(1,2).swapaxes(0,2)
-            total_hydro = np.array(f.variables['hydro_total'][:]).swapaxes(1,2).swapaxes(0,2)
+        weather_model = read_wm_file(weather_model_file_name) 
+        total_wet, total_hydro = weather_model.getZTD()
         
         if zlevels is None:
             return total_wet, total_hydro

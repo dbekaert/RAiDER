@@ -812,15 +812,23 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         var.setncattr('description',dimension_dict[dim]['description'])
         var.setncattr('units',dimension_dict[dim]['units'])
         var[:] = dimension_dict[dim]['dataset'].astype(dimension_dict[dim]['datatype'])
-    #    import pdb
-    #    pdb.set_trace()
+
     for data in dataset_dict:
         varname=dataset_dict[data]['varname']
         datatype=dataset_dict[data]['datatype']
         dimensions=dataset_dict[data]['dimensions']
         FillValue=dataset_dict[data]['FillValue']
         ChunkSize=dataset_dict[data]['ChunkSize']
-        var = nc_outfile.createVariable(varname,datatype,dimensions, fill_value=FillValue,zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var = nc_outfile.createVariable(
+                varname,
+                datatype,
+                dimensions, 
+                fill_value=FillValue,
+                zlib=True, 
+                complevel=2, 
+                shuffle=True, 
+                chunksizes=ChunkSize
+            )
         var.setncattr('grid_mapping',dataset_dict[data]['grid_mapping'])
         var.setncattr('standard_name',dataset_dict[data]['standard_name'])
         var.setncattr('description',dataset_dict[data]['description'])
@@ -830,3 +838,16 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         var[:] = dataset_dict[data]['dataset'].astype(datatype)
     
     return nc_outfile
+
+
+def read_wm_file(filename):
+    '''
+    Read a weather model from a NETCDF4 file and put it into a weather model object
+    '''
+    with Dataset(filename, mode='r') as f:
+        wm_type = f.attrs['Name']
+    _, model_obj = modelName2Module(args.model)
+
+    with Dataset(filename, mode='r') as f:
+        model_obj.setVars(f['z'][:], f['wet'][:], f['hydro'][:])
+    return model_obj

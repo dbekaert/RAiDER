@@ -152,7 +152,16 @@ class WeatherModel(ABC):
     
         return lats, lons
 
-    def load(self, *args, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
+    def load(
+            self, 
+            *args, 
+            outLats=None, 
+            outLons=None, 
+            los=None, 
+            _zlevels=None, 
+            zref=None, 
+            **kwargs
+        ):
         '''
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
@@ -167,28 +176,28 @@ class WeatherModel(ABC):
         self._get_wet_refractivity()
         self._get_hydro_refractivity()
         self._adjust_grid(lats=outLats, lons=outLons)
-        self._getZTD(los, zref)
 
-    def _getZTD(self, los, zref=const._ZREF):
+    def getZTD(self):
         '''
-        Compute the full slant tropospheric delay for each weather model grid node, using the reference
-        height zref
+        Compute the full slant tropospheric delay for each weather model grid node, 
+        using the height zref
         '''
-        if zref is None:
-            zref = const._ZREF
-
-        hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
-        los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 
         # Get the integrated ZTD
         wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
         for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
-            hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
-        self._hydrostatic_ztd = hydro_total
-        self._wet_ztd = wet_total
+            wet_total[..., level] = 1e-6 * np.trapz(
+                    wet[..., level:], x=self._zs[level:], 
+                    axis=2
+                )
+            hydro_total[..., level] = 1e-6 * np.trapz(
+                    hydro[..., level:], x=self._zs[level:], 
+                    axis=2
+                )
+        return  _hydrostatic_ztd.swapaxes(1,2).swapaxes(0,2),  \
+                wet_total.swapaxes(1,2).swapaxes(0,2)
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -604,6 +613,7 @@ class WeatherModel(ABC):
         
         nc_outfile = netCDF4.Dataset(outName,'w',clobber=True,format='NETCDF4')
         nc_outfile.setncattr('Conventions','CF-1.6')
+        nc_outfile.setncattr('Name',self._Name)
         nc_outfile.setncattr('datetime',datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
         nc_outfile.setncattr('date_created',datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
         title='Weather model data and delay calculations'
@@ -711,27 +721,15 @@ class WeatherModel(ABC):
                 'standard_name':'hydrostatic_refractivity',
                 'description':'hydrostatic_refractivity',
                 'dataset':self._hydrostatic_refractivity.swapaxes(0,2).swapaxes(1,2)},
-            'wet_total':{'varname':'wet_total',
-                'datatype':np.dtype('float32'),
-                'dimensions':('z','y','x'),
-                'grid_mapping':mapping_name,
-                'FillValue':NoDataValue,
-                'ChunkSize':ChunkSize,
-                'standard_name':'total_wet_refractivity',
-                'description':'total_wet_refractivity',
-                'dataset':self._wet_ztd.swapaxes(0,2).swapaxes(1,2)},
-            'hydro_total':{'varname':'hydro_total',
-                'datatype':np.dtype('float32'),
-                'dimensions':('z','y','x'),
-                'grid_mapping':mapping_name,
-                'FillValue':NoDataValue,
-                'ChunkSize':ChunkSize,
-                'standard_name':'total_hydrostatic_refractivity',
-                'description':'total_hydrostatic_refractivity',
-                'dataset':self._hydrostatic_ztd.swapaxes(0,2).swapaxes(1,2)}
         }
     
-        nc_outfile = write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84')
+        nc_outfile = write2NETCDF4core(
+                nc_outfile, 
+                dimension_dict, 
+                dataset_dict, 
+                tran, 
+                mapping_name='WGS84'
+            )
         
         nc_outfile.sync() # flush data to disk
         nc_outfile.close()
