@@ -8,7 +8,7 @@ import numpy as np
 from pyproj import CRS, Transformer
 import netCDF4
 
-from RAiDER import constants as const
+from RAiDER.constants import _ZREF,_ZMIN,_g0
 from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
@@ -25,7 +25,6 @@ class WeatherModel(ABC):
     '''
     Implement a generic weather model for getting estimated SAR delays
     '''
-
     def __init__(self):
         # Initialize model-specific constants/parameters
         self._k1 = None
@@ -45,16 +44,18 @@ class WeatherModel(ABC):
         self._classname = None
         self._dataset = None
         self._model_level_type = 'ml'
-        self._valid_range = (datetime.date(1900, 1, 1),)  # Tuple of min/max years where data is available.
+        self._valid_range = (
+                datetime.date(1900, 1, 1),
+            )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
 
         # Define fixed constants
         self._R_v = 461.524
         self._R_d = 287.053
-        self._g0 = const._g0  # gravity constant
-        self._zmin = const._ZMIN  # minimum integration height
-        self._zmax = const._ZREF  # max integration height
+        self._g0 = _g0  # gravity constant
+        self._zmin = _ZMIN  # minimum integration height
+        self._zmax = _ZREF  # max integration height
         self._proj = None
 
         # setup data structures
@@ -80,6 +81,7 @@ class WeatherModel(ABC):
     def __str__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
+        string += 'Weather model time: {}\n'.format(self._time)
         string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
         string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
@@ -126,13 +128,23 @@ class WeatherModel(ABC):
         '''
         pass
 
+    def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
+        ''' Set the time for a weather model '''
+        if isinstance(time, str):
+            self._time = datetime.datetime.strptime(time, fmt)
+        elif isinstance(time, datetime.datetime):
+            self._time = time
+        else:
+            raise ValueError('"time" must be a string or a datetime object')
+
     def checkLL(self, lats, lons, Nextra = 2):
         ''' 
-        Need to correct lat/lon bounds because not all of the weather models have valid data 
-        exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, need to 
-        adjust the longitude higher end with an extra buffer; for other models, the exact 
-        bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be rounded to the 
-        above regions (either in the downloading-file API or subsetting-data API) without problems.
+        Need to correct lat/lon bounds because not all of the weather models have valid 
+        data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, 
+        need to adjust the longitude higher end with an extra buffer; for other models, 
+        the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be 
+        rounded to the above regions (either in the downloading-file API or subsetting-
+        data API) without problems.
         '''
         if self._Name is 'GMAO' or self._Name is 'MERRA2':
             ex_buffer_lon_max = self._lon_res
@@ -152,13 +164,19 @@ class WeatherModel(ABC):
     
         return lats, lons
 
-    def load(self, *args, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
+    def load(
+            self, 
+            *args, 
+            _zlevels=None, 
+            outLats=None, 
+            outLons=None, 
+            zref=_ZREF, 
+            **kwargs
+        ):
         '''
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        if zref is not None:
-            self._zmax = zref
         self.load_weather(*args, **kwargs)
         self._find_e()
         self._checkNotMaskedArrays()
@@ -167,28 +185,7 @@ class WeatherModel(ABC):
         self._get_wet_refractivity()
         self._get_hydro_refractivity()
         self._adjust_grid(lats=outLats, lons=outLons)
-        self._getZTD(los, zref)
-
-    def _getZTD(self, los, zref=const._ZREF):
-        '''
-        Compute the full slant tropospheric delay for each weather model grid node, using the reference
-        height zref
-        '''
-        if zref is None:
-            zref = const._ZREF
-
-        hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
-        los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
-        wet = self.getWetRefractivity()
-        hydro = self.getHydroRefractivity()
-
-        # Get the integrated ZTD
-        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-        for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
-            hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
-        self._hydrostatic_ztd = hydro_total
-        self._wet_ztd = wet_total
+        self._getZTD(zref)
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -196,6 +193,13 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+    def _get_time(self, filename=None):
+        if filename is None:
+            filename = self.files[0]
+        with netCDF4.Dataset(filename, mode='r') as f:
+            time = f.attrs['datetime'].copy()
+        self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
     def plot(self, plotType='pqt', savefig=True):
         '''
@@ -314,6 +318,30 @@ class WeatherModel(ABC):
                 )
                 raise RuntimeError('Check the weather model')
             self._trimExtent(in_extent)
+
+    def _getZTD(self, zref=None):
+        '''
+        Compute the full slant tropospheric delay for each weather model grid node, using the reference
+        height zref
+        '''
+        if zref is None:
+            zref = self._zmax
+
+        hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
+        wet = self.getWetRefractivity()
+        hydro = self.getHydroRefractivity()
+
+        # Get the integrated ZTD
+        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
+        for level in range(wet.shape[2]):
+            wet_total[..., level] = 1e-6 * np.trapz(
+                    wet[..., level:], x=self._zs[level:], axis=2
+                )
+            hydro_total[..., level] = 1e-6 * np.trapz(
+                    hydro[..., level:], x=self._zs[level:], axis=2
+                )
+        self._hydrostatic_ztd = hydro_total
+        self._wet_ztd = wet_total
 
     def _getExtent(self, lats, lons):
         '''
@@ -578,31 +606,53 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-    def write2NETCDF4(self, outName=None, NoDataValue=-3.4028234e+38, chunk=(1,128,128), mapping_name='WGS84'):
+    def filename(self, time = None, outLoc = 'weather_files'):
+        ''' 
+        Create a filename to store the weather model 
         '''
-        By calling the abstract/modular netcdf writer (RAiDER.utilFcns.write2NETCDF4core), write the weather model data and refractivity to an NETCDF4 file
-        that can be accessed by external programs.
-        
-        The point of doing this is to alleviate some of the memory load of keeping
-        the full model in memory and make it easier to scale up the program.
-        '''
-        
-        if outName is None:
-            outName = os.path.join(
-                os.getcwd(),
-                self._Name + datetime.datetime.strftime(
-                    self._time, '%Y_%m_%d_T%H_%M_%S'
-                ) + '.nc'
+        os.makedirs(outLoc, exist_ok = True)
+
+        if time is None:
+            if self._time is None:
+                raise ValueError('Time must be specified before the file can be written')
+            else:
+                time = self._time
+
+        f = make_raw_weather_data_filename(
+                outLoc,
+                self._Name,
+                time,
             )
-        
-        self._time = getTimeFromFile(outName)
-        
+
+        self.files = [f]
+
+
+    def write(
+            self, 
+            NoDataValue=-3.4028234e+38, 
+            chunk=(1,128,128), 
+            mapping_name='WGS84'
+        ):
+        '''
+        By calling the abstract/modular netcdf writer 
+        (RAiDER.utilFcns.write2NETCDF4core), write the weather model data 
+        and refractivity to an NETCDF4 file that can be accessed by external programs.
+        '''
+        # Generate the filename
+        outLoc = os.path.split(self.files[0])[:-1][0]
+        f = make_weather_model_filename(
+                outLoc,
+                self._Name,
+                self._time,
+                self._get_ll_bounds(self._lats, self._lats) 
+            )
+
         dimidY, dimidX, dimidZ = self._t.shape
         chunk_lines_Y = np.min([chunk[1], dimidY])
         chunk_lines_X = np.min([chunk[2], dimidX])
         ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
         
-        nc_outfile = netCDF4.Dataset(outName,'w',clobber=True,format='NETCDF4')
+        nc_outfile = netCDF4.Dataset(f,'w',clobber=True,format='NETCDF4')
         nc_outfile.setncattr('Conventions','CF-1.6')
         nc_outfile.setncattr('datetime',datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
         nc_outfile.setncattr('date_created',datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
@@ -731,7 +781,58 @@ class WeatherModel(ABC):
                 'dataset':self._hydrostatic_ztd.swapaxes(0,2).swapaxes(1,2)}
         }
     
-        nc_outfile = write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84')
+        nc_outfile = write2NETCDF4core(
+                nc_outfile, 
+                dimension_dict, 
+                dataset_dict, 
+                tran, 
+                mapping_name='WGS84'
+            )
         
         nc_outfile.sync() # flush data to disk
         nc_outfile.close()
+        return f
+
+
+def make_weather_model_filename(outLoc, name, time, ll_bounds):
+    if ll_bounds[0] < 0:
+        S = 'S'
+    else:
+        S = 'N'
+    if ll_bounds[1] < 0:
+        N = 'S'
+    else:
+        N = 'N'
+    if ll_bounds[2] < 0:
+        W = 'W'
+    else:
+        W = 'E'
+    if ll_bounds[3] < 0:
+        E = 'W'
+    else:
+        E = 'E'
+    return '{}_{}_{}{}_{}{}_{}{}_{}{}.nc'.format(
+            name, 
+            time.strftime("%Y_%m_%d_T%H_%M_%S"), 
+            np.abs(ll_bounds[0]), 
+            S, 
+            np.abs(ll_bounds[1]), 
+            N, 
+            np.abs(ll_bounds[2]), 
+            W, 
+            np.abs(ll_bounds[3]), 
+            E
+        )
+
+
+def make_raw_weather_data_filename(outLoc, name, time):
+    ''' Filename generator for the raw downloaded weather model data '''
+    f = os.path.join(
+        outLoc,
+        '{}_{}.{}'.format(
+            name,
+            datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
+            'nc'
+        )
+    )
+    return f
