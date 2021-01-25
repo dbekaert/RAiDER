@@ -78,7 +78,6 @@ def prepareWeatherModel(
     weather_model.load(
             outLats=lats, 
             outLons=lons, 
-            zref=zref,
         )
 
     # Logging some basic info
