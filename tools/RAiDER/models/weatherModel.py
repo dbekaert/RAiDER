@@ -167,9 +167,9 @@ class WeatherModel(ABC):
     def load(
             self, 
             *args, 
-            _zlevels=None, 
             outLats=None, 
             outLons=None, 
+            _zlevels=None, 
             zref=_ZREF, 
             **kwargs
         ):

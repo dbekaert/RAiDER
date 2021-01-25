@@ -31,8 +31,13 @@ def checkArgs(args, p):
             if args.outformat.lower() != 'hdf5':
                 raise RuntimeError('HDF5 must be used with height levels')
 
+    if args.wmLoc is not None:
+        wmLoc = args.wmLoc
+    else:
+        wmLoc = os.path.join(args.out, 'weather_files')
     if not os.path.exists(wmLoc):
         os.mkdir(wmLoc)
+
     # Query Area
     lat, lon, llproj, bounds, flag = readLL(args.query_area)
 
@@ -62,16 +67,14 @@ def checkArgs(args, p):
                 'Argument --files is required with model {}'.format(args.model)
             )
 
+    # handle the datetimes requested
+    datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
+
     weathers = {
             'type': model_obj(), 
             'files': args.files,
             'name': args.model
         }
-
-    if args.wmLoc is not None:
-        wmLoc = args.wmLoc
-    else:
-        wmLoc = os.path.join(args.out, 'weather_files')
 
     # zref
     zref = args.zref
@@ -86,9 +89,6 @@ def checkArgs(args, p):
             parallel = max_threads
         parallel = parallel if parallel < max_threads else max_threads
 
-
-    # handle the datetimes requested
-    datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
 
     # Misc
     download_only = args.download_only
@@ -113,7 +113,7 @@ def checkArgs(args, p):
 
     wetNames, hydroNames = [], []
     for time in datetimeList:
-        if flag == 'station_file':
+       if flag == 'station_file':
             wetFilename = os.path.join(
                     out, 
                     '{}_Delay_{}_Zmax{}.csv'
@@ -128,7 +128,7 @@ def checkArgs(args, p):
             # copy the input file to the output location for editing
             indf = pd.read_csv(args.query_area)
             indf.to_csv(wetFilename, index=False)
-        else:
+       else:
             wetFilename, hydroFilename = makeDelayFileNames(
                     time, 
                     los, 
@@ -137,8 +137,8 @@ def checkArgs(args, p):
                     out
                 )
 
-        wetNames.append(wetFilename)
-        hydroNames.append(hydroFilename)
+       wetNames.append(wetFilename)
+       hydroNames.append(hydroFilename)
 
     # DEM
     if args.dem is not None:

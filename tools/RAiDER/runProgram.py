@@ -174,7 +174,6 @@ def parseCMD():
         args_copy['times']=times.tolist()
         args_copy['wetFilenames']=wetFilenames.tolist()
         args_copy['hydroFilenames']=hydroFilenames.tolist()
-        args_copy['weather_model'].setTime(args['times'])
         lst_new_args.append(args_copy)
 
     # multi-processing approach

@@ -124,7 +124,7 @@ class HRES(WeatherModel):
                    0.897767,0.917651,0.935157,0.950274,0.963007,0.973466,0.982238,0.989153,0.994204,
                    0.997630,1.000000]
 
-    def load_weather(self, filename = None):
+    def load_weather(self, ll_bounds = None, filename = None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -211,12 +211,19 @@ class HRES(WeatherModel):
         self._ys = _lats.copy()
         self._zs = h
 
-    def _makeDataCubes(self, fname, verbose=False):
+    def _makeDataCubes(self, fname, ll_bounds = None, verbose=False):
         '''
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
         '''
         from scipy.io import netcdf as nc
+        import xarray as xr
+        import pdb; pdb.set_trace()
+        with xr.open_dataset(fname) as ds:
+            if ll_bounds is not None:
+                S,N,W,E = ll_bounds
+                block = ds.where((S < latitude < N) and (W < longitude < E))
+
         with nc.netcdf_file(fname, 'r', maskandscale=True) as f:
             # 0,0 to get first time and first level
             z = f.variables['z'][0][0].copy()
@@ -235,7 +242,7 @@ class HRES(WeatherModel):
         '''
         Fetch a weather model from ECMWF
         '''
-        if (time < datetime(2013, 6, 26, 0, 0, 0)):
+        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             weather_model.update_a_b()
 
         # bounding box plus a buffer
