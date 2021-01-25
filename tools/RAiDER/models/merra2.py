@@ -118,7 +118,7 @@ class MERRA2(WeatherModel):
             logger.exception("Unable to save weathermodel to file")
 
 
-    def load_weather(self, f=None):
+    def load_weather(self, *args, f=None, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,

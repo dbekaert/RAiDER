@@ -1,6 +1,8 @@
 import datetime
 
 import numpy as np
+import xarray as xr
+
 from pyproj import CRS
 
 from RAiDER import utilFcns as util
@@ -124,7 +126,7 @@ class HRES(WeatherModel):
                    0.897767,0.917651,0.935157,0.950274,0.963007,0.973466,0.982238,0.989153,0.994204,
                    0.997630,1.000000]
 
-    def load_weather(self, ll_bounds = None, filename = None):
+    def load_weather(self, filename=None, ll_bounds=None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -133,10 +135,10 @@ class HRES(WeatherModel):
         '''
 
         if filename is None:
-            filename = self.files
+            filename = self.files[0]
 
         # read data from grib file
-        lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(filename, verbose=False)
+        lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(filename, ll_bounds = ll_bounds, verbose=False)
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
@@ -216,10 +218,8 @@ class HRES(WeatherModel):
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
         '''
-        from scipy.io import netcdf as nc
-        import xarray as xr
         import pdb; pdb.set_trace()
-        with xr.open_dataset(fname[0]) as ds:
+        with xr.open_dataset(fname) as ds:
             if ll_bounds is not None:
                 S,N,W,E = ll_bounds
                 # convert ll_bounds to 0-360
@@ -234,25 +234,15 @@ class HRES(WeatherModel):
             else:
                 block = ds
 
-            z = block['z'][:]
-            t = block['z'][:]
-            q = block['z'][:]
-            lnsp = block['z'][:]
-            lats = block.latitude[:]
-            lons = block.longitude[:]
-            self._levels = block.level[:]
-
-#        with nc.netcdf_file(fname, 'r', maskandscale=True) as f:
-#            # 0,0 to get first time and first level
-#            z = f.variables['z'][0][0].copy()
-#            lnsp = f.variables['lnsp'][0][0].copy()
-#            t = f.variables['t'][0].copy()
-#            q = f.variables['q'][0].copy()
-#            lats = f.variables['latitude'][:].copy()
-#            lons = f.variables['longitude'][:].copy()
-#            self._levels = f.variables['level'][:].copy()
-#            xs = lons.copy()
-#            ys = lats.copy()
+            z = block['z'].to_numpy()
+            t = block['z'].to_numpy()
+            q = block['z'].to_numpy()
+            lnsp = block['z'].to_numpy()
+            lats = block.latitude.to_numpy()
+            lons = block.longitude.to_numpy()
+            self._levels = block.level.to_numpy()
+            xs = lons.copy()
+            ys = lats.copy()
 
         return lats, lons, xs, ys, t, q, lnsp, z
 

@@ -68,7 +68,7 @@ class HRRR(WeatherModel):
         self.files = self._download_hrrr_file(time, 'hrrr', out=out,
                                                field='prs', verbose=True)
 
-    def load_weather(self, filename=None):
+    def load_weather(self, *args, filename=None, **kwargs):
         '''
         Load a weather model into a python weatherModel object, from self.files if no
         filename is passed.
