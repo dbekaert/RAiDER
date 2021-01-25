@@ -316,7 +316,6 @@ class WeatherModel(ABC):
                     'The weather model passed does not cover all of the input '
                     'points; you need to download a larger area.'
                 )
-                raise RuntimeError('Check the weather model')
             self._trimExtent(in_extent)
 
     def _getZTD(self, zref=None):
