@@ -218,21 +218,22 @@ class HRES(WeatherModel):
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
         '''
+        # get ll_bounds, need to convert to 0-360
+        if ll_bounds is not None:
+            S,N,W,E = ll_bounds
+            if W < 0:
+                W += 360
+                E += 360    
+        else:
+            S, N, W, E = -90, 90, 0, 360
+
         with xr.open_dataset(fname) as ds:
-            if ll_bounds is not None:
-                S,N,W,E = ll_bounds
-                # convert ll_bounds to 0-360
-                if W < 0:
-                    W += 360
-                    E += 360    
+            # mask based on query bounds
+            m1 = (S < ds.latitude) & (N > ds.latitude)
+            m2 = (W < ds.longitude) & (E > ds.longitude)
+            block = ds.where(m1 & m2, drop = True)
 
-                # mask based on query bounds
-                m1 = (S < ds.latitude) & (N > ds.latitude)
-                m2 = (W < ds.longitude) & (E > ds.longitude)
-                block = ds.where(m1 & m2, drop = True)
-            else:
-                block = ds
-
+            # Pull the data
             z = np.squeeze(block['z'].values)
             t = np.squeeze(block['t'].values)
             q = np.squeeze(block['q'].values)
