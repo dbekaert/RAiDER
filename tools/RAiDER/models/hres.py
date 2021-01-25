@@ -219,22 +219,40 @@ class HRES(WeatherModel):
         from scipy.io import netcdf as nc
         import xarray as xr
         import pdb; pdb.set_trace()
-        with xr.open_dataset(fname) as ds:
+        with xr.open_dataset(fname[0]) as ds:
             if ll_bounds is not None:
                 S,N,W,E = ll_bounds
-                block = ds.where((S < latitude < N) and (W < longitude < E))
+                # convert ll_bounds to 0-360
+                if W < 0:
+		    W = W += 180
+                    E = E += 180    
 
-        with nc.netcdf_file(fname, 'r', maskandscale=True) as f:
-            # 0,0 to get first time and first level
-            z = f.variables['z'][0][0].copy()
-            lnsp = f.variables['lnsp'][0][0].copy()
-            t = f.variables['t'][0].copy()
-            q = f.variables['q'][0].copy()
-            lats = f.variables['latitude'][:].copy()
-            lons = f.variables['longitude'][:].copy()
-            self._levels = f.variables['level'][:].copy()
-            xs = lons.copy()
-            ys = lats.copy()
+                # mask based on query bounds
+                m1 = (S < ds.latitude) & (N > ds.latitude)
+                m2 = (W < ds.longitude) & (E > ds.longitude)
+                block = ds.where(m1 & m2, drop = True)
+            else:
+                block = ds
+
+            z = block['z'][:]
+            t = block['z'][:]
+            q = block['z'][:]
+            lnsp = block['z'][:]
+            lats = block.latitude[:]
+            lons = block.longitude[:]
+            self._levels = block.level[:]
+
+#        with nc.netcdf_file(fname, 'r', maskandscale=True) as f:
+#            # 0,0 to get first time and first level
+#            z = f.variables['z'][0][0].copy()
+#            lnsp = f.variables['lnsp'][0][0].copy()
+#            t = f.variables['t'][0].copy()
+#            q = f.variables['q'][0].copy()
+#            lats = f.variables['latitude'][:].copy()
+#            lons = f.variables['longitude'][:].copy()
+#            self._levels = f.variables['level'][:].copy()
+#            xs = lons.copy()
+#            ys = lats.copy()
 
         return lats, lons, xs, ys, t, q, lnsp, z
 
