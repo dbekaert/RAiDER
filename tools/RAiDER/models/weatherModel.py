@@ -177,7 +177,6 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        import pdb; pdb.set_trace()
         self.load_weather(*args, **kwargs)
         self._find_e()
         self._checkNotMaskedArrays()
