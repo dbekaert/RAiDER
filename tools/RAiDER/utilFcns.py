@@ -790,8 +790,6 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         var.setncattr('description',dimension_dict[dim]['description'])
         var.setncattr('units',dimension_dict[dim]['units'])
         var[:] = dimension_dict[dim]['dataset'].astype(dimension_dict[dim]['datatype'])
-    #    import pdb
-    #    pdb.set_trace()
     for data in dataset_dict:
         varname=dataset_dict[data]['varname']
         datatype=dataset_dict[data]['datatype']

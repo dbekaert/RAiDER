@@ -66,6 +66,7 @@ class WeatherModel(ABC):
 
         self._lats = None
         self._lons = None
+        self._ll_bounds = None
 
         self._p = None
         self._q = None
@@ -177,7 +178,17 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
+        # Compute the bounds of the query points
+        self._ll_bounds = self._get_ll_bounds(
+                lats = outLats, 
+                lons = outLons,
+                Nextra=2
+            )
+
+        # Load the weather just for the query points
         self.load_weather(*args, **kwargs)
+
+        # Process the weather model data
         self._find_e()
         self._checkNotMaskedArrays()
         self._uniform_in_z(_zlevels=_zlevels)
@@ -185,6 +196,8 @@ class WeatherModel(ABC):
         self._get_wet_refractivity()
         self._get_hydro_refractivity()
         self._adjust_grid(lats=outLats, lons=outLons)
+
+        # Compute Zenith delays at the weather model grid nodes
         self._getZTD(zref)
 
     @abstractmethod
@@ -515,10 +528,14 @@ class WeatherModel(ABC):
 
         return geopotential, pressurelvs, geoheight
 
-    def _get_ll_bounds(self, lats, lons, Nextra=2):
+    def _get_ll_bounds(self, lats = None, lons = None, Nextra=2):
         '''
         returns the extents of lat/lon plus a buffer
         '''
+        if lats is None:
+            lats = self._lats
+            lons = self._lons
+
         lat_min = np.nanmin(lats) - Nextra * self._lat_res
         lat_max = np.nanmax(lats) + Nextra * self._lat_res
         lon_min = np.nanmin(lons) - Nextra * self._lon_res

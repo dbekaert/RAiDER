@@ -115,7 +115,6 @@ def tropo_delay(args):
             wmLoc = wmLoc,
             lats = lats, 
             lons = lons, 
-            ll_bounds = ll_bounds,
             zref = zref,
             download_only = download_only, 
             makePlots = True

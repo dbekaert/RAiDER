@@ -126,7 +126,7 @@ class HRES(WeatherModel):
                    0.897767,0.917651,0.935157,0.950274,0.963007,0.973466,0.982238,0.989153,0.994204,
                    0.997630,1.000000]
 
-    def load_weather(self, filename=None, ll_bounds=None):
+    def load_weather(self, filename=None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -140,7 +140,6 @@ class HRES(WeatherModel):
         # read data from grib file
         lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(
                 filename, 
-                ll_bounds = ll_bounds, 
                 verbose=False
             )
 
@@ -217,29 +216,27 @@ class HRES(WeatherModel):
         self._ys = _lats.copy()
         self._zs = h
 
-    def _makeDataCubes(self, fname, ll_bounds = None, verbose=False):
+    def _makeDataCubes(self, fname, verbose=False):
         '''
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
         '''
-        # get ll_bounds, need to convert to 0-360
+        # get ll_bounds
+        S,N,W,E = self._ll_bounds
+
         with xr.open_dataset(fname) as ds:
             if np.min(ds.longitude) >= 0:
                 flag = True
             else:
                 flag = False
 
-            if ll_bounds is not None:
-                S,N,W,E = ll_bounds
-                if flag:
-                    W += 360
-                    E += 360    
-            else:
-                S, N, W, E = -90, 90, 0, 360
+            if flag:
+                W += 360
+                E += 360    
 
             # mask based on query bounds
-            m1 = (S < ds.latitude) & (N > ds.latitude)
-            m2 = (W < ds.longitude) & (E > ds.longitude)
+            m1 = (S <= ds.latitude) & (N >= ds.latitude)
+            m2 = (W <= ds.longitude) & (E >= ds.longitude)
             block = ds.where(m1 & m2, drop = True)
 
             # Pull the data
