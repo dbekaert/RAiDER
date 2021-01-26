@@ -1,6 +1,8 @@
 import datetime
 
 import numpy as np
+import xarray as xr
+
 from pyproj import CRS
 
 from RAiDER import utilFcns as util
@@ -124,7 +126,7 @@ class HRES(WeatherModel):
                    0.897767,0.917651,0.935157,0.950274,0.963007,0.973466,0.982238,0.989153,0.994204,
                    0.997630,1.000000]
 
-    def load_weather(self, filename = None):
+    def load_weather(self, filename=None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -133,10 +135,13 @@ class HRES(WeatherModel):
         '''
 
         if filename is None:
-            filename = self.files
+            filename = self.files[0]
 
         # read data from grib file
-        lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(filename, verbose=False)
+        lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(
+                filename, 
+                verbose=False
+            )
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
@@ -216,18 +221,38 @@ class HRES(WeatherModel):
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
         '''
-        from scipy.io import netcdf as nc
-        with nc.netcdf_file(fname, 'r', maskandscale=True) as f:
-            # 0,0 to get first time and first level
-            z = f.variables['z'][0][0].copy()
-            lnsp = f.variables['lnsp'][0][0].copy()
-            t = f.variables['t'][0].copy()
-            q = f.variables['q'][0].copy()
-            lats = f.variables['latitude'][:].copy()
-            lons = f.variables['longitude'][:].copy()
-            self._levels = f.variables['level'][:].copy()
+        # get ll_bounds
+        S,N,W,E = self._ll_bounds
+
+        with xr.open_dataset(fname) as ds:
+            if np.min(ds.longitude) >= 0:
+                flag = True
+            else:
+                flag = False
+
+            if flag:
+                W += 360
+                E += 360    
+
+            # mask based on query bounds
+            m1 = (S <= ds.latitude) & (N >= ds.latitude)
+            m2 = (W <= ds.longitude) & (E >= ds.longitude)
+            block = ds.where(m1 & m2, drop = True)
+
+            # Pull the data
+            z = np.squeeze(block['z'].values)[0,...]
+            t = np.squeeze(block['t'].values)
+            q = np.squeeze(block['q'].values)
+            lnsp = np.squeeze(block['lnsp'].values)[0,...]
+            lats = np.squeeze(block.latitude.values)
+            lons = np.squeeze(block.longitude.values)
+            self._levels = np.squeeze(block.level.values)
             xs = lons.copy()
             ys = lats.copy()
+
+        if z.size==0:
+            raise RuntimeError('There is no data in z, '
+                    'you may have a problem with your mask')
 
         return lats, lons, xs, ys, t, q, lnsp, z
 
@@ -235,7 +260,7 @@ class HRES(WeatherModel):
         '''
         Fetch a weather model from ECMWF
         '''
-        if (time < datetime(2013, 6, 26, 0, 0, 0)):
+        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             weather_model.update_a_b()
 
         # bounding box plus a buffer

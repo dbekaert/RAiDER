@@ -25,7 +25,7 @@ class ECMWF(WeatherModel):
         self._lon_res = 0.2
         self._lat_res = 0.2
 
-    def load_weather(self):
+    def load_weather(self, *args, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,

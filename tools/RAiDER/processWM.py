@@ -26,7 +26,6 @@ def prepareWeatherModel(
         wmLoc=None,
         lats=None,
         lons=None,
-        ll_bounds=None,
         zref=None,
         download_only=False,
         makePlots=False
@@ -76,9 +75,9 @@ def prepareWeatherModel(
 
     # Otherwise, load the weather model data
     weather_model.load(
-            outLats=lats, 
-            outLons=lons, 
-            zref=zref,
+            outLats = lats, 
+            outLons = lons, 
+            zref = zref,
         )
 
     # Logging some basic info

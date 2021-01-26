@@ -115,13 +115,17 @@ def tropo_delay(args):
             wmLoc = wmLoc,
             lats = lats, 
             lons = lons, 
-            ll_bounds = ll_bounds,
             zref = zref,
             download_only = download_only, 
             makePlots = True
         )
 
     if download_only:
+        return None, None
+
+    if (los is Zenith) and (heights[0] == 'skip'):
+        logger.debug('Only Zenith delays at the weather model nodes ' 
+                'are requested, so I am exiting now. ')
         return None, None
 
     # Pull the DEM.
