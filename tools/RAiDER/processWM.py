@@ -74,11 +74,19 @@ def prepareWeatherModel(
         return None
 
     # Otherwise, load the weather model data
-    weather_model.load(
+    f = weather_model.load(
+            wmLoc,
             outLats = lats, 
             outLons = lons, 
             zref = zref,
         )
+    if f is not None:
+        logger.warning(
+                'The processed weather model file already exists,'
+                ' so I will use that.'
+            )
+        return f
+   
 
     # Logging some basic info
     logger.debug(

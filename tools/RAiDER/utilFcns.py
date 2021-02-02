@@ -379,9 +379,6 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
             wetFilename = wetFilename[0]
             df = pd.read_csv(wetFilename)
 
-        # quick check for consistency
-        assert(np.all(np.abs(lats - df['Lat']) < 0.01))
-
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
         df['totalDelay'] = wetDelay + hydroDelay
