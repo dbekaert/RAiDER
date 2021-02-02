@@ -100,7 +100,7 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     pltformat.add_argument('-plotall', '--plotall', action='store_true', dest='plotall',
                            help="Generate all supported plots, including variogram plots.")
     pltformat.add_argument('-min_span', '--min_span', dest='min_span', type=float,
-                           default = 1, help="Minimum TS span (years) imposed for seasonal amplitude/phase analyses to be performed for a given station.")
+                           default = [2, 0.6], nargs=2, help="Minimum TS span (years) and minimum fractional observations in span (fraction) imposed for seasonal amplitude/phase analyses to be performed for a given station.")
 
     # All plot types
     # Station scatter-plots
@@ -621,10 +621,10 @@ class RaiderStats(object):
     import glob
 
     def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, \
-                stationsongrids=False, station_delay_phase=False, cbounds=None, colorpercentile='25 95', grid_heatmap=False, \
+                stationsongrids=False, station_delay_phase=False, cbounds=None, colorpercentile=[25, 95], grid_heatmap=False, \
                 grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False, grid_delay_phase=False, grid_delay_absolute_mean=False, \
                 grid_delay_absolute_median=False, grid_delay_absolute_stdev=False, grid_delay_absolute_phase=False, \
-                grid_to_raster=False, min_span=1, numCPUs=8, phaseamp_per_station=False):
+                grid_to_raster=False, min_span=[2, 0.6], numCPUs=8, phaseamp_per_station=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -650,8 +650,10 @@ class RaiderStats(object):
         self.grid_delay_absolute_stdev = grid_delay_absolute_stdev
         self.grid_delay_absolute_phase = grid_delay_absolute_phase
         self.grid_delay_absolute_amplitude = False
+        self.grid_delay_absolute_frequency = False
         self.grid_delay_absolute_phase_covariance = False
         self.grid_delay_absolute_amplitude_covariance = False
+        self.grid_delay_absolute_frequency_covariance = False
         self.grid_to_raster = grid_to_raster
         self.min_span = min_span
         self.numCPUs = numCPUs
@@ -686,10 +688,14 @@ class RaiderStats(object):
                 self.grid_delay_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_phase' in self.fname:
                 self.grid_delay_phase, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_frequency' in self.fname:
+                self.grid_delay_frequency, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_amplitude' in self.fname:
                 self.grid_delay_amplitude, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_phase_covariance' in self.fname:
                 self.grid_delay_phase_covariance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_frequency_covariance' in self.fname:
+                self.grid_delay_frequency_covariance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_amplitude_covariance' in self.fname:
                 self.grid_delay_amplitude_covariance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_mean' in self.fname:
@@ -700,10 +706,14 @@ class RaiderStats(object):
                 self.grid_delay_absolute_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_phase' in self.fname:
                 self.grid_delay_absolute_phase, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_absolute_frequency' in self.fname:
+                self.grid_delay_absolute_frequency, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_amplitude' in self.fname:
                 self.grid_delay_absolute_amplitude, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_phase_covariance' in self.fname:
                 self.grid_delay_absolute_phase_covariance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+            if 'grid_delay_absolute_frequency_covariance' in self.fname:
+                self.grid_delay_absolute_frequency_covariance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_delay_absolute_amplitude_covariance' in self.fname:
                 self.grid_delay_absolute_amplitude_covariance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
             if 'grid_range' in self.fname:
@@ -890,7 +900,7 @@ class RaiderStats(object):
 
         # map gridnode dictionary to dataframe
         self.df['gridnode'] = self.df['ID'].map(idtogrid_dict)
-        self.df = self.df[self.df['gridnode'] != 'NaN']
+        self.df.dropna(how='any', inplace=True)
         del self.unique_points, self.polygon_dict, self.polygon_tree, idtogrid_dict, append_poly
         # sort by grid and date
         self.df.sort_values(['gridnode', 'Date'])
@@ -994,28 +1004,36 @@ class RaiderStats(object):
             # Setup variables
             self.ampfit = []
             self.phsfit = []
+            self.freqfit = []
             self.ampfit_c = []
             self.phsfit_c = []
+            self.freqfit_c = []
             args = []
             for i in sorted(list(set(unique_points['ID']))):
                 # pass all values corresponding to station (ID, data = y, time = x)
-                args.append((i, unique_points[unique_points['ID'] == i]['Date'].to_list(), unique_points[unique_points['ID'] == i][self.col_name].to_list(), self.min_span))
+                args.append((i, unique_points[unique_points['ID'] == i]['Date'].to_list(), unique_points[unique_points['ID'] == i][self.col_name].to_list(), self.min_span[0], self.min_span[1]))
             # Parallelize iteration through all grid-cells and time slices
             with multiprocessing.Pool(self.numCPUs) as multipool:
-                for i,j,k,l in multipool.starmap(self._amplitude_and_phase, args):
+                for i,j,k,l,m,n in multipool.starmap(self._amplitude_and_phase, args):
                     self.ampfit.extend(i)
                     self.phsfit.extend(j)
-                    self.ampfit_c.extend(k)
-                    self.phsfit_c.extend(l)
+                    self.freqfit.extend(k)
+                    self.ampfit_c.extend(l)
+                    self.phsfit_c.extend(m)
+                    self.freqfit_c.extend(n)
             # map phase/amplitude fits dictionary to dataframe
             self.phsfit = {k: v for d in self.phsfit for k, v in d.items()}
             self.ampfit = {k: v for d in self.ampfit for k, v in d.items()}
+            self.freqfit = {k: v for d in self.freqfit for k, v in d.items()}
             self.df['phsfit'] = self.df['ID'].map(self.phsfit)
             self.df['ampfit'] = self.df['ID'].map(self.ampfit)
+            self.df['freqfit'] = self.df['ID'].map(self.freqfit)
             self.phsfit_c = {k: v for d in self.phsfit_c for k, v in d.items()}
             self.ampfit_c = {k: v for d in self.ampfit_c for k, v in d.items()}
+            self.freqfit_c = {k: v for d in self.freqfit_c for k, v in d.items()}
             self.df['phsfit_c'] = self.df['ID'].map(self.phsfit_c)
             self.df['ampfit_c'] = self.df['ID'].map(self.ampfit_c)
+            self.df['freqfit_c'] = self.df['ID'].map(self.freqfit_c)
             # drop nan
             self.df.dropna(how='any', inplace=True)
             # If grid plots specified
@@ -1042,6 +1060,18 @@ class RaiderStats(object):
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_amplitude' + '.tif')
                     save_gridfile(self.grid_delay_amplitude, 'grid_delay_amplitude', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+                # Pass mean frequency of station-wise means per gridcell
+                unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['freqfit'].mean()
+                unique_points = unique_points.groupby(['gridnode'])['freqfit'].mean()
+                unique_points.dropna(how='any', inplace=True)
+                self.grid_delay_frequency = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                # If specified, save gridded array(s)
+                if self.grid_to_raster:
+                    gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_frequency' + '.tif')
+                    save_gridfile(self.grid_delay_frequency, 'grid_delay_frequency', gridfile_name, self.plotbbox, self.spacing, \
+                                  self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+                ########################################################################################################################
                 # Pass mean phase covariance of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['phsfit_c'].mean()
                 unique_points = unique_points.groupby(['gridnode'])['phsfit_c'].mean()
@@ -1064,8 +1094,20 @@ class RaiderStats(object):
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_amplitude_covariance' + '.tif')
                     save_gridfile(self.grid_delay_amplitude_covariance, 'grid_delay_amplitude_covariance', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+                # Pass mean frequency covariance of station-wise means per gridcell
+                unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['freqfit_c'].mean()
+                unique_points = unique_points.groupby(['gridnode'])['freqfit_c'].mean()
+                unique_points.dropna(how='any', inplace=True)
+                self.grid_delay_frequency_covariance = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                # If specified, save gridded array(s)
+                if self.grid_to_raster:
+                    gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_frequency_covariance' + '.tif')
+                    save_gridfile(self.grid_delay_frequency_covariance, 'grid_delay_frequency_covariance', gridfile_name, self.plotbbox, self.spacing, \
+                                  self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+            ########################################################################################################################
             if self.grid_delay_absolute_phase:
-                # Pass mean phase of all data per gridcell
+                # Pass absolute mean phase of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['phsfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_delay_absolute_phase = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -1075,7 +1117,7 @@ class RaiderStats(object):
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_phase' + '.tif')
                     save_gridfile(self.grid_delay_absolute_phase, 'grid_delay_absolute_phase', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.1i', stationsongrids=self.stationsongrids, gdal_fmt='float32')
-                # Pass mean amplitude of all data per gridcell
+                # Pass absolute mean amplitude of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['ampfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_delay_absolute_amplitude = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -1085,7 +1127,18 @@ class RaiderStats(object):
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_amplitude' + '.tif')
                     save_gridfile(self.grid_delay_absolute_amplitude, 'grid_delay_absolute_amplitude', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
-                # Pass mean phase of all data per gridcell
+                # Pass absolute mean frequency of all data per gridcell
+                unique_points = self.df.groupby(['gridnode'])['freqfit'].mean()
+                unique_points.dropna(how='any', inplace=True)
+                self.grid_delay_absolute_frequency = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                # If specified, save gridded array(s)
+                if self.grid_to_raster:
+                    gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_frequency' + '.tif')
+                    save_gridfile(self.grid_delay_absolute_frequency, 'grid_delay_absolute_frequency', gridfile_name, self.plotbbox, self.spacing, \
+                                  self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+                ########################################################################################################################
+                # Pass absolute mean phase covariance of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['phsfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_delay_absolute_phase_covariance = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -1095,7 +1148,7 @@ class RaiderStats(object):
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_phase_covariance' + '.tif')
                     save_gridfile(self.grid_delay_absolute_phase_covariance, 'grid_delay_absolute_phase_covariance', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.1i', stationsongrids=self.stationsongrids, gdal_fmt='float32')
-                # Pass mean amplitude of all data per gridcell
+                # Pass absolute mean amplitude covariance of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['ampfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_delay_absolute_amplitude_covariance = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -1105,19 +1158,32 @@ class RaiderStats(object):
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_amplitude_covariance' + '.tif')
                     save_gridfile(self.grid_delay_absolute_amplitude_covariance, 'grid_delay_absolute_amplitude_covariance', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+                # Pass absolute mean frequency covariance of all data per gridcell
+                unique_points = self.df.groupby(['gridnode'])['freqfit_c'].mean()
+                unique_points.dropna(how='any', inplace=True)
+                self.grid_delay_absolute_frequency_covariance = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                # If specified, save gridded array(s)
+                if self.grid_to_raster:
+                    gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_frequency_covariance' + '.tif')
+                    save_gridfile(self.grid_delay_absolute_frequency_covariance, 'grid_delay_absolute_frequency_covariance', gridfile_name, self.plotbbox, self.spacing, \
+                                  self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
 
-    def _amplitude_and_phase(self, station, tt, yy, min_span=1):
+    def _amplitude_and_phase(self, station, tt, yy, min_span=2, min_frac=0.6):
         '''
-        Fit sin to the input time sequence, and return fitting parameters: "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc"
+        Fit sin to the input time sequence, and return fitting parameters: "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc".
+        Minimum time span in years (min_span) and minimum fractional observations in span (min_frac) enforced for statistical analysis
         Source: https://stackoverflow.com/questions/16716302/how-do-i-fit-a-sine-curve-to-my-data-with-pylab-and-numpy
         '''
         ampfit = {}
         phsfit = {}
+        freqfit = {}
         ampfit_c = {}
         phsfit_c = {}
+        freqfit_c = {}
         # If station TS does not span specified time period, pass NaNs
-        min_span *=365
-        if (max(tt)-min(tt)) >= min_span:
+        time_span_yrs = (max(tt)-min(tt))/31556952
+        if time_span_yrs >= min_span and len(tt)/(time_span_yrs*365.25) >= min_frac:
             tt = np.array(tt)
             yy = np.array(yy)
             ff = np.fft.fftfreq(len(tt), (tt[1]-tt[0])) # assume uniform spacing
@@ -1129,41 +1195,63 @@ class RaiderStats(object):
             # Note, may have to adjust max number of iterations (maxfev) higher to avoid crashes
             popt, pcov = optimize.curve_fit(self._sine_function_base, tt, yy, p0=guess, maxfev=int(1e6))
             A, w, p, c = popt
-            f = w/(2.*np.pi)
+            #f = w/(2.*np.pi)
+            f = (w*(180/np.pi))*365
             fitfunc = lambda t: A * np.sin(w*t + p) + c
 
-            # Outputs = "amp": A, "omega": w, "phase": p, "offset": c, "freq": f, "period": 1./f, "fitfunc": fitfunc,
-            #       "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)
+            # Outputs = "amp": A, "angular frequency": w, "phase": p, "offset": c, "freq": f, "period": 1./f,
+            #        "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)
             # Pass amplitude (specified units) and phase (days) and covariance
             ampfit[station] = abs(A)
             phsfit[station] = abs(p)
-            ampfit_c[station] = pcov[0,0]**0.5
-            phsfit_c[station] = pcov[2,2]**0.5
+            freqfit[station] = f
+            # Catch warning where output is so small that it gets rounded to 0
+            # I.e. RuntimeWarning: invalid value encountered in double_scalars
+            with np.errstate(invalid='raise'):
+                try:
+                    ampfit_c[station] = pcov[0,0]**0.5
+                    freqfit_c[station] = pcov[1,1]**0.5
+                    phsfit_c[station] = pcov[2,2]**0.5
+                except FloatingPointError:
+                    pass
             if self.phaseamp_per_station:
                 # Debug plotting for each station
-                plt.plot(testtime, testdata, "ok", label="data")
-                num_testpoints = len(testtime)*10
+                # convert time (datetime seconds) to absolute years for plotting
+                tt_plot = copy.deepcopy(tt)
+                tt_plot -= min(tt_plot) ; tt_plot /= 31556952
+                plt.plot(tt_plot, yy, "ok", label="input")
+                plt.xlabel("time (years)")
+                plt.ylabel("data ({})".format(self.unit))
+                num_testpoints = len(tt)*10
                 if num_testpoints > 1000:
                     num_testpoints = 1000
-                tt2 = np.linspace(min(testtime), max(testtime), num_testpoints)
-                plt.plot(tt2, res["fitfunc"](tt2), "r-", label="fit", linewidth=2)
+                tt2 = np.linspace(min(tt), max(tt), num_testpoints)
+                # convert time to years for plotting
+                tt2_plot = copy.deepcopy(tt2)
+                tt2_plot -= min(tt2_plot) ; tt2_plot /= 31556952
+                plt.plot(tt2_plot, fitfunc(tt2), "r-", label="fit", linewidth=2)
                 plt.legend(loc="best")
                 if not os.path.exists(os.path.join(self.workdir, 'phaseamp_per_station')):
                     os.mkdir(os.path.join(self.workdir, 'phaseamp_per_station'))
                 plt.savefig(os.path.join(self.workdir, 'phaseamp_per_station', 'station{}.png'.format(station)),
                             format='png', bbox_inches='tight')
+                plt.close()
         else:
             ampfit[station] = np.nan
             phsfit[station] = np.nan
+            freqfit[station] = np.nan
             ampfit_c[station] = np.nan
             phsfit_c[station] = np.nan
+            freqfit_c[station] = np.nan
 
         self.ampfit.append(ampfit)
         self.phsfit.append(phsfit)
+        self.freqfit.append(freqfit)
         self.ampfit_c.append(ampfit_c)
         self.phsfit_c.append(phsfit_c)
+        self.freqfit_c.append(freqfit_c)
 
-        return self.ampfit, self.phsfit, self.ampfit_c, self.phsfit_c
+        return self.ampfit, self.phsfit, self.freqfit, self.ampfit_c, self.phsfit_c, self.freqfit_c
 
     def _sine_function_base(self, t, A, w, p, c):
         '''
@@ -1318,6 +1406,11 @@ class RaiderStats(object):
                     plottype == "grid_delay_absolute_phase_covariance" or plottype == "grid_delay_phase_covariance":
                 cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({})'.format('days'),
                                   rotation=-90, labelpad=10)
+            # specify appropriate units for frequency heatmap (degree/years)
+            elif plottype == "station_delay_frequency" or plottype == "grid_delay_frequency" or plottype == "grid_delay_absolute_frequency" or \
+                    plottype == "grid_delay_absolute_frequency_covariance" or plottype == "grid_delay_frequency_covariance":
+                cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({})'.format('\N{DEGREE SIGN}/years'),
+                                  rotation=-90, labelpad=10)
             # gridmap of station density has no units
             else:
                 cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title(), rotation=-90, labelpad=10)
@@ -1436,13 +1529,13 @@ def stats_analyses(
     # Plot delay phase/amplitude per station
     if station_delay_phase:
         logger.info("- Plot delay phase/amplitude for each station.")
+        # phase
         unique_points_phase = df_stats.df.groupby(
             ['Lon', 'Lat'])['phsfit'].mean()
-        # phase
         unique_points_phase.dropna(how='any', inplace=True)
         df_stats([unique_points_phase.index.get_level_values('Lon').tolist(), unique_points_phase.index.get_level_values('Lat').tolist(
         ), unique_points_phase.values], 'station_delay_phase', workdir=os.path.join(workdir, 'figures'),
-        plotFormat=plot_fmt, userTitle=user_title)
+        colorbarfmt='%.1i', plotFormat=plot_fmt, userTitle=user_title)
         # amplitude
         unique_points_amplitude = df_stats.df.groupby(
             ['Lon', 'Lat'])['ampfit'].mean()
@@ -1450,83 +1543,109 @@ def stats_analyses(
         df_stats([unique_points_amplitude.index.get_level_values('Lon').tolist(), unique_points_amplitude.index.get_level_values('Lat').tolist(
         ), unique_points_amplitude.values], 'station_delay_amplitude', workdir=os.path.join(workdir, 'figures'),
         colorbarfmt='%.3f', plotFormat=plot_fmt, userTitle=user_title)
+        # frequency
+        unique_points_frequency = df_stats.df.groupby(
+            ['Lon', 'Lat'])['freqfit'].mean()
+        df_stats([unique_points_frequency.index.get_level_values('Lon').tolist(), unique_points_frequency.index.get_level_values('Lat').tolist(
+        ), unique_points_frequency.values], 'station_delay_frequency', workdir=os.path.join(workdir, 'figures'),
+        colorbarfmt='%.2e', plotFormat=plot_fmt, userTitle=user_title)
 
     # Gridded station plots
     # Plot density of stations for each gridcell
     if isinstance(df_stats.grid_heatmap, np.ndarray):
         logger.info("- Plot density of stations per gridcell.")
         df_stats(df_stats.grid_heatmap, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
-                 colorbarfmt='%1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean of station-wise mean delay across each gridcell
     if isinstance(df_stats.grid_delay_mean, np.ndarray):
         logger.info("- Plot mean of station-wise mean delay across each gridcell.")
         df_stats(df_stats.grid_delay_mean, 'grid_delay_mean', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean of station-wise median delay across each gridcell
     if isinstance(df_stats.grid_delay_median, np.ndarray):
         logger.info("- Plot mean of station-wise median delay across each gridcell.")
         df_stats(df_stats.grid_delay_median, 'grid_delay_median', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean of station-wise stdev delay across each gridcell
     if isinstance(df_stats.grid_delay_stdev, np.ndarray):
         logger.info("- Plot mean of station-wise stdev delay across each gridcell.")
         df_stats(df_stats.grid_delay_stdev, 'grid_delay_stdev', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean of station-wise delay phase across each gridcell
     if isinstance(df_stats.grid_delay_phase, np.ndarray):
         logger.info("- Plot mean of station-wise delay phase across each gridcell.")
         df_stats(df_stats.grid_delay_phase, 'grid_delay_phase', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean of station-wise delay amplitude across each gridcell
     if isinstance(df_stats.grid_delay_amplitude, np.ndarray):
         logger.info("- Plot mean of station-wise delay amplitude across each gridcell.")
         df_stats(df_stats.grid_delay_amplitude, 'grid_delay_amplitude', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, colorbarfmt='%.3f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
-    # Plot mean coveriance of station-wise delay phase across each gridcell
+    # Plot mean of station-wise delay frequency across each gridcell
+    if isinstance(df_stats.grid_delay_frequency, np.ndarray):
+        logger.info("- Plot mean of station-wise delay frequency across each gridcell.")
+        df_stats(df_stats.grid_delay_frequency, 'grid_delay_frequency', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot mean covariance of station-wise delay phase across each gridcell
     if isinstance(df_stats.grid_delay_phase_covariance, np.ndarray):
         logger.info("- Plot mean covariance of station-wise delay phase across each gridcell.")
         df_stats(df_stats.grid_delay_phase_covariance, 'grid_delay_phase_covariance', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean covariance of station-wise delay amplitude across each gridcell
     if isinstance(df_stats.grid_delay_amplitude_covariance, np.ndarray):
         logger.info("- Plot mean covariance of station-wise delay amplitude across each gridcell.")
         df_stats(df_stats.grid_delay_amplitude_covariance, 'grid_delay_amplitude_covariance', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, colorbarfmt='%.3f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot mean covariance of station-wise delay frequency across each gridcell
+    if isinstance(df_stats.grid_delay_frequency_covariance, np.ndarray):
+        logger.info("- Plot mean covariance of station-wise delay frequency across each gridcell.")
+        df_stats(df_stats.grid_delay_frequency_covariance, 'grid_delay_frequency_covariance', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean delay for each gridcell
     if isinstance(df_stats.grid_delay_absolute_mean, np.ndarray):
         logger.info("- Plot mean delay per gridcell.")
         df_stats(df_stats.grid_delay_absolute_mean, 'grid_delay_absolute_mean', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot median delay for each gridcell
     if isinstance(df_stats.grid_delay_absolute_median, np.ndarray):
         logger.info("- Plot median delay per gridcell.")
         df_stats(df_stats.grid_delay_absolute_median, 'grid_delay_absolute_median', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot stdev delay for each gridcell
     if isinstance(df_stats.grid_delay_absolute_stdev, np.ndarray):
         logger.info("- Plot delay stdev per gridcell.")
         df_stats(df_stats.grid_delay_absolute_stdev, 'grid_delay_absolute_stdev', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot delay phase for each gridcell
     if isinstance(df_stats.grid_delay_absolute_phase, np.ndarray):
         logger.info("- Plot delay phase per gridcell.")
         df_stats(df_stats.grid_delay_absolute_phase, 'grid_delay_absolute_phase', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot delay amplitude for each gridcell
     if isinstance(df_stats.grid_delay_absolute_amplitude, np.ndarray):
         logger.info("- Plot delay amplitude per gridcell.")
         df_stats(df_stats.grid_delay_absolute_amplitude, 'grid_delay_absolute_amplitude', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, colorbarfmt='%.3f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot delay frequency for each gridcell
+    if isinstance(df_stats.grid_delay_absolute_frequency, np.ndarray):
+        logger.info("- Plot delay frequency per gridcell.")
+        df_stats(df_stats.grid_delay_absolute_frequency, 'grid_delay_absolute_frequency', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot delay phase covariance for each gridcell
     if isinstance(df_stats.grid_delay_absolute_phase_covariance, np.ndarray):
         logger.info("- Plot delay phase covariance per gridcell.")
         df_stats(df_stats.grid_delay_absolute_phase_covariance, 'grid_delay_absolute_phase_covariance', workdir=os.path.join(workdir, 'figures'),
-                 drawgridlines=drawgridlines, stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 drawgridlines=drawgridlines, colorbarfmt='%.1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot delay amplitude covariance for each gridcell
     if isinstance(df_stats.grid_delay_absolute_amplitude_covariance, np.ndarray):
         logger.info("- Plot delay amplitude covariance per gridcell.")
         df_stats(df_stats.grid_delay_absolute_amplitude_covariance, 'grid_delay_absolute_amplitude_covariance', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, colorbarfmt='%.3f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot delay frequency covariance for each gridcell
+    if isinstance(df_stats.grid_delay_absolute_frequency_covariance, np.ndarray):
+        logger.info("- Plot delay frequency covariance per gridcell.")
+        df_stats(df_stats.grid_delay_absolute_frequency_covariance, 'grid_delay_absolute_frequency_covariance', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
     # Perform variogram analysis
     if variogramplot and not isinstance(df_stats.grid_range, np.ndarray) and not isinstance(df_stats.grid_variance, np.ndarray):
