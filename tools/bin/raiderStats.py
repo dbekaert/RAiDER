@@ -47,7 +47,7 @@ if __name__ == "__main__":
         inps.grid_seasonal_absolute_phase,
         inps.grid_to_raster,
         inps.min_span,
-        inps.freq_limit,
+        inps.period_limit,
         inps.variogramplot,
         inps.binnedvariogram,
         inps.variogram_per_timeslice
