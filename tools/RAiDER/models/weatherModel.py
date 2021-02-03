@@ -167,6 +167,7 @@ class WeatherModel(ABC):
 
     def load(
             self, 
+            outLoc,
             *args, 
             outLats=None, 
             outLons=None, 
@@ -178,27 +179,35 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        # Compute the bounds of the query points
-        self._ll_bounds = self._get_ll_bounds(
-                lats = outLats, 
-                lons = outLons,
-                Nextra=2
-            )
+        # If the weather file has already been processed, do nothing
+        out_name = self.out_file(outLoc, lats = outLats, lons = outLons)
+        if not self.checkWeatherExists(out_name):
+            exists_flag = False
 
-        # Load the weather just for the query points
-        self.load_weather(*args, **kwargs)
-
-        # Process the weather model data
-        self._find_e()
-        self._checkNotMaskedArrays()
-        self._uniform_in_z(_zlevels=_zlevels)
-        self._checkForNans()
-        self._get_wet_refractivity()
-        self._get_hydro_refractivity()
-        self._adjust_grid(lats=outLats, lons=outLons)
-
-        # Compute Zenith delays at the weather model grid nodes
-        self._getZTD(zref)
+            # Compute the bounds of the query points
+            self._ll_bounds = self._get_ll_bounds(
+                    lats = outLats, 
+                    lons = outLons,
+                    Nextra=2
+                )
+    
+            # Load the weather just for the query points
+            self.load_weather(*args, **kwargs)
+    
+            # Process the weather model data
+            self._find_e()
+            self._checkNotMaskedArrays()
+            self._uniform_in_z(_zlevels=_zlevels)
+            self._checkForNans()
+            self._get_wet_refractivity()
+            self._get_hydro_refractivity()
+            self._adjust_grid(lats=outLats, lons=outLons)
+    
+            # Compute Zenith delays at the weather model grid nodes
+            self._getZTD(zref)
+            return None
+        else:
+            return out_name
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -206,6 +215,13 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+    def checkWeatherExists(self, pathname):
+        ''' Check whether or not the weather model has already been processed '''
+        if os.path.exists(pathname):
+            return True
+        else:
+            return False
 
     def _get_time(self, filename=None):
         if filename is None:
@@ -622,6 +638,19 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
+    def out_file(self, outLoc, lats = None, lons = None):
+        if lats is None:
+            lats = self._lats
+        if lons is None:
+            lons = self._lons
+        f = make_weather_model_filename(
+                outLoc,
+                self._Name,
+                self._time,
+                self._get_ll_bounds(lats = lats, lons = lons) 
+            )
+        return f
+
     def filename(self, time = None, outLoc = 'weather_files'):
         ''' 
         Create a filename to store the weather model 
@@ -656,12 +685,7 @@ class WeatherModel(ABC):
         '''
         # Generate the filename
         outLoc = os.path.split(self.files[0])[:-1][0]
-        f = make_weather_model_filename(
-                outLoc,
-                self._Name,
-                self._time,
-                self._get_ll_bounds(self._lats, self._lats) 
-            )
+        f = self.out_file(outLoc)
 
         dimidY, dimidX, dimidZ = self._t.shape
         chunk_lines_Y = np.min([chunk[1], dimidY])
@@ -827,16 +851,16 @@ def make_weather_model_filename(outLoc, name, time, ll_bounds):
         E = 'W'
     else:
         E = 'E'
-    return '{}_{}_{}{}_{}{}_{}{}_{}{}.nc'.format(
+    return '{}_{}_{:.0f}{}_{:.0f}{}_{:.0f}{}_{:.0f}{}.nc'.format(
             name, 
             time.strftime("%Y_%m_%d_T%H_%M_%S"), 
-            np.abs(ll_bounds[0]), 
+            np.ceil(np.abs(ll_bounds[0])), 
             S, 
-            np.abs(ll_bounds[1]), 
+            np.ceil(np.abs(ll_bounds[1])), 
             N, 
-            np.abs(ll_bounds[2]), 
+            np.ceil(np.abs(ll_bounds[2])), 
             W, 
-            np.abs(ll_bounds[3]), 
+            np.ceil(np.abs(ll_bounds[3])), 
             E
         )
 
