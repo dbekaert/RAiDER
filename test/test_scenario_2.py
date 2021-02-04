@@ -38,26 +38,26 @@ def test_computeDelay(tmp_path):
     _, model_obj = modelName2Module('ERA5')
 
     with pushd(tmp_path):
-        
+
         # packing the dictionairy
-        args={}
-        args['los']=Zenith
-        args['lats']=lats
-        args['lons']=lons
-        args['ll_bounds']=(33.746, 36.795, -118.312, -114.892)
-        args['heights']=('merge', [wetFile])
-        args['flag']="station_file"
-        args['weather_model']={"type": model_obj(),"files": None,"name": "ERA5"}
-        args['wmLoc']=None
-        args['zref']=20000.
-        args['outformat']="csv"
-        args['times']=datetime(2020, 1, 3, 23, 0, 0)
-        args['out']=tmp_path
-        args['download_only']=False
-        args['wetFilenames']=wetFile
-        args['hydroFilenames']=hydroFile
+        args = {}
+        args['los'] = Zenith
+        args['lats'] = lats
+        args['lons'] = lons
+        args['ll_bounds'] = (33.746, 36.795, -118.312, -114.892)
+        args['heights'] = ('merge', [wetFile])
+        args['flag'] = "station_file"
+        args['weather_model'] = {"type": model_obj(), "files": None, "name": "ERA5"}
+        args['wmLoc'] = None
+        args['zref'] = 20000.
+        args['outformat'] = "csv"
+        args['times'] = datetime(2020, 1, 3, 23, 0, 0)
+        args['out'] = tmp_path
+        args['download_only'] = False
+        args['wetFilenames'] = wetFile
+        args['hydroFilenames'] = hydroFile
         (_, _) = tropo_delay(args)
-        
+
     # get the results
     est_delay = pd.read_csv(wetFile)
     true_delay = pd.read_csv(true_delay)
