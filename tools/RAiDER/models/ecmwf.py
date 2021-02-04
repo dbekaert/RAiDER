@@ -125,12 +125,12 @@ class ECMWF(WeatherModel):
         # execute the search at ECMWF
         try:
             self._get_from_ecmwf(
-                lat_min, 
-                lat_max, 
-                self._lat_res, 
-                lon_min, 
-                lon_max, 
-                self._lon_res, 
+                lat_min,
+                lat_max,
+                self._lat_res,
+                lon_min,
+                lon_max,
+                self._lon_res,
                 time,
                 out
             )

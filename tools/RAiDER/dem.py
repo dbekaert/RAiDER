@@ -29,6 +29,7 @@ from RAiDER.utilFcns import gdal_open, gdal_extents
 _DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&west={}&south={}&east={}&north={}&outputFormat=GTiff"
 _maxDEMSize = 2250000
 
+
 def getHeights(lats, lons, heights, useWeatherNodes=False):
     '''
     Fcn to return heights from a DEM, either one that already exists
@@ -98,13 +99,13 @@ def forceNDArray(arg):
 
 
 def download_dem(
-        lats,
-        lons,
-        save_flag='new',
-        checkDEM=True,
-        outName=os.path.join(os.getcwd(), 'warpedDEM'),
-        buf=0.02
-    ):
+    lats,
+    lons,
+    save_flag='new',
+    checkDEM=True,
+    outName=os.path.join(os.getcwd(), 'warpedDEM'),
+    buf=0.02
+):
     '''  Download a DEM if one is not already present. '''
 
     # Get the lat/lon extents of the query points
@@ -251,10 +252,10 @@ def isInside(extent1, extent2):
     return False
 
 
-def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
+def getDEM(extent, out_dir=os.getcwd(), num_threads=None):
     ''' 
     Get a DEM, chunking if needed 
-    
+
     Parameters
     __________
     extent      - A list containing [lat_min, lat_max, lon_min, lon_max]
@@ -267,7 +268,7 @@ def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
 
     '''
     if num_threads is None:
-        num_threads = mp.cpu_count()*3//4
+        num_threads = mp.cpu_count() * 3 // 4
 
     lat_min, lat_max, lon_min, lon_max = extent
     query_area = getArea(extent)
@@ -275,10 +276,10 @@ def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
         logger.warning(
             'Query area encompasses {} km^2, supersedes DEM maximum download'
             'area of 225000km, so I will download the DEM in chunks'.format(query_area)
-        )        
+        )
 
-    Nchunks = max(int(np.ceil(query_area/225000)) + 1, 2)
-    chunk_size = (lon_max - lon_min)/Nchunks
+    Nchunks = max(int(np.ceil(query_area / 225000)) + 1, 2)
+    chunk_size = (lon_max - lon_min) / Nchunks
     lon_starts = np.arange(lon_min, lon_max, chunk_size)
 
     # Download the DEM (in chunks if necessary)
@@ -296,17 +297,17 @@ def getDEM(extent, out_dir = os.getcwd(), num_threads = None):
         filename = os.path.join(out_dir, dem_raster)
         chunked_files.append(filename)
 
-        dload_dem(chunk_extent, filename = dem_raster)
+        dload_dem(chunk_extent, filename=dem_raster)
 
     # Tile chunked products together after last iteration (if necessary)
     if i > 1:
         gdal.Warp(
-            final_dem_name, 
+            final_dem_name,
             chunked_files
-#            options = gdal.WarpOptions(
-#                 multithread=True, 
-#                 options=['NUM_THREADS={}'.format(num_threads)]
-#             )
+            #            options = gdal.WarpOptions(
+            #                 multithread=True,
+            #                 options=['NUM_THREADS={}'.format(num_threads)]
+            #             )
         )
 
         # remove temp files
@@ -326,8 +327,8 @@ def getArea(extent):
         "+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(
             lat_min,
             lat_max,
-            (lat_max+lat_min)/2,
-            (lon_max+lon_min)/2
+            (lat_max + lat_min) / 2,
+            (lon_max + lon_min) / 2
         )
     )
 
@@ -360,12 +361,12 @@ def getArea(extent):
     lon, lat = bbox.exterior.coords.xy
     x, y = pa(lon, lat)
     cop = {"type": "Polygon", "coordinates": [zip(x, y)]}
-    shape_area = shape(cop).area/1e6  # area in km^2
+    shape_area = shape(cop).area / 1e6  # area in km^2
 
     return shape_area
 
 
-def dload_dem(extent, filename = None):
+def dload_dem(extent, filename=None):
     r = requests.get(_DEM.format(*extent), allow_redirects=True)
     open(filename, 'wb').write(r.content)
     del r
@@ -400,12 +401,19 @@ def readRaster(filename, band_num=None):
     geoProj = ds.GetProjection()
     trans = ds.GetGeoTransform()
     Nbands = ds.RasterCount
+
+    # Read a band if I can
     if band_num is None:
         band_num = 1
         print('Using band one for dataType')
+    try:
+        dType = ds.GetRasterBand(band_num).DataType
+        noDataVal = ds.GetRasterBand(band_num).GetNoDataValue()
+        print('Could not access band {}, skipping noDataValue and dType'.format(band_num))
+    except AttributeError:
+        dType = None
+        noDataVal = None
 
-    dType = ds.GetRasterBand(band_num).DataType
-    noDataVal = ds.GetRasterBand(band_num).GetNoDataValue()
     ds = None
 
     return xSize, ySize, dType, geoProj, trans, noDataVal, Nbands

@@ -66,7 +66,7 @@ class HRRR(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
         self.files = self._download_hrrr_file(time, 'hrrr', out=out,
-                                               field='prs', verbose=True)
+                                              field='prs', verbose=True)
 
     def load_weather(self, *args, filename=None, **kwargs):
         '''

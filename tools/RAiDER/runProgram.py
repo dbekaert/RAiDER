@@ -140,6 +140,7 @@ def create_parser():
 
     return p
 
+
 def parseCMD():
     """
     Parse command-line arguments and pass to tropo_delay
@@ -152,35 +153,37 @@ def parseCMD():
     # Argument checking
     args = checkArgs(args, p)
 
-    if args['verbose']: logger.setLevel(logging.DEBUG)
+    if args['verbose']:
+        logger.setLevel(logging.DEBUG)
 
     # Package arguments for processing
     allTimesFiles = zip(
-            args['times'], 
-            args['wetFilenames'],
-            args['hydroFilenames']
-        )
+        args['times'],
+        args['wetFilenames'],
+        args['hydroFilenames']
+    )
 
     allTimesFiles_chunk = np.array_split(
-            list(allTimesFiles), 
-            args['parallel']
-        )
+        list(allTimesFiles),
+        args['parallel']
+    )
 
-    lst_new_args  = []
+    lst_new_args = []
     for chunk in allTimesFiles_chunk:
-        if chunk.size == 0: continue
+        if chunk.size == 0:
+            continue
         times, wetFilenames, hydroFilenames = chunk.transpose()
         args_copy = copy.deepcopy(args)
-        args_copy['times']=times.tolist()
-        args_copy['wetFilenames']=wetFilenames.tolist()
-        args_copy['hydroFilenames']=hydroFilenames.tolist()
+        args_copy['times'] = times.tolist()
+        args_copy['wetFilenames'] = wetFilenames.tolist()
+        args_copy['hydroFilenames'] = hydroFilenames.tolist()
         lst_new_args.append(args_copy)
 
     # multi-processing approach
-    if not args['parallel']==1:
+    if not args['parallel'] == 1:
         if not args['download_only']:
             raise RuntimeError('Cannot process multiple delay calculations in parallel,' \
-                    ' either specify --download_only or set parallel = 1')
+                               ' either specify --download_only or set parallel = 1')
 
         # split the args across the number of concurrent jobs
         Nprocs = len(lst_new_args)
@@ -200,7 +203,7 @@ def _tropo_delay(args):
     args_copy = copy.deepcopy(args)
 
     if 0 < len(args['times']) < 2:
-        args_copy['times']=args['times'][0]
+        args_copy['times'] = args['times'][0]
         try:
             (_, _) = tropo_delay(args_copy)
         except RuntimeError:
@@ -208,13 +211,14 @@ def _tropo_delay(args):
     else:
         for tim, wetFilename, hydroFilename in zip(args['times'], args['wetFilenames'], args['hydroFilenames']):
             try:
-                args_copy['times']=tim
-                args_copy['wetFilenames']=wetFilename
-                args_copy['hydroFilenames']=hydroFilename
+                args_copy['times'] = tim
+                args_copy['wetFilenames'] = wetFilename
+                args_copy['hydroFilenames'] = hydroFilename
                 (_, _) = tropo_delay(args_copy)
             except RuntimeError:
                 logger.exception("Date %s failed", tim)
                 continue
+
 
 def parseCMD_weather_model_debug():
     """

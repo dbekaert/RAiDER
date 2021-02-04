@@ -102,9 +102,9 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     pltformat.add_argument('-plotall', '--plotall', action='store_true', dest='plotall',
                            help="Generate all supported plots, including variogram plots.")
     pltformat.add_argument('-min_span', '--min_span', dest='min_span', type=float,
-                           default = [2, 0.6], nargs=2, help="Minimum TS span (years) and minimum fractional observations in span (fraction) imposed for seasonal amplitude/phase analyses to be performed for a given station.")
+                           default=[2, 0.6], nargs=2, help="Minimum TS span (years) and minimum fractional observations in span (fraction) imposed for seasonal amplitude/phase analyses to be performed for a given station.")
     pltformat.add_argument('-period_limit', '--period_limit', dest='period_limit', type=float,
-                           default = 0.5, help="period limit (years) imposed for seasonal amplitude/phase analyses to be performed for a given station.")
+                           default=0.5, help="period limit (years) imposed for seasonal amplitude/phase analyses to be performed for a given station.")
 
     # All plot types
     # Station scatter-plots
@@ -153,7 +153,6 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     pltvario.add_argument('-variogram_per_timeslice', '--variogram_per_timeslice', action='store_true', dest='variogram_per_timeslice',
                           help="Generate variogram plots per gridded station AND time-slice.")
 
-
     return parser
 
 
@@ -180,22 +179,22 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt
         Function to save gridded-arrays as GDAL-readable file.
     '''
 
-    gdalMap = { 'byte'   : 1,
-                'int16'  : 3,
-                'int32'    : 5,
-                'float32'  : 6,
-                'float64' : 7,
-                'cfloat32' : 10,
-                'cfloat64': 11}
+    gdalMap = {'byte': 1,
+               'int16': 3,
+               'int32': 5,
+               'float32': 6,
+               'float64': 7,
+               'cfloat32': 10,
+               'cfloat64': 11}
 
     # Write data to file
-    gdalfile=gdal.GetDriverByName('GTiff').Create(fname, df.shape[1], df.shape[0], 1, gdalMap[gdal_fmt])
+    gdalfile = gdal.GetDriverByName('GTiff').Create(fname, df.shape[1], df.shape[0], 1, gdalMap[gdal_fmt])
     gdalfile.GetRasterBand(1).WriteArray(df)
 
     # Pass metadata
-    metadata_dict={}
+    metadata_dict = {}
     metadata_dict['gridfile_type'] = gridfile_type
-    metadata_dict['plotbbox'] = ' '.join([str(i) for i in plotbbox]) 
+    metadata_dict['plotbbox'] = ' '.join([str(i) for i in plotbbox])
     metadata_dict['spacing'] = str(spacing)
     metadata_dict['unit'] = unit
     metadata_dict['colorbarfmt'] = colorbarfmt
@@ -207,12 +206,12 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt
     # Write metadata to file
     gdalfile.SetMetadata(metadata_dict)
 
-    #update with nodata val
+    # update with nodata val
     gdalfile.GetRasterBand(1).SetNoDataValue(np.nan)
     # Finalize VRT
-    gdal.Translate(fname+'.vrt', gdalfile, options=gdal.TranslateOptions(format="VRT", noData=np.nan))
+    gdal.Translate(fname + '.vrt', gdalfile, options=gdal.TranslateOptions(format="VRT", noData=np.nan))
 
-    gdalfile = None    
+    gdalfile = None
 
     return
 
@@ -245,6 +244,7 @@ def load_gridfile(fname, unit):
         stationsongrids = [float(i) for i in metadata_dict['stationsongrids'.split()]]
 
     return grid_array, plotbbox, spacing, colorbarfmt, stationsongrids
+
 
 class VariogramAnalysis():
     '''
@@ -320,7 +320,7 @@ class VariogramAnalysis():
             y = y[mask]
 
         # deramp
-        temp1, temp2, x, y = WGS84_to_UTM(x,y, common_center=True)
+        temp1, temp2, x, y = WGS84_to_UTM(x, y, common_center=True)
         A = np.array([x, y, np.ones(len(x))]).T
         ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
         data = data - (np.matmul(A, ramp))
@@ -330,7 +330,7 @@ class VariogramAnalysis():
         dists = self._get_distances(
             np.array([[x[:, 0], y[:, 0]], [x[:, 1], y[:, 1]]]).T)
         # TODO temp fix first multiply by 110,000 m as crude conversion from degrees to m
-        dists = dists*110000
+        dists = dists * 110000
         vario = self._get_variogram(samples[:, 0], samples[:, 1])
 
         return dists, vario
@@ -625,10 +625,10 @@ class RaiderStats(object):
     import glob
 
     def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, \
-                stationsongrids=False, station_seasonal_phase=False, cbounds=None, colorpercentile=[25, 95], grid_heatmap=False, \
-                grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False, grid_seasonal_phase=False, grid_delay_absolute_mean=False, \
-                grid_delay_absolute_median=False, grid_delay_absolute_stdev=False, grid_seasonal_absolute_phase=False, \
-                grid_to_raster=False, min_span=[2, 0.6], period_limit=0.5, numCPUs=8, phaseamp_per_station=False):
+                 stationsongrids=False, station_seasonal_phase=False, cbounds=None, colorpercentile=[25, 95], grid_heatmap=False, \
+                 grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False, grid_seasonal_phase=False, grid_delay_absolute_mean=False, \
+                 grid_delay_absolute_median=False, grid_delay_absolute_stdev=False, grid_seasonal_absolute_phase=False, \
+                 grid_to_raster=False, min_span=[2, 0.6], period_limit=0.5, numCPUs=8, phaseamp_per_station=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -808,11 +808,11 @@ class RaiderStats(object):
         Read a input file
         '''
         try:
-            data = pd.read_csv(self.fname, parse_dates = ['Datetime'])
+            data = pd.read_csv(self.fname, parse_dates=['Datetime'])
             data['Date'] = data['Datetime'].apply(lambda x: x.date())
-            data['Date'] = data['Date'].apply(lambda x: dt.datetime.strptime(x.strftime("%Y-%m-%d"),"%Y-%m-%d"))
+            data['Date'] = data['Date'].apply(lambda x: dt.datetime.strptime(x.strftime("%Y-%m-%d"), "%Y-%m-%d"))
         except:
-            data = pd.read_csv(self.fname, parse_dates = ['Date'])
+            data = pd.read_csv(self.fname, parse_dates=['Date'])
 
         # check if user-specified key is valid
         if self.col_name not in data.keys():
@@ -934,20 +934,20 @@ class RaiderStats(object):
             unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_mean = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
             # If specified, save gridded array(s)
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_mean' + '.tif')
                 save_gridfile(self.grid_delay_mean, 'grid_delay_mean', gridfile_name, self.plotbbox, self.spacing, \
                               self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
-                
+
         if self.grid_delay_median:
             # Take mean of station-wise medians per gridcell
             unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)[self.col_name].median()
             unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_median = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
             # If specified, save gridded array(s)
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_median' + '.tif')
@@ -960,7 +960,7 @@ class RaiderStats(object):
             unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
             # If specified, save gridded array(s)
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_stdev' + '.tif')
@@ -972,19 +972,19 @@ class RaiderStats(object):
             unique_points = self.df.groupby(['gridnode'])[self.col_name].mean()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_absolute_mean = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
             # If specified, save gridded array(s)
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_mean' + '.tif')
                 save_gridfile(self.grid_delay_absolute_mean, 'grid_delay_absolute_mean', gridfile_name, self.plotbbox, self.spacing, \
                               self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, gdal_fmt='float32')
-                
+
         if self.grid_delay_absolute_median:
             # Take median of all data per gridcell
             unique_points = self.df.groupby(['gridnode'])[self.col_name].median()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_absolute_median = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
             # If specified, save gridded array(s)
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_median' + '.tif')
@@ -996,7 +996,7 @@ class RaiderStats(object):
             unique_points = self.df.groupby(['gridnode'])[self.col_name].std()
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_absolute_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+            ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
             # If specified, save gridded array(s)
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_stdev' + '.tif')
@@ -1021,7 +1021,7 @@ class RaiderStats(object):
                 args.append((i, unique_points[unique_points['ID'] == i]['Date'].to_list(), unique_points[unique_points['ID'] == i][self.col_name].to_list(), self.min_span[0], self.min_span[1], self.period_limit))
             # Parallelize iteration through all grid-cells and time slices
             with multiprocessing.Pool(self.numCPUs) as multipool:
-                for i,j,k,l,m,n in multipool.starmap(self._amplitude_and_phase, args):
+                for i, j, k, l, m, n in multipool.starmap(self._amplitude_and_phase, args):
                     self.ampfit.extend(i)
                     self.phsfit.extend(j)
                     self.periodfit.extend(k)
@@ -1050,7 +1050,7 @@ class RaiderStats(object):
                 unique_points = unique_points.groupby(['gridnode'])['phsfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_phase = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_phase' + '.tif')
@@ -1061,7 +1061,7 @@ class RaiderStats(object):
                 unique_points = unique_points.groupby(['gridnode'])['ampfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_amplitude = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_amplitude' + '.tif')
@@ -1072,7 +1072,7 @@ class RaiderStats(object):
                 unique_points = unique_points.groupby(['gridnode'])['periodfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_period = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_period' + '.tif')
@@ -1084,7 +1084,7 @@ class RaiderStats(object):
                 unique_points = unique_points.groupby(['gridnode'])['phsfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_phase_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_phase_stdev' + '.tif')
@@ -1095,7 +1095,7 @@ class RaiderStats(object):
                 unique_points = unique_points.groupby(['gridnode'])['ampfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_amplitude_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_amplitude_stdev' + '.tif')
@@ -1106,7 +1106,7 @@ class RaiderStats(object):
                 unique_points = unique_points.groupby(['gridnode'])['periodfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_period_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_period_stdev' + '.tif')
@@ -1118,7 +1118,7 @@ class RaiderStats(object):
                 unique_points = self.df.groupby(['gridnode'])['phsfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_absolute_phase = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_phase' + '.tif')
@@ -1128,7 +1128,7 @@ class RaiderStats(object):
                 unique_points = self.df.groupby(['gridnode'])['ampfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_absolute_amplitude = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_amplitude' + '.tif')
@@ -1138,7 +1138,7 @@ class RaiderStats(object):
                 unique_points = self.df.groupby(['gridnode'])['periodfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_absolute_period = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_period' + '.tif')
@@ -1149,7 +1149,7 @@ class RaiderStats(object):
                 unique_points = self.df.groupby(['gridnode'])['phsfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_absolute_phase_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_phase_stdev' + '.tif')
@@ -1159,7 +1159,7 @@ class RaiderStats(object):
                 unique_points = self.df.groupby(['gridnode'])['ampfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_absolute_amplitude_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_amplitude_stdev' + '.tif')
@@ -1169,7 +1169,7 @@ class RaiderStats(object):
                 unique_points = self.df.groupby(['gridnode'])['periodfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_absolute_period_stdev = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
-                    ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
                 # If specified, save gridded array(s)
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_period_stdev' + '.tif')
@@ -1197,16 +1197,16 @@ class RaiderStats(object):
         phsfit_c[station] = np.nan
         periodfit_c[station] = np.nan
         # If station TS does not span specified time period, pass NaNs
-        time_span_yrs = (max(tt)-min(tt))/31556952
-        if time_span_yrs >= min_span and len(list(set(tt)))/(time_span_yrs*365.25) >= min_frac:
+        time_span_yrs = (max(tt) - min(tt)) / 31556952
+        if time_span_yrs >= min_span and len(list(set(tt))) / (time_span_yrs * 365.25) >= min_frac:
             tt = np.array(tt)
             yy = np.array(yy)
-            ff = np.fft.fftfreq(len(tt), (tt[1]-tt[0])) # assume uniform spacing
+            ff = np.fft.fftfreq(len(tt), (tt[1] - tt[0]))  # assume uniform spacing
             Fyy = abs(np.fft.fft(yy))
-            guess_freq = abs(ff[np.argmax(Fyy[1:])+1]) # excluding the zero period "peak", which is related to offset
+            guess_freq = abs(ff[np.argmax(Fyy[1:]) + 1])  # excluding the zero period "peak", which is related to offset
             guess_amp = np.std(yy) * 2.**0.5
             guess_offset = np.mean(yy)
-            guess = np.array([guess_amp, 2.*np.pi*guess_freq, 0., guess_offset])
+            guess = np.array([guess_amp, 2. * np.pi * guess_freq, 0., guess_offset])
             # Catch warning where covariance cannot be estimated
             # I.e. OptimizeWarning: Covariance of the parameters could not be estimated
             with warnings.catch_warnings():
@@ -1224,11 +1224,11 @@ class RaiderStats(object):
                     pass
             A, w, p, c = popt
             # convert from radians/seconds to years
-            f = (w/(2.*np.pi))*(31556952)
-            f = 1/f
+            f = (w / (2. * np.pi)) * (31556952)
+            f = 1 / f
             # Only pass fit if greater than imposed period threshold
             if f >= period_limit:
-                fitfunc = lambda t: A * np.sin(w*t + p) + c
+                def fitfunc(t): return A * np.sin(w * t + p) + c
                 # Outputs = "amp": A, "angular frequency": w, "phase": p, "offset": c, "freq": f, "period": 1./f,
                 #        "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)
                 # Pass amplitude (specified units) and phase (days) and stdev
@@ -1239,26 +1239,28 @@ class RaiderStats(object):
                 # I.e. RuntimeWarning: invalid value encountered in double_scalars
                 with np.errstate(invalid='raise'):
                     try:
-                        ampfit_c[station] = pcov[0,0]**0.5
-                        periodfit_c[station] = pcov[1,1]**0.5
-                        phsfit_c[station] = pcov[2,2]**0.5
+                        ampfit_c[station] = pcov[0, 0]**0.5
+                        periodfit_c[station] = pcov[1, 1]**0.5
+                        phsfit_c[station] = pcov[2, 2]**0.5
                     except FloatingPointError:
                         pass
                 if self.phaseamp_per_station or optimize_warning:
                     # Debug plotting for each station
                     # convert time (datetime seconds) to absolute years for plotting
                     tt_plot = copy.deepcopy(tt)
-                    tt_plot -= min(tt_plot) ; tt_plot /= 31556952
+                    tt_plot -= min(tt_plot)
+                    tt_plot /= 31556952
                     plt.plot(tt_plot, yy, "ok", label="input")
                     plt.xlabel("time (years)")
                     plt.ylabel("data ({})".format(self.unit))
-                    num_testpoints = len(tt)*10
+                    num_testpoints = len(tt) * 10
                     if num_testpoints > 1000:
                         num_testpoints = 1000
                     tt2 = np.linspace(min(tt), max(tt), num_testpoints)
                     # convert time to years for plotting
                     tt2_plot = copy.deepcopy(tt2)
-                    tt2_plot -= min(tt2_plot) ; tt2_plot /= 31556952
+                    tt2_plot -= min(tt2_plot)
+                    tt2_plot /= 31556952
                     plt.plot(tt2_plot, fitfunc(tt2), "r-", label="fit", linewidth=2)
                     plt.legend(loc="best")
                     if not os.path.exists(os.path.join(self.workdir, 'phaseamp_per_station')):
@@ -1281,7 +1283,7 @@ class RaiderStats(object):
         '''
         Base function for modeling sinusoidal amplitude/phase fits.
         '''
-        return A * np.sin(w*t + p) + c
+        return A * np.sin(w * t + p) + c
 
     def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
         '''
@@ -1414,7 +1416,7 @@ class RaiderStats(object):
         if 'cbar_ax' in locals():
             # experimental variogram fit sill heatmap
             if plottype == "grid_variance":
-                cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({}\u00b2)'.format(self.unit), 
+                cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({}\u00b2)'.format(self.unit),
                                   rotation=-90, labelpad=10)
             # specify appropriate units for mean/median/std/amplitude/experimental variogram fit heatmap
             elif plottype == "grid_delay_mean" or plottype == "grid_delay_median" or plottype == "grid_delay_stdev" or  \
@@ -1441,7 +1443,7 @@ class RaiderStats(object):
 
         # Add title to plots, if specified
         if userTitle:
-            axes.set_title(userTitle, zorder=2)    
+            axes.set_title(userTitle, zorder=2)
 
         # save/close figure
         plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype + '.' + plotFormat),
@@ -1449,6 +1451,7 @@ class RaiderStats(object):
         plt.close()
 
         return
+
 
 def stats_analyses(
     fname,
@@ -1527,7 +1530,6 @@ def stats_analyses(
                            grid_delay_absolute_mean, grid_delay_absolute_median, grid_delay_absolute_stdev, \
                            grid_seasonal_absolute_phase, grid_to_raster, min_span, period_limit, numCPUs, phaseamp_per_station)
 
-
     # Station plots
     # Plot each individual station
     if station_distribution:
@@ -1560,20 +1562,20 @@ def stats_analyses(
         unique_points_phase.dropna(how='any', inplace=True)
         df_stats([unique_points_phase.index.get_level_values('Lon').tolist(), unique_points_phase.index.get_level_values('Lat').tolist(
         ), unique_points_phase.values], 'station_seasonal_phase', workdir=os.path.join(workdir, 'figures'),
-        colorbarfmt='%.1i', plotFormat=plot_fmt, userTitle=user_title)
+            colorbarfmt='%.1i', plotFormat=plot_fmt, userTitle=user_title)
         # amplitude
         unique_points_amplitude = df_stats.df.groupby(
             ['Lon', 'Lat'])['ampfit'].mean()
         unique_points_amplitude.dropna(how='any', inplace=True)
         df_stats([unique_points_amplitude.index.get_level_values('Lon').tolist(), unique_points_amplitude.index.get_level_values('Lat').tolist(
         ), unique_points_amplitude.values], 'station_seasonal_amplitude', workdir=os.path.join(workdir, 'figures'),
-        colorbarfmt='%.3f', plotFormat=plot_fmt, userTitle=user_title)
+            colorbarfmt='%.3f', plotFormat=plot_fmt, userTitle=user_title)
         # period
         unique_points_period = df_stats.df.groupby(
             ['Lon', 'Lat'])['periodfit'].mean()
         df_stats([unique_points_period.index.get_level_values('Lon').tolist(), unique_points_period.index.get_level_values('Lat').tolist(
         ), unique_points_period.values], 'station_delay_period', workdir=os.path.join(workdir, 'figures'),
-        colorbarfmt='%.2f', plotFormat=plot_fmt, userTitle=user_title)
+            colorbarfmt='%.2f', plotFormat=plot_fmt, userTitle=user_title)
 
     # Gridded station plots
     # Plot density of stations for each gridcell

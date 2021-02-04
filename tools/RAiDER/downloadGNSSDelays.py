@@ -129,7 +129,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     # it's a file like object and works just like a file
 
     session = requests_retry_session()
-    data    = session.get(stationHoldings)
+    data = session.get(stationHoldings)
     stations = []
     for ind, line in enumerate(data.text.splitlines()):  # files are iterable
         if ind == 0:
@@ -213,7 +213,7 @@ def download_url(url, save_path, chunk_size=2048):
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
     '''
     session = requests_retry_session()
-    r       = session.get(url, stream=True)
+    r = session.get(url, stream=True)
 
     if r.status_code == 404:
         return ''

@@ -9,7 +9,7 @@ import pandas as pd
 from textwrap import dedent
 
 
-def combineDelayFiles(outName, loc = os.getcwd(), ext='.csv'):
+def combineDelayFiles(outName, loc=os.getcwd(), ext='.csv'):
     files = glob.glob(os.path.join(loc, '*' + ext))
 
     print('Ensuring that "Datetime" column exists in files')
@@ -17,7 +17,7 @@ def combineDelayFiles(outName, loc = os.getcwd(), ext='.csv'):
     addDateTimeToFiles(files)
 
     print('Combining weather model delay files')
-    concatDelayFiles(files, sort_list = ['Datetime', 'ID'], outName = outName)
+    concatDelayFiles(files, sort_list=['Datetime', 'ID'], outName=outName)
 
 
 def addDateTimeToFiles(fileList, force=False):
@@ -45,20 +45,20 @@ def getDateTime(filename):
     return datetime.datetime.strptime(dt, '%Y%m%dT%H%M%S')
 
 
-def concatDelayFiles(fileList, sort_list = ['Datetime', 'ID'], return_df = False, outName = None):
+def concatDelayFiles(fileList, sort_list=['Datetime', 'ID'], return_df=False, outName=None):
     ''' 
     Read a list of .csv files containing the same columns and append them 
     together, sorting by specified columns 
     '''
     dfList = []
-    
+
     print('Concatenating delay files')
 
     for f in tqdm(fileList):
         dfList.append(pd.read_csv(f))
-    
+
     df_c = pd.concat(dfList, ignore_index=True).drop_duplicates().reset_index(drop=True)
-    df_c.sort_values(by=sort_list, inplace = True)
+    df_c.sort_values(by=sort_list, inplace=True)
 
     if return_df or outName is None:
         return df_c
@@ -66,15 +66,15 @@ def concatDelayFiles(fileList, sort_list = ['Datetime', 'ID'], return_df = False
         df_c.to_csv(outName, index=False)
 
 
-def mergeDelayFiles(raiderFile, ztdFile, col_name = 'ZTD', raider_delay = 'totalDelay', outName = None):
+def mergeDelayFiles(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName=None):
     '''
     Merge a combined RAiDER delays file with a GPS ZTD delay file
     '''
-    
+
     print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
 
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
-    dfz = readZTDFile(ztdFile, col_name = col_name)
+    dfz = readZTDFile(ztdFile, col_name=col_name)
 
     print('Beginning merge')
 
@@ -89,7 +89,7 @@ def mergeDelayFiles(raiderFile, ztdFile, col_name = 'ZTD', raider_delay = 'total
         dfc.to_csv(outName, index=False)
 
 
-def readZTDFile(filename, col_name = 'ZTD'):
+def readZTDFile(filename, col_name='ZTD'):
     '''
     Read and parse a GPS zenith delay file
     '''
@@ -102,7 +102,7 @@ def readZTDFile(filename, col_name = 'ZTD'):
 
     data.rename(columns={col_name: 'ZTD'}, inplace=True)
     return data
-    
+
 
 def create_parser():
     """Parse command line arguments using argparse."""
@@ -140,7 +140,7 @@ def create_parser():
             Files should be named with a Datetime in the name and contain the 
             column "ID" as the delay column names.
             """),
-        default = os.getcwd()
+        default=os.getcwd()
     )
 
     p.add_argument(
@@ -164,7 +164,7 @@ def create_parser():
 
     p.add_argument(
         '--out',
-        '-o', 
+        '-o',
         dest='out_name',
         help=dedent("""\
             Name to use for the combined delay file
@@ -185,8 +185,7 @@ def parseCMD():
     args = p.parse_args()
 
     if os.path.exists(args.raider_file):
-        mergeDelayFiles(args.raider_file, args.gnss_file, col_name = args.column_name, raider_delay = args.raider_column_name, outName = args.out_name)
+        mergeDelayFiles(args.raider_file, args.gnss_file, col_name=args.column_name, raider_delay=args.raider_column_name, outName=args.out_name)
     else:
-        combineDelayFiles(args.raider_file, loc = args.raider_folder)
-        mergeDelayFiles(args.raider_file, args.gnss_file, col_name = args.column_name, raider_delay = args.raider_column_name, outName = args.out_name)
-
+        combineDelayFiles(args.raider_file, loc=args.raider_folder)
+        mergeDelayFiles(args.raider_file, args.gnss_file, col_name=args.column_name, raider_delay=args.raider_column_name, outName=args.out_name)

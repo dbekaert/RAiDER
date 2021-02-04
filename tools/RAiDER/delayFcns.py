@@ -71,7 +71,7 @@ def lla2ecef(pnts_file):
     reproject a set of lat/lon/hgts to earth-centered, earth-fixed coordinate system
     '''
     t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
-    
+
     with h5py.File(pnts_file, 'r+') as f:
         ndv = f.attrs['NoDataValue']
         lon = f['lon'][()]
@@ -85,11 +85,11 @@ def lla2ecef(pnts_file):
 
 
 def get_delays(
-        stepSize, 
-        pnts_file, 
-        wm_file, 
-        cpu_num=0
-    ):
+    stepSize,
+    pnts_file,
+    wm_file,
+    cpu_num=0
+):
     '''
     Create the integration points for each ray path.
     '''
@@ -101,8 +101,8 @@ def get_delays(
         xs_wm = np.array(f.variables['x'][:])
         ys_wm = np.array(f.variables['y'][:])
         zs_wm = np.array(f.variables['z'][:])
-        wet = np.array(f.variables['wet'][:]).swapaxes(1,2).swapaxes(0,2)
-        hydro = np.array(f.variables['hydro'][:]).swapaxes(1,2).swapaxes(0,2)
+        wet = np.array(f.variables['wet'][:]).swapaxes(1, 2).swapaxes(0, 2)
+        hydro = np.array(f.variables['hydro'][:]).swapaxes(1, 2).swapaxes(0, 2)
 
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
