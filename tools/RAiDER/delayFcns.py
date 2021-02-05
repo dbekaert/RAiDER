@@ -118,7 +118,7 @@ def get_delays(
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP'].value.copy()), np.array(f['Rays_SLV'].value.copy()),
                          chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
     if Nchunks == 1:
