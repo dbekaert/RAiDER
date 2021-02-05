@@ -19,17 +19,16 @@ from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
 
 
-    
 def prepareWeatherModel(
-        weatherDict,
-        time=None,
-        wmLoc=None,
-        lats=None,
-        lons=None,
-        zref=None,
-        download_only=False,
-        makePlots=False
-    ):
+    weatherDict,
+    time=None,
+    wmLoc=None,
+    lats=None,
+    lons=None,
+    zref=None,
+    download_only=False,
+    makePlots=False
+):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
@@ -40,15 +39,15 @@ def prepareWeatherModel(
     # Ensure the file output location exists
     if wmLoc is None:
         wmLoc = os.path.join(os.getcwd(), 'weather_files')
-    os.makedirs(wmLoc, exist_ok = True)
+    os.makedirs(wmLoc, exist_ok=True)
 
     # check whether weather model files are supplied or should be downloaded
     download_flag = True
     if weather_model.files is None:
         if time is None:
             raise RuntimeError(
-                    'prepareWeatherModel: Either a file or a time must be specified'
-                )
+                'prepareWeatherModel: Either a file or a time must be specified'
+            )
         weather_model.filename(time, wmLoc)
         if os.path.exists(weather_model.files[0]):
             logger.warning(
@@ -67,7 +66,7 @@ def prepareWeatherModel(
         weather_model.setTime(time)
 
     # If only downloading, exit now
-    if download_only: 
+    if download_only:
         logger.warning(
             'download_only flag selected. No further processing will happen.'
         )
@@ -75,18 +74,17 @@ def prepareWeatherModel(
 
     # Otherwise, load the weather model data
     f = weather_model.load(
-            wmLoc,
-            outLats = lats, 
-            outLons = lons, 
-            zref = zref,
-        )
+        wmLoc,
+        outLats=lats,
+        outLons=lons,
+        zref=zref,
+    )
     if f is not None:
         logger.warning(
-                'The processed weather model file already exists,'
-                ' so I will use that.'
-            )
+            'The processed weather model file already exists,'
+            ' so I will use that.'
+        )
         return f
-   
 
     # Logging some basic info
     logger.debug(
@@ -125,5 +123,3 @@ def prepareWeatherModel(
         raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
-
-

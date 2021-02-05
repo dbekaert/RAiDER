@@ -25,14 +25,14 @@ from RAiDER.utilFcns import (
 
 
 def computeDelay(
-        weather_model_file_name, 
-        pnts_file_name, 
-        useWeatherNodes=False,
-        zlevels=None,
-        zref=_ZREF, 
-        step=_STEP,
-        out=None, 
-    ):
+    weather_model_file_name,
+    pnts_file_name,
+    useWeatherNodes=False,
+    zlevels=None,
+    zref=_ZREF,
+    step=_STEP,
+    out=None,
+):
     """
     Calculate troposphere delay using a weather model file and query 
     points file. 
@@ -46,9 +46,9 @@ def computeDelay(
         # Get the weather model data
         with Dataset(weather_model_file_name, mode='r') as f:
             zs_wm = np.array(f.variables['z'][:])
-            total_wet = np.array(f.variables['wet_total'][:]).swapaxes(1,2).swapaxes(0,2)
-            total_hydro = np.array(f.variables['hydro_total'][:]).swapaxes(1,2).swapaxes(0,2)
-        
+            total_wet = np.array(f.variables['wet_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
+            total_hydro = np.array(f.variables['hydro_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
+
         if zlevels is None:
             return total_wet, total_hydro
         else:
@@ -58,13 +58,13 @@ def computeDelay(
 
     else:
         RAiDER.delayFcns.calculate_rays(
-            pnts_file_name, 
+            pnts_file_name,
             step
         )
 
         wet, hydro = RAiDER.delayFcns.get_delays(
             step,
-            pnts_file_name, 
+            pnts_file_name,
             weather_model_file_name,
         )
 
@@ -94,38 +94,38 @@ def tropo_delay(args):
     download_only = args['download_only']
     wetFilename = args['wetFilenames']
     hydroFilename = args['hydroFilenames']
-    
+
     # logging
     logger.debug('Starting to run the weather model calculation')
     logger.debug('Time type: {}'.format(type(time)))
     logger.debug('Time: {}'.format(time.strftime('%Y%m%d')))
     logger.debug('Flag type is {}'.format(flag))
     logger.debug('DEM/height type is "{}"'.format(heights[0]))
-    
-    # weather model calculation    
+
+    # weather model calculation
     useWeatherNodes = flag == 'bounding_box'
     delayType = ["Zenith" if los is Zenith else "LOS"]
 
     logger.debug('Beginning weather model pre-processing')
     logger.debug('Download-only is {}'.format(download_only))
-    
+
     weather_model_file = prepareWeatherModel(
-            weather_model, 
-            time,
-            wmLoc = wmLoc,
-            lats = lats, 
-            lons = lons, 
-            zref = zref,
-            download_only = download_only, 
-            makePlots = True
-        )
+        weather_model,
+        time,
+        wmLoc=wmLoc,
+        lats=lats,
+        lons=lons,
+        zref=zref,
+        download_only=download_only,
+        makePlots=True
+    )
 
     if download_only:
         return None, None
 
     if (los is Zenith) and (heights[0] == 'skip'):
-        logger.debug('Only Zenith delays at the weather model nodes ' 
-                'are requested, so I am exiting now. ')
+        logger.debug('Only Zenith delays at the weather model nodes '
+                     'are requested, so I am exiting now. ')
         return None, None
 
     # Pull the DEM.
@@ -157,12 +157,12 @@ def tropo_delay(args):
 
     # Compute the delays
     wetDelay, hydroDelay = computeDelay(
-        weather_model_file, 
-        pnts_file, 
-        useWeatherNodes, 
+        weather_model_file,
+        pnts_file,
+        useWeatherNodes,
         zlevels,
-        zref, 
-        out = out,
+        zref,
+        out=out,
     )
 
     if heights[0] == 'lvs':
@@ -185,17 +185,17 @@ def tropo_delay(args):
 
 
 def weather_model_debug(
-        los, 
-        lats, 
-        lons, 
-        ll_bounds, 
-        weather_model, 
-        wmLoc, 
-        zref,
-        time, 
-        out, 
-        download_only
-    ):
+    los,
+    lats,
+    lons,
+    ll_bounds,
+    weather_model,
+    wmLoc,
+    zref,
+    time,
+    out,
+    download_only
+):
     """
     raiderWeatherModelDebug main function.
     """
@@ -212,24 +212,24 @@ def weather_model_debug(
 
     # weather model calculation
     wm_filename = make_weather_model_filename(
-        weather_model['name'], 
-        time, 
+        weather_model['name'],
+        time,
         ll_bounds
     )
     weather_model_file = os.path.join(wmLoc, wm_filename)
 
     if not os.path.exists(weather_model_file):
         prepareWeatherModel(
-                weather_model, 
-                time,
-                wmLoc = wmLoc,
-                lats = lats, 
-                lons = lons, 
-                ll_bounds = ll_bounds,
-                zref = zref,
-                download_only = download_only, 
-                makePlots = True
-            )
+            weather_model,
+            time,
+            wmLoc=wmLoc,
+            lats=lats,
+            lons=lons,
+            ll_bounds=ll_bounds,
+            zref=zref,
+            download_only=download_only,
+            makePlots=True
+        )
         try:
             weather_model.write2NETCDF4(weather_model_file)
         except Exception:
@@ -243,5 +243,3 @@ def weather_model_debug(
         )
 
     return 1
-
-

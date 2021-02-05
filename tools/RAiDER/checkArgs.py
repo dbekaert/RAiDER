@@ -57,38 +57,37 @@ def checkArgs(args, p):
         _, model_obj = modelName2Module(args.model)
     except ModuleNotFoundError:
         raise NotImplementedError(
-                dedent('''
+            dedent('''
                 Model {} is not yet fully implemented, 
                 please contribute!
                 '''.format(args.model))
-            )
+        )
     if args.model in ['WRF', 'HDF5'] and args.files is None:
         raise RuntimeError(
-                'Argument --files is required with model {}'.format(args.model)
-            )
+            'Argument --files is required with model {}'.format(args.model)
+        )
 
     # handle the datetimes requested
     datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
 
     weathers = {
-            'type': model_obj(), 
-            'files': args.files,
-            'name': args.model
-        }
+        'type': model_obj(),
+        'files': args.files,
+        'name': args.model
+    }
 
     # zref
     zref = args.zref
 
     # parallel or concurrent runs
     parallel = args.parallel
-    if not parallel==1:
+    if not parallel == 1:
         import multiprocessing
         # asses the number of concurrent jobs to be executed
         max_threads = multiprocessing.cpu_count()
         if parallel == 'all':
             parallel = max_threads
         parallel = parallel if parallel < max_threads else max_threads
-
 
     # Misc
     download_only = args.download_only
@@ -113,32 +112,32 @@ def checkArgs(args, p):
 
     wetNames, hydroNames = [], []
     for time in datetimeList:
-       if flag == 'station_file':
+        if flag == 'station_file':
             wetFilename = os.path.join(
-                    out, 
-                    '{}_Delay_{}_Zmax{}.csv'
-                    .format(
-                        args.model, 
-                        time.strftime('%Y%m%dT%H%M%S'), 
-                        zref
-                    )
+                out,
+                '{}_Delay_{}_Zmax{}.csv'
+                .format(
+                    args.model,
+                    time.strftime('%Y%m%dT%H%M%S'),
+                    zref
                 )
+            )
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
             indf = pd.read_csv(args.query_area)
             indf.to_csv(wetFilename, index=False)
-       else:
+        else:
             wetFilename, hydroFilename = makeDelayFileNames(
-                    time, 
-                    los, 
-                    outformat, 
-                    args.model, 
-                    out
-                )
+                time,
+                los,
+                outformat,
+                args.model,
+                out
+            )
 
-       wetNames.append(wetFilename)
-       hydroNames.append(hydroFilename)
+        wetNames.append(wetFilename)
+        hydroNames.append(hydroFilename)
 
     # DEM
     if args.dem is not None:
@@ -159,25 +158,23 @@ def checkArgs(args, p):
 
     # put all the arguments in a dictionary
     outArgs = {}
-    outArgs['los']=los
-    outArgs['lats']=lat
-    outArgs['lons']=lon
-    outArgs['ll_bounds']=bounds
-    outArgs['heights']=heights
-    outArgs['flag']=flag
-    outArgs['weather_model']=weathers
-    outArgs['wmLoc']=wmLoc
-    outArgs['zref']=zref
-    outArgs['outformat']=outformat
-    outArgs['times']=datetimeList
-    outArgs['download_only']=download_only
-    outArgs['out']=out
-    outArgs['verbose']=verbose
-    outArgs['wetFilenames']=wetNames
-    outArgs['hydroFilenames']=hydroNames
-    outArgs['parallel']=parallel
+    outArgs['los'] = los
+    outArgs['lats'] = lat
+    outArgs['lons'] = lon
+    outArgs['ll_bounds'] = bounds
+    outArgs['heights'] = heights
+    outArgs['flag'] = flag
+    outArgs['weather_model'] = weathers
+    outArgs['wmLoc'] = wmLoc
+    outArgs['zref'] = zref
+    outArgs['outformat'] = outformat
+    outArgs['times'] = datetimeList
+    outArgs['download_only'] = download_only
+    outArgs['out'] = out
+    outArgs['verbose'] = verbose
+    outArgs['wetFilenames'] = wetNames
+    outArgs['hydroFilenames'] = hydroNames
+    outArgs['parallel'] = parallel
 
     return outArgs
-    #return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
-
-
+    # return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel

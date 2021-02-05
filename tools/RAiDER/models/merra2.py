@@ -11,6 +11,7 @@ from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
 from RAiDER.utilFcns import writeWeatherVars2NETCDF4
 
+
 def Model():
     return MERRA2()
 
@@ -67,7 +68,7 @@ class MERRA2(WeatherModel):
 
         # check whether the file already exists
         if os.path.exists(out):
-           return
+            return
 
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
@@ -84,7 +85,7 @@ class MERRA2(WeatherModel):
             (-180 + lon_min_ind * self._lon_res),
             (-180 + (lon_max_ind + 1) * self._lon_res),
             self._lon_res
-            )
+        )
 
         if time.year < 1992:
             url_sub = 100
@@ -117,7 +118,6 @@ class MERRA2(WeatherModel):
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
-
     def load_weather(self, *args, f=None, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
@@ -128,7 +128,6 @@ class MERRA2(WeatherModel):
         if f is None:
             f = self.files[0]
         self._load_model_level(f)
-
 
     def _load_model_level(self, filename):
         '''
