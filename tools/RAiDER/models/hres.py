@@ -133,7 +133,6 @@ class HRES(WeatherModel):
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-
         if filename is None:
             filename = self.files[0]
 
@@ -142,6 +141,9 @@ class HRES(WeatherModel):
             filename,
             verbose=False
         )
+
+        if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
+            self.update_a_b()
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
@@ -260,9 +262,6 @@ class HRES(WeatherModel):
         '''
         Fetch a weather model from ECMWF
         '''
-        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
-            weather_model.update_a_b()
-
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
