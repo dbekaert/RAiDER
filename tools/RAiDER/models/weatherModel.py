@@ -84,20 +84,11 @@ class WeatherModel(ABC):
         string = '\n'
         string += '======Weather Model class object=====\n'
         string += 'Weather model time: {}\n'.format(self._time)
-        string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
-        string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projection: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zmax)
-        string += 'Minimum/Maximum y: {: 4.2f}/{: 4.2f}\n'\
-                  .format(robmin(self._ys), robmax(self._ys))
-        string += 'Minimum/Maximum x: {: 4.2f}/{: 4.2f}\n'\
-                  .format(robmin(self._xs), robmax(self._xs))
-        string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
-                  .format(robmin(self._zs), robmax(self._zs))
-        string += '=====================================\n'
         string += 'k1 = {}\n'.format(self._k1)
         string += 'k2 = {}\n'.format(self._k2)
         string += 'k3 = {}\n'.format(self._k3)
@@ -108,6 +99,17 @@ class WeatherModel(ABC):
         string += '=====================================\n'
         string += 'A: {}\n'.format(self._a)
         string += 'B: {}\n'.format(self._b)
+        if self._p is not None:
+            string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
+            string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
+        if self._xs.size == 0:
+            string += 'Minimum/Maximum y: {: 4.2f}/{: 4.2f}\n'\
+                      .format(robmin(self._ys), robmax(self._ys))
+            string += 'Minimum/Maximum x: {: 4.2f}/{: 4.2f}\n'\
+                      .format(robmin(self._xs), robmax(self._xs))
+            string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
+                      .format(robmin(self._zs), robmax(self._zs))
+        string += '=====================================\n'
         return str(string)
 
     def Model(self):
@@ -182,7 +184,9 @@ class WeatherModel(ABC):
         '''
         # If the weather file has already been processed, do nothing
         out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
-        if not self.checkWeatherExists(out_name):
+        if self.checkWeatherExists(out_name):
+            return out_name
+        else:
             exists_flag = False
 
             # Compute the bounds of the query points
@@ -207,8 +211,6 @@ class WeatherModel(ABC):
             # Compute Zenith delays at the weather model grid nodes
             self._getZTD(zref)
             return None
-        else:
-            return out_name
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -650,7 +652,7 @@ class WeatherModel(ABC):
             self._time,
             self._get_ll_bounds(lats=lats, lons=lons)
         )
-        return f
+        return os.path.join(outLoc, f)
 
     def filename(self, time=None, outLoc='weather_files'):
         ''' 

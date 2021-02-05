@@ -93,9 +93,6 @@ def get_delays(
     '''
     Create the integration points for each ray path.
     '''
-
-    t0 = time.time()
-
     # Get the weather model data
     with Dataset(wm_file, mode='r') as f:
         xs_wm = np.array(f.variables['x'][:])
@@ -118,7 +115,7 @@ def get_delays(
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP'].value.copy()), np.array(f['Rays_SLV'].value.copy()),
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
                          chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
     if Nchunks == 1:
@@ -134,12 +131,6 @@ def get_delays(
     wet_delay = delays[0, ...].reshape(in_shape)
     hydro_delay = delays[1, ...].reshape(in_shape)
 
-    time_elapse = (time.time() - t0)
-    with open('get_delays_time_elapse.txt', 'w') as f:
-        f.write('{}'.format(time_elapse))
-    time_elapse_hr = int(np.floor(time_elapse / 3600.0))
-    time_elapse_min = int(np.floor((time_elapse - time_elapse_hr * 3600.0) / 60.0))
-    time_elapse_sec = (time_elapse - time_elapse_hr * 3600.0 - time_elapse_min * 60.0)
     return wet_delay, hydro_delay
 
 
