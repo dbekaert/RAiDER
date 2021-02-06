@@ -121,7 +121,7 @@ def test_date_list_action(parser):
     ]
 
     with pytest.raises(SystemExit):
-        parser.parse_args(["--datelist", "2020-1-1", "2020-1-2", "2020-1-3"])
+        parser.parse_args(["--datelist", "2020-1-1", "2020-1-2", "2.5"])
 
 
 def test_bbox_action(parser):
