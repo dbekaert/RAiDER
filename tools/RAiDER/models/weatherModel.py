@@ -150,7 +150,7 @@ class WeatherModel(ABC):
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
         '''
-        if self._Name is 'GMAO' or self._Name is 'MERRA2':
+        if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
         else:
             ex_buffer_lon_max = 0.0

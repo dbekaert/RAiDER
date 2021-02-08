@@ -104,7 +104,6 @@ class GMAO(WeatherModel):
                 lat_min_ind:(lat_max_ind + 1),
                 lon_min_ind:(lon_max_ind + 1)
             ][0]
-        ds.close()
 
         else:
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'

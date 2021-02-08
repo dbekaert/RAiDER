@@ -95,11 +95,11 @@ def get_delays(
     '''
     # Get the weather model data
     with Dataset(wm_file, mode='r') as f:
-        xs_wm = np.array(f.variables['x'][:])
-        ys_wm = np.array(f.variables['y'][:])
-        zs_wm = np.array(f.variables['z'][:])
-        wet = np.array(f.variables['wet'][:]).swapaxes(1, 2).swapaxes(0, 2)
-        hydro = np.array(f.variables['hydro'][:]).swapaxes(1, 2).swapaxes(0, 2)
+        xs_wm = np.array(f.variables['x'][:]).astype(np.float32)
+        ys_wm = np.array(f.variables['y'][:]).astype(np.float32)
+        zs_wm = np.array(f.variables['z'][:]).astype(np.float32)
+        wet = np.array(f.variables['wet'][:]).swapaxes(1, 2).swapaxes(0, 2).astype(np.float32)
+        hydro = np.array(f.variables['hydro'][:]).swapaxes(1, 2).swapaxes(0, 2).astype(np.float32)
 
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
