@@ -197,6 +197,7 @@ class WeatherModel(ABC):
             self.load_weather(*args, **kwargs)
 
             # Process the weather model data
+            #TODO: check variables dtyeps and make small as possible 
             self._find_e()
             self._checkNotMaskedArrays()
             self._uniform_in_z(_zlevels=_zlevels)

@@ -422,7 +422,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
 
     if chunkSize is None:
         minChunkSize = 100
-        maxChunkSize = 10000
+        maxChunkSize = 1000
         cpu_count = mp.cpu_count()
         chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
 
