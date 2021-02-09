@@ -225,6 +225,7 @@ def load_gridfile(fname, unit):
     grid_array = df.ReadAsArray()
     # set masked values as nans
     grid_array = np.ma.masked_where(grid_array == np.nan, grid_array)
+    grid_array = np.ma.masked_where(grid_array == np.inf, grid_array)
     grid_array = np.ma.filled(grid_array, np.nan)
 
     # Read metadata variables needed for plotting
@@ -1351,6 +1352,7 @@ class RaiderStats(object):
                 # set masked values as nans
                 zvalues = gridarr[2]
                 zvalues = np.ma.masked_where(zvalues == np.nan, zvalues)
+                zvalues = np.ma.masked_where(zvalues == np.inf, zvalues)
                 zvalues = np.ma.filled(zvalues, np.nan)
                 # define the bins and normalize
                 if cbounds is None:
@@ -1377,6 +1379,7 @@ class RaiderStats(object):
         else:
             # set masked values as nans
             gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
+            gridarr = np.ma.masked_where(gridarr == np.inf, gridarr)
             gridarr = np.ma.filled(gridarr, np.nan)
             # set land/water background to light gray/blue respectively so grid cells can be seen
             axes.add_feature(cfeature.NaturalEarthFeature(
