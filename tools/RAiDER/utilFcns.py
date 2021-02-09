@@ -620,7 +620,7 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataValue=9.9999999e+14, chunk=(1, 91, 144), mapping_name='WGS84'):
+def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataValue=None, chunk=(1, 91, 144), mapping_name='WGS84'):
     '''
     By calling the abstract/modular netcdf writer (RAiDER.utilFcns.write2NETCDF4core), write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to a NETCDF4 file
     that can be accessed by external programs.
@@ -638,6 +638,9 @@ def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataVal
                 self._time, '_%Y_%m_%d_T%H_%M_%S'
             ) + '.nc'
         )
+
+    if NoDataValue is None:
+        NoDataValue = -9999.
 
     self._time = getTimeFromFile(outName)
 
@@ -787,11 +790,12 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         var.setncattr('description', dimension_dict[dim]['description'])
         var.setncattr('units', dimension_dict[dim]['units'])
         var[:] = dimension_dict[dim]['dataset'].astype(dimension_dict[dim]['datatype'])
+
     for data in dataset_dict:
         varname = dataset_dict[data]['varname']
         datatype = dataset_dict[data]['datatype']
         dimensions = dataset_dict[data]['dimensions']
-        FillValue = dataset_dict[data]['FillValue']
+        FillValue = -9999. #dataset_dict[data]['FillValue']
         ChunkSize = dataset_dict[data]['ChunkSize']
         var = nc_outfile.createVariable(
             varname,
