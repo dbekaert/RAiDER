@@ -279,9 +279,8 @@ class WeatherModel(ABC):
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
         svp = find_svp(self._t)
-        # We have q = w/(w + 1), so w = q/(1 - q)
-        w = self._q / (1 - self._q)
-        self._e = w * self._R_v * (self._p - svp) / self._R_d
+        w = self._q / (1 - self._q)  # We have q = w/(w + 1), so w = q/(1 - q)
+        self._e = (w * self._R_v * (self._p - svp) / self._R_d).astype(np.float32)
 
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
@@ -912,4 +911,5 @@ def find_svp(t):
     ix_bound2 = t < t2
     svp[ix_bound2] = svpi[ix_bound2]
 
-    return svp * 100
+    svp = svp * 100
+    return svp.astype(np.float32)

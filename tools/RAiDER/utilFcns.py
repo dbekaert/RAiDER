@@ -815,7 +815,7 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         varname = dataset_dict[data]['varname']
         datatype = dataset_dict[data]['datatype']
         dimensions = dataset_dict[data]['dimensions']
-        FillValue = -9999.  # dataset_dict[data]['FillValue']
+        FillValue = dataset_dict[data]['FillValue']
         ChunkSize = dataset_dict[data]['ChunkSize']
         var = nc_outfile.createVariable(
             varname,
