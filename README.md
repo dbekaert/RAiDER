@@ -23,7 +23,6 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 6. [Citation](#citation)
 7. [Contributors and community contributions](#contributors)
 
-
 ------
 
 ## Package Dependencies
@@ -61,7 +60,6 @@ python setup.py install
 py.test test/
 raiderDelay.py -h 
 ```
-
 
 ------
 ## Documentation
