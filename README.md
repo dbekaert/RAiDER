@@ -17,13 +17,11 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 
 1. [Software Dependencies](#package-dependencies)
 2. [Installation](Installation.md)
-- [Setup for weather model access](WeatherModels.md)
-- [Other installation options](#other-installation-options)
-- [Common Issues](#common-issues)
-3. [Running RAiDER](#running-raider)
-4. [Documentation](#documentation)
-5. [Citation](#citation)
-6. [Contributors and community contributions](#contributors)
+3. [Setup for weather model access](WeatherModels.md)
+4. [Running RAiDER](#quick-start-with-conda)
+5. [Documentation](#documentation)
+6. [Citation](#citation)
+7. [Contributors and community contributions](#contributors)
 
 
 ------
@@ -33,7 +31,6 @@ A complete list of dependencies for RAiDER are listed in the environment.yml fil
 
 ### Python dependencies
 
-```
 * [Python](https://www.python.org/) >= 3  (>= 3.7 preferred)
 * [cdsapi](https://pypi.org/project/cdsapi/)
 * [cfgrib](https://pypi.org/project/cfgrib/)
@@ -49,17 +46,14 @@ A complete list of dependencies for RAiDER are listed in the environment.yml fil
 * [pyproj](https://pypi.org/project/pyproj/) >=2.1.0
 * [SciPy](https://www.scipy.org/)
 * [xarray](http://xarray.pydata.org/en/stable/)
-```
 
 ### Python Jupyter dependencies
-```
 * py3X-jupyter
 * py3X-jupyter_client
 * py3X-jupyter_contrib_nbextensions
 * py3X-jupyter_nbextensions_configurator
 * py3X-hide_code
 * py3X-RISE
-```
 
 ------
 ## Quick-Start with Conda
