@@ -34,7 +34,7 @@ Below we list the dependencies for RAiDER.
 A complete list is also provided in the environment.yml file. 
 
 ### Python dependencies
-```
+
 * [Python](https://www.python.org/) >= 3  (>= 3.7 preferred)
 * [cdsapi](https://pypi.org/project/cdsapi/)
 * [cfgrib](https://pypi.org/project/cfgrib/)
@@ -50,18 +50,9 @@ A complete list is also provided in the environment.yml file.
 * [pyproj](https://pypi.org/project/pyproj/) >=2.1.0
 * [SciPy](https://www.scipy.org/)
 * [xarray](http://xarray.pydata.org/en/stable/)
-```
 
 ### Python Jupyter dependencies
 For the best experience using RAiDER with Jupyter, see [Installing jupyter_contrib_nbextensions](https://jupyter-contrib-nbextensions.readthedocs.io/en/latest/install.html) webpage. 
-```
-* py3X-jupyter
-* py3X-jupyter_client
-* py3X-jupyter_contrib_nbextensions
-* py3X-jupyter_nbextensions_configurator
-* py3X-hide_code
-* py3X-RISE
-```
 
 ------
 ## 2. Downloading RAiDER 
@@ -133,7 +124,7 @@ raiderDelay.py -h
 
 ------
 ## 4. Setup of third party weather model access
-Altough RAiDER has the ability to download weather models from third-party. Accounts needs to haven been set-up properly. See [here](WeatherModels.md) for details. 
+RAiDER has the ability to download weather models from third-parties; some of which require license agreements. See [here](WeatherModels.md) for details. 
 
 ------
 ## 5. Running RAiDER and Documentation
@@ -149,7 +140,7 @@ TODO
 ------
 ## 7. Contributors
 * David Bekaert
-* Jeremy Maurer
+* Jeremy Mauarer
 * Raymond Hogenson
 * Heresh Fattahi
 * Yang Lei
