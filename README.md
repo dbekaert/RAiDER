@@ -48,12 +48,7 @@ A complete list of dependencies for RAiDER are listed in the environment.yml fil
 * [xarray](http://xarray.pydata.org/en/stable/)
 
 ### Python Jupyter dependencies
-* py3X-jupyter
-* py3X-jupyter_client
-* py3X-jupyter_contrib_nbextensions
-* py3X-jupyter_nbextensions_configurator
-* py3X-hide_code
-* py3X-RISE
+For the best experience using RAiDER with Jupyter, see [Installing jupyter_contrib_nbextensions](https://jupyter-contrib-nbextensions.readthedocs.io/en/latest/install.html) webpage. 
 
 ------
 ## Quick-Start with Conda
