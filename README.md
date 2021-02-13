@@ -19,6 +19,7 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 2. [Downloading RAiDER](#downloading-raider)
 3. [Installating RAiDER](#installing-raider)
 - [With Conda](#with-conda)
+- [Common Installation Issues](#common-issues)
 - [Other Installation Options](#other-installation-options)
 - [Testing your installation](#testing-your-installation)
 4. [Set-up of thirdparty weathermodel access](#setup-of-thirdpart-weathermodel-access)
