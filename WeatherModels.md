@@ -44,7 +44,6 @@ ECMWF requires a license agreement to be able to access, download, and use their
    ___**Note**: this step has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER___
 4. You must accept the [license](https://cds.climate.copernicus.eu/cdsapp/#!/terms/licence-to-use-copernicus-products) for each product you wish to download.
 
-[return to table of content](#contents)
 
 ### Accessing ERAI, HRES
 
@@ -93,4 +92,5 @@ Reference: __[The Modern-Era Retrospective Analysis for Research and Application
    
    ___**Note**: PyDAP v3.2.1 is required for now (thus specified in the above pip install command) because the latest v3.2.2 (as of now) has a known [bug](https://colab.research.google.com/drive/1f_ss1Oa3VzgAOd_p8sgekdnLVE5NW6s5) in accessing and slicing the GMAO data. This bug is expected to be fixed in newer versions of PyDAP.___
 
+[return to table of content](#contents)
 
