@@ -20,6 +20,7 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
 3. [Installating RAiDER](#installing-raider)
 - [With Conda](#with-conda)
 - [Other Installation Options](#other-installation-options)
+- [Common Installation Issues](#common-installation-issues)
 - [Testing your installation](#testing-your-installation)
 4. [Set-up of thirdparty weathermodel access](#setup-of-thirdpart-weathermodel-access)
 5. [Running RAiDER and Documentation](#running-raider-and-documentation)
@@ -82,14 +83,14 @@ python setup.py install
 
 ```
 
-## Other installation options
+## Other Installation Options
 If not using the setup.py, users should ensure RAiDER and dependencies are included on their PATH and PYTHONPATH, and the Geometry module is compiled such it can be imported as Raider.Geo2rdr. For c-shell this can be done as follows (replace "RAiDERREPO" to the location where you have cloned the RAiDER repository):
 ```
 setenv PYTHONPATH $PYTHONPATH:/RAiDERREPO/tools/RAiDER
 set PATH $PATH:'/RAiDERREPO/tools/bin'
 ```
 
-### Common Issues
+## Common Installation Issues
 
 1. This package uses GDAL and g++, both of which can be tricky to set up correctly.
 GDAL in particular will often break after installing a new program
@@ -113,7 +114,6 @@ conda update --force-reinstall gdal libgdal
  xcode-select --install
  open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg
  ```
-
 
 ## Testing your installation
 To test the installation was successfull you can run the following tests:
