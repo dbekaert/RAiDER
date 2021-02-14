@@ -223,7 +223,10 @@ def load_gridfile(fname, unit):
 
     df = gdal.Open(fname)
     grid_array = df.ReadAsArray()
-    grid_array = np.ma.masked_where(grid_array == 0, grid_array)
+    # set masked values as nans
+    grid_array = np.ma.masked_where(grid_array == np.nan, grid_array)
+    grid_array = np.ma.masked_where(grid_array == np.inf, grid_array)
+    grid_array = np.ma.filled(grid_array, np.nan)
 
     # Read metadata variables needed for plotting
     metadata_dict = df.GetMetadata_Dict()
@@ -1346,7 +1349,11 @@ class RaiderStats(object):
                     'physical', 'land', '50m', facecolor='#A9A9A9'), zorder=0)
                 axes.add_feature(cfeature.NaturalEarthFeature(
                     'physical', 'ocean', '50m', facecolor='#ADD8E6'), zorder=0)
+                # set masked values as nans
                 zvalues = gridarr[2]
+                zvalues = np.ma.masked_where(zvalues == np.nan, zvalues)
+                zvalues = np.ma.masked_where(zvalues == np.inf, zvalues)
+                zvalues = np.ma.filled(zvalues, np.nan)
                 # define the bins and normalize
                 if cbounds is None:
                     cbounds = [np.nanpercentile(zvalues, self.colorpercentile[0]), np.nanpercentile(
@@ -1358,7 +1365,6 @@ class RaiderStats(object):
                 colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
 
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
-                zvalues = np.ma.masked_where(zvalues == 0, zvalues)
 
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm,
@@ -1371,6 +1377,10 @@ class RaiderStats(object):
 
         # If gridded area passed
         else:
+            # set masked values as nans
+            gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
+            gridarr = np.ma.masked_where(gridarr == np.inf, gridarr)
+            gridarr = np.ma.filled(gridarr, np.nan)
             # set land/water background to light gray/blue respectively so grid cells can be seen
             axes.add_feature(cfeature.NaturalEarthFeature(
                 'physical', 'land', '50m', facecolor='#A9A9A9'), zorder=0)
@@ -1387,7 +1397,6 @@ class RaiderStats(object):
 
             colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
-            gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
 
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,
