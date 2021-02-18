@@ -174,7 +174,7 @@ def convert_SI(val, unit_in, unit_out):
     return val * SI[unit_in] / SI[unit_out]
 
 
-def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt='%.2f', stationsongrids=False, gdal_fmt='float32'):
+def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt='%.2f', stationsongrids=False, gdal_fmt='float32', noData=np.nan):
     '''
         Function to save gridded-arrays as GDAL-readable file.
     '''
@@ -209,7 +209,7 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt
     # update with nodata val
     gdalfile.GetRasterBand(1).SetNoDataValue(np.nan)
     # Finalize VRT
-    gdal.Translate(fname + '.vrt', gdalfile, options=gdal.TranslateOptions(format="VRT", noData=np.nan))
+    gdal.Translate(fname + '.vrt', gdalfile, options=gdal.TranslateOptions(format="VRT", noData=noData))
 
     gdalfile = None
 
@@ -923,13 +923,14 @@ class RaiderStats(object):
 
         # If specified, setup gridded array(s)
         if self.grid_heatmap:
-            self.grid_heatmap = np.array([np.nan if i[0] not in self.df['gridnode'].values[:] else float(len(np.unique(
+            self.grid_heatmap = np.array([np.nan if i[0] not in self.df['gridnode'].values[:] else int(len(np.unique(
                 self.df['ID'][self.df['gridnode'] == i[0]]))) for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
             # If specified, save gridded array(s)
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_heatmap' + '.tif')
                 save_gridfile(self.grid_heatmap, 'grid_heatmap', gridfile_name, self.plotbbox, self.spacing, \
-                              self.unit, colorbarfmt='%1i', stationsongrids=self.stationsongrids, gdal_fmt='int16')
+                              self.unit, colorbarfmt='%1i', stationsongrids=self.stationsongrids, gdal_fmt='int16', \
+                              noData=0)
 
         if self.grid_delay_mean:
             # Take mean of station-wise means per gridcell
