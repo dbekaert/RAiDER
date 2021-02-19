@@ -222,10 +222,10 @@ def load_gridfile(fname, unit):
     '''
 
     df = gdal.Open(fname)
-    grid_array = df.ReadAsArray()
+    grid_array = np.array(df.ReadAsArray(), dtype = float)
     # set masked values as nans
-    grid_array = np.ma.masked_where(grid_array == np.nan, grid_array)
-    grid_array = np.ma.masked_where(grid_array == np.inf, grid_array)
+    for i in [0, np.nan, np.inf]:
+        grid_array = np.ma.masked_where(grid_array == i, grid_array)
     grid_array = np.ma.filled(grid_array, np.nan)
 
     # Read metadata variables needed for plotting
@@ -1037,6 +1037,10 @@ class RaiderStats(object):
             self.ampfit = {k: v for d in self.ampfit for k, v in d.items()}
             self.periodfit = {k: v for d in self.periodfit for k, v in d.items()}
             self.df['phsfit'] = self.df['ID'].map(self.phsfit)
+            # check if there are any valid data values
+            if self.df['phsfit'].isnull().values.all(axis=0):
+                raise Exception("No valid data values, adjust --min_span inputs for time span in years {} and/or fractional obs. {}". \
+                                format(self.min_span[0],self.min_span[1]))
             self.df['ampfit'] = self.df['ID'].map(self.ampfit)
             self.df['periodfit'] = self.df['ID'].map(self.periodfit)
             self.phsfit_c = {k: v for d in self.phsfit_c for k, v in d.items()}
@@ -1051,6 +1055,7 @@ class RaiderStats(object):
             if self.grid_seasonal_phase:
                 # Pass mean phase of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['phsfit'].mean()
+                print('unique_points',unique_points)
                 unique_points = unique_points.groupby(['gridnode'])['phsfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_phase = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -1352,8 +1357,8 @@ class RaiderStats(object):
                     'physical', 'ocean', '50m', facecolor='#ADD8E6'), zorder=0)
                 # set masked values as nans
                 zvalues = gridarr[2]
-                zvalues = np.ma.masked_where(zvalues == np.nan, zvalues)
-                zvalues = np.ma.masked_where(zvalues == np.inf, zvalues)
+                for i in [0, np.nan, np.inf]:
+                    zvalues = np.ma.masked_where(zvalues == i, zvalues)
                 zvalues = np.ma.filled(zvalues, np.nan)
                 # define the bins and normalize
                 if cbounds is None:
@@ -1364,12 +1369,13 @@ class RaiderStats(object):
                         cbounds[0] *= 0.75
                         cbounds.sort()
                 colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
-
+                colorbounds = np.unique(colorbounds)
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
-                
-                # if range small, adjust precision for colorbar
-                if abs(np.nanmax(zvalues)-np.nanmin(zvalues)) < 1:
-                    colorbarfmt = '%.3f'
+
+                # adjust precision for colorbar if necessary
+                if (abs(np.nanmax(zvalues)-np.nanmin(zvalues)) < 1 and (np.nanmean(zvalues)) < 1) \
+                       or abs(np.nanmax(zvalues)-np.nanmin(zvalues)) > 500:
+                    colorbarfmt = '%.2e'
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm,
                                   zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
@@ -1382,8 +1388,8 @@ class RaiderStats(object):
         # If gridded area passed
         else:
             # set masked values as nans
-            gridarr = np.ma.masked_where(gridarr == np.nan, gridarr)
-            gridarr = np.ma.masked_where(gridarr == np.inf, gridarr)
+            for i in [0, np.nan, np.inf]:
+                gridarr = np.ma.masked_where(gridarr == i, gridarr)
             gridarr = np.ma.filled(gridarr, np.nan)
             # set land/water background to light gray/blue respectively so grid cells can be seen
             axes.add_feature(cfeature.NaturalEarthFeature(
@@ -1398,13 +1404,14 @@ class RaiderStats(object):
                 if cbounds[0] == cbounds[1]:
                     cbounds[0] *= 0.75
                     cbounds.sort()
-
             colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
+            colorbounds = np.unique(colorbounds)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
 
-            # if range small, adjust precision for colorbar
-            if abs(np.nanmax(gridarr)-np.nanmin(gridarr)) < 1:
-                colorbarfmt = '%.3f'
+            # plot data and initiate colorbar
+            if (abs(np.nanmax(gridarr)-np.nanmin(gridarr)) < 1 and abs(np.nanmean(gridarr)) < 1) \
+                    or abs(np.nanmax(gridarr)-np.nanmin(gridarr)) > 500:
+                colorbarfmt = '%.2e'
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,
                              zorder=1, origin='upper', transform=ccrs.PlateCarree())
@@ -1598,7 +1605,7 @@ def stats_analyses(
     if isinstance(df_stats.grid_heatmap, np.ndarray):
         logger.info("- Plot density of stations per gridcell.")
         df_stats(df_stats.grid_heatmap, 'grid_heatmap', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
-                 colorbarfmt='%.2f', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+                 colorbarfmt='%.1i', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot mean of station-wise mean delay across each gridcell
     if isinstance(df_stats.grid_delay_mean, np.ndarray):
         logger.info("- Plot mean of station-wise mean delay across each gridcell.")
