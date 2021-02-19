@@ -1366,7 +1366,10 @@ class RaiderStats(object):
                 colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
 
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
-
+                
+                # if range small, adjust precision for colorbar
+                if abs(np.nanmax(zvalues)-np.nanmin(zvalues)) < 1:
+                    colorbarfmt = '%.3f'
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm,
                                   zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
@@ -1399,6 +1402,9 @@ class RaiderStats(object):
             colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
 
+            # if range small, adjust precision for colorbar
+            if abs(np.nanmax(gridarr)-np.nanmin(gridarr)) < 1:
+                colorbarfmt = '%.3f'
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,
                              zorder=1, origin='upper', transform=ccrs.PlateCarree())
