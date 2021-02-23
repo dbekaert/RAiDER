@@ -332,8 +332,6 @@ class VariogramAnalysis():
         x, y = self._get_XY(x, y, indpars)
         dists = self._get_distances(
             np.array([[x[:, 0], y[:, 0]], [x[:, 1], y[:, 1]]]).T)
-        # TODO temp fix first multiply by 110,000 m as crude conversion from degrees to m
-        dists = dists * 110000
         vario = self._get_variogram(samples[:, 0], samples[:, 1])
 
         return dists, vario
