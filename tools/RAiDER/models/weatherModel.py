@@ -665,9 +665,15 @@ class WeatherModel(ABC):
 
         # re-assign values to the uniform z
         # new variables
-        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
-        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
-        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
+        self._t = interpolate_along_axis(
+                self._zs, self._t, new_zs, axis=2, fill_value=np.nan
+            )
+        self._p = interpolate_along_axis(
+                self._zs, self._p, new_zs, axis=2, fill_value=np.nan
+            )
+        self._e = interpolate_along_axis(
+                self._zs, self._e, new_zs, axis=2, fill_value=np.nan
+            )
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
