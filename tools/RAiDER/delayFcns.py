@@ -11,6 +11,7 @@ import multiprocessing as mp
 import time
 
 import h5py
+from netCDF4 import Dataset
 import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
@@ -70,7 +71,7 @@ def lla2ecef(pnts_file):
     reproject a set of lat/lon/hgts to earth-centered, earth-fixed coordinate system
     '''
     t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
-    
+
     with h5py.File(pnts_file, 'r+') as f:
         ndv = f.attrs['NoDataValue']
         lon = f['lon'][()]
@@ -84,24 +85,21 @@ def lla2ecef(pnts_file):
 
 
 def get_delays(
-        stepSize, 
-        pnts_file, 
-        wm_file, 
-        cpu_num=0
-    ):
+    stepSize,
+    pnts_file,
+    wm_file,
+    cpu_num=0
+):
     '''
     Create the integration points for each ray path.
     '''
-
-    t0 = time.time()
-
     # Get the weather model data
-    with h5py.File(wm_file, 'r') as f:
-        xs_wm = f['x'][()].copy()
-        ys_wm = f['y'][()].copy()
-        zs_wm = f['z'][()].copy()
-        wet = f['wet'][()].copy()
-        hydro = f['hydro'][()].copy()
+    with Dataset(wm_file, mode='r') as f:
+        xs_wm = np.array(f.variables['x'][:])
+        ys_wm = np.array(f.variables['y'][:])
+        zs_wm = np.array(f.variables['z'][:])
+        wet = np.array(f.variables['wet'][:]).swapaxes(1, 2).swapaxes(0, 2)
+        hydro = np.array(f.variables['hydro'][:]).swapaxes(1, 2).swapaxes(0, 2)
 
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
@@ -133,12 +131,6 @@ def get_delays(
     wet_delay = delays[0, ...].reshape(in_shape)
     hydro_delay = delays[1, ...].reshape(in_shape)
 
-    time_elapse = (time.time() - t0)
-    with open('get_delays_time_elapse.txt', 'w') as f:
-        f.write('{}'.format(time_elapse))
-    time_elapse_hr = int(np.floor(time_elapse / 3600.0))
-    time_elapse_min = int(np.floor((time_elapse - time_elapse_hr * 3600.0) / 60.0))
-    time_elapse_sec = (time_elapse - time_elapse_hr * 3600.0 - time_elapse_min * 60.0)
     return wet_delay, hydro_delay
 
 
@@ -278,8 +270,8 @@ def getProjFromWMFile(wm_file):
     '''
     Returns the projection of an HDF5 file
     '''
-    with h5py.File(wm_file, 'r') as f:
-        wm_proj = CRS.from_json(f['Projection'][()])
+    with Dataset(wm_file, mode='r') as f:
+        wm_proj = CRS.from_string(f.variables['WGS84'].spatial_ref)
     return wm_proj
 
 

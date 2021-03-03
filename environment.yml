@@ -14,22 +14,23 @@ dependencies:
  - cdsapi
  - cfgrib
  - cmake
- - netcdf4
+ - cxx-compiler
  - cython
  - dask
+ - ecmwf-api-client
  - gdal>=3.0
  - h5py
  - jupyterlab
  - libgdal
  - matplotlib
+ - netcdf4
  - numpy
  - pandas
+ - pydap>3.2.2|<3.2.2
  - pygrib
  - pyproj>=2.1.0
+ - pytest
  - scipy
- - xarray
  - shapely
- - pydap>3.2.2|<3.2.2
- - ecmwf-api-client
- - cxx-compiler
  - sysroot_linux-64
+ - xarray

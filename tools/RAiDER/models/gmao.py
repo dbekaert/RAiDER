@@ -10,7 +10,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2HDF5, roundTime, requests_retry_session
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, requests_retry_session
 
 
 class GMAO(WeatherModel):
@@ -42,7 +42,7 @@ class GMAO(WeatherModel):
         self._y_res = 0.25
 
         self._Name = 'GMAO'
-        self._files = None
+        self.files = None
         self._bounds = None
 
         # Projection
@@ -62,14 +62,14 @@ class GMAO(WeatherModel):
         lon_min_ind = int((self._bounds[2] - (-180.0)) / self._lon_res)
         lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
 
-        T0   = dt.datetime(2017, 12, 1, 0, 0, 0)
-        ## round time to nearest third hour
+        T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
+        # round time to nearest third hour
         time1 = time
-        time  = roundTime(time, 3*60*60)
+        time = roundTime(time, 3 * 60 * 60)
         if not time1 == time:
             logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
 
-        DT   = time - T0
+        DT = time - T0
         time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
 
         ml_min = 0
@@ -79,7 +79,7 @@ class GMAO(WeatherModel):
             url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
             session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
             ds = pydap.client.open_url(url, session=session)
-            q  = ds['qv'].array[
+            q = ds['qv'].array[
                 time_ind,
                 ml_min:(ml_max + 1),
                 lat_min_ind:(lat_max_ind + 1),
@@ -108,12 +108,12 @@ class GMAO(WeatherModel):
         else:
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
             base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_{time.hour:02}00.V01.nc4'
-            url  = f'{root.format(time.year, time.month, time.day)}/{base}'
-            f    = '{}_raw{}'.format(*os.path.splitext(out))
+            url = f'{root.format(time.year, time.month, time.day)}/{base}'
+            f = '{}_raw{}'.format(*os.path.splitext(out))
             if not os.path.exists(f):
                 logger.info('Fetching URL: %s', url)
                 session = requests_retry_session()
-                resp    = session.get(url, stream=True)
+                resp = session.get(url, stream=True)
                 assert resp.ok, f'Could not access url for time: {time}'
                 with open(f, 'wb') as fh:
                     shutil.copyfileobj(resp.raw, fh)
@@ -125,6 +125,7 @@ class GMAO(WeatherModel):
                 p = ds['PL'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
                 t = ds['T'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
                 h = ds['H'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+            os.remove(f)
 
         lats = np.arange(
             (-90 + lat_min_ind * self._lat_res),
@@ -139,20 +140,20 @@ class GMAO(WeatherModel):
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
+            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
-
-    def load_weather(self, f):
+    def load_weather(self, f=None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
+        if f is None:
+            f = self.files[0]
         self._load_model_level(f)
-
 
     def _load_model_level(self, filename):
         '''
@@ -160,15 +161,14 @@ class GMAO(WeatherModel):
         '''
 
         # adding the import here should become absolute when transition to netcdf
-        import h5py
-        with h5py.File(filename, 'r') as f:
-            lons = f['lons'][:].copy()
-            lats = f['lats'][:].copy()
-            h = f['z'][:].copy()
-            p = f['p'][:].copy()
-            q = f['q'][:].copy()
-            t = f['t'][:].copy()
-
+        from netCDF4 import Dataset
+        with Dataset(filename, mode='r') as f:
+            lons = np.array(f.variables['x'][:])
+            lats = np.array(f.variables['y'][:])
+            h = np.array(f.variables['H'][:])
+            q = np.array(f.variables['QV'][:])
+            p = np.array(f.variables['PL'][:])
+            t = np.array(f.variables['T'][:])
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)

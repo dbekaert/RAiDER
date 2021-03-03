@@ -10,11 +10,12 @@ import argparse
 import itertools
 import multiprocessing
 import os
-
 import pandas as pd
 import requests
+from textwrap import dedent
 
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
+from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.logger import *
 from RAiDER.getStationDelays import get_station_data
 from RAiDER.utilFcns import requests_retry_session
@@ -31,25 +32,30 @@ def create_parser():
 Check for and download tropospheric zenith delays for a set of GNSS stations from UNR
 
 Example call to virtually access and append zenith delay information to a CSV table in specified output
-directory, across specified range of years and all available times of day, and confined to specified
+directory, across specified range of time (in YYMMDD YYMMDD) and all available times of day, and confined to specified
 geographic bounding box :
-downloadGNSSdelay.py --out products -y '2010,2014' -b '39 40 -79 -78'
+downloadGNSSdelay.py --out products -y 20100101 20141231 -b '39 40 -79 -78'
 
 Example call to virtually access and append zenith delay information to a CSV table in specified output
-directory, across specified range of years and specified time of day, and distributed globally :
-downloadGNSSdelay.py --out products -y '2010,2014' --returntime '00:00:00' -f station_list.txt
+directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and distributed globally :
+downloadGNSSdelay.py --out products -y 20100101 20141231 --returntime '00:00:00'
+
 
 Example call to virtually access and append zenith delay information to a CSV table in specified output
-directory, across specified range of years and specified time of day, and distributed globally but restricted
+directory, across specified range of time in 12 day steps (in YYMMDD YYMMDD days) and specified time of day, and distributed globally :
+downloadGNSSdelay.py --out products -y 20100101 20141231 12 --returntime '00:00:00'
+
+Example call to virtually access and append zenith delay information to a CSV table in specified output
+directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and distributed globally but restricted
 to list of stations specified in input textfile :
-downloadGNSSdelay.py --out products -y '2010,2014' --returntime '00:00:00' -f station_list.txt
+downloadGNSSdelay.py --out products -y 20100101 20141231 --returntime '00:00:00' -f station_list.txt
 
 NOTE, following example call to physically download zenith delay information not recommended as it is not
 necessary for most applications.
 Example call to physically download and append zenith delay information to a CSV table in specified output
-directory, across specified range of years and specified time of day, and confined to specified
+directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and confined to specified
 geographic bounding box :
-downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:00:00' -b '39 40 -79 -78'
+downloadGNSSdelay.py --download --out products -y 20100101 20141231 --returntime '00:00:00' -b '39 40 -79 -78'
 """)
 
     # Stations to check/download
@@ -69,10 +75,20 @@ downloadGNSSdelay.py --download --out products -y '2010,2014' --returntime '00:0
     add_out(misc)
 
     misc.add_argument(
-        '--years', '-y', dest='years',
-        help="""Year to check or download delays (format YYYY).
-Can be a single value or a comma-separated list. If two years non-consecutive years are given, download each year in between as well.
-""", type=parse_years, required=True)
+        '--date', dest='dateList',
+        help=dedent("""\
+            Date to calculate delay.
+            Can be a single date, a list of two dates (earlier, later) with 1-day interval, or a list of two dates and interval in days (earlier, later, interval).
+            Example accepted formats:
+               YYYYMMDD or
+               YYYYMMDD YYYYMMDD
+               YYYYMMDD YYYYMMDD N
+            """),
+        nargs="+",
+        action=DateListAction,
+        type=date_type,
+        required=True
+    )
 
     misc.add_argument(
         '--returntime', dest='returnTime',
@@ -129,7 +145,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
     # it's a file like object and works just like a file
 
     session = requests_retry_session()
-    data    = session.get(stationHoldings)
+    data = session.get(stationHoldings)
     stations = []
     for ind, line in enumerate(data.text.splitlines()):  # files are iterable
         if ind == 0:
@@ -213,7 +229,7 @@ def download_url(url, save_path, chunk_size=2048):
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
     '''
     session = requests_retry_session()
-    r       = session.get(url, stream=True)
+    r = session.get(url, stream=True)
 
     if r.status_code == 404:
         return ''
@@ -272,23 +288,12 @@ def get_ID(line):
     return stat_id, float(lat), float(lon), float(height)
 
 
-def parse_years(timestr):
-    '''
-    Takes string input and returns a list of years as integers
-    '''
-    years = list(map(int, timestr.split(',')))
-    # If two years non-consecutive years are given, query for each year in between
-    if len(years) == 2:
-        years = list(range(years[0], years[1] + 1))
-    return years
-
-
 def query_repos(
     station_file,
     bounding_box,
     gps_repo,
     out,
-    years,
+    dateList,
     returnTime,
     download,
     cpus,
@@ -347,6 +352,7 @@ def query_repos(
             bbox=bbox, writeLoc=out, userstatList=station_file)
 
     # iterate over years
+    years = list(set([i.year for i in dateList]))
     download_tropo_delays(
         stats, years, gps_repo=gps_repo, writeDir=out, download=download
     )
@@ -362,8 +368,10 @@ def query_repos(
     del origstatsFile, statsFile
 
     # Extract delays for each station
+    dateList = [k.strftime('%Y-%m-%d') for k in dateList]
     get_station_data(
         os.path.join(out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)),
+        dateList,
         gps_repo=gps_repo,
         numCPUs=cpus,
         outDir=out,
@@ -381,7 +389,7 @@ if __name__ == "__main__":
         inps.bounding_box,
         inps.gps_repo,
         inps.out,
-        inps.years,
+        inps.dateList,
         inps.returnTime,
         inps.download,
         inps.cpus,

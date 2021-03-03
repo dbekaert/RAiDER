@@ -61,7 +61,7 @@ class NCMR(WeatherModel):
         '''
         self._files = self._download_ncmr_file(out, 'ncmr', time, self._bounds)
 
-    def load_weather(self, filename):
+    def load_weather(self, filename, *args, **kwargs):
         '''
         Load NCMR model variables from existing file
         '''

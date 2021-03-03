@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 import h5py
 import numpy as np
 from pyproj import CRS, Transformer
+import netCDF4
 
-from RAiDER import constants as const
+from RAiDER.constants import _ZREF, _ZMIN, _g0
 from RAiDER import utilFcns as util
 from RAiDER.constants import Zenith
 from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
@@ -17,7 +18,7 @@ from RAiDER.losreader import getLookVectors
 from RAiDER.logger import *
 from RAiDER.makePoints import makePoints3D
 from RAiDER.models import plotWeather as plots
-from RAiDER.utilFcns import lla2ecef, robmax, robmin
+from RAiDER.utilFcns import lla2ecef, robmax, robmin, getTimeFromFile, write2NETCDF4core
 
 
 class WeatherModel(ABC):
@@ -44,16 +45,18 @@ class WeatherModel(ABC):
         self._classname = None
         self._dataset = None
         self._model_level_type = 'ml'
-        self._valid_range = (datetime.date(1900, 1, 1),)  # Tuple of min/max years where data is available.
+        self._valid_range = (
+            datetime.date(1900, 1, 1),
+        )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
 
         # Define fixed constants
         self._R_v = 461.524
         self._R_d = 287.053
-        self._g0 = const._g0  # gravity constant
-        self._zmin = const._ZMIN  # minimum integration height
-        self._zmax = const._ZREF  # max integration height
+        self._g0 = _g0  # gravity constant
+        self._zmin = _ZMIN  # minimum integration height
+        self._zmax = _ZREF  # max integration height
         self._proj = None
 
         # setup data structures
@@ -64,6 +67,7 @@ class WeatherModel(ABC):
 
         self._lats = None
         self._lons = None
+        self._ll_bounds = None
 
         self._p = None
         self._q = None
@@ -79,20 +83,12 @@ class WeatherModel(ABC):
     def __str__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
-        string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
-        string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
+        string += 'Weather model time: {}\n'.format(self._time)
         string += 'Latitude resolution: {}\n'.format(self._lat_res)
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projection: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
         string += 'ZMAX: {}\n'.format(self._zmax)
-        string += 'Minimum/Maximum y: {: 4.2f}/{: 4.2f}\n'\
-                  .format(robmin(self._ys), robmax(self._ys))
-        string += 'Minimum/Maximum x: {: 4.2f}/{: 4.2f}\n'\
-                  .format(robmin(self._xs), robmax(self._xs))
-        string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
-                  .format(robmin(self._zs), robmax(self._zs))
-        string += '=====================================\n'
         string += 'k1 = {}\n'.format(self._k1)
         string += 'k2 = {}\n'.format(self._k2)
         string += 'k3 = {}\n'.format(self._k3)
@@ -103,6 +99,17 @@ class WeatherModel(ABC):
         string += '=====================================\n'
         string += 'A: {}\n'.format(self._a)
         string += 'B: {}\n'.format(self._b)
+        if self._p is not None:
+            string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
+            string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
+        if self._xs.size == 0:
+            string += 'Minimum/Maximum y: {: 4.2f}/{: 4.2f}\n'\
+                      .format(robmin(self._ys), robmax(self._ys))
+            string += 'Minimum/Maximum x: {: 4.2f}/{: 4.2f}\n'\
+                      .format(robmin(self._xs), robmax(self._xs))
+            string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
+                      .format(robmin(self._zs), robmax(self._zs))
+        string += '=====================================\n'
         return str(string)
 
     def Model(self):
@@ -125,69 +132,85 @@ class WeatherModel(ABC):
         '''
         pass
 
-    def checkLL(self, lats, lons, Nextra = 2):
+    def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
+        ''' Set the time for a weather model '''
+        if isinstance(time, str):
+            self._time = datetime.datetime.strptime(time, fmt)
+        elif isinstance(time, datetime.datetime):
+            self._time = time
+        else:
+            raise ValueError('"time" must be a string or a datetime object')
+
+    def checkLL(self, lats, lons, Nextra=2):
         ''' 
-        Need to correct lat/lon bounds because not all of the weather models have valid data 
-        exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, need to 
-        adjust the longitude higher end with an extra buffer; for other models, the exact 
-        bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be rounded to the 
-        above regions (either in the downloading-file API or subsetting-data API) without problems.
+        Need to correct lat/lon bounds because not all of the weather models have valid 
+        data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, 
+        need to adjust the longitude higher end with an extra buffer; for other models, 
+        the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be 
+        rounded to the above regions (either in the downloading-file API or subsetting-
+        data API) without problems.
         '''
         if self._Name is 'GMAO' or self._Name is 'MERRA2':
             ex_buffer_lon_max = self._lon_res
         else:
             ex_buffer_lon_max = 0.0
-    
+
         # These are generalized for potential extra buffer in future models
         ex_buffer_lat_min = 0.0
         ex_buffer_lat_max = 0.0
         ex_buffer_lon_min = 0.0
-    
+
         # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
-        lats[lats < ( -90.0 + Nextra * self._lat_res + ex_buffer_lat_min)] = ( -90.0 + Nextra * self._lat_res + ex_buffer_lat_min)
-        lats[lats > (  90.0 - Nextra * self._lat_res - ex_buffer_lat_max)] = (  90.0 - Nextra * self._lat_res - ex_buffer_lat_max)
+        lats[lats < (-90.0 + Nextra * self._lat_res + ex_buffer_lat_min)] = (-90.0 + Nextra * self._lat_res + ex_buffer_lat_min)
+        lats[lats > (90.0 - Nextra * self._lat_res - ex_buffer_lat_max)] = (90.0 - Nextra * self._lat_res - ex_buffer_lat_max)
         lons[lons < (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)] = (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)
-        lons[lons > ( 180.0 - Nextra * self._lon_res - ex_buffer_lon_max)] = ( 180.0 - Nextra * self._lon_res - ex_buffer_lon_max)
-    
+        lons[lons > (180.0 - Nextra * self._lon_res - ex_buffer_lon_max)] = (180.0 - Nextra * self._lon_res - ex_buffer_lon_max)
+
         return lats, lons
 
-    def load(self, *args, outLats=None, outLons=None, los=None, _zlevels=None, zref=None, **kwargs):
+    def load(
+        self,
+        outLoc,
+        *args,
+        outLats=None,
+        outLons=None,
+        _zlevels=None,
+        zref=_ZREF,
+        **kwargs
+    ):
         '''
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        if zref is not None:
-            self._zmax = zref
-        self.load_weather(*args, **kwargs)
-        self._find_e()
-        self._checkNotMaskedArrays()
-        self._uniform_in_z(_zlevels=_zlevels)
-        self._checkForNans()
-        self._get_wet_refractivity()
-        self._get_hydro_refractivity()
-        self._adjust_grid(lats=outLats, lons=outLons)
-        self._getZTD(los, zref)
+        # If the weather file has already been processed, do nothing
+        out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
+        if self.checkWeatherExists(out_name):
+            return out_name
+        else:
+            exists_flag = False
 
-    def _getZTD(self, los, zref=const._ZREF):
-        '''
-        Compute the full slant tropospheric delay for each weather model grid node, using the reference
-        height zref
-        '''
-        if zref is None:
-            zref = const._ZREF
+            # Compute the bounds of the query points
+            self._ll_bounds = self._get_ll_bounds(
+                lats=outLats,
+                lons=outLons,
+                Nextra=2
+            )
 
-        hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
-        los = getLookVectors(los, self._lats, self._lons, hgts, self._zmax)
-        wet = self.getWetRefractivity()
-        hydro = self.getHydroRefractivity()
+            # Load the weather just for the query points
+            self.load_weather(*args, **kwargs)
 
-        # Get the integrated ZTD
-        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-        for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np.trapz(wet[..., level:], x=self._zs[level:], axis=2)
-            hydro_total[..., level] = 1e-6 * np.trapz(hydro[..., level:], x=self._zs[level:], axis=2)
-        self._hydrostatic_ztd = hydro_total
-        self._wet_ztd = wet_total
+            # Process the weather model data
+            self._find_e()
+            self._checkNotMaskedArrays()
+            self._uniform_in_z(_zlevels=_zlevels)
+            self._checkForNans()
+            self._get_wet_refractivity()
+            self._get_hydro_refractivity()
+            self._adjust_grid(lats=outLats, lons=outLons)
+
+            # Compute Zenith delays at the weather model grid nodes
+            self._getZTD(zref)
+            return None
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -195,6 +218,20 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+    def checkWeatherExists(self, pathname):
+        ''' Check whether or not the weather model has already been processed '''
+        if os.path.exists(pathname):
+            return True
+        else:
+            return False
+
+    def _get_time(self, filename=None):
+        if filename is None:
+            filename = self.files[0]
+        with netCDF4.Dataset(filename, mode='r') as f:
+            time = f.attrs['datetime'].copy()
+        self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
     def plot(self, plotType='pqt', savefig=True):
         '''
@@ -311,8 +348,31 @@ class WeatherModel(ABC):
                     'The weather model passed does not cover all of the input '
                     'points; you need to download a larger area.'
                 )
-                raise RuntimeError('Check the weather model')
             self._trimExtent(in_extent)
+
+    def _getZTD(self, zref=None):
+        '''
+        Compute the full slant tropospheric delay for each weather model grid node, using the reference
+        height zref
+        '''
+        if zref is None:
+            zref = self._zmax
+
+        hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
+        wet = self.getWetRefractivity()
+        hydro = self.getHydroRefractivity()
+
+        # Get the integrated ZTD
+        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
+        for level in range(wet.shape[2]):
+            wet_total[..., level] = 1e-6 * np.trapz(
+                wet[..., level:], x=self._zs[level:], axis=2
+            )
+            hydro_total[..., level] = 1e-6 * np.trapz(
+                hydro[..., level:], x=self._zs[level:], axis=2
+            )
+        self._hydrostatic_ztd = hydro_total
+        self._wet_ztd = wet_total
 
     def _getExtent(self, lats, lons):
         '''
@@ -350,7 +410,7 @@ class WeatherModel(ABC):
                (self._lons[:, :, 0] > extent[2]) & (self._lons[:, :, 0] < extent[3])
         ma1 = np.sum(mask, axis=1).astype('bool')
         ma2 = np.sum(mask, axis=0).astype('bool')
-        if np.sum(ma1)==0 and np.sum(ma2)==0:
+        if np.sum(ma1) == 0 and np.sum(ma2) == 0:
             # Don't need to remove any points
             return
 
@@ -487,10 +547,14 @@ class WeatherModel(ABC):
 
         return geopotential, pressurelvs, geoheight
 
-    def _get_ll_bounds(self, lats, lons, Nextra=2):
+    def _get_ll_bounds(self, lats=None, lons=None, Nextra=2):
         '''
         returns the extents of lat/lon plus a buffer
         '''
+        if lats is None:
+            lats = self._lats
+            lons = self._lons
+
         lat_min = np.nanmin(lats) - Nextra * self._lat_res
         lat_max = np.nanmax(lats) + Nextra * self._lat_res
         lon_min = np.nanmin(lons) - Nextra * self._lon_res
@@ -577,73 +641,239 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-    def write2HDF5(self, outName=None):
+    def out_file(self, outLoc, lats=None, lons=None):
+        if lats is None:
+            lats = self._lats
+        if lons is None:
+            lons = self._lons
+        f = make_weather_model_filename(
+            outLoc,
+            self._Name,
+            self._time,
+            self._get_ll_bounds(lats=lats, lons=lons)
+        )
+        return os.path.join(outLoc, f)
+
+    def filename(self, time=None, outLoc='weather_files'):
+        ''' 
+        Create a filename to store the weather model 
         '''
-        Write the main (i.e., needed for external calculations) data to an HDF5 file
-        that can be accessed by external programs.
+        os.makedirs(outLoc, exist_ok=True)
 
-        The point of doing this is to alleviate some of the memory load of keeping
-        the full model in memory and make it easier to scale up the program.
+        if time is None:
+            if self._time is None:
+                raise ValueError('Time must be specified before the file can be written')
+            else:
+                time = self._time
+
+        f = make_raw_weather_data_filename(
+            outLoc,
+            self._Name,
+            time,
+        )
+
+        self.files = [f]
+
+    def write(
+        self,
+        NoDataValue=-3.4028234e+38,
+        chunk=(1, 128, 128),
+        mapping_name='WGS84'
+    ):
         '''
+        By calling the abstract/modular netcdf writer 
+        (RAiDER.utilFcns.write2NETCDF4core), write the weather model data 
+        and refractivity to an NETCDF4 file that can be accessed by external programs.
+        '''
+        # Generate the filename
+        outLoc = os.path.split(self.files[0])[:-1][0]
+        f = self.out_file(outLoc)
 
-        if outName is None:
-            outName = os.path.join(
-                os.getcwd(),
-                self._Name + datetime.datetime.strftime(
-                    self._time, '%Y_%m_%d_T%H_%M_%S'
-                ) + '.h5'
-            )
+        dimidY, dimidX, dimidZ = self._t.shape
+        chunk_lines_Y = np.min([chunk[1], dimidY])
+        chunk_lines_X = np.min([chunk[2], dimidX])
+        ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
 
-        with h5py.File(outName, 'w') as f:
-            x = f.create_dataset('x', data=self._xs.astype(np.float64))
-            y = f.create_dataset('y', data=self._ys.astype(np.float64))
-            z = f.create_dataset('z', data=self._zs.astype(np.float64))
-            x.make_scale('x - weather model native')
-            y.make_scale('y - weather model native')
-            z.make_scale('z - weather model native')
+        nc_outfile = netCDF4.Dataset(f, 'w', clobber=True, format='NETCDF4')
+        nc_outfile.setncattr('Conventions', 'CF-1.6')
+        nc_outfile.setncattr('datetime', datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
+        nc_outfile.setncattr('date_created', datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
+        title = 'Weather model data and delay calculations'
+        nc_outfile.setncattr('title', title)
 
-            lats = f.create_dataset('lat', data=self._lats.astype(np.float64))
-            lons = f.create_dataset('lon', data=self._lons.astype(np.float64))
-            lats.dims[0].attach_scale(x)
-            lats.dims[1].attach_scale(y)
-            lats.dims[2].attach_scale(z)
-            lons.dims[0].attach_scale(x)
-            lons.dims[1].attach_scale(y)
-            lons.dims[2].attach_scale(z)
+        tran = [self._xs[0], self._xs[1] - self._xs[0], 0.0, self._ys[0], 0.0, self._ys[1] - self._ys[0]]
 
-            t = f.create_dataset('t', data=self._t)
-            t.dims[0].attach_scale(x)
-            t.dims[1].attach_scale(y)
-            t.dims[2].attach_scale(z)
+        dimension_dict = {
+            'x': {'varname': 'x',
+                  'datatype': np.dtype('float64'),
+                  'dimensions': ('x'),
+                  'length': dimidX,
+                  'FillValue': None,
+                  'standard_name': 'projection_x_coordinate',
+                  'description': 'weather model native x',
+                  'dataset': self._xs,
+                  'units': 'degrees_east'},
+            'y': {'varname': 'y',
+                  'datatype': np.dtype('float64'),
+                  'dimensions': ('y'),
+                  'length': dimidY,
+                  'FillValue': None,
+                  'standard_name': 'projection_y_coordinate',
+                  'description': 'weather model native y',
+                  'dataset': self._ys,
+                  'units': 'degrees_north'},
+            'z': {'varname': 'z',
+                  'datatype': np.dtype('float32'),
+                  'dimensions': ('z'),
+                  'length': dimidZ,
+                  'FillValue': None,
+                  'standard_name': 'projection_z_coordinate',
+                  'description': 'vertical coordinate',
+                  'dataset': self._zs,
+                  'units': 'm'}
+        }
 
-            p = f.create_dataset('p', data=self._p)
-            p.dims[0].attach_scale(x)
-            p.dims[1].attach_scale(y)
-            p.dims[2].attach_scale(z)
+        dataset_dict = {
+            'latitude': {'varname': 'latitude',
+                         'datatype': np.dtype('float64'),
+                         'dimensions': ('z', 'y', 'x'),
+                         'grid_mapping': mapping_name,
+                         'FillValue': NoDataValue,
+                         'ChunkSize': ChunkSize,
+                         'standard_name': 'latitude',
+                         'description': 'latitude',
+                         'dataset': self._lats.swapaxes(0, 2).swapaxes(1, 2),
+                         'units': 'degrees_north'},
+            'longitude': {'varname': 'longitude',
+                          'datatype': np.dtype('float64'),
+                          'dimensions': ('z', 'y', 'x'),
+                          'grid_mapping': mapping_name,
+                          'FillValue': NoDataValue,
+                          'ChunkSize': ChunkSize,
+                          'standard_name': 'longitude',
+                          'description': 'longitude',
+                          'dataset': self._lons.swapaxes(0, 2).swapaxes(1, 2),
+                          'units': 'degrees_east'},
+            't': {'varname': 't',
+                  'datatype': np.dtype('float32'),
+                  'dimensions': ('z', 'y', 'x'),
+                  'grid_mapping': mapping_name,
+                  'FillValue': NoDataValue,
+                  'ChunkSize': ChunkSize,
+                  'standard_name': 'temperature',
+                  'description': 'temperature',
+                  'dataset': self._t.swapaxes(0, 2).swapaxes(1, 2),
+                  'units': 'K'},
+            'p': {'varname': 'p',
+                  'datatype': np.dtype('float32'),
+                  'dimensions': ('z', 'y', 'x'),
+                  'grid_mapping': mapping_name,
+                  'FillValue': NoDataValue,
+                  'ChunkSize': ChunkSize,
+                  'standard_name': 'pressure',
+                  'description': 'pressure',
+                  'dataset': self._p.swapaxes(0, 2).swapaxes(1, 2),
+                  'units': 'Pa'},
+            'e': {'varname': 'e',
+                  'datatype': np.dtype('float32'),
+                  'dimensions': ('z', 'y', 'x'),
+                  'grid_mapping': mapping_name,
+                  'FillValue': NoDataValue,
+                  'ChunkSize': ChunkSize,
+                  'standard_name': 'humidity',
+                  'description': 'humidity',
+                  'dataset': self._e.swapaxes(0, 2).swapaxes(1, 2),
+                  'units': 'Pa'},
+            'wet': {'varname': 'wet',
+                    'datatype': np.dtype('float32'),
+                    'dimensions': ('z', 'y', 'x'),
+                    'grid_mapping': mapping_name,
+                    'FillValue': NoDataValue,
+                    'ChunkSize': ChunkSize,
+                    'standard_name': 'wet_refractivity',
+                    'description': 'wet_refractivity',
+                    'dataset': self._wet_refractivity.swapaxes(0, 2).swapaxes(1, 2)},
+            'hydro': {'varname': 'hydro',
+                      'datatype': np.dtype('float32'),
+                      'dimensions': ('z', 'y', 'x'),
+                      'grid_mapping': mapping_name,
+                      'FillValue': NoDataValue,
+                      'ChunkSize': ChunkSize,
+                      'standard_name': 'hydrostatic_refractivity',
+                      'description': 'hydrostatic_refractivity',
+                      'dataset': self._hydrostatic_refractivity.swapaxes(0, 2).swapaxes(1, 2)},
+            'wet_total': {'varname': 'wet_total',
+                          'datatype': np.dtype('float32'),
+                          'dimensions': ('z', 'y', 'x'),
+                          'grid_mapping': mapping_name,
+                          'FillValue': NoDataValue,
+                          'ChunkSize': ChunkSize,
+                          'standard_name': 'total_wet_refractivity',
+                          'description': 'total_wet_refractivity',
+                          'dataset': self._wet_ztd.swapaxes(0, 2).swapaxes(1, 2)},
+            'hydro_total': {'varname': 'hydro_total',
+                            'datatype': np.dtype('float32'),
+                            'dimensions': ('z', 'y', 'x'),
+                            'grid_mapping': mapping_name,
+                            'FillValue': NoDataValue,
+                            'ChunkSize': ChunkSize,
+                            'standard_name': 'total_hydrostatic_refractivity',
+                            'description': 'total_hydrostatic_refractivity',
+                            'dataset': self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)}
+        }
 
-            e = f.create_dataset('e', data=self._e)
-            e.dims[0].attach_scale(x)
-            e.dims[1].attach_scale(y)
-            e.dims[2].attach_scale(z)
+        nc_outfile = write2NETCDF4core(
+            nc_outfile,
+            dimension_dict,
+            dataset_dict,
+            tran,
+            mapping_name='WGS84'
+        )
 
-            wet = f.create_dataset('wet', data=self._wet_refractivity)
-            wet.dims[0].attach_scale(x)
-            wet.dims[1].attach_scale(y)
-            wet.dims[2].attach_scale(z)
+        nc_outfile.sync()  # flush data to disk
+        nc_outfile.close()
+        return f
 
-            wet_ztd = f.create_dataset('wet_ztd', data=self._wet_ztd)
-            wet_ztd.dims[0].attach_scale(x)
-            wet_ztd.dims[1].attach_scale(y)
-            wet_ztd.dims[2].attach_scale(z)
 
-            hydro = f.create_dataset('hydro', data=self._hydrostatic_refractivity)
-            hydro.dims[0].attach_scale(x)
-            hydro.dims[1].attach_scale(y)
-            hydro.dims[2].attach_scale(z)
+def make_weather_model_filename(outLoc, name, time, ll_bounds):
+    if ll_bounds[0] < 0:
+        S = 'S'
+    else:
+        S = 'N'
+    if ll_bounds[1] < 0:
+        N = 'S'
+    else:
+        N = 'N'
+    if ll_bounds[2] < 0:
+        W = 'W'
+    else:
+        W = 'E'
+    if ll_bounds[3] < 0:
+        E = 'W'
+    else:
+        E = 'E'
+    return '{}_{}_{:.0f}{}_{:.0f}{}_{:.0f}{}_{:.0f}{}.nc'.format(
+        name,
+        time.strftime("%Y_%m_%d_T%H_%M_%S"),
+        np.ceil(np.abs(ll_bounds[0])),
+        S,
+        np.ceil(np.abs(ll_bounds[1])),
+        N,
+        np.ceil(np.abs(ll_bounds[2])),
+        W,
+        np.ceil(np.abs(ll_bounds[3])),
+        E
+    )
 
-            hydro_ztd = f.create_dataset('hydro_ztd', data=self._hydrostatic_ztd)
-            hydro_ztd.dims[0].attach_scale(x)
-            hydro_ztd.dims[1].attach_scale(y)
-            hydro_ztd.dims[2].attach_scale(z)
 
-            f.create_dataset('Projection', data=self._proj.to_json())
+def make_raw_weather_data_filename(outLoc, name, time):
+    ''' Filename generator for the raw downloaded weather model data '''
+    f = os.path.join(
+        outLoc,
+        '{}_{}.{}'.format(
+            name,
+            datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
+            'nc'
+        )
+    )
+    return f

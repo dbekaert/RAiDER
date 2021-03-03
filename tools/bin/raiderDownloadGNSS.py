@@ -16,7 +16,7 @@ if __name__ == "__main__":
         inps.bounding_box,
         inps.gps_repo,
         inps.out,
-        inps.years,
+        inps.dateList,
         inps.returnTime,
         inps.download,
         inps.cpus,

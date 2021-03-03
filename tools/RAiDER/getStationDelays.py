@@ -20,7 +20,7 @@ import requests
 from RAiDER.logger import *
 
 
-def get_delays_UNR(stationFile, filename, returnTime=None):
+def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
     '''
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
@@ -59,10 +59,16 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
     # iterate through tarfiles
     stationTarlist = ziprepo.namelist()
     stationTarlist.sort()
+
+    final_stationTarlist = []
     for j in stationTarlist:
-        f = gzip.open(ziprepo.open(j), 'rb')
         # get the date of the file
         time, yearFromFile, doyFromFile = get_date(os.path.basename(j).split('.'))
+        # check if in list of specified input dates
+        if time.strftime('%Y-%m-%d') not in dateList:
+            continue
+        final_stationTarlist.append(j)
+        f = gzip.open(ziprepo.open(j), 'rb')
         # initialize variables
         d, Sig, dwet, dhydro, timesList = [], [], [], [], []
         flag = False
@@ -156,7 +162,7 @@ def get_delays_UNR(stationFile, filename, returnTime=None):
     return
 
 
-def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=None):
+def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, returnTime=None):
     '''
     Pull tropospheric delay data for a given station name
     '''
@@ -175,7 +181,7 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
         updatedreturnTime = str(dt.timedelta(
             seconds=list(range(0, 86400, 300))[index]))
         logger.warning(
-            'input time %s not divisble by 3 seconds, so next closest time %s '
+            'input time %s not divisible by 3 seconds, so next closest time %s '
             'will be chosen', returnTime, updatedreturnTime
         )
         returnTime = updatedreturnTime
@@ -193,7 +199,7 @@ def get_station_data(inFile, gps_repo=None, numCPUs=8, outDir=None, returnTime=N
             for sf in stationFiles:
                 StationID = os.path.basename(sf).split('.')[0]
                 name = os.path.join(pathbase, StationID + '_ztd.csv')
-                args.append((sf, name, returnTime))
+                args.append((sf, name, dateList, returnTime))
                 outputfiles.append(name)
             # Parallelize remote querying of zenith delays
             with multiprocessing.Pool(numCPUs) as multipool:

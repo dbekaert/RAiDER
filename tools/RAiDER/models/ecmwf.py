@@ -25,14 +25,14 @@ class ECMWF(WeatherModel):
         self._lon_res = 0.2
         self._lat_res = 0.2
 
-    def load_weather(self, filename):
+    def load_weather(self, *args, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-        self._load_model_level(filename)
+        self._load_model_level(*self.files)
 
     def _load_model_level(self, fname):
         from scipy.io import netcdf as nc
@@ -125,12 +125,12 @@ class ECMWF(WeatherModel):
         # execute the search at ECMWF
         try:
             self._get_from_ecmwf(
-                lat_min, 
-                lat_max, 
-                self._lat_res, 
-                lon_min, 
-                lon_max, 
-                self._lon_res, 
+                lat_min,
+                lat_max,
+                self._lat_res,
+                lon_min,
+                lon_max,
+                self._lon_res,
                 time,
                 out
             )

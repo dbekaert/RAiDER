@@ -9,7 +9,8 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2HDF5
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4
+
 
 def Model():
     return MERRA2()
@@ -51,7 +52,7 @@ class MERRA2(WeatherModel):
         self._y_res = 0.5
 
         self._Name = 'MERRA2'
-        self._files = None
+        self.files = None
         self._bounds = None
 
         # Projection
@@ -67,7 +68,7 @@ class MERRA2(WeatherModel):
 
         # check whether the file already exists
         if os.path.exists(out):
-           return
+            return
 
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
@@ -84,7 +85,7 @@ class MERRA2(WeatherModel):
             (-180 + lon_min_ind * self._lon_res),
             (-180 + (lon_max_ind + 1) * self._lon_res),
             self._lon_res
-            )
+        )
 
         if time.year < 1992:
             url_sub = 100
@@ -113,20 +114,20 @@ class MERRA2(WeatherModel):
         h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
 
         try:
-            writeWeatherVars2HDF5(lats, lons, lons, lats, h, q, p, t, self._proj, out)
+            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
-
-    def load_weather(self, f):
+    def load_weather(self, *args, f=None, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
+        if f is None:
+            f = self.files[0]
         self._load_model_level(f)
-
 
     def _load_model_level(self, filename):
         '''
@@ -134,15 +135,14 @@ class MERRA2(WeatherModel):
         '''
 
         # adding the import here should become absolute when transition to netcdf
-        import h5py
-
-        with h5py.File(filename, 'r') as f:
-            lons = f['lons'][:].copy()
-            lats = f['lats'][:].copy()
-            h = f['z'][:].copy()
-            p = f['p'][:].copy()
-            q = f['q'][:].copy()
-            t = f['t'][:].copy()
+        from netCDF4 import Dataset
+        with Dataset(filename, mode='r') as f:
+            lons = np.array(f.variables['x'][:])
+            lats = np.array(f.variables['y'][:])
+            h = np.array(f.variables['H'][:])
+            q = np.array(f.variables['QV'][:])
+            p = np.array(f.variables['PL'][:])
+            t = np.array(f.variables['T'][:])
 
         # restructure the 3-D lat/lon/h in regular grid
         _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)

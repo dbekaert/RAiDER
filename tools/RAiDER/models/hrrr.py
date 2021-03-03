@@ -40,7 +40,7 @@ class HRRR(WeatherModel):
         self._Nproc = 1
         self._Name = 'HRRR'
         self._Npl = 0
-        self._files = None
+        self.files = None
         self._bounds = None
 
         # Projection
@@ -65,16 +65,16 @@ class HRRR(WeatherModel):
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
-        self._files = self._download_hrrr_file(time, 'hrrr', out=out,
-                                               field='prs', verbose=True)
+        self.files = self._download_hrrr_file(time, 'hrrr', out=out,
+                                              field='prs', verbose=True)
 
-    def load_weather(self, filename=None):
+    def load_weather(self, *args, filename=None, **kwargs):
         '''
-        Load a weather model into a python weatherModel object, from self._files if no
+        Load a weather model into a python weatherModel object, from self.files if no
         filename is passed.
         '''
         if filename is None:
-            filename = self._files
+            filename = self.files
 
         # read data from grib file
         xArr, yArr, lats, lons, temps, qs, geo_hgt, pl = \

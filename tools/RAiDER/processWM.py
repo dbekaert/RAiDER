@@ -11,6 +11,7 @@ import os
 import sys
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from datetime import datetime, date
 
@@ -18,87 +19,79 @@ from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
 
 
-def getWMFilename(weather_model_name, time, outLoc):
-    '''
-    Check whether the output weather model exists, and
-    if not, download it.
-    '''
-    with contextlib.suppress(FileExistsError):
-        os.mkdir('weather_files')
-
-    download_flag = True
-    f = os.path.join(
-        outLoc,
-        '{}_{}.nc'.format(
-            weather_model_name,
-            datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')
-        )
-    )
-    if weather_model_name in ['GMAO', 'MERRA2']:
-        if time.date() < date(2017, 12, 1) and weather_model_name == 'GMAO':
-            ext = 'nc'
-        else:
-            ext = 'h5'
-        f = f[:-2]+ ext
-
-    logger.debug('Storing weather model at: %s', f)
-
-    if os.path.exists(f):
-        logger.warning('Weather model already exists, skipping download')
-        download_flag = False
-
-    return download_flag, f
-
-
 def prepareWeatherModel(
-        weatherDict,
-        wmFileLoc,
-        lats=None,
-        lons=None,
-        los=None,
-        zref=None,
-        time=None,
-        download_only=False,
-        makePlots=False
-    ):
+    weatherDict,
+    time=None,
+    wmLoc=None,
+    lats=None,
+    lons=None,
+    zref=None,
+    download_only=False,
+    makePlots=False
+):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
     weather_model, weather_files, weather_model_name = \
         weatherDict['type'], weatherDict['files'], weatherDict['name']
+    weather_model.files = weather_files
 
-    # check whether weather model files are supplied
-    if weather_files is None:
+    # Ensure the file output location exists
+    if wmLoc is None:
+        wmLoc = os.path.join(os.getcwd(), 'weather_files')
+    os.makedirs(wmLoc, exist_ok=True)
+
+    # check whether weather model files are supplied or should be downloaded
+    download_flag = True
+    if weather_model.files is None:
         if time is None:
-            raise RuntimeError('prepareWeatherModel: Either a file or a time must be specified')
-        download_flag,f = getWMFilename(weather_model.Model(), time, wmFileLoc)
-        weather_model.files = [f]
+            raise RuntimeError(
+                'prepareWeatherModel: Either a file or a time must be specified'
+            )
+        weather_model.filename(time, wmLoc)
+        if os.path.exists(weather_model.files[0]):
+            logger.warning(
+                'Weather model already exists, please remove it ("%s") if you want '
+                'to download a new one.', weather_model.files
+            )
+            download_flag = False
     else:
         download_flag = False
-        time = getTimeFromFile(weather_files[0])
-
-    if (time < datetime(2013, 6, 26, 0, 0, 0)) and (weather_model._Name is 'HRES'):
-        weather_model.update_a_b()
 
     # if no weather model files supplied, check the standard location
     if download_flag:
         weather_model.fetch(*weather_model.files, lats, lons, time)
-
-        # exit on download if download_only requested
-        if download_only:
-            logger.warning(
-                'download_only flag selected. No further processing will happen.'
-            )
-            return None, None, None
-
-    # Load the weather model data
-    if weather_model.files is not None:
-        weather_model.load(*weather_model.files, outLats=lats, outLons=lons, los=los, zref=zref)
-        download_flag = False
     else:
-        weather_model.load(f, outLats=lats, outLons=lons, los=los, zref=zref)
+        time = getTimeFromFile(weather_model.files[0])
+        weather_model.setTime(time)
 
-    logger.debug('Number of weather model nodes: %d', np.prod(weather_model.getWetRefractivity().shape))
+    # If only downloading, exit now
+    if download_only:
+        logger.warning(
+            'download_only flag selected. No further processing will happen.'
+        )
+        return None
+
+    # Otherwise, load the weather model data
+    f = weather_model.load(
+        wmLoc,
+        outLats=lats,
+        outLons=lons,
+        zref=zref,
+    )
+    if f is not None:
+        logger.warning(
+            'The processed weather model file already exists,'
+            ' so I will use that.'
+        )
+        return f
+
+    # Logging some basic info
+    logger.debug(
+        'Number of weather model nodes: {}'.format(
+            np.prod(weather_model.getWetRefractivity().shape)
+        )
+    )
     logger.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
     logger.debug(
         'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
@@ -119,5 +112,14 @@ def prepareWeatherModel(
     if makePlots:
         p = weather_model.plot('wh', True)
         p = weather_model.plot('pqt', True)
+        plt.close('all')
 
-    return weather_model, lats, lons
+    try:
+        f = weather_model.write()
+        return f
+    except Exception as e:
+        logger.exception("Unable to save weathermodel to file")
+        logger.exception(e)
+        raise RuntimeError("Unable to save weathermodel to file")
+    finally:
+        del weather_model

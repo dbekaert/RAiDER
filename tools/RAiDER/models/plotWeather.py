@@ -4,13 +4,12 @@ class objects. It is not designed to be used on its own apart
 from this class.
 """
 
+from RAiDER.interpolator import RegularGridInterpolator as Interpolator
+from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
+import numpy as np
+import matplotlib.pyplot as plt
 import matplotlib as mpl
 mpl.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
-from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
-
-from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 
 
 def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
