@@ -138,22 +138,23 @@ def tropo_delay(args):
 
     # Write the input query points to a file
     pnts_file = os.path.join(out, 'geom', 'query_points.h5')
-    if not os.path.exists(pnts_file):
-        # Convert the line-of-sight inputs to look vectors
-        logger.debug('Lats shape is {}'.format(lats.shape))
-        logger.debug(
-            'lat/lon box is %f/%f/%f/%f (SNWE)',
-            np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
-        )
-        logger.debug(
-            'DEM height range is %.2f-%.2f m',
-            np.nanmin(hgts), np.nanmax(hgts)
-        )
-        logger.debug('Beginning line-of-sight calculation')
-        los = getLookVectors(los, lats, lons, hgts, zref)
 
-        # write to an HDF5 file
-        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+    logger.debug('Lats shape is {}'.format(lats.shape))
+    logger.debug(
+        'lat/lon box is %f/%f/%f/%f (SNWE)',
+        np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
+    )
+    logger.debug(
+        'DEM height range is %.2f-%.2f m',
+        np.nanmin(hgts), np.nanmax(hgts)
+    )
+    logger.debug('Beginning line-of-sight calculation')
+
+    # Convert the line-of-sight inputs to look vectors
+    los = getLookVectors(los, lats, lons, hgts, zref)
+
+    # write to an HDF5 file
+    writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
 
     # Compute the delays
     wetDelay, hydroDelay = computeDelay(
