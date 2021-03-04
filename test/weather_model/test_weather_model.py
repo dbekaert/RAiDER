@@ -164,6 +164,7 @@ def test_uniform_in_z_small(model):
          [nan, 6.75]]
     ])
 
+    import pdb; pdb.set_trace()
     assert np.allclose(model._p, interpolated, equal_nan=True, rtol=0)
     assert np.allclose(model._t, interpolated * 2, equal_nan=True, rtol=0)
     assert np.allclose(model._e, interpolated * 3, equal_nan=True, rtol=0)
@@ -304,7 +305,6 @@ def test_ncmr(ncmr):
     assert wm._humidityType == 'q'
     assert wm._Name == 'NCMR'
     assert wm._valid_range[0] == datetime.datetime(2015, 12, 1)
-    assert wm._proj.to_epsg() == 4326
 
 
 def test_find_svp():
