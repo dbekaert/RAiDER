@@ -130,8 +130,12 @@ def checkBounds(weather_model, outLats, outLons):
     '''Check the bounds of a weather model'''
 
     ds = xr.load_dataset(weather_model.files[0])
-    lat_bounds = [ds.y.min(), ds.y.max()]
-    lon_bounds = [ds.x.min(), ds.x.max()]
+    coords = ds.coords # coords is dict-like
+    keys = [k for k in coords.keys()]
+    xc = coords[keys[0]]
+    yc = coords[keys[1]]
+    lat_bounds = [yc.min(), yc.max()]
+    lon_bounds = [xc.min(), xc.max()]
     self_extent = lat_bounds + lon_bounds
     in_extent = weather_model._getExtent(outLats, outLons)
 
