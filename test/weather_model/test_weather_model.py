@@ -13,7 +13,7 @@ from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel, find_svp
 from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
@@ -113,9 +113,9 @@ def test_uniform_in_z_small(model):
 
     model._uniform_in_z()
 
+    # Note that when the lower bound is exactly equal we get a value, but
+    # when the upper bound is exactly equal we get the fill
     interpolated = np.array([
-        # Note that when the lower bound is exactly equal we get a value, but
-        # when the upper bound is exactly equal we get the fill
         [[0, nan],
          [2.5, nan]],
 
@@ -123,6 +123,7 @@ def test_uniform_in_z_small(model):
          [nan, 6.75]]
     ])
 
+    import pdb; pdb.set_trace()
     assert np.allclose(model._p, interpolated, equal_nan=True, rtol=0)
     assert np.allclose(model._t, interpolated * 2, equal_nan=True, rtol=0)
     assert np.allclose(model._e, interpolated * 3, equal_nan=True, rtol=0)
@@ -242,3 +243,12 @@ def test_ncmr(ncmr):
     assert wm._valid_range[0] == datetime.datetime(2015, 12, 1)
     assert wm._proj.to_epsg()== 4326
     
+def test_find_svp():
+    t = np.arange(0, 100, 10) + 273.15
+    svp_test = find_svp(t)
+    svp_true = np.array([  
+        611.21  ,  1227.5981,  2337.2825,  4243.5093,  
+        7384.1753, 12369.2295, 20021.443 , 31419.297 , 
+        47940.574 , 71305.16  
+    ])
+    assert svp_test == svp_true

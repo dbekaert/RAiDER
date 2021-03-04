@@ -386,12 +386,32 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df.to_csv(wetFilename, index=False)
 
     elif outformat == 'hdf5':
-        writeResultsToHDF5(lats, lons, zlevels, wetDelay, hydroDelay, wetFilename, delayType=delayType)
+        writeResultsToHDF5(
+                lats, 
+                lons, 
+                zlevels, 
+                wetDelay, 
+                hydroDelay, 
+                wetFilename, 
+                delayType=delayType
+            )
     else:
-        writeArrayToRaster(wetDelay, wetFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
-        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(
+                wetDelay, 
+                wetFilename, 
+                noDataValue=ndv,
+                fmt=outformat, 
+                proj=proj, 
+                gt=gt
+            )
+        writeArrayToRaster(
+                hydroDelay, 
+                hydroFilename, 
+                noDataValue=ndv,
+                fmt=outformat, 
+                proj=proj, 
+                gt=gt
+            )
 
 
 def getTimeFromFile(filename):
