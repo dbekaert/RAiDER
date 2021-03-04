@@ -171,14 +171,20 @@ def tropo_delay(args):
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                     outName, zlevels=hgts, outformat=outformat, delayType=delayType)
         logger.info('Finished writing data to %s', outName)
+        
     elif useWeatherNodes:
         logger.info(
             'Delays have been written to the weather model file; see %s',
             weather_model_file
         )
+
     else:
+        if not isinstance(wetFilename, str):
+            wetFilename = wetFilename[0]
+            hydroFilename = hydroFilename[0]
+
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    wetFilename[0], hydroFilename[0], outformat=outformat,
+                    wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
         logger.info('Finished writing data to %s', wetFilename)
 
