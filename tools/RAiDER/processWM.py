@@ -126,11 +126,12 @@ def prepareWeatherModel(
     finally:
         del weather_model
 
+
 def checkBounds(weather_model, outLats, outLons):
     '''Check the bounds of a weather model'''
 
     ds = xr.load_dataset(weather_model.files[0])
-    coords = ds.coords # coords is dict-like
+    coords = ds.coords  # coords is dict-like
     keys = [k for k in coords.keys()]
     xc = coords[keys[0]]
     yc = coords[keys[1]]
@@ -150,5 +151,3 @@ def checkBounds(weather_model, outLats, outLons):
             'The weather model passed does not cover all of the input '
             'points; you need to download a larger area.'
         )
-    
-    
