@@ -94,6 +94,7 @@ def tropo_delay(args):
     download_only = args['download_only']
     wetFilename = args['wetFilenames']
     hydroFilename = args['hydroFilenames']
+    pnts_file = args['pnts_file']
 
     # logging
     logger.debug('Starting to run the weather model calculation')
@@ -131,30 +132,55 @@ def tropo_delay(args):
     # Pull the DEM.
     logger.debug('Beginning DEM calculation')
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
+    logger.debug(
+        'DEM height range for the queried region is %.2f-%.2f m',
+        np.nanmin(hgts), np.nanmax(hgts)
+    )
+
     if heights[0] == 'lvs':
         zlevels = hgts
     else:
         zlevels = None
 
-    # Write the input query points to a file
-    pnts_file = os.path.join(out, 'geom', 'query_points.h5')
-
-    logger.debug('Lats shape is {}'.format(lats.shape))
+    query_shape = lats.shape
+    logger.debug('Lats shape is {}'.format(query_shape))
     logger.debug(
         'lat/lon box is %f/%f/%f/%f (SNWE)',
         np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
     )
-    logger.debug(
-        'DEM height range is %.2f-%.2f m',
-        np.nanmin(hgts), np.nanmax(hgts)
-    )
-    logger.debug('Beginning line-of-sight calculation')
 
-    # Convert the line-of-sight inputs to look vectors
-    los = getLookVectors(los, lats, lons, hgts, zref)
 
-    # write to an HDF5 file
-    writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+    # Write the input query points to a file
+    # Check whether the query points file already exists
+    write_flag = checkQueryPntsFile(pnts_file, query_shape)
+
+    # Throw an error if the user passes the same filename but different points
+    if os.path.exists(pnts_file) and ~write_flag:
+        logger.error(
+                'The input query points file exists but does not match the '
+                'shape of the input query points, either change the file '
+                'name or delete the query points file ({})'.format(pnts_file)
+            )
+        raise ValueError(
+                'The input query points file exists but does not match the '
+                'shape of the input query points, either change the file '
+                'name or delete the query points file ({})'.format(pnts_file)
+            )
+
+    if write_flag:
+        logger.debug('Beginning line-of-sight calculation')
+
+        # Convert the line-of-sight inputs to look vectors
+        los = getLookVectors(los, lats, lons, hgts, zref)
+
+        # write to an HDF5 file
+        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+
+    else:
+        logger.warning(
+                'The input query points file already exists and matches the '
+                'shape of the input query points, so I will use it.'
+            )
 
     # Compute the delays
     wetDelay, hydroDelay = computeDelay(
@@ -250,3 +276,19 @@ def weather_model_debug(
         )
 
     return 1
+
+
+def checkQueryPntsFile(pnts_file, query_shape):
+    '''
+    Check whether the query points file exists, and if it
+    does, check that the shapes are all consistent
+    '''
+    write_flag = True
+    if os.path.exists(pnts_file):
+        # Check whether the number of points is consistent with the new inputs
+        with h5py.File(pnts_file, 'r') as f:
+            if query_shape == f['x'].attrs['Shape']:
+                write_flag = False
+
+    return write_flag
+

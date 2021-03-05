@@ -46,6 +46,7 @@ def test_computeDelay(tmp_path):
         args['lons'] = lons
         args['ll_bounds'] = (33.746, 36.795, -118.312, -114.892)
         args['heights'] = ('merge', [wetFile])
+        args['pnts_file'] = 'ERA5_true_GNSS_query_points.h5'
         args['flag'] = "station_file"
         args['weather_model'] = {"type": model_obj(), "files": None, "name": "ERA5"}
         args['wmLoc'] = None
