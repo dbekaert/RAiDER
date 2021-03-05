@@ -149,7 +149,6 @@ def tropo_delay(args):
         np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
     )
 
-
     # Write the input query points to a file
     # Check whether the query points file already exists
     write_flag = checkQueryPntsFile(pnts_file, query_shape)
@@ -157,15 +156,15 @@ def tropo_delay(args):
     # Throw an error if the user passes the same filename but different points
     if os.path.exists(pnts_file) and ~write_flag:
         logger.error(
-                'The input query points file exists but does not match the '
-                'shape of the input query points, either change the file '
-                'name or delete the query points file ({})'.format(pnts_file)
-            )
+            'The input query points file exists but does not match the '
+            'shape of the input query points, either change the file '
+            'name or delete the query points file ({})'.format(pnts_file)
+        )
         raise ValueError(
-                'The input query points file exists but does not match the '
-                'shape of the input query points, either change the file '
-                'name or delete the query points file ({})'.format(pnts_file)
-            )
+            'The input query points file exists but does not match the '
+            'shape of the input query points, either change the file '
+            'name or delete the query points file ({})'.format(pnts_file)
+        )
 
     if write_flag:
         logger.debug('Beginning line-of-sight calculation')
@@ -178,9 +177,9 @@ def tropo_delay(args):
 
     else:
         logger.warning(
-                'The input query points file already exists and matches the '
-                'shape of the input query points, so I will use it.'
-            )
+            'The input query points file already exists and matches the '
+            'shape of the input query points, so I will use it.'
+        )
 
     # Compute the delays
     wetDelay, hydroDelay = computeDelay(
@@ -291,4 +290,3 @@ def checkQueryPntsFile(pnts_file, query_shape):
                 write_flag = False
 
     return write_flag
-
