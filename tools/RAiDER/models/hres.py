@@ -265,6 +265,12 @@ class HRES(WeatherModel):
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
+        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
+            self._levels = 91
+            self.update_a_b
+        else:
+            self._levels = 137
+
         # execute the search at ECMWF
         self._download_ecmwf_file(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
 
@@ -275,17 +281,11 @@ class HRES(WeatherModel):
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
 
-        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
-            levels = 91
-            self.update_a_b
-        else:
-            levels = 137
-
         server.execute({
             'class': self._classname,
             'date': datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
             'expver': "{}".format(self._expver),
-            'levelist': "1/to/{0}".format(levels),
+            'levelist': "1/to/{0}".format(self._levels),
             'levtype': "ml",
             'param': "129/130/133/152",
             'stream': "oper",
