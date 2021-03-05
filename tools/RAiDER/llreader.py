@@ -30,7 +30,7 @@ def readLL(*args):
     elif len(args[0]) == 4:
         flag = 'bounding_box'
         lats, lons, llproj = readLLFromBBox(*args)
-        fname = '_'.join([str(a) for a in [a for a in args][0]]) 
+        fname = '_'.join([str(int(a)) for a in [a for a in args][0]]) 
 
     elif isinstance(args[0], str):
         flag = 'station_file'

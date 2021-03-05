@@ -184,9 +184,9 @@ class WeatherModel(ABC):
         method appropriate for that class. 'args' should be one or more filenames.
         '''
         # If the weather file has already been processed, do nothing
-        out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
-        if self.checkWeatherExists(out_name):
-            return out_name
+        self._out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
+        if self.checkWeatherExists(self._out_name):
+            return self._out_name
         else:
             exists_flag = False
 
@@ -677,8 +677,7 @@ class WeatherModel(ABC):
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
         # Generate the filename
-        outLoc = os.path.split(self.files[0])[:-1][0]
-        f = self.out_file(outLoc)
+        f = self._out_name
 
         dimidY, dimidX, dimidZ = self._t.shape
         chunk_lines_Y = np.min([chunk[1], dimidY])
