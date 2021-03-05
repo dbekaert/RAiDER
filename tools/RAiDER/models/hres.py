@@ -42,6 +42,8 @@ class HRES(WeatherModel):
         # Availability lag time in days
         self._lag_time = datetime.timedelta(hours=6)
 
+        self._levels = 137
+
         self._a = [
             0.000000, 2.000365, 3.102241, 4.666084, 6.827977,
             9.746966, 13.605424, 18.608931, 24.985718, 32.985710,
@@ -144,6 +146,7 @@ class HRES(WeatherModel):
 
         if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             self.update_a_b()
+            self._levels = 91
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
