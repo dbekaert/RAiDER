@@ -100,6 +100,7 @@ class HRES(WeatherModel):
 
     def update_a_b(self):
         # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels
+        self._levels = 91
         self._a = [0.000000, 2.000040, 3.980832, 7.387186, 12.908319, 21.413612, 33.952858,
                    51.746601, 76.167656, 108.715561, 150.986023, 204.637451, 271.356506,
                    352.824493, 450.685791, 566.519226, 701.813354, 857.945801, 1036.166504,
@@ -146,7 +147,6 @@ class HRES(WeatherModel):
 
         if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             self.update_a_b()
-            self._levels = 91
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
@@ -269,7 +269,6 @@ class HRES(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
-            self._levels = 91
             self.update_a_b
         else:
             self._levels = 137
