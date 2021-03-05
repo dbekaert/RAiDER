@@ -30,7 +30,7 @@ def readLL(*args):
     elif len(args[0]) == 4:
         flag = 'bounding_box'
         lats, lons, llproj = readLLFromBBox(*args)
-        fname = ' '.join(*args)
+        fname = '_'.join([str(a) for a in [a for a in args][0]]) 
 
     elif isinstance(args[0], str):
         flag = 'station_file'
@@ -43,7 +43,7 @@ def readLL(*args):
     lats, lons = forceNDArray(lats), forceNDArray(lons)
     bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
 
-    pnts_file_name = os.path.join(out, 'geom', fname + '_query_points.h5')
+    pnts_file_name =  'query_points_' + fname + '.h5'
 
     return lats, lons, llproj, bounds, flag, pnts_file_name
 
