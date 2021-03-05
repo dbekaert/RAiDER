@@ -270,8 +270,6 @@ class HRES(WeatherModel):
 
         if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             self.update_a_b
-        else:
-            self._levels = 137
 
         # execute the search at ECMWF
         self._download_ecmwf_file(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
