@@ -39,7 +39,7 @@ def checkArgs(args, p):
         os.mkdir(wmLoc)
 
     # Query Area
-    lat, lon, llproj, bounds, flag = readLL(args.query_area)
+    lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
 
     if (np.min(lat) < -90) | (np.max(lat) > 90):
         raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
@@ -175,6 +175,7 @@ def checkArgs(args, p):
     outArgs['wetFilenames'] = wetNames
     outArgs['hydroFilenames'] = hydroNames
     outArgs['parallel'] = parallel
+    outArgs['pnts_file'] = pnts_file
 
     return outArgs
     # return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel

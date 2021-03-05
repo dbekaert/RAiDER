@@ -12,6 +12,7 @@ import sys
 
 import numpy as np
 import matplotlib.pyplot as plt
+import xarray as xr
 
 from datetime import datetime, date
 
@@ -64,6 +65,20 @@ def prepareWeatherModel(
     else:
         time = getTimeFromFile(weather_model.files[0])
         weather_model.setTime(time)
+        in_extent, wm_extent = checkBounds(weather_model, lats, lons)
+
+        logger.info('Extent of the input lats/lons is: {}'.format(in_extent))
+        logger.info('Extent of the weather model is: {}'.format(wm_extent))
+
+        if weather_model._isOutside(in_extent, wm_extent):
+            logger.error(
+                'The weather model passed does not cover all of the input '
+                'points; you need to download a larger area.'
+            )
+            raise RuntimeError(
+                'The weather model passed does not cover all of the input '
+                'points; you need to download a larger area.'
+            )
 
     # If only downloading, exit now
     if download_only:
@@ -123,3 +138,19 @@ def prepareWeatherModel(
         raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
+
+
+def checkBounds(weather_model, outLats, outLons):
+    '''Check the bounds of a weather model'''
+
+    ds = xr.load_dataset(weather_model.files[0])
+    coords = ds.coords  # coords is dict-like
+    keys = [k for k in coords.keys()]
+    xc = coords[keys[0]]
+    yc = coords[keys[1]]
+    lat_bounds = [yc.min(), yc.max()]
+    lon_bounds = [xc.min(), xc.max()]
+    self_extent = lat_bounds + lon_bounds
+    in_extent = weather_model._getExtent(outLats, outLons)
+
+    return in_extent, self_extent
