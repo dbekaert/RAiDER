@@ -639,7 +639,6 @@ class WeatherModel(ABC):
         if lons is None:
             lons = self._lons
         f = make_weather_model_filename(
-            outLoc,
             self._Name,
             self._time,
             self._get_ll_bounds(lats=lats, lons=lons)
@@ -827,7 +826,7 @@ class WeatherModel(ABC):
         return f
 
 
-def make_weather_model_filename(outLoc, name, time, ll_bounds):
+def make_weather_model_filename(name, time, ll_bounds):
     if ll_bounds[0] < 0:
         S = 'S'
     else:
