@@ -164,7 +164,6 @@ def test_uniform_in_z_small(model):
          [nan, 6.75]]
     ])
 
-    import pdb; pdb.set_trace()
     assert np.allclose(model._p, interpolated, equal_nan=True, rtol=0)
     assert np.allclose(model._t, interpolated * 2, equal_nan=True, rtol=0)
     assert np.allclose(model._e, interpolated * 3, equal_nan=True, rtol=0)

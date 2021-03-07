@@ -273,6 +273,8 @@ class WeatherModel(ABC):
             self._find_e_from_q()
         else:
             raise RuntimeError('Not a valid humidity type')
+
+        # clear unneeded variables
         self._rh = None
         self._q = None
 
