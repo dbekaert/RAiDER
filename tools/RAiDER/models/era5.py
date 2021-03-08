@@ -20,6 +20,7 @@ class ERA5(ECMWF):
         self._classname = 'ea'
         self._dataset = 'era5'
         self._Name = 'ERA-5'
+        self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(1950, 1, 1), "Present")
@@ -141,7 +142,6 @@ class ERA5(ECMWF):
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
-        self._proj = CRS.from_epsg(4326)
 
         self._t = t
         self._q = q
