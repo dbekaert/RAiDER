@@ -196,7 +196,6 @@ class WeatherModel(ABC):
             self.load_weather(*args, **kwargs)
 
             # Process the weather model data
-            #TODO: check variables dtyeps and make small as possible 
             self._find_e()
             self._uniform_in_z(_zlevels=_zlevels)
             self._checkForNans()
@@ -273,16 +272,15 @@ class WeatherModel(ABC):
             self._find_e_from_q()
         else:
             raise RuntimeError('Not a valid humidity type')
-
-        # clear unneeded variables
         self._rh = None
         self._q = None
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
         svp = find_svp(self._t)
-        w = self._q / (1 - self._q)  # We have q = w/(w + 1), so w = q/(1 - q)
-        self._e = (w * self._R_v * (self._p - svp) / self._R_d).astype(np.float32)
+        # We have q = w/(w + 1), so w = q/(1 - q)
+        w = self._q / (1 - self._q)
+        self._e = w * self._R_v * (self._p - svp) / self._R_d
 
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
@@ -880,7 +878,6 @@ def make_raw_weather_data_filename(outLoc, name, time):
         )
     )
     return f
-
 
 def find_svp(t):
     """
