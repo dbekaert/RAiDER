@@ -233,7 +233,7 @@ def test_hrrr(hrrr):
     assert wm._humidityType == 'q'
     assert wm._Name == 'HRRR'
     assert wm._valid_range[0] == datetime.datetime(2016, 7, 15)
-    assert wm._proj.to_epsg()== '4326'
+    assert wm._proj.to_epsg()== ''
     
 def test_ncmr(ncmr):
     wm = ncmr
