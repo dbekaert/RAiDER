@@ -209,7 +209,7 @@ def tropo_delay(args):
             hydroFilename = hydroFilename[0]
 
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    wetFilename[0], hydroFilename[0], outformat=outformat,
+                    wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
         logger.info('Finished writing data to %s', wetFilename)
 

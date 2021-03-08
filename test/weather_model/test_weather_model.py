@@ -250,4 +250,4 @@ def test_find_svp():
         7384.1753, 12369.2295, 20021.443 , 31419.297 , 
         47940.574 , 71305.16  
     ])
-    assert svp_test == svp_true
+    assert np.allclose(svp_test, svp_true)

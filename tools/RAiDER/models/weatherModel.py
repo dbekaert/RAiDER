@@ -74,7 +74,6 @@ class WeatherModel(ABC):
         self._hydrostatic_refractivity = None
         self._wet_ztd = None
         self._hydrostatic_ztd = None
-        self._svp = None
 
     def __str__(self):
         string = '\n'
@@ -197,7 +196,6 @@ class WeatherModel(ABC):
             self.load_weather(*args, **kwargs)
 
             # Process the weather model data
-            #TODO: check variables dtyeps and make small as possible 
             self._find_e()
             self._checkNotMaskedArrays()
             self._uniform_in_z(_zlevels=_zlevels)
@@ -282,16 +280,15 @@ class WeatherModel(ABC):
             self._find_e_from_q()
         else:
             raise RuntimeError('Not a valid humidity type')
-
-        # clear unneeded variables
         self._rh = None
         self._q = None
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
         svp = find_svp(self._t)
-        w = self._q / (1 - self._q)  # We have q = w/(w + 1), so w = q/(1 - q)
-        self._e = (w * self._R_v * (self._p - svp) / self._R_d).astype(np.float32)
+        # We have q = w/(w + 1), so w = q/(1 - q)
+        w = self._q / (1 - self._q)
+        self._e = w * self._R_v * (self._p - svp) / self._R_d
 
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
@@ -633,19 +630,15 @@ class WeatherModel(ABC):
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
         # re-assign values to the uniform z
-        t_dtype = self._t.dtype
-        p_dtype = self._p.dtype
-        e_dtype = self._e.dtype
-
         self._t = interpolate_along_axis(
                 self._zs, self._t, new_zs, axis=2, fill_value=np.nan
-            ).astype(t_dtype)
+            ).astype(np.float32)
         self._p = interpolate_along_axis(
                 self._zs, self._p, new_zs, axis=2, fill_value=np.nan
-            ).astype(p_dtype)
+            ).astype(np.float32)
         self._e = interpolate_along_axis(
                 self._zs, self._e, new_zs, axis=2, fill_value=np.nan
-            ).astype(e_dtype)
+            ).astype(np.float32)
 
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
@@ -916,7 +909,6 @@ def make_raw_weather_data_filename(outLoc, name, time):
     )
     return f
 
-
 def find_svp(t):
     """
     Calculate standard vapor presure. Should be model-specific
@@ -948,6 +940,5 @@ def find_svp(t):
     ix_bound2 = t < t2
     svp[ix_bound2] = svpi[ix_bound2]
 
-    svp = svp * 100
-    return svp.astype(np.float32)
+    return svp * 100
 
