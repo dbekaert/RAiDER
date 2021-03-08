@@ -45,8 +45,6 @@ def test_latlon_reader():
 
 def test_bbox_reade1():
     lat, lon, llproj = readLLFromBBox(['10', '12', '-72', '-70'])
-    print(lat)
-    print(lon)
     assert np.allclose(lat, np.array([10, 12]))
     assert np.allclose(lon, np.array([-72, -70]))
 
@@ -87,7 +85,7 @@ def test_readLL_bbox(parser):
     
     # Hard code the lat/lon bounds to test against changing the files
     bounds_true = bbox
-    assert all([b == t for b, t in zip(bounds, bounds_true)])
+    assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
 
     assert flag == 'bounding_box'
     assert pnts_file_name == 'query_points_20_27_-115_-104.h5'
@@ -115,8 +113,8 @@ def test_readLL_file(parser, station_file):
     assert llproj == 'EPSG:4326'
     
     # Hard code the lat/lon bounds to test against changing the files
-    bounds_true = [33.746, 33.795, -114.892, -118.312]
-    assert all([b == t for b, t in zip(bounds, bounds_true)])
+    bounds_true = [33.746, 36.795, -118.312, -114.892]
+    assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
 
     assert flag == 'station_file'
     assert pnts_file_name == 'query_points_stations.h5'
@@ -146,7 +144,7 @@ def test_readLL_files(parser, llfiles):
     
     # Hard code the lat/lon bounds to test against changing the files
     bounds_true = [15.75, 18.25, -103.25, -99.75]
-    assert all([b == t for b, t in zip(bounds, bounds_true)])
+    assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
 
     assert flag == 'files'
     assert pnts_file_name == 'query_points_lat.h5'

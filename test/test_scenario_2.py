@@ -13,7 +13,6 @@ from RAiDER.utilFcns import gdal_open, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
 
-@pytest.mark.skip(reason='this is taking so long to run...')
 def test_computeDelay(tmp_path):
     '''
     Scenario to use: 
