@@ -24,6 +24,7 @@ class ECMWF(WeatherModel):
 
         self._lon_res = 0.2
         self._lat_res = 0.2
+        self._proj = CRS.from_epsg(4326)
 
     def load_weather(self, *args, **kwargs):
         '''
@@ -44,7 +45,7 @@ class ECMWF(WeatherModel):
             qq = f.variables['q'][0].copy()
             lats = f.variables['latitude'][:].copy()
             lons = f.variables['longitude'][:].copy()
-            self._levels = f.variables['level'][:].copy()
+            self._levels = len(f.variables['level'][:].copy())
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
@@ -64,7 +65,6 @@ class ECMWF(WeatherModel):
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
-        self._proj = CRS.from_epsg(4326)
 
         self._t = t
         self._q = Q

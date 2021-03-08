@@ -482,7 +482,7 @@ class WeatherModel(ABC):
         sp = np.exp(lnsp)
 
         # t should be structured [z, y, x]
-        levelSize = len(self._levels)
+        levelSize = self._levels
 
         if len(self._a) != levelSize + 1 or len(self._b) != levelSize + 1:
             raise ValueError(
