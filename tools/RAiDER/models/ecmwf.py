@@ -44,7 +44,7 @@ class ECMWF(WeatherModel):
             qq = f.variables['q'][0].copy()
             lats = f.variables['latitude'][:].copy()
             lons = f.variables['longitude'][:].copy()
-            self._levels = f.variables['level'][:].copy()
+            self._levels = len(f.variables['level'][:].copy())
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
