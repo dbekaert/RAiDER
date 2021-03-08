@@ -122,6 +122,7 @@ class WeatherModel(ABC):
         '''
         self.checkTime(time)
         lats, lons = self.checkLL(lats, lons)
+
         self._time = time
         self._fetch(lats, lons, time, out)
 
@@ -337,18 +338,9 @@ class WeatherModel(ABC):
             self._e = util.padLower(self._e)
             self._wet_refractivity = util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity = util.padLower(self._hydrostatic_refractivity)
-
-        if lats is not None:
-            in_extent = self._getExtent(lats, lons)
-            self_extent = self._getExtent(self._lats, self._lons)
-            if self._isOutside(in_extent, self_extent):
-                logger.info('Extent of the input lats/lons is: {}'.format(in_extent))
-                logger.info('Extent of the weather model is: {}'.format(self_extent))
-                logger.info(
-                    'The weather model passed does not cover all of the input '
-                    'points; you need to download a larger area.'
-                )
-            self._trimExtent(in_extent)
+            if lats is not None:
+                in_extent = self._getExtent(lats, lons)
+                self._trimExtent(in_extent)
 
     def _getZTD(self, zref=None):
         '''
@@ -490,7 +482,7 @@ class WeatherModel(ABC):
         sp = np.exp(lnsp)
 
         # t should be structured [z, y, x]
-        levelSize = len(self._levels)
+        levelSize = self._levels
 
         if len(self._a) != levelSize + 1 or len(self._b) != levelSize + 1:
             raise ValueError(

@@ -14,7 +14,15 @@ from test import DATA_DIR, TEST_DIR, pushd
 from RAiDER.constants import Zenith
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
+from RAiDER.models.era5t import ERA5T
+from RAiDER.models.hres import HRES
+from RAiDER.models.hrrr import HRRR 
+from RAiDER.models.gmao import GMAO 
+from RAiDER.models.merra2 import MERRA2
+from RAiDER.models.ncmr import NCMR
+
 
 WEATHER_FILE = os.path.join(
     DATA_DIR,
@@ -24,9 +32,44 @@ WEATHER_FILE = os.path.join(
 
 
 @pytest.fixture
+def erai():
+    wm = ERAI()
+    return wm
+
+@pytest.fixture
 def era5():
-    era5_wm = ERA5()
-    return era5_wm
+    wm = ERA5()
+    return wm
+
+@pytest.fixture
+def era5t():
+    wm = ERA5T()
+    return wm
+
+@pytest.fixture
+def hres():
+    wm = HRES()
+    return wm
+
+@pytest.fixture
+def gmao():
+    wm = GMAO()
+    return wm
+
+@pytest.fixture
+def merra2():
+    wm = MERRA2()
+    return wm
+
+@pytest.fixture
+def hrrr():
+    wm = HRRR()
+    return wm
+
+@pytest.fixture
+def ncmr():
+    wm = NCMR()
+    return wm
 
 
 def product(iterable):
@@ -136,3 +179,66 @@ def test_checkLL_era5_2(era5):
     lats2, lons2 = era5.checkLL(lats, lons)
     assert np.allclose(lats2, lats_good)
     assert np.allclose(lons2, lons_good)
+
+
+def test_erai(erai):
+    wm = erai
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'ERA-I'
+    assert wm._valid_range[0] == datetime.datetime(1979, 1, 1)
+    assert wm._valid_range[1] == datetime.datetime(2019, 8, 31)
+    assert wm._proj.to_epsg() == 4326
+
+def test_era5(era5):
+    wm = era5
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'ERA-5'
+    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1)
+    assert wm._proj.to_epsg() == 4326
+
+def test_era5t(era5t):
+    wm = era5t
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'ERA-5T'
+    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1)
+    assert wm._proj.to_epsg() == 4326
+
+def test_hres(hres):
+    wm = hres
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'HRES'
+    assert wm._valid_range[0] == datetime.datetime(1983, 4, 20)
+    assert wm._proj.to_epsg()== 4326
+    assert wm._levels == 137
+
+    wm.update_a_b()
+    assert wm._levels == 91
+    
+def test_gmao(gmao):
+    wm = gmao
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'GMAO'
+    assert wm._valid_range[0] == datetime.datetime(2014, 2, 20)
+    assert wm._proj.to_epsg()== 4326
+
+def test_merra2(merra2):
+    wm = merra2
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'MERRA2'
+    assert wm._valid_range[0] == datetime.datetime(1980, 1, 1)
+    assert wm._proj.to_epsg()== 4326
+    
+def test_hrrr(hrrr):
+    wm = hrrr
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'HRRR'
+    assert wm._valid_range[0] == datetime.datetime(2016, 7, 15)
+    assert wm._proj.to_epsg() is None
+   
+def test_ncmr(ncmr):
+    wm = ncmr
+    assert wm._humidityType == 'q'
+    assert wm._Name == 'NCMR'
+    assert wm._valid_range[0] == datetime.datetime(2015, 12, 1)
+    assert wm._proj.to_epsg()== 4326
+    

@@ -222,7 +222,7 @@ def load_gridfile(fname, unit):
     '''
 
     df = gdal.Open(fname)
-    grid_array = np.array(df.ReadAsArray(), dtype = float)
+    grid_array = np.array(df.ReadAsArray(), dtype=float)
     # set masked values as nans
     for i in [0, np.nan, np.inf]:
         grid_array = np.ma.masked_where(grid_array == i, grid_array)
@@ -1038,7 +1038,7 @@ class RaiderStats(object):
             # check if there are any valid data values
             if self.df['phsfit'].isnull().values.all(axis=0):
                 raise Exception("No valid data values, adjust --min_span inputs for time span in years {} and/or fractional obs. {}". \
-                                format(self.min_span[0],self.min_span[1]))
+                                format(self.min_span[0], self.min_span[1]))
             self.df['ampfit'] = self.df['ID'].map(self.ampfit)
             self.df['periodfit'] = self.df['ID'].map(self.periodfit)
             self.phsfit_c = {k: v for d in self.phsfit_c for k, v in d.items()}
@@ -1053,7 +1053,7 @@ class RaiderStats(object):
             if self.grid_seasonal_phase:
                 # Pass mean phase of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['phsfit'].mean()
-                print('unique_points',unique_points)
+                print('unique_points', unique_points)
                 unique_points = unique_points.groupby(['gridnode'])['phsfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
                 self.grid_seasonal_phase = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
@@ -1371,8 +1371,8 @@ class RaiderStats(object):
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
 
                 # adjust precision for colorbar if necessary
-                if (abs(np.nanmax(zvalues)-np.nanmin(zvalues)) < 1 and (np.nanmean(zvalues)) < 1) \
-                       or abs(np.nanmax(zvalues)-np.nanmin(zvalues)) > 500:
+                if (abs(np.nanmax(zvalues) - np.nanmin(zvalues)) < 1 and (np.nanmean(zvalues)) < 1) \
+                        or abs(np.nanmax(zvalues) - np.nanmin(zvalues)) > 500:
                     colorbarfmt = '%.2e'
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm,
@@ -1407,8 +1407,8 @@ class RaiderStats(object):
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
 
             # plot data and initiate colorbar
-            if (abs(np.nanmax(gridarr)-np.nanmin(gridarr)) < 1 and abs(np.nanmean(gridarr)) < 1) \
-                    or abs(np.nanmax(gridarr)-np.nanmin(gridarr)) > 500:
+            if (abs(np.nanmax(gridarr) - np.nanmin(gridarr)) < 1 and abs(np.nanmean(gridarr)) < 1) \
+                    or abs(np.nanmax(gridarr) - np.nanmin(gridarr)) > 500:
                 colorbarfmt = '%.2e'
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,

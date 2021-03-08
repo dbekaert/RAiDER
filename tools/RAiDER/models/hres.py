@@ -36,11 +36,14 @@ class HRES(WeatherModel):
         self._classname = 'od'
         self._dataset = 'hres'
         self._Name = 'HRES'
+        self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(1983, 4, 20), "Present")
         # Availability lag time in days
         self._lag_time = datetime.timedelta(hours=6)
+
+        self._levels = 137
 
         self._a = [
             0.000000, 2.000365, 3.102241, 4.666084, 6.827977,
@@ -98,6 +101,7 @@ class HRES(WeatherModel):
 
     def update_a_b(self):
         # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels
+        self._levels = 91
         self._a = [0.000000, 2.000040, 3.980832, 7.387186, 12.908319, 21.413612, 33.952858,
                    51.746601, 76.167656, 108.715561, 150.986023, 204.637451, 271.356506,
                    352.824493, 450.685791, 566.519226, 701.813354, 857.945801, 1036.166504,
@@ -163,7 +167,6 @@ class HRES(WeatherModel):
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
-        self._proj = CRS.from_epsg(4326)
 
         self._t = t
         self._q = q
@@ -248,7 +251,6 @@ class HRES(WeatherModel):
             lnsp = np.squeeze(block['lnsp'].values)[0, ...]
             lats = np.squeeze(block.latitude.values)
             lons = np.squeeze(block.longitude.values)
-            self._levels = np.squeeze(block.level.values)
             xs = lons.copy()
             ys = lats.copy()
 
@@ -265,6 +267,9 @@ class HRES(WeatherModel):
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
+        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
+            self.update_a_b
+
         # execute the search at ECMWF
         self._download_ecmwf_file(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
 
@@ -275,17 +280,11 @@ class HRES(WeatherModel):
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
 
-        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
-            levels = 91
-            self.update_a_b
-        else:
-            levels = 137
-
         server.execute({
             'class': self._classname,
             'date': datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
             'expver': "{}".format(self._expver),
-            'levelist': "1/to/{0}".format(levels),
+            'levelist': "1/to/{0}".format(self._levels),
             'levtype': "ml",
             'param': "129/130/133/152",
             'stream': "oper",
