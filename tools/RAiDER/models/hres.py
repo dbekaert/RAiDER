@@ -36,6 +36,7 @@ class HRES(WeatherModel):
         self._classname = 'od'
         self._dataset = 'hres'
         self._Name = 'HRES'
+        self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(1983, 4, 20), "Present")
@@ -166,7 +167,6 @@ class HRES(WeatherModel):
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
-        self._proj = CRS.from_epsg(4326)
 
         self._t = t
         self._q = q

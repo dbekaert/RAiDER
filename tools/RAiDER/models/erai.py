@@ -13,7 +13,6 @@ class ERAI(ECMWF):
         self._expver = '0001'
         self._dataset = 'interim'
         self._Name = 'ERA-I'
-        self._proj = CRS.from_epsg(4326)
 
         self._valid_range = (
             datetime.datetime(1979, 1, 1),
