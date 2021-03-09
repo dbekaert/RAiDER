@@ -11,7 +11,11 @@ import RAiDER.runProgram
 
 from RAiDER.utilFcns import gdal_open
 from RAiDER.llreader import (
-    readLLFromLLFiles, readLLFromBBox, readLLFromStationFile, forceNDArray
+    readLL, 
+    readLLFromLLFiles, 
+    readLLFromBBox, 
+    readLLFromStationFile, 
+    forceNDArray
 )
 
 SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
@@ -41,8 +45,6 @@ def test_latlon_reader():
 
 def test_bbox_reade1():
     lat, lon, llproj = readLLFromBBox(['10', '12', '-72', '-70'])
-    print(lat)
-    print(lon)
     assert np.allclose(lat, np.array([10, 12]))
     assert np.allclose(lon, np.array([-72, -70]))
 
@@ -74,6 +76,20 @@ def test_readLL_bbox(parser):
     assert np.allclose(lons, np.array([-115, -104]))
     assert proj == 'EPSG:4326'
 
+    lats, lons, llproj, bounds, flag, pnts_file_name = readLL(args.query_area)
+    lat_true = [20, 27]
+    lon_true = [-115, -104]
+    assert np.allclose(lats, lat_true)
+    assert np.allclose(lons, lon_true)
+    assert llproj == 'EPSG:4326'
+    
+    # Hard code the lat/lon bounds to test against changing the files
+    bounds_true = bbox
+    assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
+
+    assert flag == 'bounding_box'
+    assert pnts_file_name == 'query_points_20_27_-115_-104.h5'
+
 
 def test_readLL_file(parser, station_file):
     args = parser.parse_args([
@@ -90,6 +106,18 @@ def test_readLL_file(parser, station_file):
     assert np.allclose(lats, stats['Lat'].values)
     assert np.allclose(lons, stats['Lon'].values)
     assert proj == 'EPSG:4326'
+
+    lats, lons, llproj, bounds, flag, pnts_file_name = readLL(args.query_area)
+    assert np.allclose(lats, stats['Lat'].values)
+    assert np.allclose(lons, stats['Lon'].values)
+    assert llproj == 'EPSG:4326'
+    
+    # Hard code the lat/lon bounds to test against changing the files
+    bounds_true = [33.746, 36.795, -118.312, -114.892]
+    assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
+
+    assert flag == 'station_file'
+    assert pnts_file_name == 'query_points_stations.h5'
 
 
 def test_readLL_files(parser, llfiles):
@@ -108,3 +136,15 @@ def test_readLL_files(parser, llfiles):
     assert np.allclose(lat_true, lats)
     assert np.allclose(lon_true, lons)
     assert proj == ''
+
+    lats, lons, llproj, bounds, flag, pnts_file_name = readLL(args.query_area)
+    assert np.allclose(lats, lat_true)
+    assert np.allclose(lons, lon_true)
+    assert llproj == ''
+    
+    # Hard code the lat/lon bounds to test against changing the files
+    bounds_true = [15.75, 18.25, -103.25, -99.75]
+    assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
+
+    assert flag == 'files'
+    assert pnts_file_name == 'query_points_lat.h5'
