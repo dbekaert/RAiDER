@@ -154,7 +154,7 @@ def tropo_delay(args):
     write_flag = checkQueryPntsFile(pnts_file, query_shape)
 
     # Throw an error if the user passes the same filename but different points
-    if os.path.exists(pnts_file) and ~write_flag:
+    if os.path.exists(pnts_file) and write_flag:
         logger.error(
             'The input query points file exists but does not match the '
             'shape of the input query points, either change the file '
@@ -286,7 +286,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
     if os.path.exists(pnts_file):
         # Check whether the number of points is consistent with the new inputs
         with h5py.File(pnts_file, 'r') as f:
-            if query_shape == f['x'].attrs['Shape']:
+            if query_shape == f['lon'].attrs['Shape']:
                 write_flag = False
 
     return write_flag
