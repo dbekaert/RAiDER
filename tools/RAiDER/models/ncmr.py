@@ -61,10 +61,17 @@ class NCMR(WeatherModel):
         '''
         self._files = self._download_ncmr_file(out, 'ncmr', time, self._bounds)
 
-    def load_weather(self, filename, *args, **kwargs):
+    def load_weather(self, filename=None, *args, **kwargs):
         '''
         Load NCMR model variables from existing file
         '''
+        if filename is None:
+            filename = self.files[0]
+        
+        # bounding box plus a buffer
+        lat_min, lat_max, lon_min, lon_max = self._ll_bounds
+        self._bounds = (lat_min, lat_max, lon_min, lon_max)
+
         self._makeDataCubes(filename)
 
     def _download_ncmr_file(self, out, ncmr, date_time, bounding_box):
