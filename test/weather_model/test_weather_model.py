@@ -11,9 +11,14 @@ from numpy import nan
 from osgeo import gdal
 from test import DATA_DIR, TEST_DIR, pushd
 
-from RAiDER.constants import Zenith
+from RAiDER.constants import Zenith, _ZMIN, _ZREF
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.models.weatherModel import WeatherModel, find_svp
+from RAiDER.models.weatherModel import (
+        WeatherModel, 
+        find_svp, 
+        make_raw_weather_data_filename,
+        make_weather_model_filename,
+    )
 from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
@@ -83,6 +88,8 @@ class MockWeatherModel(WeatherModel):
         super().__init__()
 
         self._Name = "MOCK"
+        self._valid_range = (datetime.datetime(1970, 1, 1), "Present")
+        self._lag_time = datetime.timedelta(days=15)
 
     def _fetch(self, lats, lons, time, out):
         pass
@@ -94,6 +101,34 @@ class MockWeatherModel(WeatherModel):
 @pytest.fixture
 def model():
     return MockWeatherModel()
+
+
+def test_weatherModel_basic1(model):
+    wm = model
+    assert wm._zmin == _ZMIN
+    assert wm._zmax == _ZREF
+    assert wm.Model() == 'MOCK'
+
+    # check some defaults
+    assert wm._humidityType == 'q'
+
+    wm.setTime(datetime.datetime(2020,1,1, 6, 0, 0))
+    assert wm._time == datetime.datetime(2020,1,1, 6, 0, 0)
+
+    wm.setTime('2020-01-01T00:00:00')
+    assert wm._time == datetime.datetime(2020,1,1, 0, 0, 0)
+
+    wm.setTime('19720229', fmt='%Y%m%d') # test a leap year
+    assert wm._time == datetime.datetime(1972,2,29, 0, 0, 0)
+
+    with pytest.raises(RuntimeError):
+        wm.checkTime(datetime.datetime(1950, 1, 1))
+
+    wm.checkTime(datetime.datetime(2000, 1, 1))
+
+    with pytest.raises(RuntimeError):
+        wm.checkTime(datetime.datetime.now())
+
 
 
 def test_uniform_in_z_small(model):
@@ -160,6 +195,20 @@ def test_uniform_in_z_large(model):
 
     assert np.allclose(model._zs, zlevels, atol=0.05, rtol=0)
 
+
+def test_mwmf():
+    name = 'ERA-5'
+    time = datetime.datetime(2020,1,1)
+    ll_bounds = (-90, 90, -180, 180)
+    assert make_weather_model_filename(name, time, ll_bounds) == \
+            'ERA-5_2020_01_01_T00_00_00_90S_90N_180W_180E.nc'
+
+def test_mrwmf():
+    outLoc = './'
+    name = 'ERA-5'
+    time = datetime.datetime(2020,1,1)
+    assert make_raw_weather_data_filename(outLoc, name, time) == \
+            './ERA-5_2020_01_01_T00_00_00.nc'
 
 def test_checkLL_era5(era5):
     lats_good = np.array([-89, -45, 0, 45, 89])

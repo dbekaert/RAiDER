@@ -180,7 +180,7 @@ class WeatherModel(ABC):
         '''
         # If the weather file has already been processed, do nothing
         self._out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
-        if self.checkWeatherExists(self._out_name):
+        if os.path.exists(self._out_name):
             return self._out_name
         else:
             exists_flag = False
@@ -197,7 +197,6 @@ class WeatherModel(ABC):
 
             # Process the weather model data
             self._find_e()
-            self._checkNotMaskedArrays()
             self._uniform_in_z(_zlevels=_zlevels)
             self._checkForNans()
             self._get_wet_refractivity()
@@ -214,13 +213,6 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-    def checkWeatherExists(self, pathname):
-        ''' Check whether or not the weather model has already been processed '''
-        if os.path.exists(pathname):
-            return True
-        else:
-            return False
 
     def _get_time(self, filename=None):
         if filename is None:
@@ -644,28 +636,6 @@ class WeatherModel(ABC):
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
 
-    def _checkNotMaskedArrays(self):
-        try:
-            self._p = self._p.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._t = self._t.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._e = self._e.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._wet_refractivity = self._wet_refractivity.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._hydrostatic_refractivity = self._hydrostatic_refractivity.filled(fill_value=np.nan)
-        except:
-            pass
-
     def _checkForNans(self):
         '''
         Fill in NaN-values
@@ -908,6 +878,7 @@ def make_raw_weather_data_filename(outLoc, name, time):
         )
     )
     return f
+
 
 def find_svp(t):
     """
