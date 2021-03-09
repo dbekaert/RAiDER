@@ -623,14 +623,14 @@ class WeatherModel(ABC):
 
         # re-assign values to the uniform z
         self._t = interpolate_along_axis(
-                self._zs, self._t, new_zs, axis=2, fill_value=np.nan
-            ).astype(np.float32)
+            self._zs, self._t, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
         self._p = interpolate_along_axis(
-                self._zs, self._p, new_zs, axis=2, fill_value=np.nan
-            ).astype(np.float32)
+            self._zs, self._p, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
         self._e = interpolate_along_axis(
-                self._zs, self._e, new_zs, axis=2, fill_value=np.nan
-            ).astype(np.float32)
+            self._zs, self._e, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
 
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
@@ -912,4 +912,3 @@ def find_svp(t):
     svp[ix_bound2] = svpi[ix_bound2]
 
     return svp * 100
-

@@ -387,31 +387,31 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
 
     elif outformat == 'hdf5':
         writeResultsToHDF5(
-                lats, 
-                lons, 
-                zlevels, 
-                wetDelay, 
-                hydroDelay, 
-                wetFilename, 
-                delayType=delayType
-            )
+            lats,
+            lons,
+            zlevels,
+            wetDelay,
+            hydroDelay,
+            wetFilename,
+            delayType=delayType
+        )
     else:
         writeArrayToRaster(
-                wetDelay, 
-                wetFilename, 
-                noDataValue=ndv,
-                fmt=outformat, 
-                proj=proj, 
-                gt=gt
-            )
+            wetDelay,
+            wetFilename,
+            noDataValue=ndv,
+            fmt=outformat,
+            proj=proj,
+            gt=gt
+        )
         writeArrayToRaster(
-                hydroDelay, 
-                hydroFilename, 
-                noDataValue=ndv,
-                fmt=outformat, 
-                proj=proj, 
-                gt=gt
-            )
+            hydroDelay,
+            hydroFilename,
+            noDataValue=ndv,
+            fmt=outformat,
+            proj=proj,
+            gt=gt
+        )
 
 
 def getTimeFromFile(filename):
@@ -815,7 +815,7 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         varname = dataset_dict[data]['varname']
         datatype = dataset_dict[data]['datatype']
         dimensions = dataset_dict[data]['dimensions']
-        FillValue = -9999. #dataset_dict[data]['FillValue']
+        FillValue = -9999.  # dataset_dict[data]['FillValue']
         ChunkSize = dataset_dict[data]['ChunkSize']
         var = nc_outfile.createVariable(
             varname,
