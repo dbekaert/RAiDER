@@ -96,6 +96,7 @@ def checkArgs(args, p):
 
     # Output
     out = args.out
+    pnts_file = os.path.join(out, 'geom', pnts_file)
     if out is None:
         out = os.getcwd()
     if args.outformat is None:

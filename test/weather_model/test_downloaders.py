@@ -30,8 +30,6 @@ def test_era5t():
         datetime(2020, 1, 1, 0, 0, 0)
     )
 
-
-@pytest.mark.xfail(reason='ECMWF API is not working for some reason, need to revisit')
 def test_erai():
     wm = ERAI()
     wm.fetch(
