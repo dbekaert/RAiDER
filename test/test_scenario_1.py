@@ -98,6 +98,7 @@ def core_test_tropo_delay(tmp_path, modelName):
         args['lons'] = lons
         args['ll_bounds'] = (15.75, 18.25, -103.24, -99.75)
         args['heights'] = ("dem", os.path.join(TEST_DIR, "test_geom", "warpedDEM.dem"))
+        args['pnts_file'] = 'lat_query_points.h5'
         args['flag'] = "files"
         args['weather_model'] = {"type": model_obj(), "files": None, "name": modelName}
         args['wmLoc'] = wmLoc
