@@ -21,6 +21,9 @@ from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
 
 
+def projectDelays(delay, losObject):
+    raise NotImplementedError
+
 def calculate_rays(pnts_file, stepSize=_STEP):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the
@@ -84,6 +87,31 @@ def lla2ecef(pnts_file):
         f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
 
 
+def getInterpolators(wm_file, kind='pointwise'):
+    '''
+    Read 3D gridded data from a processed weather model file and wrap it with 
+    an interpolator
+    '''
+    # Get the weather model data
+    with Dataset(wm_file, mode='r') as f:
+        xs_wm = np.array(f.variables['x'][:])
+        ys_wm = np.array(f.variables['y'][:])
+        zs_wm = np.array(f.variables['z'][:])
+
+        # Can get the point-wise or total delays, depending on what is requested 
+        if kind = 'pointwise':
+            wet = np.array(f.variables['wet'][:]).swapaxes(1, 2).swapaxes(0, 2)
+            hydro = np.array(f.variables['hydro'][:]).swapaxes(1, 2).swapaxes(0, 2)
+        elif kind = 'total':
+            wet = np.array(f.variables['wet_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
+            hydro = np.array(f.variables['hydro_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
+
+    ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
+    ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
+
+    return ifWet, ifHydro
+
+
 def get_delays(
     stepSize,
     pnts_file,
@@ -93,16 +121,7 @@ def get_delays(
     '''
     Create the integration points for each ray path.
     '''
-    # Get the weather model data
-    with Dataset(wm_file, mode='r') as f:
-        xs_wm = np.array(f.variables['x'][:])
-        ys_wm = np.array(f.variables['y'][:])
-        zs_wm = np.array(f.variables['z'][:])
-        wet = np.array(f.variables['wet'][:]).swapaxes(1, 2).swapaxes(0, 2)
-        hydro = np.array(f.variables['hydro'][:]).swapaxes(1, 2).swapaxes(0, 2)
-
-    ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
-    ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
+    ifWet, ifHydro = getInterpolators(wm_file)
 
     with h5py.File(pnts_file, 'r') as f:
         Nrays = f.attrs['NumRays']

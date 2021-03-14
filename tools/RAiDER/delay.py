@@ -11,8 +11,14 @@ import os
 import h5py
 import numpy as np
 from netCDF4 import Dataset
+from pyproj import CRS, Transformer
 
-import RAiDER.delayFcns
+from RAiDER.delayFcns import (
+        getInterpolators,
+        calculate_rays,
+        get_delays,
+        projectDelays,
+    )
 from RAiDER.constants import _STEP, _ZREF, Zenith
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.dem import getHeights
@@ -42,35 +48,17 @@ def computeDelay(
     logger.debug('Reference integration step is {:1.1f} m'.format(step))
 
     # If weather model nodes only are desired, the calculation is very quick
-    if useWeatherNodes:
-        # Get the weather model data
-        with Dataset(weather_model_file_name, mode='r') as f:
-            zs_wm = np.array(f.variables['z'][:])
-            total_wet = np.array(f.variables['wet_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
-            total_hydro = np.array(f.variables['hydro_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
+    calculate_rays(pnts_file_name, step)
 
-        if zlevels is None:
-            return total_wet, total_hydro
-        else:
-            wet_delays = interp_along_axis(zs_wm, zlevels, total_wet, axis=-1)
-            hydro_delays = interp_along_axis(zs_wm, zlevels, total_hydro, axis=-1)
-            return wet_delays, hydro_delays
+    wet, hydro = get_delays(
+        step,
+        pnts_file_name,
+        weather_model_file_name,
+    )
 
-    else:
-        RAiDER.delayFcns.calculate_rays(
-            pnts_file_name,
-            step
-        )
+    logger.debug('Finished delay calculation')
 
-        wet, hydro = RAiDER.delayFcns.get_delays(
-            step,
-            pnts_file_name,
-            weather_model_file_name,
-        )
-
-        logger.debug('Finished delay calculation')
-
-        return wet, hydro
+    return wet, hydro
 
 
 def tropo_delay(args):
@@ -103,6 +91,7 @@ def tropo_delay(args):
     logger.debug('Flag type is {}'.format(flag))
     logger.debug('DEM/height type is "{}"'.format(heights[0]))
 
+    ###########################################################
     # weather model calculation
     useWeatherNodes = flag == 'bounding_box'
     delayType = ["Zenith" if los is Zenith else "LOS"]
@@ -129,7 +118,8 @@ def tropo_delay(args):
                      'are requested, so I am exiting now. ')
         return None, None
 
-    # Pull the DEM.
+    ###########################################################
+    # If query points are specified, pull the height info
     logger.debug('Beginning DEM calculation')
     lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
     logger.debug(
@@ -142,54 +132,74 @@ def tropo_delay(args):
     else:
         zlevels = None
 
-    query_shape = lats.shape
-    logger.debug('Lats shape is {}'.format(query_shape))
-    logger.debug(
-        'lat/lon box is %f/%f/%f/%f (SNWE)',
-        np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
-    )
+    # Do different things if ZTD or STD is requested
+    if los is Zenith:
+        pnts = np.stack([lats, lons, hgts], axis=-1)
+        wetDelay, hydroDelay = getZTD(pnts, weather_model_file)
 
-    # Write the input query points to a file
-    # Check whether the query points file already exists
-    write_flag = checkQueryPntsFile(pnts_file, query_shape)
-
-    # Throw an error if the user passes the same filename but different points
-    if os.path.exists(pnts_file) and write_flag:
-        logger.error(
-            'The input query points file exists but does not match the '
-            'shape of the input query points, either change the file '
-            'name or delete the query points file ({})'.format(pnts_file)
-        )
-        raise ValueError(
-            'The input query points file exists but does not match the '
-            'shape of the input query points, either change the file '
-            'name or delete the query points file ({})'.format(pnts_file)
-        )
-
-    if write_flag:
-        logger.debug('Beginning line-of-sight calculation')
-
-        # Convert the line-of-sight inputs to look vectors
-        los = getLookVectors(los, lats, lons, hgts, zref)
-
-        # write to an HDF5 file
-        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+    elif los is Conventional:
+        pnts = np.stack([lats, lons, hgts], axis=-1)
+        wetDelay, hydroDelay = getZTD(pnts, weather_model_file)
+        wetDelay = projectDelays(wetDelay, los)
+        hydroDelay = projectDelays(hydroDelay, los)
 
     else:
-        logger.warning(
-            'The input query points file already exists and matches the '
-            'shape of the input query points, so I will use it.'
+        ###########################################################
+        # If asking for line-of-sight, do the full raytracing calculation
+        # Requires handling the query points 
+        ###########################################################
+        query_shape = lats.shape
+        logger.debug('Lats shape is {}'.format(query_shape))
+        logger.debug(
+            'lat/lon box is %f/%f/%f/%f (SNWE)',
+            np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
         )
 
-    # Compute the delays
-    wetDelay, hydroDelay = computeDelay(
-        weather_model_file,
-        pnts_file,
-        useWeatherNodes,
-        zlevels,
-        zref,
-        out=out,
-    )
+        # Write the input query points to a file
+        # Check whether the query points file already exists
+        write_flag = checkQueryPntsFile(pnts_file, query_shape)
+
+        # Throw an error if the user passes the same filename but different points
+        if os.path.exists(pnts_file) and write_flag:
+            logger.error(
+                'The input query points file exists but does not match the '
+                'shape of the input query points, either change the file '
+                'name or delete the query points file ({})'.format(pnts_file)
+            )
+            raise ValueError(
+                'The input query points file exists but does not match the '
+                'shape of the input query points, either change the file '
+                'name or delete the query points file ({})'.format(pnts_file)
+            )
+
+        if write_flag:
+            logger.debug('Beginning line-of-sight calculation')
+
+            # Convert the line-of-sight inputs to look vectors
+            los = getLookVectors(los, lats, lons, hgts, zref)
+
+            # write to an HDF5 file
+            writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+
+        else:
+            logger.warning(
+                'The input query points file already exists and matches the '
+                'shape of the input query points, so I will use it.'
+            )
+
+        ###########################################################
+        wetDelay, hydroDelay = computeDelay(
+            weather_model_file,
+            pnts_file,
+            useWeatherNodes,
+            zlevels,
+            zref,
+            out=out,
+        )
+
+    ###########################################################
+    # Write the delays to file
+    # Different options depending on the inputs 
 
     if heights[0] == 'lvs':
         outName = wetFilename[0].replace('wet', 'delays')
@@ -290,3 +300,21 @@ def checkQueryPntsFile(pnts_file, query_shape):
                 write_flag = False
 
     return write_flag
+
+
+def getZTD(pnts, weather_model_file):
+    '''Compute Zenith delays'''
+    t = Transformer.from_proj(
+            CRS.from_epsg(4978), 
+            getProjFromWMFile(weather_model_file), 
+            always_xy=True
+        )
+    pnts_transformed = t.transform(pnts)
+
+    # Get the weather model data
+    ifWet, ifHydro = getInterpolators(wm_file, 'total')
+    wetDelay = ifWet(pnts_transformed)
+    hydroDelay = ifHydro(pnts_transformed)
+
+    return wetDelay, hydroDelay
+
