@@ -30,9 +30,9 @@ jobs:
             echo key: $cdsak >> $HOME/.cdsapirc
          
             echo { > $HOME/.ecmwfapi
-            echo '"url": "https://api.ecmwf.int/v1",' >> $HOME/.ecmwfapi
-            echo '"email": "'$ecmwfu'",' >> $HOME/.ecmwfapi
-            echo '"key": "'$ecmwfk'"' >> $HOME/.ecmwfapi
+            echo '  "url": "https://api.ecmwf.int/v1",' >> $HOME/.ecmwfapi
+            echo '  "email": "'$ecmwfu'",' >> $HOME/.ecmwfapi
+            echo '  "key": "'$ecmwfk'"' >> $HOME/.ecmwfapi
             echo } >> $HOME/.ecmwfapi
 
             python --version
