@@ -29,11 +29,11 @@ jobs:
             echo url: https://cds.climate.copernicus.eu/api/v2 > $HOME/.cdsapirc
             echo key: $cdsak >> $HOME/.cdsapirc
          
-            echo { > $HOME/.ecmwfapi
-            echo '  "url": "https://api.ecmwf.int/v1",' >> $HOME/.ecmwfapi
-            echo '  "email": "'$ecmwfu'",' >> $HOME/.ecmwfapi
-            echo '  "key": "'$ecmwfk'"' >> $HOME/.ecmwfapi
-            echo } >> $HOME/.ecmwfapi
+            echo { > $HOME/.ecmwfapirc
+            echo '  "url": "https://api.ecmwf.int/v1",' >> $HOME/.ecmwfapirc
+            echo '  "email": "'$ecmwfu'",' >> $HOME/.ecmwfapirc
+            echo '  "key": "'$ecmwfk'"' >> $HOME/.ecmwfapirc
+            echo } >> $HOME/.ecmwfapirc
 
             python --version
             python -c "import numpy; print(numpy.__version__)"
