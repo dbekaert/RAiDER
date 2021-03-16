@@ -113,7 +113,7 @@ class MERRA2(WeatherModel):
         print(session)
         print(ds)
         print(ds['QV'])
-        print((time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)))
+#        print((time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)))
 
         ############# The MERRA-2 server changes the pydap data retrieval format frequently between these two formats; so better to retain both of them rather than only using either one of them #############
 #        try:
