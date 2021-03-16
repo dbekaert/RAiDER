@@ -103,19 +103,24 @@ def tropo_delay(args):
 
     # Do different things if ZTD or STD is requested
     if (los is Zenith) or (los is Conventional):
+        # Transform the query points if needed
+        pnt_proj = CRS.from_epsg(4326)
+        wm_proj = getProjFromWMFile(weather_model_file).to_string()
+        if wm_proj != pnt_proj:
+            pnts = transformPoints(
+                    lats, 
+                    lons, 
+                    hgts, 
+                    pnt_proj, 
+                    wm_proj
+                )
+        else:
+            # interpolators require y, x, z
+            pnts = np.stack([lats, lons, hgts], axis=-1)
 
         # either way I'll need the ZTD
-        wm_proj = getProjFromWMFile(weather_model_file).to_string()
-        pnts_transformed = transformPoints(
-                lats, 
-                lons, 
-                hgts, 
-                "epsg:4978", 
-                wm_proj
-            )
-
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
-        wetDelay, hydroDelay = getZTD(ifWet, ifHydro, pnts_transformed)
+        wetDelay, hydroDelay = getZTD(ifWet, ifHydro, pnts)
 
         # Now do the projection if Conventional slant delay is requested 
         if los is Conventional:
@@ -257,4 +262,4 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
     the array of query points in the weather model coordinate system
     '''
     t = Transformer.from_crs(old_proj, new_proj)
-    return np.stack(t.transform(lats, lons, hgts), axis=-1)
+    return np.stack(t.transform(lats, lons, hgts), axis=-1).T

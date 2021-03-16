@@ -100,11 +100,11 @@ def getInterpolators(wm_file, kind='pointwise'):
 
         # Can get the point-wise or total delays, depending on what is requested 
         if kind == 'pointwise':
-            wet = np.array(f.variables['wet'][:]).swapaxes(1, 2).swapaxes(0, 2)
-            hydro = np.array(f.variables['hydro'][:]).swapaxes(1, 2).swapaxes(0, 2)
+            wet = np.array(f.variables['wet'][:]).transpose(1, 2, 0)
+            hydro = np.array(f.variables['hydro'][:]).transpose(1, 2, 0)
         elif kind == 'total':
-            wet = np.array(f.variables['wet_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
-            hydro = np.array(f.variables['hydro_total'][:]).swapaxes(1, 2).swapaxes(0, 2)
+            wet = np.array(f.variables['wet_total'][:]).transpose(1, 2, 0)
+            hydro = np.array(f.variables['hydro_total'][:]).transpose(1, 2, 0)
 
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)

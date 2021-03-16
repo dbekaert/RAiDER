@@ -142,7 +142,6 @@ def core_test_tropo_delay(tmp_path, modelName):
         )
 
         # get the true delay from the weather model
-        import pdb; pdb.set_trace()
         assert np.allclose(
             wet,
             true_wet,

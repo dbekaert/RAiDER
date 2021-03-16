@@ -54,8 +54,8 @@ def test_transformPoints(pnts):
     lats, lons, heights = pnts
     old = pyproj.crs.CRS(4326)
     new = pyproj.crs.CRS(4978)
-    tpnts = transformPoints(lats, lons, heights, old, new).T
-    tru_points = np.array([[ 6144598.8363915 ,   544920.48311418,  6378137.        ],
-       [ 1306074.801505  , -1900363.56355715,        0.        ]])
+    tpnts = transformPoints(lats, lons, heights, old, new)
+    tru_points = np.array([[ 1941205.46084971, -5974416.08913184,  1100248.54773536],
+       [ 1719884.01344839, -5997948.350231  ,  1317402.5312296 ]]).T
     assert np.allclose(tpnts, tru_points)
 
