@@ -30,37 +30,6 @@ from RAiDER.utilFcns import (
 )
 
 
-def computeDelay(
-    weather_model_file_name,
-    pnts_file_name,
-    useWeatherNodes=False,
-    zlevels=None,
-    zref=_ZREF,
-    step=_STEP,
-    out=None,
-):
-    """
-    Calculate troposphere delay using a weather model file and query 
-    points file. 
-    """
-    logger.debug('Beginning delay calculation')
-    logger.debug('Max integration height is {:1.1f} m'.format(zref))
-    logger.debug('Reference integration step is {:1.1f} m'.format(step))
-
-    # If weather model nodes only are desired, the calculation is very quick
-    calculate_rays(pnts_file_name, step)
-
-    wet, hydro = get_delays(
-        step,
-        pnts_file_name,
-        weather_model_file_name,
-    )
-
-    logger.debug('Finished delay calculation')
-
-    return wet, hydro
-
-
 def tropo_delay(args):
     """
     raiderDelay main function.
@@ -90,6 +59,7 @@ def tropo_delay(args):
     logger.debug('Time: {}'.format(time.strftime('%Y%m%d')))
     logger.debug('Flag type is {}'.format(flag))
     logger.debug('DEM/height type is "{}"'.format(heights[0]))
+    logger.debug('Max integration height is {:1.1f} m'.format(zref))
 
     ###########################################################
     # weather model calculation
@@ -112,10 +82,13 @@ def tropo_delay(args):
 
     if download_only:
         return None, None
-
-    if (los is Zenith) and (heights[0] == 'skip'):
-        logger.debug('Only Zenith delays at the weather model nodes '
-                     'are requested, so I am exiting now. ')
+    elif useWeatherNodes:
+        logger.debug(
+            'Only Zenith delays at the weather model nodes '
+            'are requested, so I am exiting now. Delays have '
+            'been written to the weather model file; see '
+            '{}'.format(weather_model_file)
+        )
         return None, None
 
     ###########################################################
@@ -127,21 +100,20 @@ def tropo_delay(args):
         np.nanmin(hgts), np.nanmax(hgts)
     )
 
-    if heights[0] == 'lvs':
-        zlevels = hgts
-    else:
-        zlevels = None
-
     # Do different things if ZTD or STD is requested
-    if los is Zenith:
-        pnts = np.stack([lats, lons, hgts], axis=-1)
-        wetDelay, hydroDelay = getZTD(pnts, weather_model_file)
+    if (los is Zenith) or (los is Conventional):
 
-    elif los is Conventional:
-        pnts = np.stack([lats, lons, hgts], axis=-1)
-        wetDelay, hydroDelay = getZTD(pnts, weather_model_file)
-        wetDelay = projectDelays(wetDelay, los)
-        hydroDelay = projectDelays(hydroDelay, los)
+        # either way I'll need the ZTD
+        wm_proj = getProjFromWMFile(weather_model_file), 
+        pnts_transformed = getTransformedPoints(lats, lons, heights, wm_proj)
+
+        ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
+        wetDelay, hydroDelay = getZTD(ifWet, ifHydro, pnts_transformed)
+
+        # Now do the projection if Conventional slant delay is requested 
+        if los is Conventional:
+            wetDelay = projectDelays(wetDelay, los)
+            hydroDelay = projectDelays(hydroDelay, los)
 
     else:
         ###########################################################
@@ -187,15 +159,18 @@ def tropo_delay(args):
                 'shape of the input query points, so I will use it.'
             )
 
-        ###########################################################
-        wetDelay, hydroDelay = computeDelay(
-            weather_model_file,
+        logger.debug('Beginning raytracing calculation')
+        logger.debug('Reference integration step is {:1.1f} m'.format(step))
+
+        calculate_rays(pnts_file, step)
+
+        wet, hydro = get_delays(
+            step,
             pnts_file,
-            useWeatherNodes,
-            zlevels,
-            zref,
-            out=out,
+            weather_model_file,
         )
+
+        logger.debug('Finished raytracing calculation')
 
     ###########################################################
     # Write the delays to file
@@ -206,12 +181,6 @@ def tropo_delay(args):
         writeDelays(flag, wetDelay, hydroDelay, lats, lons,
                     outName, zlevels=hgts, outformat=outformat, delayType=delayType)
         logger.info('Finished writing data to %s', outName)
-
-    elif useWeatherNodes:
-        logger.info(
-            'Delays have been written to the weather model file; see %s',
-            weather_model_file
-        )
 
     else:
         if not isinstance(wetFilename, str):
@@ -224,67 +193,6 @@ def tropo_delay(args):
         logger.info('Finished writing data to %s', wetFilename)
 
     return wetDelay, hydroDelay
-
-
-def weather_model_debug(
-    los,
-    lats,
-    lons,
-    ll_bounds,
-    weather_model,
-    wmLoc,
-    zref,
-    time,
-    out,
-    download_only
-):
-    """
-    raiderWeatherModelDebug main function.
-    """
-
-    log.debug('Starting to run the weather model calculation with debugging plots')
-    log.debug('Time type: %s', type(time))
-    log.debug('Time: %s', time.strftime('%Y%m%d'))
-
-    # location of the weather model files
-    logger.debug('Beginning weather model pre-processing')
-    logger.debug('Download-only is %s', download_only)
-    if wmLoc is None:
-        wmLoc = os.path.join(out, 'weather_files')
-
-    # weather model calculation
-    wm_filename = make_weather_model_filename(
-        weather_model['name'],
-        time,
-        ll_bounds
-    )
-    weather_model_file = os.path.join(wmLoc, wm_filename)
-
-    if not os.path.exists(weather_model_file):
-        prepareWeatherModel(
-            weather_model,
-            time,
-            wmLoc=wmLoc,
-            lats=lats,
-            lons=lons,
-            ll_bounds=ll_bounds,
-            zref=zref,
-            download_only=download_only,
-            makePlots=True
-        )
-        try:
-            weather_model.write2NETCDF4(weather_model_file)
-        except Exception:
-            logger.exception("Unable to save weathermodel to file")
-
-        del weather_model
-    else:
-        logger.warning(
-            'Weather model already exists, please remove it ("%s") if you want '
-            'to create a new one.', weather_model_file
-        )
-
-    return 1
 
 
 def checkQueryPntsFile(pnts_file, query_shape):
@@ -302,19 +210,48 @@ def checkQueryPntsFile(pnts_file, query_shape):
     return write_flag
 
 
-def getZTD(pnts, weather_model_file):
-    '''Compute Zenith delays'''
-    t = Transformer.from_proj(
-            CRS.from_epsg(4978), 
-            getProjFromWMFile(weather_model_file), 
-            always_xy=True
-        )
-    pnts_transformed = t.transform(pnts)
+def getZTD(ifWet, ifHydro, pnts):
+    '''
+    Interpolate 3D total delays to get ZTD at irregular points.
+    
+    Parameters
+    ----------
+    ifWet   - interpolator object for wet total delays
+    ifHydro - interpolator object for hydrostatic total delays
+    pnts    - query points in the same projection as the interpolator objects
 
+    Returns
+    -------
+    wetDelay  - wet total delays for the query points
+    hydroDelay- hydrostatic total delaysfor the query points
+    '''
     # Get the weather model data
-    ifWet, ifHydro = getInterpolators(wm_file, 'total')
-    wetDelay = ifWet(pnts_transformed)
-    hydroDelay = ifHydro(pnts_transformed)
+    wetDelay = ifWet(pnts)
+    hydroDelay = ifHydro(pnts)
 
     return wetDelay, hydroDelay
+
+
+def getTransformedPoints(lats, lons, hgts, new_proj):
+    '''
+    Transform lat/lon/hgt data to an array of points in a new 
+    projection
+    
+    Parameters
+    ----------
+    lats - WGS-84 latitude (EPSG: 4326)
+    lons - ditto for longitude
+    hgts - Ellipsoidal height in meters
+    new_proj - the new projection in which to return the points
+
+    Returns
+    -------
+    the array of query points in the weather model coordinate system
+    '''
+    pnts = np.stack([lats, lons, hgts], axis=-1)
+    t = Transformer.from_proj(
+            CRS.from_epsg(4978), 
+            new_proj,
+        )
+    return t.transform(pnts)
 

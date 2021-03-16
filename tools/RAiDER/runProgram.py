@@ -1,16 +1,18 @@
 import argparse
+import copy
+import multiprocessing
+import numpy as np
+
 from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
-from RAiDER.delay import tropo_delay, weather_model_debug
+from RAiDER.delay import tropo_delay
 from RAiDER.logger import *
 from RAiDER.models.allowed import ALLOWED_MODELS
-import multiprocessing
-import numpy as np
-import copy
+from RAiDER.processWM import weather_model_debug
 
 
 def create_parser():
