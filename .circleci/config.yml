@@ -52,7 +52,7 @@ jobs:
             raiderStats.py -h
             raiderDownloadGNSS.py -h
             raiderWeatherModelDebug.py -h
-	    raiderDelay.py --date 20200103 --time 23:00:00 -b 39 40 -79 -78 --model MERRA2 --zref 15000 --heightlvs 0 100 200 -v
+            raiderDelay.py --date 20200103 --time 23:00:00 -b 39 40 -79 -78 --model MERRA2 --zref 15000 --heightlvs 0 100 200 -v
       - run:
           name: Run unit tests
           command: |
