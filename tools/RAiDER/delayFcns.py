@@ -24,6 +24,7 @@ from RAiDER.makePoints import makePoints1D
 def projectDelays(delay, losObject):
     raise NotImplementedError
 
+
 def calculate_rays(pnts_file, stepSize=_STEP):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the
@@ -98,7 +99,7 @@ def getInterpolators(wm_file, kind='pointwise'):
         ys_wm = np.array(f.variables['y'][:])
         zs_wm = np.array(f.variables['z'][:])
 
-        # Can get the point-wise or total delays, depending on what is requested 
+        # Can get the point-wise or total delays, depending on what is requested
         if kind == 'pointwise':
             wet = np.array(f.variables['wet'][:]).transpose(1, 2, 0)
             hydro = np.array(f.variables['hydro'][:]).transpose(1, 2, 0)

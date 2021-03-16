@@ -15,12 +15,12 @@ from pyproj import CRS, Transformer
 
 from RAiDER.constants import _STEP, _ZREF, Zenith, Conventional
 from RAiDER.delayFcns import (
-        getInterpolators,
-        calculate_rays,
-        get_delays,
-        projectDelays,
-        getProjFromWMFile,
-    )
+    getInterpolators,
+    calculate_rays,
+    get_delays,
+    projectDelays,
+    getProjFromWMFile,
+)
 from RAiDER.dem import getHeights
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.logger import *
@@ -108,12 +108,12 @@ def tropo_delay(args):
         wm_proj = getProjFromWMFile(weather_model_file).to_string()
         if wm_proj != pnt_proj:
             pnts = transformPoints(
-                    lats, 
-                    lons, 
-                    hgts, 
-                    pnt_proj, 
-                    wm_proj
-                )
+                lats,
+                lons,
+                hgts,
+                pnt_proj,
+                wm_proj
+            )
         else:
             # interpolators require y, x, z
             pnts = np.stack([lats, lons, hgts], axis=-1)
@@ -122,7 +122,7 @@ def tropo_delay(args):
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay, hydroDelay = getZTD(ifWet, ifHydro, pnts)
 
-        # Now do the projection if Conventional slant delay is requested 
+        # Now do the projection if Conventional slant delay is requested
         if los is Conventional:
             wetDelay = projectDelays(wetDelay, los)
             hydroDelay = projectDelays(hydroDelay, los)
@@ -130,7 +130,7 @@ def tropo_delay(args):
     else:
         ###########################################################
         # If asking for line-of-sight, do the full raytracing calculation
-        # Requires handling the query points 
+        # Requires handling the query points
         ###########################################################
         query_shape = lats.shape
         logger.debug('Lats shape is {}'.format(query_shape))
@@ -186,7 +186,7 @@ def tropo_delay(args):
 
     ###########################################################
     # Write the delays to file
-    # Different options depending on the inputs 
+    # Different options depending on the inputs
 
     if heights[0] == 'lvs':
         outName = wetFilename[0].replace('wet', 'delays')
@@ -225,7 +225,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
 def getZTD(ifWet, ifHydro, pnts):
     '''
     Interpolate 3D total delays to get ZTD at irregular points.
-    
+
     Parameters
     ----------
     ifWet   - interpolator object for wet total delays
@@ -248,7 +248,7 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
     '''
     Transform lat/lon/hgt data to an array of points in a new 
     projection
-    
+
     Parameters
     ----------
     lats - WGS-84 latitude (EPSG: 4326)
