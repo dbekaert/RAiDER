@@ -13,15 +13,16 @@ import numpy as np
 from netCDF4 import Dataset
 from pyproj import CRS, Transformer
 
+from RAiDER.constants import _STEP, _ZREF, Zenith, Conventional
 from RAiDER.delayFcns import (
         getInterpolators,
         calculate_rays,
         get_delays,
         projectDelays,
+        getProjFromWMFile,
     )
-from RAiDER.constants import _STEP, _ZREF, Zenith
-from RAiDER.interpolator import interp_along_axis
 from RAiDER.dem import getHeights
+from RAiDER.interpolator import interp_along_axis
 from RAiDER.logger import *
 from RAiDER.losreader import getLookVectors
 from RAiDER.processWM import prepareWeatherModel
@@ -104,8 +105,14 @@ def tropo_delay(args):
     if (los is Zenith) or (los is Conventional):
 
         # either way I'll need the ZTD
-        wm_proj = getProjFromWMFile(weather_model_file), 
-        pnts_transformed = getTransformedPoints(lats, lons, heights, wm_proj)
+        wm_proj = getProjFromWMFile(weather_model_file).to_string()
+        pnts_transformed = transformPoints(
+                lats, 
+                lons, 
+                hgts, 
+                "epsg:4978", 
+                wm_proj
+            )
 
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay, hydroDelay = getZTD(ifWet, ifHydro, pnts_transformed)
@@ -204,7 +211,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
     if os.path.exists(pnts_file):
         # Check whether the number of points is consistent with the new inputs
         with h5py.File(pnts_file, 'r') as f:
-            if query_shape == f['lon'].attrs['Shape']:
+            if np.all(query_shape == f['lon'].attrs['Shape']):
                 write_flag = False
 
     return write_flag
@@ -232,7 +239,7 @@ def getZTD(ifWet, ifHydro, pnts):
     return wetDelay, hydroDelay
 
 
-def getTransformedPoints(lats, lons, hgts, new_proj):
+def transformPoints(lats, lons, hgts, old_proj, new_proj):
     '''
     Transform lat/lon/hgt data to an array of points in a new 
     projection
@@ -242,16 +249,12 @@ def getTransformedPoints(lats, lons, hgts, new_proj):
     lats - WGS-84 latitude (EPSG: 4326)
     lons - ditto for longitude
     hgts - Ellipsoidal height in meters
+    old_proj - the original projection of the points
     new_proj - the new projection in which to return the points
 
     Returns
     -------
     the array of query points in the weather model coordinate system
     '''
-    pnts = np.stack([lats, lons, hgts], axis=-1)
-    t = Transformer.from_proj(
-            CRS.from_epsg(4978), 
-            new_proj,
-        )
-    return t.transform(pnts)
-
+    t = Transformer.from_crs(old_proj, new_proj)
+    return np.stack(t.transform(lats, lons, hgts), axis=-1)
