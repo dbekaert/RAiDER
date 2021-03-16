@@ -107,7 +107,13 @@ class MERRA2(WeatherModel):
         url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
         session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
         ds = pydap.client.open_url(url, session=session)
-        
+#        import pdb
+#        pdb.set_trace()
+        print(url)
+        print(session)
+        print(ds)
+        print(ds['QV'])
+        print((time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)))
 
         ############# The MERRA-2 server changes the pydap data retrieval format frequently between these two formats; so better to retain both of them rather than only using either one of them #############
 #        try:
