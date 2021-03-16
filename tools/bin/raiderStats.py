@@ -22,6 +22,7 @@ if __name__ == "__main__":
         inps.spacing,
         inps.timeinterval,
         inps.seasonalinterval,
+        inps.obs_errlimit,
         inps.figdpi,
         inps.user_title,
         inps.plot_fmt,
@@ -50,5 +51,6 @@ if __name__ == "__main__":
         inps.period_limit,
         inps.variogramplot,
         inps.binnedvariogram,
-        inps.variogram_per_timeslice
+        inps.variogram_per_timeslice,
+        inps.variogram_errlimit
     )
