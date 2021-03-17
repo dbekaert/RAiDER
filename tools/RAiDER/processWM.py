@@ -9,15 +9,15 @@
 import contextlib
 import os
 import sys
-
 import numpy as np
 import matplotlib.pyplot as plt
 import xarray as xr
-
+import rasterio
 from datetime import datetime, date
-
 from RAiDER.logger import *
 from RAiDER.utilFcns import getTimeFromFile
+from RAiDER.models import weatherModel
+from shapely.geometry import box
 
 
 def prepareWeatherModel(
@@ -65,12 +65,9 @@ def prepareWeatherModel(
     else:
         time = getTimeFromFile(weather_model.files[0])
         weather_model.setTime(time)
-        in_extent, wm_extent = checkBounds(weather_model, lats, lons)
+        containment = checkContainment(weather_model, lats, lons)
 
-        logger.info('Extent of the input lats/lons is: {}'.format(in_extent))
-        logger.info('Extent of the weather model is: {}'.format(wm_extent))
-
-        if weather_model._isOutside(in_extent, wm_extent):
+        if not containment:
             logger.error(
                 'The weather model passed does not cover all of the input '
                 'points; you need to download a larger area.'
@@ -140,16 +137,22 @@ def prepareWeatherModel(
         del weather_model
 
 
-def checkBounds(weather_model, outLats, outLons):
-    '''Check the bounds of a weather model'''
-    ds = xr.load_dataset(weather_model.files[0])
-    coords = ds.coords  # coords is dict-like
-    keys = [k for k in coords.keys()]
-    xc = coords[keys[0]]
-    yc = coords[keys[1]]
-    lat_bounds = [yc.min(), yc.max()]
-    lon_bounds = [xc.min(), xc.max()]
-    self_extent = lat_bounds + lon_bounds
-    in_extent = weather_model._getExtent(outLats, outLons)
+def checkContainment(weather_model: weatherModel,
+                     outLats: np.ndarray,
+                     outLons: np.ndarray) -> bool:
+    '''Check if weather model contains bounding box of outLats and outLons'''
+    weather_model_path = weather_model.files[0]
+    with rasterio.open(f'netcdf:{weather_model_path}') as ds:
+        datasets = ds.subdatasets
 
-    return in_extent, self_extent
+    with rasterio.open(datasets[0]) as ds:
+        bounds = ds.bounds
+
+    xmin, ymin, xmax, ymax = tuple(bounds)
+    weather_model_box = box(xmin, ymin, xmax, ymax)
+
+    xmin, xmax = np.min(outLons), np.max(outLons)
+    ymin, ymax = np.min(outLats), np.max(outLats)
+    input_box = box(xmin, ymin, xmax, ymax)
+
+    return weather_model_box.contains(input_box)
