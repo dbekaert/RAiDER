@@ -30,6 +30,7 @@ dependencies:
  - pygrib
  - pyproj>=2.1.0
  - pytest
+ - rasterio
  - scipy
  - shapely
  - sysroot_linux-64
