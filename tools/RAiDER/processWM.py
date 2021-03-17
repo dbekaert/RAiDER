@@ -6,17 +6,13 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import contextlib
 import os
-import sys
 import numpy as np
-import matplotlib.pyplot as plt
-import xarray as xr
 import rasterio
-from datetime import datetime, date
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
 from RAiDER.models import weatherModel
+import matplotlib.pyplot as plt
 from shapely.geometry import box
 
 
@@ -33,8 +29,9 @@ def prepareWeatherModel(
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
-    weather_model, weather_files, weather_model_name = \
-        weatherDict['type'], weatherDict['files'], weatherDict['name']
+    weather_model, weather_files = (weatherDict['type'],
+                                    weatherDict['files']
+                                    )
     weather_model.files = weather_files
 
     # Ensure the file output location exists
@@ -47,12 +44,13 @@ def prepareWeatherModel(
     if weather_model.files is None:
         if time is None:
             raise RuntimeError(
-                'prepareWeatherModel: Either a file or a time must be specified'
+               'prepareWeatherModel: Either a file or a time must be specified'
             )
         weather_model.filename(time, wmLoc)
         if os.path.exists(weather_model.files[0]):
             logger.warning(
-                'Weather model already exists, please remove it ("%s") if you want '
+                'Weather model already exists, '
+                'please remove it ("%s") if you want '
                 'to download a new one.', weather_model.files
             )
             download_flag = False
@@ -104,7 +102,8 @@ def prepareWeatherModel(
             np.prod(weather_model.getWetRefractivity().shape)
         )
     )
-    logger.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
+    shape = weather_model.getWetRefractivity().shape
+    logger.debug(f'Shape of weather model: {shape}')
     logger.debug(
         'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
         np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
@@ -122,8 +121,8 @@ def prepareWeatherModel(
     logger.debug(weather_model)
 
     if makePlots:
-        p = weather_model.plot('wh', True)
-        p = weather_model.plot('pqt', True)
+        weather_model.plot('wh', True)
+        weather_model.plot('pqt', True)
         plt.close('all')
 
     try:
@@ -151,8 +150,19 @@ def checkContainment(weather_model: weatherModel,
     xmin, ymin, xmax, ymax = tuple(bounds)
     weather_model_box = box(xmin, ymin, xmax, ymax)
 
-    xmin, xmax = np.min(outLons), np.max(outLons)
-    ymin, ymax = np.min(outLats), np.max(outLats)
-    input_box = box(xmin, ymin, xmax, ymax)
+    xmin_input, xmax_input = np.min(outLons), np.max(outLons)
+    ymin_input, ymax_input = np.min(outLats), np.max(outLats)
+    input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
+
+    # Logger
+    input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
+                                           xmax_input, ymax_input]]
+    weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
+
+    weath_box_str = ', '.join(weath_box_str)
+    input_box_str = ', '.join(input_box_str)
+
+    logger.info(f'Extent of the weather model lats/lons is: {weath_box_str}')
+    logger.info(f'Extent of the input lats/lons is: {input_box_str}')
 
     return weather_model_box.contains(input_box)
