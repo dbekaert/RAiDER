@@ -128,7 +128,6 @@ class MERRA2(WeatherModel):
             logger.exception("MERRA-2: Unable to read weathermodel data")
         ########################################################################################################################
     
-
         try:
             writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
         except Exception as e:

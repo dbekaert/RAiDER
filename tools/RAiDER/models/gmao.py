@@ -140,9 +140,13 @@ class GMAO(WeatherModel):
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
+            writeWeatherVars2NETCDF4(self, lats, lons, h.data, q.data, p.data, t.data, outName=out)
+        except AttributeError:
             writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
-        except Exception:
+        except Exception as e:
+            logger.debug(e)
             logger.exception("Unable to save weathermodel to file")
+            raise RuntimeError('GMAO failed with the following error: {}'.format(e))
 
     def load_weather(self, f=None):
         '''

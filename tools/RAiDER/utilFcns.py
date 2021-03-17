@@ -807,14 +807,12 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         var.setncattr('description', dataset_dict[data]['description'])
         if 'units' in dataset_dict[data]:
             var.setncattr('units', dataset_dict[data]['units'])
-
         ndmask = np.isnan(dataset_dict[data]['dataset'])
         dataset_dict[data]['dataset'][ndmask] = FillValue
 
         var[:] = dataset_dict[data]['dataset'].astype(datatype)
 
     return nc_outfile
-
 
 def convertLons(inLons):
     '''Convert lons from 0-360 to -180-180'''

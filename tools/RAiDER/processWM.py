@@ -143,17 +143,14 @@ def prepareWeatherModel(
 def checkBounds(weather_model, outLats, outLons):
     '''Check the bounds of a weather model'''
     ds = xr.load_dataset(weather_model.files[0])
-    
     try:
         xc = convertLons(ds.longitude.values)
     except AttributeError:
         xc = convertLons(ds.x.values)
-    
     try:
         yc = ds.latitude.values
     except AttributeError:
         yc = ds.y.values
-    
     lat_bounds = [yc.min(), yc.max()]
     lon_bounds = [xc.min(), xc.max()]
     self_extent = lat_bounds + lon_bounds

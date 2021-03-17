@@ -244,7 +244,6 @@ class HRES(WeatherModel):
             lnsp = np.squeeze(block['lnsp'].values)[0, ...]
             lats = np.squeeze(block.latitude.values)
             lons = np.squeeze(block.longitude.values)
-            
             xs = lons.copy()
             ys = lats.copy()
 
@@ -289,3 +288,4 @@ class HRES(WeatherModel):
             'area': "{}/{}/{}/{}".format(lat_max, lon_min, lat_min, lon_max),
             'format': "netcdf", },
             out)
+
