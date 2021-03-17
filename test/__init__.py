@@ -4,6 +4,7 @@ from pathlib import Path
 
 test_dir = Path(__file__).parents[0]
 
+
 @contextmanager
 def pushd(dir):
     """
