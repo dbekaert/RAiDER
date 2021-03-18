@@ -26,6 +26,7 @@ THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS.
   - [Other Installation Options](#other-installation-options)
   - [Common Installation Issues](#common-installation-issues)
   - [Testing your installation](#testing-your-installation)
+    - [To enable automatic CircleCI Tests from a pull requests](#to-enable-automatic-circleci-tests-from-a-pull-requests)
   - [4. Setup of third party weather model access](#4-setup-of-third-party-weather-model-access)
   - [5. Running RAiDER and Documentation](#5-running-raider-and-documentation)
   - [6. Citation](#6-citation)
@@ -126,6 +127,10 @@ To test the installation was successfull you can run the following tests:
 py.test test/
 raiderDelay.py -h
 ```
+
+### To enable automatic CircleCI Tests from a pull requests
+
+You will need to make sure that CircleCI is an authorized OAuth application from Github. Simply sign in [here](https://circleci.com/vcs-authorize/) using your github account.
 
 ------
 ## 4. Setup of third party weather model access
