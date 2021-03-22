@@ -6,7 +6,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-from RAiDER.gnss.processDelayFiles import parseCMD_raider
+from RAiDER.gnss.processDelayFiles import parseCMD
 
 if __name__ == '__main__':
-    parseCMD_raider()
+    parseCMD()

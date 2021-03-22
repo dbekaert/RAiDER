@@ -134,14 +134,6 @@ def create_parser():
     )
 
     p.add_argument(
-        '--gnss', dest='gnss_file',
-        help=dedent("""\
-            .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
-            """),
-        required=True
-    )
-
-    p.add_argument(
         '--raider', dest='raider_file',
         help=dedent("""\
             .csv file containing RAiDER-derived Zenith Delays. 
@@ -159,6 +151,14 @@ def create_parser():
             column "ID" as the delay column names.
             """),
         default=os.getcwd()
+    )
+
+    p.add_argument(
+        '--gnss', dest='gnss_file',
+        help=dedent("""\
+            .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
+            """),
+        default=None
     )
 
     p.add_argument(
@@ -201,50 +201,16 @@ def parseCMD():
 
     p = create_parser()
     args = p.parse_args()
-
-    if os.path.exists(args.raider_file):
-        mergeDelayFiles(args.raider_file, args.gnss_file, col_name=args.column_name, raider_delay=args.raider_column_name, outName=args.out_name)
-    else:
+    
+    if ~os.path.exists(args.raider_file):
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
-        mergeDelayFiles(args.raider_file, args.gnss_file, col_name=args.column_name, raider_delay=args.raider_column_name, outName=args.out_name)
 
+    if args.gnss_file is not None:
+        mergeDelayFiles(
+                args.raider_file, 
+                args.gnss_file, 
+                col_name=args.column_name, 
+                raider_delay=args.raider_column_name, 
+                outName=args.out_name
+            )
 
-def parseCMD_raider():
-    """
-    Parse command-line arguments and pass to tropo_delay
-    We'll parse arguments and call delay.py.
-    """
-
-    p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=dedent("""\
-            Combine delay files from a RAiDER run
-            Usage examples:
-            raiderCombine_raider.py --dir_name delays/ -o Combined_delays.csv
-            """)
-    )
-
-    p.add_argument(
-        '--dir_name', '-d', dest='dir_name',
-        help=dedent("""\
-            Directory containing .csv files containing RAiDER-derived Zenith Delays. 
-            """),
-        required=True
-    )
-
-    p.add_argument(
-        '--out',
-        '-o',
-        dest='out_name',
-        help=dedent("""\
-            Name to use for the combined delay file
-            """),
-        default='Combined_delays.csv'
-    )
-
-    args = p.parse_args()
-
-    combineDelayFiles(
-        args.out_name, 
-        loc=args.dir_name
-    )
