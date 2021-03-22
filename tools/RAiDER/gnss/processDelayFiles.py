@@ -105,7 +105,7 @@ def mergeDelayFiles(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDela
 
     print('Beginning merge')
 
-    dfc = dfr.merge(dfz[['ID', 'Datetime', 'ZTD']], how='inner', left_on=['Datetime', 'ID'], right_on=['Datetime', 'ID'], sort=True)
+    dfc = dfr.merge(dfz[['ID', 'Datetime', 'ZTD']], how='left', left_on=['Datetime', 'ID'], right_on=['Datetime', 'ID'], sort=True)
     dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
 
     print('Merge finished')
