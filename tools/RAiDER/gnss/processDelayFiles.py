@@ -156,7 +156,7 @@ def create_parser():
     p.add_argument(
         '--gnss', dest='gnss_file',
         help=dedent("""\
-            .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
+            Optional .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
             """),
         default=None
     )
@@ -166,7 +166,7 @@ def create_parser():
         '-r',
         dest='raider_column_name',
         help=dedent("""\
-            Name of the column containing RAiDER delays.
+            Name of the column containing RAiDER delays. Only used with the "--gnss" option
             """),
         default='totalDelay'
     )
@@ -175,7 +175,8 @@ def create_parser():
         '-c',
         dest='column_name',
         help=dedent("""\
-            Name of the column containing GPS Zenith delays.
+            Name of the column containing GPS Zenith delays. Only used with the "--gnss" option
+
             """),
         default='ZTD'
     )
@@ -185,7 +186,8 @@ def create_parser():
         '-o',
         dest='out_name',
         help=dedent("""\
-            Name to use for the combined delay file
+            Name to use for the combined delay file. Only used with the "--gnss" option
+
             """),
         default='Combined_delays.csv'
     )
