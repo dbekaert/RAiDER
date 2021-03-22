@@ -41,9 +41,15 @@ def addDateTimeToFiles(fileList, force=False):
                 're-process'.format(f)
             )
         else:
-            dt = getDateTime(f)
-            data['Datetime'] = dt
-            data.to_csv(f, index=False)
+            try:
+                dt = getDateTime(f)
+                data['Datetime'] = dt
+                data.to_csv(f, index=False)
+            except (AttributeError, ValueError):
+                print(
+                    'File {} does not contain datetime info, skipping'
+                    .format(f)
+                )
         del data
 
 
@@ -51,8 +57,11 @@ def getDateTime(filename):
     ''' Parse a datetime from a RAiDER delay filename '''
     filename = os.path.basename(filename)
     dtr = re.compile(r'\d{8}T\d{6}')
-    dt = dtr.match(filename)
-    return datetime.datetime.strptime(dt, '%Y%m%dT%H%M%S')
+    dt = dtr.search(filename)
+    return datetime.datetime.strptime(
+            dt.group(), 
+            '%Y%m%dT%H%M%S'
+        )
 
 
 def concatDelayFiles(
