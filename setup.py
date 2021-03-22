@@ -105,6 +105,7 @@ setup(
     scripts=[
         'tools/bin/prepARIA.py',
         'tools/bin/raiderCombine.py',
+        'tools/bin/raiderGNSSCombine.py',
         'tools/bin/raiderDelay.py',
         'tools/bin/raiderStats.py',
         'tools/bin/raiderDownloadGNSS.py',
