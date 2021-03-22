@@ -20,8 +20,8 @@ def combineDelayFiles(outName, loc=os.getcwd(), ext='.csv'):
 
     print('Combining weather model delay files')
     concatDelayFiles(
-        files, 
-        sort_list=['ID', 'Datetime'], 
+        files,
+        sort_list=['ID', 'Datetime'],
         outName=outName
     )
 
@@ -56,11 +56,11 @@ def getDateTime(filename):
 
 
 def concatDelayFiles(
-        fileList, 
-        sort_list=['ID','Datetime'], 
-        return_df=False, 
-        outName=None
-    ):
+    fileList,
+    sort_list=['ID', 'Datetime'],
+    return_df=False,
+    outName=None
+):
     ''' 
     Read a list of .csv files containing the same columns and append them 
     together, sorting by specified columns 
@@ -73,9 +73,9 @@ def concatDelayFiles(
         dfList.append(pd.read_csv(f))
 
     df_c = pd.concat(
-            dfList, 
-            ignore_index=True
-        ).drop_duplicates().reset_index(drop=True)
+        dfList,
+        ignore_index=True
+    ).drop_duplicates().reset_index(drop=True)
     df_c.sort_values(by=sort_list, inplace=True)
 
     if return_df or outName is None:
@@ -203,16 +203,15 @@ def parseCMD():
 
     p = create_parser()
     args = p.parse_args()
-    
+
     if ~os.path.exists(args.raider_file):
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
 
     if args.gnss_file is not None:
         mergeDelayFiles(
-                args.raider_file, 
-                args.gnss_file, 
-                col_name=args.column_name, 
-                raider_delay=args.raider_column_name, 
-                outName=args.out_name
-            )
-
+            args.raider_file,
+            args.gnss_file,
+            col_name=args.column_name,
+            raider_delay=args.raider_column_name,
+            outName=args.out_name
+        )
