@@ -5,7 +5,7 @@ import xarray as xr
 
 from pyproj import CRS
 
-from RAiDER import utilFcns as util
+from RAiDER.utilFcns import round_date, convertLons
 from RAiDER.models.weatherModel import WeatherModel
 
 
@@ -230,14 +230,7 @@ class HRES(WeatherModel):
         S, N, W, E = self._ll_bounds
 
         with xr.open_dataset(fname) as ds:
-            if np.min(ds.longitude) >= 0:
-                flag = True
-            else:
-                flag = False
-
-            if flag:
-                W += 360
-                E += 360
+            ds = ds.assign_coords(longitude=(((ds.longitude + 180) % 360) - 180))
 
             # mask based on query bounds
             m1 = (S <= ds.latitude) & (N >= ds.latitude)
@@ -251,6 +244,7 @@ class HRES(WeatherModel):
             lnsp = np.squeeze(block['lnsp'].values)[0, ...]
             lats = np.squeeze(block.latitude.values)
             lons = np.squeeze(block.longitude.values)
+            
             xs = lons.copy()
             ys = lats.copy()
 
@@ -278,7 +272,7 @@ class HRES(WeatherModel):
 
         server = ECMWFService("mars")
 
-        corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        corrected_date = round_date(time, datetime.timedelta(hours=6))
 
         server.execute({
             'class': self._classname,

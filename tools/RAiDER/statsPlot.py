@@ -79,6 +79,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                            help="Subset in time by specifying earliest YYYY-MM-DD date followed by latest date YYYY-MM-DD. -- Example : '2016-01-01 2019-01-01'.")
     dtsubsets.add_argument('-si', '--seasonalinterval', dest='seasonalinterval', type=str, default=None,
                            help="Subset in by an specific interval for each year by specifying earliest MM-DD time followed by latest MM-DD time. -- Example : '03-21 06-21'.")
+    dtsubsets.add_argument('-oe', '--obs_errlimit', dest='obs_errlimit', type=float, default='inf',
+                          help="Observation error threshold to discard observations with large uncertainties.")
 
     # Plot formatting/options
     pltformat = parser.add_argument_group(
@@ -152,6 +154,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                           help="Apply experimental variogram fit to total binned empirical variograms for each time slice. Default is to pass total unbinned empiricial variogram.")
     pltvario.add_argument('-variogram_per_timeslice', '--variogram_per_timeslice', action='store_true', dest='variogram_per_timeslice',
                           help="Generate variogram plots per gridded station AND time-slice.")
+    pltvario.add_argument('-variogram_errlimit', '--variogram_errlimit', dest='variogram_errlimit', type=float, default='inf',
+                          help="Variogram RMSE threshold to discard grid-cells with large uncertainties.")
 
     return parser
 
@@ -166,7 +170,8 @@ def convert_SI(val, unit_in, unit_out):
         Convert input to desired units
     '''
 
-    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.}
+    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000., 
+          'mm^2': 1e-6, 'cm^2': 1e-4, 'm^2': 1.0, 'km^2': 1e+6}
     # check if output unit is supported
     if unit_out not in SI:
         raise Exception("User-specified output unit {} not recognized.".format(unit_out))
@@ -238,6 +243,9 @@ def load_gridfile(fname, unit):
     spacing = float(metadata_dict['spacing'])
     colorbarfmt = metadata_dict['colorbarfmt']
     inputunit = metadata_dict['unit']
+    # adjust conversion if native units are squared
+    if '^2' in inputunit:
+        unit = unit.split('^2')[0] + '^2'
     # convert to specified output unit
     grid_array = convert_SI(grid_array, inputunit, unit)
 
@@ -254,7 +262,7 @@ class VariogramAnalysis():
         Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis.
     '''
 
-    def __init__(self, filearg, gridpoints, col_name, unit='m', workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, variogram_per_timeslice=False):
+    def __init__(self, filearg, gridpoints, col_name, unit='m', workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, variogram_per_timeslice=False, variogram_errlimit='inf'):
         self.df = filearg
         self.col_name = col_name
         self.unit = unit
@@ -265,6 +273,7 @@ class VariogramAnalysis():
         self.binnedvariogram = binnedvariogram
         self.numCPUs = numCPUs
         self.variogram_per_timeslice = variogram_per_timeslice
+        self.variogram_errlimit = float(variogram_errlimit)
 
     def _get_samples(self, data, Nsamp=1000):
         '''
@@ -507,6 +516,11 @@ class VariogramAnalysis():
             self.TOT_good_slices.append([grid_ind, tot_timetag])
             self.TOT_res_robust_arr.append(TOT_res_robust.x)
             self.TOT_tot_timetag.append(tot_timetag)
+            var_rmse =  np.sqrt(np.nanmean((TOT_res_robust.fun)**2))
+            if var_rmse <= self.variogram_errlimit:
+                self.TOT_res_robust_rmse.append(var_rmse)
+            else:
+                self.TOT_res_robust_rmse.append(np.array(np.nan))
             # Plot empirical variogram for this gridnode
             self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
                                 workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists_arr, vario=vario_arr,
@@ -519,7 +533,7 @@ class VariogramAnalysis():
         else:
             self.sparse_grids.append(grid_ind)
 
-        return self.TOT_good_slices, self.TOT_res_robust_arr, self.gridcenterlist
+        return self.TOT_good_slices, self.TOT_res_robust_arr, self.TOT_res_robust_rmse, self.gridcenterlist
 
     def create_variograms(self):
         '''
@@ -528,6 +542,7 @@ class VariogramAnalysis():
         # track data for plotting
         self.TOT_good_slices = []
         self.TOT_res_robust_arr = []
+        self.TOT_res_robust_rmse = []
         self.TOT_tot_timetag = []
         # track pass/rejected grids
         self.sparse_grids = []
@@ -542,10 +557,11 @@ class VariogramAnalysis():
             args.append((i, grid_subset))
         # Parallelize iteration through all grid-cells and time slices
         with multiprocessing.Pool(self.numCPUs) as multipool:
-            for i, j, k in multipool.starmap(self._append_variogram, args):
+            for i, j, k, l in multipool.starmap(self._append_variogram, args):
                 self.TOT_good_slices.extend(i)
                 self.TOT_res_robust_arr.extend(j)
-                self.gridcenterlist.extend(k)
+                self.TOT_res_robust_rmse.extend(k)
+                self.gridcenterlist.extend(l)
 
         # save grid-center lookup table
         self.gridcenterlist = [list(i) for i in set(tuple(j)
@@ -560,7 +576,7 @@ class VariogramAnalysis():
 
         TOT_grids = [i[0] for i in self.TOT_good_slices]
 
-        return TOT_grids, self.TOT_res_robust_arr
+        return TOT_grids, self.TOT_res_robust_arr, self.TOT_res_robust_rmse
 
     def plot_variogram(self, gridID, timeslice, coords, workdir='./', d_test=None, v_test=None, res_robust=None, dists=None, vario=None, dists_binned=None, vario_binned=None, seasonalinterval=None):
         '''
@@ -626,10 +642,11 @@ class RaiderStats(object):
     import glob
 
     def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, \
-                 stationsongrids=False, station_seasonal_phase=False, cbounds=None, colorpercentile=[25, 95], grid_heatmap=False, \
-                 grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False, grid_seasonal_phase=False, grid_delay_absolute_mean=False, \
-                 grid_delay_absolute_median=False, grid_delay_absolute_stdev=False, grid_seasonal_absolute_phase=False, \
-                 grid_to_raster=False, min_span=[2, 0.6], period_limit=0.5, numCPUs=8, phaseamp_per_station=False):
+                 obs_errlimit='inf', stationsongrids=False, station_seasonal_phase=False, cbounds=None, colorpercentile=[25, 95], \
+                 grid_heatmap=False, grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False, grid_seasonal_phase=False, \
+                 grid_delay_absolute_mean=False, grid_delay_absolute_median=False, grid_delay_absolute_stdev=False, \
+                 grid_seasonal_absolute_phase=False, grid_to_raster=False, min_span=[2, 0.6], period_limit=0.5, numCPUs=8, \
+                 phaseamp_per_station=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -638,6 +655,7 @@ class RaiderStats(object):
         self.spacing = spacing
         self.timeinterval = timeinterval
         self.seasonalinterval = seasonalinterval
+        self.obs_errlimit = float(obs_errlimit)
         self.stationsongrids = stationsongrids
         self.station_seasonal_phase = station_seasonal_phase
         self.cbounds = cbounds
@@ -823,6 +841,12 @@ class RaiderStats(object):
         # convert to specified output unit
         inputunit = 'm'
         data[self.col_name] = convert_SI(data[self.col_name], inputunit, self.unit)
+        # filter out obs by error
+        if 'sigZTD' in data.keys():
+            data['sigZTD'] = convert_SI(data['sigZTD'], inputunit, self.unit)
+            data = data[data['sigZTD'] <= self.obs_errlimit]
+        else:
+            raise Warning('Key "sigZTD" not found in dataset, cannot filter out obs by error')
 
         return data
 
@@ -1485,6 +1509,7 @@ def stats_analyses(
     spacing,
     timeinterval,
     seasonalinterval,
+    obs_errlimit,
     figdpi,
     user_title,
     plot_fmt,
@@ -1513,7 +1538,8 @@ def stats_analyses(
     period_limit,
     variogramplot,
     binnedvariogram,
-    variogram_per_timeslice
+    variogram_per_timeslice,
+    variogram_errlimit
 ):
     '''
     Main workflow for generating a suite of plots to illustrate spatiotemporal distribution
@@ -1546,7 +1572,7 @@ def stats_analyses(
     logger.info("***Stats Function:***")
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing, \
-                           timeinterval, seasonalinterval, stationsongrids, station_seasonal_phase, cbounds, colorpercentile, \
+                           timeinterval, seasonalinterval, obs_errlimit, stationsongrids, station_seasonal_phase, cbounds, colorpercentile, \
                            grid_heatmap, grid_delay_mean, grid_delay_median, grid_delay_stdev, grid_seasonal_phase, \
                            grid_delay_absolute_mean, grid_delay_absolute_median, grid_delay_absolute_stdev, \
                            grid_seasonal_absolute_phase, grid_to_raster, min_span, period_limit, numCPUs, phaseamp_per_station)
@@ -1700,8 +1726,8 @@ def stats_analyses(
         logger.info("***Variogram Analysis Function:***")
         make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, col_name, unit, workdir,
                                             df_stats.seasonalinterval, densitythreshold, binnedvariogram,
-                                            numCPUs, variogram_per_timeslice)
-        TOT_grids, TOT_res_robust_arr = make_variograms.create_variograms()
+                                            numCPUs, variogram_per_timeslice, variogram_errlimit)
+        TOT_grids, TOT_res_robust_arr, TOT_res_robust_rmse = make_variograms.create_variograms()
         # get range
         df_stats.grid_range = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][0]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
@@ -1710,6 +1736,8 @@ def stats_analyses(
         # get sill
         df_stats.grid_variance = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_arr[TOT_grids.index(
             i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
+        # convert sill to specified output unit
+        df_stats.grid_range = convert_SI(df_stats.grid_range, 'm^2', unit.split('^2')[0] + '^2')
         # If specified, save gridded array(s)
         if grid_to_raster:
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_range' + '.tif')
@@ -1719,7 +1747,7 @@ def stats_analyses(
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variance' + '.tif')
             # write sill
             save_gridfile(df_stats.grid_variance, 'grid_heatmap', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
-                          df_stats.unit, colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+                          df_stats.unit+'^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
 
     if isinstance(df_stats.grid_range, np.ndarray):
         # plot range heatmap
@@ -1747,6 +1775,7 @@ if __name__ == "__main__":
         inps.spacing,
         inps.timeinterval,
         inps.seasonalinterval,
+        inps.obs_errlimit,
         inps.figdpi,
         inps.plot_fmt,
         inps.cbounds,
@@ -1774,5 +1803,6 @@ if __name__ == "__main__":
         inps.period_limit,
         inps.variogramplot,
         inps.binnedvariogram,
-        inps.variogram_per_timeslice
+        inps.variogram_per_timeslice,
+        inps.variogram_errlimit
     )

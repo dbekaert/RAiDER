@@ -17,7 +17,7 @@ import xarray as xr
 from datetime import datetime, date
 
 from RAiDER.logger import *
-from RAiDER.utilFcns import getTimeFromFile
+from RAiDER.utilFcns import getTimeFromFile, convertLons
 
 
 def prepareWeatherModel(
@@ -143,10 +143,17 @@ def prepareWeatherModel(
 def checkBounds(weather_model, outLats, outLons):
     '''Check the bounds of a weather model'''
     ds = xr.load_dataset(weather_model.files[0])
-    coords = ds.coords  # coords is dict-like
-    keys = [k for k in coords.keys()]
-    xc = coords[keys[0]]
-    yc = coords[keys[1]]
+    
+    try:
+        xc = convertLons(ds.longitude.values)
+    except AttributeError:
+        xc = convertLons(ds.x.values)
+    
+    try:
+        yc = ds.latitude.values
+    except AttributeError:
+        yc = ds.y.values
+    
     lat_bounds = [yc.min(), yc.max()]
     lon_bounds = [xc.min(), xc.max()]
     self_extent = lat_bounds + lon_bounds

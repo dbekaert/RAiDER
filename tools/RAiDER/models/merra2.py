@@ -107,7 +107,6 @@ class MERRA2(WeatherModel):
         url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
         session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
         ds = pydap.client.open_url(url, session=session)
-        
 
         ############# The MERRA-2 server changes the pydap data retrieval format frequently between these two formats; so better to retain both of them rather than only using either one of them #############
         try:
@@ -115,18 +114,27 @@ class MERRA2(WeatherModel):
             p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        except:
+        except IndexError:
+            q = ds['QV'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+            p = ds['PL'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+            t = ds['T'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+            h = ds['H'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        except AttributeError:
             q = ds['QV'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        except:
+            logger.exception("MERRA-2: Unable to read weathermodel data")
         ########################################################################################################################
     
 
         try:
             writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
-        except Exception:
-            logger.exception("Unable to save weathermodel to file")
+        except Exception as e:
+            logger.debug(e)
+            logger.exception("MERRA-2: Unable to save weathermodel to file")
+            raise RuntimeError('MERRA-2 failed with the following error: {}'.format(e))
 
     def load_weather(self, *args, f=None, **kwargs):
         '''

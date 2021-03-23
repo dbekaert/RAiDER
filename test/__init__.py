@@ -1,18 +1,10 @@
 import inspect
 import os
+
 from contextlib import contextmanager
+from pathlib import Path
 
-
-def get_test_dir():
-    """
-    Return the absolute path to the test directory.
-    """
-    source_file = inspect.getsourcefile(lambda: None)
-    if os.path.isfile(source_file):
-        return os.path.dirname(os.path.abspath(source_file))
-
-    return os.getcwd()
-
+test_dir = Path(__file__).parents[0]
 
 @contextmanager
 def pushd(dir):
@@ -25,6 +17,6 @@ def pushd(dir):
     os.chdir(prevdir)
 
 
-TEST_DIR = get_test_dir()
+TEST_DIR = test_dir.absolute()
 DATA_DIR = os.path.join(TEST_DIR, "data")
 GEOM_DIR = os.path.join(TEST_DIR, 'test_geom')
