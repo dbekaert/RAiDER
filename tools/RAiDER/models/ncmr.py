@@ -101,7 +101,7 @@ class NCMR(WeatherModel):
 
         
         ############# For now, directly use pre-downloaded files that Prashant sent; Remove it when actually downloading NCMR data from a weblink #############
-        filepath = os.path.dirname(out) + '/NCUM_ana_mdllev_20180701_00z.nc'
+#        filepath = os.path.dirname(out) + '/NCUM_ana_mdllev_20180701_00z.nc'
         ########################################################################################################################
 
         
