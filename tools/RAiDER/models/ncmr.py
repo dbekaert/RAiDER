@@ -7,6 +7,11 @@ import numpy as np
 from pyproj import CRS
 from RAiDER import utilFcns as util
 from RAiDER.models.weatherModel import WeatherModel
+#import os
+
+from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.logger import *
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, requests_retry_session
 
 
 class NCMR(WeatherModel):
@@ -59,7 +64,7 @@ class NCMR(WeatherModel):
         '''
         download data of the NCMR model and save it in desired location
         '''
-        self._files = self._download_ncmr_file(out, 'ncmr', time, self._bounds)
+        self._files = self._download_ncmr_file(out, time, self._bounds)
 
     def load_weather(self, filename=None, *args, **kwargs):
         '''
@@ -67,23 +72,39 @@ class NCMR(WeatherModel):
         '''
         if filename is None:
             filename = self.files[0]
-        
-        # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._ll_bounds
-        self._bounds = (lat_min, lat_max, lon_min, lon_max)
 
         self._makeDataCubes(filename)
 
-    def _download_ncmr_file(self, out, ncmr, date_time, bounding_box):
+    def _download_ncmr_file(self, out, date_time, bounding_box):
         '''
+        Download weather model data (whole globe) from NCMR weblink, crop it to the region of interest, and save the cropped data as a standard .nc file of RAiDER (e.g. "NCMR_YYYY_MM_DD_THH_MM_SS.nc");
         Temporarily download data from NCMR ftp 'https://ftp.ncmrwf.gov.in/pub/outgoing/SAC/NCUM_OSF/' and copied in weather_models folder
         '''
-        pass
-
-    def _makeDataCubes(self, filename):
-
+        
         from netCDF4 import Dataset
+        
+        ############# Uncomment these lines and modify the link when actually downloading NCMR data from a weblink #############
+#        root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
+#        base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_{time.hour:02}00.V01.nc4'
+#        url = f'{root.format(time.year, time.month, time.day)}/{base}'
+#        filepath = '{}_raw{}'.format(*os.path.splitext(out))
+#        if not os.path.exists(filepath):
+#            logger.info('Fetching URL: %s', url)
+#            session = requests_retry_session()
+#            resp = session.get(url, stream=True)
+#            assert resp.ok, f'Could not access url for time: {time}'
+#            with open(filepath, 'wb') as fh:
+#                shutil.copyfileobj(resp.raw, fh)
+#        else:
+#            logger.warning('Weather model already exists, skipping download')
+        ########################################################################################################################
 
+        
+        ############# For now, directly use pre-downloaded files that Prashant sent; Remove it when actually downloading NCMR data from a weblink #############
+        filepath = os.path.dirname(out) + '/NCUM_ana_mdllev_20180701_00z.nc'
+        ########################################################################################################################
+
+        
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-89.94141)) / self._lat_res)
         lat_max_ind = int((self._bounds[1] - (-89.94141)) / self._lat_res)
@@ -98,8 +119,8 @@ class NCMR(WeatherModel):
 
         ml_min = 0
         ml_max = 70
-
-        with Dataset(filename, 'r', maskandscale=True) as f:
+        
+        with Dataset(filepath, 'r', maskandscale=True) as f:
             lats = f.variables['latitude'][lat_min_ind:(lat_max_ind + 1)].copy()
             if (self._bounds[2] * self._bounds[3] < 0):
                 lons1 = f.variables['longitude'][lon_min_ind:].copy()
@@ -113,7 +134,7 @@ class NCMR(WeatherModel):
                 t = np.append(t1, t2, axis=2)
             else:
                 t = f.variables['air_temperature'][ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
-
+            
             # Skipping first pressure levels (below 20 meter)
             if (self._bounds[2] * self._bounds[3] < 0):
                 q1 = f.variables['specific_humidity'][(ml_min + 1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
@@ -127,7 +148,7 @@ class NCMR(WeatherModel):
                 p = np.append(p1, p2, axis=2)
             else:
                 p = f.variables['air_pressure'][(ml_min + 1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
-
+            
             level_hgt = f.variables['level_height'][(ml_min + 1):(ml_max + 1)].copy()
             if (self._bounds[2] * self._bounds[3] < 0):
                 surface_alt1 = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
@@ -135,42 +156,67 @@ class NCMR(WeatherModel):
                 surface_alt = np.append(surface_alt1, surface_alt2, axis=1)
             else:
                 surface_alt = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
-
+            
             hgt = np.zeros([len(level_hgt), len(surface_alt[:, 1]), len(surface_alt[1, :])])
             for i in range(len(level_hgt)):
                 hgt[i, :, :] = surface_alt[:, :] + level_hgt[i]
-
+            
             lons[lons > 180] -= 360
 
-            # re-assign lons, lats to match heights
-            _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
-                                    t.shape)
-            _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
-                                    t.shape)
+                
+        ############# For now, use pre-downloaded raw data files and don't want to remove them for test; Uncomment it when actually downloading NCMR data from a weblink #############
+#        os.remove(filepath)
+        ########################################################################################################################
 
-            # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
-            _lats = np.transpose(_lats)
-            _lons = np.transpose(_lons)
-            t = np.transpose(t)
-            q = np.transpose(q)
-            p = np.transpose(p)
-            hgt = np.transpose(hgt)
-            del surface_alt, i, level_hgt
+        try:
+            writeWeatherVars2NETCDF4(self, lats, lons, hgt, q, p, t, outName=out)
+        except Exception:
+            logger.exception("Unable to save weathermodel to file")
 
-            # data cube format should be lats,lons,heights
-            p = p.swapaxes(0, 1)
-            q = q.swapaxes(0, 1)
-            t = t.swapaxes(0, 1)
-            hgt = hgt.swapaxes(0, 1)
-            _lats = _lats.swapaxes(0, 1)
-            _lons = _lons.swapaxes(0, 1)
 
-            # assign the regular-grid variables
-            self._p = p
-            self._q = q
-            self._t = t
-            self._lats = _lats
-            self._lons = _lons
-            self._xs = _lons
-            self._ys = _lats
-            self._zs = hgt
+    def _makeDataCubes(self, filename):
+        '''
+        Get the variables from the saved .nc file (named as "NCMR_YYYY_MM_DD_THH_MM_SS.nc")
+        '''
+        from netCDF4 import Dataset
+        
+        # adding the import here should become absolute when transition to netcdf
+        with Dataset(filename, mode='r') as f:
+            lons = np.array(f.variables['x'][:])
+            lats = np.array(f.variables['y'][:])
+            hgt = np.array(f.variables['H'][:])
+            q = np.array(f.variables['QV'][:])
+            p = np.array(f.variables['PL'][:])
+            t = np.array(f.variables['T'][:])
+
+        # re-assign lons, lats to match heights
+        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+                                t.shape)
+        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+                                t.shape)
+
+        # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
+        _lats = np.transpose(_lats)
+        _lons = np.transpose(_lons)
+        t = np.transpose(t)
+        q = np.transpose(q)
+        p = np.transpose(p)
+        hgt = np.transpose(hgt)
+
+        # data cube format should be lats,lons,heights
+        p = p.swapaxes(0, 1)
+        q = q.swapaxes(0, 1)
+        t = t.swapaxes(0, 1)
+        hgt = hgt.swapaxes(0, 1)
+        _lats = _lats.swapaxes(0, 1)
+        _lons = _lons.swapaxes(0, 1)
+
+        # assign the regular-grid variables
+        self._p = p
+        self._q = q
+        self._t = t
+        self._lats = _lats
+        self._lons = _lons
+        self._xs = _lons
+        self._ys = _lats
+        self._zs = hgt
