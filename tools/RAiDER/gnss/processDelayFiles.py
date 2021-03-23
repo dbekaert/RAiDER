@@ -2,6 +2,8 @@ import argparse
 import datetime
 import glob
 import os
+import re
+
 from tqdm import tqdm
 
 import pandas as pd
@@ -17,7 +19,11 @@ def combineDelayFiles(outName, loc=os.getcwd(), ext='.csv'):
     addDateTimeToFiles(files)
 
     print('Combining weather model delay files')
-    concatDelayFiles(files, sort_list=['Datetime', 'ID'], outName=outName)
+    concatDelayFiles(
+        files,
+        sort_list=['ID', 'Datetime'],
+        outName=outName
+    )
 
 
 def addDateTimeToFiles(fileList, force=False):
@@ -29,23 +35,41 @@ def addDateTimeToFiles(fileList, force=False):
         data = pd.read_csv(f)
 
         if 'Datetime' in data.columns and not force:
-            print('Files already have a "Datetime" column, pass "force = True" if you want to override and re-process')
-            return
-        dt = getDateTime(f)
-        data['Datetime'] = dt
-        data.to_csv(f, index=False)
+            print(
+                'File {} already has a "Datetime" column, pass'
+                '"force = True" if you want to override and '
+                're-process'.format(f)
+            )
+        else:
+            try:
+                dt = getDateTime(f)
+                data['Datetime'] = dt
+                data.to_csv(f, index=False)
+            except (AttributeError, ValueError):
+                print(
+                    'File {} does not contain datetime info, skipping'
+                    .format(f)
+                )
         del data
 
 
 def getDateTime(filename):
     ''' Parse a datetime from a RAiDER delay filename '''
     filename = os.path.basename(filename)
-    parts = filename.split('_')
-    dt = parts[2]
-    return datetime.datetime.strptime(dt, '%Y%m%dT%H%M%S')
+    dtr = re.compile(r'\d{8}T\d{6}')
+    dt = dtr.search(filename)
+    return datetime.datetime.strptime(
+            dt.group(), 
+            '%Y%m%dT%H%M%S'
+        )
 
 
-def concatDelayFiles(fileList, sort_list=['Datetime', 'ID'], return_df=False, outName=None):
+def concatDelayFiles(
+    fileList,
+    sort_list=['ID', 'Datetime'],
+    return_df=False,
+    outName=None
+):
     ''' 
     Read a list of .csv files containing the same columns and append them 
     together, sorting by specified columns 
@@ -57,8 +81,17 @@ def concatDelayFiles(fileList, sort_list=['Datetime', 'ID'], return_df=False, ou
     for f in tqdm(fileList):
         dfList.append(pd.read_csv(f))
 
-    df_c = pd.concat(dfList, ignore_index=True).drop_duplicates().reset_index(drop=True)
+    df_c = pd.concat(
+        dfList,
+        ignore_index=True
+    ).drop_duplicates().reset_index(drop=True)
     df_c.sort_values(by=sort_list, inplace=True)
+
+    print('Total number of rows in the concatenated file: {}'.format(df_c.shape[0]))
+    print('Total number of rows containing NaNs: {}'.format(
+            df_c[df_c.isna().any(axis=1)].shape[0]
+        )
+    )
 
     if return_df or outName is None:
         return df_c
@@ -66,11 +99,16 @@ def concatDelayFiles(fileList, sort_list=['Datetime', 'ID'], return_df=False, ou
         df_c.to_csv(outName, index=False)
 
 
-def mergeDelayFiles(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName=None):
+def mergeDelayFiles(
+        raiderFile, 
+        ztdFile, 
+        col_name='ZTD', 
+        raider_delay='totalDelay', 
+        outName=None
+    ):
     '''
     Merge a combined RAiDER delays file with a GPS ZTD delay file
     '''
-
     print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
 
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
@@ -78,9 +116,20 @@ def mergeDelayFiles(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDela
 
     print('Beginning merge')
 
-    dfc = dfr.merge(dfz[['ID', 'Datetime', 'ZTD']], how='inner', left_on=['Datetime', 'ID'], right_on=['Datetime', 'ID'], sort=True)
+    dfc = dfr.merge(
+            dfz[['ID', 'Datetime', 'ZTD']], 
+            how='left', 
+            left_on=['Datetime', 'ID'], 
+            right_on=['Datetime', 'ID'], 
+            sort=True
+        )
     dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
 
+    print('Total number of rows in the concatenated file: {}'.format(dfc.shape[0]))
+    print('Total number of rows containing NaNs: {}'.format(
+            dfc[dfc.isna().any(axis=1)].shape[0]
+        )
+    )
     print('Merge finished')
 
     if outName is None:
@@ -111,16 +160,9 @@ def create_parser():
         description=dedent("""\
             Combine delay files from a weather model and GPS Zenith delays
             Usage examples:
-            raiderCombine.py --gnss UNRCombined_gnss.csv --raiderLoc ERA5/ --raider ERA5_combined_delays.csv -o Combined_delays.csv --column ERA5
+            raiderCombine.py --raiderDir './*' --raider 'combined_raider_delays.csv'
+            raiderCombine.py  --raiderDir ERA5/ --raider ERA5_combined_delays.csv --gnss UNRCombined_gnss.csv -o Combined_delays.csv 
             """)
-    )
-
-    p.add_argument(
-        '--gnss', dest='gnss_file',
-        help=dedent("""\
-            .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
-            """),
-        required=True
     )
 
     p.add_argument(
@@ -144,11 +186,19 @@ def create_parser():
     )
 
     p.add_argument(
+        '--gnss', dest='gnss_file',
+        help=dedent("""\
+            Optional .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
+            """),
+        default=None
+    )
+
+    p.add_argument(
         '--raider_column',
         '-r',
         dest='raider_column_name',
         help=dedent("""\
-            Name of the column containing RAiDER delays.
+            Name of the column containing RAiDER delays. Only used with the "--gnss" option
             """),
         default='totalDelay'
     )
@@ -157,7 +207,8 @@ def create_parser():
         '-c',
         dest='column_name',
         help=dedent("""\
-            Name of the column containing GPS Zenith delays.
+            Name of the column containing GPS Zenith delays. Only used with the "--gnss" option
+
             """),
         default='ZTD'
     )
@@ -167,7 +218,8 @@ def create_parser():
         '-o',
         dest='out_name',
         help=dedent("""\
-            Name to use for the combined delay file
+            Name to use for the combined delay file. Only used with the "--gnss" option
+
             """),
         default='Combined_delays.csv'
     )
@@ -184,8 +236,14 @@ def parseCMD():
     p = create_parser()
     args = p.parse_args()
 
-    if os.path.exists(args.raider_file):
-        mergeDelayFiles(args.raider_file, args.gnss_file, col_name=args.column_name, raider_delay=args.raider_column_name, outName=args.out_name)
-    else:
+    if ~os.path.exists(args.raider_file):
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
-        mergeDelayFiles(args.raider_file, args.gnss_file, col_name=args.column_name, raider_delay=args.raider_column_name, outName=args.out_name)
+
+    if args.gnss_file is not None:
+        mergeDelayFiles(
+            args.raider_file,
+            args.gnss_file,
+            col_name=args.column_name,
+            raider_delay=args.raider_column_name,
+            outName=args.out_name
+        )
