@@ -8,22 +8,9 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 import numpy as np
-<<<<<<< HEAD
-import rasterio
 from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
-from RAiDER.models import weatherModel
 import matplotlib.pyplot as plt
-from shapely.geometry import box
-=======
-import matplotlib.pyplot as plt
-import xarray as xr
-
-from datetime import datetime, date
-
-from RAiDER.logger import *
-from RAiDER.utilFcns import getTimeFromFile, convertLons
->>>>>>> dev
 
 
 def prepareWeatherModel(
@@ -73,7 +60,7 @@ def prepareWeatherModel(
     else:
         time = getTimeFromFile(weather_model.files[0])
         weather_model.setTime(time)
-        containment = checkContainment(weather_model, lats, lons)
+        containment = weather_model.checkContainment(lats, lons)
 
         if not containment:
             logger.error(
@@ -144,35 +131,3 @@ def prepareWeatherModel(
         raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
-
-
-def checkContainment(weather_model: weatherModel,
-                     outLats: np.ndarray,
-                     outLons: np.ndarray) -> bool:
-    '''Check if weather model contains bounding box of outLats and outLons'''
-    weather_model_path = weather_model.files[0]
-    with rasterio.open(f'netcdf:{weather_model_path}') as ds:
-        datasets = ds.subdatasets
-
-    with rasterio.open(datasets[0]) as ds:
-        bounds = ds.bounds
-
-    xmin, ymin, xmax, ymax = tuple(bounds)
-    weather_model_box = box(xmin, ymin, xmax, ymax)
-
-    xmin_input, xmax_input = np.min(outLons), np.max(outLons)
-    ymin_input, ymax_input = np.min(outLats), np.max(outLats)
-    input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
-
-    # Logger
-    input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
-                                           xmax_input, ymax_input]]
-    weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
-
-    weath_box_str = ', '.join(weath_box_str)
-    input_box_str = ', '.join(input_box_str)
-
-    logger.info(f'Extent of the weather model lats/lons is: {weath_box_str}')
-    logger.info(f'Extent of the input lats/lons is: {input_box_str}')
-
-    return weather_model_box.contains(input_box)
