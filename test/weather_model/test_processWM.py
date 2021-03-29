@@ -6,7 +6,6 @@ import numpy as np
 from test import TEST_DIR
 
 from RAiDER.models.era5 import ERA5
-from RAiDER.processWM import checkContainment
 
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
@@ -35,7 +34,7 @@ def test_checkContainment(getWM):
     outLats = np.linspace(10, 20)
     outLons = -100 * np.ones(outLats.shape)
 
-    containment = checkContainment(wm, outLats, outLons)
+    containment = wm.checkContainment(outLats, outLons)
     assert(~containment)
 
 
@@ -44,5 +43,5 @@ def test_checkContainment2(getWM):
     outLats = np.linspace(17, 18)
     outLons = -100 * np.ones(outLats.shape)
 
-    containment = checkContainment(wm, outLats, outLons)
+    containment = wm.checkContainment(outLats, outLons)
     assert(containment)
