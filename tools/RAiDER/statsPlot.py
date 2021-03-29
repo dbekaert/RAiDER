@@ -846,7 +846,7 @@ class RaiderStats(object):
             data['sigZTD'] = convert_SI(data['sigZTD'], inputunit, self.unit)
             data = data[data['sigZTD'] <= self.obs_errlimit]
         else:
-            raise Warning('Key "sigZTD" not found in dataset, cannot filter out obs by error')
+            logger.warning('Key "sigZTD" not found in dataset, cannot filter out obs by error')
 
         return data
 
