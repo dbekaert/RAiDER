@@ -146,7 +146,6 @@ def prepareWeatherModel(
         del weather_model
 
 
-<<<<<<< HEAD
 def checkContainment(weather_model: weatherModel,
                      outLats: np.ndarray,
                      outLons: np.ndarray) -> bool:
@@ -175,25 +174,5 @@ def checkContainment(weather_model: weatherModel,
 
     logger.info(f'Extent of the weather model lats/lons is: {weath_box_str}')
     logger.info(f'Extent of the input lats/lons is: {input_box_str}')
-=======
-def checkBounds(weather_model, outLats, outLons):
-    '''Check the bounds of a weather model'''
-    ds = xr.load_dataset(weather_model.files[0])
-    
-    try:
-        xc = convertLons(ds.longitude.values)
-    except AttributeError:
-        xc = convertLons(ds.x.values)
-    
-    try:
-        yc = ds.latitude.values
-    except AttributeError:
-        yc = ds.y.values
-    
-    lat_bounds = [yc.min(), yc.max()]
-    lon_bounds = [xc.min(), xc.max()]
-    self_extent = lat_bounds + lon_bounds
-    in_extent = weather_model._getExtent(outLats, outLons)
->>>>>>> dev
 
     return weather_model_box.contains(input_box)
