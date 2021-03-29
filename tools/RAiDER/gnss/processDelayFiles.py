@@ -165,6 +165,10 @@ def mergeDelayFiles(
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
     dfz = readZTDFile(ztdFile, col_name=col_name)
 
+    # only pass common locations and times
+    dfz = dfz[dfz['Datetime'].dt.date.isin(dfr['Datetime'].dt.date) & dfz['ID'].isin(dfr['ID'])]
+    dfr = dfr[dfr['Datetime'].dt.date.isin(dfz['Datetime'].dt.date) & dfr['ID'].isin(dfz['ID'])]
+
     # If specified, convert to local-time reference frame WRT 0 longitude
     if localTime is not None:
         from RAiDER.getStationDelays import seconds_of_day
@@ -186,14 +190,16 @@ def mergeDelayFiles(
         #filter out data outside of --localtime hour threshold
         dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
         dfr['Localtime_u'] = dfr['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
+        OG_total = dfr.shape[0]
         dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) & (dfr['Datetime'] <= dfr['Localtime_u'])]
         print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
-               ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfr[dfr.isna().any(axis=1)].shape[0], dfr.shape[0]))
+               raiderFile, localTime.split(' ')[1], localTime.split(' ')[0], dfr.shape[0], OG_total))
         dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
         dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
+        OG_total = dfz.shape[0]
         dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
         print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
-               ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfz[dfz.isna().any(axis=1)].shape[0], dfz.shape[0]))
+               ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfz.shape[0], OG_total))
         # drop all lines with nans
         dfr.dropna(how='any', inplace=True)
         dfz.dropna(how='any', inplace=True)
