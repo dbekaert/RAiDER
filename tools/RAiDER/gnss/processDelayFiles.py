@@ -8,6 +8,7 @@ import math
 from tqdm import tqdm
 
 import pandas as pd
+import numpy as np
 
 from textwrap import dedent
 
@@ -81,43 +82,33 @@ def getDateTime(filename):
             '%Y%m%dT%H%M%S'
         )
 
-def lon_distance(origin, destination):
-    """
-    Source: https://stackoverflow.com/questions/19412462/getting-distance-between-two-points-based-on-latitude-longitude
-    Calculate the Haversine distance.
+def haversine(origin, destination, to_radians=True, earth_radius=6371):
+    '''
+    Sources: https://stackoverflow.com/questions/40452759/pandas-latitude-longitude-to-distance-between-successive-rows,
+    http://stackoverflow.com/a/29546836/2901002
 
-    Parameters
-    ----------
-    origin : tuple of float
-        (lat, long)
-    destination : tuple of float
-        (lat, long)
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees or in radians)
 
-    Returns
-    -------
-    distance_in_km : float
+    All (lat, lon) coordinates must have numeric dtypes and be of equal length.
 
-    Examples
-    --------
-    >>> origin = (48.1372, 11.5756)  # Munich
-    >>> destination = (52.5186, 13.4083)  # Berlin
-    >>> round(distance(origin, destination), 1)
-    504.2
-    """
+    '''
+    # vectorized haversine function
     lat1, lon1 = origin
     lat2, lon2 = destination
-    radius = 6371  # km
+    if to_radians:
+        #make sure to convert longitude from -180/180 to 0/360 convention
+        lat1, lon1, lat2, lon2 = np.radians([lat1, lon1 % 360, lat2, lon2 % 360])
 
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = (math.sin(dlat / 2) * math.sin(dlat / 2) +
-         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
-         math.sin(dlon / 2) * math.sin(dlon / 2))
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    d = radius * c
+    a = np.sin((lat2-lat1)/2.0)**2 + \
+        np.cos(lat1) * np.cos(lat2) * np.sin((lon2-lon1)/2.0)**2
 
-    return d
+    return earth_radius * 2 * np.arcsin(np.sqrt(a))
 
+def update_time(row):
+    '''Update with local origin time'''
+    return row['Datetime'].replace(hour=int(row['Localtime'] // 3600), minute=int(row['Localtime'] % 3600 / 60.0), 
+           second=int(row['Localtime'] % 60))
 
 def concatDelayFiles(
     fileList,
@@ -177,7 +168,6 @@ def mergeDelayFiles(
     # If specified, convert to local-time reference frame WRT 0 longitude
     if localTime is not None:
         from RAiDER.getStationDelays import seconds_of_day
-        import numpy as np
 
         localTime_hrs = seconds_of_day(localTime.split(' ')[0])/3600
         localTime_hrthreshold = int(localTime.split(' ')[1])
@@ -185,43 +175,36 @@ def mergeDelayFiles(
         dfr['Rot_rate'] = np.cos(np.deg2rad(dfr['Lat'])) * 1669.8
         dfz['Rot_rate'] = np.cos(np.deg2rad(dfz['Lat'])) * 1669.8
         #distance to 0 longitude, assuming 40075.1600832 km circumference at equator
-        #make sure to convert longitude from -180/180 to 0/360 convention
-        dfr['dist_to_0lon'] = lon_distance((0,dfr['Lon'] % 360),(dfr['Lat'], dfr['Lon'] % 360))
-        dfz['dist_to_0lon'] = lon_distance((0,dfz['Lon'] % 360),(dfz['Lat'], dfz['Lon'] % 360))
+        dfr['dist_to_0lon'] = haversine((dfr.loc[:, 'Lat'], 0*(dfr.loc[:, 'Lon'])), (dfr.loc[:, 'Lat'], dfr.loc[:, 'Lon']))
+        dfz['dist_to_0lon'] = haversine((dfz.loc[:, 'Lat'], 0*(dfz.loc[:, 'Lon'])), (dfz.loc[:, 'Lat'], dfz.loc[:, 'Lon']))
         #from speed and distance estimates above, estimate desired --localtime WRT user input
         dfr['Localtime'] = ((dfr['dist_to_0lon'] / dfr['Rot_rate']) + localTime_hrs) * 3600
-        print("dfr['Rot_rate']",dfr['Rot_rate'])
-        print("dfr['dist_to_0lon']",dfr['dist_to_0lon'])
-        print("dfr['Localtime']",dfr['Localtime'])
-        print("(dfr['Localtime'] // 3600).astype(int)",(dfr['Localtime'] // 3600).astype(int))
-        dfr['Localtime'] = dfr['Datetime'].apply(lambda dt: dt.replace(hour=(dfr['Localtime'] // 3600).astype(int), 
-                          minute=(dfr['Localtime'] % 3600 / 60.0).astype(int), second=(dfr['Localtime'] % 60).astype(int)))
         dfz['Localtime'] = ((dfz['dist_to_0lon'] / dfz['Rot_rate']) + localTime_hrs) * 3600
-        dfz['Localtime'] = dfz['Datetime'].apply(lambda dt: dt.replace(hour=(dfz['Localtime'] // 3600).astype(int), 
-                          minute=(dfz['Localtime'] % 3600 / 60.0).astype(int), second=(dfz['Localtime'] % 60).astype(int)))
+        dfr['Localtime'] = dfr.apply(lambda r: update_time(r), axis=1)
+        dfz['Localtime'] = dfz.apply(lambda r: update_time(r), axis=1)
 
         #filter out data outside of --localtime hour threshold
-        dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
-        dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
-        dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
-        print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
-               ztdFile, localTime.split('')[1], localTime.split('')[0], dfz[dfz.isna().any(axis=1)].shape[0], dfz.shape[0]))
         dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
         dfr['Localtime_u'] = dfr['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
         dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) & (dfr['Datetime'] <= dfr['Localtime_u'])]
         print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
-               ztdFile, localTime.split('')[1], localTime.split('')[0], dfr[dfr.isna().any(axis=1)].shape[0], dfr.shape[0]))
+               ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfr[dfr.isna().any(axis=1)].shape[0], dfr.shape[0]))
+        dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
+        dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
+        dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
+        print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
+               ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfz[dfz.isna().any(axis=1)].shape[0], dfz.shape[0]))
         # drop all lines with nans
-        dfz.dropna(how='any', inplace=True)
         dfr.dropna(how='any', inplace=True)
+        dfz.dropna(how='any', inplace=True)
         # drop all duplicate lines
-        dfz.drop_duplicates(inplace=True)
         dfr.drop_duplicates(inplace=True)
+        dfz.drop_duplicates(inplace=True)
         #drop and rename columns
-        dfz.drop(columns=['Rot_rate', 'dist_to_0lon', 'Localtime_l', 'Localtime_u', 'Datetime'], inplace=True)
-        dfz.rename(columns={'Localtime': 'Datetime'}, inplace=True)
         dfr.drop(columns=['Rot_rate', 'dist_to_0lon', 'Localtime_l', 'Localtime_u', 'Datetime'], inplace=True)
         dfr.rename(columns={'Localtime': 'Datetime'}, inplace=True)
+        dfz.drop(columns=['Rot_rate', 'dist_to_0lon', 'Localtime_l', 'Localtime_u', 'Datetime'], inplace=True)
+        dfz.rename(columns={'Localtime': 'Datetime'}, inplace=True)
 
     print('Beginning merge')
 
