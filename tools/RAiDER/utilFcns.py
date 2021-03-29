@@ -792,13 +792,33 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         dimensions = dataset_dict[data]['dimensions']
         FillValue = dataset_dict[data]['FillValue']
         ChunkSize = dataset_dict[data]['ChunkSize']
-        var = nc_outfile.createVariable(varname, datatype, dimensions, fill_value=FillValue, zlib=True, complevel=2, shuffle=True, chunksizes=ChunkSize)
+        var = nc_outfile.createVariable(
+            varname,
+            datatype,
+            dimensions,
+            fill_value=FillValue,
+            zlib=True,
+            complevel=2,
+            shuffle=True,
+            chunksizes=ChunkSize
+        )
         var.setncattr('grid_mapping', dataset_dict[data]['grid_mapping'])
         var.setncattr('standard_name', dataset_dict[data]['standard_name'])
         var.setncattr('description', dataset_dict[data]['description'])
         if 'units' in dataset_dict[data]:
             var.setncattr('units', dataset_dict[data]['units'])
-        dataset_dict[data]['dataset'][np.isnan(dataset_dict[data]['dataset'])] = FillValue
+
+        ndmask = np.isnan(dataset_dict[data]['dataset'])
+        dataset_dict[data]['dataset'][ndmask] = FillValue
+
         var[:] = dataset_dict[data]['dataset'].astype(datatype)
 
     return nc_outfile
+
+
+def convertLons(inLons):
+    '''Convert lons from 0-360 to -180-180'''
+    mask = inLons > 180
+    outLons = inLons
+    outLons[mask] = outLons[mask] - 360
+    return outLons
