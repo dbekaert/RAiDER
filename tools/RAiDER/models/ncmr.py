@@ -8,10 +8,11 @@ from pyproj import CRS
 from RAiDER import utilFcns as util
 from RAiDER.models.weatherModel import WeatherModel
 #import os
+import urllib.request
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, requests_retry_session
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, read_NCMR_loginInfo, show_progress
 
 
 class NCMR(WeatherModel):
@@ -83,24 +84,20 @@ class NCMR(WeatherModel):
         
         from netCDF4 import Dataset
         
-        ############# Uncomment these lines and modify the link when actually downloading NCMR data from a weblink #############
-#        root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
-#        base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_{time.hour:02}00.V01.nc4'
-#        url = f'{root.format(time.year, time.month, time.day)}/{base}'
-#        filepath = '{}_raw{}'.format(*os.path.splitext(out))
-#        if not os.path.exists(filepath):
-#            logger.info('Fetching URL: %s', url)
-#            session = requests_retry_session()
-#            resp = session.get(url, stream=True)
-#            assert resp.ok, f'Could not access url for time: {time}'
-#            with open(filepath, 'wb') as fh:
-#                shutil.copyfileobj(resp.raw, fh)
-#        else:
-#            logger.warning('Weather model already exists, skipping download')
+        ############# Use these lines and modify the link when actually downloading NCMR data from a weblink #############
+        url, username, password = read_NCMR_loginInfo();
+        filename = os.path.basename(out)
+        url = f'ftp://{username}:{password}@{url}/TEST/{filename}'
+        filepath = f'{out[:-3]}_raw.nc'
+        if not os.path.exists(filepath):
+            logger.info('Fetching URL: %s', url)
+            local_filename, headers = urllib.request.urlretrieve(url,filepath,show_progress)
+        else:
+            logger.warning('Weather model already exists, skipping download')
         ########################################################################################################################
 
         
-        ############# For now, directly use pre-downloaded files that Prashant sent; Remove it when actually downloading NCMR data from a weblink #############
+        ############# For debugging: use pre-downloaded files; Remove/comment out it when actually downloading NCMR data from a weblink #############
 #        filepath = os.path.dirname(out) + '/NCUM_ana_mdllev_20180701_00z.nc'
         ########################################################################################################################
 
@@ -164,8 +161,8 @@ class NCMR(WeatherModel):
             lons[lons > 180] -= 360
 
                 
-        ############# For now, use pre-downloaded raw data files and don't want to remove them for test; Uncomment it when actually downloading NCMR data from a weblink #############
-#        os.remove(filepath)
+        ############# For debugging: comment it out when using pre-downloaded raw data files and don't want to remove them for test; Uncomment it when actually downloading NCMR data from a weblink #############
+        os.remove(filepath)
         ########################################################################################################################
 
         try:
