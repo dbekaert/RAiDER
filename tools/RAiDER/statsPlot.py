@@ -80,7 +80,7 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     dtsubsets.add_argument('-si', '--seasonalinterval', dest='seasonalinterval', type=str, default=None,
                            help="Subset in by an specific interval for each year by specifying earliest MM-DD time followed by latest MM-DD time. -- Example : '03-21 06-21'.")
     dtsubsets.add_argument('-oe', '--obs_errlimit', dest='obs_errlimit', type=float, default='inf',
-                          help="Observation error threshold to discard observations with large uncertainties.")
+                           help="Observation error threshold to discard observations with large uncertainties.")
 
     # Plot formatting/options
     pltformat = parser.add_argument_group(
@@ -170,7 +170,7 @@ def convert_SI(val, unit_in, unit_out):
         Convert input to desired units
     '''
 
-    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000., 
+    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.,
           'mm^2': 1e-6, 'cm^2': 1e-4, 'm^2': 1.0, 'km^2': 1e+6}
     # check if output unit is supported
     if unit_out not in SI:
@@ -516,7 +516,7 @@ class VariogramAnalysis():
             self.TOT_good_slices.append([grid_ind, tot_timetag])
             self.TOT_res_robust_arr.append(TOT_res_robust.x)
             self.TOT_tot_timetag.append(tot_timetag)
-            var_rmse =  np.sqrt(np.nanmean((TOT_res_robust.fun)**2))
+            var_rmse = np.sqrt(np.nanmean((TOT_res_robust.fun)**2))
             if var_rmse <= self.variogram_errlimit:
                 self.TOT_res_robust_rmse.append(var_rmse)
             else:
@@ -1747,7 +1747,7 @@ def stats_analyses(
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variance' + '.tif')
             # write sill
             save_gridfile(df_stats.grid_variance, 'grid_heatmap', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
-                          df_stats.unit+'^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+                          df_stats.unit + '^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
 
     if isinstance(df_stats.grid_range, np.ndarray):
         # plot range heatmap
