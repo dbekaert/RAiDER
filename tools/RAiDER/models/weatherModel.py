@@ -411,7 +411,8 @@ class WeatherModel(ABC):
                          outLats: np.ndarray,
                          outLons: np.ndarray) -> bool:
         """"
-        Checks containment of bbox of outLats and outLons
+        Checks containment of weather model bbox of outLats and outLons
+        provided.
 
         Parameters
         ----------
@@ -433,6 +434,19 @@ class WeatherModel(ABC):
 
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
+
+        # Logger
+        input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
+                                               xmax_input, ymax_input]]
+        weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
+
+        weath_box_str = ', '.join(weath_box_str)
+        input_box_str = ', '.join(input_box_str)
+
+        logger.info(f'Extent of the weather model lats/lons is:'
+                    f'{weath_box_str}')
+        logger.info(f'Extent of the input lats/lons is: '
+                    f'{input_box_str}')
 
         return weather_model_box.contains(input_box)
 
