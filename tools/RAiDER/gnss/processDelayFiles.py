@@ -13,7 +13,7 @@ import numpy as np
 from textwrap import dedent
 
 
-def combineDelayFiles(outName, loc=os.getcwd(), source = 'model', ext='.csv'):
+def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=None, col_name='ZTD'):
     files = glob.glob(os.path.join(loc, '*' + ext))
 
     if source == 'model':
@@ -22,8 +22,16 @@ def combineDelayFiles(outName, loc=os.getcwd(), source = 'model', ext='.csv'):
 
     # If single file, just copy source
     if len(files) == 1:
-        import shutil
-        shutil.copy(files[0], outName)
+        if source == 'model':
+            import shutil
+            shutil.copy(files[0], outName)
+        else:
+            files = readZTDFile(files[0], col_name=col_name)
+            # drop all lines with nans
+            files.dropna(how='any', inplace=True)
+            # drop all duplicate lines
+            files.drop_duplicates(inplace=True)
+            files.to_csv(outName, index=False)
         return
 
     print('Combining {} delay files'.format(source))
@@ -31,13 +39,17 @@ def combineDelayFiles(outName, loc=os.getcwd(), source = 'model', ext='.csv'):
         concatDelayFiles(
             files,
             sort_list=['ID', 'Datetime'],
-            outName=outName
+            outName=outName,
+            source=source
         )
     else:
         concatDelayFiles(
             files,
             sort_list=['ID', 'Date'],
-            outName=outName
+            outName=outName,
+            source=source,
+            ref=ref,
+            col_name=col_name
         )
 
 
@@ -107,14 +119,26 @@ def haversine(origin, destination, to_radians=True, earth_radius=6371):
 
 def update_time(row):
     '''Update with local origin time'''
-    return row['Datetime'].replace(hour=int(row['Localtime'] // 3600), minute=int(row['Localtime'] % 3600 / 60.0), 
-           second=int(row['Localtime'] % 60))
+    # roll-over to next day if hours > 24
+    if int(row['Localtime'] // 3600) >= 24:
+        return row['Datetime'].replace(hour=int(row['Localtime'] // 3600)-24, minute=int(row['Localtime'] % 3600 / 60.0), 
+               second=int(row['Localtime'] % 60)) + datetime.timedelta(days=1)
+    else:
+        return row['Datetime'].replace(hour=int(row['Localtime'] // 3600), minute=int(row['Localtime'] % 3600 / 60.0), 
+               second=int(row['Localtime'] % 60))
+
+def pass_common_obs(reference, target):
+    '''Pass only observations in target spatiotemporally common to reference'''
+    return target[target['Datetime'].dt.date.isin(reference['Datetime'].dt.date) & target['ID'].isin(reference['ID'])]
 
 def concatDelayFiles(
     fileList,
     sort_list=['ID', 'Datetime'],
     return_df=False,
-    outName=None
+    outName=None,
+    source='model',
+    ref=None,
+    col_name='ZTD'
 ):
     ''' 
     Read a list of .csv files containing the same columns and append them 
@@ -125,7 +149,16 @@ def concatDelayFiles(
     print('Concatenating delay files')
 
     for f in tqdm(fileList):
-        dfList.append(pd.read_csv(f))
+        if source == 'model':
+            dfList.append(pd.read_csv(f, parse_dates=['Datetime']))
+        else:
+            dfList.append(readZTDFile(f, col_name=col_name))
+    # drop lines not found in reference file
+    if ref:
+        dfr = pd.read_csv(ref, parse_dates=['Datetime'])
+        for i in enumerate(dfList):
+            dfList[i[0]] = pass_common_obs(dfr, i[1])
+        del dfr
 
     df_c = pd.concat(
         dfList,
@@ -161,13 +194,11 @@ def mergeDelayFiles(
     Merge a combined RAiDER delays file with a GPS ZTD delay file
     '''
     print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
-
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
-    dfz = readZTDFile(ztdFile, col_name=col_name)
-
+    dfz = pd.read_csv(ztdFile, parse_dates=['Datetime'])
     # only pass common locations and times
-    dfz = dfz[dfz['Datetime'].dt.date.isin(dfr['Datetime'].dt.date) & dfz['ID'].isin(dfr['ID'])]
-    dfr = dfr[dfr['Datetime'].dt.date.isin(dfz['Datetime'].dt.date) & dfr['ID'].isin(dfz['ID'])]
+    dfz = pass_common_obs(dfr, dfz)
+    dfr = pass_common_obs(dfz, dfr)
 
     # If specified, convert to local-time reference frame WRT 0 longitude
     if localTime is not None:
@@ -365,7 +396,8 @@ def parseCMD():
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
 
     if ~os.path.exists(args.gnss_file):
-        combineDelayFiles(args.gnss_file, source = 'GNSS', loc=args.gnss_folder)
+        combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source = 'GNSS', 
+                          ref = args.raider_file, col_name=args.column_name)
 
     if args.gnss_file is not None:
         mergeDelayFiles(
