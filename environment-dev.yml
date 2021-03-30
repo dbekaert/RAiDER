@@ -37,3 +37,4 @@ dependencies:
  # Dev dependencies. Only needed for contributing
  - pytest
  - pytest-cov
+ - progressbar

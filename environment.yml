@@ -34,3 +34,4 @@ dependencies:
  - shapely
  - sysroot_linux-64
  - xarray
+ - progressbar

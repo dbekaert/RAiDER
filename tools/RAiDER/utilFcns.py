@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 from osgeo import gdal, osr
+import progressbar
 
 from RAiDER.constants import Zenith
 from RAiDER import Geo2rdr
@@ -822,3 +823,35 @@ def convertLons(inLons):
     outLons = inLons
     outLons[mask] = outLons[mask] - 360
     return outLons
+
+
+def read_NCMR_loginInfo(filepath=None):
+    
+    from pathlib import Path
+    
+    if filepath is None:
+        filepath = str(Path.home())+'/.ncmrlogin'
+
+    f = open(filepath,'r')
+    lines = f.readlines()
+    url = lines[0].strip().split(': ')[1]
+    username = lines[1].strip().split(': ')[1]
+    password = lines[2].strip().split(': ')[1]
+
+    return url, username, password
+
+
+pbar = None
+
+def show_progress(block_num, block_size, total_size):
+    global pbar
+    if pbar is None:
+        pbar = progressbar.ProgressBar(maxval=total_size)
+        pbar.start()
+    
+    downloaded = block_num * block_size
+    if downloaded < total_size:
+        pbar.update(downloaded)
+    else:
+        pbar.finish()
+        pbar = None
