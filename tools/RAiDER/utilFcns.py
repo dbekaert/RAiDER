@@ -777,9 +777,13 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         grid_mapping = 'WGS84'  # need to set this as an attribute for the image variables
         datatype = np.dtype('S1')
         dimensions = ()
-        FillValue = None
 
-        var = nc_outfile.createVariable(mapping_name, datatype, dimensions, fill_value=FillValue)
+        var = nc_outfile.createVariable(
+                mapping_name, 
+                datatype, 
+                dimensions, 
+                fill_value=None
+            )
         # variable made, now add attributes
 
         var.setncattr('grid_mapping_name', grid_mapping)
