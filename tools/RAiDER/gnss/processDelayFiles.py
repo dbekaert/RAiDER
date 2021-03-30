@@ -294,7 +294,8 @@ def create_parser():
             Combine delay files from a weather model and GPS Zenith delays
             Usage examples:
             raiderCombine.py --raiderDir './*' --raider 'combined_raider_delays.csv'
-            raiderCombine.py  --raiderDir ERA5/ --raider ERA5_combined_delays.csv --gnss UNRCombined_gnss.csv -o Combined_delays.csv 
+            raiderCombine.py  --raiderDir ERA5/ --raider ERA5_combined_delays.csv --raider_column totalDelay --gnssDir GNSS/ --gnss UNRCombined_gnss.csv --column ZTD -o Combined_delays.csv
+            raiderCombine.py  --raiderDir ERA5_2019/ --raider ERA5_combined_delays_2019.csv --raider_column totalDelay --gnssDir GNSS_2019/ --gnss UNRCombined_gnss_2019.csv --column ZTD -o Combined_delays_2019_UTTC18.csv --localtime '18:00:00 1'
             """)
     )
 
