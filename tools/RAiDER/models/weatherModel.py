@@ -1,24 +1,19 @@
 import datetime
-import logging
 import os
 from abc import ABC, abstractmethod
 
-import h5py
 import numpy as np
-from pyproj import CRS, Transformer
 import netCDF4
+import rasterio
+from shapely.geometry import box
 
 from RAiDER.constants import _ZREF, _ZMIN, _g0
 from RAiDER import utilFcns as util
-from RAiDER.constants import Zenith
-from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
-from RAiDER.losreader import getLookVectors
-from RAiDER.logger import *
-from RAiDER.makePoints import makePoints3D
-from RAiDER.models import plotWeather as plots
-from RAiDER.utilFcns import lla2ecef, robmax, robmin, getTimeFromFile, write2NETCDF4core
+from RAiDER.logger import logger
+from RAiDER.models import plotWeather as plots, weatherModel
+from RAiDER.utilFcns import robmax, robmin, write2NETCDF4core
 
 
 class WeatherModel(ABC):
@@ -50,6 +45,7 @@ class WeatherModel(ABC):
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
+        self._bbox = None
 
         # Define fixed constants
         self._R_v = 461.524
@@ -143,11 +139,11 @@ class WeatherModel(ABC):
             raise ValueError('"time" must be a string or a datetime object')
 
     def checkLL(self, lats, lons, Nextra=2):
-        ''' 
-        Need to correct lat/lon bounds because not all of the weather models have valid 
-        data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, 
-        need to adjust the longitude higher end with an extra buffer; for other models, 
-        the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be 
+        '''
+        Need to correct lat/lon bounds because not all of the weather models have valid
+        data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
+        need to adjust the longitude higher end with an extra buffer; for other models,
+        the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
         '''
@@ -380,6 +376,79 @@ class WeatherModel(ABC):
             return [np.nanmin(lats), np.nanmax(lats), lons - self._lon_res, lons + self._lon_res]
         else:
             raise RuntimeError('Not a valid lat/lon shape')
+
+    @property
+    def bbox(self) -> list:
+        """
+        Obtains the bounding box of the weather model in lat/lon CRS.
+
+        Returns
+        -------
+        list
+            xmin, ymin, xmax, ymax
+
+        Raises
+        ------
+        ValueError
+           When `self.files` is None.
+        """
+        if self._bbox is None:
+            if self.files is None:
+                raise ValueError('Need to save weather model as netcdf')
+            weather_model_path = self.files[0]
+            with rasterio.open(f'netcdf:{weather_model_path}') as ds:
+                datasets = ds.subdatasets
+
+            with rasterio.open(datasets[0]) as ds:
+                bounds = ds.bounds
+
+            xmin, ymin, xmax, ymax = tuple(bounds)
+            self._bbox = [xmin, ymin, xmax, ymax]
+
+        return self._bbox
+
+    def checkContainment(self: weatherModel,
+                         outLats: np.ndarray,
+                         outLons: np.ndarray) -> bool:
+        """"
+        Checks containment of weather model bbox of outLats and outLons
+        provided.
+
+        Parameters
+        ----------
+        weather_model : weatherModel
+        outLats : np.ndarray
+            An array of latitude points
+        outLons : np.ndarray
+            An array of longitude points
+
+        Returns
+        -------
+        bool
+           True if weather model contains bounding box of OutLats and outLons
+           and False otherwise.
+        """
+        xmin_input, xmax_input = np.min(outLons), np.max(outLons)
+        ymin_input, ymax_input = np.min(outLats), np.max(outLats)
+        input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
+
+        xmin, ymin, xmax, ymax = self.bbox
+        weather_model_box = box(xmin, ymin, xmax, ymax)
+
+        # Logger
+        input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
+                                               xmax_input, ymax_input]]
+        weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
+
+        weath_box_str = ', '.join(weath_box_str)
+        input_box_str = ', '.join(input_box_str)
+
+        logger.info(f'Extent of the weather model lats/lons is:'
+                    f'{weath_box_str}')
+        logger.info(f'Extent of the input lats/lons is: '
+                    f'{input_box_str}')
+
+        return weather_model_box.contains(input_box)
 
     def _isOutside(self, extent1, extent2):
         '''
@@ -646,8 +715,8 @@ class WeatherModel(ABC):
         return os.path.join(outLoc, f)
 
     def filename(self, time=None, outLoc='weather_files'):
-        ''' 
-        Create a filename to store the weather model 
+        '''
+        Create a filename to store the weather model
         '''
         os.makedirs(outLoc, exist_ok=True)
 
@@ -672,8 +741,8 @@ class WeatherModel(ABC):
         mapping_name='WGS84'
     ):
         '''
-        By calling the abstract/modular netcdf writer 
-        (RAiDER.utilFcns.write2NETCDF4core), write the weather model data 
+        By calling the abstract/modular netcdf writer
+        (RAiDER.utilFcns.write2NETCDF4core), write the weather model data
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
         # Generate the filename
