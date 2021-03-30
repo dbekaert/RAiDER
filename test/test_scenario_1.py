@@ -55,12 +55,12 @@ def test_tropo_delay_ERAI(tmp_path):
     '''
     core_test_tropo_delay(tmp_path, modelName="ERAI")
 
-#def test_tropo_delay_NCMR(tmp_path):
-#    '''
-#    Scenario:
-#    1: Small area, NCMR, Zenith delay
-#    '''
-#    core_test_tropo_delay(tmp_path, modelName="NCMR")
+def test_tropo_delay_NCMR(tmp_path):
+    '''
+    Scenario:
+    1: Small area, NCMR, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="NCMR")
 
 
 def core_test_tropo_delay(tmp_path, modelName):
