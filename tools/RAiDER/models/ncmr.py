@@ -3,16 +3,21 @@ Created on Wed Sep  9 10:26:44 2020 @author: prashant
 Modified by Yang Lei, GPS/Caltech
 """
 import datetime
-import numpy as np
-from pyproj import CRS
-from RAiDER import utilFcns as util
-from RAiDER.models.weatherModel import WeatherModel
-#import os
+import os
 import urllib.request
 
+import numpy as np
+
+from pyproj import CRS
+
 from RAiDER.models.weatherModel import WeatherModel
-from RAiDER.logger import *
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, read_NCMR_loginInfo, show_progress
+from RAiDER.logger import logger
+from RAiDER.utilFcns import (
+    writeWeatherVars2NETCDF4, 
+    roundTime, 
+    read_NCMR_loginInfo, 
+    show_progress
+)
 
 
 class NCMR(WeatherModel):

@@ -1,9 +1,11 @@
 import datetime
 import os
 from test import DATA_DIR, TEST_DIR, pushd
+import urllib.error
 
 import numpy as np
 import pytest
+
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
@@ -60,6 +62,9 @@ def test_tropo_delay_ERAI(tmp_path):
     '''
     core_test_tropo_delay(tmp_path, modelName="ERAI")
 
+@pytest.mark.xfail(
+        raises=urllib.error.URLError
+    )
 def test_tropo_delay_NCMR(tmp_path):
     '''
     Scenario:
