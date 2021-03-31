@@ -59,9 +59,9 @@ def getDateTime(filename):
     dtr = re.compile(r'\d{8}T\d{6}')
     dt = dtr.search(filename)
     return datetime.datetime.strptime(
-            dt.group(), 
-            '%Y%m%dT%H%M%S'
-        )
+        dt.group(),
+        '%Y%m%dT%H%M%S'
+    )
 
 
 def concatDelayFiles(
@@ -89,8 +89,8 @@ def concatDelayFiles(
 
     print('Total number of rows in the concatenated file: {}'.format(df_c.shape[0]))
     print('Total number of rows containing NaNs: {}'.format(
-            df_c[df_c.isna().any(axis=1)].shape[0]
-        )
+        df_c[df_c.isna().any(axis=1)].shape[0]
+    )
     )
 
     if return_df or outName is None:
@@ -100,12 +100,12 @@ def concatDelayFiles(
 
 
 def mergeDelayFiles(
-        raiderFile, 
-        ztdFile, 
-        col_name='ZTD', 
-        raider_delay='totalDelay', 
-        outName=None
-    ):
+    raiderFile,
+    ztdFile,
+    col_name='ZTD',
+    raider_delay='totalDelay',
+    outName=None
+):
     '''
     Merge a combined RAiDER delays file with a GPS ZTD delay file
     '''
@@ -117,18 +117,18 @@ def mergeDelayFiles(
     print('Beginning merge')
 
     dfc = dfr.merge(
-            dfz[['ID', 'Datetime', 'ZTD']], 
-            how='left', 
-            left_on=['Datetime', 'ID'], 
-            right_on=['Datetime', 'ID'], 
-            sort=True
-        )
+        dfz[['ID', 'Datetime', 'ZTD']],
+        how='left',
+        left_on=['Datetime', 'ID'],
+        right_on=['Datetime', 'ID'],
+        sort=True
+    )
     dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
 
     print('Total number of rows in the concatenated file: {}'.format(dfc.shape[0]))
     print('Total number of rows containing NaNs: {}'.format(
-            dfc[dfc.isna().any(axis=1)].shape[0]
-        )
+        dfc[dfc.isna().any(axis=1)].shape[0]
+    )
     )
     print('Merge finished')
 

@@ -21,7 +21,8 @@ def prepareWeatherModel(
     lons=None,
     zref=None,
     download_only=False,
-    makePlots=False
+    makePlots=False,
+    force_download=False,
 ):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
@@ -45,12 +46,12 @@ def prepareWeatherModel(
             )
         weather_model.filename(time, wmLoc)
         if os.path.exists(weather_model.files[0]):
-            logger.warning(
-                'Weather model already exists, '
-                'please remove it ("%s") if you want '
-                'to download a new one.', weather_model.files
-            )
-            download_flag = False
+            if not force_download:
+                logger.warning(
+                    'Weather model already exists, please remove it ("%s") if you want '
+                    'to download a new one.', weather_model.files
+                )
+                download_flag = False
     else:
         download_flag = False
 

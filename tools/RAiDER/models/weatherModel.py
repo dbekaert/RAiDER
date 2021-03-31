@@ -74,7 +74,6 @@ class WeatherModel(ABC):
         self._hydrostatic_refractivity = None
         self._wet_ztd = None
         self._hydrostatic_ztd = None
-        self._svp = None
 
     def __str__(self):
         string = '\n'
@@ -181,7 +180,7 @@ class WeatherModel(ABC):
         '''
         # If the weather file has already been processed, do nothing
         self._out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
-        if self.checkWeatherExists(self._out_name):
+        if os.path.exists(self._out_name):
             return self._out_name
         else:
             exists_flag = False
@@ -198,7 +197,6 @@ class WeatherModel(ABC):
 
             # Process the weather model data
             self._find_e()
-            self._checkNotMaskedArrays()
             self._uniform_in_z(_zlevels=_zlevels)
             self._checkForNans()
             self._get_wet_refractivity()
@@ -215,13 +213,6 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-    def checkWeatherExists(self, pathname):
-        ''' Check whether or not the weather model has already been processed '''
-        if os.path.exists(pathname):
-            return True
-        else:
-            return False
 
     def _get_time(self, filename=None):
         if filename is None:
@@ -286,15 +277,15 @@ class WeatherModel(ABC):
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
-        self._find_svp()
+        svp = find_svp(self._t)
         # We have q = w/(w + 1), so w = q/(1 - q)
         w = self._q / (1 - self._q)
-        self._e = w * self._R_v * (self._p - self._svp) / self._R_d
+        self._e = w * self._R_v * (self._p - svp) / self._R_d
 
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
-        self._find_svp()
-        self._e = self._rh / 100 * self._svp
+        svp = find_svp(self._t)
+        self._e = self._rh / 100 * svp
 
     def _get_wet_refractivity(self):
         '''
@@ -494,39 +485,6 @@ class WeatherModel(ABC):
         self._wet_refractivity = self._wet_refractivity[index1:index2, index3:index4, ...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2, index3:index4, :]
 
-    def _find_svp(self):
-        """
-        Calculate standard vapor presure. Should be model-specific
-        """
-        # From TRAIN:
-        # Could not find the wrf used equation as they appear to be
-        # mixed with latent heat etc. Istead I used the equations used
-        # in ERA-I (see IFS documentation part 2: Data assimilation
-        # (CY25R1)). Calculate saturated water vapour pressure (svp) for
-        # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
-        # and Eskridge (1996) euation AERKi
-
-        # TODO: figure out the sources of all these magic numbers and move
-        # them somewhere more visible.
-        # TODO: (Jeremy) - Need to fix/get the equation for the other
-        # weather model types. Right now this will be used for all models,
-        # except WRF, which is yet to be implemented in my new structure.
-        t1 = 273.15  # O Celsius
-        t2 = 250.15  # -23 Celsius
-
-        tref = self._t - t1
-        wgt = (self._t - t2) / (t1 - t2)
-        svpw = (6.1121 * np.exp((17.502 * tref) / (240.97 + tref)))
-        svpi = (6.1121 * np.exp((22.587 * tref) / (273.86 + tref)))
-
-        svp = svpi + (svpw - svpi) * wgt**2
-        ix_bound1 = self._t > t1
-        svp[ix_bound1] = svpw[ix_bound1]
-        ix_bound2 = self._t < t2
-        svp[ix_bound2] = svpi[ix_bound2]
-
-        self._svp = svp * 100
-
     def _calculategeoh(self, z, lnsp):
         '''
         Function to calculate pressure, geopotential, and geopotential height
@@ -664,35 +622,19 @@ class WeatherModel(ABC):
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
         # re-assign values to the uniform z
-        # new variables
-        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
-        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
-        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
+        self._t = interpolate_along_axis(
+            self._zs, self._t, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._p = interpolate_along_axis(
+            self._zs, self._p, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._e = interpolate_along_axis(
+            self._zs, self._e, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
-
-    def _checkNotMaskedArrays(self):
-        try:
-            self._p = self._p.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._t = self._t.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._e = self._e.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._wet_refractivity = self._wet_refractivity.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._hydrostatic_refractivity = self._hydrostatic_refractivity.filled(fill_value=np.nan)
-        except:
-            pass
 
     def _checkForNans(self):
         '''
@@ -936,3 +878,38 @@ def make_raw_weather_data_filename(outLoc, name, time):
         )
     )
     return f
+
+
+def find_svp(t):
+    """
+    Calculate standard vapor presure. Should be model-specific
+    """
+    # From TRAIN:
+    # Could not find the wrf used equation as they appear to be
+    # mixed with latent heat etc. Istead I used the equations used
+    # in ERA-I (see IFS documentation part 2: Data assimilation
+    # (CY25R1)). Calculate saturated water vapour pressure (svp) for
+    # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
+    # and Eskridge (1996) euation AERKi
+
+    # TODO: figure out the sources of all these magic numbers and move
+    # them somewhere more visible.
+    # TODO: (Jeremy) - Need to fix/get the equation for the other
+    # weather model types. Right now this will be used for all models,
+    # except WRF, which is yet to be implemented in my new structure.
+    t1 = 273.15  # O Celsius
+    t2 = 250.15  # -23 Celsius
+
+    tref = t - t1
+    wgt = (t - t2) / (t1 - t2)
+    svpw = (6.1121 * np.exp((17.502 * tref) / (240.97 + tref)))
+    svpi = (6.1121 * np.exp((22.587 * tref) / (273.86 + tref)))
+
+    svp = svpi + (svpw - svpi) * wgt**2
+    ix_bound1 = t > t1
+    svp[ix_bound1] = svpw[ix_bound1]
+    ix_bound2 = t < t2
+    svp[ix_bound2] = svpi[ix_bound2]
+
+    svp = svp * 100
+    return svp.astype(np.float32)
