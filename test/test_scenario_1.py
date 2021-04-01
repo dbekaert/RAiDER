@@ -1,18 +1,38 @@
 import datetime
 import os
-from test import DATA_DIR, TEST_DIR, pushd
 import urllib.error
 
 import numpy as np
 import pytest
 
+from pathlib import Path
+from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
-_RTOL = 1e-4
+_RTOL = 1e-2
+
+def checkAPIExists(api='.cdsapi'):
+    '''Check for the API config files'''
+    home = str(Path.home())
+    plist = [t for t in Path("/Users/jeremym").iterdir() if t.name.startswith('.'
+    
+    out = [True if api in t.parts[-1] else False for t in plist]
+    if sum(out)==1:
+        return True
+    else:
+        return False
+
+
+def test_tropo_delay_ERAI(tmp_path):
+    '''
+    Scenario:
+    1: Small area, ERAI, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="ERAI")
 
 
 def test_tropo_delay_ERA5(tmp_path):
@@ -21,6 +41,33 @@ def test_tropo_delay_ERA5(tmp_path):
     1: Small area, ERA5, Zenith delay
     '''
     core_test_tropo_delay(tmp_path, modelName="ERA5")
+
+
+def test_tropo_delay_ERA5T(tmp_path):
+    '''
+    Scenario:
+    1: Small area, ERA5T, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="ERA5T")
+
+
+def test_tropo_delay_HRES(tmp_path):
+    '''
+    Scenario:
+    1: Small area, HRES, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="HRES")
+
+
+@pytest.mark.xfail(
+        raises=urllib.error.URLError
+    )
+def test_tropo_delay_NCMR(tmp_path):
+    '''
+    Scenario:
+    1: Small area, NCMR, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="NCMR")
 
 
 def test_tropo_delay_GMAO(tmp_path):
@@ -37,40 +84,6 @@ def test_tropo_delay_GMAO(tmp_path):
 #    1: Small area, MERRA2, Zenith delay
 #    '''
 #    core_test_tropo_delay(tmp_path, modelName="MERRA2")
-
-
-def test_tropo_delay_HRES(tmp_path):
-    '''
-    Scenario:
-    1: Small area, HRES, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="HRES")
-
-
-def test_tropo_delay_ERA5T(tmp_path):
-    '''
-    Scenario:
-    1: Small area, ERA5T, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="ERA5T")
-
-
-def test_tropo_delay_ERAI(tmp_path):
-    '''
-    Scenario:
-    1: Small area, ERAI, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="ERAI")
-
-@pytest.mark.xfail(
-        raises=urllib.error.URLError
-    )
-def test_tropo_delay_NCMR(tmp_path):
-    '''
-    Scenario:
-    1: Small area, NCMR, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="NCMR")
 
 
 def core_test_tropo_delay(tmp_path, modelName):
@@ -154,3 +167,5 @@ def core_test_tropo_delay(tmp_path, modelName):
             equal_nan=True,
             rtol=_RTOL
         )
+
+
