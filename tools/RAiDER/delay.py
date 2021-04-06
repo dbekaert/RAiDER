@@ -53,6 +53,7 @@ def tropo_delay(args):
     wetFilename = args['wetFilenames']
     hydroFilename = args['hydroFilenames']
     pnts_file = args['pnts_file']
+    verbose = args['verbose']
 
     # logging
     logger.debug('Starting to run the weather model calculation')
@@ -78,19 +79,24 @@ def tropo_delay(args):
         lons=lons,
         zref=zref,
         download_only=download_only,
-        makePlots=True
+        makePlots=verbose,
     )
 
     if download_only:
         return None, None
     elif useWeatherNodes:
-        logger.debug(
-            'Only Zenith delays at the weather model nodes '
-            'are requested, so I am exiting now. Delays have '
-            'been written to the weather model file; see '
-            '{}'.format(weather_model_file)
-        )
+        if heights[0]=='lvs':
+            # compute delays at the correct levels
+            raise NotImplementedError
+        else:
+            logger.debug(
+                'Only Zenith delays at the weather model nodes '
+                'are requested, so I am exiting now. Delays have '
+                'been written to the weather model file; see '
+                '{}'.format(weather_model_file)
+            )
         return None, None
+        
 
     ###########################################################
     # If query points are specified, pull the height info
