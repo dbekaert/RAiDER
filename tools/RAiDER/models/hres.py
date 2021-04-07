@@ -282,7 +282,7 @@ class HRES(WeatherModel):
             'levtype': "ml",
             'param': "129/130/133/152",
             'stream': "oper",
-            'time': "00:00:00",
+            'time': "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
             'type': "an",
             'step': "0",
             'grid': "{}/{}".format(lon_step, lat_step),
