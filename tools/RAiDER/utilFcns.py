@@ -12,7 +12,11 @@ import pyproj
 from osgeo import gdal, osr
 import progressbar
 
-from RAiDER.constants import Zenith
+from RAiDER.constants import (
+        Zenith, 
+        _g0 as g0, 
+        _RE as Re
+    )
 from RAiDER import Geo2rdr
 from RAiDER.logger import *
 
@@ -237,7 +241,7 @@ def _get_Re(lats):
     return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
-def _geo_to_ht(lats, hts, g0=9.80556):
+def _geo_to_ht(lats, hts):
     """Convert geopotential height to altitude."""
     # Convert geopotential to geometric height. This comes straight from
     # TRAIN
@@ -247,6 +251,8 @@ def _geo_to_ht(lats, hts, g0=9.80556):
 
     # Calculate Geometric Height, h
     h = (hts * Re) / (g_ll / g0 * Re - hts)
+    # from metpy 
+    # return (geopotential * Re) / (g0 * Re - geopotential)
 
     return h
 

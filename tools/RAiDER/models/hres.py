@@ -38,6 +38,8 @@ class HRES(WeatherModel):
         self._y_res = 9./111 #0.08108115
 
         self._humidityType = 'q'
+        # Default, pressure levels are 'pl'
+        self._level_type = 'ml'
         self._expver = '1'
         self._classname = 'od'
         self._dataset = 'hres'
