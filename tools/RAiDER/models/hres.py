@@ -262,7 +262,7 @@ class HRES(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
 
         if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
-            self.update_a_b
+            self.update_a_b()
 
         # execute the search at ECMWF
         self._download_ecmwf_file(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
