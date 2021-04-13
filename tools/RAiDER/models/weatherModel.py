@@ -6,6 +6,8 @@ import numpy as np
 import netCDF4
 import rasterio
 from shapely.geometry import box
+from shapely.affinity import translate
+from shapely.ops import unary_union
 
 from RAiDER.constants import _ZREF, _ZMIN, _g0
 from RAiDER import utilFcns as util
@@ -400,7 +402,8 @@ class WeatherModel(ABC):
 
     def checkContainment(self: weatherModel,
                          outLats: np.ndarray,
-                         outLons: np.ndarray) -> bool:
+                         outLons: np.ndarray,
+                         buffer_deg: float = 1e-5) -> bool:
         """"
         Checks containment of weather model bbox of outLats and outLons
         provided.
@@ -412,6 +415,10 @@ class WeatherModel(ABC):
             An array of latitude points
         outLons : np.ndarray
             An array of longitude points
+        buffer_deg : float
+            For x-translates for extents that lie outside of world bounding box,
+            this ensures that translates have some overlap. The default is 1e-5
+            or ~11.1 meters.
 
         Returns
         -------
@@ -434,10 +441,24 @@ class WeatherModel(ABC):
         weath_box_str = ', '.join(weath_box_str)
         input_box_str = ', '.join(input_box_str)
 
-        logger.info(f'Extent of the weather model lats/lons is:'
+        logger.info(f'Extent of the weather model is (xmin, ymin, xmax, ymax):'
                     f'{weath_box_str}')
-        logger.info(f'Extent of the input lats/lons is: '
+        logger.info(f'Extent of the input is (xmin, ymin, xmax, ymax): '
                     f'{input_box_str}')
+
+        # If the bounding box goes beyond the normal world extents
+        # Look at two x-translates, buffer them, and take their union.
+        world_box = box(-180, -90, 180, 90)
+        if not world_box.contains(weather_model_box):
+            logger.info('Considering x-translates of weather model +/-360 '
+                        'as bounding box outside of -180, -90, 180, 90')
+            translates = [weather_model_box.buffer(buffer_deg),
+                          translate(weather_model_box,
+                                    xoff=360).buffer(buffer_deg),
+                          translate(weather_model_box,
+                                    xoff=-360).buffer(buffer_deg)
+                          ]
+            weather_model_box = unary_union(translates)
 
         return weather_model_box.contains(input_box)
 
