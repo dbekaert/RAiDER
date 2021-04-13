@@ -6,6 +6,8 @@ import numpy as np
 import netCDF4
 import rasterio
 from shapely.geometry import box
+from shapely.affinity import translate
+from shapely.ops import unary_union
 
 from RAiDER.constants import _ZREF, _ZMIN, _g0
 from RAiDER import utilFcns as util
@@ -434,10 +436,20 @@ class WeatherModel(ABC):
         weath_box_str = ', '.join(weath_box_str)
         input_box_str = ', '.join(input_box_str)
 
-        logger.info(f'Extent of the weather model lats/lons is:'
+        logger.info(f'Extent of the weather model is (xmin, ymin, xmax, ymax):'
                     f'{weath_box_str}')
-        logger.info(f'Extent of the input lats/lons is: '
+        logger.info(f'Extent of the input is (xmin, ymin, xmax, ymax): '
                     f'{input_box_str}')
+
+        # If the bounding box goes beyond the normal world extents
+        # Look at two x-translates, buffer them, and take their union.
+        world_box = box(-180, -90, 180, 90)
+        if not world_box.contains(weather_model_box):
+            translates = [weather_model_box.buffer(1e-8),
+                          translate(weather_model_box, xoff=360).buffer(1e-8),
+                          translate(weather_model_box, xoff=-360).buffer(1e-8)
+                          ]
+            weather_model_box = unary_union(translates)
 
         return weather_model_box.contains(input_box)
 
