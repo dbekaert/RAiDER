@@ -31,7 +31,6 @@ class HRES(WeatherModel):
 
         self._humidityType = 'q'
         # Default, pressure levels are 'pl'
-        self._model_level_type = 'ml'
         self._expver = '1'
         self._classname = 'od'
         self._dataset = 'hres'
@@ -43,6 +42,9 @@ class HRES(WeatherModel):
         # Availability lag time in days
         self._lag_time = datetime.timedelta(hours=6)
 
+        self._model_level_type = 'ml'
+
+    def __model_levels__(self):
         self._levels = 137
 
         self._a = [
@@ -289,3 +291,32 @@ class HRES(WeatherModel):
             'area': "{}/{}/{}/{}".format(lat_max, lon_min, lat_min, lon_max),
             'format': "netcdf", },
             out)
+
+    def _download_ecmwf_pl(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
+        from ecmwfapi import ECMWFService
+
+        server = ECMWFService("mars")
+
+        corrected_date = round_date(time, datetime.timedelta(hours=6))
+
+        server.execute(
+            {
+                'class': self._classname,
+                'dataset': self._dataset,
+                'expver': "{}".format(self._expver),
+                'resol': "av",
+                'stream': "oper",
+                'type': "an",
+                #'levelist': "1/to/{0}".format(self._levels),
+                'levelist': "all",
+                'levtype': "{}".format(self._model_level_type),
+                'param': "129.128/130.128/133.128/152",
+                'date': datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
+                'time': "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M:%S')),
+                'step': "0",
+                'grid': "{}/{}".format(lon_step, lat_step),
+                'area': "{}/{}/{}/{}".format(lat_max, lon_min, lat_min, lon_max),
+                'format': "netcdf",
+            },
+            out
+        )
