@@ -14,7 +14,7 @@ class HRES(WeatherModel):
     Implement ECMWF models
     '''
 
-    def __init__(self):
+    def __init__(self, level_type='ml'):
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -30,7 +30,6 @@ class HRES(WeatherModel):
         self._y_res = 9. / 111
 
         self._humidityType = 'q'
-        # Default, pressure levels are 'pl'
         self._expver = '1'
         self._classname = 'od'
         self._dataset = 'hres'
@@ -42,7 +41,23 @@ class HRES(WeatherModel):
         # Availability lag time in days
         self._lag_time = datetime.timedelta(hours=6)
 
-        self._model_level_type = 'ml'
+        self.setLevel(level_type)
+
+    
+    def setLevel(self, levelType='ml'):
+        '''Set the level type to model levels or pressure levels'''
+        if levelType in ['ml', 'pl']:
+            self._level_type = levelType
+        else:
+            raise RuntimeError('Level type {} is not recognized'.format(levelType))
+
+        if levelType == 'ml':
+            self.__model_levels__()
+        else:
+            self.__pressure_levels__()
+
+    def __pressure_levels__(self):
+        pass
 
     def __model_levels__(self):
         self._levels = 137
@@ -102,7 +117,8 @@ class HRES(WeatherModel):
         ]
 
     def update_a_b(self):
-        # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels
+        # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted 
+        # based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels
         self._levels = 91
         self._a = [0.000000, 2.000040, 3.980832, 7.387186, 12.908319, 21.413612, 33.952858,
                    51.746601, 76.167656, 108.715561, 150.986023, 204.637451, 271.356506,
@@ -132,6 +148,7 @@ class HRES(WeatherModel):
                    0.897767, 0.917651, 0.935157, 0.950274, 0.963007, 0.973466, 0.982238, 0.989153, 0.994204,
                    0.997630, 1.000000]
 
+
     def load_weather(self, filename=None):
         '''
         Consistent class method to be implemented across all weather model types.
@@ -142,7 +159,14 @@ class HRES(WeatherModel):
         if filename is None:
             filename = self.files[0]
 
-        # read data from grib file
+        if self._level_type == 'ml':
+            self._load_model_levels(filename)
+        elif self._level_type == 'pl':
+            self._load_pressure_levels(filename)
+       
+
+    def _load_model_levels(self, filename):
+        # read data from netcdf file
         lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(
             filename,
             verbose=False
@@ -267,7 +291,10 @@ class HRES(WeatherModel):
             self.update_a_b()
 
         # execute the search at ECMWF
-        self._download_ecmwf_file(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
+        if self._level_type == 'ml':
+            self._download_ecmwf_file(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
+        else:
+            self._download_ecmwf_pl(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
 
     def _download_ecmwf_file(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
         from ecmwfapi import ECMWFService
@@ -320,3 +347,77 @@ class HRES(WeatherModel):
             },
             out
         )
+
+
+    def _load_pressure_levels(self, filename, *args, **kwargs):
+        import xarray as xr
+        with xr.open_dataset(filename) as block:
+            # Pull the data
+            z = np.squeeze(block['z'].values)
+            t = np.squeeze(block['t'].values)
+            q = np.squeeze(block['q'].values)
+            lats = np.squeeze(block.latitude.values)
+            lons = np.squeeze(block.longitude.values)
+            levels = np.squeeze(block.level.values) * 100
+
+        z = np.flip(z, axis=1)
+
+        # ECMWF appears to give me this backwards
+        if lats[0] > lats[1]:
+            z = z[::-1]
+            t = t[:, ::-1]
+            q = q[:, ::-1]
+            lats = lats[::-1]
+        # Lons is usually ok, but we'll throw in a check to be safe
+        if lons[0] > lons[1]:
+            z = z[..., ::-1]
+            t = t[..., ::-1]
+            q = q[..., ::-1]
+            lons = lons[::-1]
+        # pyproj gets fussy if the latitude is wrong, plus our
+        # interpolator isn't clever enough to pick up on the fact that
+        # they are the same
+        lons[lons > 180] -= 360
+
+        self._t = t
+        self._q = q
+
+        geo_hgt = z / self._g0
+
+        # re-assign lons, lats to match heights
+        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
+                                geo_hgt.shape)
+        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
+                                geo_hgt.shape)
+
+        # correct heights for latitude
+        self._get_heights(_lats, geo_hgt)
+
+        self._p = np.broadcast_to(levels[:, np.newaxis, np.newaxis],
+                                  self._zs.shape)
+
+        # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
+        self._p = np.transpose(self._p)
+        self._t = np.transpose(self._t)
+        self._q = np.transpose(self._q)
+        self._lats = np.transpose(_lats)
+        self._lons = np.transpose(_lons)
+        self._ys = self._lats.copy()
+        self._xs = self._lons.copy()
+        self._zs = np.transpose(self._zs)
+
+        # check this
+        # data cube format should be lats,lons,heights
+        self._lats = self._lats.swapaxes(0, 1)
+        self._lons = self._lons.swapaxes(0, 1)
+        self._xs = self._xs.swapaxes(0, 1)
+        self._ys = self._ys.swapaxes(0, 1)
+        self._zs = self._zs.swapaxes(0, 1)
+        self._p = self._p.swapaxes(0, 1)
+        self._q = self._q.swapaxes(0, 1)
+        self._t = self._t.swapaxes(0, 1)
+
+        # For some reason z is opposite the others
+        self._p = np.flip(self._p, axis=2)
+        self._t = np.flip(self._t, axis=2)
+        self._q = np.flip(self._q, axis=2)

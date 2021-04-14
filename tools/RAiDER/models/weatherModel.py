@@ -591,14 +591,20 @@ class WeatherModel(ABC):
         '''
         returns the extents of lat/lon plus a buffer
         '''
+        using_bbox = False
         if lats is None:
-            lats = self._lats
-            lons = self._lons
+            if self._lats is None:
+                lon_min, lat_min, lon_max, lat_max = self.bbox
+                using_bbox = True
+            else:
+                lats = self._lats
+                lons = self._lons
 
-        lat_min = np.nanmin(lats) - Nextra * self._lat_res
-        lat_max = np.nanmax(lats) + Nextra * self._lat_res
-        lon_min = np.nanmin(lons) - Nextra * self._lon_res
-        lon_max = np.nanmax(lons) + Nextra * self._lon_res
+        if not using_bbox:
+            lat_min = np.nanmin(lats) - Nextra * self._lat_res
+            lat_max = np.nanmax(lats) + Nextra * self._lat_res
+            lon_min = np.nanmin(lons) - Nextra * self._lon_res
+            lon_max = np.nanmax(lons) + Nextra * self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
 
@@ -670,10 +676,12 @@ class WeatherModel(ABC):
             lats = self._lats
         if lons is None:
             lons = self._lons
+
+        bounds = self._get_ll_bounds(lats=lats, lons=lons)
         f = make_weather_model_filename(
             self._Name,
             self._time,
-            self._get_ll_bounds(lats=lats, lons=lons)
+            bounds
         )
         return os.path.join(outLoc, f)
 

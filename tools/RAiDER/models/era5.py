@@ -101,7 +101,6 @@ class ERA5(ECMWF):
         self._load_pressure_level(*self.files, *args, **kwargs)
 
     def _load_pressure_level(self, filename, *args, **kwargs):
-        from scipy.io import netcdf as nc
         import xarray as xr
         with xr.open_dataset(filename) as block:
             # Pull the data
@@ -112,15 +111,6 @@ class ERA5(ECMWF):
             lats = np.squeeze(block.latitude.values)
             lons = np.squeeze(block.longitude.values)
             levels = np.squeeze(block.level.values) * 100
-#        with nc.netcdf_file(
-#                filename, 'r', maskandscale=True) as f:
-#            lats = f.variables['latitude'][:].copy()
-#            lons = f.variables['longitude'][:].copy()
-#            t = f.variables['t'][0].copy()
-#            q = f.variables['q'][0].copy()
-#            r = f.variables['r'][0].copy()
-#            z = f.variables['z'][0].copy()
-#            levels = f.variables['level'][:].copy() * 100
 
         z = np.flip(z, axis=1)
 
