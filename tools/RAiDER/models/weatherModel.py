@@ -51,7 +51,7 @@ class WeatherModel(ABC):
 
         # Define fixed constants
         self._R_v = 461.524
-        self._R_d = 287.053
+        self._R_d = 287.06 # in our original code this was 287.053
         self._g0 = _g0  # gravity constant
         self._zmin = _ZMIN  # minimum integration height
         self._zmax = _ZREF  # max integration height
@@ -538,8 +538,6 @@ class WeatherModel(ABC):
                 'and b have lengths {} and {} respectively. Of '.format(len(self._a), len(self._b)) +
                 'course, these three numbers should be equal.')
 
-        Ph_levplusone = self._a[levelSize] + (self._b[levelSize] * sp)
-
         # Integrate up into the atmosphere from *lowest level*
         z_h = 0  # initial value
         for lev, t_level, q_level in zip(
@@ -557,6 +555,7 @@ class WeatherModel(ABC):
 
             # compute the pressures (on half-levels)
             Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
+            Ph_levplusone = self._a[lev] + (self._b[lev] * sp)
 
             pressurelvs[ilevel] = Ph_lev
 
@@ -564,26 +563,23 @@ class WeatherModel(ABC):
                 dlogP = np.log(Ph_levplusone / 0.1)
                 alpha = np.log(2)
             else:
-                dlogP = np.log(Ph_levplusone / Ph_lev)
-                dP = Ph_levplusone - Ph_lev
-                alpha = 1 - ((Ph_lev / dP) * dlogP)
+                dlogP = np.log(Ph_levplusone) - np.log(Ph_lev)
+                alpha = 1 - ((Ph_lev / (Ph_levplusone - Ph_lev)) * dlogP)
 
             TRd = t_level * self._R_d
 
             # z_f is the geopotential of this full level
             # integrate from previous (lower) half-level z_h to the full level
-            z_f = z_h + TRd * alpha
-            # geoheight[ilevel] = z_f/self._g0
+            z_f = z_h + TRd * alpha + z
 
             # Geopotential (add in surface geopotential)
-            geopotential[ilevel] = z_f + z
+            geopotential[ilevel] = z_f
             geoheight[ilevel] = geopotential[ilevel] / self._g0
 
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
             z_h += TRd * dlogP
 
-            Ph_levplusone = Ph_lev
 
         return geopotential, pressurelvs, geoheight
 
@@ -645,7 +641,10 @@ class WeatherModel(ABC):
 
         # new regular z-spacing
         if _zlevels is None:
-            _zlevels = np.nanmean(self._zs, axis=(0, 1))
+            try:
+                _zlevels = self._zlevels
+            except:
+                _zlevels = np.nanmean(self._zs, axis=(0, 1))
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
         # re-assign values to the uniform z
