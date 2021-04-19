@@ -5,7 +5,7 @@ from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
 from RAiDER.logger import *
-from RAiDER.model_levels import A_137_ERA5, B_137_ERA5
+from RAiDER.model_levels import A_137_ERA5, B_137_ERA5, LEVELS_137_HEIGHTS
 
 
 class ERA5(ECMWF):
@@ -28,7 +28,7 @@ class ERA5(ECMWF):
         # Availability lag time in days
         self._lag_time = datetime.timedelta(days=30)
 
-        self._a = A_ERA5
+        self._a = A_137_ERA5
         self._b = B_137_ERA5
         self._zlevels = LEVELS_137_HEIGHTS
 
