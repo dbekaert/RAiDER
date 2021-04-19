@@ -15,6 +15,7 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-4
 
 
+@pytest.mark.timeout(300)
 def test_tropo_delay_ERA5(tmp_path):
     '''
     Scenario:
@@ -23,6 +24,7 @@ def test_tropo_delay_ERA5(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERA5")
 
 
+@pytest.mark.timeout(300)
 def test_tropo_delay_GMAO(tmp_path):
     '''
     Scenario:
@@ -39,6 +41,7 @@ def test_tropo_delay_GMAO(tmp_path):
 #    core_test_tropo_delay(tmp_path, modelName="MERRA2")
 
 
+@pytest.mark.timeout(300)
 def test_tropo_delay_HRES(tmp_path):
     '''
     Scenario:
@@ -47,6 +50,7 @@ def test_tropo_delay_HRES(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="HRES")
 
 
+@pytest.mark.timeout(300)
 def test_tropo_delay_ERA5T(tmp_path):
     '''
     Scenario:
@@ -55,6 +59,7 @@ def test_tropo_delay_ERA5T(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERA5T")
 
 
+@pytest.mark.timeout(300)
 def test_tropo_delay_ERAI(tmp_path):
     '''
     Scenario:
