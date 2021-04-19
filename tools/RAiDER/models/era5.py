@@ -31,7 +31,6 @@ class ERA5(ECMWF):
 
         self._a = A_137_ERA5
         self._b = B_137_ERA5
-        self._zlevels = LEVELS_137_HEIGHTS
 
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
