@@ -1,10 +1,11 @@
 import datetime
 import os
-from test import DATA_DIR, TEST_DIR, pushd
+import pytest
 import urllib.error
 
 import numpy as np
-import pytest
+
+from test import DATA_DIR, TEST_DIR, pushd
 
 
 from RAiDER.constants import Zenith
