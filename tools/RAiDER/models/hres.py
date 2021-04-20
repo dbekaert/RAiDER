@@ -69,7 +69,7 @@ class HRES(WeatherModel):
 
     def __model_levels__(self):
         self._levels = 137
-        self._zlevels = LEVELS_137_HEIGHTS
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
         self._a = A_137_HRES
         self._b = B_137_HRES 
 
@@ -77,7 +77,7 @@ class HRES(WeatherModel):
         # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted 
         # based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels
         self._levels = 91
-        self._zlevels = LEVELS_91_HEIGHTS
+        self._zlevels = np.flipud(LEVELS_91_HEIGHTS)
         self._a = A_91_HRES
         self._b = B_91_HRES
 
