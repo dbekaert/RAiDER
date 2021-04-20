@@ -67,9 +67,7 @@ def test_tropo_delay_ERAI(tmp_path):
     '''
     core_test_tropo_delay(tmp_path, modelName="ERAI")
 
-@pytest.mark.timeout(600)
-@pytest.mark.xfail(raises=urllib.error.URLError)
-@pytest.mark.xfail(raises=OSError)
+@pytest.mark.skip(reason="NCMR keeps hanging")
 def test_tropo_delay_NCMR(tmp_path):
     '''
     Scenario:
