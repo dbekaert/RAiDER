@@ -8,6 +8,7 @@ import math
 from tqdm import tqdm
 
 import pandas as pd
+pd.options.mode.chained_assignment = None  # default='warn'
 import numpy as np
 
 from textwrap import dedent
@@ -117,15 +118,21 @@ def haversine(origin, destination, to_radians=True, earth_radius=6371):
 
     return earth_radius * 2 * np.arcsin(np.sqrt(a))
 
-def update_time(row):
+def update_time(row, localTime_hrs):
     '''Update with local origin time'''
-    # roll-over to next day if hours > 24
-    if int(row['Localtime'] // 3600) >= 24:
-        return row['Datetime'].replace(hour=int(row['Localtime'] // 3600)-24, minute=int(row['Localtime'] % 3600 / 60.0), 
-               second=int(row['Localtime'] % 60)) + datetime.timedelta(days=1)
-    else:
-        return row['Datetime'].replace(hour=int(row['Localtime'] // 3600), minute=int(row['Localtime'] % 3600 / 60.0), 
-               second=int(row['Localtime'] % 60))
+    localTime_estimate = row['Datetime'].replace(hour=localTime_hrs, minute=0, second=0)
+    # determine if you need to shift days
+    time_shift = datetime.timedelta(days=0)
+    # if lon <0, check if you need to add day
+    if row['Lon'] < 0:
+        #round to nearest hour
+        days_diff = (row['Datetime'] - \
+                    datetime.timedelta(seconds=math.floor(row['Localtime'])*3600)).day - \
+                    localTime_estimate.day
+        # add day
+        if days_diff != 0:
+            time_shift = datetime.timedelta(days=1)
+    return localTime_estimate + datetime.timedelta(seconds=row['Localtime']*3600) + time_shift
 
 def pass_common_obs(reference, target):
     '''Pass only observations in target spatiotemporally common to reference'''
@@ -182,6 +189,47 @@ def concatDelayFiles(
         df_c.to_csv(outName, index=False)
 
 
+def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
+    '''
+    Convert to local-time reference frame WRT 0 longitude
+    '''
+    localTime_hrs = int(localTime.split(' ')[0])
+    localTime_hrthreshold = int(localTime.split(' ')[1])
+    #with rotation rate and distance to 0 lon, get localtime shift WRT 00 UTC at 0 lon
+    #*rotation rate at given point = (360deg/23.9333333333hr) = 15.041782729825965 deg/hr
+    dfr['Localtime'] = (dfr['Lon'] / 15.041782729825965)
+    dfz['Localtime'] = (dfz['Lon'] / 15.041782729825965)
+    dfr['Localtime'] = dfr.apply(lambda r: update_time(r, localTime_hrs), axis=1)
+    dfz['Localtime'] = dfz.apply(lambda r: update_time(r, localTime_hrs), axis=1)
+
+    #filter out data outside of --localtime hour threshold
+    dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
+    dfr['Localtime_u'] = dfr['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
+    OG_total = dfr.shape[0]
+    dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) & (dfr['Datetime'] <= dfr['Localtime_u'])]
+    print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
+           raiderFile, localTime.split(' ')[1], localTime.split(' ')[0], dfr.shape[0], OG_total))
+    dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
+    dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
+    OG_total = dfz.shape[0]
+    dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
+    print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
+           ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfz.shape[0], OG_total))
+    # drop all lines with nans
+    dfr.dropna(how='any', inplace=True)
+    dfz.dropna(how='any', inplace=True)
+    # drop all duplicate lines
+    dfr.drop_duplicates(inplace=True)
+    dfz.drop_duplicates(inplace=True)
+    #drop and rename columns
+    dfr.drop(columns=['Localtime_l', 'Localtime_u', 'Datetime'], inplace=True)
+    dfr.rename(columns={'Localtime': 'Datetime'}, inplace=True)
+    dfz.drop(columns=['Localtime_l', 'Localtime_u', 'Datetime'], inplace=True)
+    dfz.rename(columns={'Localtime': 'Datetime'}, inplace=True)
+
+    return dfr, dfz
+
+
 def mergeDelayFiles(
         raiderFile, 
         ztdFile, 
@@ -202,46 +250,7 @@ def mergeDelayFiles(
 
     # If specified, convert to local-time reference frame WRT 0 longitude
     if localTime is not None:
-        from RAiDER.getStationDelays import seconds_of_day
-
-        localTime_hrs = seconds_of_day(localTime.split(' ')[0])/3600
-        localTime_hrthreshold = int(localTime.split(' ')[1])
-        #speed at lat, assuming 1669.8 km/h rotation rate and circumference at equator
-        dfr['Rot_rate'] = np.cos(np.deg2rad(dfr['Lat'])) * 1669.8
-        dfz['Rot_rate'] = np.cos(np.deg2rad(dfz['Lat'])) * 1669.8
-        #distance to 0 longitude, assuming 40075.1600832 km circumference at equator
-        dfr['dist_to_0lon'] = haversine((dfr.loc[:, 'Lat'], 0*(dfr.loc[:, 'Lon'])), (dfr.loc[:, 'Lat'], dfr.loc[:, 'Lon']))
-        dfz['dist_to_0lon'] = haversine((dfz.loc[:, 'Lat'], 0*(dfz.loc[:, 'Lon'])), (dfz.loc[:, 'Lat'], dfz.loc[:, 'Lon']))
-        #from speed and distance estimates above, estimate desired --localtime WRT user input
-        dfr['Localtime'] = ((dfr['dist_to_0lon'] / dfr['Rot_rate']) + localTime_hrs) * 3600
-        dfz['Localtime'] = ((dfz['dist_to_0lon'] / dfz['Rot_rate']) + localTime_hrs) * 3600
-        dfr['Localtime'] = dfr.apply(lambda r: update_time(r), axis=1)
-        dfz['Localtime'] = dfz.apply(lambda r: update_time(r), axis=1)
-
-        #filter out data outside of --localtime hour threshold
-        dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
-        dfr['Localtime_u'] = dfr['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
-        OG_total = dfr.shape[0]
-        dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) & (dfr['Datetime'] <= dfr['Localtime_u'])]
-        print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
-               raiderFile, localTime.split(' ')[1], localTime.split(' ')[0], dfr.shape[0], OG_total))
-        dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
-        dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
-        OG_total = dfz.shape[0]
-        dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
-        print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
-               ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfz.shape[0], OG_total))
-        # drop all lines with nans
-        dfr.dropna(how='any', inplace=True)
-        dfz.dropna(how='any', inplace=True)
-        # drop all duplicate lines
-        dfr.drop_duplicates(inplace=True)
-        dfz.drop_duplicates(inplace=True)
-        #drop and rename columns
-        dfr.drop(columns=['Rot_rate', 'dist_to_0lon', 'Localtime_l', 'Localtime_u', 'Datetime'], inplace=True)
-        dfr.rename(columns={'Localtime': 'Datetime'}, inplace=True)
-        dfz.drop(columns=['Rot_rate', 'dist_to_0lon', 'Localtime_l', 'Localtime_u', 'Datetime'], inplace=True)
-        dfz.rename(columns={'Localtime': 'Datetime'}, inplace=True)
+        dfr, dfz = local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime)
 
     print('Beginning merge')
 
@@ -372,10 +381,10 @@ def create_parser():
         '-lt',
         dest='local_time',
         help=dedent("""\
-            "Optional control to pass only data at local-time WRT user-defined time at 0 longitude (1st argument),
+            "Optional control to pass only data at local-time (in integer hours) WRT user-defined time at 0 longitude (1st argument),
              and within +/- specified hour threshold (2nd argument).
              By default UTC is passed as is without local-time conversions.
-             Input in 'HH:MM:SS H', e.g. '16:00:00 1'"
+             Input in 'HH H', e.g. '16 1'"
 
             """),
         default=None

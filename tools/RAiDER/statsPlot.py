@@ -11,6 +11,7 @@ from RAiDER.logger import logger
 from RAiDER.cli.parser import add_cpus
 from RAiDER.utilFcns import WGS84_to_UTM
 from scipy import optimize
+from scipy import sum as scipy_sum
 from scipy.optimize import OptimizeWarning
 from scipy.special import errstate as sci_errstate
 from shapely.strtree import STRtree
@@ -670,6 +671,7 @@ class RaiderStats(object):
         self.grid_seasonal_phase_stdev = False
         self.grid_seasonal_amplitude_stdev = False
         self.grid_seasonal_period_stdev = False
+        self.grid_seasonal_fit_rmse = False
         self.grid_delay_absolute_mean = grid_delay_absolute_mean
         self.grid_delay_absolute_median = grid_delay_absolute_median
         self.grid_delay_absolute_stdev = grid_delay_absolute_stdev
@@ -679,6 +681,7 @@ class RaiderStats(object):
         self.grid_seasonal_absolute_phase_stdev = False
         self.grid_seasonal_absolute_amplitude_stdev = False
         self.grid_seasonal_absolute_period_stdev = False
+        self.grid_seasonal_absolute_fit_rmse = False
         self.grid_to_raster = grid_to_raster
         self.min_span = min_span
         self.period_limit = period_limit
@@ -706,46 +709,73 @@ class RaiderStats(object):
         if self.fname.endswith('.tif'):
             if 'grid_heatmap' in self.fname:
                 self.grid_heatmap, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_heatmap')[0]
             if 'grid_delay_mean' in self.fname:
                 self.grid_delay_mean, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_delay_mean')[0]
             if 'grid_delay_median' in self.fname:
                 self.grid_delay_median, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_delay_median')[0]
             if 'grid_delay_stdev' in self.fname:
                 self.grid_delay_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_delay_stdev')[0]
             if 'grid_seasonal_phase' in self.fname:
                 self.grid_seasonal_phase, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_phase')[0]
             if 'grid_seasonal_period' in self.fname:
                 self.grid_seasonal_period, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_period')[0]
             if 'grid_seasonal_amplitude' in self.fname:
                 self.grid_seasonal_amplitude, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_amplitude')[0]
             if 'grid_seasonal_phase_stdev' in self.fname:
                 self.grid_seasonal_phase_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
-            if 'grid_seasonal_period_stdev' in self.fname:
-                self.grid_seasonal_period_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_phase_stdev')[0]
             if 'grid_seasonal_amplitude_stdev' in self.fname:
                 self.grid_seasonal_amplitude_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_amplitude_stdev')[0]
+            if 'grid_seasonal_period_stdev' in self.fname:
+                self.grid_seasonal_period_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_period_stdev')[0]
+            if 'grid_seasonal_fit_rmse' in self.fname:
+                self.grid_seasonal_fit_rmse, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_fit_rmse')[0]
             if 'grid_delay_absolute_mean' in self.fname:
                 self.grid_delay_absolute_mean, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_delay_absolute_mean')[0]
             if 'grid_delay_absolute_median' in self.fname:
                 self.grid_delay_absolute_median, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_delay_absolute_median')[0]
             if 'grid_delay_absolute_stdev' in self.fname:
                 self.grid_delay_absolute_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_delay_absolute_stdev')[0]
             if 'grid_seasonal_absolute_phase' in self.fname:
                 self.grid_seasonal_absolute_phase, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_absolute_phase')[0]
             if 'grid_seasonal_absolute_period' in self.fname:
                 self.grid_seasonal_absolute_period, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_absolute_period')[0]
             if 'grid_seasonal_absolute_amplitude' in self.fname:
                 self.grid_seasonal_absolute_amplitude, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_absolute_amplitude')[0]
             if 'grid_seasonal_absolute_phase_stdev' in self.fname:
                 self.grid_seasonal_absolute_phase_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
-            if 'grid_seasonal_absolute_period_stdev' in self.fname:
-                self.grid_seasonal_absolute_period_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_absolute_phase_stdev')[0]
             if 'grid_seasonal_absolute_amplitude_stdev' in self.fname:
                 self.grid_seasonal_absolute_amplitude_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_absolute_amplitude_stdev')[0]
+            if 'grid_seasonal_absolute_period_stdev' in self.fname:
+                self.grid_seasonal_absolute_period_stdev, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_absolute_period_stdev')[0]
+            if 'grid_seasonal_absolute_fit_rmse' in self.fname:
+                self.grid_seasonal_absolute_fit_rmse, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_seasonal_absolute_fit_rmse')[0]
             if 'grid_range' in self.fname:
                 self.grid_range, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_range')[0]
             if 'grid_variance' in self.fname:
                 self.grid_variance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_variance')[0]
         # setup dataframe for statistical analyses (if CSV)
         if self.fname.endswith('.csv'):
             self.create_DF()
@@ -1041,6 +1071,7 @@ class RaiderStats(object):
             self.ampfit_c = []
             self.phsfit_c = []
             self.periodfit_c = []
+            self.seasonalfit_rmse = []
             args = []
             for i in sorted(list(set(unique_points['ID']))):
                 # pass all values corresponding to station (ID, data = y, time = x)
@@ -1054,6 +1085,7 @@ class RaiderStats(object):
                     self.ampfit_c.extend(l)
                     self.phsfit_c.extend(m)
                     self.periodfit_c.extend(n)
+                    self.seasonalfit_rmse.extend(n)
             # map phase/amplitude fits dictionary to dataframe
             self.phsfit = {k: v for d in self.phsfit for k, v in d.items()}
             self.ampfit = {k: v for d in self.ampfit for k, v in d.items()}
@@ -1071,6 +1103,7 @@ class RaiderStats(object):
             self.df['phsfit_c'] = self.df['ID'].map(self.phsfit_c)
             self.df['ampfit_c'] = self.df['ID'].map(self.ampfit_c)
             self.df['periodfit_c'] = self.df['ID'].map(self.periodfit_c)
+            self.df['seasonalfit_rmse'] = self.df['ID'].map(self.seasonalfit_rmse)
             # drop nan
             self.df.dropna(how='any', inplace=True)
             # If grid plots specified
@@ -1143,6 +1176,17 @@ class RaiderStats(object):
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_period_stdev' + '.tif')
                     save_gridfile(self.grid_seasonal_period_stdev, 'grid_seasonal_period_stdev', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+                # Pass mean seasonal fit RMSE of station-wise means per gridcell
+                unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['seasonalfit_rmse'].mean()
+                unique_points = unique_points.groupby(['gridnode'])['seasonalfit_rmse'].mean()
+                unique_points.dropna(how='any', inplace=True)
+                self.grid_seasonal_fit_rmse = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                # If specified, save gridded array(s)
+                if self.grid_to_raster:
+                    gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_fit_rmse' + '.tif')
+                    save_gridfile(self.grid_seasonal_fit_rmse, 'grid_seasonal_fit_rmse', gridfile_name, self.plotbbox, self.spacing, \
+                                  self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
             ########################################################################################################################
             if self.grid_seasonal_absolute_phase:
                 # Pass absolute mean phase of all data per gridcell
@@ -1207,6 +1251,17 @@ class RaiderStats(object):
                     save_gridfile(self.grid_seasonal_absolute_period_stdev, 'grid_seasonal_absolute_period_stdev', gridfile_name, self.plotbbox, self.spacing, \
                                   self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
 
+                # Pass absolute mean seasonal fit RMSE of all data per gridcell
+                unique_points = self.df.groupby(['gridnode'])['seasonalfit_rmse'].mean()
+                unique_points.dropna(how='any', inplace=True)
+                self.grid_seasonal_absolute_fit_rmse = np.array([np.nan if i[0] not in unique_points.index.get_level_values('gridnode').tolist(
+                ) else unique_points[i[0]] for i in enumerate(self.gridpoints)]).reshape(self.grid_dim).T
+                # If specified, save gridded array(s)
+                if self.grid_to_raster:
+                    gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_fit_rmse' + '.tif')
+                    save_gridfile(self.grid_seasonal_absolute_fit_rmse, 'grid_seasonal_absolute_fit_rmse', gridfile_name, self.plotbbox, self.spacing, \
+                                  self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, gdal_fmt='float32')
+
     def _amplitude_and_phase(self, station, tt, yy, min_span=2, min_frac=0.6, period_limit=0.5):
         '''
         Fit sin to the input time sequence, and return fitting parameters:
@@ -1227,6 +1282,7 @@ class RaiderStats(object):
         ampfit_c[station] = np.nan
         phsfit_c[station] = np.nan
         periodfit_c[station] = np.nan
+        seasonalfit_rmse[station] = np.nan
         # If station TS does not span specified time period, pass NaNs
         time_span_yrs = (max(tt) - min(tt)) / 31556952
         if time_span_yrs >= min_span and len(list(set(tt))) / (time_span_yrs * 365.25) >= min_frac:
@@ -1244,8 +1300,16 @@ class RaiderStats(object):
                 warnings.simplefilter("error", OptimizeWarning)
                 try:
                     optimize_warning = False
-                    # Note, may have to adjust max number of iterations (maxfev) higher to avoid crashes
-                    popt, pcov = optimize.curve_fit(self._sine_function_base, tt, yy, p0=guess, maxfev=int(1e6))
+                    try:
+                        # Note, may have to adjust max number of iterations (maxfev) higher to avoid crashes
+                        popt, pcov = optimize.curve_fit(self._sine_function_base, tt, yy, p0=guess, maxfev=int(1e6))
+                    # If sparse input such that fittitng is not possible, pass NaNs
+                    except TypeError:
+                        self.ampfit.append(np.nan), self.phsfit.append(np.nan), self.periodfit.append(np.nan), \
+                            self.ampfit_c.append(np.nan), self.phsfit_c.append(np.nan), \
+                            self.periodfit_c.append(np.nan), self.seasonalfit_rmse.append(np.nan)
+                        return self.ampfit, self.phsfit, self.periodfit, self.ampfit_c, \
+                               self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
                 except OptimizeWarning:
                     optimize_warning = True
                     warnings.simplefilter("ignore", OptimizeWarning)
@@ -1270,9 +1334,14 @@ class RaiderStats(object):
                 # I.e. RuntimeWarning: invalid value encountered in double_scalars
                 with np.errstate(invalid='raise'):
                     try:
+                        # pass covariance for each parameter
                         ampfit_c[station] = pcov[0, 0]**0.5
                         periodfit_c[station] = pcov[1, 1]**0.5
                         phsfit_c[station] = pcov[2, 2]**0.5
+                        # pass RMSE of fit
+                        seasonalfit_rmse[station] = yy - self._sine_function_base(tt,*popt)
+                        seasonalfit_rmse[station] = (scipy_sum(seasonalfit_rmse[station]**2)/ \
+                                                    (seasonalfit_rmse[station].size-2))**0.5
                     except FloatingPointError:
                         pass
                 if self.phaseamp_per_station or optimize_warning:
@@ -1307,8 +1376,10 @@ class RaiderStats(object):
         self.ampfit_c.append(ampfit_c)
         self.phsfit_c.append(phsfit_c)
         self.periodfit_c.append(periodfit_c)
+        self.seasonalfit_rmse.append(seasonalfit_rmse)
 
-        return self.ampfit, self.phsfit, self.periodfit, self.ampfit_c, self.phsfit_c, self.periodfit_c
+        return self.ampfit, self.phsfit, self.periodfit, self.ampfit_c, \
+               self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
 
     def _sine_function_base(self, t, A, w, p, c):
         '''
@@ -1390,14 +1461,15 @@ class RaiderStats(object):
                     if cbounds[0] == cbounds[1]:
                         cbounds[0] *= 0.75
                         cbounds.sort()
+                    # adjust precision for colorbar if necessary
+                    if (abs(np.nanmax(zvalues) - np.nanmin(zvalues)) < 1 and (np.nanmean(zvalues)) < 1) \
+                            or abs(np.nanmax(zvalues) - np.nanmin(zvalues)) > 500:
+                        colorbarfmt = '%.2e'
+
                 colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
                 colorbounds = np.unique(colorbounds)
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
 
-                # adjust precision for colorbar if necessary
-                if (abs(np.nanmax(zvalues) - np.nanmin(zvalues)) < 1 and (np.nanmean(zvalues)) < 1) \
-                        or abs(np.nanmax(zvalues) - np.nanmin(zvalues)) > 500:
-                    colorbarfmt = '%.2e'
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm,
                                   zorder=1, s=0.5, marker='.', transform=ccrs.PlateCarree())
@@ -1426,14 +1498,15 @@ class RaiderStats(object):
                 if cbounds[0] == cbounds[1]:
                     cbounds[0] *= 0.75
                     cbounds.sort()
+                # plot data and initiate colorbar
+                if (abs(np.nanmax(gridarr) - np.nanmin(gridarr)) < 1 and abs(np.nanmean(gridarr)) < 1) \
+                        or abs(np.nanmax(gridarr) - np.nanmin(gridarr)) > 500:
+                    colorbarfmt = '%.2e'
+
             colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
             colorbounds = np.unique(colorbounds)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
 
-            # plot data and initiate colorbar
-            if (abs(np.nanmax(gridarr) - np.nanmin(gridarr)) < 1 and abs(np.nanmean(gridarr)) < 1) \
-                    or abs(np.nanmax(gridarr) - np.nanmin(gridarr)) > 500:
-                colorbarfmt = '%.2e'
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,
                              zorder=1, origin='upper', transform=ccrs.PlateCarree())
@@ -1469,7 +1542,8 @@ class RaiderStats(object):
                     plottype == "station_delay_stdev" or plottype == "station_seasonal_amplitude" or \
                     plottype == "grid_delay_absolute_mean" or plottype == "grid_delay_absolute_median" or \
                     plottype == "grid_delay_absolute_stdev" or plottype == "grid_seasonal_absolute_amplitude" or \
-                    plottype == "grid_seasonal_amplitude_stdev" or plottype == "grid_seasonal_absolute_amplitude_stdev":
+                    plottype == "grid_seasonal_amplitude_stdev" or plottype == "grid_seasonal_absolute_amplitude_stdev" or \
+                    plottype == "grid_seasonal_fit_rmse" or plottype == "grid_seasonal_absolute_fit_rmse":
                 cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({})'.format(self.unit),
                                   rotation=-90, labelpad=10)
             # specify appropriate units for phase heatmap (days)
@@ -1675,6 +1749,11 @@ def stats_analyses(
         logger.info("- Plot mean stdev of station-wise delay period across each gridcell.")
         df_stats(df_stats.grid_seasonal_period_stdev, 'grid_seasonal_period_stdev', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot mean of seasonal fit RMSE across each gridcell
+    if isinstance(df_stats.grid_seasonal_fit_rmse, np.ndarray):
+        logger.info("- Plot mean of seasonal fit RMSE across each gridcell.")
+        df_stats(df_stats.grid_seasonal_fit_rmse, 'grid_seasonal_fit_rmse', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
     # Plot absolute mean delay for each gridcell
     if isinstance(df_stats.grid_delay_absolute_mean, np.ndarray):
         logger.info("- Plot absolute mean delay per gridcell.")
@@ -1719,6 +1798,11 @@ def stats_analyses(
     if isinstance(df_stats.grid_seasonal_absolute_period_stdev, np.ndarray):
         logger.info("- Plot absolute delay period stdev per gridcell.")
         df_stats(df_stats.grid_seasonal_absolute_period_stdev, 'grid_seasonal_absolute_period_stdev', workdir=os.path.join(workdir, 'figures'),
+                 drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    # Plot absolute mean seasonal fit RMSE for each gridcell
+    if isinstance(df_stats.grid_seasonal_absolute_fit_rmse, np.ndarray):
+        logger.info("- Plot absolute mean seasonal fit RMSE per gridcell.")
+        df_stats(df_stats.grid_seasonal_absolute_fit_rmse, 'grid_seasonal_absolute_fit_rmse', workdir=os.path.join(workdir, 'figures'),
                  drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
     # Perform variogram analysis
