@@ -95,29 +95,6 @@ def getDateTime(filename):
             '%Y%m%dT%H%M%S'
         )
 
-def haversine(origin, destination, to_radians=True, earth_radius=6371):
-    '''
-    Sources: https://stackoverflow.com/questions/40452759/pandas-latitude-longitude-to-distance-between-successive-rows,
-    http://stackoverflow.com/a/29546836/2901002
-
-    Calculate the great circle distance between two points
-    on the earth (specified in decimal degrees or in radians)
-
-    All (lat, lon) coordinates must have numeric dtypes and be of equal length.
-
-    '''
-    # vectorized haversine function
-    lat1, lon1 = origin
-    lat2, lon2 = destination
-    if to_radians:
-        #make sure to convert longitude from -180/180 to 0/360 convention
-        lat1, lon1, lat2, lon2 = np.radians([lat1, lon1 % 360, lat2, lon2 % 360])
-
-    a = np.sin((lat2-lat1)/2.0)**2 + \
-        np.cos(lat1) * np.cos(lat2) * np.sin((lon2-lon1)/2.0)**2
-
-    return earth_radius * 2 * np.arcsin(np.sqrt(a))
-
 def update_time(row, localTime_hrs):
     '''Update with local origin time'''
     localTime_estimate = row['Datetime'].replace(hour=localTime_hrs, minute=0, second=0)
