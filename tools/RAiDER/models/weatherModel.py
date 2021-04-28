@@ -657,6 +657,12 @@ class WeatherModel(ABC):
         self._e = interpolate_along_axis(
             self._zs, self._e, new_zs, axis=2, fill_value=np.nan
         ).astype(np.float32)
+        self._lats = interpolate_along_axis(
+            self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._lons = interpolate_along_axis(
+            self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
 
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
