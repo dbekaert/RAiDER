@@ -26,13 +26,14 @@ dependencies:
  - netcdf4
  - numpy
  - pandas
+ - progressbar
  - pydap>3.2.2|<3.2.2
  - pygrib
  - pyproj>=2.1.0
  - pytest
+ - pytest-timeout
  - rasterio
  - scipy
  - shapely
  - sysroot_linux-64
  - xarray
- - progressbar

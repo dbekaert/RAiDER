@@ -765,7 +765,6 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
     The point of doing this is to alleviate some of the memory load of keeping
     the full model in memory and make it easier to scale up the program.
     '''
-
     from osgeo import osr
 
     if mapping_name == 'WGS84':

@@ -25,6 +25,7 @@ dependencies:
  - matplotlib
  - numpy
  - pandas
+ - progressbar
  - pygrib
  - pyproj>=2.1.0
  - scipy
@@ -38,4 +39,4 @@ dependencies:
  # Dev dependencies. Only needed for contributing
  - pytest
  - pytest-cov
- - progressbar
+ - pytest-timeout
