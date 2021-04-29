@@ -27,9 +27,8 @@ def checkArgs(args, p):
 
     # Argument checking
     if args.heightlvs is not None:
-        if args.outformat is not None:
-            if args.outformat.lower() != 'hdf5':
-                raise RuntimeError('HDF5 must be used with height levels')
+        if (args.outformat.lower() != 'hdf5') and (args.outformat is not None):
+            raise ValueError('If you want to use height levels you must specify HDF5 as your "outformat"')
 
     if args.wmLoc is not None:
         wmLoc = args.wmLoc
@@ -42,7 +41,7 @@ def checkArgs(args, p):
     lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
 
     if (np.min(lat) < -90) | (np.max(lat) > 90):
-        raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
+        raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc
     if args.lineofsight is not None:
@@ -73,7 +72,7 @@ def checkArgs(args, p):
     weathers = {
         'type': model_obj(),
         'files': args.files,
-        'name': args.model
+        'name': args.model.lower().replace('-', '')
     }
 
     # zref

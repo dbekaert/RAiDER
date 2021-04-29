@@ -15,7 +15,9 @@ import progressbar
 from RAiDER.constants import (
         Zenith, 
         _g0 as g0, 
-        _RE as Re
+        _RE as Re,
+        R_EARTH_MAX as Rmax,
+        R_EARTH_MIN as Rmin,
     )
 from RAiDER import Geo2rdr
 from RAiDER.logger import *
@@ -236,8 +238,6 @@ def _get_Re(lats):
     Returns the ellipsoid as a fcn of latitude
     '''
     # TODO: verify constants, add to base class constants?
-    Rmax = 6378137
-    Rmin = 6356752
     return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
