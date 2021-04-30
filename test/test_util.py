@@ -10,8 +10,8 @@ from test import TEST_DIR
 from osgeo import gdal, osr
 
 from RAiDER.utilFcns import (
-    _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
-    writeArrayToRaster, writeResultsToHDF5, gdal_extents, modelName2Module,
+    _least_nonzero, cosd, gdal_open, sind,
+    writeArrayToRaster, writeResultsToHDF5, gdal_extents,
     getTimeFromFile
 )
 
@@ -189,26 +189,6 @@ def test_makePoints3D_Cython_values(make_points_3d_data):
     assert np.allclose(test_result, true_rays)
 
 
-def test_makeDelayFileNames():
-    assert makeDelayFileNames(None, None, "h5", "name", "dir") == \
-        ("dir/name_wet_ztd.h5", "dir/name_hydro_ztd.h5")
-
-    assert makeDelayFileNames(None, (), "h5", "name", "dir") == \
-        ("dir/name_wet_std.h5", "dir/name_hydro_std.h5")
-
-    assert makeDelayFileNames(time(1, 2, 3), None, "h5", "model_name", "dir") == \
-        (
-            "dir/model_name_wet_01_02_03_ztd.h5",
-            "dir/model_name_hydro_01_02_03_ztd.h5"
-    )
-
-    assert makeDelayFileNames(time(1, 2, 3), "los", "h5", "model_name", "dir") == \
-        (
-            "dir/model_name_wet_01_02_03_std.h5",
-            "dir/model_name_hydro_01_02_03_std.h5"
-    )
-
-
 def test_least_nonzero():
     a = np.arange(20, dtype="float64").reshape(2, 2, 5)
     a[0, 0, 0] = np.nan
@@ -269,11 +249,6 @@ def test_gdal_extent2():
 def test_getTimeFromFile():
     name1 = 'abcd_2020_01_01_T00_00_00jijk.xyz'
     assert getTimeFromFile(name1) == datetime.datetime(2020, 1, 1, 0, 0, 0)
-
-
-def test_model2module():
-    model_module_name, model_obj = modelName2Module('ERA5')
-    assert model_obj().Model() == 'ERA-5'
 
 
 def test_project():
@@ -357,7 +332,7 @@ def test_WGS84_to_UTM():
     assert np.all(true_utm_common_letter == L)
 
 
-@pytest.mark.skipif(True)
+@pytest.mark.skipif(True, reason='Need to ensure this file always get written before this executes')
 def test_read_weather_model_file():
     weather_model_obj = read_wm_file(
             os.path.join(

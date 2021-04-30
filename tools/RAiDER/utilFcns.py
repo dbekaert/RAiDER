@@ -1,5 +1,4 @@
 """Geodesy-related utility functions."""
-import importlib
 import multiprocessing as mp
 import os
 import re
@@ -265,31 +264,6 @@ def padLower(invar):
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def makeDelayFileNames(time, los, outformat, weather_model_name, out):
-    '''
-    return names for the wet and hydrostatic delays.
-
-    # Examples:
-    >>> makeDelayFileNames(time(0, 0, 0), None, "h5", "model_name", "some_dir")
-    ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
-    >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
-    ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
-    '''
-    format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
-        model_name=weather_model_name,
-        time=time.strftime("%H_%M_%S_") if time is not None else "",
-        los="ztd" if los is None else "std",
-        ext=outformat
-    )
-    hydroname, wetname = (
-        format_string.format(dtyp) for dtyp in ('hydro', 'wet')
-    )
-
-    hydro_file_name = os.path.join(out, hydroname)
-    wet_file_name = os.path.join(out, wetname)
-    return wet_file_name, hydro_file_name
-
-
 def checkShapes(los, lats, lons, hts):
     '''
     Make sure that by the time the code reaches here, we have a
@@ -326,24 +300,6 @@ def checkLOS(los, Npts):
         raise RuntimeError('Found {} line-of-sight values and only {} points'
                            .format(los.shape[0], Npts))
     return los
-
-
-def modelName2Module(model_name):
-    """Turn an arbitrary string into a module name.
-    Takes as input a model name, which hopefully looks like ERA-I, and
-    converts it to a module name, which will look like erai. I doesn't
-    always produce a valid module name, but that's not the goal. The
-    goal is just to handle common cases.
-    Inputs:
-       model_name  - Name of an allowed weather model (e.g., 'era-5')
-    Outputs:
-       module_name - Name of the module
-       wmObject    - callable, weather model object
-    """
-    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
-    model_module = importlib.import_module(module_name)
-    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name, wmObject
 
 
 def read_hgt_file(filename):

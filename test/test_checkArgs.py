@@ -1,3 +1,4 @@
+import datetime
 import os
 import pytest
 import sys
@@ -5,12 +6,16 @@ import sys
 import multiprocessing as mp
 
 from argparse import ArgumentParser
-from test import pushd
+from test import TEST_DIR, pushd
 
 import RAiDER.runProgram
 
-from RAiDER.checkArgs import checkArgs
+from RAiDER.checkArgs import checkArgs, makeDelayFileNames, modelName2Module
 from RAiDER.constants import Zenith, _ZREF
+
+
+SCENARIO_1 = os.path.join(TEST_DIR, "scenario_1")
+SCENARIO_2 = os.path.join(TEST_DIR, "scenario_2")
 
 
 def isWriteable(dirpath):
@@ -51,6 +56,20 @@ def test_checkArgs_outfmt_2(parsed_args):
     args.outformat = 'envi'
     with pytest.raises(ValueError):
         checkArgs(args, p)
+
+def test_checkArgs_outfmt_3(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    args.query_area = os.path.join(SCENARIO_2, 'stations.csv')
+    argDict = checkArgs(args, p)
+    assert argDict['flag'] == 'station_file'
+
+def test_checkArgs_outfmt_4(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    args.query_area = [os.path.join(SCENARIO_1, 'geom', 'lat.dat'), os.path.join(SCENARIO_1, 'geom', 'lat.dat')]
+    argDict = checkArgs(args, p)
+    assert argDict['flag'] == 'files'
 
 def test_checkArgs_outloc_1(parsed_args):
     '''Test that the default output and weather model directories are correct'''
@@ -276,4 +295,50 @@ def test_useWeatherNodes_1(parsed_args):
     args, p = parsed_args
     argDict = checkArgs(args, p)
     assert argDict['flag'] == 'bounding_box'# default arguments use a bounding box
+
+def test_filenames_1(parsed_args):
+    '''tests that the correct filenames are generated'''
+    args, p = parsed_args
+    argDict = checkArgs(args, p)
+    assert 'Delay' not in argDict['wetFilenames'][0]
+    assert 'wet' in argDict['wetFilenames'][0]
+    assert 'hydro' in argDict['hydroFilenames'][0]
+    assert '20200103' in argDict['wetFilenames'][0]
+    assert '20200103' in argDict['hydroFilenames'][0]
+    assert len(argDict['hydroFilenames']) == 1
+
+def test_filenames_2(parsed_args):
+    '''tests that the correct filenames are generated'''
+    args, p = parsed_args
+    args.query_area = os.path.join(SCENARIO_2, 'stations.csv')
+    argDict = checkArgs(args, p)
+    assert 'Delay' in argDict['wetFilenames'][0]
+    assert '20200103' in argDict['wetFilenames'][0]
+    assert len(argDict['wetFilenames']) == 1
+
+def test_makeDelayFileNames_1():
+    assert makeDelayFileNames(None, None, "h5", "name", "dir") == \
+        ("dir/name_wet_ztd.h5", "dir/name_hydro_ztd.h5")
+
+def test_makeDelayFileNames_2():
+    assert makeDelayFileNames(None, (), "h5", "name", "dir") == \
+        ("dir/name_wet_std.h5", "dir/name_hydro_std.h5")
+
+def test_makeDelayFileNames_3():
+    assert makeDelayFileNames(datetime.datetime(2020, 1, 1, 1, 2, 3), None, "h5", "model_name", "dir") == \
+        (
+            "dir/model_name_wet_20200101T010203_ztd.h5",
+            "dir/model_name_hydro_20200101T010203_ztd.h5"
+    )
+
+def test_makeDelayFileNames_4():
+    assert makeDelayFileNames(datetime.datetime(1900, 12, 31, 1, 2, 3), "los", "h5", "model_name", "dir") == \
+        (
+            "dir/model_name_wet_19001231T010203_std.h5",
+            "dir/model_name_hydro_19001231T010203_std.h5"
+    )
+
+def test_model2module():
+    model_module_name, model_obj = modelName2Module('ERA5')
+    assert model_obj().Model() == 'ERA-5'
 
