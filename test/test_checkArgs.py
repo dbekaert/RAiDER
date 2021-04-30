@@ -4,6 +4,7 @@ import pytest
 import sys
 
 import multiprocessing as mp
+import numpy as np
 
 from argparse import ArgumentParser
 from test import TEST_DIR, pushd
@@ -341,4 +342,44 @@ def test_makeDelayFileNames_4():
 def test_model2module():
     model_module_name, model_obj = modelName2Module('ERA5')
     assert model_obj().Model() == 'ERA-5'
+
+def test_dem_1(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    argDict = checkArgs(args, p)
+    assert argDict['heights'][0] == 'skip'
+    assert argDict['heights'][1] is None
+
+def test_dem_2(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    args.heightlvs = [10, 100, 1000]
+    argDict = checkArgs(args, p)
+    assert argDict['heights'][0] == 'lvs'
+    assert np.allclose(argDict['heights'][1], [10, 100, 1000])
+
+def test_dem_3(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    args.heightlvs = [10, 100, 1000]
+    args.query_area = os.path.join(SCENARIO_2, 'stations.csv')
+    argDict = checkArgs(args, p)
+    assert argDict['heights'][0] == 'lvs'
+    assert np.allclose(argDict['heights'][1], [10, 100, 1000])
+
+def test_dem_4(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    args.query_area = os.path.join(SCENARIO_2, 'stations.csv')
+    argDict = checkArgs(args, p)
+    assert argDict['heights'][0] == 'pandas'
+    assert argDict['heights'][1][0] == argDict['wetFilenames'][0]
+
+def test_dem_5(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    args.query_area = [os.path.join(SCENARIO_1, 'geom', 'lat.dat'), os.path.join(SCENARIO_1, 'geom', 'lat.dat')]
+    argDict = checkArgs(args, p)
+    assert argDict['heights'][0] == 'download'
+    assert argDict['heights'][1] == os.path.join(argDict['out'], 'geom', 'warpedDEM.dem')
 
