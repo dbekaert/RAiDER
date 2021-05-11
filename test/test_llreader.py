@@ -11,10 +11,10 @@ import RAiDER.runProgram
 
 from RAiDER.utilFcns import gdal_open
 from RAiDER.llreader import (
-    readLL, 
-    readLLFromLLFiles, 
-    readLLFromBBox, 
-    readLLFromStationFile, 
+    readLL,
+    readLLFromLLFiles,
+    readLLFromBBox,
+    readLLFromStationFile,
     forceNDArray
 )
 
@@ -82,7 +82,7 @@ def test_readLL_bbox(parser):
     assert np.allclose(lats, lat_true)
     assert np.allclose(lons, lon_true)
     assert llproj == 'EPSG:4326'
-    
+
     # Hard code the lat/lon bounds to test against changing the files
     bounds_true = bbox
     assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
@@ -111,7 +111,7 @@ def test_readLL_file(parser, station_file):
     assert np.allclose(lats, stats['Lat'].values)
     assert np.allclose(lons, stats['Lon'].values)
     assert llproj == 'EPSG:4326'
-    
+
     # Hard code the lat/lon bounds to test against changing the files
     bounds_true = [33.746, 36.795, -118.312, -114.892]
     assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])
@@ -141,7 +141,7 @@ def test_readLL_files(parser, llfiles):
     assert np.allclose(lats, lat_true)
     assert np.allclose(lons, lon_true)
     assert llproj == ''
-    
+
     # Hard code the lat/lon bounds to test against changing the files
     bounds_true = [15.75, 18.25, -103.25, -99.75]
     assert all([np.allclose(b, t) for b, t in zip(bounds, bounds_true)])

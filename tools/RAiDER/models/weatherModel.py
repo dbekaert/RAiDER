@@ -1,24 +1,21 @@
 import datetime
-import logging
 import os
 from abc import ABC, abstractmethod
 
-import h5py
 import numpy as np
-from pyproj import CRS, Transformer
 import netCDF4
+import rasterio
+from shapely.geometry import box
+from shapely.affinity import translate
+from shapely.ops import unary_union
 
 from RAiDER.constants import _ZREF, _ZMIN, _g0
 from RAiDER import utilFcns as util
-from RAiDER.constants import Zenith
-from RAiDER.delayFcns import _integrateLOS, interpolate2, make_interpolator
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
-from RAiDER.losreader import getLookVectors
-from RAiDER.logger import *
-from RAiDER.makePoints import makePoints3D
-from RAiDER.models import plotWeather as plots
-from RAiDER.utilFcns import lla2ecef, robmax, robmin, getTimeFromFile, write2NETCDF4core
+from RAiDER.logger import logger
+from RAiDER.models import plotWeather as plots, weatherModel
+from RAiDER.utilFcns import robmax, robmin, write2NETCDF4core
 
 
 class WeatherModel(ABC):
@@ -50,10 +47,11 @@ class WeatherModel(ABC):
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
+        self._bbox = None
 
         # Define fixed constants
         self._R_v = 461.524
-        self._R_d = 287.053
+        self._R_d = 287.06 # in our original code this was 287.053
         self._g0 = _g0  # gravity constant
         self._zmin = _ZMIN  # minimum integration height
         self._zmax = _ZREF  # max integration height
@@ -78,7 +76,6 @@ class WeatherModel(ABC):
         self._hydrostatic_refractivity = None
         self._wet_ztd = None
         self._hydrostatic_ztd = None
-        self._svp = None
 
     def __str__(self):
         string = '\n'
@@ -143,11 +140,11 @@ class WeatherModel(ABC):
             raise ValueError('"time" must be a string or a datetime object')
 
     def checkLL(self, lats, lons, Nextra=2):
-        ''' 
-        Need to correct lat/lon bounds because not all of the weather models have valid 
-        data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2, 
-        need to adjust the longitude higher end with an extra buffer; for other models, 
-        the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be 
+        '''
+        Need to correct lat/lon bounds because not all of the weather models have valid
+        data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
+        need to adjust the longitude higher end with an extra buffer; for other models,
+        the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
         '''
@@ -185,7 +182,7 @@ class WeatherModel(ABC):
         '''
         # If the weather file has already been processed, do nothing
         self._out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
-        if self.checkWeatherExists(self._out_name):
+        if os.path.exists(self._out_name):
             return self._out_name
         else:
             exists_flag = False
@@ -202,7 +199,6 @@ class WeatherModel(ABC):
 
             # Process the weather model data
             self._find_e()
-            self._checkNotMaskedArrays()
             self._uniform_in_z(_zlevels=_zlevels)
             self._checkForNans()
             self._get_wet_refractivity()
@@ -219,13 +215,6 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-    def checkWeatherExists(self, pathname):
-        ''' Check whether or not the weather model has already been processed '''
-        if os.path.exists(pathname):
-            return True
-        else:
-            return False
 
     def _get_time(self, filename=None):
         if filename is None:
@@ -290,15 +279,15 @@ class WeatherModel(ABC):
 
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
-        self._find_svp()
+        svp = find_svp(self._t)
         # We have q = w/(w + 1), so w = q/(1 - q)
         w = self._q / (1 - self._q)
-        self._e = w * self._R_v * (self._p - self._svp) / self._R_d
+        self._e = w * self._R_v * (self._p - svp) / self._R_d
 
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
-        self._find_svp()
-        self._e = self._rh / 100 * self._svp
+        svp = find_svp(self._t)
+        self._e = self._rh / 100 * svp
 
     def _get_wet_refractivity(self):
         '''
@@ -381,6 +370,98 @@ class WeatherModel(ABC):
         else:
             raise RuntimeError('Not a valid lat/lon shape')
 
+    @property
+    def bbox(self) -> list:
+        """
+        Obtains the bounding box of the weather model in lat/lon CRS.
+
+        Returns
+        -------
+        list
+            xmin, ymin, xmax, ymax
+
+        Raises
+        ------
+        ValueError
+           When `self.files` is None.
+        """
+        if self._bbox is None:
+            if self.files is None:
+                raise ValueError('Need to save weather model as netcdf')
+            weather_model_path = self.files[0]
+            with rasterio.open(f'netcdf:{weather_model_path}') as ds:
+                datasets = ds.subdatasets
+
+            with rasterio.open(datasets[0]) as ds:
+                bounds = ds.bounds
+
+            xmin, ymin, xmax, ymax = tuple(bounds)
+            self._bbox = [xmin, ymin, xmax, ymax]
+
+        return self._bbox
+
+    def checkContainment(self: weatherModel,
+                         outLats: np.ndarray,
+                         outLons: np.ndarray,
+                         buffer_deg: float = 1e-5) -> bool:
+        """"
+        Checks containment of weather model bbox of outLats and outLons
+        provided.
+
+        Parameters
+        ----------
+        weather_model : weatherModel
+        outLats : np.ndarray
+            An array of latitude points
+        outLons : np.ndarray
+            An array of longitude points
+        buffer_deg : float
+            For x-translates for extents that lie outside of world bounding box,
+            this ensures that translates have some overlap. The default is 1e-5
+            or ~11.1 meters.
+
+        Returns
+        -------
+        bool
+           True if weather model contains bounding box of OutLats and outLons
+           and False otherwise.
+        """
+        xmin_input, xmax_input = np.min(outLons), np.max(outLons)
+        ymin_input, ymax_input = np.min(outLats), np.max(outLats)
+        input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
+
+        xmin, ymin, xmax, ymax = self.bbox
+        weather_model_box = box(xmin, ymin, xmax, ymax)
+
+        # Logger
+        input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
+                                               xmax_input, ymax_input]]
+        weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
+
+        weath_box_str = ', '.join(weath_box_str)
+        input_box_str = ', '.join(input_box_str)
+
+        logger.info(f'Extent of the weather model is (xmin, ymin, xmax, ymax):'
+                    f'{weath_box_str}')
+        logger.info(f'Extent of the input is (xmin, ymin, xmax, ymax): '
+                    f'{input_box_str}')
+
+        # If the bounding box goes beyond the normal world extents
+        # Look at two x-translates, buffer them, and take their union.
+        world_box = box(-180, -90, 180, 90)
+        if not world_box.contains(weather_model_box):
+            logger.info('Considering x-translates of weather model +/-360 '
+                        'as bounding box outside of -180, -90, 180, 90')
+            translates = [weather_model_box.buffer(buffer_deg),
+                          translate(weather_model_box,
+                                    xoff=360).buffer(buffer_deg),
+                          translate(weather_model_box,
+                                    xoff=-360).buffer(buffer_deg)
+                          ]
+            weather_model_box = unary_union(translates)
+
+        return weather_model_box.contains(input_box)
+
     def _isOutside(self, extent1, extent2):
         '''
         Determine whether any of extent1  lies outside extent2
@@ -425,39 +506,6 @@ class WeatherModel(ABC):
         self._wet_refractivity = self._wet_refractivity[index1:index2, index3:index4, ...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2, index3:index4, :]
 
-    def _find_svp(self):
-        """
-        Calculate standard vapor presure. Should be model-specific
-        """
-        # From TRAIN:
-        # Could not find the wrf used equation as they appear to be
-        # mixed with latent heat etc. Istead I used the equations used
-        # in ERA-I (see IFS documentation part 2: Data assimilation
-        # (CY25R1)). Calculate saturated water vapour pressure (svp) for
-        # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
-        # and Eskridge (1996) euation AERKi
-
-        # TODO: figure out the sources of all these magic numbers and move
-        # them somewhere more visible.
-        # TODO: (Jeremy) - Need to fix/get the equation for the other
-        # weather model types. Right now this will be used for all models,
-        # except WRF, which is yet to be implemented in my new structure.
-        t1 = 273.15  # O Celsius
-        t2 = 250.15  # -23 Celsius
-
-        tref = self._t - t1
-        wgt = (self._t - t2) / (t1 - t2)
-        svpw = (6.1121 * np.exp((17.502 * tref) / (240.97 + tref)))
-        svpi = (6.1121 * np.exp((22.587 * tref) / (273.86 + tref)))
-
-        svp = svpi + (svpw - svpi) * wgt**2
-        ix_bound1 = self._t > t1
-        svp[ix_bound1] = svpw[ix_bound1]
-        ix_bound2 = self._t < t2
-        svp[ix_bound2] = svpi[ix_bound2]
-
-        self._svp = svp * 100
-
     def _calculategeoh(self, z, lnsp):
         '''
         Function to calculate pressure, geopotential, and geopotential height
@@ -490,8 +538,6 @@ class WeatherModel(ABC):
                 'and b have lengths {} and {} respectively. Of '.format(len(self._a), len(self._b)) +
                 'course, these three numbers should be equal.')
 
-        Ph_levplusone = self._a[levelSize] + (self._b[levelSize] * sp)
-
         # Integrate up into the atmosphere from *lowest level*
         z_h = 0  # initial value
         for lev, t_level, q_level in zip(
@@ -509,6 +555,7 @@ class WeatherModel(ABC):
 
             # compute the pressures (on half-levels)
             Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
+            Ph_levplusone = self._a[lev] + (self._b[lev] * sp)
 
             pressurelvs[ilevel] = Ph_lev
 
@@ -516,26 +563,23 @@ class WeatherModel(ABC):
                 dlogP = np.log(Ph_levplusone / 0.1)
                 alpha = np.log(2)
             else:
-                dlogP = np.log(Ph_levplusone / Ph_lev)
-                dP = Ph_levplusone - Ph_lev
-                alpha = 1 - ((Ph_lev / dP) * dlogP)
+                dlogP = np.log(Ph_levplusone) - np.log(Ph_lev)
+                alpha = 1 - ((Ph_lev / (Ph_levplusone - Ph_lev)) * dlogP)
 
             TRd = t_level * self._R_d
 
             # z_f is the geopotential of this full level
             # integrate from previous (lower) half-level z_h to the full level
-            z_f = z_h + TRd * alpha
-            # geoheight[ilevel] = z_f/self._g0
+            z_f = z_h + TRd * alpha + z
 
             # Geopotential (add in surface geopotential)
-            geopotential[ilevel] = z_f + z
+            geopotential[ilevel] = z_f
             geoheight[ilevel] = geopotential[ilevel] / self._g0
 
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
             z_h += TRd * dlogP
 
-            Ph_levplusone = Ph_lev
 
         return geopotential, pressurelvs, geoheight
 
@@ -543,14 +587,20 @@ class WeatherModel(ABC):
         '''
         returns the extents of lat/lon plus a buffer
         '''
+        using_bbox = False
         if lats is None:
-            lats = self._lats
-            lons = self._lons
+            if self._lats is None:
+                lon_min, lat_min, lon_max, lat_max = self.bbox
+                using_bbox = True
+            else:
+                lats = self._lats
+                lons = self._lons
 
-        lat_min = np.nanmin(lats) - Nextra * self._lat_res
-        lat_max = np.nanmax(lats) + Nextra * self._lat_res
-        lon_min = np.nanmin(lons) - Nextra * self._lon_res
-        lon_max = np.nanmax(lons) + Nextra * self._lon_res
+        if not using_bbox:
+            lat_min = np.nanmin(lats) - Nextra * self._lat_res
+            lat_max = np.nanmax(lats) + Nextra * self._lat_res
+            lon_min = np.nanmin(lons) - Nextra * self._lon_res
+            lon_max = np.nanmax(lons) + Nextra * self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
 
@@ -591,39 +641,32 @@ class WeatherModel(ABC):
 
         # new regular z-spacing
         if _zlevels is None:
-            _zlevels = np.nanmean(self._zs, axis=(0, 1))
+            try:
+                _zlevels = self._zlevels
+            except:
+                _zlevels = np.nanmean(self._zs, axis=(0, 1))
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
         # re-assign values to the uniform z
-        # new variables
-        self._t = interpolate_along_axis(self._zs, self._t, new_zs, axis=2, fill_value=np.nan)
-        self._p = interpolate_along_axis(self._zs, self._p, new_zs, axis=2, fill_value=np.nan)
-        self._e = interpolate_along_axis(self._zs, self._e, new_zs, axis=2, fill_value=np.nan)
+        self._t = interpolate_along_axis(
+            self._zs, self._t, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._p = interpolate_along_axis(
+            self._zs, self._p, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._e = interpolate_along_axis(
+            self._zs, self._e, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._lats = interpolate_along_axis(
+            self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._lons = interpolate_along_axis(
+            self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
-
-    def _checkNotMaskedArrays(self):
-        try:
-            self._p = self._p.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._t = self._t.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._e = self._e.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._wet_refractivity = self._wet_refractivity.filled(fill_value=np.nan)
-        except:
-            pass
-        try:
-            self._hydrostatic_refractivity = self._hydrostatic_refractivity.filled(fill_value=np.nan)
-        except:
-            pass
 
     def _checkForNans(self):
         '''
@@ -638,16 +681,18 @@ class WeatherModel(ABC):
             lats = self._lats
         if lons is None:
             lons = self._lons
+
+        bounds = self._get_ll_bounds(lats=lats, lons=lons)
         f = make_weather_model_filename(
             self._Name,
             self._time,
-            self._get_ll_bounds(lats=lats, lons=lons)
+            bounds
         )
         return os.path.join(outLoc, f)
 
     def filename(self, time=None, outLoc='weather_files'):
-        ''' 
-        Create a filename to store the weather model 
+        '''
+        Create a filename to store the weather model
         '''
         os.makedirs(outLoc, exist_ok=True)
 
@@ -672,8 +717,8 @@ class WeatherModel(ABC):
         mapping_name='WGS84'
     ):
         '''
-        By calling the abstract/modular netcdf writer 
-        (RAiDER.utilFcns.write2NETCDF4core), write the weather model data 
+        By calling the abstract/modular netcdf writer
+        (RAiDER.utilFcns.write2NETCDF4core), write the weather model data
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
         # Generate the filename
@@ -867,3 +912,38 @@ def make_raw_weather_data_filename(outLoc, name, time):
         )
     )
     return f
+
+
+def find_svp(t):
+    """
+    Calculate standard vapor presure. Should be model-specific
+    """
+    # From TRAIN:
+    # Could not find the wrf used equation as they appear to be
+    # mixed with latent heat etc. Istead I used the equations used
+    # in ERA-I (see IFS documentation part 2: Data assimilation
+    # (CY25R1)). Calculate saturated water vapour pressure (svp) for
+    # water (svpw) using Buck 1881 and for ice (swpi) from Alduchow
+    # and Eskridge (1996) euation AERKi
+
+    # TODO: figure out the sources of all these magic numbers and move
+    # them somewhere more visible.
+    # TODO: (Jeremy) - Need to fix/get the equation for the other
+    # weather model types. Right now this will be used for all models,
+    # except WRF, which is yet to be implemented in my new structure.
+    t1 = 273.15  # O Celsius
+    t2 = 250.15  # -23 Celsius
+
+    tref = t - t1
+    wgt = (t - t2) / (t1 - t2)
+    svpw = (6.1121 * np.exp((17.502 * tref) / (240.97 + tref)))
+    svpi = (6.1121 * np.exp((22.587 * tref) / (273.86 + tref)))
+
+    svp = svpi + (svpw - svpi) * wgt**2
+    ix_bound1 = t > t1
+    svp[ix_bound1] = svpw[ix_bound1]
+    ix_bound2 = t < t2
+    svp[ix_bound2] = svpi[ix_bound2]
+
+    svp = svp * 100
+    return svp.astype(np.float32)

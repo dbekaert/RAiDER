@@ -6,7 +6,6 @@ import numpy as np
 from test import TEST_DIR
 
 from RAiDER.models.era5 import ERA5
-from RAiDER.processWM import checkBounds
 
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
@@ -14,6 +13,13 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
 @pytest.fixture
 def getWM():
+    """The bounds of the ERA model are:
+
+    BoundingBox(left=-103.7750015258789,
+                bottom=15.225000381469727,
+                right=-99.2750015258789,
+                top=18.725000381469727)
+    """
     wm = ERA5()
     wm.files = [
         os.path.join(
@@ -23,21 +29,19 @@ def getWM():
     return wm
 
 
-def test_checkBounds(getWM):
+def test_checkContainment(getWM):
     wm = getWM
     outLats = np.linspace(10, 20)
     outLons = -100 * np.ones(outLats.shape)
 
-    in_extent, self_extent = checkBounds(wm, outLats, outLons)
-    fits = wm._isOutside(in_extent, self_extent)
-    assert fits
+    containment = wm.checkContainment(outLats, outLons)
+    assert(~containment)
 
 
-def test_checkBounds2(getWM):
+def test_checkContainment2(getWM):
     wm = getWM
     outLats = np.linspace(17, 18)
     outLons = -100 * np.ones(outLats.shape)
 
-    in_extent, self_extent = checkBounds(wm, outLats, outLons)
-    fits = wm._isOutside(in_extent, self_extent)
-    assert ~fits
+    containment = wm.checkContainment(outLats, outLons)
+    assert(containment)

@@ -10,8 +10,6 @@ from RAiDER.models.weatherModel import WeatherModel
 
 
 class HRRR(WeatherModel):
-    # I took this from
-    # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
     def __init__(self):
         # initialize a weather model
         WeatherModel.__init__(self)

@@ -1,9 +1,12 @@
 import datetime
 import os
-from test import DATA_DIR, TEST_DIR, pushd
+import pytest
+import urllib.error
 
 import numpy as np
-import pytest
+
+from test import DATA_DIR, TEST_DIR, pushd
+
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
@@ -12,42 +15,8 @@ from RAiDER.utilFcns import gdal_open, makeDelayFileNames, modelName2Module
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-4
 
-def test_tropo_delay_ERA5(tmp_path):
-    '''
-    Scenario:
-    1: Small area, ERA5, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="ERA5")
 
-def test_tropo_delay_GMAO(tmp_path):
-    '''
-    Scenario:
-    1: Small area, GMAO, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="GMAO")
-
-############ comment out MERRA-2 test for now: it passes on local machines but not in CircleCI. Need further look into this.
-#def test_tropo_delay_MERRA2(tmp_path):
-#    '''
-#    Scenario:
-#    1: Small area, MERRA2, Zenith delay
-#    '''
-#    core_test_tropo_delay(tmp_path, modelName="MERRA2")
-
-def test_tropo_delay_HRES(tmp_path):
-    '''
-    Scenario:
-    1: Small area, HRES, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="HRES")
-
-def test_tropo_delay_ERA5T(tmp_path):
-    '''
-    Scenario:
-    1: Small area, ERA5T, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="ERA5T")
-
+@pytest.mark.timeout(600)
 def test_tropo_delay_ERAI(tmp_path):
     '''
     Scenario:
@@ -55,12 +24,59 @@ def test_tropo_delay_ERAI(tmp_path):
     '''
     core_test_tropo_delay(tmp_path, modelName="ERAI")
 
-#def test_tropo_delay_NCMR(tmp_path):
-#    '''
-#    Scenario:
-#    1: Small area, NCMR, Zenith delay
-#    '''
-#    core_test_tropo_delay(tmp_path, modelName="NCMR")
+
+@pytest.mark.timeout(600)
+def test_tropo_delay_ERA5(tmp_path):
+    '''
+    Scenario:
+    1: Small area, ERA5, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="ERA5")
+
+
+@pytest.mark.timeout(600)
+def test_tropo_delay_ERA5T(tmp_path):
+    '''
+    Scenario:
+    1: Small area, ERA5T, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="ERA5T")
+
+
+@pytest.mark.timeout(600)
+def test_tropo_delay_HRES(tmp_path):
+    '''
+    Scenario:
+    1: Small area, HRES, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="HRES")
+
+
+@pytest.mark.timeout(600)
+def test_tropo_delay_GMAO(tmp_path):
+    '''
+    Scenario:
+    1: Small area, GMAO, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="GMAO")
+
+
+@pytest.mark.skip(reason="MERRA2 keeps failing")
+def test_tropo_delay_MERRA2(tmp_path):
+    '''
+    Scenario:
+    1: Small area, MERRA2, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="MERRA2")
+
+
+@pytest.mark.skip(reason="NCMR keeps hanging")
+def test_tropo_delay_NCMR(tmp_path):
+    '''
+    Scenario:
+    1: Small area, NCMR, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="NCMR")
 
 
 def core_test_tropo_delay(tmp_path, modelName):
@@ -74,7 +90,7 @@ def core_test_tropo_delay(tmp_path, modelName):
     lons = gdal_open(os.path.join(
         SCENARIO_DIR, 'geom', 'lon.dat'
     ))
-    
+
     if modelName == 'ERAI':
         time = datetime.datetime(2018, 1, 3, 23, 0)
     elif modelName == 'NCMR':
@@ -119,14 +135,14 @@ def core_test_tropo_delay(tmp_path, modelName):
         true_wet = gdal_open(
             os.path.join(
                 SCENARIO_DIR,
-                modelName+"/wet.envi"
+                modelName + "/wet.envi"
             ),
             userNDV=0.
         )
         true_hydro = gdal_open(
             os.path.join(
                 SCENARIO_DIR,
-                modelName+"/hydro.envi"
+                modelName + "/hydro.envi"
             ),
             userNDV=0.
         )

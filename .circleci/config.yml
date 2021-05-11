@@ -35,6 +35,10 @@ jobs:
             echo '  "key": "'$ecmwfk'"' >> $HOME/.ecmwfapirc
             echo } >> $HOME/.ecmwfapirc
 
+            echo url: $NCUMloc > $HOME/.ncmrlogin
+            echo username: $NCUMu >> $HOME/.ncmrlogin
+            echo password: $NCUMp >> $HOME/.ncmrlogin
+
             python --version
             python -c "import numpy; print(numpy.__version__)"
             python -c "import pyproj; print(pyproj.__version__)"

@@ -30,6 +30,7 @@ def test_era5t():
         datetime(2020, 1, 1, 0, 0, 0)
     )
 
+
 def test_erai():
     wm = ERAI()
     wm.fetch(

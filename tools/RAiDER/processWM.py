@@ -6,18 +6,11 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import contextlib
 import os
-import sys
-
 import numpy as np
+from RAiDER.logger import logger
+from RAiDER.utilFcns import getTimeFromFile
 import matplotlib.pyplot as plt
-import xarray as xr
-
-from datetime import datetime, date
-
-from RAiDER.logger import *
-from RAiDER.utilFcns import getTimeFromFile, convertLons
 
 
 def prepareWeatherModel(
@@ -28,13 +21,15 @@ def prepareWeatherModel(
     lons=None,
     zref=None,
     download_only=False,
-    makePlots=False
+    makePlots=False,
+    force_download=False,
 ):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
-    weather_model, weather_files, weather_model_name = \
-        weatherDict['type'], weatherDict['files'], weatherDict['name']
+    weather_model, weather_files = (weatherDict['type'],
+                                    weatherDict['files']
+                                    )
     weather_model.files = weather_files
 
     # Ensure the file output location exists
@@ -47,15 +42,16 @@ def prepareWeatherModel(
     if weather_model.files is None:
         if time is None:
             raise RuntimeError(
-                'prepareWeatherModel: Either a file or a time must be specified'
+               'prepareWeatherModel: Either a file or a time must be specified'
             )
         weather_model.filename(time, wmLoc)
         if os.path.exists(weather_model.files[0]):
-            logger.warning(
-                'Weather model already exists, please remove it ("%s") if you want '
-                'to download a new one.', weather_model.files
-            )
-            download_flag = False
+            if not force_download:
+                logger.warning(
+                    'Weather model already exists, please remove it ("%s") if you want '
+                    'to download a new one.', weather_model.files
+                )
+                download_flag = False
     else:
         download_flag = False
 
@@ -65,12 +61,9 @@ def prepareWeatherModel(
     else:
         time = getTimeFromFile(weather_model.files[0])
         weather_model.setTime(time)
-        in_extent, wm_extent = checkBounds(weather_model, lats, lons)
+        containment = weather_model.checkContainment(lats, lons)
 
-        logger.info('Extent of the input lats/lons is: {}'.format(in_extent))
-        logger.info('Extent of the weather model is: {}'.format(wm_extent))
-
-        if weather_model._isOutside(in_extent, wm_extent):
+        if not containment:
             logger.error(
                 'The weather model passed does not cover all of the input '
                 'points; you need to download a larger area.'
@@ -107,7 +100,8 @@ def prepareWeatherModel(
             np.prod(weather_model.getWetRefractivity().shape)
         )
     )
-    logger.debug('Shape of weather model: %s', weather_model.getWetRefractivity().shape)
+    shape = weather_model.getWetRefractivity().shape
+    logger.debug(f'Shape of weather model: {shape}')
     logger.debug(
         'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
         np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
@@ -125,8 +119,8 @@ def prepareWeatherModel(
     logger.debug(weather_model)
 
     if makePlots:
-        p = weather_model.plot('wh', True)
-        p = weather_model.plot('pqt', True)
+        weather_model.plot('wh', True)
+        weather_model.plot('pqt', True)
         plt.close('all')
 
     try:
@@ -138,25 +132,3 @@ def prepareWeatherModel(
         raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
-
-
-def checkBounds(weather_model, outLats, outLons):
-    '''Check the bounds of a weather model'''
-    ds = xr.load_dataset(weather_model.files[0])
-    
-    try:
-        xc = convertLons(ds.longitude.values)
-    except AttributeError:
-        xc = convertLons(ds.x.values)
-    
-    try:
-        yc = ds.latitude.values
-    except AttributeError:
-        yc = ds.y.values
-    
-    lat_bounds = [yc.min(), yc.max()]
-    lon_bounds = [xc.min(), xc.max()]
-    self_extent = lat_bounds + lon_bounds
-    in_extent = weather_model._getExtent(outLats, outLons)
-
-    return in_extent, self_extent

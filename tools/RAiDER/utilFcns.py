@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import pyproj
 from osgeo import gdal, osr
+import progressbar
 
 from RAiDER.constants import Zenith
 from RAiDER import Geo2rdr
@@ -385,12 +386,32 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
         df.to_csv(wetFilename, index=False)
 
     elif outformat == 'hdf5':
-        writeResultsToHDF5(lats, lons, zlevels, wetDelay, hydroDelay, wetFilename, delayType=delayType)
+        writeResultsToHDF5(
+            lats,
+            lons,
+            zlevels,
+            wetDelay,
+            hydroDelay,
+            wetFilename,
+            delayType=delayType
+        )
     else:
-        writeArrayToRaster(wetDelay, wetFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
-        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue=ndv,
-                           fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(
+            wetDelay,
+            wetFilename,
+            noDataValue=ndv,
+            fmt=outformat,
+            proj=proj,
+            gt=gt
+        )
+        writeArrayToRaster(
+            hydroDelay,
+            hydroFilename,
+            noDataValue=ndv,
+            fmt=outformat,
+            proj=proj,
+            gt=gt
+        )
 
 
 def getTimeFromFile(filename):
@@ -421,7 +442,7 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
 
     if chunkSize is None:
         minChunkSize = 100
-        maxChunkSize = 10000
+        maxChunkSize = 1000
         cpu_count = mp.cpu_count()
         chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
 
@@ -619,7 +640,7 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataValue=9.9999999e+14, chunk=(1, 91, 144), mapping_name='WGS84'):
+def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataValue=None, chunk=(1, 91, 144), mapping_name='WGS84'):
     '''
     By calling the abstract/modular netcdf writer (RAiDER.utilFcns.write2NETCDF4core), write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to a NETCDF4 file
     that can be accessed by external programs.
@@ -637,6 +658,9 @@ def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataVal
                 self._time, '_%Y_%m_%d_T%H_%M_%S'
             ) + '.nc'
         )
+
+    if NoDataValue is None:
+        NoDataValue = -9999.
 
     self._time = getTimeFromFile(outName)
 
@@ -741,7 +765,6 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
     The point of doing this is to alleviate some of the memory load of keeping
     the full model in memory and make it easier to scale up the program.
     '''
-
     from osgeo import osr
 
     if mapping_name == 'WGS84':
@@ -753,9 +776,13 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         grid_mapping = 'WGS84'  # need to set this as an attribute for the image variables
         datatype = np.dtype('S1')
         dimensions = ()
-        FillValue = None
 
-        var = nc_outfile.createVariable(mapping_name, datatype, dimensions, fill_value=FillValue)
+        var = nc_outfile.createVariable(
+                mapping_name, 
+                datatype, 
+                dimensions, 
+                fill_value=None
+            )
         # variable made, now add attributes
 
         var.setncattr('grid_mapping_name', grid_mapping)
@@ -786,6 +813,7 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         var.setncattr('description', dimension_dict[dim]['description'])
         var.setncattr('units', dimension_dict[dim]['units'])
         var[:] = dimension_dict[dim]['dataset'].astype(dimension_dict[dim]['datatype'])
+
     for data in dataset_dict:
         varname = dataset_dict[data]['varname']
         datatype = dataset_dict[data]['datatype']
@@ -822,3 +850,35 @@ def convertLons(inLons):
     outLons = inLons
     outLons[mask] = outLons[mask] - 360
     return outLons
+
+
+def read_NCMR_loginInfo(filepath=None):
+    
+    from pathlib import Path
+    
+    if filepath is None:
+        filepath = str(Path.home())+'/.ncmrlogin'
+
+    f = open(filepath,'r')
+    lines = f.readlines()
+    url = lines[0].strip().split(': ')[1]
+    username = lines[1].strip().split(': ')[1]
+    password = lines[2].strip().split(': ')[1]
+
+    return url, username, password
+
+
+pbar = None
+
+def show_progress(block_num, block_size, total_size):
+    global pbar
+    if pbar is None:
+        pbar = progressbar.ProgressBar(maxval=total_size)
+        pbar.start()
+    
+    downloaded = block_num * block_size
+    if downloaded < total_size:
+        pbar.update(downloaded)
+    else:
+        pbar.finish()
+        pbar = None
