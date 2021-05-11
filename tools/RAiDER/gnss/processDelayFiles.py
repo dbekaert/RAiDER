@@ -54,7 +54,7 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
         )
 
 
-def addDateTimeToFiles(fileList, force=False):
+def addDateTimeToFiles(fileList, force=False, verbose=False):
     ''' Run through a list of files and add the datetime of each file as a column '''
 
     print('Adding Datetime to delay files')
@@ -63,11 +63,12 @@ def addDateTimeToFiles(fileList, force=False):
         data = pd.read_csv(f)
 
         if 'Datetime' in data.columns and not force:
-            print(
-                'File {} already has a "Datetime" column, pass'
-                '"force = True" if you want to override and '
-                're-process'.format(f)
-            )
+            if verbose:
+                print(
+                    'File {} already has a "Datetime" column, pass'
+                    '"force = True" if you want to override and '
+                    're-process'.format(f)
+                )
         else:
             try:
                 dt = getDateTime(f)
@@ -176,18 +177,22 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     #*rotation rate at given point = (360deg/23.9333333333hr) = 15.041782729825965 deg/hr
     dfr['Localtime'] = (dfr['Lon'] / 15.041782729825965)
     dfz['Localtime'] = (dfz['Lon'] / 15.041782729825965)
+    dfr['Datetime_hour'] = dfr['Datetime'].dt.hour+0.01#!#
+    dfz['Datetime_hour'] = dfz['Datetime'].dt.hour+0.01#!#
+
+    #estimate local-times
     dfr['Localtime'] = dfr.apply(lambda r: update_time(r, localTime_hrs), axis=1)
     dfz['Localtime'] = dfz.apply(lambda r: update_time(r, localTime_hrs), axis=1)
 
     #filter out data outside of --localtime hour threshold
-    dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
     dfr['Localtime_u'] = dfr['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
+    dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
     OG_total = dfr.shape[0]
     dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) & (dfr['Datetime'] <= dfr['Localtime_u'])]
     print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
            raiderFile, localTime.split(' ')[1], localTime.split(' ')[0], dfr.shape[0], OG_total))
-    dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
     dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
+    dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
     OG_total = dfz.shape[0]
     dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
     print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
@@ -265,7 +270,7 @@ def readZTDFile(filename, col_name='ZTD'):
         data = pd.read_csv(filename, parse_dates=['Date'])
         times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
         data['Datetime'] = data['Date'] + times
-    except KeyError:
+    except (KeyError, ValueError) as e:
         data = pd.read_csv(filename, parse_dates=['Datetime'])
 
     data.rename(columns={col_name: 'ZTD'}, inplace=True)
