@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/u/leffe-data/ssangha/conda_installation/stable_july30_2020/envs/RAiDER/bin/python
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Simran Sangha, Jeremy Maurer, & David Bekaert
@@ -28,12 +28,14 @@ if __name__ == "__main__":
         inps.plot_fmt,
         inps.cbounds,
         inps.colorpercentile,
+        inps.usr_colormap,
         inps.densitythreshold,
         inps.stationsongrids,
         inps.drawgridlines,
         inps.plotall,
         inps.station_distribution,
         inps.station_delay_mean,
+        inps.station_delay_median,
         inps.station_delay_stdev,
         inps.station_seasonal_phase,
         inps.phaseamp_per_station,
