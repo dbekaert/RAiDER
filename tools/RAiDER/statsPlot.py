@@ -81,7 +81,7 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     dtsubsets.add_argument('-si', '--seasonalinterval', dest='seasonalinterval', type=str, default=None,
                            help="Subset in by an specific interval for each year by specifying earliest MM-DD time followed by latest MM-DD time. -- Example : '03-21 06-21'.")
     dtsubsets.add_argument('-oe', '--obs_errlimit', dest='obs_errlimit', type=float, default='inf',
-                           help="Observation error threshold to discard observations with large uncertainties.")
+                          help="Observation error threshold to discard observations with large uncertainties.")
 
     # Plot formatting/options
     pltformat = parser.add_argument_group(
@@ -96,6 +96,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                            default=None, help='List of two floats to use as color axis bounds')
     pltformat.add_argument('-cp', '--colorpercentile', dest='colorpercentile', type=float, default=None, nargs=2,
                            help='Set low and upper percentile for plot colorbars. By default 25%% and 95%%, respectively.')
+    pltformat.add_argument('-cm', '--colormap', dest='usr_colormap', type=str, default='hot_r',
+                           help='Specify matplotlib colorbar.')
     pltformat.add_argument('-dt', '--densitythreshold', dest='densitythreshold', type=int, default='10',
                            help='For variogram plots, given grid-cell is only valid if it contains this specified threshold of stations. By default 10 stations.')
     pltformat.add_argument('-sg', '--stationsongrids', dest='stationsongrids', action='store_true',
@@ -117,6 +119,8 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
                             action='store_true', dest='station_distribution', help="Plot station distribution.")
     pltscatter.add_argument('-station_delay_mean', '--station_delay_mean',
                             action='store_true', dest='station_delay_mean', help="Plot station mean delay.")
+    pltscatter.add_argument('-station_delay_median', '--station_delay_median',
+                            action='store_true', dest='station_delay_median', help="Plot station median delay.")
     pltscatter.add_argument('-station_delay_stdev', '--station_delay_stdev',
                             action='store_true', dest='station_delay_stdev', help="Plot station delay stdev.")
     pltscatter.add_argument('-station_seasonal_phase', '--station_seasonal_phase',
@@ -171,7 +175,7 @@ def convert_SI(val, unit_in, unit_out):
         Convert input to desired units
     '''
 
-    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.,
+    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000., 
           'mm^2': 1e-6, 'cm^2': 1e-4, 'm^2': 1.0, 'km^2': 1e+6}
 
     # avoid conversion if output unit in years
@@ -522,7 +526,7 @@ class VariogramAnalysis():
             self.TOT_good_slices.append([grid_ind, tot_timetag])
             self.TOT_res_robust_arr.append(TOT_res_robust.x)
             self.TOT_tot_timetag.append(tot_timetag)
-            var_rmse = np.sqrt(np.nanmean((TOT_res_robust.fun)**2))
+            var_rmse =  np.sqrt(np.nanmean((TOT_res_robust.fun)**2))
             if var_rmse <= self.variogram_errlimit:
                 self.TOT_res_robust_rmse.append(var_rmse)
             else:
@@ -649,10 +653,10 @@ class RaiderStats(object):
 
     def __init__(self, filearg, col_name, unit='m', workdir='./', bbox=None, spacing=1, timeinterval=None, seasonalinterval=None, \
                  obs_errlimit='inf', stationsongrids=False, station_seasonal_phase=False, cbounds=None, colorpercentile=[25, 95], \
-                 grid_heatmap=False, grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False, grid_seasonal_phase=False, \
-                 grid_delay_absolute_mean=False, grid_delay_absolute_median=False, grid_delay_absolute_stdev=False, \
-                 grid_seasonal_absolute_phase=False, grid_to_raster=False, min_span=[2, 0.6], period_limit=0.5, numCPUs=8, \
-                 phaseamp_per_station=False):
+                 usr_colormap='hot_r', grid_heatmap=False, grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False, \
+                 grid_seasonal_phase=False, grid_delay_absolute_mean=False, grid_delay_absolute_median=False, \
+                 grid_delay_absolute_stdev=False, grid_seasonal_absolute_phase=False, grid_to_raster=False, min_span=[2, 0.6], \
+                 period_limit=0.5, numCPUs=8, phaseamp_per_station=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -666,6 +670,7 @@ class RaiderStats(object):
         self.station_seasonal_phase = station_seasonal_phase
         self.cbounds = cbounds
         self.colorpercentile = colorpercentile
+        self.usr_colormap = usr_colormap
         self.grid_heatmap = grid_heatmap
         self.grid_delay_mean = grid_delay_mean
         self.grid_delay_median = grid_delay_median
@@ -879,6 +884,7 @@ class RaiderStats(object):
         # filter out obs by error
         if 'sigZTD' in data.keys():
             data['sigZTD'] = convert_SI(data['sigZTD'], inputunit, self.unit)
+            self.obs_errlimit = convert_SI(self.obs_errlimit, inputunit, self.unit)
             data = data[data['sigZTD'] <= self.obs_errlimit]
         else:
             logger.warning('Key "sigZTD" not found in dataset, cannot filter out obs by error')
@@ -1346,7 +1352,9 @@ class RaiderStats(object):
             #        "fitfunc": fitfunc, "maxcov": np.max(pcov), "rawres": (guess,popt,pcov)
             # Pass amplitude (specified units) and phase (days) and stdev
             ampfit[station] = abs(A)
-            # Convert phase from rad to days
+            # Convert phase from rad to days, apply half wavelength shift if Amp is negative
+            if A < 0:
+                p += 3.14159
             phsfit[station] = (365.25/2)*np.sin(p)
             periodfit[station] = f
             # Catch warning where output is so small that it gets rounded to 0
@@ -1406,7 +1414,7 @@ class RaiderStats(object):
         '''
         return A * np.sin(w * t + p) + c
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2e', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -1431,13 +1439,13 @@ class RaiderStats(object):
         axes.set_extent(self.plotbbox, ccrs.PlateCarree())
         # add coastlines
         axes.coastlines(linewidth=0.2, color="gray", zorder=4)
-        cmap = copy.copy(mpl.cm.get_cmap("hot_r"))
-        cmap.set_bad('black', 0.)
+        cmap = copy.copy(mpl.cm.get_cmap(self.usr_colormap))
+        #cmap.set_bad('black', 0.)
         # extract all colors from the hot map
         cmaplist = [cmap(i) for i in range(cmap.N)]
         # create the new map
         cmap = mpl.colors.LinearSegmentedColormap.from_list(
-            'Custom cmap', cmaplist, cmap.N)
+            'Custom cmap', cmaplist)
         axes.set_xlabel('Longitude', weight='bold', zorder=2)
         axes.set_ylabel('Latitude', weight='bold', zorder=2)
 
@@ -1485,9 +1493,10 @@ class RaiderStats(object):
                             or abs(np.nanmax(zvalues) - np.nanmin(zvalues)) > 500:
                         colorbarfmt = '%.2e'
 
-                colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
+                colorbounds = np.linspace(cbounds[0], cbounds[1], 256)
                 colorbounds = np.unique(colorbounds)
                 norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
+                colorbounds_ticks = np.linspace(cbounds[0], cbounds[1], 10)
 
                 # plot data and initiate colorbar
                 im = axes.scatter(gridarr[0], gridarr[1], c=zvalues, cmap=cmap, norm=norm,
@@ -1496,7 +1505,7 @@ class RaiderStats(object):
                 divider = make_axes_locatable(axes)
                 cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
                 cbar_ax = fig.colorbar(im, spacing='proportional',
-                                       ticks=colorbounds, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                                       ticks=colorbounds_ticks, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
         # If gridded area passed
         else:
@@ -1522,9 +1531,10 @@ class RaiderStats(object):
                         or abs(np.nanmax(gridarr) - np.nanmin(gridarr)) > 500:
                     colorbarfmt = '%.2e'
 
-            colorbounds = np.linspace(cbounds[0], cbounds[1], 10)
+            colorbounds = np.linspace(cbounds[0], cbounds[1], 256)
             colorbounds = np.unique(colorbounds)
             norm = mpl.colors.BoundaryNorm(colorbounds, cmap.N)
+            colorbounds_ticks = np.linspace(cbounds[0], cbounds[1], 10)
 
             # plot data
             im = axes.imshow(gridarr, cmap=cmap, norm=norm, extent=self.plotbbox,
@@ -1532,7 +1542,7 @@ class RaiderStats(object):
             # initiate colorbar and control height of colorbar
             divider = make_axes_locatable(axes)
             cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
-            cbar_ax = fig.colorbar(im, spacing='proportional', ticks=colorbounds,
+            cbar_ax = fig.colorbar(im, spacing='proportional', ticks=colorbounds_ticks,
                                    boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
 
             # superimpose your gridded array with a supplementary list of point, if specified
@@ -1558,11 +1568,12 @@ class RaiderStats(object):
             # specify appropriate units for mean/median/std/amplitude/experimental variogram fit heatmap
             elif plottype == "grid_delay_mean" or plottype == "grid_delay_median" or plottype == "grid_delay_stdev" or  \
                     plottype == "grid_seasonal_amplitude" or plottype == "grid_range" or plottype == "station_delay_mean" or \
-                    plottype == "station_delay_stdev" or plottype == "station_seasonal_amplitude" or \
-                    plottype == "grid_delay_absolute_mean" or plottype == "grid_delay_absolute_median" or \
-                    plottype == "grid_delay_absolute_stdev" or plottype == "grid_seasonal_absolute_amplitude" or \
-                    plottype == "grid_seasonal_amplitude_stdev" or plottype == "grid_seasonal_absolute_amplitude_stdev" or \
-                    plottype == "grid_seasonal_fit_rmse" or plottype == "grid_seasonal_absolute_fit_rmse":
+                    plottype == "station_delay_median" or plottype == "station_delay_stdev" or \
+                    plottype == "station_seasonal_amplitude" or plottype == "grid_delay_absolute_mean" or \
+                    plottype == "grid_delay_absolute_median" or plottype == "grid_delay_absolute_stdev" or \
+                    plottype == "grid_seasonal_absolute_amplitude" or plottype == "grid_seasonal_amplitude_stdev" or \
+                    plottype == "grid_seasonal_absolute_amplitude_stdev" or plottype == "grid_seasonal_fit_rmse" or \
+                    plottype == "grid_seasonal_absolute_fit_rmse":
                 # update label if sigZTD
                 if 'sig' in self.col_name:
                     cbar_ax.set_label("sig ZTD " + " ".join(plottype.replace('grid_', \
@@ -1590,6 +1601,9 @@ class RaiderStats(object):
             axes.set_title(userTitle, zorder=2)
 
         # save/close figure
+        #cbar_ax.ax.locator_params(nbins=10)
+        #for label in cbar_ax.ax.xaxis.get_ticklabels()[::25]:
+            #label.set_visible(False)
         plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype + '.' + plotFormat),
                     format=plotFormat, bbox_inches='tight')
         plt.close()
@@ -1614,12 +1628,14 @@ def stats_analyses(
     plot_fmt,
     cbounds,
     colorpercentile,
+    usr_colormap,
     densitythreshold,
     stationsongrids,
     drawgridlines,
     plotall,
     station_distribution,
     station_delay_mean,
+    station_delay_median,
     station_delay_stdev,
     station_seasonal_phase,
     phaseamp_per_station,
@@ -1655,6 +1671,7 @@ def stats_analyses(
         logger.info('"-plotall" == True. All plots will be made.')
         station_distribution = True
         station_delay_mean = True
+        station_delay_median = True
         station_delay_stdev = True
         station_seasonal_phase = True
         grid_heatmap = True
@@ -1672,7 +1689,7 @@ def stats_analyses(
     # prep dataframe object for plotting/variogram analysis based off of user specifications
     df_stats = RaiderStats(fname, col_name, unit, workdir, bbox, spacing, \
                            timeinterval, seasonalinterval, obs_errlimit, stationsongrids, station_seasonal_phase, cbounds, colorpercentile, \
-                           grid_heatmap, grid_delay_mean, grid_delay_median, grid_delay_stdev, grid_seasonal_phase, \
+                           usr_colormap, grid_heatmap, grid_delay_mean, grid_delay_median, grid_delay_stdev, grid_seasonal_phase, \
                            grid_delay_absolute_mean, grid_delay_absolute_median, grid_delay_absolute_stdev, \
                            grid_seasonal_absolute_phase, grid_to_raster, min_span, period_limit, numCPUs, phaseamp_per_station)
 
@@ -1687,10 +1704,18 @@ def stats_analyses(
     if station_delay_mean:
         logger.info("- Plot mean delay for each station.")
         unique_points = df_stats.df.groupby(
-            ['Lon', 'Lat'])[col_name].mean()
+            ['Lon', 'Lat'])[col_name].median()
         unique_points.dropna(how='any', inplace=True)
         df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
         ), unique_points.values], 'station_delay_mean', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt, userTitle=user_title)
+    # Plot median delay per station
+    if station_delay_median:
+        logger.info("- Plot median delay for each station.")
+        unique_points = df_stats.df.groupby(
+            ['Lon', 'Lat'])[col_name].mean()
+        unique_points.dropna(how='any', inplace=True)
+        df_stats([unique_points.index.get_level_values('Lon').tolist(), unique_points.index.get_level_values('Lat').tolist(
+        ), unique_points.values], 'station_delay_median', workdir=os.path.join(workdir, 'figures'), plotFormat=plot_fmt, userTitle=user_title)
     # Plot delay stdev per station
     if station_delay_stdev:
         logger.info("- Plot delay stdev for each station.")
@@ -1856,7 +1881,7 @@ def stats_analyses(
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variance' + '.tif')
             # write sill
             save_gridfile(df_stats.grid_variance, 'grid_heatmap', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
-                          df_stats.unit + '^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+                          df_stats.unit+'^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
 
     if isinstance(df_stats.grid_range, np.ndarray):
         # plot range heatmap
@@ -1889,12 +1914,14 @@ if __name__ == "__main__":
         inps.plot_fmt,
         inps.cbounds,
         inps.colorpercentile,
+        inps.usr_colormap,
         inps.densitythreshold,
         inps.stationsongrids,
         inps.drawgridlines,
         inps.plotall,
         inps.station_distribution,
         inps.station_delay_mean,
+        inps.station_delay_median,
         inps.station_delay_stdev,
         inps.station_seasonal_phase,
         inps.phaseamp_per_station,
