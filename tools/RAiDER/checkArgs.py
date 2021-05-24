@@ -194,7 +194,7 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
         model_name=weather_model_name,
         time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",
-        los="ztd" if los is None else "std",
+        los="ztd" if isZenith(los) else "std",
         ext=outformat
     )
     hydroname, wetname = (
@@ -224,3 +224,10 @@ def modelName2Module(model_name):
     return module_name, wmObject
 
 
+def isZenith(los):
+    '''Zenith checker'''
+    if los is None:
+        return True
+    if los is Zenith:
+        return True
+    return False
