@@ -319,3 +319,4 @@ def test_find_svp():
         47940.574, 71305.16
     ])
     assert np.allclose(svp_test, svp_true)
+    assert wm._proj.to_epsg() == 4326
