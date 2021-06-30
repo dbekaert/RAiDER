@@ -557,7 +557,7 @@ class WeatherModel(ABC):
             Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
             Ph_levplusone = self._a[lev] + (self._b[lev] * sp)
 
-            pressurelvs[ilevel] = Ph_lev
+            pressurelvs[ilevel] = (Ph_lev + Ph_levplusone)/2 # average pressure at half-levels above and below
 
             if lev == 1:
                 dlogP = np.log(Ph_levplusone / 0.1)
