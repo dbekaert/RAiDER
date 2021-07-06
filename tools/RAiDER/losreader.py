@@ -92,13 +92,19 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
     loss = np.zeros((3, len(lats)))
     slant_ranges = np.zeros_like(lats)
 
+    # breakpoint()
+    # lons = np.where(lons>=180, lons-360, lons) # 0:360 to -180:180
+    pos  = lons>0                 # get bools of positive
+    lons = lons % 360
+    lons[lons == 0 & pos] == 360 # turn 0 back into 360
+
     for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
         height_array = np.array(((height,),))
 
         # Geo2rdr is picky about the type of height
         height_array = height_array.astype(np.double)
 
-        lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
+        lon_start, lat_start = np.radians(lon), np.radians(lat)
         geo2rdr_obj.set_geo_coordinate(lon_start, lat_start, 1, 1, height_array)
 
         # compute the radar coordinate for each geo coordinate
@@ -109,8 +115,14 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
         loss[:, i] = los_x, los_y, los_z
 
         # get back the slant ranges
-        # slant_range = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
-        #slant_ranges[i] = slant_range
+        slant_ranges[i] = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
+        # print (slant_ranges[i])
+        # //slant_range = sqrt(pow(xyz.x - st.position.x ,2) + pow(xyz.y - st.position.y, 2) + pow(xyz.z - st.position.z, 2));
+
+        # x  -> sens
+        # xe -> start
+
+        # np.sqrt((x - xe)**2 + (y-ye)**2 + (z-ze)**2)
 
     # We need LOS defined as pointing from the ground pixel to the sensor in ECEF reference frame
     #sp = np.stack(utilFcns.lla2ecef(lats, lons, heights),axis = -1)
@@ -197,8 +209,14 @@ def read_ESA_Orbit_file(filename, time=None):
     vy = np.ones(numOSV)
     vz = np.ones(numOSV)
 
+    times = []
+
     for i, st in enumerate(data_block[0]):
-        t[i] = (datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f') - datetime.datetime(1970, 1, 1)).total_seconds()
+        t[i] = (datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f')
+                    # - datetime.datetime(1970, 1, 1)).total_seconds()
+                    - datetime.datetime(2018, 11, 11, 0, 0, 0)).total_seconds()
+
+        times.append(datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
         x[i] = float(st[4].text)
         y[i] = float(st[5].text)
         z[i] = float(st[6].text)
@@ -208,10 +226,14 @@ def read_ESA_Orbit_file(filename, time=None):
 
     # Get the reference time
     if time is not None:
-        time = (time - datetime.datetime(1970, 1, 1)).total_seconds()
+        time = (time - datetime.datetime(2018, 11, 11, 0, 0, 0)).total_seconds()
+
         time = time - t[0]
 
-    t = t - t[0]
+    t  = t - t[0]
+
+    idx = cut_orbit_file(times)
+    t, x, y, z, vx, vy, vz = t[idx], x[idx], y[idx], z[idx], vx[idx], vy[idx], vz[idx]
 
     # if time is not None:
     #    mask = np.abs(t - time) < 3600
@@ -256,23 +278,24 @@ def los_to_lv(incidence, heading, lats, lons, heights, zref, ranges=None):
     east = utilFcns.sind(a_0) * utilFcns.cosd(a_1 + 90)
     north = utilFcns.sind(a_0) * utilFcns.sind(a_1 + 90)
     up = utilFcns.cosd(a_0)
-    east, north, up = np.stack((east, north, up))
+    los = np.stack((east, north, up), axis=-1)
+    return los
 
-    # Pick reasonable range to top of troposphere if not provided
-    if ranges is None:
-        ranges = (zref - heights) / up
-    #slant_range = ranges = (zref - heights) / utilFcns.cosd(inc)
-
-    # Scale look vectors by range
-    east, north, up = np.stack((east, north, up)) * ranges
-
-    xyz = utilFcns.enu2ecef(
-        east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
-        lons.flatten(), heights.flatten())
-
-    sp_xyz = utilFcns.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten())
-    los = np.stack(xyz, axis=-1) - np.stack(sp_xyz, axis=-1)
-    los = los.reshape(east.shape + (3,))
+    # # Pick reasonable range to top of troposphere if not provided
+    # if ranges is None:
+    #     ranges = (zref - heights) / up
+    # #slant_range = ranges = (zref - heights) / utilFcns.cosd(inc)
+    #
+    # # Scale look vectors by range
+    # east, north, up = np.stack((east, north, up)) #* ranges
+    #
+    # xyz = utilFcns.enu2ecef(
+    #     east.flatten(), north.flatten(), up.flatten(), lats.flatten(),
+    #     lons.flatten(), heights.flatten())
+    #
+    # sp_xyz = utilFcns.lla2ecef(lats.flatten(), lons.flatten(), heights.flatten())
+    # los = np.stack(xyz, axis=-1) - np.stack(sp_xyz, axis=-1)
+    # los = los.reshape(east.shape + (3,))
 
     return los
 
@@ -286,10 +309,14 @@ def infer_los(los, lats, lons, heights, zref, time=None):
 
     if los_type == 'sv':
         LOS = infer_sv(los_file, lats, lons, heights, time)
+        np.save('./HR_SV/LOS.npy', LOS)
+        print ('Saved los SV file')
     elif los_type == 'los':
         incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
         utilFcns.checkShapes(np.stack((incidence, heading), axis=-1), lats, lons, heights)
         LOS = los_to_lv(incidence, heading, lats, lons, heights, zref)
+        np.save('./HR_LOS/LOS.npy', LOS)
+        print ('Saved los LOS file')
     else:
         raise ValueError("Unsupported los type '{}'".format(los_type))
     return LOS
@@ -343,3 +370,22 @@ def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None):
     look_vecs[mask, :] = np.nan
 
     return look_vecs.reshape(in_shape + (3,)).astype(np.float64)
+
+
+def cut_orbit_file(times, ref_time_st=None, ref_time_en=None):
+    """ Slice the orbit file around the reference aquisition time """
+    # eventually refs will have to be gotten from SLCs which we don't require
+    pad = 2 # minutes
+    # round to nearest minute and pad
+    ref_time_st = utilFcns.round_time(datetime.datetime(2018, 11, 13, 23, 6, 17), 60) \
+                                     - datetime.timedelta(minutes=pad)
+    ref_time_en = utilFcns.round_time(datetime.datetime(2018, 11, 13, 23, 6, 44), 60) \
+                                     + datetime.timedelta(minutes=pad)
+
+    idx, tim_close = [], []
+    # iterate through times in orbit file, finding those within padded span
+    for i, time in enumerate(times):
+        if ref_time_st <= time <= ref_time_en:
+            idx.append(i)
+            tim_close.append(time)
+    return idx
