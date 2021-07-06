@@ -12,8 +12,8 @@ from osgeo import gdal, osr
 import progressbar
 
 from RAiDER.constants import (
-        Zenith, 
-        _g0 as g0, 
+        Zenith,
+        _g0 as g0,
         _RE as Re,
         R_EARTH_MAX as Rmax,
         R_EARTH_MIN as Rmin,
@@ -269,7 +269,7 @@ def _geo_to_ht(lats, hts):
 
     # Calculate Geometric Height, h
     h = (hts * Re) / (g_ll / g0 * Re - hts)
-    # from metpy 
+    # from metpy
     # return (geopotential * Re) / (g0 * Re - geopotential)
 
     return h
@@ -759,9 +759,9 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         dimensions = ()
 
         var = nc_outfile.createVariable(
-                mapping_name, 
-                datatype, 
-                dimensions, 
+                mapping_name,
+                datatype,
+                dimensions,
                 fill_value=None
             )
         # variable made, now add attributes
@@ -834,9 +834,9 @@ def convertLons(inLons):
 
 
 def read_NCMR_loginInfo(filepath=None):
-    
+
     from pathlib import Path
-    
+
     if filepath is None:
         filepath = str(Path.home())+'/.ncmrlogin'
 
@@ -856,10 +856,24 @@ def show_progress(block_num, block_size, total_size):
     if pbar is None:
         pbar = progressbar.ProgressBar(maxval=total_size)
         pbar.start()
-    
+
     downloaded = block_num * block_size
     if downloaded < total_size:
         pbar.update(downloaded)
     else:
         pbar.finish()
         pbar = None
+
+
+
+def round_time(dt=None, roundTo=60):
+   """Round a datetime object to any time lapse in seconds
+
+   dt : datetime.datetime object, default now.
+   roundTo : Closest number of seconds to round to, default 1 minute.
+   Author: Thierry Husson 2012 - Use it as you want but don't blame me.
+   """
+   if dt == None : dt = datetime.now()
+   seconds = (dt.replace(tzinfo=None) - dt.min).seconds
+   rounding = (seconds+roundTo/2) // roundTo * roundTo
+   return dt + timedelta(0,rounding-seconds,-dt.microsecond)
