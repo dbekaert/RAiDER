@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import datetime
 
 import numpy as np
@@ -7,6 +8,12 @@ from pyproj import CRS
 
 from RAiDER.logger import *
 from RAiDER import utilFcns as util
+from RAiDER.models.model_levels import (
+    LEVELS_137_HEIGHTS,
+    LEVELS_25_HEIGHTS,
+    A_137_HRES,
+    B_137_HRES,
+)
 from RAiDER.models.weatherModel import WeatherModel
 
 
@@ -28,10 +35,10 @@ class ECMWF(WeatherModel):
         self._lat_res = 0.2
         self._proj = CRS.from_epsg(4326)
 
-        self.setLevel(level_type)
+        self._level_type = 'ml' # Default
 
     
-    def setLevel(self, levelType='ml'):
+    def setLevelType(self, levelType='ml'):
         '''Set the level type to model levels or pressure levels'''
         if levelType in ['ml', 'pl']:
             self._level_type = levelType
@@ -44,6 +51,7 @@ class ECMWF(WeatherModel):
             self.__pressure_levels__()
 
 
+    @abstractmethod
     def __pressure_levels__(self):
         pass
 
@@ -208,7 +216,7 @@ class ECMWF(WeatherModel):
 
         dataDict = {
             "product_type": "reanalysis",
-            "{}".format(levType): levels,
+            "{}".format(levType): 'all',
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
             'variable': var,
             "stream": "oper",
@@ -356,6 +364,7 @@ class ECMWF(WeatherModel):
             block = ds.where(m1 & m2, drop=True)
 
             # Pull the data
+            breakpoint()
             z = np.squeeze(block['z'].values)[0, ...]
             t = np.squeeze(block['t'].values)
             q = np.squeeze(block['q'].values)

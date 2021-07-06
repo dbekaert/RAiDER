@@ -11,6 +11,7 @@ from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
     LEVELS_91_HEIGHTS,
+    LEVELS_25_HEIGHTS,
     A_137_HRES,
     B_137_HRES,
     A_91_HRES,
@@ -51,9 +52,13 @@ class HRES(ECMWF):
         # Availability lag time in days
         self._lag_time = datetime.timedelta(hours=6)
 
-        self.setLevel('ml')
+        self.setLevelType('ml')
 
     
+    def __pressure_levels__(self):
+        self._levels = 25
+        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
+
     def update_a_b(self):
         # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted 
         # based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels

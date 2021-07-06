@@ -1,5 +1,12 @@
 '''
 Pre-defined model levels and a, b constants for the different weather models
+
+**NOTE**: The fixed heights used here are from ECMWF's _geometric_ altitudes
+(https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels),
+where "geopotential altitude is calculated from a mathematical model that adjusts 
+the altitude to include the variation of gravity with height, while geometric 
+altitude is the standard direct vertical distance above mean sea level (MSL)."
+- Wikipedia.org, https://en.wikipedia.org/wiki/International_Standard_Atmosphere
 '''
 
 LEVELS_137_HEIGHTS = [
@@ -413,3 +420,42 @@ B_137_ERA5 = [
     0.949064, 0.956550, 0.963352, 0.969513, 0.975078, 0.980072, 0.984542,
     0.988500, 0.991984, 0.995003, 0.997630, 1.000000
 ]
+
+# HRES PRESSURE LEVELS:
+# 1000, 950, 925, 900, 850, 800, 700, 600, 500, 400, 300, 250, 200, 150, 100, 70, 50, 30, 20, 10, 7, 5, 3, 2, 1 hPa
+LEVELS_25_HEIGHTS = [
+    48413.94,
+    43738.55,
+    39850.56,
+    36569.72,
+    33763.05,
+    31330.96,
+    26635.56,
+    24413.5,
+    20694.9,
+    18394.25,
+    16322.83,
+    13727.18,
+    11890.24,
+    10422.64,
+    9255.7,
+    7214.09,
+    5469.3,
+    4074.41,
+    3089.25,
+    1910.76,
+    1459.91,
+    987.15,
+    798.72,
+    566.54,
+    106.54,
+    -10,
+    -20,
+    -50,
+    -100,
+    -200,
+    -300,
+    -500,
+]
+
+

@@ -8,11 +8,11 @@ class ERAI(ECMWF):
     #  extracted from an ECMWF ERA-Interim GRIB file and then hardcoded here
     def __init__(self):
         ECMWF.__init__(self)
-        self._model_level_type = 'ml'  # Default, pressure levels are 'pl'
         self._classname = 'ei'
         self._expver = '0001'
         self._dataset = 'interim'
         self._Name = 'ERA-I'
+        self.setLevelType('ml')
 
         self._valid_range = (
             datetime.datetime(1979, 1, 1),
@@ -66,3 +66,6 @@ class ERAI(ECMWF):
             9.8827010393e-001, 9.9401944876e-001, 9.9763011932e-001,
             1.0000000000e+000
         ]
+
+    def __pressure_levels__(self):
+        raise RuntimeError('ERA-I does not use pressure levels, you need to use model levels')

@@ -5,7 +5,7 @@ from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
 from RAiDER.logger import *
-from RAiDER.models.model_levels import A_137_ERA5, B_137_ERA5, LEVELS_137_HEIGHTS
+from RAiDER.models.model_levels import A_137_ERA5, B_137_ERA5, LEVELS_137_HEIGHTS, LEVELS_25_HEIGHTS
 
 
 
@@ -27,11 +27,12 @@ class ERA5(ECMWF):
         # Availability lag time in days
         self._lag_time = datetime.timedelta(days=30)
 
-        self._a = A_137_ERA5
-        self._b = B_137_ERA5
-
         # Default, need to change to ml 
-        self.setLevel(self, levelType='pl')
+        self.setLevelType('pl')
+
+    def __pressure_levels__(self):
+        self._levels = 25
+        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
 
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
