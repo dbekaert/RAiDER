@@ -98,7 +98,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
         # Geo2rdr is picky about the type of height
         height_array = height_array.astype(np.double)
 
-        lon_start, lat_start = np.radians(360 - lon), np.radians(lat)
+        lon_start, lat_start = np.radians(lon), np.radians(lat)
         geo2rdr_obj.set_geo_coordinate(lon_start, lat_start, 1, 1, height_array)
 
         # compute the radar coordinate for each geo coordinate

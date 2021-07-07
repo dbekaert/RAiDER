@@ -61,6 +61,21 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
 
     return my_ecef
 
+def ecef2enu(x, y, z, lat, lon, height):
+    '''Convert ECEF xyz to ENU'''
+    R = getRotMatrix(lat, lon)
+    inp = np.array([x,y,z]) - lla2ecef(lat, lon, height)
+    out = np.dot(R, inp)
+    return out
+
+def getRotMatrix(lat, lon):
+    '''Rotation matrix for geographic transformations'''
+    return np.array([
+        [-sind(lon), cosd(lon), 0],
+        [-cosd(lon)*sind(lat), -sind(lon)*sind(lat), cosd(lat)],
+        [cosd(lon)*cosd(lat), sind(lon)*cosd(lat), sind(lat)]
+    ])
+
 
 def gdal_extents(fname):
     if os.path.exists(fname + '.vrt'):
