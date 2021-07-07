@@ -112,7 +112,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights, zref=_ZREF):
 
         # get back the line of sight unit vector
         los_x, los_y, los_z = geo2rdr_obj.get_los()
-        loss[:, i] = los_x, los_y, los_z
+        loss[:, i] = ecef2enu(los_x, los_y, los_z, lat, lon, height)
 
         # get back the slant ranges
         slant_ranges[i] = geo2rdr_obj.get_slant_range()  #<- geo2rdr returns the slant range to sensor...not exactly what we want
