@@ -56,5 +56,7 @@ class ERA5(ECMWF):
         elif self._model_level_type == 'ml':
             self._load_model_levels(*self.files, *args, **kwargs)
         else:
-            raise RuntimeError('{} is not a valid model type'.format(self._model_level_type))
+            raise RuntimeError(
+                '{} is not a valid model type'.format(self._model_level_type)
+            )
 

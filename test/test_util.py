@@ -368,7 +368,7 @@ def test_enu2ecef_4():
     enu = np.array([0, 0, 1])
     llh = np.array([90, 0, 0])
     ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    assert np.allclose(ecef, np.array([0, 0, _R_EARTH]))
+    assert np.allclose(ecef, np.array([0, 0, 6356753.31]))
 
 def test_enu2ecef_5():
     enu = np.array([0, 0, 1])
@@ -380,69 +380,59 @@ def test_enu2ecef_6():
     enu = np.array([0, 1, 0])
     llh = np.array([0, 0, 0])
     ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    assert np.allclose(ecef, np.array([0, 0, -6356753.31]))
+    assert np.allclose(ecef, np.array([6378137, 0, 1]))
 
 
 def test_ecef2enu_1():
     enu = np.array([0, 0, 1])
     llh = np.array([0, 0, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    enu = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(enu, np.array([0, 1, 0]))
 
 def test_ecef2enu_2():
     enu = np.array([0, 0, 1])
     llh = np.array([0, 90, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 1, 0]))
 
 def test_ecef2enu_3():
     enu = np.array([0, 0, 1])
     llh = np.array([0, -90, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 1, 0]))
 
 def test_ecef2enu_4():
     enu = np.array([0, 0, 1])
     llh = np.array([90, 0, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 0, 1]))
 
 def test_ecef2enu_5():
     enu = np.array([0, 0, 1])
     llh = np.array([-90, 0, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 0, -1]))
 
 def test_ecef2enu_6():
-    enu = np.array([0, 0, 1])
+    enu = np.array([0, 0, -1])
     llh = np.array([0, -180, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, -1, 0]))
 
 def test_ecef2enu_7():
     enu = np.array([0, 0, 1])
     llh = np.array([0, -180, 1000])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 1, 0]))
 
 def test_ecef2enu_8():
     enu = np.array([1, 1, 0])
     llh = np.array([0, 0, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([1, 0, 1]))
 
 def test_ecef2enu_9():
     enu = np.array([1, 1, 0])
     llh = np.array([0, 180, 0])
-    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
-    enu_test = ecef2enu(ecef, llh[0], llh[1], llh[2])
-    assert np.allclose(enu, enu_test)
-
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([-1, 0, -1]))
