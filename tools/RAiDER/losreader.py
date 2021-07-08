@@ -209,6 +209,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
             acquisition times of the interferogram, and the orbit file covers the same range of time.
             '''
         )
+    del geo2rdr_obj
 
     return los_ecef.T
 
