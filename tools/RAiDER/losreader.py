@@ -19,6 +19,9 @@ from RAiDER import Geo2rdr
 from RAiDER.constants import _ZREF, Zenith
 
 
+_SLANT_RANGE_THRESH = 5e6
+
+
 def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None):
     '''
     If the input look vectors are specified as Zenith, compute and return the
@@ -196,6 +199,16 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
         # get back the line of sight unit vector
         # LOS is defined as pointing from the ground pixel to the sensor
         los_ecef[:,i] = np.squeeze(geo2rdr_obj.get_los())
+
+    # Sanity check for purpose of tracking problems
+    if geo2rdr_obj.get_slant_range() > _SLANT_RANGE_THRESH:
+        raise RuntimeError(
+            '''state_to_los:
+            It appears that your input datetime and/or orbit file does not correspond to the lats/lons 
+            that you've passed. Please verify that the input datetime is the closest possible to the 
+            acquisition times of the interferogram, and the orbit file covers the same range of time.
+            '''
+        )
 
     return los_ecef.T
 
