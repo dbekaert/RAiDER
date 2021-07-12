@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-#  Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+#  Author: Jeremy Maurer, Brett Buzzanga, Raymond Hogenson & David Bekaert
 #  Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
@@ -22,15 +22,13 @@ from RAiDER.constants import _ZREF, Zenith
 _SLANT_RANGE_THRESH = 5e6
 
 
-def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None):
+def getLookVectors(look_vecs, lats, lons, heights, time,  pad=3*3600):
     '''
     If the input look vectors are specified as Zenith, compute and return the
     look vectors. Otherwise, check that the look_vecs shape makes sense.
     '''
     if (look_vecs is None) or (look_vecs is Zenith):
         look_vecs = Zenith
-    else: 
-        look_vecs = look_vecs[1]
 
     in_shape = lats.shape
     lat = lats.flatten()
@@ -38,9 +36,9 @@ def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None):
     hgt = heights.flatten()
 
     if look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lat, lon, hgt, zref=zref)
+        look_vecs = _getZenithLookVecs(lat, lon, hgt)
     else:
-        look_vecs = infer_los(look_vecs, lat, lon, hgt, zref, time)
+        look_vecs = infer_los(look_vecs, lat, lon, hgt, time, pad)
 
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask, :] = np.nan
@@ -48,64 +46,94 @@ def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None):
     return look_vecs.reshape(in_shape + (3,)).astype(np.float64)
 
 
-def _getZenithLookVecs(lats, lons, heights, zref=_ZREF):
+def _getZenithLookVecs(lats, lons, heights):
     '''
     Returns look vectors when Zenith is used.
-    Inputs:
-       lats/lons/heights - Nx1 numpy arrays of points.
-       zref              - float, integration height in meters
-    Outputs:
-       zenLookVecs       - an Nx3 numpy array with the look vectors.
-                           The vectors give the zenith ray paths for
-                           each of the points to the top of the atmosphere.
+
+    Parameters
+    ----------
+    lats/lons/heights - Nx1 numpy arrays of points.
+
+    Returns
+    -------
+    zenLookVecs       - an Nx3 numpy array with the unit look vectors in an ECEF
+                        reference frame.
     '''
     try:
         if (lats.ndim != 1) | (heights.ndim != 1) | (lons.ndim != 1):
-            raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
+            raise ValueError(
+                '_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays'
+            )
     except AttributeError:
-        raise RuntimeError('_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays')
-    if hasattr(zref, "__len__") | isinstance(zref, str):
-        raise RuntimeError('_getZenithLookVecs: zref must be a scalar')
+        raise ValueError(
+            '_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays'
+        )
 
     e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
     n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
-    zenLookVecs = (np.array((e, n, u)).T * (zref - heights)[..., np.newaxis])
-    return zenLookVecs.astype(np.float64)
+
+    ecef = utilFcns.enu2ecef(e, n, u, lats, lons, heights)
+    return ecef.astype(np.float64)
 
 
-def infer_los(los_file, lats, lons, heights, zref, time=None):
+def infer_los(los_file, lats, lons, heights, time, pad=3*3600):
     '''
     Helper function to deal with various LOS files supplied
     '''
-    breakpoint()
+    # Assume that the user passed a line-of-sight file
     try:
         incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
         utilFcns.checkShapes(np.stack((incidence, heading), axis=-1), lats, lons, heights)
-        LOS_enu = los_to_lv(incidence, heading, lats, lons, heights, zref)
+        LOS_enu = los_to_lv(incidence, heading, lats, lons, heights)
         LOS = utilFcns.enu2ecef(LOS_enu[...,0], LOS_enu[...,1], LOS_enu[...,2], lats, lons, heights)
 
+    # if that doesn't work, try parsing as a statevector (orbit) file
     except OSError:
-        svs = get_sv(los_file, lats, lons, heights, time)
+        svs = get_sv(los_file, time, pad)
         LOS = state_to_los(*svs, lats=lats, lons=lons, heights=heights)
+
+    # Otherwise, throw an error
+    except:
+        raise ValueError('infer_los: I cannot parse the file {}'.format(los_file))
 
     return LOS
 
 
-def get_sv(los_file, lats, lons, heights, time=None):
-    """Read an LOS file."""
-    # TODO: Change this to a try/except structure
-    _, ext = os.path.splitext(los_file)
-    if ext == '.txt':
+def get_sv(los_file, ref_time, pad=3*3600):
+    """
+    Read an LOS file.
+
+    Parameters
+    ----------
+    los_file: str             - user-passed file containing either look 
+                                vectors or statevectors for the sensor
+    ref_time: python datetime - User-requested datetime; if not encompassed
+                                by the orbit times will raise a ValueError
+    pad: int                  - number of seconds to keep around the 
+                                requested time
+
+    Returns
+    -------
+    svs: 7 x 1 list of Nt x 1 ndarrays - the times, x/y/z positions and  
+                                         velocities of the sensor for the given 
+                                         window around the reference time
+    """
+    try:
         svs = read_txt_file(los_file)
-    elif ext == '.EOF':
-        svs = read_ESA_Orbit_file(los_file, time)
-    else:
-        # Here's where things get complicated... Either it's a shelve
-        # file or the user messed up. For now we'll just try to read it
-        # as a shelve file, and throw whatever error that does, although
-        # the message might be sometimes misleading.
-        svs = read_shelve(los_file)
+    except ValueError:
+        try:
+            svs = read_ESA_Orbit_file(los_file, ref_time)
+        except:
+            try:
+                svs = read_shelve(los_file)
+            except:
+                raise ValueError(
+                    'get_sv: I cannot parse the statevector file {}'.format(los_file)
+                )
+
+    idx = cut_times(svs[0], pad=pad)
+    svs = [d[idx] for d in svs]
     return svs
 
 
@@ -170,7 +198,10 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
     # check the inputs
     if t.size < 4:
-        raise RuntimeError('state_to_los: At least 4 state vectors are required for orbit interpolation')
+        raise RuntimeError(
+            'state_to_los: At least 4 state vectors are required'
+            ' for orbit interpolation'
+        )
     if t.shape != x.shape:
         raise RuntimeError('state_to_los: t and x must be the same size')
     if lats.shape != lons.shape:
@@ -203,10 +234,13 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     # Sanity check for purpose of tracking problems
     if geo2rdr_obj.get_slant_range() > _SLANT_RANGE_THRESH:
         raise RuntimeError(
-            '''state_to_los:
-            It appears that your input datetime and/or orbit file does not correspond to the lats/lons 
-            that you've passed. Please verify that the input datetime is the closest possible to the 
-            acquisition times of the interferogram, and the orbit file covers the same range of time.
+            '''
+            state_to_los:
+            It appears that your input datetime and/or orbit file does not 
+            correspond to the lats/lons that you've passed. Please verify 
+            that the input datetime is the closest possible to the 
+            acquisition times of the interferogram, and the orbit file covers 
+            the same range of time.
             '''
         )
     del geo2rdr_obj
@@ -214,23 +248,23 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     return los_ecef.T
 
 
-def cut_orbit_file(times, ref_time_st=None, ref_time_en=None):
-    """ Slice the orbit file around the reference aquisition time """
-    # eventually refs will have to be gotten from SLCs which we don't require
-    pad = 2 # minutes
-    # round to nearest minute and pad
-    ref_time_st = utilFcns.round_time(datetime.datetime(2018, 11, 13, 23, 6, 17), 60) \
-                                     - datetime.timedelta(minutes=pad)
-    ref_time_en = utilFcns.round_time(datetime.datetime(2018, 11, 13, 23, 6, 44), 60) \
-                                     + datetime.timedelta(minutes=pad)
+def cut_times(times, pad=3600*3):
+    """ 
+    Slice the orbit file around the reference aquisition time. This is done 
+    by default using a three-hour window, which for Sentinel-1 empirically 
+    works out to be roughly the largest window allowed by the orbit time.
 
-    idx, tim_close = [], []
-    # iterate through times in orbit file, finding those within padded span
-    for i, time in enumerate(times):
-        if ref_time_st <= time <= ref_time_en:
-            idx.append(i)
-            tim_close.append(time)
-    return idx
+    Parameters
+    ----------
+    times: Nt x 1 ndarray     - Vector of orbit times as seconds since the 
+                                user-requested time
+    pad: int                  - integer time in seconds to use as padding
+
+    Returns
+    -------
+    idx: Nt x 1 logical ndarray - a mask of times within the padded request time.    
+    """
+    return np.abs(times) < pad
 
 
 def read_shelve(filename):
@@ -289,9 +323,22 @@ def read_txt_file(filename):
     return [np.array(a) for a in [t, x, y, z, vx, vy, vz]]
 
 
-def read_ESA_Orbit_file(filename, time=None):
+def read_ESA_Orbit_file(filename, ref_time):
     '''
     Read orbit data from an orbit file supplied by ESA
+    
+    Parameters
+    ----------
+    filename: str             - string of the orbit filename
+    ref_time: python datetime - user requested python datetime
+
+    Returns
+    -------
+    t: Nt x 1 ndarray   - a numpy vector with Nt elements containing time
+                          in seconds since the reference time, within "pad"
+                          seconds of the reference time
+    x, y, z: Nt x 1 ndarrays    - x/y/z positions of the sensor at the times t
+    vx, vy, vz: Nt x 1 ndarrays - x/y/z velocities of the sensor at the times t
     '''
     tree = ET.parse(filename)
     root = tree.getroot()
@@ -307,28 +354,20 @@ def read_ESA_Orbit_file(filename, time=None):
     vz = np.ones(numOSV)
 
     times = []
-
     for i, st in enumerate(data_block[0]):
-        t[i] = (datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f')
-                    # - datetime.datetime(1970, 1, 1)).total_seconds()
-                    - datetime.datetime(2018, 11, 11, 0, 0, 0)).total_seconds()
+        t[i] = (
+            datetime.datetime.strptime(
+                st[1].text, 
+                'UTC=%Y-%m-%dT%H:%M:%S.%f'
+            ) - ref_time
+        ).total_seconds()
 
-        times.append(datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
         x[i] = float(st[4].text)
         y[i] = float(st[5].text)
         z[i] = float(st[6].text)
         vx[i] = float(st[7].text)
         vy[i] = float(st[8].text)
         vz[i] = float(st[9].text)
-
-    # Get the reference time
-    if time is not None:
-        raise RuntimeError('Need to finish this')
-        mask = np.abs(t - time) < 100 # Need syntax to compare seconds
-        t, x, y, z, vx, vy, vz = t[mask], x[mask], y[mask], z[mask], vx[mask], vy[mask], vz[mask]
-    else:
-        idx = cut_orbit_file(times)
-        t, x, y, z, vx, vy, vz = t[idx], x[idx], y[idx], z[idx], vx[idx], vy[idx], vz[idx]
 
     return [t, x, y, z, vx, vy, vz]
 
