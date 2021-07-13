@@ -41,12 +41,15 @@ class WeatherModel(ABC):
 
         self._classname = None
         self._dataset = None
+
         self._model_level_type = 'ml'
+
         self._valid_range = (
             datetime.date(1900, 1, 1),
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
+
         self._bbox = None
 
         # Define fixed constants

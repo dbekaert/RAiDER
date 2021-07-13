@@ -35,13 +35,13 @@ class ECMWF(WeatherModel):
         self._lat_res = 0.2
         self._proj = CRS.from_epsg(4326)
 
-        self._level_type = 'ml' # Default
+        self._model_level_type = 'ml' # Default
 
     
-    def setLevelType(self, levelType='ml'):
+    def setLevelType(self, levelType):
         '''Set the level type to model levels or pressure levels'''
         if levelType in ['ml', 'pl']:
-            self._level_type = levelType
+            self._model_level_type = levelType
         else:
             raise RuntimeError('Level type {} is not recognized'.format(levelType))
 
@@ -209,12 +209,7 @@ class ECMWF(WeatherModel):
         c = cdsapi.Client(verify=0)
 
         if self._model_level_type == 'pl':
-            var = [
-                'geopotential', 
-                'relative_humidity', 
-                'specific_humidity', 
-                'temperature'
-            ]
+            var = ['z', 'q', 't']
             levType = 'pressure_level'
         else:
             var = "129/130/133/152"#['lnsp', 'q', 'z', 't']
@@ -372,7 +367,6 @@ class ECMWF(WeatherModel):
             block = ds.where(m1 & m2, drop=True)
 
             # Pull the data
-            breakpoint()
             z = np.squeeze(block['z'].values)[0, ...]
             t = np.squeeze(block['t'].values)
             q = np.squeeze(block['q'].values)
