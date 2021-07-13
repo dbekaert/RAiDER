@@ -31,8 +31,7 @@ class ERA5(ECMWF):
         self.setLevelType('pl')
 
     def __pressure_levels__(self):
-        self._levels = 25
-        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
+        pass
 
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
