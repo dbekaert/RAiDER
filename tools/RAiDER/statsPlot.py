@@ -699,6 +699,7 @@ class RaiderStats(object):
         self.phaseamp_per_station = phaseamp_per_station
         self.grid_range = False
         self.grid_variance = False
+        self.grid_variogram_rmse = False
 
         # create workdir if it doesn't exist
         if not os.path.exists(self.workdir):
@@ -786,6 +787,9 @@ class RaiderStats(object):
             if 'grid_variance' in self.fname:
                 self.grid_variance, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
                 self.col_name = os.path.basename(self.fname).split('_' + 'grid_variance')[0]
+            if 'grid_variogram_rmse' in self.fname:
+                self.grid_variogram_rmse, self.plotbbox, self.spacing, self.colorbarfmt, self.stationsongrids = load_gridfile(self.fname, self.unit)
+                self.col_name = os.path.basename(self.fname).split('_' + 'grid_variogram_rmse')[0]
         # setup dataframe for statistical analyses (if CSV)
         if self.fname.endswith('.csv'):
             self.create_DF()
@@ -1573,7 +1577,7 @@ class RaiderStats(object):
                     plottype == "grid_delay_absolute_median" or plottype == "grid_delay_absolute_stdev" or \
                     plottype == "grid_seasonal_absolute_amplitude" or plottype == "grid_seasonal_amplitude_stdev" or \
                     plottype == "grid_seasonal_absolute_amplitude_stdev" or plottype == "grid_seasonal_fit_rmse" or \
-                    plottype == "grid_seasonal_absolute_fit_rmse":
+                    plottype == "grid_seasonal_absolute_fit_rmse" or plottype == "grid_variogram_rmse":
                 # update label if sigZTD
                 if 'sig' in self.col_name:
                     cbar_ax.set_label("sig ZTD " + " ".join(plottype.replace('grid_', \
@@ -1856,7 +1860,9 @@ def stats_analyses(
                  drawgridlines=drawgridlines, colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
     # Perform variogram analysis
-    if variogramplot and not isinstance(df_stats.grid_range, np.ndarray) and not isinstance(df_stats.grid_variance, np.ndarray):
+    if variogramplot and not isinstance(df_stats.grid_range, np.ndarray) \
+            and not isinstance(df_stats.grid_variance, np.ndarray) \
+            and not isinstance(df_stats.grid_variogram_rmse, np.ndarray):
         logger.info("***Variogram Analysis Function:***")
         make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, col_name, unit, workdir,
                                             df_stats.seasonalinterval, densitythreshold, binnedvariogram,
@@ -1872,16 +1878,25 @@ def stats_analyses(
             i[0])][1]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
         # convert sill to specified output unit
         df_stats.grid_range = convert_SI(df_stats.grid_range, 'm^2', unit.split('^2')[0] + '^2')
+        # get variogram rmse
+        df_stats.grid_variogram_rmse = np.array([np.nan if i[0] not in TOT_grids else float(TOT_res_robust_rmse[TOT_grids.index(
+            i[0])]) for i in enumerate(df_stats.gridpoints)]).reshape(df_stats.grid_dim).T
+        # convert range to specified output unit
+        df_stats.grid_variogram_rmse = convert_SI(df_stats.grid_variogram_rmse, 'm', unit)
         # If specified, save gridded array(s)
         if grid_to_raster:
-            gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_range' + '.tif')
             # write range
-            save_gridfile(df_stats.grid_range, 'grid_heatmap', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
+            gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_range' + '.tif')
+            save_gridfile(df_stats.grid_range, 'grid_range', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
                           df_stats.unit, colorbarfmt='%1i', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
-            gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variance' + '.tif')
             # write sill
-            save_gridfile(df_stats.grid_variance, 'grid_heatmap', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
+            gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variance' + '.tif')
+            save_gridfile(df_stats.grid_variance, 'grid_variance', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
                           df_stats.unit+'^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+            # write variogram rmse
+            gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variogram_rmse' + '.tif')
+            save_gridfile(df_stats.grid_variogram_rmse, 'grid_variogram_rmse', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
+                          df_stats.unit, colorbarfmt='%.2e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
 
     if isinstance(df_stats.grid_range, np.ndarray):
         # plot range heatmap
@@ -1893,6 +1908,11 @@ def stats_analyses(
         logger.info("- Plot variogram sill per gridcell.")
         df_stats(df_stats.grid_variance, 'grid_variance', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
                  colorbarfmt='%.3e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
+    if isinstance(df_stats.grid_variogram_rmse, np.ndarray):
+        # plot variogram rmse heatmap
+        logger.info("- Plot variogram RMSE per gridcell.")
+        df_stats(df_stats.grid_variogram_rmse, 'grid_variogram_rmse', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
+                 colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
 
 if __name__ == "__main__":
