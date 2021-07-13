@@ -194,22 +194,30 @@ class ECMWF(WeatherModel):
             "target": out,    # target: the name of the output file.
         })
 
-    def _get_from_cds(self, lat_min, lat_max, lat_step, lon_min, lon_max,
-                      lon_step, acqTime, outname):
+    def _get_from_cds(
+        self, 
+        lat_min, 
+        lat_max, 
+        lat_step, 
+        lon_min, 
+        lon_max,
+        lon_step, 
+        acqTime, 
+        outname
+    ):
         import cdsapi
-
-        pls = ['1', '2', '3', '5', '7', '10', '20', '30', '50', '70', '100', '125', '150', '175', '200', '225', '250', '300', '350', '400', '450', '500', '550', '600', '650', '700', '750', '775', '800', '825', '850', '875', '900', '925', '950', '975', '1000']
-        mls = np.arange(137) + 1
-
         c = cdsapi.Client(verify=0)
-        # corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+
         if self._model_level_type == 'pl':
-            var = ['geopotential', 'relative_humidity', 'specific_humidity', 'temperature']
-            levels = 'all'
+            var = [
+                'geopotential', 
+                'relative_humidity', 
+                'specific_humidity', 
+                'temperature'
+            ]
             levType = 'pressure_level'
         else:
-            var = ['lnsp', 'q', 'z', 't']
-            levels = mls
+            var = "129/130/133/152"#['lnsp', 'q', 'z', 't']
             levType = 'model_level'
 
         bbox = [lat_max, lon_min, lat_min, lon_max]
@@ -218,7 +226,7 @@ class ECMWF(WeatherModel):
             "product_type": "reanalysis",
             "{}".format(levType): 'all',
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
-            'variable': var,
+            'param': var,
             "stream": "oper",
             "type": "an",
             "year": "{}".format(acqTime.year),

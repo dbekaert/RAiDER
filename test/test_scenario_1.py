@@ -17,7 +17,7 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-4
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.skip(reason='Skipping for now')
 def test_tropo_delay_ERAI(tmp_path):
     '''
     Scenario:
