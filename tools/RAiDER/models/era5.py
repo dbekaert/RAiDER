@@ -59,4 +59,3 @@ class ERA5(ECMWF):
         else:
             raise RuntimeError('{} is not a valid model type'.format(self._model_level_type))
 
-

@@ -212,7 +212,7 @@ class ECMWF(WeatherModel):
             var = ['z', 'q', 't']
             levType = 'pressure_level'
         else:
-            var = "129/130/133/152"#['lnsp', 'q', 'z', 't']
+            var = "129/130/133/152" #'lnsp', 'q', 'z', 't'
             levType = 'model_level'
 
         bbox = [lat_max, lon_min, lat_min, lon_max]
