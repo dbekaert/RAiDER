@@ -1,7 +1,7 @@
 import datetime
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.model_levels import A_ERAI, B_ERAI
+from RAiDER.models.model_levels import A_ERAI, B_ERAI
 
 
 class ERAI(ECMWF):
