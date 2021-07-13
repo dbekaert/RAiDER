@@ -190,8 +190,17 @@ def tropo_delay(args):
 
     if heights[0] == 'lvs':
         outName = wetFilename[0].replace('wet', 'delays')
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    outName, zlevels=hgts, outformat=outformat, delayType=delayType)
+        writeDelays(
+            flag, 
+            wetDelay, 
+            hydroDelay, 
+            lats, 
+            lons,
+            outName, 
+            zlevels=hgts, 
+            outformat=outformat, 
+            delayType=delayType
+        )
         logger.info('Finished writing data to %s', outName)
 
     else:
