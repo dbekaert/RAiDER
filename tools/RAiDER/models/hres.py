@@ -6,7 +6,7 @@ import xarray as xr
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.utilFcns import round_date, convertLons
+from RAiDER.utilFcns import convertLons
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -78,11 +78,11 @@ class HRES(ECMWF):
         if filename is None:
             filename = self.files[0]
 
-        if self._level_type == 'ml':
+        if self._model_level_type == 'ml':
             if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
                 self.update_a_b()
             self._load_model_levels(filename)
-        elif self._level_type == 'pl':
+        elif self._model_level_type == 'pl':
             self._load_pressure_levels(filename)
        
 
@@ -99,8 +99,4 @@ class HRES(ECMWF):
         # execute the search at ECMWF
         self._download_ecmwf(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
 
-
-def floorish(val, frac):
-    '''Round a value to the lower fractional part'''
-    return val - (val % frac)
 

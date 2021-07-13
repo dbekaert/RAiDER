@@ -24,6 +24,10 @@ from RAiDER.logger import *
 gdal.UseExceptions()
 
 
+def floorish(val, frac):
+    '''Round a value to the lower fractional part'''
+    return val - (val % frac)
+
 def sind(x):
     """Return the sine of x when x is in degrees."""
     return np.sin(np.radians(x))

@@ -248,7 +248,7 @@ class ECMWF(WeatherModel):
 
         server = ECMWFService("mars")
 
-        corrected_date = round_date(time, datetime.timedelta(hours=6))
+        corrected_date = util.round_date(time, datetime.timedelta(hours=6))
 
         if self._model_level_type == 'ml':
             param = "129/130/133/152"
@@ -270,7 +270,7 @@ class ECMWF(WeatherModel):
                 'time': "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
                 'step': "0",
                 'grid': "{}/{}".format(lon_step, lat_step),
-                'area': "{}/{}/{}/{}".format(lat_max, floorish(lon_min, 0.1), floorish(lat_min, 0.1), lon_max),
+                'area': "{}/{}/{}/{}".format(lat_max, util.floorish(lon_min, 0.1), util.floorish(lat_min, 0.1), lon_max),
                 'format': "netcdf",
             },
             out
