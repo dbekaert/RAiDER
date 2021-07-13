@@ -29,6 +29,8 @@ def getLookVectors(look_vecs, lats, lons, heights, time,  pad=3*3600):
     '''
     if (look_vecs is None) or (look_vecs is Zenith):
         look_vecs = Zenith
+    else:
+        look_vecs = look_vecs[1]
 
     in_shape = lats.shape
     lat = lats.flatten()
@@ -73,7 +75,7 @@ def _getZenithLookVecs(lats, lons, heights):
     n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
 
-    ecef = utilFcns.enu2ecef(e, n, u, lats, lons, heights)
+    ecef = utilFcns.enu2ecef(e, n, u, lats, lons, heights).T
     return ecef.astype(np.float64)
 
 
@@ -84,9 +86,24 @@ def infer_los(los_file, lats, lons, heights, time, pad=3*3600):
     # Assume that the user passed a line-of-sight file
     try:
         incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
-        utilFcns.checkShapes(np.stack((incidence, heading), axis=-1), lats, lons, heights)
+        utilFcns.checkShapes(
+                np.stack(
+                    (incidence, heading), 
+                    axis=-1
+                ), 
+                lats, 
+                lons, 
+                heights
+            )
         LOS_enu = los_to_lv(incidence, heading, lats, lons, heights)
-        LOS = utilFcns.enu2ecef(LOS_enu[...,0], LOS_enu[...,1], LOS_enu[...,2], lats, lons, heights)
+        LOS = utilFcns.enu2ecef(
+                LOS_enu[...,0], 
+                LOS_enu[...,1], 
+                LOS_enu[...,2], 
+                lats, 
+                lons, 
+                heights
+            )
 
     # if that doesn't work, try parsing as a statevector (orbit) file
     except OSError:
