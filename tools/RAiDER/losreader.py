@@ -37,6 +37,7 @@ def getLookVectors(look_vecs, lats, lons, heights, time,  pad=3*3600):
     lon = lons.flatten()
     hgt = heights.flatten()
 
+    breakpoint()
     if look_vecs is Zenith:
         look_vecs = _getZenithLookVecs(lat, lon, hgt)
     else:
@@ -95,7 +96,7 @@ def infer_los(los_file, lats, lons, heights, time, pad=3*3600):
                 lons, 
                 heights
             )
-        LOS_enu = los_to_lv(incidence, heading, lats, lons, heights)
+        LOS_enu = los_to_lv(incidence, heading)
         LOS = utilFcns.enu2ecef(
                 LOS_enu[...,0], 
                 LOS_enu[...,1], 
@@ -154,29 +155,29 @@ def get_sv(los_file, ref_time, pad=3*3600):
     return svs
 
 
-def los_to_lv(incidence, heading, lats, lons, heights):
+def los_to_lv(incidence, heading):
     '''
     Convert incidence and heading to line-of-sight vectors from the ground to the top of
     the troposphere.
 
     Parameters
     ----------
-    incidence		- Numpy array containing incidence angle (deg from vertical)
-    heading 		- Numpy array containing heading angle (deg clockwise from north) #TODO: check this
-    lats, lons, heights - Numpy arrays with WGS84 ellipsoidal target (ground pixel) locations 
+    incidence: ndarray	       - incidence angle in deg from vertical
+    heading: ndarray 	       - heading angle in deg clockwise from north
+    lats/lons/heights: ndarray - WGS84 ellipsoidal target (ground pixel) locations 
 
     Returns
     -------
-    LOS  		- * x 3 matrix of unit look vectors in local ENU reference frame
+    LOS: ndarray  - (input_shape) x 3 array of unit look vectors in local ENU 
 
     Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
     '''
-    a_0 = incidence
-    a_1 = heading
+    if np.any(incidence < 0):
+        raise ValueError('los_to_lv: Incidence angle cannot be less than 0')
 
-    east = utilFcns.sind(a_0) * utilFcns.cosd(a_1 + 90)
-    north = utilFcns.sind(a_0) * utilFcns.sind(a_1 + 90)
-    up = utilFcns.cosd(a_0)
+    east = utilFcns.sind(incidence) * utilFcns.cosd(heading + 90)
+    north = utilFcns.sind(incidence) * utilFcns.sind(heading + 90)
+    up = utilFcns.cosd(incidence)
     
     return np.stack((east, north, up), axis=-1)
 
@@ -285,9 +286,7 @@ def cut_times(times, pad=3600*3):
 
 
 def read_shelve(filename):
-    '''
-    TODO: docstring
-    '''
+    #TODO: docstring and unit tests
     with shelve.open(filename, 'r') as db:
         obj = db['frame']
 
@@ -314,6 +313,22 @@ def read_shelve(filename):
 
 
 def read_txt_file(filename):
+    '''
+    Read a 7-column text file containing orbit statevectors. Time
+    should be denoted as integer time in seconds since the reference 
+    epoch (user-requested time). 
+
+    Parameters
+    ----------
+    filename: str  - user-supplied space-delimited text file with no header
+                     containing orbital statevectors as 7 columns: 
+                     - time in seconds since the user-supplied epoch
+                     - x / y / z locations in ECEF cartesian coordinates
+                     - vx / vy / vz velocities in m/s in ECEF coordinates
+    Returns
+    svs: list      - a length-7 list of numpy vectors containing the above 
+                     variables
+    '''
     t = list()
     x = list()
     y = list()

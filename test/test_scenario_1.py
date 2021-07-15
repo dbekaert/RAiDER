@@ -5,7 +5,7 @@ import urllib.error
 
 import numpy as np
 
-from test import DATA_DIR, TEST_DIR, pushd
+from test import TEST_DIR, pushd
 
 
 from RAiDER.constants import Zenith

@@ -5,7 +5,7 @@ import os
 import pandas as pd
 import pytest
 from shutil import copyfile
-from test import DATA_DIR, TEST_DIR, pushd
+from test import TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay

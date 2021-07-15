@@ -42,6 +42,7 @@ def computeDelay(
     logger.debug('Reference integration step is {:1.1f} m'.format(step))
 
     # If weather model nodes only are desired, the calculation is very quick
+    breakpoint()
     if useWeatherNodes:
         # Get the weather model data
         with Dataset(weather_model_file_name, mode='r') as f:
