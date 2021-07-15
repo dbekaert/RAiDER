@@ -24,32 +24,32 @@ _SLANT_RANGE_THRESH = 5e6
 
 def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
     '''
-    Get unit look vectors pointing from the ground (target) pixels to the sensor, 
-    or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a 
-    file containing orbital statevectors. 
+    Get unit look vectors pointing from the ground (target) pixels to the sensor,
+    or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a
+    file containing orbital statevectors.
 
     *NOTE*:
-    These line-of-sight vectors will NOT match ordinary LOS vectors for InSAR 
-    because they are in an ECEF reference frame instead of a local ENU. This is done 
+    These line-of-sight vectors will NOT match ordinary LOS vectors for InSAR
+    because they are in an ECEF reference frame instead of a local ENU. This is done
     because the construction of rays is done in ECEF rather than the local ENU.
 
     Parameters
     ----------
-    look_vecs: LookVector object or tuple  - Either a Zenith object or a tuple, 
-                                             with the second element containing 
-                                             the name of either a line-of-sight 
+    look_vecs: LookVector object or tuple  - Either a Zenith object or a tuple,
+                                             with the second element containing
+                                             the name of either a line-of-sight
                                              file or orbital statevectors file
     lats/lons/heights: ndarray             - WGS-84 coordinates of the target pixels
-    time: python datetime                  - user-requested query time. Must be 
+    time: python datetime                  - user-requested query time. Must be
                                              compatible with the orbit file passed.
                                              Only required for a statevector file.
-    pad: int                               - integer number of seconds to pad around 
+    pad: int                               - integer number of seconds to pad around
                                              the user-specified time; default 3 hours
                                              Only required for a statevector file.
 
     Returns
     -------
-    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in an 
+    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in an
                           Earth-centered, earth-fixed reference frame (ECEF). Convention is
                           vectors point from the target pixel to the sensor.
 
@@ -75,29 +75,32 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
         look_vecs = getZenithLookVecs(lat, lon, hgt)
     else:
         try:
-            LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(los_file))
+            LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(look_vecs))
             look_vecs = utilFcns.enu2ecef(
-                    LOS_enu[...,0], 
-                    LOS_enu[...,1], 
-                    LOS_enu[...,2], 
-                    lats, 
-                    lons, 
+                    LOS_enu[...,0],
+                    LOS_enu[...,1],
+                    LOS_enu[...,2],
+                    lats,
+                    lons,
                     heights
                 )
 
         # if that doesn't work, try parsing as a statevector (orbit) file
         except OSError:
-            svs = get_sv(los_file, time, pad)
+            svs       = get_sv(look_vecs, time, pad)
             look_vecs = state_to_los(*svs, lats=lats, lons=lons, heights=heights)
+            ## match the shape from LOS file reader (inc_hd_to_enu)
+            look_vecs = look_vecs.reshape((3,) + in_shape)
 
         # Otherwise, throw an error
         except:
             raise ValueError(
-                'getLookVectors: I cannot parse the file {}'.format(los_file)
+                'getLookVectors: I cannot parse the file {}'.format(look_vecs)
             )
 
-    mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
-    look_vecs[mask, :] = np.nan
+    mask = (np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)).reshape(
+                                                        look_vecs.shape[1:])
+    look_vecs[:, mask] = np.nan
 
     return look_vecs.reshape(in_shape + (3,)).astype(np.float64)
 
@@ -127,17 +130,17 @@ def get_sv(los_file, ref_time, pad=3*3600):
 
     Parameters
     ----------
-    los_file: str             - user-passed file containing either look 
+    los_file: str             - user-passed file containing either look
                                 vectors or statevectors for the sensor
     ref_time: python datetime - User-requested datetime; if not encompassed
                                 by the orbit times will raise a ValueError
-    pad: int                  - number of seconds to keep around the 
+    pad: int                  - number of seconds to keep around the
                                 requested time
 
     Returns
     -------
-    svs: 7 x 1 list of Nt x 1 ndarrays - the times, x/y/z positions and  
-                                         velocities of the sensor for the given 
+    svs: 7 x 1 list of Nt x 1 ndarrays - the times, x/y/z positions and
+                                         velocities of the sensor for the given
                                          window around the reference time
     """
     try:
@@ -167,11 +170,11 @@ def inc_hd_to_enu(incidence, heading):
     ----------
     incidence: ndarray	       - incidence angle in deg from vertical
     heading: ndarray 	       - heading angle in deg clockwise from north
-    lats/lons/heights: ndarray - WGS84 ellipsoidal target (ground pixel) locations 
+    lats/lons/heights: ndarray - WGS84 ellipsoidal target (ground pixel) locations
 
     Returns
     -------
-    LOS: ndarray  - (input_shape) x 3 array of unit look vectors in local ENU 
+    LOS: ndarray  - (input_shape) x 3 array of unit look vectors in local ENU
 
     Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
     '''
@@ -181,7 +184,7 @@ def inc_hd_to_enu(incidence, heading):
     east = utilFcns.sind(incidence) * utilFcns.cosd(heading + 90)
     north = utilFcns.sind(incidence) * utilFcns.sind(heading + 90)
     up = utilFcns.cosd(incidence)
-    
+
     return np.stack((east, north, up), axis=-1)
 
 
@@ -200,7 +203,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     -------
     LOS 			- * x 3 matrix of LOS unit vectors in ECEF (*not* ENU)
 
-    Example: 
+    Example:
     >>> import datetime
     >>> from RAiDER.utilFcns import gdal_open
     >>> import RAiDER.losreader as losr
@@ -252,10 +255,10 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
         raise RuntimeError(
             '''
             state_to_los:
-            It appears that your input datetime and/or orbit file does not 
-            correspond to the lats/lons that you've passed. Please verify 
-            that the input datetime is the closest possible to the 
-            acquisition times of the interferogram, and the orbit file covers 
+            It appears that your input datetime and/or orbit file does not
+            correspond to the lats/lons that you've passed. Please verify
+            that the input datetime is the closest possible to the
+            acquisition times of the interferogram, and the orbit file covers
             the same range of time.
             '''
         )
@@ -265,20 +268,20 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
 
 def cut_times(times, pad=3600*3):
-    """ 
-    Slice the orbit file around the reference aquisition time. This is done 
-    by default using a three-hour window, which for Sentinel-1 empirically 
+    """
+    Slice the orbit file around the reference aquisition time. This is done
+    by default using a three-hour window, which for Sentinel-1 empirically
     works out to be roughly the largest window allowed by the orbit time.
 
     Parameters
     ----------
-    times: Nt x 1 ndarray     - Vector of orbit times as seconds since the 
+    times: Nt x 1 ndarray     - Vector of orbit times as seconds since the
                                 user-requested time
     pad: int                  - integer time in seconds to use as padding
 
     Returns
     -------
-    idx: Nt x 1 logical ndarray - a mask of times within the padded request time.    
+    idx: Nt x 1 logical ndarray - a mask of times within the padded request time.
     """
     return np.abs(times) < pad
 
@@ -313,18 +316,18 @@ def read_shelve(filename):
 def read_txt_file(filename):
     '''
     Read a 7-column text file containing orbit statevectors. Time
-    should be denoted as integer time in seconds since the reference 
-    epoch (user-requested time). 
+    should be denoted as integer time in seconds since the reference
+    epoch (user-requested time).
 
     Parameters
     ----------
     filename: str  - user-supplied space-delimited text file with no header
-                     containing orbital statevectors as 7 columns: 
+                     containing orbital statevectors as 7 columns:
                      - time in seconds since the user-supplied epoch
                      - x / y / z locations in ECEF cartesian coordinates
                      - vx / vy / vz velocities in m/s in ECEF coordinates
     Returns
-    svs: list      - a length-7 list of numpy vectors containing the above 
+    svs: list      - a length-7 list of numpy vectors containing the above
                      variables
     '''
     t = list()
@@ -356,7 +359,7 @@ def read_txt_file(filename):
 def read_ESA_Orbit_file(filename, ref_time):
     '''
     Read orbit data from an orbit file supplied by ESA
-    
+
     Parameters
     ----------
     filename: str             - string of the orbit filename
@@ -387,7 +390,7 @@ def read_ESA_Orbit_file(filename, ref_time):
     for i, st in enumerate(data_block[0]):
         t[i] = (
             datetime.datetime.strptime(
-                st[1].text, 
+                st[1].text,
                 'UTC=%Y-%m-%dT%H:%M:%S.%f'
             ) - ref_time
         ).total_seconds()
@@ -400,5 +403,3 @@ def read_ESA_Orbit_file(filename, ref_time):
         vz[i] = float(st[9].text)
 
     return [t, x, y, z, vx, vy, vz]
-
-

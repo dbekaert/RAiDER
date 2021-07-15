@@ -34,8 +34,8 @@ def computeDelay(
     out=None,
 ):
     """
-    Calculate troposphere delay using a weather model file and query 
-    points file. 
+    Calculate troposphere delay using a weather model file and query
+    points file.
     """
     logger.debug('Beginning delay calculation')
     logger.debug('Max integration height is {:1.1f} m'.format(zref))
@@ -61,6 +61,7 @@ def computeDelay(
             pnts_file_name,
             step
         )
+
 
         wet, hydro = RAiDER.delayFcns.get_delays(
             step,
@@ -171,6 +172,7 @@ def tropo_delay(args):
 
         # Convert the line-of-sight inputs to look vectors
         los = getLookVectors(los, lats, lons, hgts, time)
+        np.save('./HR_SV/LOS.npy', los)
 
         # write to an HDF5 file
         writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
