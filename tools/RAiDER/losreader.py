@@ -28,6 +28,11 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
     or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a 
     file containing orbital statevectors. 
 
+    *NOTE*:
+    These line-of-sight vectors will NOT match ordinary LOS vectors for InSAR 
+    because they are in an ECEF reference frame instead of a local ENU. This is done 
+    because the construction of rays is done in ECEF rather than the local ENU.
+
     Parameters
     ----------
     look_vecs: LookVector object or tuple  - Either a Zenith object or a tuple, 
@@ -109,11 +114,11 @@ def getZenithLookVecs(lats, lons, heights):
     -------
     zenLookVecs: ndarray         - (in_shape) x 3 unit look vectors in an ECEF reference frame
     '''
-    e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
-    n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
-    u = np.sin(np.radians(lats))
+    x = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
+    y = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
+    z = np.sin(np.radians(lats))
 
-    return np.stack([e, n, u], axis=-1)
+    return np.stack([x, y, z], axis=-1)
 
 
 def get_sv(los_file, ref_time, pad=3*3600):
@@ -194,11 +199,6 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     Returns
     -------
     LOS 			- * x 3 matrix of LOS unit vectors in ECEF (*not* ENU)
-
-    *NOTE*:
-    These line-of-sight vectors will NOT match ordinary LOS vectors for InSAR 
-    because they are in an ECEF reference frame instead of a local ENU. This is done 
-    because the construction of rays is done in ECEF rather than the local ENU.
 
     Example: 
     >>> import datetime
