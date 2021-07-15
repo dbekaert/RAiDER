@@ -1,4 +1,6 @@
 ENVI
+description = {
+/Users/jlmd9g/software/RAiDER-1/test/scenario_1/HRES/t_hydro.envi}
 samples = 15
 lines   = 11
 bands   = 1
@@ -7,3 +9,6 @@ file type = ENVI Standard
 data type = 4
 interleave = bsq
 byte order = 0
+band names = {
+Band 1}
+data ignore value = 0
