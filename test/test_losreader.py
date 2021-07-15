@@ -1,7 +1,7 @@
 import datetime
 import os
 import pytest
-from test import DATA_DIR
+from test import TEST_DIR
 
 import numpy as np
 
@@ -13,6 +13,9 @@ from RAiDER.losreader import (
     get_sv,
     getZenithLookVecs,
 )
+
+SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
+
 
 @pytest.fixture
 def svs():
@@ -93,37 +96,37 @@ def svs():
 
 def test_read_ESA_Orbit_file(svs):
     true_svs, ref_time = svs
-    filename = os.path.join(DATA_DIR, 'S1_orbit_example.EOF')
+    filename = os.path.join(SCENARIO_DIR, 'S1_orbit_example.EOF')
     svs = read_ESA_Orbit_file(filename, ref_time)    
     assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
 
 def test_read_txt_file(svs):
     true_svs, ref_time = svs
-    filename = os.path.join(DATA_DIR, 'S1_sv_file.txt')
+    filename = os.path.join(SCENARIO_DIR, 'S1_sv_file.txt')
     svs = read_txt_file(filename)    
     assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
 
 def test_get_sv_1(svs):
     true_svs, ref_time = svs
-    filename = os.path.join(DATA_DIR, 'S1_orbit_example.EOF')
+    filename = os.path.join(SCENARIO_DIR, 'S1_orbit_example.EOF')
     svs = get_sv(filename, ref_time)
     assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
     
 def test_get_sv_2(svs):
     true_svs, ref_time = svs
-    filename = os.path.join(DATA_DIR, 'S1_sv_file.txt')
+    filename = os.path.join(SCENARIO_DIR, 'S1_sv_file.txt')
     svs = get_sv(filename, ref_time)
     assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
     
 def test_get_sv_3(svs):
     true_svs, ref_time = svs
-    filename = os.path.join(DATA_DIR, 'geom', 'warpedDEM.dem')
+    filename = os.path.join(SCENARIO_DIR, 'dummy.txt')
     with pytest.raises(ValueError):
         get_sv(filename, ref_time)
     
 def test_get_sv_4(svs):
     true_svs, ref_time = svs
-    filename = os.path.join(DATA_DIR, 'no_exist.txt')
+    filename = os.path.join(SCENARIO_DIR, 'no_exist.txt')
     with pytest.raises(FileNotFoundError):
         get_sv(filename, ref_time)
     
