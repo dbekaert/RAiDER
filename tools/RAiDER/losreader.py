@@ -22,10 +22,39 @@ from RAiDER.constants import _ZREF, Zenith
 _SLANT_RANGE_THRESH = 5e6
 
 
-def getLookVectors(look_vecs, lats, lons, heights, time,  pad=3*3600):
+def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
     '''
-    If the input look vectors are specified as Zenith, compute and return the
-    look vectors. Otherwise, check that the look_vecs shape makes sense.
+    Get unit look vectors pointing from the ground (target) pixels to the sensor, 
+    or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a 
+    file containing orbital statevectors. 
+
+    Parameters
+    ----------
+    look_vecs: LookVector object or tuple  - Either a Zenith object or a tuple, 
+                                             with the second element containing 
+                                             the name of either a line-of-sight 
+                                             file or orbital statevectors file
+    lats/lons/heights: ndarray             - WGS-84 coordinates of the target pixels
+    time: python datetime                  - user-requested query time. Must be 
+                                             compatible with the orbit file passed.
+                                             Only required for a statevector file.
+    pad: int                               - integer number of seconds to pad around 
+                                             the user-specified time; default 3 hours
+                                             Only required for a statevector file.
+
+    Returns
+    -------
+    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in an 
+                          Earth-centered, earth-fixed reference frame (ECEF). Convention is
+                          vectors point from the target pixel to the sensor.
+
+    Example:
+    --------
+    >>> from RAiDER.constants import Zenith
+    >>> from RAiDER.losreader import getLookVectors
+    >>> import numpy as np
+    >>> getLookVectors(Zenith, np.array([0]), np.array([0]), np.array([0]))
+    >>> # array([[1, 0, 0]])
     '''
     if (look_vecs is None) or (look_vecs is Zenith):
         look_vecs = Zenith
@@ -37,11 +66,30 @@ def getLookVectors(look_vecs, lats, lons, heights, time,  pad=3*3600):
     lon = lons.flatten()
     hgt = heights.flatten()
 
-    breakpoint()
     if look_vecs is Zenith:
-        look_vecs = _getZenithLookVecs(lat, lon, hgt)
+        look_vecs = getZenithLookVecs(lat, lon, hgt)
     else:
-        look_vecs = infer_los(look_vecs, lat, lon, hgt, time, pad)
+        try:
+            LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(los_file))
+            look_vecs = utilFcns.enu2ecef(
+                    LOS_enu[...,0], 
+                    LOS_enu[...,1], 
+                    LOS_enu[...,2], 
+                    lats, 
+                    lons, 
+                    heights
+                )
+
+        # if that doesn't work, try parsing as a statevector (orbit) file
+        except OSError:
+            svs = get_sv(los_file, time, pad)
+            look_vecs = state_to_los(*svs, lats=lats, lons=lons, heights=heights)
+
+        # Otherwise, throw an error
+        except:
+            raise ValueError(
+                'getLookVectors: I cannot parse the file {}'.format(los_file)
+            )
 
     mask = np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)
     look_vecs[mask, :] = np.nan
@@ -49,78 +97,28 @@ def getLookVectors(look_vecs, lats, lons, heights, time,  pad=3*3600):
     return look_vecs.reshape(in_shape + (3,)).astype(np.float64)
 
 
-def _getZenithLookVecs(lats, lons, heights):
+def getZenithLookVecs(lats, lons, heights):
     '''
     Returns look vectors when Zenith is used.
 
     Parameters
     ----------
-    lats/lons/heights - Nx1 numpy arrays of points.
+    lats/lons/heights: ndarray  - Numpy arrays containing WGS-84 target locations
 
     Returns
     -------
-    zenLookVecs       - an Nx3 numpy array with the unit look vectors in an ECEF
-                        reference frame.
+    zenLookVecs: ndarray         - (in_shape) x 3 unit look vectors in an ECEF reference frame
     '''
-    try:
-        if (lats.ndim != 1) | (heights.ndim != 1) | (lons.ndim != 1):
-            raise ValueError(
-                '_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays'
-            )
-    except AttributeError:
-        raise ValueError(
-            '_getZenithLookVecs: lats/lons/heights must be 1-D numpy arrays'
-        )
-
     e = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
     n = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
     u = np.sin(np.radians(lats))
 
-    ecef = utilFcns.enu2ecef(e, n, u, lats, lons, heights).T
-    return ecef.astype(np.float64)
-
-
-def infer_los(los_file, lats, lons, heights, time, pad=3*3600):
-    '''
-    Helper function to deal with various LOS files supplied
-    '''
-    # Assume that the user passed a line-of-sight file
-    try:
-        incidence, heading = [f.flatten() for f in utilFcns.gdal_open(los_file)]
-        utilFcns.checkShapes(
-                np.stack(
-                    (incidence, heading), 
-                    axis=-1
-                ), 
-                lats, 
-                lons, 
-                heights
-            )
-        LOS_enu = los_to_lv(incidence, heading)
-        LOS = utilFcns.enu2ecef(
-                LOS_enu[...,0], 
-                LOS_enu[...,1], 
-                LOS_enu[...,2], 
-                lats, 
-                lons, 
-                heights
-            )
-
-    # if that doesn't work, try parsing as a statevector (orbit) file
-    except OSError:
-        svs = get_sv(los_file, time, pad)
-        LOS = state_to_los(*svs, lats=lats, lons=lons, heights=heights)
-
-    # Otherwise, throw an error
-    except:
-        raise ValueError('infer_los: I cannot parse the file {}'.format(los_file))
-
-    return LOS
+    return np.stack([e, n, u], axis=-1)
 
 
 def get_sv(los_file, ref_time, pad=3*3600):
     """
-    Read an LOS file.
+    Read an LOS file and return orbital state vectors
 
     Parameters
     ----------
@@ -155,7 +153,7 @@ def get_sv(los_file, ref_time, pad=3*3600):
     return svs
 
 
-def los_to_lv(incidence, heading):
+def inc_hd_to_enu(incidence, heading):
     '''
     Convert incidence and heading to line-of-sight vectors from the ground to the top of
     the troposphere.
@@ -173,7 +171,7 @@ def los_to_lv(incidence, heading):
     Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
     '''
     if np.any(incidence < 0):
-        raise ValueError('los_to_lv: Incidence angle cannot be less than 0')
+        raise ValueError('inc_hd_to_enu: Incidence angle cannot be less than 0')
 
     east = utilFcns.sind(incidence) * utilFcns.cosd(heading + 90)
     north = utilFcns.sind(incidence) * utilFcns.sind(heading + 90)

@@ -9,8 +9,9 @@ from RAiDER.losreader import (
     read_ESA_Orbit_file,
     read_txt_file,
     cut_times,
-    los_to_lv,
+    inc_hd_to_enu,
     get_sv,
+    getZenithLookVecs,
 )
 
 @pytest.fixture
@@ -145,46 +146,83 @@ def test_cut_times_4(svs):
 
 def test_los_to_lv():
     with pytest.raises(ValueError):
-        los_to_lv(-10, 0)
+        inc_hd_to_enu(-10, 0)
 
 def test_los_to_lv_2():
     assert np.allclose(
-        los_to_lv(0, 0), 
+        inc_hd_to_enu(0, 0), 
         np.array([0, 0, 1]) 
    )
 
 def test_los_to_lv_3():
     assert np.allclose(
-        los_to_lv(0, -180), 
+        inc_hd_to_enu(0, -180), 
         np.array([0, 0, 1]) 
    )
 
 def test_los_to_lv_3b():
     assert np.allclose(
-        los_to_lv(0, 18), 
+        inc_hd_to_enu(0, 18), 
         np.array([0, 0, 1]) 
    )
 
 def test_los_to_lv_3c():
     assert np.allclose(
-        los_to_lv(0, -18), 
+        inc_hd_to_enu(0, -18), 
         np.array([0, 0, 1]) 
    )
 
 def test_los_to_lv_4():
     assert np.allclose(
-        los_to_lv(35, 0), 
+        inc_hd_to_enu(35, 0), 
         np.array([0, np.sin(np.radians(35)), np.cos(np.radians(35))])
    )
     
 def test_los_to_lv_5():
     assert np.allclose(
-        los_to_lv(35, 180), 
+        inc_hd_to_enu(35, 180), 
         np.array([0, -np.sin(np.radians(35)), np.cos(np.radians(35))])
    )
 
 def test_los_to_lv_6():
     assert np.allclose(
-        los_to_lv(35, 90), 
+        inc_hd_to_enu(35, 90), 
         np.array([-np.sin(np.radians(35)), 0, np.cos(np.radians(35))])
    )
+
+def test_zenith_1():
+    assert np.allclose(
+        getZenithLookVecs(np.array([0]), np.array([0]), np.array([0])),
+        np.array([1, 0, 0])
+    )
+
+def test_zenith_2():
+    assert np.allclose(
+        getZenithLookVecs(np.array([90]), np.array([0]), np.array([0])),
+        np.array([0, 0, 1])
+    )
+
+def test_zenith_3():
+    assert np.allclose(
+        getZenithLookVecs(np.array([-90]), np.array([0]), np.array([0])),
+        np.array([0, 0, -1])
+    )
+
+def test_zenith_4():
+    assert np.allclose(
+        getZenithLookVecs(np.array([0]), np.array([180]), np.array([0])),
+        np.array([-1, 0, 0])
+    )
+
+def test_zenith_5():
+    assert np.allclose(
+        getZenithLookVecs(np.array([0]), np.array([90]), np.array([0])),
+        np.array([0, 1, 0])
+    )
+
+def test_zenith_6():
+    assert np.allclose(
+        getZenithLookVecs(np.array([0]), np.array([0]), np.array([1000])),
+        np.array([1, 0, 0])
+    )
+
