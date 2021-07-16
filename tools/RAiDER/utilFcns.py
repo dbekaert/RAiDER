@@ -57,7 +57,7 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
     u = cosd(lon0) * t - sind(lon0) * east
     v = sind(lon0) * t + cosd(lon0) * east
 
-    my_ecef = np.stack((x0 + u, y0 + v, z0 + w))
+    my_ecef = np.stack((x0 + u, y0 + v, z0 + w), axis=-1)
 
     return my_ecef
 

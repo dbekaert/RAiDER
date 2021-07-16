@@ -67,12 +67,9 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
         look_vecs = look_vecs[1]
 
     in_shape = lats.shape
-    lat = lats.flatten()
-    lon = lons.flatten()
-    hgt = heights.flatten()
 
     if look_vecs is Zenith:
-        look_vecs = getZenithLookVecs(lat, lon, hgt)
+        look_vecs = getZenithLookVecs(lats, lons, heights)
     else:
         try:
             LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(look_vecs))
@@ -89,8 +86,6 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
         except OSError:
             svs       = get_sv(look_vecs, time, pad)
             look_vecs = state_to_los(*svs, lats=lats, lons=lons, heights=heights)
-            ## match the shape from LOS file reader (inc_hd_to_enu)
-            look_vecs = look_vecs.reshape((3,) + in_shape)
 
         # Otherwise, throw an error
         except:
@@ -98,11 +93,10 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
                 'getLookVectors: I cannot parse the file {}'.format(look_vecs)
             )
 
-    mask = (np.isnan(hgt) | np.isnan(lat) | np.isnan(lon)).reshape(
-                                                        look_vecs.shape[1:])
-    look_vecs[:, mask] = np.nan
+    mask = (np.isnan(heights) | np.isnan(lats) | np.isnan(lons))
+    look_vecs[mask, :] = np.nan
 
-    return look_vecs.reshape(in_shape + (3,)).astype(np.float64)
+    return look_vecs.astype(np.float64)
 
 
 def getZenithLookVecs(lats, lons, heights):
@@ -226,29 +220,33 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     if lats.shape != lons.shape:
         raise RuntimeError('state_to_los: lats and lons must be the same size')
 
-    real_shape = lats.shape
-    lats = lats.flatten()
-    lons = lons.flatten()
-    heights = heights.flatten()
-
+    in_shape = lats.shape
     geo2rdr_obj = Geo2rdr.PyGeo2rdr()
     geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
 
-    los_ecef = np.zeros((3, len(lats)))
-
-    for i, (lat, lon, height) in enumerate(zip(lats, lons, heights)):
+    los_x, los_y, los_z = [], [], []
+    for i, (l, L, h) in enumerate(zip(lats.ravel(), lons.ravel(), heights.ravel())):
         # Geo2rdr is picky about how the heights look
-        height_array = np.array(((height,),)).astype(np.double)
+        height_array = np.array(((h,),)).astype(np.double)
 
         # Set the target pixel location
-        geo2rdr_obj.set_geo_coordinate(np.radians(lon), np.radians(lat), 1, 1, height_array)
+        geo2rdr_obj.set_geo_coordinate(np.radians(L), np.radians(l), 1, 1, height_array)
 
         # compute the look vector and target-sensor range in ECEF
         geo2rdr_obj.geo2rdr()
 
         # get back the line of sight unit vector
         # LOS is defined as pointing from the ground pixel to the sensor
-        los_ecef[:,i] = np.squeeze(geo2rdr_obj.get_los())
+        los = np.squeeze(geo2rdr_obj.get_los())
+        los_x.append(los[0])
+        los_y.append(los[1])
+        los_z.append(los[2])
+
+    los_ecef = np.stack([
+        np.array(los_x).reshape(in_shape), 
+        np.array(los_y).reshape(in_shape), 
+        np.array(los_z).reshape(in_shape), 
+    ], axis=-1)
 
     # Sanity check for purpose of tracking problems
     if geo2rdr_obj.get_slant_range() > _SLANT_RANGE_THRESH:
@@ -264,7 +262,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
         )
     del geo2rdr_obj
 
-    return los_ecef.T
+    return los_ecef
 
 
 def cut_times(times, pad=3600*3):
