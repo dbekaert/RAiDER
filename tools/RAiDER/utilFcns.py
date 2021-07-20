@@ -2,12 +2,16 @@
 import multiprocessing as mp
 import os
 import re
+import typing
+
 from datetime import datetime, timedelta
 
 import h5py
 import numpy as np
+from numpy import ndarray
 import pandas as pd
 import pyproj
+from pyproj import CRS, Transformer
 from osgeo import gdal, osr
 import progressbar
 
@@ -22,6 +26,73 @@ from RAiDER import Geo2rdr
 from RAiDER.logger import *
 
 gdal.UseExceptions()
+
+
+class Ellipsoid:
+    """
+    generate reference ellipsoid parameters
+    https://en.wikibooks.org/wiki/PROJ.4#Spheroid
+    https://nssdc.gsfc.nasa.gov/planetary/factsheet/index.html
+    as everywhere else in this program, distance units are METERS
+    """
+
+    def __init__(self, model: str = "wgs84"):
+        """
+        feel free to suggest additional ellipsoids
+        Parameters
+        ----------
+        model : str
+                name of ellipsoid
+        """
+
+        if model == "wgs84":
+            """https://en.wikipedia.org/wiki/World_Geodetic_System#WGS84"""
+            self.semimajor_axis = 6378137.0
+            self.semiminor_axis = 6356752.31424518
+        elif model == "wgs72":
+            self.semimajor_axis = 6378135.0
+            self.semiminor_axis = 6356750.52001609
+        elif model == "grs80":
+            """https://en.wikipedia.org/wiki/GRS_80"""
+            self.semimajor_axis = 6378137.0
+            self.semiminor_axis = 6356752.31414036
+        elif model == "clarke1866":
+            self.semimajor_axis = 6378206.4
+            self.semiminor_axis = 6356583.8
+        elif model == "mars":
+            """
+            https://tharsis.gsfc.nasa.gov/geodesy.html
+            """
+            self.semimajor_axis = 3396900.0
+            self.semiminor_axis = 3376097.80585952
+        elif model == "moon":
+            self.semimajor_axis = 1738000.0
+            self.semiminor_axis = self.semimajor_axis
+        elif model == "venus":
+            self.semimajor_axis = 6051000.0
+            self.semiminor_axis = self.semimajor_axis
+        elif model == "jupiter":
+            self.semimajor_axis = 71492000.0
+            self.semiminor_axis = 66770054.3475922
+        elif model == "io":
+            """
+            https://doi.org/10.1006/icar.1998.5987
+            """
+            self.semimajor_axis = 1829.7
+            self.semiminor_axis = 1815.8
+        elif model == "pluto":
+            self.semimajor_axis = 1187000.0
+            self.semiminor_axis = self.semimajor_axis
+        else:
+            raise NotImplementedError(
+                print("{model} model not implemented, let us know and we will add it (or make a pull request)".format(model)
+            ))
+
+        self.flattening = (self.semimajor_axis - self.semiminor_axis) / self.semimajor_axis
+        self.thirdflattening = (self.semimajor_axis - self.semiminor_axis) / (
+            self.semimajor_axis + self.semiminor_axis
+        )
+        self.eccentricity = np.sqrt(2 * self.flattening - self.flattening ** 2)
 
 
 def floorish(val, frac):
@@ -49,32 +120,83 @@ def enu2ecef(east, north, up, lat0, lon0, h0):
     """Return ecef from enu coordinates."""
     # I'm looking at
     # https://github.com/scivision/pymap3d/blob/master/pymap3d/__init__.py
-    x0, y0, z0 = lla2ecef(lat0, lon0, h0)
+    #x0, y0, z0 = lla2ecef(lat0, lon0, h0)
 
+    #t = cosd(lat0) * up - sind(lat0) * north
+    #w = sind(lat0) * up + cosd(lat0) * north
+
+    #u = cosd(lon0) * t - sind(lon0) * east
+    #v = sind(lon0) * t + cosd(lon0) * east
+
+    #my_ecef = np.stack((x0 + u, y0 + v, z0 + w), axis=-1)
+    #norms = np.linalg.norm(my_ecef, axis=-1)
+
+    #return my_ecef / np.broadcast_to(norms[..., np.newaxis], my_ecef.shape)
+    return np.stack(enu2uvw(east, north, up, lat0, lon0), axis=-1)
+
+
+def enu2uvw(
+        east: ndarray,
+        north: ndarray,
+        up: ndarray,
+        lat0: ndarray,
+        lon0: ndarray,
+    ):
+    """
+    Parameters
+    ----------
+    e1 : float
+        target east ENU coordinate (meters)
+    n1 : float
+        target north ENU coordinate (meters)
+    u1 : float
+        target up ENU coordinate (meters)
+    Results
+    -------
+    u : float
+    v : float
+    w : float
+    """
     t = cosd(lat0) * up - sind(lat0) * north
     w = sind(lat0) * up + cosd(lat0) * north
 
     u = cosd(lon0) * t - sind(lon0) * east
     v = sind(lon0) * t + cosd(lon0) * east
 
-    my_ecef = np.stack((x0 + u, y0 + v, z0 + w), axis=-1)
+    return u, v, w
 
-    return my_ecef
 
-def ecef2enu(xyz_ecef, lat, lon, height):
+def uvw2enu(u: ndarray, v: ndarray, w: ndarray, lat0: ndarray, lon0: ndarray):
+    """
+    Parameters
+    ----------
+    u : float
+    v : float
+    w : float
+    Results
+    -------
+    East : float
+        target east ENU coordinate (meters)
+    North : float
+        target north ENU coordinate (meters)
+    Up : float
+        target up ENU coordinate (meters)
+    """
+    t = cosd(lon0) * u + sind(lon0) * v
+    East = -sind(lon0) * u + cosd(lon0) * v
+    Up = cosd(lat0) * t + sind(lat0) * w
+    North = -sind(lat0) * t + cosd(lat0) * w
+
+    return East, North, Up
+
+
+def ecef2enu(xyz, lat, lon, height):
     '''Convert ECEF xyz to ENU'''
-    R = getRotMatrix(lat, lon)
-    inp = xyz_ecef# - lla2ecef(lat, lon, height)
-    out = np.dot(R, inp)
-    return out
-
-def getRotMatrix(lat, lon):
-    '''Rotation matrix for geographic transformations'''
-    return np.array([
-        [-sind(lon), cosd(lon), 0],
-        [-cosd(lon)*sind(lat), -sind(lon)*sind(lat), cosd(lat)],
-        [cosd(lon)*cosd(lat), sind(lon)*cosd(lat), sind(lat)]
-    ])
+    x, y, z = xyz[...,0],xyz[...,1],xyz[...,2]
+    e = -sind(lon)*x + cosd(lon)*y
+    n = -cosd(lon)*sind(lat)*x - sind(lon)*sind(lat)*y + cosd(lat)*z
+    u = cosd(lon)*cosd(lat)*x + sind(lon)*cosd(lat)*y + sind(lat)*z
+    return np.stack((e, n, u), axis=-1)
 
 
 def gdal_extents(fname):
@@ -408,12 +530,15 @@ def getTimeFromFile(filename):
         raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.):
+def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize=None, noDataValue=0.):
     '''
     Write query points to an HDF5 file for storage and access
     '''
-    epsg = 4326
     projname = 'projection'
+
+    epsg = 4326
+    # converts from WGS84 geodetic to WGS84 geocentric
+    t = Transformer.from_crs(epsg, 4978, always_xy=True)  
 
     checkLOS(los, np.prod(lats.shape))
     in_shape = lats.shape
@@ -421,14 +546,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
     # create directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
+    # Set up the chunking
     if chunkSize is None:
-        minChunkSize = 100
-        maxChunkSize = 1000
-        cpu_count = mp.cpu_count()
-        chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
-
-    logger.debug('Chunk size is {}'.format(chunkSize))
-    logger.debug('Array shape is {}'.format(in_shape))
+        chunkSize = getChunkSize(in_shape)
 
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
@@ -436,10 +556,33 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         x = f.create_dataset('lon', data=lons, chunks=chunkSize, fillvalue=noDataValue)
         y = f.create_dataset('lat', data=lats, chunks=chunkSize, fillvalue=noDataValue)
         z = f.create_dataset('hgt', data=hgts, chunks=chunkSize, fillvalue=noDataValue)
-        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,), fillvalue=noDataValue)
+        los = f.create_dataset(
+            'LOS', 
+            data=los, 
+            chunks=chunkSize + (3,), 
+            fillvalue=noDataValue
+        )
+        lengths = f.create_dataset(
+            'Rays_len', 
+            data=lengths, 
+            chunks=x.chunks, 
+            fillvalue=noDataValue
+        )
+        sp_data = np.stack(t.transform(lons, lats, hgts), axis=-1).astype(np.float64)
+        sp = f.create_dataset(
+            'Rays_SP', 
+            data=sp_data,
+            chunks=chunkSize + (3,), 
+            fillvalue=noDataValue
+        )
+
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
+        los.attrs['Shape'] = in_shape + (3,)
+        lengths.attrs['Shape'] = in_shape
+        lengths.attrs['Units'] = 'm'
+        sp.attrs['Shape'] = in_shape + (3,)
         f.attrs['ChunkSize'] = chunkSize
         f.attrs['NoDataValue'] = noDataValue
 
@@ -471,14 +614,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         else:
             raise NotImplemented
 
-        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
-        lengths = f.create_dataset('Rays_len', in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
-        scaled_look_vecs = f.create_dataset('Rays_SLV', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
-
         los.attrs['grid_mapping'] = np.string_(projname)
-        start_positions.attrs['grid_mapping'] = np.string_(projname)
+        sp.attrs['grid_mapping'] = np.string_(projname)
         lengths.attrs['grid_mapping'] = np.string_(projname)
-        scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
 
@@ -849,8 +987,8 @@ def read_NCMR_loginInfo(filepath=None):
     return url, username, password
 
 
-pbar = None
 
+pbar = None
 def show_progress(block_num, block_size, total_size):
     global pbar
     if pbar is None:
@@ -863,3 +1001,18 @@ def show_progress(block_num, block_size, total_size):
     else:
         pbar.finish()
         pbar = None
+
+
+def getChunkSize(in_shape):
+    '''Create a reasonable chunk size'''
+    minChunkSize = 100
+    maxChunkSize = 1000
+    cpu_count = mp.cpu_count()
+    chunkSize = tuple(
+        max(
+            min(maxChunkSize, s // cpu_count), 
+            min(s, minChunkSize)
+        ) for s in in_shape
+    )
+    return chunkSize
+

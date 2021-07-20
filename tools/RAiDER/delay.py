@@ -57,12 +57,6 @@ def computeDelay(
             return wet_delays, hydro_delays
 
     else:
-        RAiDER.delayFcns.calculate_rays(
-            pnts_file_name,
-            step
-        )
-
-
         wet, hydro = RAiDER.delayFcns.get_delays(
             step,
             pnts_file_name,
@@ -171,11 +165,10 @@ def tropo_delay(args):
         logger.debug('Beginning line-of-sight calculation')
 
         # Convert the line-of-sight inputs to look vectors
-        los = getLookVectors(los, lats, lons, hgts, time)
-        np.save('./HR_SV/LOS.npy', los)
+        los, lengths = getLookVectors(los, lats, lons, hgts, time=time)
 
         # write to an HDF5 file
-        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+        writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
 
     else:
         logger.warning(
@@ -288,7 +281,10 @@ def checkQueryPntsFile(pnts_file, query_shape):
     if os.path.exists(pnts_file):
         # Check whether the number of points is consistent with the new inputs
         with h5py.File(pnts_file, 'r') as f:
-            if query_shape == tuple(f['lon'].attrs['Shape']):
-                write_flag = False
+            try:
+                if query_shape == tuple(f['lon'].attrs['Shape']):
+                    write_flag = False
+            except KeyError:
+                pass
 
     return write_flag

@@ -12,7 +12,7 @@ from osgeo import gdal, osr
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, sind,
     writeArrayToRaster, writeResultsToHDF5, gdal_extents,
-    getTimeFromFile, enu2ecef, ecef2enu, lla2ecef,
+    getTimeFromFile, enu2ecef, ecef2enu, lla2ecef, dot,
 )
 
 
@@ -436,3 +436,4 @@ def test_ecef2enu_9():
     llh = np.array([0, 180, 0])
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([-1, 0, -1]))
+

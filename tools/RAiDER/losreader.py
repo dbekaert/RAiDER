@@ -10,19 +10,23 @@
 import datetime
 import os.path
 import shelve
-import xml.etree.ElementTree as ET
 
+import xml.etree.ElementTree as ET
 import numpy as np
 
+from scipy.interpolate import interp1d
+from numba import jit
+
 import RAiDER.utilFcns as utilFcns
+
 from RAiDER import Geo2rdr
-from RAiDER.constants import _ZREF, Zenith
+from RAiDER.constants import _ZREF, Zenith, _RE
 
 
 _SLANT_RANGE_THRESH = 5e6
 
 
-def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
+def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None,  pad=3*3600):
     '''
     Get unit look vectors pointing from the ground (target) pixels to the sensor,
     or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a
@@ -49,9 +53,12 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
 
     Returns
     -------
-    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in an
-                          Earth-centered, earth-fixed reference frame (ECEF). Convention is
-                          vectors point from the target pixel to the sensor.
+    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in 
+                          an Earth-centered, earth-fixed reference frame (ECEF). 
+                          Convention is vectors point from the target pixel to the 
+                          sensor.
+    lengths: ndarray    - array of <in_shape> of the distnce from the surface to 
+                          the top of the troposphere (denoted by zref)
 
     Example:
     --------
@@ -70,9 +77,11 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
 
     if look_vecs is Zenith:
         look_vecs = getZenithLookVecs(lats, lons, heights)
+        lengths = zref - heights
     else:
         try:
             LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(look_vecs))
+            lengths = (zref - heights) / utilFcns.cosd(utilFcns.gdal_open(look_vecs)[0])
             look_vecs = utilFcns.enu2ecef(
                     LOS_enu[...,0],
                     LOS_enu[...,1],
@@ -84,8 +93,18 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
 
         # if that doesn't work, try parsing as a statevector (orbit) file
         except OSError:
-            svs       = get_sv(look_vecs, time, pad)
-            look_vecs = state_to_los(*svs, lats=lats, lons=lons, heights=heights)
+            svs = get_sv(look_vecs, time, pad)
+            xyz_targets = utilFcns.lla2ecef(lats, lons, heights)
+            look_vecs = state_to_los(
+                svs, 
+                xyz_targets,
+            )
+            enu = utilFcns.ecef2enu(
+                look_vecs,
+                lats, 
+                lons, 
+                heights)
+            lengths = (zref - heights) / enu[...,2]
 
         # Otherwise, throw an error
         except:
@@ -94,9 +113,10 @@ def getLookVectors(look_vecs, lats, lons, heights, time=None,  pad=3*3600):
             )
 
     mask = (np.isnan(heights) | np.isnan(lats) | np.isnan(lons))
+    lengths[mask] = 0.
     look_vecs[mask, :] = np.nan
 
-    return look_vecs.astype(np.float64)
+    return look_vecs.astype(np.float64), lengths
 
 
 def getZenithLookVecs(lats, lons, heights):
@@ -182,7 +202,7 @@ def inc_hd_to_enu(incidence, heading):
     return np.stack((east, north, up), axis=-1)
 
 
-def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
+def state_to_los(svs, xyz_targets):
     '''
     Converts information from a state vector for a satellite orbit, given in terms of
     position and velocity, to line-of-sight information at each (lon,lat, height)
@@ -199,6 +219,7 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
 
     Example:
     >>> import datetime
+    >>> import numpy
     >>> from RAiDER.utilFcns import gdal_open
     >>> import RAiDER.losreader as losr
     >>> lats, lons, heights = np.array([-76.1]), np.array([36.83]), np.array([0])
@@ -210,46 +231,16 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
     '''
 
     # check the inputs
-    if t.size < 4:
+    if np.min(svs.shape)< 4:
         raise RuntimeError(
             'state_to_los: At least 4 state vectors are required'
             ' for orbit interpolation'
         )
-    if t.shape != x.shape:
-        raise RuntimeError('state_to_los: t and x must be the same size')
-    if lats.shape != lons.shape:
-        raise RuntimeError('state_to_los: lats and lons must be the same size')
 
-    in_shape = lats.shape
-    geo2rdr_obj = Geo2rdr.PyGeo2rdr()
-    geo2rdr_obj.set_orbit(t, x, y, z, vx, vy, vz)
-
-    los_x, los_y, los_z = [], [], []
-    for i, (l, L, h) in enumerate(zip(lats.ravel(), lons.ravel(), heights.ravel())):
-        # Geo2rdr is picky about how the heights look
-        height_array = np.array(((h,),)).astype(np.double)
-
-        # Set the target pixel location
-        geo2rdr_obj.set_geo_coordinate(np.radians(L), np.radians(l), 1, 1, height_array)
-
-        # compute the look vector and target-sensor range in ECEF
-        geo2rdr_obj.geo2rdr()
-
-        # get back the line of sight unit vector
-        # LOS is defined as pointing from the ground pixel to the sensor
-        los = np.squeeze(geo2rdr_obj.get_los())
-        los_x.append(los[0])
-        los_y.append(los[1])
-        los_z.append(los[2])
-
-    los_ecef = np.stack([
-        np.array(los_x).reshape(in_shape), 
-        np.array(los_y).reshape(in_shape), 
-        np.array(los_z).reshape(in_shape), 
-    ], axis=-1)
+    los_ecef, slant_ranges = calc_los(xyz_targets, svs)
 
     # Sanity check for purpose of tracking problems
-    if geo2rdr_obj.get_slant_range() > _SLANT_RANGE_THRESH:
+    if slant_ranges.max() > _SLANT_RANGE_THRESH:
         raise RuntimeError(
             '''
             state_to_los:
@@ -260,7 +251,6 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
             the same range of time.
             '''
         )
-    del geo2rdr_obj
 
     return los_ecef
 
@@ -401,3 +391,84 @@ def read_ESA_Orbit_file(filename, ref_time):
         vz[i] = float(st[9].text)
 
     return [t, x, y, z, vx, vy, vz]
+
+
+def calc_los(target_xyz, svs):
+    '''
+    Get line-of-sight vectors from satellite and target positions
+    '''
+    in_shape = target_xyz.shape
+    target_xyz = target_xyz.flatten()
+    Npts = len(target_xyz)
+
+    slant_range = []
+    los = np.empty((Npts, 3), dtype=np.float64)
+
+    for k in range(Npts):
+        sensor_xyz, sr = get_radar_coordinate(target_xyz[k,:], svs)
+        los[k,:] = (sensor_xyz - target_xyz[k,:]) / slant_range
+        slant_range.append(sr)
+
+    return los.reshape(in_shape + (3,)), np.array(slant_range)
+
+
+@jit(nopython=True)
+def get_radar_coordinate(xyz, svs, t0=None):
+    '''
+    Calculate the coordinate of the sensor in ECEF at the time corresponding to ***. 
+
+    Parameters
+    ----------
+    svs: ndarray   - Nt x 7 matrix of statevectors: [t x y z vx vy vz]
+    xyz: ndarray   - position of the target in ECEF
+    t0: double     - starting point of the time at which the sensor imaged the target xyz
+
+    Returns
+    -------
+    sensor_xyz: ndarray  - position of the sensor in ECEF
+    '''
+    # initialize search
+    if t0 is None:
+        t = (svs[0].max() - svs[0].min()) / 2
+    else:
+        t = t0
+
+    dt = 1.0
+    num_iteration = 20
+    residual_threshold = 0.000000001
+
+    for k in range(num_iteration):
+        x = interpolate(svs[0], svs[1], t)
+        y = interpolate(svs[0], svs[2], t)
+        z = interpolate(svs[0], svs[3], t)
+        vx = interpolate(svs[0], svs[4], t)
+        vy = interpolate(svs[0], svs[5], t)
+        vz = interpolate(svs[0], svs[6], t)
+        E1 = vx*(xyz[0] - x) + vy*(xyz[1] - y) + vz*(xyz.z - z)
+        dE1 = vx*vx + vy*vy + vz*vz
+        dt = E1/dE1;
+        t = t+dt;
+        if np.abs(dt) < residual_threshold:
+            break
+
+    slant_range = np.sqrt(np.square(xyz[0] - x) + np.square(xyz[1] - y) + np.square(xyz[2] - z));
+    return np.array([x, y, z]), slant_range
+
+
+def interpolate(t, var, tq):
+    '''
+    Interpolate a set of statevectors to the requested input time
+
+    Parameters
+    ----------
+    statevectors: ndarray   - an Nt x 7 matrix of statevectors: [t x y z vx vy vz]
+    tref: double            - reference time requested (must be in the scope of t)
+    
+    Returns
+    -------
+    x, y, z: double    - sensor position in ECEF
+    vx, vy, vz: double - sensor velocity 
+    '''
+    f = interp1d(t, var)
+    return f(tq)
+

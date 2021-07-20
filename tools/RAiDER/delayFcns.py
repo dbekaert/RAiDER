@@ -22,50 +22,12 @@ from RAiDER.makePoints import makePoints1D
 from RAiDER.losreader import getZenithLookVecs
 
 
-def calculate_rays(pnts_file, stepSize=_STEP):
-    '''
-    From a set of lats/lons/hgts, compute ray paths from the ground to the
-    top of the atmosphere, using either a set of look vectors or the zenith
-    '''
-    t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
-
-    with h5py.File(pnts_file, 'r+') as f:
-        ndv = f.attrs['NoDataValue']
-        lon = f['lon'][()]
-        lat = f['lat'][()]
-        hgt = f['hgt'][()]
-        los = f['LOS'][()]
-
-    lon[lon == ndv] = np.nan
-    lat[lat == ndv] = np.nan
-    hgt[hgt == ndv] = np.nan
-
-    sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
-
-    # To get the ray lengths, we use the parametric form of the equation of a line in 3D:
-    # L = r0 + v*t, where r0 is the target position in ECEF, and v is the LOS vector (also ECEF)
-    # Then, using r_tropo = zref - (R_E + h), set |r0 + v*t| = |r_tropo|. Now use
-    # vector algebra: |r0 + v*t| = r0'*r0 + 2*t*(v'*r0) + (t^2)*(v'*v), where "'" denotes transpose.
-    # This gives a quadratic system in t to be solved:
-    # t = (-2*(v'*r0) - sqrt(4*(v'*r0)^2 - 4*(r_target^2 - r_tropo^2)) ) / 2*(r_target^2 - r_tropo^2)
-    # where r_target = r0'*r0 and we have used v'*v = 1. Noting that r_tropo^2 - r_target^2 ~= 2*R_E*Zref,
-    # we get t ~= ( v'*r0 + sqrt((v'*r0)^2 + 2*R_E*Zref)) / 2*R_E*Zref
-    vr0 = los[...,0]*sp[...,0] + los[...,1]*sp[...,1] + los[...,2]*sp[...,2]
-    lengths = (vr0 + np.sqrt(np.square(vr0) + 2*_RE*_ZREF)) / (2*_RE*_ZREF)
-
-    with h5py.File(pnts_file, 'r+') as f:
-        f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
-        f['Rays_SLV'][...] = los
-        f['Rays_len'][:] = lengths.astype(np.float64)
-        f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
-
-
 def get_delays(
-    stepSize,
-    pnts_file,
-    wm_file,
-    cpu_num=0
-):
+        stepSize,
+        pnts_file,
+        wm_file,
+        cpu_num=0
+    ):
     '''
     Create the integration points for each ray path.
     '''
@@ -91,8 +53,8 @@ def get_delays(
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
-                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['LOS']),
+            chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
     if Nchunks == 1:
         delays = process_chunk(*chunk_inputs[0])
