@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 
 from scipy.interpolate import interp1d
-from numba import jit
+#from numba import jit
 
 import RAiDER.utilFcns as utilFcns
 
@@ -26,7 +26,7 @@ from RAiDER.constants import _ZREF, Zenith, _RE
 _SLANT_RANGE_THRESH = 5e6
 
 
-def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None,  pad=3*3600):
+def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None,  pad=3*3600):
     '''
     Get unit look vectors pointing from the ground (target) pixels to the sensor,
     or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a
@@ -68,20 +68,20 @@ def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None,  pad=3
     >>> getLookVectors(Zenith, np.array([0]), np.array([0]), np.array([0]))
     >>> # array([[1, 0, 0]])
     '''
-    if (look_vecs is None) or (look_vecs is Zenith):
-        look_vecs = Zenith
+    if (los_type is None) or (los_type is Zenith):
+        los_type = Zenith
     else:
-        look_vecs = look_vecs[1]
+        los_type = look_vecs[1]
 
     in_shape = lats.shape
 
-    if look_vecs is Zenith:
+    if los_type is Zenith:
         look_vecs = getZenithLookVecs(lats, lons, heights)
         lengths = zref - heights
     else:
         try:
-            LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(look_vecs))
-            lengths = (zref - heights) / utilFcns.cosd(utilFcns.gdal_open(look_vecs)[0])
+            LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(los_type))
+            lengths = (zref - heights) / utilFcns.cosd(utilFcns.gdal_open(los_type)[0])
             look_vecs = utilFcns.enu2ecef(
                     LOS_enu[...,0],
                     LOS_enu[...,1],
@@ -93,8 +93,8 @@ def getLookVectors(look_vecs, lats, lons, heights, zref=_ZREF, time=None,  pad=3
 
         # if that doesn't work, try parsing as a statevector (orbit) file
         except OSError:
-            svs = get_sv(look_vecs, time, pad)
-            xyz_targets = utilFcns.lla2ecef(lats, lons, heights)
+            svs = np.stack(get_sv(los_type, time, pad), axis=-1)
+            xyz_targets = np.stack(utilFcns.lla2ecef(lats, lons, heights), axis=-1)
             look_vecs = state_to_los(
                 svs, 
                 xyz_targets,
@@ -202,6 +202,7 @@ def inc_hd_to_enu(incidence, heading):
     return np.stack((east, north, up), axis=-1)
 
 
+#@jit(nopython=True)
 def state_to_los(svs, xyz_targets):
     '''
     Converts information from a state vector for a satellite orbit, given in terms of
@@ -237,7 +238,19 @@ def state_to_los(svs, xyz_targets):
             ' for orbit interpolation'
         )
 
-    los_ecef, slant_ranges = calc_los(xyz_targets, svs)
+    # Flatten the input array for convenience
+    in_shape = xyz_targets.shape
+    target_xyz = np.stack([xyz_targets[...,0].flatten(), xyz_targets[...,1].flatten(), xyz_targets[...,2].flatten()], axis=-1)
+    Npts = len(target_xyz)
+
+    # Iterate through targets and compute LOS
+    slant_range = []
+    los = np.empty((Npts, 3), dtype=np.float64)
+    for k in range(Npts):
+        sensor_xyz, sr = get_radar_coordinate(target_xyz[k,:], svs)
+        slant_range.append(sr)
+        los[k,:] = (sensor_xyz - target_xyz[k,:]) / sr
+    slant_ranges = np.array(slant_range)
 
     # Sanity check for purpose of tracking problems
     if slant_ranges.max() > _SLANT_RANGE_THRESH:
@@ -252,6 +265,7 @@ def state_to_los(svs, xyz_targets):
             '''
         )
 
+    los_ecef = los.reshape(in_shape)
     return los_ecef
 
 
@@ -393,26 +407,7 @@ def read_ESA_Orbit_file(filename, ref_time):
     return [t, x, y, z, vx, vy, vz]
 
 
-def calc_los(target_xyz, svs):
-    '''
-    Get line-of-sight vectors from satellite and target positions
-    '''
-    in_shape = target_xyz.shape
-    target_xyz = target_xyz.flatten()
-    Npts = len(target_xyz)
-
-    slant_range = []
-    los = np.empty((Npts, 3), dtype=np.float64)
-
-    for k in range(Npts):
-        sensor_xyz, sr = get_radar_coordinate(target_xyz[k,:], svs)
-        los[k,:] = (sensor_xyz - target_xyz[k,:]) / slant_range
-        slant_range.append(sr)
-
-    return los.reshape(in_shape + (3,)), np.array(slant_range)
-
-
-@jit(nopython=True)
+#@jit(nopython=True)
 def get_radar_coordinate(xyz, svs, t0=None):
     '''
     Calculate the coordinate of the sensor in ECEF at the time corresponding to ***. 
@@ -429,7 +424,7 @@ def get_radar_coordinate(xyz, svs, t0=None):
     '''
     # initialize search
     if t0 is None:
-        t = (svs[0].max() - svs[0].min()) / 2
+        t = (svs[:,0].max() - svs[:,0].min()) / 2
     else:
         t = t0
 
@@ -437,16 +432,18 @@ def get_radar_coordinate(xyz, svs, t0=None):
     num_iteration = 20
     residual_threshold = 0.000000001
 
+    dts = []
     for k in range(num_iteration):
-        x = interpolate(svs[0], svs[1], t)
-        y = interpolate(svs[0], svs[2], t)
-        z = interpolate(svs[0], svs[3], t)
-        vx = interpolate(svs[0], svs[4], t)
-        vy = interpolate(svs[0], svs[5], t)
-        vz = interpolate(svs[0], svs[6], t)
-        E1 = vx*(xyz[0] - x) + vy*(xyz[1] - y) + vz*(xyz.z - z)
+        x = interpolate(svs[:,0], svs[:,1], t)
+        y = interpolate(svs[:,0], svs[:,2], t)
+        z = interpolate(svs[:,0], svs[:,3], t)
+        vx = interpolate(svs[:,0], svs[:,4], t)
+        vy = interpolate(svs[:,0], svs[:,5], t)
+        vz = interpolate(svs[:,0], svs[:,6], t)
+        E1 = vx*(xyz[0] - x) + vy*(xyz[1] - y) + vz*(xyz[2] - z)
         dE1 = vx*vx + vy*vy + vz*vz
         dt = E1/dE1;
+        dts.append(dt)
         t = t+dt;
         if np.abs(dt) < residual_threshold:
             break

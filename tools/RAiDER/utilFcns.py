@@ -193,9 +193,12 @@ def uvw2enu(u: ndarray, v: ndarray, w: ndarray, lat0: ndarray, lon0: ndarray):
 def ecef2enu(xyz, lat, lon, height):
     '''Convert ECEF xyz to ENU'''
     x, y, z = xyz[...,0],xyz[...,1],xyz[...,2]
-    e = -sind(lon)*x + cosd(lon)*y
-    n = -cosd(lon)*sind(lat)*x - sind(lon)*sind(lat)*y + cosd(lat)*z
-    u = cosd(lon)*cosd(lat)*x + sind(lon)*cosd(lat)*y + sind(lat)*z
+
+    t = cosd(lon) * x + sind(lon) * y
+
+    e = -sind(lon) * x + cosd(lon) * y
+    n = -sind(lat) * t + cosd(lat) * z
+    u = cosd(lat) * t + sind(lat) * z
     return np.stack((e, n, u), axis=-1)
 
 
