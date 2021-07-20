@@ -12,8 +12,8 @@ from osgeo import gdal, osr
 import progressbar
 
 from RAiDER.constants import (
-        Zenith, 
-        _g0 as g0, 
+        Zenith,
+        _g0 as g0,
         _RE as Re,
         R_EARTH_MAX as Rmax,
         R_EARTH_MIN as Rmin,
@@ -45,28 +45,32 @@ def lla2ecef(lat, lon, height):
     return pyproj.transform(lla, ecef, lon, lat, height, always_xy=True)
 
 
+    
+def ecef2enu(xyz, lat, lon, height):
+    '''Convert ECEF xyz to ENU'''
+    x, y, z = xyz[...,0],xyz[...,1],xyz[...,2]
+
+    t = cosd(lon) * x + sind(lon) * y
+
+    e = -sind(lon) * x + cosd(lon) * y
+    n = -sind(lat) * t + cosd(lat) * z
+    u = cosd(lat) * t + sind(lat) * z
+    return np.stack((e, n, u), axis=-1)
+
 def enu2ecef(east, north, up, lat0, lon0, h0):
     """Return ecef from enu coordinates."""
     # I'm looking at
     # https://github.com/scivision/pymap3d/blob/master/pymap3d/__init__.py
-    x0, y0, z0 = lla2ecef(lat0, lon0, h0)
+    # x0, y0, z0 = lla2ecef(lat0, lon0, h0)
 
-    t = cosd(lat0) * up - sind(lat0) * north
-    w = sind(lat0) * up + cosd(lat0) * north
+    x = cosd(lon0) * cosd(lat0) * up - cosd(lon0) *sind(lat0) * north - sind(lon0) * east
+    y = sind(lon0) * cosd(lat0) * up - sind(lon0) *sind(lat0) * north + cosd(lon0) * east
+    z = sind(lat0) * up + cosd(lat0) * north
 
-    u = cosd(lon0) * t - sind(lon0) * east
-    v = sind(lon0) * t + cosd(lon0) * east
-
-    my_ecef = np.stack((x0 + u, y0 + v, z0 + w), axis=-1)
+    # my_ecef = np.stack((x0 + u, y0 + v, z0 + w), axis=-1)
+    my_ecef = np.stack((x, y, z), axis=-1)
 
     return my_ecef
-
-def ecef2enu(xyz_ecef, lat, lon, height):
-    '''Convert ECEF xyz to ENU'''
-    R = getRotMatrix(lat, lon)
-    inp = xyz_ecef# - lla2ecef(lat, lon, height)
-    out = np.dot(R, inp)
-    return out
 
 def getRotMatrix(lat, lon):
     '''Rotation matrix for geographic transformations'''
@@ -269,7 +273,7 @@ def _geo_to_ht(lats, hts):
 
     # Calculate Geometric Height, h
     h = (hts * Re) / (g_ll / g0 * Re - hts)
-    # from metpy 
+    # from metpy
     # return (geopotential * Re) / (g0 * Re - geopotential)
 
     return h
@@ -759,9 +763,9 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         dimensions = ()
 
         var = nc_outfile.createVariable(
-                mapping_name, 
-                datatype, 
-                dimensions, 
+                mapping_name,
+                datatype,
+                dimensions,
                 fill_value=None
             )
         # variable made, now add attributes
@@ -834,9 +838,9 @@ def convertLons(inLons):
 
 
 def read_NCMR_loginInfo(filepath=None):
-    
+
     from pathlib import Path
-    
+
     if filepath is None:
         filepath = str(Path.home())+'/.ncmrlogin'
 
@@ -856,7 +860,7 @@ def show_progress(block_num, block_size, total_size):
     if pbar is None:
         pbar = progressbar.ProgressBar(maxval=total_size)
         pbar.start()
-    
+
     downloaded = block_num * block_size
     if downloaded < total_size:
         pbar.update(downloaded)

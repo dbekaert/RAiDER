@@ -243,12 +243,13 @@ def state_to_los(t, x, y, z, vx, vy, vz, lats, lons, heights):
         los_z.append(los[2])
 
     los_ecef = np.stack([
-        np.array(los_x).reshape(in_shape), 
-        np.array(los_y).reshape(in_shape), 
-        np.array(los_z).reshape(in_shape), 
+        np.array(los_x).reshape(in_shape),
+        np.array(los_y).reshape(in_shape),
+        np.array(los_z).reshape(in_shape),
     ], axis=-1)
 
     # Sanity check for purpose of tracking problems
+    # print ('Slant range', geo2rdr_obj.get_slant_range())
     if geo2rdr_obj.get_slant_range() > _SLANT_RANGE_THRESH:
         raise RuntimeError(
             '''
