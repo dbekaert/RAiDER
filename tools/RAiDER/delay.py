@@ -172,9 +172,6 @@ def tropo_delay(args):
 
         # Convert the line-of-sight inputs to look vectors
         los = getLookVectors(los, lats, lons, hgts, time)
-        import RAiDER.utilFcns as utilFcns
-        los_enu = utilFcns.ecef2enu(los, lats, lons, hgts)
-        np.save('./HR_SV/LOS_ENU.npy', los_enu)
 
         # write to an HDF5 file
         writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
