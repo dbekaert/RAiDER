@@ -26,7 +26,7 @@ from RAiDER.constants import _ZREF, Zenith, _RE
 _SLANT_RANGE_THRESH = 5e6
 
 
-def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None,  pad=3*3600):
+def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 * 3600):
     '''
     Get unit look vectors pointing from the ground (target) pixels to the sensor,
     or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a
@@ -83,28 +83,28 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None,  pad=3*
             LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(los_type))
             lengths = (zref - heights) / utilFcns.cosd(utilFcns.gdal_open(los_type)[0])
             look_vecs = utilFcns.enu2ecef(
-                    LOS_enu[...,0],
-                    LOS_enu[...,1],
-                    LOS_enu[...,2],
-                    lats,
-                    lons,
-                    heights
-                )
+                LOS_enu[..., 0],
+                LOS_enu[..., 1],
+                LOS_enu[..., 2],
+                lats,
+                lons,
+                heights
+            )
 
         # if that doesn't work, try parsing as a statevector (orbit) file
         except OSError:
             svs = np.stack(get_sv(los_type, time, pad), axis=-1)
             xyz_targets = np.stack(utilFcns.lla2ecef(lats, lons, heights), axis=-1)
             look_vecs = state_to_los(
-                svs, 
+                svs,
                 xyz_targets,
             )
             enu = utilFcns.ecef2enu(
                 look_vecs,
-                lats, 
-                lons, 
+                lats,
+                lons,
                 heights)
-            lengths = (zref - heights) / enu[...,2]
+            lengths = (zref - heights) / enu[..., 2]
 
         # Otherwise, throw an error
         except:
@@ -138,7 +138,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-def get_sv(los_file, ref_time, pad=3*3600):
+def get_sv(los_file, ref_time, pad=3 * 3600):
     """
     Read an LOS file and return orbital state vectors
 
@@ -202,7 +202,7 @@ def inc_hd_to_enu(incidence, heading):
     return np.stack((east, north, up), axis=-1)
 
 
-#@jit(nopython=True)
+# @jit(nopython=True)
 def state_to_los(svs, xyz_targets):
     '''
     Converts information from a state vector for a satellite orbit, given in terms of
@@ -232,7 +232,7 @@ def state_to_los(svs, xyz_targets):
     '''
 
     # check the inputs
-    if np.min(svs.shape)< 4:
+    if np.min(svs.shape) < 4:
         raise RuntimeError(
             'state_to_los: At least 4 state vectors are required'
             ' for orbit interpolation'
@@ -240,7 +240,7 @@ def state_to_los(svs, xyz_targets):
 
     # Flatten the input array for convenience
     in_shape = xyz_targets.shape
-    target_xyz = np.stack([xyz_targets[...,0].flatten(), xyz_targets[...,1].flatten(), xyz_targets[...,2].flatten()], axis=-1)
+    target_xyz = np.stack([xyz_targets[..., 0].flatten(), xyz_targets[..., 1].flatten(), xyz_targets[..., 2].flatten()], axis=-1)
     Npts = len(target_xyz)
 
     # Iterate through targets and compute LOS
@@ -248,7 +248,7 @@ def state_to_los(svs, xyz_targets):
     los = np.empty((Npts, 3), dtype=np.float64)
     breakpoint()
     for k in range(Npts):
-        los[k,:], sr = get_radar_coordinate(target_xyz[k,:], svs)
+        los[k, :], sr = get_radar_coordinate(target_xyz[k, :], svs)
         slant_range.append(sr)
     slant_ranges = np.array(slant_range)
 
@@ -269,7 +269,7 @@ def state_to_los(svs, xyz_targets):
     return los_ecef
 
 
-def cut_times(times, pad=3600*3):
+def cut_times(times, pad=3600 * 3):
     """
     Slice the orbit file around the reference aquisition time. This is done
     by default using a three-hour window, which for Sentinel-1 empirically
@@ -289,13 +289,13 @@ def cut_times(times, pad=3600*3):
 
 
 def read_shelve(filename):
-    #TODO: docstring and unit tests
+    # TODO: docstring and unit tests
     with shelve.open(filename, 'r') as db:
         obj = db['frame']
 
     numSV = len(obj.orbit.stateVectors)
     breakpoint()
-    if numSV==0:
+    if numSV == 0:
         raise ValueError('read_shelve: the file has not statevectors')
 
     t = np.ones(numSV)
@@ -414,7 +414,7 @@ def read_ESA_Orbit_file(filename, ref_time):
     return [t, x, y, z, vx, vy, vz]
 
 
-#@jit(nopython=True)
+# @jit(nopython=True)
 def get_radar_coordinate(xyz, svs, t0=None):
     '''
     Calculate the coordinate of the sensor in ECEF at the time corresponding to ***. 
@@ -431,7 +431,7 @@ def get_radar_coordinate(xyz, svs, t0=None):
     '''
     # initialize search
     if t0 is None:
-        t = (svs[:,0].max() - svs[:,0].min()) / 2
+        t = (svs[:, 0].max() - svs[:, 0].min()) / 2
     else:
         t = t0
 
@@ -441,17 +441,17 @@ def get_radar_coordinate(xyz, svs, t0=None):
 
     dts = []
     for k in range(num_iteration):
-        x = interpolate(svs[:,0], svs[:,1], t)
-        y = interpolate(svs[:,0], svs[:,2], t)
-        z = interpolate(svs[:,0], svs[:,3], t)
-        vx = interpolate(svs[:,0], svs[:,4], t)
-        vy = interpolate(svs[:,0], svs[:,5], t)
-        vz = interpolate(svs[:,0], svs[:,6], t)
-        E1 = vx*(xyz[0] - x) + vy*(xyz[1] - y) + vz*(xyz[2] - z)
-        dE1 = vx*vx + vy*vy + vz*vz
-        dt = E1/dE1;
+        x = interpolate(svs[:, 0], svs[:, 1], t)
+        y = interpolate(svs[:, 0], svs[:, 2], t)
+        z = interpolate(svs[:, 0], svs[:, 3], t)
+        vx = interpolate(svs[:, 0], svs[:, 4], t)
+        vy = interpolate(svs[:, 0], svs[:, 5], t)
+        vz = interpolate(svs[:, 0], svs[:, 6], t)
+        E1 = vx * (xyz[0] - x) + vy * (xyz[1] - y) + vz * (xyz[2] - z)
+        dE1 = vx * vx + vy * vy + vz * vz
+        dt = E1 / dE1
         dts.append(dt)
-        t = t+dt;
+        t = t + dt
         if np.abs(dt) < residual_threshold:
             break
 
@@ -461,7 +461,7 @@ def get_radar_coordinate(xyz, svs, t0=None):
 
     slant_range = np.sqrt(
         np.square(los_x) + np.square(los_y) + np.square(los_z)
-    );
+    )
     breakpoint()
     return np.array([los_x, los_y, los_z]) / slant_range, slant_range
 
@@ -474,7 +474,7 @@ def interpolate(t, var, tq):
     ----------
     statevectors: ndarray   - an Nt x 7 matrix of statevectors: [t x y z vx vy vz]
     tref: double            - reference time requested (must be in the scope of t)
-    
+
     Returns
     -------
     x, y, z: double    - sensor position in ECEF
@@ -482,4 +482,3 @@ def interpolate(t, var, tq):
     '''
     f = interp1d(t, var)
     return f(tq)
-

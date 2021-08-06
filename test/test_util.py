@@ -337,12 +337,12 @@ def test_WGS84_to_UTM():
 @pytest.mark.skipif(True, reason='Need to ensure this file always get written before this executes')
 def test_read_weather_model_file():
     weather_model_obj = read_wm_file(
-            os.path.join(
-                SCENARIO_DIR,
-                'weather_files',
-                'ERA5_2020_01_03_T23_00_00_15.75N_18.25N_103.24W_99.75W.nc'
-            )
+        os.path.join(
+            SCENARIO_DIR,
+            'weather_files',
+            'ERA5_2020_01_03_T23_00_00_15.75N_18.25N_103.24W_99.75W.nc'
         )
+    )
     assert weather_model_obj.Model() == 'ERA-5'
 
 
@@ -352,11 +352,13 @@ def test_enu2ecef_1():
     ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([1, 0, 0]))
 
+
 def test_enu2ecef_2():
     enu = np.array([0, 0, 1])
     llh = np.array([0, 90, 0])
     ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 1, 0]))
+
 
 def test_enu2ecef_3():
     enu = np.array([0, 0, 1])
@@ -364,17 +366,20 @@ def test_enu2ecef_3():
     ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, -1, 0]))
 
+
 def test_enu2ecef_4():
     enu = np.array([0, 0, 1])
     llh = np.array([90, 0, 0])
     ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 0, 1]))
 
+
 def test_enu2ecef_5():
     enu = np.array([0, 0, 1])
     llh = np.array([-90, 0, 0])
     ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 0, -1]))
+
 
 def test_enu2ecef_6():
     enu = np.array([0, 1, 0])
@@ -389,11 +394,13 @@ def test_ecef2enu_1():
     enu = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(enu, np.array([0, 1, 0]))
 
+
 def test_ecef2enu_2():
     enu = np.array([0, 0, 1])
     llh = np.array([0, 90, 0])
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 1, 0]))
+
 
 def test_ecef2enu_3():
     enu = np.array([0, 0, 1])
@@ -401,11 +408,13 @@ def test_ecef2enu_3():
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 1, 0]))
 
+
 def test_ecef2enu_4():
     enu = np.array([0, 0, 1])
     llh = np.array([90, 0, 0])
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 0, 1]))
+
 
 def test_ecef2enu_5():
     enu = np.array([0, 0, 1])
@@ -413,11 +422,13 @@ def test_ecef2enu_5():
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 0, -1]))
 
+
 def test_ecef2enu_6():
     enu = np.array([0, 0, -1])
     llh = np.array([0, -180, 0])
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, -1, 0]))
+
 
 def test_ecef2enu_7():
     enu = np.array([0, 0, 1])
@@ -425,15 +436,16 @@ def test_ecef2enu_7():
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([0, 1, 0]))
 
+
 def test_ecef2enu_8():
     enu = np.array([1, 1, 0])
     llh = np.array([0, 0, 0])
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([1, 0, 1]))
 
+
 def test_ecef2enu_9():
     enu = np.array([1, 1, 0])
     llh = np.array([0, 180, 0])
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([-1, 0, -1]))
-

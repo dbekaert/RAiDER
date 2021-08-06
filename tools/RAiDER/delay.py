@@ -62,7 +62,6 @@ def computeDelay(
             step
         )
 
-
         wet, hydro = RAiDER.delayFcns.get_delays(
             step,
             pnts_file_name,
@@ -171,7 +170,7 @@ def tropo_delay(args):
         logger.debug('Beginning line-of-sight calculation')
 
         # Convert the line-of-sight inputs to look vectors
-        los,lengths = getLookVectors(los, lats, lons, hgts, zref = zref, time = time)
+        los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
 
         # write to an HDF5 file
         writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)

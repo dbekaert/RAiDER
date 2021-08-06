@@ -35,9 +35,8 @@ class ECMWF(WeatherModel):
         self._lat_res = 0.2
         self._proj = CRS.from_epsg(4326)
 
-        self._model_level_type = 'ml' # Default
+        self._model_level_type = 'ml'  # Default
 
-    
     def setLevelType(self, levelType):
         '''Set the level type to model levels or pressure levels'''
         if levelType in ['ml', 'pl']:
@@ -50,7 +49,6 @@ class ECMWF(WeatherModel):
         else:
             self.__pressure_levels__()
 
-
     @abstractmethod
     def __pressure_levels__(self):
         pass
@@ -59,7 +57,7 @@ class ECMWF(WeatherModel):
         self._levels = 137
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
         self._a = A_137_HRES
-        self._b = B_137_HRES 
+        self._b = B_137_HRES
 
     def load_weather(self, *args, **kwargs):
         '''
@@ -195,14 +193,14 @@ class ECMWF(WeatherModel):
         })
 
     def _get_from_cds(
-        self, 
-        lat_min, 
-        lat_max, 
-        lat_step, 
-        lon_min, 
+        self,
+        lat_min,
+        lat_max,
+        lat_step,
+        lon_min,
         lon_max,
-        lon_step, 
-        acqTime, 
+        lon_step,
+        acqTime,
         outname
     ):
         import cdsapi
@@ -212,7 +210,7 @@ class ECMWF(WeatherModel):
             var = ['z', 'q', 't']
             levType = 'pressure_level'
         else:
-            var = "129/130/133/152" #'lnsp', 'q', 'z', 't'
+            var = "129/130/133/152"  # 'lnsp', 'q', 'z', 't'
             levType = 'model_level'
 
         bbox = [lat_max, lon_min, lat_min, lon_max]
@@ -241,7 +239,6 @@ class ECMWF(WeatherModel):
             logger.warning('Query time: {}'.format(acqTime))
             logger.exception(e)
             raise Exception
-
 
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
         from ecmwfapi import ECMWFService
@@ -275,7 +272,6 @@ class ECMWF(WeatherModel):
             },
             out
         )
-
 
     def _load_pressure_level(self, filename, *args, **kwargs):
         with xr.open_dataset(filename) as block:
@@ -349,7 +345,6 @@ class ECMWF(WeatherModel):
         self._t = np.flip(self._t, axis=2)
         self._q = np.flip(self._q, axis=2)
 
-
     def _makeDataCubes(self, fname, verbose=False):
         '''
         Create a cube of data representing temperature and relative humidity
@@ -382,5 +377,3 @@ class ECMWF(WeatherModel):
                                'you may have a problem with your mask')
 
         return lats, lons, xs, ys, t, q, lnsp, z
-
-

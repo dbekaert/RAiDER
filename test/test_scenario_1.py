@@ -140,5 +140,5 @@ def core_test_tropo_delay(tmp_path, modelName):
         )
 
         # get the true delay from the weather model
-        assert np.nanmax(np.abs((wet - true_wet) / true_wet )) < _RTOL
-        assert np.nanmax(np.abs((hydro - true_hydro) / true_hydro )) < _RTOL
+        assert np.nanmax(np.abs((wet - true_wet) / true_wet)) < _RTOL
+        assert np.nanmax(np.abs((hydro - true_hydro) / true_hydro)) < _RTOL
