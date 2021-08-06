@@ -53,6 +53,7 @@ def enu2ecef(
         up: ndarray,
         lat0: ndarray,
         lon0: ndarray,
+        h0: ndarray,
     ):
     """
     Parameters
@@ -509,6 +510,7 @@ def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize
         lengths.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
+        f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
 
 def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):

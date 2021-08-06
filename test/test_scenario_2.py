@@ -67,15 +67,6 @@ def test_computeDelay(tmp_path):
     true_delay = pd.read_csv(true_delay)
 
     # get the true delay from the weather model
-    assert np.allclose(
-            est_delay['wetDelay'].values,
-            true_delay['wetDelay'].values, 
-            equal_nan=True,
-            rtol = _RTOL,
-        )
-    assert np.allclose(
-            est_delay['hydroDelay'].values,
-            true_delay['hydroDelay'].values, 
-            equal_nan=True,
-            rtol = _RTOL,
-        )
+    assert np.sum((est_delay['wetDelay'].values - true_delay['wetDelay'].values) /  true_delay['wetDelay'].values) < _RTOL
+    assert np.sum((est_delay['hydroDelay'].values - true_delay['hydroDelay'].values) / true_delay['hydroDelay'].values) < _RTOL
+
