@@ -124,7 +124,7 @@ def test_get_sv_2(svs):
 
 def test_get_sv_3(svs):
     true_svs, ref_time = svs
-    filename = os.path.join(SCENARIO_DIR, 'dummy.txt')
+    filename = os.path.join(SCENARIO_DIR, 'incorrect_file.txt')
     with pytest.raises(ValueError):
         get_sv(filename, ref_time)
 
