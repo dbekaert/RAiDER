@@ -55,7 +55,7 @@ def calculate_rays(pnts_file, stepSize=_STEP):
 
     with h5py.File(pnts_file, 'r+') as f:
         f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
-        f['Rays_SLV'][...] = los
+        f['LOS'][...] = los
         f['Rays_len'][:] = lengths.astype(np.float64)
         f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
@@ -91,7 +91,7 @@ def get_delays(
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['LOS']),
                          chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
     if Nchunks == 1:

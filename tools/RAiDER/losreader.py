@@ -39,7 +39,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None,  pad=3*
 
     Parameters
     ----------
-    look_vecs: LookVector object or tuple  - Either a Zenith object or a tuple,
+    los_type: LookVector object or tuple  - Either a Zenith object or a tuple,
                                              with the second element containing
                                              the name of either a line-of-sight
                                              file or orbital statevectors file
@@ -71,7 +71,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None,  pad=3*
     if (los_type is None) or (los_type is Zenith):
         los_type = Zenith
     else:
-        los_type = look_vecs[1]
+        los_type = los_type[1]
 
     in_shape = lats.shape
 

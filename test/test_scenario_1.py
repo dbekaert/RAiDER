@@ -45,15 +45,6 @@ def test_tropo_delay_ERA5T(tmp_path):
 
 
 @pytest.mark.timeout(600)
-def test_tropo_delay_HRES(tmp_path):
-    '''
-    Scenario:
-    1: Small area, HRES, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="HRES")
-
-
-@pytest.mark.timeout(600)
 def test_tropo_delay_GMAO(tmp_path):
     '''
     Scenario:
