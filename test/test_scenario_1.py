@@ -5,7 +5,7 @@ import urllib.error
 
 import numpy as np
 
-from test import DATA_DIR, TEST_DIR, pushd
+from test import TEST_DIR, pushd
 
 
 from RAiDER.constants import Zenith
@@ -42,15 +42,6 @@ def test_tropo_delay_ERA5T(tmp_path):
     1: Small area, ERA5T, Zenith delay
     '''
     core_test_tropo_delay(tmp_path, modelName="ERA5T")
-
-
-@pytest.mark.timeout(600)
-def test_tropo_delay_HRES(tmp_path):
-    '''
-    Scenario:
-    1: Small area, HRES, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="HRES")
 
 
 @pytest.mark.timeout(600)
@@ -149,5 +140,5 @@ def core_test_tropo_delay(tmp_path, modelName):
         )
 
         # get the true delay from the weather model
-        assert np.nanmax(np.abs((wet - true_wet) / true_wet )) < _RTOL
-        assert np.nanmax(np.abs((hydro - true_hydro) / true_hydro )) < _RTOL
+        assert np.nanmax(np.abs((wet - true_wet) / true_wet)) < _RTOL
+        assert np.nanmax(np.abs((hydro - true_hydro) / true_hydro)) < _RTOL

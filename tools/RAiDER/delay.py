@@ -34,8 +34,8 @@ def computeDelay(
     out=None,
 ):
     """
-    Calculate troposphere delay using a weather model file and query 
-    points file. 
+    Calculate troposphere delay using a weather model file and query
+    points file.
     """
     logger.debug('Beginning delay calculation')
     logger.debug('Max integration height is {:1.1f} m'.format(zref))
@@ -170,10 +170,10 @@ def tropo_delay(args):
         logger.debug('Beginning line-of-sight calculation')
 
         # Convert the line-of-sight inputs to look vectors
-        los = getLookVectors(los, lats, lons, hgts, zref)
+        los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
 
         # write to an HDF5 file
-        writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
+        writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
 
     else:
         logger.warning(
@@ -286,7 +286,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
     if os.path.exists(pnts_file):
         # Check whether the number of points is consistent with the new inputs
         with h5py.File(pnts_file, 'r') as f:
-            if query_shape == f['lon'].attrs['Shape']:
+            if query_shape == tuple(f['lon'].attrs['Shape']):
                 write_flag = False
 
     return write_flag

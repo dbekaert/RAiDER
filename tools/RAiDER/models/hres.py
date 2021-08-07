@@ -34,10 +34,10 @@ class HRES(ECMWF):
         self._k3 = 3.75e3  # [K^2/Pa]
 
         # 9 km horizontal grid spacing. This is only used for extending the download-buffer, i.e. not in subsequent processing.
-        self._lon_res = 9./111 #0.08108115
-        self._lat_res = 9./111 #0.08108115
-        self._x_res = 9./111 #0.08108115
-        self._y_res = 9./111 #0.08108115
+        self._lon_res = 9. / 111  # 0.08108115
+        self._lat_res = 9. / 111  # 0.08108115
+        self._x_res = 9. / 111  # 0.08108115
+        self._y_res = 9. / 111  # 0.08108115
 
         self._humidityType = 'q'
         # Default, pressure levels are 'pl'
@@ -54,19 +54,17 @@ class HRES(ECMWF):
 
         self.setLevelType('ml')
 
-    
     def __pressure_levels__(self):
         self._levels = 25
         self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
 
     def update_a_b(self):
-        # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted 
+        # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted
         # based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels
         self._levels = 91
         self._zlevels = np.flipud(LEVELS_91_HEIGHTS)
         self._a = A_91_HRES
         self._b = B_91_HRES
-
 
     def load_weather(self, filename=None):
         '''
@@ -84,7 +82,6 @@ class HRES(ECMWF):
             self._load_model_levels(filename)
         elif self._model_level_type == 'pl':
             self._load_pressure_levels(filename)
-       
 
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
@@ -98,5 +95,3 @@ class HRES(ECMWF):
 
         # execute the search at ECMWF
         self._download_ecmwf(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time, out)
-
-

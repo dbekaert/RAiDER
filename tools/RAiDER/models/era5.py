@@ -8,7 +8,6 @@ from RAiDER.logger import *
 from RAiDER.models.model_levels import A_137_ERA5, B_137_ERA5, LEVELS_137_HEIGHTS, LEVELS_25_HEIGHTS
 
 
-
 class ERA5(ECMWF):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
@@ -27,7 +26,7 @@ class ERA5(ECMWF):
         # Availability lag time in days
         self._lag_time = datetime.timedelta(days=30)
 
-        # Default, need to change to ml 
+        # Default, need to change to ml
         self.setLevelType('pl')
 
     def __pressure_levels__(self):
@@ -56,5 +55,6 @@ class ERA5(ECMWF):
         elif self._model_level_type == 'ml':
             self._load_model_levels(*self.files, *args, **kwargs)
         else:
-            raise RuntimeError('{} is not a valid model type'.format(self._model_level_type))
-
+            raise RuntimeError(
+                '{} is not a valid model type'.format(self._model_level_type)
+            )
