@@ -5,15 +5,18 @@ import os
 import pandas as pd
 import pytest
 from shutil import copyfile
-from test import DATA_DIR, TEST_DIR, pushd
+from test import TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
-from RAiDER.utilFcns import gdal_open, modelName2Module
+from RAiDER.utilFcns import gdal_open
+from RAiDER.checkArgs import modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
+_RTOL = 1e-4
 
 
+@pytest.mark.timeout(600)
 def test_computeDelay(tmp_path):
     '''
     Scenario to use: 
@@ -64,7 +67,5 @@ def test_computeDelay(tmp_path):
     true_delay = pd.read_csv(true_delay)
 
     # get the true delay from the weather model
-    assert np.allclose(est_delay['wetDelay'].values,
-                       true_delay['wetDelay'].values, equal_nan=True)
-    assert np.allclose(est_delay['hydroDelay'].values,
-                       true_delay['hydroDelay'].values, equal_nan=True)
+    assert np.sum((est_delay['wetDelay'].values - true_delay['wetDelay'].values) / true_delay['wetDelay'].values) < _RTOL
+    assert np.sum((est_delay['hydroDelay'].values - true_delay['hydroDelay'].values) / true_delay['hydroDelay'].values) < _RTOL

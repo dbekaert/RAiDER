@@ -156,26 +156,15 @@ def tropo_delay(args):
                 'shape of the input query points, either change the file '
                 'name or delete the query points file ({})'.format(pnts_file)
             )
-            raise ValueError(
-                'The input query points file exists but does not match the '
-                'shape of the input query points, either change the file '
-                'name or delete the query points file ({})'.format(pnts_file)
-            )
 
         if write_flag:
             logger.debug('Beginning line-of-sight calculation')
-
+            
             # Convert the line-of-sight inputs to look vectors
-            los = getLookVectors(los, lats, lons, hgts, zref)
+            los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
 
             # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
-
-        else:
-            logger.warning(
-                'The input query points file already exists and matches the '
-                'shape of the input query points, so I will use it.'
-            )
+            writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
 
         logger.debug('Beginning raytracing calculation')
         logger.debug('Reference integration step is {:1.1f} m'.format(step))
@@ -222,7 +211,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
     if os.path.exists(pnts_file):
         # Check whether the number of points is consistent with the new inputs
         with h5py.File(pnts_file, 'r') as f:
-            if np.all(query_shape == f['lon'].attrs['Shape']):
+            if query_shape == tuple(f['lon'].attrs['Shape']):
                 write_flag = False
 
     return write_flag

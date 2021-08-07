@@ -329,6 +329,7 @@ def query_repos(
     # If bbox not specified, query stations across the entire globe
     else:
         bbox = [-90, 90, 0, 360]
+        long_cross_zero = 1
 
     # Handle station query
     if long_cross_zero is 1:

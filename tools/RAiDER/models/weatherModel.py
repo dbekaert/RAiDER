@@ -6,6 +6,8 @@ import numpy as np
 import netCDF4
 import rasterio
 from shapely.geometry import box
+from shapely.affinity import translate
+from shapely.ops import unary_union
 
 from RAiDER.constants import _ZREF, _ZMIN, _g0
 from RAiDER import utilFcns as util
@@ -39,17 +41,20 @@ class WeatherModel(ABC):
 
         self._classname = None
         self._dataset = None
+
         self._model_level_type = 'ml'
+
         self._valid_range = (
             datetime.date(1900, 1, 1),
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
+
         self._bbox = None
 
         # Define fixed constants
         self._R_v = 461.524
-        self._R_d = 287.053
+        self._R_d = 287.06  # in our original code this was 287.053
         self._g0 = _g0  # gravity constant
         self._zmin = _ZMIN  # minimum integration height
         self._zmax = _ZREF  # max integration height
@@ -262,7 +267,7 @@ class WeatherModel(ABC):
         Transform geo heights to actual heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        self._zs = util._geo_to_ht(lats, geo_ht_fix, self._g0)
+        self._zs = util._geo_to_ht(lats, geo_ht_fix)
 
     def _find_e(self):
         """Check the type of e-calculation needed"""
@@ -400,7 +405,8 @@ class WeatherModel(ABC):
 
     def checkContainment(self: weatherModel,
                          outLats: np.ndarray,
-                         outLons: np.ndarray) -> bool:
+                         outLons: np.ndarray,
+                         buffer_deg: float = 1e-5) -> bool:
         """"
         Checks containment of weather model bbox of outLats and outLons
         provided.
@@ -412,6 +418,10 @@ class WeatherModel(ABC):
             An array of latitude points
         outLons : np.ndarray
             An array of longitude points
+        buffer_deg : float
+            For x-translates for extents that lie outside of world bounding box,
+            this ensures that translates have some overlap. The default is 1e-5
+            or ~11.1 meters.
 
         Returns
         -------
@@ -434,10 +444,24 @@ class WeatherModel(ABC):
         weath_box_str = ', '.join(weath_box_str)
         input_box_str = ', '.join(input_box_str)
 
-        logger.info(f'Extent of the weather model lats/lons is:'
+        logger.info(f'Extent of the weather model is (xmin, ymin, xmax, ymax):'
                     f'{weath_box_str}')
-        logger.info(f'Extent of the input lats/lons is: '
+        logger.info(f'Extent of the input is (xmin, ymin, xmax, ymax): '
                     f'{input_box_str}')
+
+        # If the bounding box goes beyond the normal world extents
+        # Look at two x-translates, buffer them, and take their union.
+        world_box = box(-180, -90, 180, 90)
+        if not world_box.contains(weather_model_box):
+            logger.info('Considering x-translates of weather model +/-360 '
+                        'as bounding box outside of -180, -90, 180, 90')
+            translates = [weather_model_box.buffer(buffer_deg),
+                          translate(weather_model_box,
+                                    xoff=360).buffer(buffer_deg),
+                          translate(weather_model_box,
+                                    xoff=-360).buffer(buffer_deg)
+                          ]
+            weather_model_box = unary_union(translates)
 
         return weather_model_box.contains(input_box)
 
@@ -517,8 +541,6 @@ class WeatherModel(ABC):
                 'and b have lengths {} and {} respectively. Of '.format(len(self._a), len(self._b)) +
                 'course, these three numbers should be equal.')
 
-        Ph_levplusone = self._a[levelSize] + (self._b[levelSize] * sp)
-
         # Integrate up into the atmosphere from *lowest level*
         z_h = 0  # initial value
         for lev, t_level, q_level in zip(
@@ -536,33 +558,30 @@ class WeatherModel(ABC):
 
             # compute the pressures (on half-levels)
             Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
+            Ph_levplusone = self._a[lev] + (self._b[lev] * sp)
 
-            pressurelvs[ilevel] = Ph_lev
+            pressurelvs[ilevel] = (Ph_lev + Ph_levplusone) / 2  # average pressure at half-levels above and below
 
             if lev == 1:
                 dlogP = np.log(Ph_levplusone / 0.1)
                 alpha = np.log(2)
             else:
-                dlogP = np.log(Ph_levplusone / Ph_lev)
-                dP = Ph_levplusone - Ph_lev
-                alpha = 1 - ((Ph_lev / dP) * dlogP)
+                dlogP = np.log(Ph_levplusone) - np.log(Ph_lev)
+                alpha = 1 - ((Ph_lev / (Ph_levplusone - Ph_lev)) * dlogP)
 
             TRd = t_level * self._R_d
 
             # z_f is the geopotential of this full level
             # integrate from previous (lower) half-level z_h to the full level
-            z_f = z_h + TRd * alpha
-            # geoheight[ilevel] = z_f/self._g0
+            z_f = z_h + TRd * alpha + z
 
             # Geopotential (add in surface geopotential)
-            geopotential[ilevel] = z_f + z
+            geopotential[ilevel] = z_f
             geoheight[ilevel] = geopotential[ilevel] / self._g0
 
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
             z_h += TRd * dlogP
-
-            Ph_levplusone = Ph_lev
 
         return geopotential, pressurelvs, geoheight
 
@@ -570,14 +589,20 @@ class WeatherModel(ABC):
         '''
         returns the extents of lat/lon plus a buffer
         '''
+        using_bbox = False
         if lats is None:
-            lats = self._lats
-            lons = self._lons
+            if self._lats is None:
+                lon_min, lat_min, lon_max, lat_max = self.bbox
+                using_bbox = True
+            else:
+                lats = self._lats
+                lons = self._lons
 
-        lat_min = np.nanmin(lats) - Nextra * self._lat_res
-        lat_max = np.nanmax(lats) + Nextra * self._lat_res
-        lon_min = np.nanmin(lons) - Nextra * self._lon_res
-        lon_max = np.nanmax(lons) + Nextra * self._lon_res
+        if not using_bbox:
+            lat_min = np.nanmin(lats) - Nextra * self._lat_res
+            lat_max = np.nanmax(lats) + Nextra * self._lat_res
+            lon_min = np.nanmin(lons) - Nextra * self._lon_res
+            lon_max = np.nanmax(lons) + Nextra * self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
 
@@ -618,7 +643,10 @@ class WeatherModel(ABC):
 
         # new regular z-spacing
         if _zlevels is None:
-            _zlevels = np.nanmean(self._zs, axis=(0, 1))
+            try:
+                _zlevels = self._zlevels
+            except:
+                _zlevels = np.nanmean(self._zs, axis=(0, 1))
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
         # re-assign values to the uniform z
@@ -630,6 +658,12 @@ class WeatherModel(ABC):
         ).astype(np.float32)
         self._e = interpolate_along_axis(
             self._zs, self._e, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._lats = interpolate_along_axis(
+            self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
+        ).astype(np.float32)
+        self._lons = interpolate_along_axis(
+            self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
         ).astype(np.float32)
 
         self._zs = _zlevels
@@ -649,10 +683,12 @@ class WeatherModel(ABC):
             lats = self._lats
         if lons is None:
             lons = self._lons
+
+        bounds = self._get_ll_bounds(lats=lats, lons=lons)
         f = make_weather_model_filename(
             self._Name,
             self._time,
-            self._get_ll_bounds(lats=lats, lons=lons)
+            bounds
         )
         return os.path.join(outLoc, f)
 

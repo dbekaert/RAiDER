@@ -13,9 +13,9 @@ from pyproj import CRS
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import logger
 from RAiDER.utilFcns import (
-    writeWeatherVars2NETCDF4, 
-    roundTime, 
-    read_NCMR_loginInfo, 
+    writeWeatherVars2NETCDF4,
+    roundTime,
+    read_NCMR_loginInfo,
     show_progress
 )
 
@@ -90,27 +90,25 @@ class NCMR(WeatherModel):
         Download weather model data (whole globe) from NCMR weblink, crop it to the region of interest, and save the cropped data as a standard .nc file of RAiDER (e.g. "NCMR_YYYY_MM_DD_THH_MM_SS.nc");
         Temporarily download data from NCMR ftp 'https://ftp.ncmrwf.gov.in/pub/outgoing/SAC/NCUM_OSF/' and copied in weather_models folder
         '''
-        
+
         from netCDF4 import Dataset
-        
+
         ############# Use these lines and modify the link when actually downloading NCMR data from a weblink #############
-        url, username, password = read_NCMR_loginInfo();
+        url, username, password = read_NCMR_loginInfo()
         filename = os.path.basename(out)
         url = f'ftp://{username}:{password}@{url}/TEST/{filename}'
         filepath = f'{out[:-3]}_raw.nc'
         if not os.path.exists(filepath):
             logger.info('Fetching URL: %s', url)
-            local_filename, headers = urllib.request.urlretrieve(url,filepath,show_progress)
+            local_filename, headers = urllib.request.urlretrieve(url, filepath, show_progress)
         else:
             logger.warning('Weather model already exists, skipping download')
         ########################################################################################################################
 
-        
         ############# For debugging: use pre-downloaded files; Remove/comment out it when actually downloading NCMR data from a weblink #############
 #        filepath = os.path.dirname(out) + '/NCUM_ana_mdllev_20180701_00z.nc'
         ########################################################################################################################
 
-        
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-89.94141)) / self._lat_res)
         lat_max_ind = int((self._bounds[1] - (-89.94141)) / self._lat_res)
@@ -125,7 +123,7 @@ class NCMR(WeatherModel):
 
         ml_min = 0
         ml_max = 70
-        
+
         with Dataset(filepath, 'r', maskandscale=True) as f:
             lats = f.variables['latitude'][lat_min_ind:(lat_max_ind + 1)].copy()
             if (self._bounds[2] * self._bounds[3] < 0):
@@ -140,7 +138,7 @@ class NCMR(WeatherModel):
                 t = np.append(t1, t2, axis=2)
             else:
                 t = f.variables['air_temperature'][ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
-            
+
             # Skipping first pressure levels (below 20 meter)
             if (self._bounds[2] * self._bounds[3] < 0):
                 q1 = f.variables['specific_humidity'][(ml_min + 1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
@@ -154,7 +152,7 @@ class NCMR(WeatherModel):
                 p = np.append(p1, p2, axis=2)
             else:
                 p = f.variables['air_pressure'][(ml_min + 1):(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
-            
+
             level_hgt = f.variables['level_height'][(ml_min + 1):(ml_max + 1)].copy()
             if (self._bounds[2] * self._bounds[3] < 0):
                 surface_alt1 = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:].copy()
@@ -162,14 +160,13 @@ class NCMR(WeatherModel):
                 surface_alt = np.append(surface_alt1, surface_alt2, axis=1)
             else:
                 surface_alt = f.variables['surface_altitude'][lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)].copy()
-            
+
             hgt = np.zeros([len(level_hgt), len(surface_alt[:, 1]), len(surface_alt[1, :])])
             for i in range(len(level_hgt)):
                 hgt[i, :, :] = surface_alt[:, :] + level_hgt[i]
-            
+
             lons[lons > 180] -= 360
 
-                
         ############# For debugging: comment it out when using pre-downloaded raw data files and don't want to remove them for test; Uncomment it when actually downloading NCMR data from a weblink #############
         os.remove(filepath)
         ########################################################################################################################
@@ -179,13 +176,12 @@ class NCMR(WeatherModel):
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
-
     def _makeDataCubes(self, filename):
         '''
         Get the variables from the saved .nc file (named as "NCMR_YYYY_MM_DD_THH_MM_SS.nc")
         '''
         from netCDF4 import Dataset
-        
+
         # adding the import here should become absolute when transition to netcdf
         with Dataset(filename, mode='r') as f:
             lons = np.array(f.variables['x'][:])

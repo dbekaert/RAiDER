@@ -6,6 +6,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import importlib
 import os
 
 import numpy as np
@@ -16,7 +17,6 @@ from datetime import datetime
 
 from RAiDER.constants import Zenith
 from RAiDER.llreader import readLL
-from RAiDER.utilFcns import makeDelayFileNames, modelName2Module
 
 
 def checkArgs(args, p):
@@ -27,9 +27,8 @@ def checkArgs(args, p):
 
     # Argument checking
     if args.heightlvs is not None:
-        if args.outformat is not None:
-            if args.outformat.lower() != 'hdf5':
-                raise RuntimeError('HDF5 must be used with height levels')
+        if (args.outformat.lower() != 'hdf5') and (args.outformat is not None):
+            raise ValueError('If you want to use height levels you must specify HDF5 as your "outformat"')
 
     if args.wmLoc is not None:
         wmLoc = args.wmLoc
@@ -42,7 +41,7 @@ def checkArgs(args, p):
     lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
 
     if (np.min(lat) < -90) | (np.max(lat) > 90):
-        raise RuntimeError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
+        raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc
     if args.lineofsight is not None:
@@ -73,7 +72,7 @@ def checkArgs(args, p):
     weathers = {
         'type': model_obj(),
         'files': args.files,
-        'name': args.model
+        'name': args.model.lower().replace('-', '')
     }
 
     # zref
@@ -180,3 +179,46 @@ def checkArgs(args, p):
 
     return outArgs
     # return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
+
+
+def makeDelayFileNames(time, los, outformat, weather_model_name, out):
+    '''
+    return names for the wet and hydrostatic delays.
+
+    # Examples:
+    >>> makeDelayFileNames(datetime(2020, 1, 1, 0, 0, 0), None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
+    >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
+    '''
+    format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
+        model_name=weather_model_name,
+        time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",
+        los="ztd" if los is None else "std",
+        ext=outformat
+    )
+    hydroname, wetname = (
+        format_string.format(dtyp) for dtyp in ('hydro', 'wet')
+    )
+
+    hydro_file_name = os.path.join(out, hydroname)
+    wet_file_name = os.path.join(out, wetname)
+    return wet_file_name, hydro_file_name
+
+
+def modelName2Module(model_name):
+    """Turn an arbitrary string into a module name.
+    Takes as input a model name, which hopefully looks like ERA-I, and
+    converts it to a module name, which will look like erai. I doesn't
+    always produce a valid module name, but that's not the goal. The
+    goal is just to handle common cases.
+    Inputs:
+       model_name  - Name of an allowed weather model (e.g., 'era-5')
+    Outputs:
+       module_name - Name of the module
+       wmObject    - callable, weather model object
+    """
+    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
+    model_module = importlib.import_module(module_name)
+    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
+    return module_name, wmObject

@@ -13,6 +13,10 @@ _ZREF = np.float64(15000)  # maximum requierd height
 _STEP = np.float64(15.0)     # integration step size in meters
 
 _g0 = np.float64(9.80665)
+_RE = np.float64(6371008.7714)
+
+R_EARTH_MAX = 6378137
+R_EARTH_MIN = 6356752
 
 
 class Zenith:

@@ -10,10 +10,15 @@ from test import TEST_DIR
 from osgeo import gdal, osr
 
 from RAiDER.utilFcns import (
-    _least_nonzero, cosd, gdal_open, makeDelayFileNames, sind,
-    writeArrayToRaster, writeResultsToHDF5, gdal_extents, modelName2Module,
-    getTimeFromFile
+    _least_nonzero, cosd, gdal_open, sind,
+    writeArrayToRaster, writeResultsToHDF5, gdal_extents,
+    getTimeFromFile, enu2ecef, ecef2enu, lla2ecef,
 )
+
+
+_R_EARTH = 6378138
+
+SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 
 
 @pytest.fixture
@@ -186,26 +191,6 @@ def test_makePoints3D_Cython_values(make_points_3d_data):
     assert np.allclose(test_result, true_rays)
 
 
-def test_makeDelayFileNames():
-    assert makeDelayFileNames(None, None, "h5", "name", "dir") == \
-        ("dir/name_wet_ztd.h5", "dir/name_hydro_ztd.h5")
-
-    assert makeDelayFileNames(None, (), "h5", "name", "dir") == \
-        ("dir/name_wet_std.h5", "dir/name_hydro_std.h5")
-
-    assert makeDelayFileNames(time(1, 2, 3), None, "h5", "model_name", "dir") == \
-        (
-            "dir/model_name_wet_01_02_03_ztd.h5",
-            "dir/model_name_hydro_01_02_03_ztd.h5"
-    )
-
-    assert makeDelayFileNames(time(1, 2, 3), "los", "h5", "model_name", "dir") == \
-        (
-            "dir/model_name_wet_01_02_03_std.h5",
-            "dir/model_name_hydro_01_02_03_std.h5"
-    )
-
-
 def test_least_nonzero():
     a = np.arange(20, dtype="float64").reshape(2, 2, 5)
     a[0, 0, 0] = np.nan
@@ -266,11 +251,6 @@ def test_gdal_extent2():
 def test_getTimeFromFile():
     name1 = 'abcd_2020_01_01_T00_00_00jijk.xyz'
     assert getTimeFromFile(name1) == datetime.datetime(2020, 1, 1, 0, 0, 0)
-
-
-def test_model2module():
-    model_module_name, model_obj = modelName2Module('ERA5')
-    assert model_obj().Model() == 'ERA-5'
 
 
 def test_project():
@@ -352,3 +332,120 @@ def test_WGS84_to_UTM():
     cal_utm_common = np.array([Z, X, Y]).transpose()
     assert np.allclose(true_utm_common, cal_utm_common)
     assert np.all(true_utm_common_letter == L)
+
+
+@pytest.mark.skipif(True, reason='Need to ensure this file always get written before this executes')
+def test_read_weather_model_file():
+    weather_model_obj = read_wm_file(
+        os.path.join(
+            SCENARIO_DIR,
+            'weather_files',
+            'ERA5_2020_01_03_T23_00_00_15.75N_18.25N_103.24W_99.75W.nc'
+        )
+    )
+    assert weather_model_obj.Model() == 'ERA-5'
+
+
+def test_enu2ecef_1():
+    enu = np.array([0, 0, 1])
+    llh = np.array([0, 0, 0])
+    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([1, 0, 0]))
+
+
+def test_enu2ecef_2():
+    enu = np.array([0, 0, 1])
+    llh = np.array([0, 90, 0])
+    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 1, 0]))
+
+
+def test_enu2ecef_3():
+    enu = np.array([0, 0, 1])
+    llh = np.array([0, -90, 0])
+    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, -1, 0]))
+
+
+def test_enu2ecef_4():
+    enu = np.array([0, 0, 1])
+    llh = np.array([90, 0, 0])
+    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 0, 1]))
+
+
+def test_enu2ecef_5():
+    enu = np.array([0, 0, 1])
+    llh = np.array([-90, 0, 0])
+    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 0, -1]))
+
+
+def test_enu2ecef_6():
+    enu = np.array([0, 1, 0])
+    llh = np.array([0, 0, 0])
+    ecef = enu2ecef(enu[0], enu[1], enu[2], llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 0, 1]))
+
+
+def test_ecef2enu_1():
+    enu = np.array([0, 0, 1])
+    llh = np.array([0, 0, 0])
+    enu = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(enu, np.array([0, 1, 0]))
+
+
+def test_ecef2enu_2():
+    enu = np.array([0, 0, 1])
+    llh = np.array([0, 90, 0])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 1, 0]))
+
+
+def test_ecef2enu_3():
+    enu = np.array([0, 0, 1])
+    llh = np.array([0, -90, 0])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 1, 0]))
+
+
+def test_ecef2enu_4():
+    enu = np.array([0, 0, 1])
+    llh = np.array([90, 0, 0])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 0, 1]))
+
+
+def test_ecef2enu_5():
+    enu = np.array([0, 0, 1])
+    llh = np.array([-90, 0, 0])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 0, -1]))
+
+
+def test_ecef2enu_6():
+    enu = np.array([0, 0, -1])
+    llh = np.array([0, -180, 0])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, -1, 0]))
+
+
+def test_ecef2enu_7():
+    enu = np.array([0, 0, 1])
+    llh = np.array([0, -180, 1000])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([0, 1, 0]))
+
+
+def test_ecef2enu_8():
+    enu = np.array([1, 1, 0])
+    llh = np.array([0, 0, 0])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([1, 0, 1]))
+
+
+def test_ecef2enu_9():
+    enu = np.array([1, 1, 0])
+    llh = np.array([0, 180, 0])
+    ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
+    assert np.allclose(ecef, np.array([-1, 0, -1]))

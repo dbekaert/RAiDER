@@ -1,22 +1,35 @@
 """Geodesy-related utility functions."""
-import importlib
 import multiprocessing as mp
 import os
 import re
+
 from datetime import datetime, timedelta
 
 import h5py
 import numpy as np
+from numpy import ndarray
 import pandas as pd
 import pyproj
+from pyproj import CRS, Transformer
 from osgeo import gdal, osr
 import progressbar
 
-from RAiDER.constants import Zenith
+from RAiDER.constants import (
+    Zenith,
+    _g0 as g0,
+    _RE as Re,
+    R_EARTH_MAX as Rmax,
+    R_EARTH_MIN as Rmin,
+)
 from RAiDER import Geo2rdr
 from RAiDER.logger import *
 
 gdal.UseExceptions()
+
+
+def floorish(val, frac):
+    '''Round a value to the lower fractional part'''
+    return val - (val % frac)
 
 
 def sind(x):
@@ -30,27 +43,53 @@ def cosd(x):
 
 
 def lla2ecef(lat, lon, height):
-    ecef = pyproj.Proj(proj='geocent')
-    lla = pyproj.Proj(proj='latlong')
+    T = Transformer.from_crs(4326, 4978)
 
-    return pyproj.transform(lla, ecef, lon, lat, height, always_xy=True)
+    return T.transform(lon, lat, height)
 
 
-def enu2ecef(east, north, up, lat0, lon0, h0):
-    """Return ecef from enu coordinates."""
-    # I'm looking at
-    # https://github.com/scivision/pymap3d/blob/master/pymap3d/__init__.py
-    x0, y0, z0 = lla2ecef(lat0, lon0, h0)
-
+def enu2ecef(
+    east: ndarray,
+    north: ndarray,
+    up: ndarray,
+    lat0: ndarray,
+    lon0: ndarray,
+    h0: ndarray,
+):
+    """
+    Parameters
+    ----------
+    e1 : float
+        target east ENU coordinate (meters)
+    n1 : float
+        target north ENU coordinate (meters)
+    u1 : float
+        target up ENU coordinate (meters)
+    Results
+    -------
+    u : float
+    v : float
+    w : float
+    """
     t = cosd(lat0) * up - sind(lat0) * north
     w = sind(lat0) * up + cosd(lat0) * north
 
     u = cosd(lon0) * t - sind(lon0) * east
     v = sind(lon0) * t + cosd(lon0) * east
 
-    my_ecef = np.stack((x0 + u, y0 + v, z0 + w))
+    return np.stack((u, v, w), axis=-1)
 
-    return my_ecef
+
+def ecef2enu(xyz, lat, lon, height):
+    '''Convert ECEF xyz to ENU'''
+    x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
+
+    t = cosd(lon) * x + sind(lon) * y
+
+    e = -sind(lon) * x + cosd(lon) * y
+    n = -sind(lat) * t + cosd(lat) * z
+    u = cosd(lat) * t + sind(lat) * z
+    return np.stack((e, n, u), axis=-1)
 
 
 def gdal_extents(fname):
@@ -232,12 +271,10 @@ def _get_Re(lats):
     Returns the ellipsoid as a fcn of latitude
     '''
     # TODO: verify constants, add to base class constants?
-    Rmax = 6378137
-    Rmin = 6356752
     return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
-def _geo_to_ht(lats, hts, g0=9.80556):
+def _geo_to_ht(lats, hts):
     """Convert geopotential height to altitude."""
     # Convert geopotential to geometric height. This comes straight from
     # TRAIN
@@ -247,6 +284,8 @@ def _geo_to_ht(lats, hts, g0=9.80556):
 
     # Calculate Geometric Height, h
     h = (hts * Re) / (g_ll / g0 * Re - hts)
+    # from metpy
+    # return (geopotential * Re) / (g0 * Re - geopotential)
 
     return h
 
@@ -257,31 +296,6 @@ def padLower(invar):
     '''
     new_var = _least_nonzero(invar)
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
-
-
-def makeDelayFileNames(time, los, outformat, weather_model_name, out):
-    '''
-    return names for the wet and hydrostatic delays.
-
-    # Examples:
-    >>> makeDelayFileNames(time(0, 0, 0), None, "h5", "model_name", "some_dir")
-    ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
-    >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
-    ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
-    '''
-    format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
-        model_name=weather_model_name,
-        time=time.strftime("%H_%M_%S_") if time is not None else "",
-        los="ztd" if los is None else "std",
-        ext=outformat
-    )
-    hydroname, wetname = (
-        format_string.format(dtyp) for dtyp in ('hydro', 'wet')
-    )
-
-    hydro_file_name = os.path.join(out, hydroname)
-    wet_file_name = os.path.join(out, wetname)
-    return wet_file_name, hydro_file_name
 
 
 def checkShapes(los, lats, lons, hts):
@@ -320,24 +334,6 @@ def checkLOS(los, Npts):
         raise RuntimeError('Found {} line-of-sight values and only {} points'
                            .format(los.shape[0], Npts))
     return los
-
-
-def modelName2Module(model_name):
-    """Turn an arbitrary string into a module name.
-    Takes as input a model name, which hopefully looks like ERA-I, and
-    converts it to a module name, which will look like erai. I doesn't
-    always produce a valid module name, but that's not the goal. The
-    goal is just to handle common cases.
-    Inputs:
-       model_name  - Name of an allowed weather model (e.g., 'era-5')
-    Outputs:
-       module_name - Name of the module
-       wmObject    - callable, weather model object
-    """
-    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
-    model_module = importlib.import_module(module_name)
-    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name, wmObject
 
 
 def read_hgt_file(filename):
@@ -427,12 +423,14 @@ def getTimeFromFile(filename):
         raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, noDataValue=0.):
+def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize=None, noDataValue=0., epsg=4326):
     '''
     Write query points to an HDF5 file for storage and access
     '''
-    epsg = 4326
     projname = 'projection'
+
+    # converts from WGS84 geodetic to WGS84 geocentric
+    t = Transformer.from_crs(epsg, 4978, always_xy=True)
 
     checkLOS(los, np.prod(lats.shape))
     in_shape = lats.shape
@@ -440,14 +438,9 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
     # create directory if needed
     os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
 
+    # Set up the chunking
     if chunkSize is None:
-        minChunkSize = 100
-        maxChunkSize = 1000
-        cpu_count = mp.cpu_count()
-        chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
-
-    logger.debug('Chunk size is {}'.format(chunkSize))
-    logger.debug('Array shape is {}'.format(in_shape))
+        chunkSize = getChunkSize(in_shape)
 
     with h5py.File(outName, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
@@ -455,10 +448,33 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         x = f.create_dataset('lon', data=lons, chunks=chunkSize, fillvalue=noDataValue)
         y = f.create_dataset('lat', data=lats, chunks=chunkSize, fillvalue=noDataValue)
         z = f.create_dataset('hgt', data=hgts, chunks=chunkSize, fillvalue=noDataValue)
-        los = f.create_dataset('LOS', data=los, chunks=chunkSize + (3,), fillvalue=noDataValue)
+        los = f.create_dataset(
+            'LOS',
+            data=los,
+            chunks=chunkSize + (3,),
+            fillvalue=noDataValue
+        )
+        lengths = f.create_dataset(
+            'Rays_len',
+            data=lengths,
+            chunks=x.chunks,
+            fillvalue=noDataValue
+        )
+        sp_data = np.stack(t.transform(lons, lats, hgts), axis=-1).astype(np.float64)
+        sp = f.create_dataset(
+            'Rays_SP',
+            data=sp_data,
+            chunks=chunkSize + (3,),
+            fillvalue=noDataValue
+        )
+
         x.attrs['Shape'] = in_shape
         y.attrs['Shape'] = in_shape
         z.attrs['Shape'] = in_shape
+        los.attrs['Shape'] = in_shape + (3,)
+        lengths.attrs['Shape'] = in_shape
+        lengths.attrs['Units'] = 'm'
+        sp.attrs['Shape'] = in_shape + (3,)
         f.attrs['ChunkSize'] = chunkSize
         f.attrs['NoDataValue'] = noDataValue
 
@@ -490,16 +506,12 @@ def writePnts2HDF5(lats, lons, hgts, los, outName='testx.h5', chunkSize=None, no
         else:
             raise NotImplemented
 
-        start_positions = f.create_dataset('Rays_SP', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
-        lengths = f.create_dataset('Rays_len', in_shape, chunks=x.chunks, dtype='<f8', fillvalue=noDataValue)
-        scaled_look_vecs = f.create_dataset('Rays_SLV', in_shape + (3,), chunks=los.chunks, dtype='<f8', fillvalue=noDataValue)
-
         los.attrs['grid_mapping'] = np.string_(projname)
-        start_positions.attrs['grid_mapping'] = np.string_(projname)
+        sp.attrs['grid_mapping'] = np.string_(projname)
         lengths.attrs['grid_mapping'] = np.string_(projname)
-        scaled_look_vecs.attrs['grid_mapping'] = np.string_(projname)
 
         f.attrs['NumRays'] = len(x)
+        f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
 
 def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
@@ -765,7 +777,6 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
     The point of doing this is to alleviate some of the memory load of keeping
     the full model in memory and make it easier to scale up the program.
     '''
-
     from osgeo import osr
 
     if mapping_name == 'WGS84':
@@ -779,11 +790,11 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         dimensions = ()
 
         var = nc_outfile.createVariable(
-                mapping_name, 
-                datatype, 
-                dimensions, 
-                fill_value=None
-            )
+            mapping_name,
+            datatype,
+            dimensions,
+            fill_value=None
+        )
         # variable made, now add attributes
 
         var.setncattr('grid_mapping_name', grid_mapping)
@@ -854,13 +865,13 @@ def convertLons(inLons):
 
 
 def read_NCMR_loginInfo(filepath=None):
-    
-    from pathlib import Path
-    
-    if filepath is None:
-        filepath = str(Path.home())+'/.ncmrlogin'
 
-    f = open(filepath,'r')
+    from pathlib import Path
+
+    if filepath is None:
+        filepath = str(Path.home()) + '/.ncmrlogin'
+
+    f = open(filepath, 'r')
     lines = f.readlines()
     url = lines[0].strip().split(': ')[1]
     username = lines[1].strip().split(': ')[1]
@@ -871,15 +882,30 @@ def read_NCMR_loginInfo(filepath=None):
 
 pbar = None
 
+
 def show_progress(block_num, block_size, total_size):
     global pbar
     if pbar is None:
         pbar = progressbar.ProgressBar(maxval=total_size)
         pbar.start()
-    
+
     downloaded = block_num * block_size
     if downloaded < total_size:
         pbar.update(downloaded)
     else:
         pbar.finish()
         pbar = None
+
+
+def getChunkSize(in_shape):
+    '''Create a reasonable chunk size'''
+    minChunkSize = 100
+    maxChunkSize = 1000
+    cpu_count = mp.cpu_count()
+    chunkSize = tuple(
+        max(
+            min(maxChunkSize, s // cpu_count),
+            min(s, minChunkSize)
+        ) for s in in_shape
+    )
+    return chunkSize

@@ -42,7 +42,7 @@ def prepareWeatherModel(
     if weather_model.files is None:
         if time is None:
             raise RuntimeError(
-               'prepareWeatherModel: Either a file or a time must be specified'
+                'prepareWeatherModel: Either a file or a time must be specified'
             )
         weather_model.filename(time, wmLoc)
         if os.path.exists(weather_model.files[0]):

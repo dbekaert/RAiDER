@@ -31,6 +31,9 @@ class WRF(WeatherModel):
         self._humidityType = 'rh'
         self._Name = 'WRF'
 
+    def _fetch(self):
+        pass
+
     def load_weather(self, file1, file2, *args, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types
