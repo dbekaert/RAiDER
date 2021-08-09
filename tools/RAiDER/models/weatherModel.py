@@ -41,17 +41,20 @@ class WeatherModel(ABC):
 
         self._classname = None
         self._dataset = None
+
         self._model_level_type = 'ml'
+
         self._valid_range = (
             datetime.date(1900, 1, 1),
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
+
         self._bbox = None
 
         # Define fixed constants
         self._R_v = 461.524
-        self._R_d = 287.06 # in our original code this was 287.053
+        self._R_d = 287.06  # in our original code this was 287.053
         self._g0 = _g0  # gravity constant
         self._zmin = _ZMIN  # minimum integration height
         self._zmax = _ZREF  # max integration height
@@ -557,7 +560,7 @@ class WeatherModel(ABC):
             Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
             Ph_levplusone = self._a[lev] + (self._b[lev] * sp)
 
-            pressurelvs[ilevel] = (Ph_lev + Ph_levplusone)/2 # Need to average half levels above and below to get pressure
+            pressurelvs[ilevel] = (Ph_lev + Ph_levplusone) / 2  # average pressure at half-levels above and below
 
             if lev == 1:
                 dlogP = np.log(Ph_levplusone / 0.1)
@@ -579,7 +582,6 @@ class WeatherModel(ABC):
             # z_h is the geopotential of 'half-levels'
             # integrate z_h to next half level
             z_h += TRd * dlogP
-
 
         return geopotential, pressurelvs, geoheight
 

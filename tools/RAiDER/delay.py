@@ -53,6 +53,7 @@ def tropo_delay(args):
     wetFilename = args['wetFilenames']
     hydroFilename = args['hydroFilenames']
     pnts_file = args['pnts_file']
+    verbose = args['verbose']
 
     # logging
     logger.debug('Starting to run the weather model calculation')
@@ -78,19 +79,24 @@ def tropo_delay(args):
         lons=lons,
         zref=zref,
         download_only=download_only,
-        makePlots=True
+        makePlots=verbose,
     )
 
     if download_only:
         return None, None
     elif useWeatherNodes:
-        logger.debug(
-            'Only Zenith delays at the weather model nodes '
-            'are requested, so I am exiting now. Delays have '
-            'been written to the weather model file; see '
-            '{}'.format(weather_model_file)
-        )
+        if heights[0]=='lvs':
+            # compute delays at the correct levels
+            raise NotImplementedError
+        else:
+            logger.debug(
+                'Only Zenith delays at the weather model nodes '
+                'are requested, so I am exiting now. Delays have '
+                'been written to the weather model file; see '
+                '{}'.format(weather_model_file)
+            )
         return None, None
+        
 
     ###########################################################
     # If query points are specified, pull the height info
@@ -150,26 +156,15 @@ def tropo_delay(args):
                 'shape of the input query points, either change the file '
                 'name or delete the query points file ({})'.format(pnts_file)
             )
-            raise ValueError(
-                'The input query points file exists but does not match the '
-                'shape of the input query points, either change the file '
-                'name or delete the query points file ({})'.format(pnts_file)
-            )
 
         if write_flag:
             logger.debug('Beginning line-of-sight calculation')
-
+            
             # Convert the line-of-sight inputs to look vectors
-            los = getLookVectors(los, lats, lons, hgts, zref)
+            los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
 
             # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, outName=pnts_file)
-
-        else:
-            logger.warning(
-                'The input query points file already exists and matches the '
-                'shape of the input query points, so I will use it.'
-            )
+            writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
 
         logger.debug('Beginning raytracing calculation')
         logger.debug('Reference integration step is {:1.1f} m'.format(step))
@@ -225,7 +220,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
     if os.path.exists(pnts_file):
         # Check whether the number of points is consistent with the new inputs
         with h5py.File(pnts_file, 'r') as f:
-            if np.all(query_shape == f['lon'].attrs['Shape']):
+            if query_shape == tuple(f['lon'].attrs['Shape']):
                 write_flag = False
 
     return write_flag

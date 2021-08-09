@@ -16,9 +16,10 @@ import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
-from RAiDER.constants import _STEP
+from RAiDER.constants import _STEP, _ZREF, _RE
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
+from RAiDER.losreader import getZenithLookVecs
 
 
 def projectDelays(delay, losObject):
@@ -30,50 +31,6 @@ def calculate_rays(pnts_file, stepSize=_STEP):
     From a set of lats/lons/hgts, compute ray paths from the ground to the
     top of the atmosphere, using either a set of look vectors or the zenith
     '''
-    # get the lengths of each ray for doing the interpolation
-    getUnitLVs(pnts_file)
-
-    # This projects the ground pixels into earth-centered, earth-fixed coordinate
-    # system and sorts by position
-    lla2ecef(pnts_file)
-
-
-def getUnitLVs(pnts_file):
-    '''
-    Get a set of look vectors normalized by their lengths
-    '''
-    get_lengths(pnts_file)
-    with h5py.File(pnts_file, 'r+') as f:
-        slv = f['LOS'][()] / f['Rays_len'][()][..., np.newaxis]
-        f['Rays_SLV'][...] = slv
-
-
-def get_lengths(pnts_file):
-    '''
-    Returns the lengths of a vector or set of vectors, fast.
-    Inputs:
-       looks_vecs  - an Nx3 numpy array containing look vectors with absolute
-                     lengths; i.e., the absolute position of the top of the
-                     atmosphere.
-    Outputs:
-       lengths     - an Nx1 numpy array containing the absolute distance in
-                     meters of the top of the atmosphere from the ground pnt.
-    '''
-    with h5py.File(pnts_file, 'r+') as f:
-        lengths = np.linalg.norm(f['LOS'][()], axis=-1)
-        try:
-            lengths[~np.isfinite(lengths)] = 0
-        except TypeError:
-            if ~np.isfinite(lengths):
-                lengths = 0
-        f['Rays_len'][:] = lengths.astype(np.float64)
-        f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
-
-
-def lla2ecef(pnts_file):
-    '''
-    reproject a set of lat/lon/hgts to earth-centered, earth-fixed coordinate system
-    '''
     t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
 
     with h5py.File(pnts_file, 'r+') as f:
@@ -81,10 +38,14 @@ def lla2ecef(pnts_file):
         lon = f['lon'][()]
         lat = f['lat'][()]
         hgt = f['hgt'][()]
-        lon[lon == ndv] = np.nan
-        lat[lat == ndv] = np.nan
-        hgt[hgt == ndv] = np.nan
-        sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
+
+    lon[lon == ndv] = np.nan
+    lat[lat == ndv] = np.nan
+    hgt[hgt == ndv] = np.nan
+
+    sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
+
+    with h5py.File(pnts_file, 'r+') as f:
         f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
 
 
@@ -135,7 +96,7 @@ def get_delays(
     Nchunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['Rays_SLV']),
+        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['LOS']),
                          chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
     if Nchunks == 1:

@@ -151,7 +151,7 @@ def test_uniform_in_z_small(model):
     model._p = np.arange(8).reshape(2, 2, 2)
     model._t = model._p * 2
     model._e = model._p * 3
-    model._lats = model._zs # for now just passing in dummy arrays for lats, lons
+    model._lats = model._zs  # for now just passing in dummy arrays for lats, lons
     model._lons = model._zs
 
     model._uniform_in_z()
@@ -188,7 +188,7 @@ def test_uniform_in_z_large(model):
     model._p = np.tile(np.arange(y).reshape(-1, 1) * np.ones(z), (x, 1, 1))
     model._t = model._p * 2
     model._e = model._p * 3
-    model._lats = model._zs # for now just passing in dummy arrays for lats, lons
+    model._lats = model._zs  # for now just passing in dummy arrays for lats, lons
     model._lons = model._zs
 
     assert model._p.shape == shape
@@ -319,4 +319,3 @@ def test_find_svp():
         47940.574, 71305.16
     ])
     assert np.allclose(svp_test, svp_true)
-    assert wm._proj.to_epsg() == 4326

@@ -81,7 +81,7 @@ raiderStats.py -f <filename> -grid_delay_mean -ti '2016-01-01 2018-01-01' --seas
     dtsubsets.add_argument('-si', '--seasonalinterval', dest='seasonalinterval', type=str, default=None,
                            help="Subset in by an specific interval for each year by specifying earliest MM-DD time followed by latest MM-DD time. -- Example : '03-21 06-21'.")
     dtsubsets.add_argument('-oe', '--obs_errlimit', dest='obs_errlimit', type=float, default='inf',
-                          help="Observation error threshold to discard observations with large uncertainties.")
+                           help="Observation error threshold to discard observations with large uncertainties.")
 
     # Plot formatting/options
     pltformat = parser.add_argument_group(
@@ -175,11 +175,11 @@ def convert_SI(val, unit_in, unit_out):
         Convert input to desired units
     '''
 
-    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000., 
+    SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.,
           'mm^2': 1e-6, 'cm^2': 1e-4, 'm^2': 1.0, 'km^2': 1e+6}
 
     # avoid conversion if output unit in years
-    if unit_in in ['days','years']:
+    if unit_in in ['days', 'years']:
         return val
 
     # check if output spatial unit is supported
@@ -526,7 +526,7 @@ class VariogramAnalysis():
             self.TOT_good_slices.append([grid_ind, tot_timetag])
             self.TOT_res_robust_arr.append(TOT_res_robust.x)
             self.TOT_tot_timetag.append(tot_timetag)
-            var_rmse =  np.sqrt(np.nanmean((TOT_res_robust.fun)**2))
+            var_rmse = np.sqrt(np.nanmean((TOT_res_robust.fun)**2))
             if var_rmse <= self.variogram_errlimit:
                 self.TOT_res_robust_rmse.append(var_rmse)
             else:
@@ -1302,10 +1302,10 @@ class RaiderStats(object):
         # Fit with custom fit function with fixed period, if specified
         if period_limit != 0:
             # convert from years to radians/seconds
-            w = (1/period_limit) * (1/31556952) * (2.*np.pi)
-            custom_sine_function_base = lambda t, A, p, c: self._sine_function_base(t, A, w, p, c)
+            w = (1 / period_limit) * (1 / 31556952) * (2. * np.pi)
+            def custom_sine_function_base(t, A, p, c): return self._sine_function_base(t, A, w, p, c)
         else:
-            custom_sine_function_base = lambda t, A, w, p, c: self._sine_function_base(t, A, w, p, c)
+            def custom_sine_function_base(t, A, w, p, c): return self._sine_function_base(t, A, w, p, c)
         # If station TS does not span specified time period, pass NaNs
         time_span_yrs = (max(tt) - min(tt)) / 31556952
         if time_span_yrs >= min_span and len(list(set(tt))) / (time_span_yrs * 365.25) >= min_frac:
@@ -1316,7 +1316,7 @@ class RaiderStats(object):
             guess_freq = abs(ff[np.argmax(Fyy[1:]) + 1])  # excluding the zero period "peak", which is related to offset
             guess_amp = np.std(yy) * 2.**0.5
             guess_offset = np.mean(yy)
-            guess = np.array([guess_amp, 2.*np.pi * guess_freq, 0., guess_offset])
+            guess = np.array([guess_amp, 2. * np.pi * guess_freq, 0., guess_offset])
             # Adjust frequency guess to reflect fixed period, if specified
             if period_limit != 0:
                 guess = np.array([guess_amp, 0., guess_offset])
@@ -1335,7 +1335,7 @@ class RaiderStats(object):
                             self.ampfit_c.append(np.nan), self.phsfit_c.append(np.nan), \
                             self.periodfit_c.append(np.nan), self.seasonalfit_rmse.append(np.nan)
                         return self.ampfit, self.phsfit, self.periodfit, self.ampfit_c, \
-                               self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
+                            self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
                 except OptimizeWarning:
                     optimize_warning = True
                     warnings.simplefilter("ignore", OptimizeWarning)
@@ -1359,7 +1359,7 @@ class RaiderStats(object):
             # Convert phase from rad to days, apply half wavelength shift if Amp is negative
             if A < 0:
                 p += 3.14159
-            phsfit[station] = (365.25/2)*np.sin(p)
+            phsfit[station] = (365.25 / 2) * np.sin(p)
             periodfit[station] = f
             # Catch warning where output is so small that it gets rounded to 0
             # I.e. RuntimeWarning: invalid value encountered in double_scalars
@@ -1370,9 +1370,9 @@ class RaiderStats(object):
                     periodfit_c[station] = pcov[1, 1]**0.5
                     phsfit_c[station] = pcov[2, 2]**0.5
                     # pass RMSE of fit
-                    seasonalfit_rmse[station] = yy - custom_sine_function_base(tt,*popt)
-                    seasonalfit_rmse[station] = (scipy_sum(seasonalfit_rmse[station]**2)/ \
-                                                (seasonalfit_rmse[station].size-2))**0.5
+                    seasonalfit_rmse[station] = yy - custom_sine_function_base(tt, *popt)
+                    seasonalfit_rmse[station] = (scipy_sum(seasonalfit_rmse[station]**2) / \
+                                                 (seasonalfit_rmse[station].size - 2))**0.5
                 except FloatingPointError:
                     pass
             if self.phaseamp_per_station or optimize_warning:
@@ -1410,7 +1410,7 @@ class RaiderStats(object):
         self.seasonalfit_rmse.append(seasonalfit_rmse)
 
         return self.ampfit, self.phsfit, self.periodfit, self.ampfit_c, \
-               self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
+            self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
 
     def _sine_function_base(self, t, A, w, p, c):
         '''
@@ -1605,9 +1605,9 @@ class RaiderStats(object):
             axes.set_title(userTitle, zorder=2)
 
         # save/close figure
-        #cbar_ax.ax.locator_params(nbins=10)
-        #for label in cbar_ax.ax.xaxis.get_ticklabels()[::25]:
-            #label.set_visible(False)
+        # cbar_ax.ax.locator_params(nbins=10)
+        # for label in cbar_ax.ax.xaxis.get_ticklabels()[::25]:
+            # label.set_visible(False)
         plt.savefig(os.path.join(workdir, self.col_name + '_' + plottype + '.' + plotFormat),
                     format=plotFormat, bbox_inches='tight')
         plt.close()
@@ -1892,7 +1892,7 @@ def stats_analyses(
             # write sill
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variance' + '.tif')
             save_gridfile(df_stats.grid_variance, 'grid_variance', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
-                          df_stats.unit+'^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+                          df_stats.unit + '^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
             # write variogram rmse
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variogram_rmse' + '.tif')
             save_gridfile(df_stats.grid_variogram_rmse, 'grid_variogram_rmse', gridfile_name, df_stats.plotbbox, df_stats.spacing, \
