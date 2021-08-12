@@ -40,10 +40,9 @@ dependencies:
  - pytest
  - pytest-cov
  - pytest-timeout
- - tqdm
- - geopandas
- - boto3
  - pip
  - pip:
    - dem_stitcher
    - requests
+   - boto3
+   - tqdm
