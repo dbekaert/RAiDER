@@ -16,7 +16,7 @@ from RAiDER.utilFcns import gdal_open
 from RAiDER.checkArgs import makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
-_RTOL = 5e-3
+_RTOL = 1e-2
 
 
 @pytest.mark.skip(reason='Skipping for now')
@@ -80,14 +80,6 @@ def test_tropo_delay_GMAO(tmp_path):
     '''
     core_test_tropo_delay(tmp_path, modelName="GMAO")
 
-# comment out MERRA-2 test for now: it passes on local machines but not in CircleCI. Need further look into this.
-# def test_tropo_delay_MERRA2(tmp_path):
-#    '''
-#    Scenario:
-#    1: Small area, MERRA2, Zenith delay
-#    '''
-#    core_test_tropo_delay(tmp_path, modelName="MERRA2")
-
 
 def core_test_tropo_delay(tmp_path, modelName):
     '''
@@ -136,6 +128,7 @@ def core_test_tropo_delay(tmp_path, modelName):
         args['download_only'] = False
         args['wetFilenames'] = wet_file
         args['hydroFilenames'] = hydro_file
+        args['verbose'] = True
 
         (_, _) = tropo_delay(args)
 

@@ -28,19 +28,21 @@ def pnts_file():
     hgts = np.array([0, 0])
     pnts = np.stack([lats, lons, hgts], axis=-1)
     los = np.array([[0, 0], [0, 0], [1, 1]]).T
+    lengths = np.array([100, 100])
     filename = 'query_points_test_temp.h5'
     writePnts2HDF5(
         lats,
         lons,
         hgts,
         los,
+        lengths,
         filename,
         noDataValue=-9999
     )
     return filename, pnts
 
 
-def test_cqpf1():
+def test_cqpf1(pnts_file):
     assert checkQueryPntsFile('does_not_exist.h5', None)
 
 

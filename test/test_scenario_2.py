@@ -13,7 +13,7 @@ from RAiDER.utilFcns import gdal_open
 from RAiDER.checkArgs import modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
-_RTOL = 1e-4
+_RTOL = 1e-2
 
 
 @pytest.mark.timeout(600)
@@ -60,6 +60,8 @@ def test_computeDelay(tmp_path):
         args['download_only'] = False
         args['wetFilenames'] = wetFile
         args['hydroFilenames'] = hydroFile
+        args['verbose'] = True
+
         (_, _) = tropo_delay(args)
 
     # get the results
@@ -67,5 +69,5 @@ def test_computeDelay(tmp_path):
     true_delay = pd.read_csv(true_delay)
 
     # get the true delay from the weather model
-    assert np.sum((est_delay['wetDelay'].values - true_delay['wetDelay'].values) / true_delay['wetDelay'].values) < _RTOL
-    assert np.sum((est_delay['hydroDelay'].values - true_delay['hydroDelay'].values) / true_delay['hydroDelay'].values) < _RTOL
+    assert np.nanmax(np.abs((est_delay['wetDelay'].values - true_delay['wetDelay'].values) / true_delay['wetDelay'].values)) < _RTOL
+    assert np.nanmax(np.abs((est_delay['hydroDelay'].values - true_delay['hydroDelay'].values) / true_delay['hydroDelay'].values)) < _RTOL

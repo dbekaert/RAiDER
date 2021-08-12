@@ -178,7 +178,6 @@ def checkArgs(args, p):
     outArgs['pnts_file'] = pnts_file
 
     return outArgs
-    # return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
 
 
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):

@@ -126,7 +126,8 @@ def tropo_delay(args):
 
         # either way I'll need the ZTD
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
-        wetDelay, hydroDelay = getZTD(ifWet, ifHydro, pnts)
+        wetDelay = ifWet(pnts)
+        hydroDelay = ifHydro(pnts)
 
         # Now do the projection if Conventional slant delay is requested
         if los is Conventional:
@@ -224,28 +225,6 @@ def checkQueryPntsFile(pnts_file, query_shape):
                 write_flag = False
 
     return write_flag
-
-
-def getZTD(ifWet, ifHydro, pnts):
-    '''
-    Interpolate 3D total delays to get ZTD at irregular points.
-
-    Parameters
-    ----------
-    ifWet   - interpolator object for wet total delays
-    ifHydro - interpolator object for hydrostatic total delays
-    pnts    - query points in the same projection as the interpolator objects
-
-    Returns
-    -------
-    wetDelay  - wet total delays for the query points
-    hydroDelay- hydrostatic total delaysfor the query points
-    '''
-    # Get the weather model data
-    wetDelay = ifWet(pnts)
-    hydroDelay = ifHydro(pnts)
-
-    return wetDelay, hydroDelay
 
 
 def transformPoints(lats, lons, hgts, old_proj, new_proj):
