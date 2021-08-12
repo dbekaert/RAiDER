@@ -46,3 +46,4 @@ dependencies:
    - requests
    - boto3
    - tqdm
+   - geopandas
