@@ -37,3 +37,10 @@ dependencies:
  - shapely
  - sysroot_linux-64
  - xarray
+ - tqdm
+ - geopandas
+ - boto3
+ - pip
+ - pip:
+   - dem_stitcher
+   - requests

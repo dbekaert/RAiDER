@@ -6,6 +6,7 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from logging import warn
 import os
 import re
 import requests
@@ -18,6 +19,7 @@ import pandas as pd
 from osgeo import gdal
 from pyproj import Proj
 from shapely.geometry import shape, Polygon
+from dem_stitcher.stitcher import download_dem as download_stitched_dem
 
 import RAiDER.utilFcns
 
@@ -252,72 +254,49 @@ def isInside(extent1, extent2):
     return False
 
 
-def getDEM(extent, out_dir=os.getcwd(), num_threads=None):
-    ''' 
-    Get a DEM, chunking if needed 
+def getDEM(extent: list,
+           out_dir: str = os.getcwd(),
+           dem_name: str = 'glo_30',
+           num_threads: int = 5) -> str:
+    """Downloads tiles, merges, and gets ellipsoidal height of DEM. Output
+    format is ISCE gdal-readable raster.
 
     Parameters
-    __________
-    extent      - A list containing [lat_min, lat_max, lon_min, lon_max]
-    out_dir     - Directory to write the full-resolution DEM
-    num_threads - Number of threads to use when warping
+    ----------
+    extent : list
+
+    out_dir : str, optional
+        A list containing [lat_min, lat_max, lon_min, lon_max]
+    dem_name : str, optional
+        Directory to write the full-resolution DEM
+    num_threads : int, optional
+        Number of threads to use when warping. Use multi-threading for i/o
+        intensive work. More than 5 threads is problematic.
 
     Returns
-    _______
-    final_dem_name - The name of the downloaded file
+    -------
+    str
+        Absolute path of the downloaded file. This will be area centered
+        centered coordinates for agreement with weather model.
+    """
 
-    '''
-    if num_threads is None:
-        num_threads = mp.cpu_count() * 3 // 4
-
-    lat_min, lat_max, lon_min, lon_max = extent
-    query_area = getArea(extent)
-    if query_area > _maxDEMSize:
-        logger.warning(
-            'Query area encompasses {} km^2, supersedes DEM maximum download'
-            'area of 225000km, so I will download the DEM in chunks'.format(query_area)
-        )
-
-    Nchunks = max(int(np.ceil(query_area / 225000)) + 1, 2)
-    chunk_size = (lon_max - lon_min) / Nchunks
-    lon_starts = np.arange(lon_min, lon_max, chunk_size)
-
-    # Download the DEM (in chunks if necessary)
-    final_dem_name = os.path.join(out_dir, 'SRTM_1Sec.dem')
-    chunked_files = []
-    for i, L in enumerate(lon_starts):
-        chunk_extent = [L, lat_min, L + chunk_size, lat_max]
-
-        # Do not create temp file if chunking not necessary
-        if len(lon_starts) > 2:
-            dem_raster = 'tempdem_p{}_SRTM_1Sec.dem'.format(i)
-        else:
-            dem_raster = final_dem_name
-
-        filename = os.path.join(out_dir, dem_raster)
-        chunked_files.append(filename)
-
-        dload_dem(chunk_extent, filename=dem_raster)
-
-    # Tile chunked products together after last iteration (if necessary)
-    if i > 1:
-        gdal.Warp(
-            final_dem_name,
-            chunked_files
-            #            options = gdal.WarpOptions(
-            #                 multithread=True,
-            #                 options=['NUM_THREADS={}'.format(num_threads)]
-            #             )
-        )
-
-        # remove temp files
-        [os.remove(i) for i in chunked_files]
-
-    return final_dem_name
+    if num_threads > 5:
+        logging.warn('More than 5 threads may be problematic for downloading '
+                     'large tiles')
+    bounds = [extent[2],
+              extent[0],
+              extent[3],
+              extent[1]]
+    dem_path = download_stitched_dem(bounds,
+                                     dem_name,
+                                     out_dir,
+                                     dst_area_or_point='Area',
+                                     max_workers=num_threads)
+    return str(dem_path.absolute())
 
 
 def getArea(extent):
-    ''' 
+    '''
     Get the area in square km encompassed by a lat/lon bounding box
     '''
     lat_min, lat_max, lon_min, lon_max = extent
