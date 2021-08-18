@@ -28,10 +28,6 @@ from RAiDER.logger import *
 from RAiDER.utilFcns import gdal_open, gdal_extents
 
 
-_DEM = "https://portal.opentopography.org/API/globaldem?demtype=SRTMGL1_E&west={}&south={}&east={}&north={}&outputFormat=GTiff"
-_maxDEMSize = 2250000
-
-
 def getHeights(lats, lons, heights, useWeatherNodes=False):
     '''
     Fcn to return heights from a DEM, either one that already exists
@@ -259,16 +255,16 @@ def getDEM(extent: list,
            dem_name: str = 'glo_30',
            num_threads: int = 5) -> str:
     """Downloads tiles, merges, and gets ellipsoidal height of DEM. Output
-    format is ISCE gdal-readable raster.
+    format is an ISCE formatted (gdal-readable) raster.
 
     Parameters
     ----------
     extent : list
 
     out_dir : str, optional
-        A list containing [lat_min, lat_max, lon_min, lon_max]
+        Directory to write the DEM raster to
     dem_name : str, optional
-        Directory to write the full-resolution DEM
+        A list containing [lat_min, lat_max, lon_min, lon_max]
     num_threads : int, optional
         Number of threads to use when warping. Use multi-threading for i/o
         intensive work. More than 5 threads is problematic.
@@ -281,8 +277,8 @@ def getDEM(extent: list,
     """
 
     if num_threads > 5:
-        logging.warn('More than 5 threads may be problematic for downloading '
-                     'large tiles')
+        warn('More than 5 threads may be problematic for downloading '
+             'large tiles')
     bounds = [extent[2],
               extent[0],
               extent[3],
@@ -343,24 +339,6 @@ def getArea(extent):
     shape_area = shape(cop).area / 1e6  # area in km^2
 
     return shape_area
-
-
-def dload_dem(extent, filename=None):
-    r = requests.get(_DEM.format(*extent), allow_redirects=True)
-    open(filename, 'wb').write(r.content)
-    del r
-
-
-def get_filename_from_cd(cd):
-    """
-    Get filename from content-disposition
-    """
-    if not cd:
-        return None
-    fname = re.findall('filename=(.+)', cd)
-    if len(fname) == 0:
-        return None
-    return fname[0]
 
 
 def readRaster(filename, band_num=None):
