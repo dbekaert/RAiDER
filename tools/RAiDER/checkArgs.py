@@ -125,7 +125,7 @@ def checkArgs(args, p):
             hydroFilename = wetFilename
 
             # copy the input file to the output location for editing
-            indf = pd.read_csv(args.query_area)
+            indf = pd.read_csv(args.query_area).group_by(by=["Lat", "Lon"]).first()
             indf.to_csv(wetFilename, index=False)
         else:
             wetFilename, hydroFilename = makeDelayFileNames(
