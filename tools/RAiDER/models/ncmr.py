@@ -18,6 +18,9 @@ from RAiDER.utilFcns import (
     read_NCMR_loginInfo,
     show_progress
 )
+from RAiDER.models.model_levels import (
+    LEVELS_137_HEIGHTS,
+)
 
 
 class NCMR(WeatherModel):
@@ -51,6 +54,8 @@ class NCMR(WeatherModel):
 
         self._x_res = .17578125                  # same as longitude
         self._y_res = .11718750                  # same as latitude
+
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         self._bounds = None
 

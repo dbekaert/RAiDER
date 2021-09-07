@@ -1,4 +1,7 @@
 from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.model_levels import (
+    LEVELS_137_HEIGHTS,
+)
 
 
 class customModelReader(WeatherModel):
@@ -28,6 +31,9 @@ class customModelReader(WeatherModel):
         #  (if the projection is in lat/lon, it is the same as "self._lon_res")
         self._y_res = 3.  # y-direction grid spacing in the weather model native projection
         #  (if the projection is in lat/lon, it is the same as "self._lat_res")
+
+        # zlevels specify fixed heights at which to interpolate the weather model variables
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         self._Name = 'ABCD'  # name of the custom weather model (better to be capitalized)
 
