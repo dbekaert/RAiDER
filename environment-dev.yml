@@ -27,7 +27,7 @@ dependencies:
  - pandas
  - progressbar
  - pygrib
- - pyproj>=2.1.0
+ - pyproj>=2.2.0
  - scipy
  - xarray
  - shapely

@@ -29,7 +29,7 @@ dependencies:
  - progressbar
  - pydap>3.2.2|<3.2.2
  - pygrib
- - pyproj>=2.1.0
+ - pyproj>=2.2.0
  - pytest
  - pytest-timeout
  - rasterio
