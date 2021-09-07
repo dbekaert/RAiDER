@@ -33,7 +33,8 @@ class ECMWF(WeatherModel):
 
         self._lon_res = 0.2
         self._lat_res = 0.2
-        self._proj = CRS.from_epsg(4326)
+        self._proj = CRS.from_epsg(4326)  # horizontal only
+        self._vproj = CRS.from_epsg(5773) # vertical only
 
         self._model_level_type = 'ml'  # Default
 

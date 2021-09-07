@@ -202,6 +202,7 @@ class WeatherModel(ABC):
 
             # Process the weather model data
             self._find_e()
+            self._correct_heights()
             self._uniform_in_z(_zlevels=_zlevels)
             self._checkForNans()
             self._get_wet_refractivity()
@@ -211,6 +212,11 @@ class WeatherModel(ABC):
             # Compute Zenith delays at the weather model grid nodes
             self._getZTD(zref)
             return None
+
+    def correct_heights(self):
+        '''Convert geoid heights to ellipsoid'''
+        
+        
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
