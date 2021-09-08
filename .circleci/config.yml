@@ -20,11 +20,12 @@ jobs:
           name: Setup environment and run tests
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
-            conda update -y conda
-            conda create -n myenv python=$PYTHON_VERSION -c conda-forge
+            conda install mamba -n base -c conda-forge
+            mamba update -y mamba
+            mamba create -n myenv python=$PYTHON_VERSION -c conda-forge
             source activate myenv
-            conda env create -f environment-dev.yml
-            conda activate RAiDER
+            mamba env create -f environment-dev.yml
+            mamba activate RAiDER
             pip install coveralls
             echo url: https://cds.climate.copernicus.eu/api/v2 > $HOME/.cdsapirc
             echo key: $cdsak >> $HOME/.cdsapirc
@@ -47,7 +48,7 @@ jobs:
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate myenv
-            conda activate RAiDER
+            mamba activate RAiDER
             python setup.py build
             python setup.py install
             python -c "import RAiDER; from RAiDER.delay import computeDelay"
@@ -61,7 +62,7 @@ jobs:
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate myenv
-            conda activate RAiDER
+            mamba activate RAiDER
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
             py.test test/ $COV_OPTIONS --cov-report=
       - run:
@@ -69,7 +70,7 @@ jobs:
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate myenv
-            conda activate RAiDER
+            mamba activate RAiDER
             python .circleci/fix_coverage_paths.py .coverage $(pwd)/tools/RAiDER/
             coverage report -mi
             coveralls
