@@ -20,14 +20,13 @@ dependencies:
  - dask
  - gdal>=3.0
  - h5py
- - jupyterlab
  - libgdal
  - matplotlib
  - numpy
  - pandas
  - progressbar
  - pygrib
- - pyproj>=2.1.0
+ - pyproj>=2.2.0
  - scipy
  - xarray
  - shapely
@@ -43,7 +42,5 @@ dependencies:
  - pip
  - pip:
    - dem_stitcher
-   - requests
    - boto3
-   - tqdm
    - geopandas
