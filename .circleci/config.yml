@@ -33,7 +33,7 @@ jobs:
          
             echo { > $HOME/.ecmwfapirc
             echo '  "url": "https://api.ecmwf.int/v1",' >> $HOME/.ecmwfapirc
-            echo '  "email": "'$ecmwfu'", >> $HOME/.ecmwfapirc
+            echo '  "email": "'$ecmwfu'",' >> $HOME/.ecmwfapirc
             echo '  "key": "'$ecmwfk'"' >> $HOME/.ecmwfapirc
             echo } >> $HOME/.ecmwfapirc
 
