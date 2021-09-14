@@ -30,18 +30,20 @@ def getWM():
 
 
 def test_checkContainment(getWM):
-    wm = getWM
-    outLats = np.linspace(10, 20)
-    outLons = -100 * np.ones(outLats.shape)
+    if os.path.exists(getWM.files[0]):
+        wm = getWM
+        outLats = np.linspace(10, 20)
+        outLons = -100 * np.ones(outLats.shape)
 
-    containment = wm.checkContainment(outLats, outLons)
-    assert(~containment)
+        containment = wm.checkContainment(outLats, outLons)
+        assert(~containment)
 
 
 def test_checkContainment2(getWM):
-    wm = getWM
-    outLats = np.linspace(17, 18)
-    outLons = -100 * np.ones(outLats.shape)
+    if os.path.exists(getWM.files[0]):
+        wm = getWM
+        outLats = np.linspace(17, 18)
+        outLons = -100 * np.ones(outLats.shape)
 
-    containment = wm.checkContainment(outLats, outLons)
-    assert(containment)
+        containment = wm.checkContainment(outLats, outLons)
+        assert(containment)
