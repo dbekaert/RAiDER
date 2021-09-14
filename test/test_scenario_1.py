@@ -19,7 +19,7 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-2
 
 
-@pytest.mark.skip(reason='Skipping for now')
+@pytest.mark.long
 def test_tropo_delay_ERAI(tmp_path):
     '''
     Scenario:
@@ -28,7 +28,7 @@ def test_tropo_delay_ERAI(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERAI")
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.long
 def test_tropo_delay_ERA5(tmp_path):
     '''
     Scenario:
@@ -37,7 +37,7 @@ def test_tropo_delay_ERA5(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERA5")
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.long
 def test_tropo_delay_ERA5T(tmp_path):
     '''
     Scenario:
@@ -46,7 +46,7 @@ def test_tropo_delay_ERA5T(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERA5T")
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.long
 def test_tropo_delay_GMAO(tmp_path):
     '''
     Scenario:
@@ -55,7 +55,7 @@ def test_tropo_delay_GMAO(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="GMAO")
 
 
-@pytest.mark.skip(reason="MERRA2 keeps failing")
+@pytest.mark.long
 def test_tropo_delay_MERRA2(tmp_path):
     '''
     Scenario:
@@ -73,6 +73,7 @@ def test_tropo_delay_NCMR(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="NCMR")
 
 
+@pytest.mark.long
 def test_tropo_delay_GMAO(tmp_path):
     '''
     Scenario:

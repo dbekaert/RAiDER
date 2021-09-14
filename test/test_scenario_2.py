@@ -16,7 +16,7 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
 _RTOL = 1e-2
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.long
 def test_computeDelay(tmp_path):
     '''
     Scenario to use: 
@@ -71,3 +71,4 @@ def test_computeDelay(tmp_path):
     # get the true delay from the weather model
     assert np.nanmax(np.abs((est_delay['wetDelay'].values - true_delay['wetDelay'].values) / true_delay['wetDelay'].values)) < _RTOL
     assert np.nanmax(np.abs((est_delay['hydroDelay'].values - true_delay['hydroDelay'].values) / true_delay['hydroDelay'].values)) < _RTOL
+
