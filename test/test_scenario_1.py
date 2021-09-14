@@ -7,6 +7,8 @@ import numpy as np
 
 from test import TEST_DIR, pushd
 
+from pathlib import Path
+from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
@@ -14,10 +16,10 @@ from RAiDER.utilFcns import gdal_open
 from RAiDER.checkArgs import makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
-_RTOL = 1e-4
+_RTOL = 1e-2
 
 
-@pytest.mark.skip(reason='Skipping for now')
+@pytest.mark.long
 def test_tropo_delay_ERAI(tmp_path):
     '''
     Scenario:
@@ -26,7 +28,7 @@ def test_tropo_delay_ERAI(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERAI")
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.long
 def test_tropo_delay_ERA5(tmp_path):
     '''
     Scenario:
@@ -35,7 +37,7 @@ def test_tropo_delay_ERA5(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERA5")
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.long
 def test_tropo_delay_ERA5T(tmp_path):
     '''
     Scenario:
@@ -44,7 +46,7 @@ def test_tropo_delay_ERA5T(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="ERA5T")
 
 
-@pytest.mark.timeout(600)
+@pytest.mark.long
 def test_tropo_delay_GMAO(tmp_path):
     '''
     Scenario:
@@ -53,7 +55,7 @@ def test_tropo_delay_GMAO(tmp_path):
     core_test_tropo_delay(tmp_path, modelName="GMAO")
 
 
-@pytest.mark.skip(reason="MERRA2 keeps failing")
+@pytest.mark.long
 def test_tropo_delay_MERRA2(tmp_path):
     '''
     Scenario:
@@ -69,6 +71,15 @@ def test_tropo_delay_NCMR(tmp_path):
     1: Small area, NCMR, Zenith delay
     '''
     core_test_tropo_delay(tmp_path, modelName="NCMR")
+
+
+@pytest.mark.long
+def test_tropo_delay_GMAO(tmp_path):
+    '''
+    Scenario:
+    1: Small area, GMAO, Zenith delay
+    '''
+    core_test_tropo_delay(tmp_path, modelName="GMAO")
 
 
 def core_test_tropo_delay(tmp_path, modelName):
@@ -118,6 +129,7 @@ def core_test_tropo_delay(tmp_path, modelName):
         args['download_only'] = False
         args['wetFilenames'] = wet_file
         args['hydroFilenames'] = hydro_file
+        args['verbose'] = True
 
         (_, _) = tropo_delay(args)
 
