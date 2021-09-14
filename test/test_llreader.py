@@ -49,11 +49,6 @@ def test_bbox_reade1():
     assert np.allclose(lon, np.array([-72, -70]))
 
 
-def test_stationfile_reader(station_file):
-    lats, lons, llproj = readLLFromStationFile(station_file)
-    assert len(lats) == 8
-
-
 def test_forceNDArray():
     assert np.all(np.array([1, 2, 3]) == forceNDArray([1, 2, 3]))
     assert np.all(np.array([1, 2, 3]) == forceNDArray((1, 2, 3)))
