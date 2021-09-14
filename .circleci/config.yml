@@ -20,10 +20,12 @@ jobs:
           name: Setup environment and run tests
           command: |
             export PATH="$HOME/miniconda/bin:$PATH"
-            conda update -y conda
-            conda create -n myenv python=$PYTHON_VERSION -c conda-forge
+            conda install mamba -n base -c conda-forge --yes
+            mamba update -y conda
+            mamba update -y mamba
+            mamba create -n myenv python=$PYTHON_VERSION -c conda-forge
             source activate myenv
-            conda env create -f environment-dev.yml
+            mamba env create -f environment-dev.yml
             conda activate RAiDER
             pip install coveralls
             echo url: https://cds.climate.copernicus.eu/api/v2 > $HOME/.cdsapirc
@@ -63,7 +65,7 @@ jobs:
             source activate myenv
             conda activate RAiDER
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            py.test test/ $COV_OPTIONS --cov-report=
+            py.test -m "not long" test/ $COV_OPTIONS --cov-report=
       - run:
           name: Report coverage
           command: |

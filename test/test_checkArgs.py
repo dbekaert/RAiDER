@@ -5,6 +5,7 @@ import sys
 
 import multiprocessing as mp
 import numpy as np
+import pandas as pd
 
 from argparse import ArgumentParser
 from test import TEST_DIR, pushd
@@ -76,6 +77,13 @@ def test_checkArgs_outfmt_4(parsed_args):
     argDict = checkArgs(args, p)
     assert argDict['flag'] == 'files'
 
+
+def test_checkArgs_outfmt_5(parsed_args):
+    '''Test that passing a raster format with height levels throws an error'''
+    args, p = parsed_args
+    args.query_area = os.path.join(SCENARIO_2, 'stations.csv')
+    argDict = checkArgs(args, p)
+    assert pd.read_csv(argDict['wetFilenames'][0]).shape == (8,4)
 
 def test_checkArgs_outloc_1(parsed_args):
     '''Test that the default output and weather model directories are correct'''

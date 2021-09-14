@@ -74,6 +74,12 @@ def test_isInside(llsimple):
     assert not isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
 
 
+@pytest.mark.long
+def test_getDEM(tmp_path):
+    with pushd(tmp_path):
+        getDEM([18.5, 18.9, -73.2, -72.8], tmp_path)
+
+
 def test_isNDArray():
     assert np.allclose(forceNDArray(np.ones((10,))), np.ones((10,)))
     assert np.allclose(forceNDArray(np.empty((10,))), np.empty((10,)))
