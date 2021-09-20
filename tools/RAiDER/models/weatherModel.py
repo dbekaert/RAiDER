@@ -202,6 +202,8 @@ class WeatherModel(ABC):
 
             # Process the weather model data
             self._find_e()
+            # can add the allipsoidal correction here, get the projection info from the original netcdf files
+            self._convert_z_to_ellipsoid() # this is going to primarily come from remove_geoid in geoid.py in dem_stitcher
             self._uniform_in_z(_zlevels=_zlevels)
             self._checkForNans()
             self._get_wet_refractivity()
@@ -211,6 +213,11 @@ class WeatherModel(ABC):
             # Compute Zenith delays at the weather model grid nodes
             self._getZTD(zref)
             return None
+
+
+    def _convert_z_to_ellipsoid(self): 
+        '''Convert original geoidal heights to ellipsoidal'''
+        raise NotImplementedError
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -632,7 +639,41 @@ class WeatherModel(ABC):
         northOrigin = trans[3] + 0.5 * pixelSizeY
         xArray = np.arange(eastOrigin, eastOrigin + pixelSizeX * xSize, pixelSizeX)
         yArray = np.arange(northOrigin, northOrigin + pixelSizeY * ySize, pixelSizeY)
-
+38     def _uniform_in_z(self, _zlevels=None):
+639         '''
+640         Interpolate all variables to a regular grid in z
+641         '''
+642         nx, ny = self._p.shape[:2]
+643
+644         # new regular z-spacing
+645         if _zlevels is None:
+646             try:
+647                 _zlevels = self._zlevels
+648             except:
+649                 _zlevels = np.nanmean(self._zs, axis=(0, 1))
+650         new_zs = np.tile(_zlevels, (nx, ny, 1))
+651
+652         # re-assign values to the uniform z
+653         self._t = interpolate_along_axis(
+654             self._zs, self._t, new_zs, axis=2, fill_value=np.nan
+655         ).astype(np.float32)
+656         self._p = interpolate_along_axis(
+657             self._zs, self._p, new_zs, axis=2, fill_value=np.nan
+658         ).astype(np.float32)
+659         self._e = interpolate_along_axis(
+660             self._zs, self._e, new_zs, axis=2, fill_value=np.nan
+661         ).astype(np.float32)
+662         self._lats = interpolate_along_axis(
+663             self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
+664         ).astype(np.float32)
+665         self._lons = interpolate_along_axis(
+666             self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
+667         ).astype(np.float32)
+668
+669         self._zs = _zlevels
+670         self._xs = np.unique(self._xs)
+671         self._ys = np.unique(self._ys)
+672
         return xArray, yArray
 
     def _uniform_in_z(self, _zlevels=None):
