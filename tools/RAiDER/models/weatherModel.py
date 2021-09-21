@@ -1,10 +1,14 @@
 import datetime
+import netCDF4
 import os
-from abc import ABC, abstractmethod
+import rasterio
 
 import numpy as np
-import netCDF4
-import rasterio
+
+from abc import ABC, abstractmethod
+from dem_stitcher.geoid import read_geoid,translate_profile
+from pyproj import Transformer, CRS
+from scipy.interpolate import RegularGridInterpolator as rgi
 from shapely.geometry import box
 from shapely.affinity import translate
 from shapely.ops import unary_union
@@ -203,7 +207,7 @@ class WeatherModel(ABC):
             # Process the weather model data
             self._find_e()
             # can add the allipsoidal correction here, get the projection info from the original netcdf files
-            self._convert_z_to_ellipsoid() # this is going to primarily come from remove_geoid in geoid.py in dem_stitcher
+            self._convert_z_to_ellipsoid()
             self._uniform_in_z(_zlevels=_zlevels)
             self._checkForNans()
             self._get_wet_refractivity()
@@ -217,7 +221,22 @@ class WeatherModel(ABC):
 
     def _convert_z_to_ellipsoid(self): 
         '''Convert original geoidal heights to ellipsoidal'''
-        raise NotImplementedError
+        bounds = (self._ll_bounds[2], self._ll_bounds[0], self._ll_bounds[3], self._ll_bounds[1])
+        geoid_arr, geoid_profile = read_geoid('egm_96',extent=bounds,force_agi_read=True)
+        shift = -0.5
+        geoid_profile = translate_profile(geoid_profile, shift, shift)
+        geoid_transformer = Transformer.from_crs(geoid_profile['crs'], self._proj, always_xy = True) 
+        gt = tuple(geoid_profile['transform'])
+        Nx = geoid_profile['width']
+        Ny = geoid_profile['height']
+        geoid_x = [gt[2] + gt[0]*k for k in range(Nx)]
+        geoid_y = [gt[5] + gt[4]*k for k in range(Ny)]
+        geoid_y.reverse()
+        new_x, new_y, new_arr = geoid_transformer.transform(geoid_x, geoid_y, np.flipud(geoid_arr))
+        F = rgi((new_y, new_x), new_arr, method='linear', bounds_error=False)
+        ellip_correction = F((self._ys, self._xs))
+        self._zs = self._zs + ellip_correction
+
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
@@ -596,20 +615,27 @@ class WeatherModel(ABC):
         '''
         returns the extents of lat/lon plus a buffer
         '''
-        using_bbox = False
-        if lats is None:
-            if self._lats is None:
-                lon_min, lat_min, lon_max, lat_max = self.bbox
-                using_bbox = True
-            else:
+        if (lats is None) and (self._lats is None):
+            lon_min, lat_min, lon_max, lat_max = self.bbox
+        else: 
+            if (lats is None):
                 lats = self._lats
                 lons = self._lons
+        
+            lon_min = np.nanmin(lons)
+            lon_max = np.nanmax(lons)
+            lat_min = np.nanmin(lats)
+            lat_max = np.nanmax(lats)
 
-        if not using_bbox:
-            lat_min = np.nanmin(lats) - Nextra * self._lat_res
-            lat_max = np.nanmax(lats) + Nextra * self._lat_res
-            lon_min = np.nanmin(lons) - Nextra * self._lon_res
-            lon_max = np.nanmax(lons) + Nextra * self._lon_res
+        lon_min, lon_max, lat_min, lat_max = addBuffer(
+            lon_min, 
+            lon_max, 
+            lat_min, 
+            lat_max,
+            Nextra,
+            self._lon_res,
+            self._lat_res,
+        )
 
         return lat_min, lat_max, lon_min, lon_max
 
@@ -639,42 +665,43 @@ class WeatherModel(ABC):
         northOrigin = trans[3] + 0.5 * pixelSizeY
         xArray = np.arange(eastOrigin, eastOrigin + pixelSizeX * xSize, pixelSizeX)
         yArray = np.arange(northOrigin, northOrigin + pixelSizeY * ySize, pixelSizeY)
-38     def _uniform_in_z(self, _zlevels=None):
-639         '''
-640         Interpolate all variables to a regular grid in z
-641         '''
-642         nx, ny = self._p.shape[:2]
-643
-644         # new regular z-spacing
-645         if _zlevels is None:
-646             try:
-647                 _zlevels = self._zlevels
-648             except:
-649                 _zlevels = np.nanmean(self._zs, axis=(0, 1))
-650         new_zs = np.tile(_zlevels, (nx, ny, 1))
-651
-652         # re-assign values to the uniform z
-653         self._t = interpolate_along_axis(
-654             self._zs, self._t, new_zs, axis=2, fill_value=np.nan
-655         ).astype(np.float32)
-656         self._p = interpolate_along_axis(
-657             self._zs, self._p, new_zs, axis=2, fill_value=np.nan
-658         ).astype(np.float32)
-659         self._e = interpolate_along_axis(
-660             self._zs, self._e, new_zs, axis=2, fill_value=np.nan
-661         ).astype(np.float32)
-662         self._lats = interpolate_along_axis(
-663             self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
-664         ).astype(np.float32)
-665         self._lons = interpolate_along_axis(
-666             self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
-667         ).astype(np.float32)
-668
-669         self._zs = _zlevels
-670         self._xs = np.unique(self._xs)
-671         self._ys = np.unique(self._ys)
-672
-        return xArray, yArray
+
+    def _uniform_in_z(self, _zlevels=None):
+         '''
+         Interpolate all variables to a regular grid in z
+         '''
+         nx, ny = self._p.shape[:2]
+
+         # new regular z-spacing
+         if _zlevels is None:
+             try:
+                 _zlevels = self._zlevels
+             except:
+                 _zlevels = np.nanmean(self._zs, axis=(0, 1))
+         new_zs = np.tile(_zlevels, (nx, ny, 1))
+
+         # re-assign values to the uniform z
+         self._t = interpolate_along_axis(
+             self._zs, self._t, new_zs, axis=2, fill_value=np.nan
+         ).astype(np.float32)
+         self._p = interpolate_along_axis(
+             self._zs, self._p, new_zs, axis=2, fill_value=np.nan
+         ).astype(np.float32)
+         self._e = interpolate_along_axis(
+             self._zs, self._e, new_zs, axis=2, fill_value=np.nan
+         ).astype(np.float32)
+         self._lats = interpolate_along_axis(
+             self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
+         ).astype(np.float32)
+         self._lons = interpolate_along_axis(
+             self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
+         ).astype(np.float32)
+
+         self._zs = _zlevels
+         self._xs = np.unique(self._xs)
+         self._ys = np.unique(self._ys)
+
+         return xArray, yArray
 
     def _uniform_in_z(self, _zlevels=None):
         '''
@@ -990,3 +1017,12 @@ def find_svp(t):
 
     svp = svp * 100
     return svp.astype(np.float32)
+
+
+def addBuffer(lon_min, lon_max, lat_min, lat_max, Nextra, xres, yres):
+    '''Add a buffer around the bounding box to help with interpolation later'''
+    lon_min = lon_min - Nextra * xres
+    lon_max = lon_max + Nextra * xres
+    lat_min = lat_min - Nextra * yres
+    lat_max = lat_max + Nextra * yres
+    return lon_min, lon_max, lat_min, lat_max
