@@ -7,6 +7,9 @@ from pyproj import CRS
 
 from RAiDER.logger import *
 from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.model_levels import (
+    LEVELS_137_HEIGHTS,
+)
 
 
 class HRRR(WeatherModel):
@@ -40,6 +43,7 @@ class HRRR(WeatherModel):
         self._Npl = 0
         self.files = None
         self._bounds = None
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         # Projection
         # See https://github.com/blaylockbk/pyBKB_v2/blob/master/demos/HRRR_earthRelative_vs_gridRelative_winds.ipynb and code lower down
@@ -55,6 +59,7 @@ class HRRR(WeatherModel):
         earth_radius = 6371229
         p1 = CRS('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={a} +b={a} +units=m +no_defs'.format(lat1=lat1, lat2=lat2, lat0=lat0, lon0=lon0, x0=x0, y0=y0, a=earth_radius))
         self._proj = p1
+
 
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''

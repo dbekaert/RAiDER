@@ -10,6 +10,9 @@ from pyproj import CRS
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
 from RAiDER.utilFcns import writeWeatherVars2NETCDF4
+from RAiDER.models.model_levels import (
+    LEVELS_137_HEIGHTS,
+)
 
 
 def Model():
@@ -54,6 +57,7 @@ class MERRA2(WeatherModel):
         self._Name = 'MERRA2'
         self.files = None
         self._bounds = None
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         # Projection
         self._proj = CRS.from_epsg(4326)

@@ -11,6 +11,9 @@ from pyproj import CRS
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import *
 from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, requests_retry_session
+from RAiDER.models.model_levels import (
+    LEVELS_137_HEIGHTS,
+)
 
 
 class GMAO(WeatherModel):
@@ -40,6 +43,8 @@ class GMAO(WeatherModel):
         self._lon_res = 0.3125
         self._x_res = 0.3125
         self._y_res = 0.25
+
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         self._Name = 'GMAO'
         self.files = None
