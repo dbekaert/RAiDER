@@ -35,14 +35,14 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
         return
 
     print('Combining {} delay files'.format(source))
-    if source == 'model':
+    try:
         concatDelayFiles(
             files,
             sort_list=['ID', 'Datetime'],
             outName=outName,
             source=source
         )
-    else:
+    except:
         concatDelayFiles(
             files,
             sort_list=['ID', 'Date'],
@@ -384,10 +384,10 @@ def parseCMD():
     p = create_parser()
     args = p.parse_args()
 
-    if ~os.path.exists(args.raider_file):
+    if not os.path.exists(args.raider_file):
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
 
-    if ~os.path.exists(args.gnss_file):
+    if not os.path.exists(args.gnss_file):
         combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source='GNSS',
                           ref=args.raider_file, col_name=args.column_name)
 

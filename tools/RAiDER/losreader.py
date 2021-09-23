@@ -246,7 +246,6 @@ def state_to_los(svs, xyz_targets):
     # Iterate through targets and compute LOS
     slant_range = []
     los = np.empty((Npts, 3), dtype=np.float64)
-    breakpoint()
     for k in range(Npts):
         los[k, :], sr = get_radar_coordinate(target_xyz[k, :], svs)
         slant_range.append(sr)
@@ -294,7 +293,6 @@ def read_shelve(filename):
         obj = db['frame']
 
     numSV = len(obj.orbit.stateVectors)
-    breakpoint()
     if numSV == 0:
         raise ValueError('read_shelve: the file has not statevectors')
 
@@ -462,7 +460,6 @@ def get_radar_coordinate(xyz, svs, t0=None):
     slant_range = np.sqrt(
         np.square(los_x) + np.square(los_y) + np.square(los_z)
     )
-    breakpoint()
     return np.array([los_x, los_y, los_z]) / slant_range, slant_range
 
 

@@ -69,7 +69,7 @@ def readLLFromStationFile(fname):
     '''
     Helper fcn for checking argument compatibility
     '''
-    stats = pd.read_csv(fname)
+    stats = pd.read_csv(fname).drop_duplicates(subset=["Lat", "Lon"])
     return stats['Lat'].values, stats['Lon'].values, 'EPSG:4326'
 
 
