@@ -79,7 +79,7 @@ class HRES(ECMWF):
         if self._model_level_type == 'ml':
             if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
                 self.update_a_b()
-            self._load_model_levels(filename)
+            self._load_model_level(filename)
         elif self._model_level_type == 'pl':
             self._load_pressure_levels(filename)
 

@@ -34,7 +34,7 @@ def test_computeDelay(tmp_path):
 
     station_file = os.path.join(SCENARIO_DIR, 'stations.csv')
     copyfile(station_file, wetFile)
-    stats = pd.read_csv(station_file)
+    stats = pd.read_csv(station_file).drop_duplicates(subset=["Lat", "Lon"])
     lats = stats['Lat'].values
     lons = stats['Lon'].values
 
