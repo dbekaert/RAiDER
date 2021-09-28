@@ -189,13 +189,19 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
     OG_total = dfr.shape[0]
     dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) & (dfr['Datetime'] <= dfr['Localtime_u'])]
-    print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
+    # only keep observation closest to Localtime
+    dfr['Localtimediff'] = abs((dfr['Datetime'] - dfr['Localtime']).dt.total_seconds() / 3600)
+    dfr = dfr.loc[dfr.groupby(['ID','Localtime']).Localtimediff.idxmin()].reset_index(drop=True)
+    print('Total number of datapoints dropped in {} for not being closest time within {} hrs of specified local-time {}: {} out of {}'.format(
         raiderFile, localTime.split(' ')[1], localTime.split(' ')[0], dfr.shape[0], OG_total))
     dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
     dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
     OG_total = dfz.shape[0]
     dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
-    print('Total number of datapoints dropped in {} for not being within {} hrs of specified local-time {}: {} out of {}'.format(
+    # only keep observation closest to Localtime
+    dfz['Localtimediff'] = abs((dfz['Datetime'] - dfz['Localtime']).dt.total_seconds() / 3600)
+    dfz = dfz.loc[dfz.groupby(['ID','Localtime']).Localtimediff.idxmin()].reset_index(drop=True)
+    print('Total number of datapoints dropped in {} for not being closest time within {} hrs of specified local-time {}: {} out of {}'.format(
         ztdFile, localTime.split(' ')[1], localTime.split(' ')[0], dfz.shape[0], OG_total))
     # drop all lines with nans
     dfr.dropna(how='any', inplace=True)
@@ -225,7 +231,13 @@ def mergeDelayFiles(
     '''
     print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
+    # drop extra columns
+    expected_data_columns = ['ID','Lat','Lon','Hgt_m','Datetime','wetDelay','hydroDelay', raider_delay]
+    dfr = dfr.drop(columns=[col for col in dfr if col not in expected_data_columns])
     dfz = pd.read_csv(ztdFile, parse_dates=['Datetime'])
+    # drop extra columns
+    expected_data_columns = ['ID','Date','wet_delay','hydrostatic_delay','times','sigZTD','Lat','Lon','Hgt_m','Datetime',col_name]
+    dfz = dfz.drop(columns=[col for col in dfz if col not in expected_data_columns])
     # only pass common locations and times
     dfz = pass_common_obs(dfr, dfz)
     dfr = pass_common_obs(dfz, dfr)
