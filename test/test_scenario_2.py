@@ -65,8 +65,8 @@ def test_computeDelay(tmp_path):
         (_, _) = tropo_delay(args)
 
     # get the results
-    est_delay = pd.read_csv(wetFile)
-    true_delay = pd.read_csv(true_delay)
+    est_delay = pd.read_csv(wetFile).drop_duplicates(subset=["Lat", "Lon"])
+    true_delay = pd.read_csv(true_delay).drop_duplicates(subset=["Lat", "Lon"])
 
     # get the true delay from the weather model
     assert np.nanmax(np.abs((est_delay['wetDelay'].values - true_delay['wetDelay'].values) / true_delay['wetDelay'].values)) < _RTOL

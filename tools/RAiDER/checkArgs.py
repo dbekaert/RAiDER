@@ -15,7 +15,7 @@ import pandas as pd
 from textwrap import dedent
 from datetime import datetime
 
-from RAiDER.constants import Zenith
+from RAiDER.losreader import Zenith, Conventional
 from RAiDER.llreader import readLL
 
 

@@ -22,10 +22,6 @@ from RAiDER.makePoints import makePoints1D
 from RAiDER.losreader import getZenithLookVecs
 
 
-def projectDelays(delay, losObject):
-    raise NotImplementedError
-
-
 def calculate_rays(pnts_file, stepSize=_STEP):
     '''
     From a set of lats/lons/hgts, compute ray paths from the ground to the
