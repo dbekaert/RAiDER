@@ -25,11 +25,11 @@ High-resolution rapid refresh (HRRR) weather model data products are generated b
 ------
 
 ## 2. ECMWF weather models (ERA5, ERA5T, ERAI, HRES)
-The European Centre for Medium-Range Weather Forecasts (__[ECMWF](https://www.ecmwf.int/)__) provides a number of different weather models, including both reanalysis and real-time models. You can read more information about their reanalysis models __[here](https://www.ecmwf.int/en/research/climate-reanalysis)__ and real-time model __[here](https://www.ecmwf.int/en/forecasts/datasets/catalogue-ecmwf-real-time-products)__. ECMWF models are global, with horizontal resolution of about 30 km for ERA-I, ERA-5, and ERA-5T, and 6 km for Hi-RES. All of these models come in a global projection (EPSG 4326, WGS-84). 
+The Copernicus Climate Data Store (CDS) provides access to the European Centre for Medium-Range Weather Forecasts (__[ECMWF](https://www.ecmwf.int/)__)  provides a number of different weather models, including ERA5 and ERA5T reanalysis models.  
 
-ECMWF requires a license agreement to be able to access, download, and use their products. Instructions for completing this process is below. 
+The ECMWF provides access to both reanalysis and real-time prediction models. You can read more information about their reanalysis models __[here](https://www.ecmwf.int/en/research/climate-reanalysis)__ and real-time model __[here](https://www.ecmwf.int/en/forecasts/datasets/catalogue-ecmwf-real-time-products)__. ECMWF models are global, with horizontal resolution of about 30 km for ERA-I, ERA-5, and ERA-5T, and 6 km for Hi-RES. All of these models come in a global projection (EPSG 4326, WGS-84). 
 
-### Accessing ERA5 and ERA5T weather reanalysis products
+### Accessing ERA5 and ERA5T weather reanalysis products from Copernicus CDS
 1. Create an account on the Copernicus servers __[here](https://cds.climate.copernicus.eu/user)__
 2. Confirm your email, etc. 
 3. Install the public API key and client as instructed __[here](https://cds.climate.copernicus.eu/api-how-to)__:
@@ -47,14 +47,19 @@ ECMWF requires a license agreement to be able to access, download, and use their
 
 ### Accessing ERAI, HRES
 
-1. Create an account on the Copernicus-ECMWF servers __[here](https://accounts.ecmwf.int/auth/realms/ecmwf/protocol/openid-connect/auth?response_type=code&scope=openid%20email&client_id=apache-www&state=sBYlpcTRPhat8d6uuM9swLCxuP8&redirect_uri=https%3A%2F%2Fwww.ecmwf.int%2Foidc.cgi&nonce=RyEzBUy4m6oo_HxRQEmJxbc5jrKY4KFZd1Usgi8cpnM)__. The ERA-I model is open-access, while HRES requires a special liscence agreement.
+ECMWF requires a license agreement to be able to access, download, and use their products. Instructions for completing this process is below. 
+
+1. Create an account on the ECMWF servers __[here](https://accounts.ecmwf.int/auth/realms/ecmwf/protocol/openid-connect/auth?response_type=code&scope=openid%20email&client_id=apache-www&state=sBYlpcTRPhat8d6uuM9swLCxuP8&redirect_uri=https%3A%2F%2Fwww.ecmwf.int%2Foidc.cgi&nonce=RyEzBUy4m6oo_HxRQEmJxbc5jrKY4KFZd1Usgi8cpnM)__. The ERA-I model is open-access, while HRES requires a special liscence agreement.
 2. Confirm your email, etc. 
 3. Install the public API key and client as instructed __[here](https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key)__: 
     
-    a. Copy the URL and API key from the webpage into a file in your home directory name ~/.cdsapirc 
-        url: "https://api.ecmwf.int/v1"
-        email: your_email_here
-        key: your_key_here
+    a. Copy the URL and API key from the webpage into a file in your home directory name ~/.ecmwfapirc 
+    {
+        "url"   : "https://api.ecmwf.int/v1",
+        "key"   : your key here,
+        "email" : your email here
+    }
+
     __**Note**: the email that is used to register the user account, and the key represents the API key obtained upon the registration of ECMWF API, and should be replaced with the user's own information.__
 
     b. Install the ECMWF API using pip: 
