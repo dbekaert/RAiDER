@@ -7,8 +7,8 @@ import pytest
 from shutil import copyfile
 from test import TEST_DIR, pushd
 
-from RAiDER.constants import Zenith
 from RAiDER.delay import tropo_delay
+from RAiDER.losreader import Zenith
 from RAiDER.utilFcns import gdal_open
 from RAiDER.checkArgs import modelName2Module
 
