@@ -52,6 +52,8 @@ def readLLFromLLFiles(latfile, lonfile):
     ''' Read ISCE-style files having pixel lat and lon in radar coordinates '''
     lats, llproj, _ = gdal_open(latfile, returnProj=True)
     lons, llproj2, _ = gdal_open(lonfile, returnProj=True)
+    lats[lats==0.]=np.nan
+    lons[lons==0.]=np.nan
     if llproj != llproj2:
         raise ValueError('The projection of the lat and lon files are not compatible')
     return lats, lons, llproj
