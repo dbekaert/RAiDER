@@ -129,7 +129,7 @@ def tropo_delay(args):
         hydroDelay = ifHydro(pnts)
 
         # Now do the projection if Conventional slant delay is requested
-        if los[0] =='los':
+        if los is not Zenith:
             inc, hd = gdal_open(los[1])
             wetDelay = projectDelays(wetDelay, inc)
             hydroDelay = projectDelays(hydroDelay, inc)
