@@ -132,3 +132,70 @@ def prepareWeatherModel(
         raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
+
+
+def checkBounds(weather_model, outLats, outLons):
+    '''Check the bounds of a weather model'''
+    ds = xr.load_dataset(weather_model.files[0])
+    coords = ds.coords  # coords is dict-like
+    keys = [k for k in coords.keys()]
+    xc = coords[keys[0]]
+    yc = coords[keys[1]]
+    lat_bounds = [yc.min(), yc.max()]
+    lon_bounds = [xc.min(), xc.max()]
+    self_extent = lat_bounds + lon_bounds
+    in_extent = weather_model._getExtent(outLats, outLons)
+
+    return in_extent, self_extent
+
+
+def weather_model_debug(
+    los,
+    lats,
+    lons,
+    ll_bounds,
+    weather_model,
+    wmLoc,
+    zref,
+    time,
+    out,
+    download_only
+):
+    """
+    raiderWeatherModelDebug main function.
+    """
+
+    log.debug('Starting to run the weather model calculation with debugging plots')
+    log.debug('Time type: %s', type(time))
+    log.debug('Time: %s', time.strftime('%Y%m%d'))
+
+    # location of the weather model files
+    logger.debug('Beginning weather model pre-processing')
+    logger.debug('Download-only is %s', download_only)
+    if wmLoc is None:
+        wmLoc = os.path.join(out, 'weather_files')
+
+    # weather model calculation
+    wm_filename = make_weather_model_filename(
+        weather_model['name'],
+        time,
+        ll_bounds
+    )
+    weather_model_file = os.path.join(wmLoc, wm_filename)
+
+    if not os.path.exists(weather_model_file):
+        prepareWeatherModel(
+            weather_model,
+            time,
+            wmLoc=wmLoc,
+            lats=lats,
+            lons=lons,
+            ll_bounds=ll_bounds,
+            zref=zref,
+            download_only=download_only,
+            makePlots=True
+        )
+        try:
+            weather_model.write2NETCDF4(weather_model_file)
+        except Exception:
+            logger.exception("Unable to save weathermodel to file")

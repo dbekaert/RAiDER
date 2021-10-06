@@ -15,7 +15,7 @@ import pandas as pd
 from textwrap import dedent
 from datetime import datetime
 
-from RAiDER.constants import Zenith
+from RAiDER.losreader import Zenith, Conventional
 from RAiDER.llreader import readLL
 
 
@@ -178,7 +178,6 @@ def checkArgs(args, p):
     outArgs['pnts_file'] = pnts_file
 
     return outArgs
-    # return los, lat, lon, bounds, heights, flag, weathers, wmLoc, zref, outformat, datetimeList, out, download_only, verbose, wetNames, hydroNames, parallel
 
 
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):
@@ -194,7 +193,7 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
         model_name=weather_model_name,
         time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",
-        los="ztd" if los is None else "std",
+        los="ztd" if isZenith(los) else "std",
         ext=outformat
     )
     hydroname, wetname = (
@@ -222,3 +221,12 @@ def modelName2Module(model_name):
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name, wmObject
+
+
+def isZenith(los):
+    '''Zenith checker'''
+    if los is None:
+        return True
+    if los is Zenith:
+        return True
+    return False

@@ -68,7 +68,7 @@ class ECMWF(WeatherModel):
         '''
         self._load_model_level(*self.files)
 
-    def _load_model_levels(self, fname):
+    def _load_model_level(self, fname):
         # read data from netcdf file
         lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(
             fname,

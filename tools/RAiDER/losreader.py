@@ -14,16 +14,76 @@ import shelve
 import xml.etree.ElementTree as ET
 import numpy as np
 
+from abc import ABC, abstractmethod
 from scipy.interpolate import interp1d
 #from numba import jit
 
-import RAiDER.utilFcns as utilFcns
+from RAiDER.utilFcns import (
+    cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
+)
 
 from RAiDER import Geo2rdr
-from RAiDER.constants import _ZREF, Zenith, _RE
+from RAiDER.constants import _ZREF, _RE
 
 
 _SLANT_RANGE_THRESH = 5e6
+
+
+class LOS(ABC):
+    '''LOS Class definition for handling look vectors'''
+    def __init__(self):
+        self._lats, self._lons, self._heights = None
+    def setPoints(self, lats, lons=None, heights=None):
+        '''Set the pixel locations'''
+        if (lats is None) and (self._lats is None):
+            raise RuntimeError("You haven't set up any point locations yet")
+
+        # Will overwrite points by default
+        if lons is None:
+            llh = lats # assume points are [lats lons heights]
+            self._lats = llh[...,0]
+            self._lons = llh[...,1]
+            self._heights = llh[...,2]
+        elif heights is None:
+            self._lats = lats
+            self._lons = lons
+            self._heights = np.zeros((len(lats),1))
+        else:
+            self._lats = lats
+            self._lons = lons
+            self._heights = heights
+
+
+class Zenith(LOS):
+    """Special value indicating a look vector of "zenith"."""
+    def __call__(self, lats=None, lons=None, heights=None):
+        '''Set point locations and calculate Zenith look vectors'''
+        self.setPoint(lats, lons, heights)
+        return getZenithLookVecs(self._lats, self._lons, self._heights)
+
+
+class Conventional(LOS):
+    """
+    Special value indicating that the zenith delay will 
+    be projected using the standard cos(inc) scaling.
+    """
+    def __init__(self, los_filename):
+        '''read in and parse a line-of-sight file'''
+        self._filename = los_filename
+
+    def __call__(self, lats=None, lons=None, heights=None, zref=_ZREF):
+        '''Read the LOS file and convert it to look vectors'''
+        self.setPoints(lats, lons, heights)
+        LOS_enu = inc_hd_to_enu(*gdal_open(self._filename))
+        lengths = (zref - self._heights) / cosd(gdal_open(los_type)[0])
+        return enu2ecef(
+            LOS_enu[..., 0],
+            LOS_enu[..., 1],
+            LOS_enu[..., 2],
+            self._lats,
+            self._lons,
+            self._heights
+        )
 
 
 def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 * 3600):
@@ -62,8 +122,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
 
     Example:
     --------
-    >>> from RAiDER.constants import Zenith
-    >>> from RAiDER.losreader import getLookVectors
+    >>> from RAiDER.losreader import Zenith, getLookVectors
     >>> import numpy as np
     >>> getLookVectors(Zenith, np.array([0]), np.array([0]), np.array([0]))
     >>> # array([[1, 0, 0]])
@@ -71,35 +130,28 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
     if (los_type is None) or (los_type is Zenith):
         los_type = Zenith
     else:
-        los_type = los_type[1]
+        los_type, los_file = los_type
 
     in_shape = lats.shape
 
     if los_type is Zenith:
-        look_vecs = getZenithLookVecs(lats, lons, heights)
+        look_vecs = Zenith(lats, lons, heights)
         lengths = zref - heights
+
+    elif (los_type is Conventional) or (los_type == 'los'):
+        # If an LOS file is supplied, can only do the conventional approach
+        c = Conventional(los_file)
+        look_vecs = c(lats, lons, heights, zref=zref)
+
     else:
         try:
-            LOS_enu = inc_hd_to_enu(*utilFcns.gdal_open(los_type))
-            lengths = (zref - heights) / utilFcns.cosd(utilFcns.gdal_open(los_type)[0])
-            look_vecs = utilFcns.enu2ecef(
-                LOS_enu[..., 0],
-                LOS_enu[..., 1],
-                LOS_enu[..., 2],
-                lats,
-                lons,
-                heights
-            )
-
-        # if that doesn't work, try parsing as a statevector (orbit) file
-        except OSError:
             svs = np.stack(get_sv(los_type, time, pad), axis=-1)
-            xyz_targets = np.stack(utilFcns.lla2ecef(lats, lons, heights), axis=-1)
+            xyz_targets = np.stack(lla2ecef(lats, lons, heights), axis=-1)
             look_vecs = state_to_los(
                 svs,
                 xyz_targets,
             )
-            enu = utilFcns.ecef2enu(
+            enu = ecef2enu(
                 look_vecs,
                 lats,
                 lons,
@@ -195,9 +247,9 @@ def inc_hd_to_enu(incidence, heading):
     if np.any(incidence < 0):
         raise ValueError('inc_hd_to_enu: Incidence angle cannot be less than 0')
 
-    east = utilFcns.sind(incidence) * utilFcns.cosd(heading + 90)
-    north = utilFcns.sind(incidence) * utilFcns.sind(heading + 90)
-    up = utilFcns.cosd(incidence)
+    east = sind(incidence) * cosd(heading + 90)
+    north = sind(incidence) * sind(heading + 90)
+    up = cosd(incidence)
 
     return np.stack((east, north, up), axis=-1)
 
@@ -246,7 +298,6 @@ def state_to_los(svs, xyz_targets):
     # Iterate through targets and compute LOS
     slant_range = []
     los = np.empty((Npts, 3), dtype=np.float64)
-    breakpoint()
     for k in range(Npts):
         los[k, :], sr = get_radar_coordinate(target_xyz[k, :], svs)
         slant_range.append(sr)
@@ -294,7 +345,6 @@ def read_shelve(filename):
         obj = db['frame']
 
     numSV = len(obj.orbit.stateVectors)
-    breakpoint()
     if numSV == 0:
         raise ValueError('read_shelve: the file has not statevectors')
 
@@ -462,7 +512,6 @@ def get_radar_coordinate(xyz, svs, t0=None):
     slant_range = np.sqrt(
         np.square(los_x) + np.square(los_y) + np.square(los_z)
     )
-    breakpoint()
     return np.array([los_x, los_y, los_z]) / slant_range, slant_range
 
 

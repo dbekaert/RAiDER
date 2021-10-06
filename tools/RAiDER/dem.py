@@ -165,7 +165,12 @@ def download_dem(
     out = out[::-1]
     # Interpolate to the query points
     logger.debug('Beginning interpolation')
-    outInterp = interpolateDEM(out, np.stack((lats, lons), axis=-1), inExtent)
+    outInterp = interpolateDEM(
+            out, 
+            np.stack((lats, lons), axis=-1), 
+            inExtent, 
+            method='linear',
+        )
     logger.debug('Interpolation finished')
 
     # Write the DEM to requested location
@@ -179,7 +184,13 @@ def download_dem(
         if outInterp.ndim == 2:
             RAiDER.utilFcns.writeArrayToRaster(outInterp, outName, noDataValue=noDataVal)
         elif outInterp.ndim == 1:
-            RAiDER.utilFcns.writeArrayToFile(lons, lats, outInterp, outName, noDataValue=noDataVal)
+            RAiDER.utilFcns.writeArrayToFile(
+                    lons, 
+                    lats, 
+                    outInterp, 
+                    outName, 
+                    noDataValue=noDataVal
+                )
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':
