@@ -22,6 +22,9 @@ class ERAI(ECMWF):
         )
 
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
+
+    def __model_levels__(self):
+        self._levels = 60
         self._a = A_ERAI
         self._b = B_ERAI
 

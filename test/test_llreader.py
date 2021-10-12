@@ -96,7 +96,7 @@ def test_readLL_file(parser, station_file):
     assert args.query_area == (station_file)
 
     lats, lons, proj = readLLFromStationFile(args.query_area)
-    stats = pd.read_csv(station_file)
+    stats = pd.read_csv(station_file).drop_duplicates(subset=["Lat", "Lon"])
 
     assert np.allclose(lats, stats['Lat'].values)
     assert np.allclose(lons, stats['Lon'].values)

@@ -13,21 +13,20 @@ import numpy as np
 from netCDF4 import Dataset
 from pyproj import CRS, Transformer
 
-from RAiDER.constants import _STEP, _ZREF, Zenith, Conventional
+from RAiDER.constants import _STEP, _ZREF
 from RAiDER.delayFcns import (
     getInterpolators,
     calculate_rays,
     get_delays,
-    projectDelays,
     getProjFromWMFile,
 )
 from RAiDER.dem import getHeights
 from RAiDER.interpolator import interp_along_axis
 from RAiDER.logger import *
-from RAiDER.losreader import getLookVectors
+from RAiDER.losreader import getLookVectors, Zenith, Conventional
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
-    writeDelays, writePnts2HDF5
+    gdal_open, writeDelays, projectDelays, writePnts2HDF5
 )
 
 
@@ -108,7 +107,7 @@ def tropo_delay(args):
     )
 
     # Do different things if ZTD or STD is requested
-    if (los is Zenith) or (los is Conventional):
+    if (los is Zenith) or (los[0] == 'los'):
         # Transform the query points if needed
         pnt_proj = CRS.from_epsg(4326)
         wm_proj = getProjFromWMFile(weather_model_file).to_string()
@@ -130,9 +129,10 @@ def tropo_delay(args):
         hydroDelay = ifHydro(pnts)
 
         # Now do the projection if Conventional slant delay is requested
-        if los is Conventional:
-            wetDelay = projectDelays(wetDelay, los)
-            hydroDelay = projectDelays(hydroDelay, los)
+        if los is not Zenith:
+            inc, hd = gdal_open(los[1])
+            wetDelay = projectDelays(wetDelay, inc)
+            hydroDelay = projectDelays(hydroDelay, inc)
 
     else:
         ###########################################################
@@ -168,9 +168,9 @@ def tropo_delay(args):
             writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
 
         logger.debug('Beginning raytracing calculation')
-        logger.debug('Reference integration step is {:1.1f} m'.format(step))
+        logger.debug('Reference integration step is {:1.1f} m'.format(_STEP))
 
-        calculate_rays(pnts_file, step)
+        calculate_rays(pnts_file, _STEP)
 
         wet, hydro = get_delays(
             step,

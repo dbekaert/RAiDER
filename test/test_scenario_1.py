@@ -10,7 +10,7 @@ from test import TEST_DIR, pushd
 from pathlib import Path
 from test import DATA_DIR, TEST_DIR, pushd
 
-from RAiDER.constants import Zenith
+from RAiDER.losreader import Zenith
 from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import gdal_open
 from RAiDER.checkArgs import makeDelayFileNames, modelName2Module

@@ -1,4 +1,4 @@
-#!/u/leffe-data/ssangha/conda_installation/stable_july30_2020/envs/RAiDER/bin/python
+#!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Simran Sangha, Jeremy Maurer, & David Bekaert
@@ -32,6 +32,7 @@ if __name__ == "__main__":
         inps.densitythreshold,
         inps.stationsongrids,
         inps.drawgridlines,
+        inps.time_lines,
         inps.plotall,
         inps.station_distribution,
         inps.station_delay_mean,

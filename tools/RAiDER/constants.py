@@ -19,16 +19,3 @@ R_EARTH_MAX = 6378137
 R_EARTH_MIN = 6356752
 
 
-class Zenith:
-    """Special value indicating a look vector of "zenith"."""
-    pass
-
-
-class Conventional():
-    """
-    Special value indicating that the zenith delay will 
-    be projected using the standard cos(inc) scaling.
-    """
-
-    def __init__(self, los_file):
-        raise NotImplementedError

@@ -6,7 +6,7 @@ import numpy as np
 from test import DATA_DIR, pushd
 
 from RAiDER.dem import (
-    getBufferedExtent, isOutside, isInside, forceNDArray
+    getBufferedExtent, isOutside, isInside, forceNDArray, getDEM
 )
 
 

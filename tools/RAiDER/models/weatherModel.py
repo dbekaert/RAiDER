@@ -508,8 +508,12 @@ class WeatherModel(ABC):
         '''
         get the bounding box around a set of lats/lons
         '''
-        mask = (self._lats[:, :, 0] > extent[0]) & (self._lats[:, :, 0] < extent[1]) & \
-               (self._lons[:, :, 0] > extent[2]) & (self._lons[:, :, 0] < extent[3])
+        lat = self._lats[:, :, 0]
+        lon = self._lons[:, :, 0]
+        lat[np.isnan(lat)] = np.nanmean(lat)
+        lon[np.isnan(lon)] = np.nanmean(lon)
+        mask = (lat >= extent[0]) & (lat <= extent[1]) & \
+               (lon >= extent[2]) & (lon <= extent[3])
         ma1 = np.sum(mask, axis=1).astype('bool')
         ma2 = np.sum(mask, axis=0).astype('bool')
         if np.sum(ma1) == 0 and np.sum(ma2) == 0:

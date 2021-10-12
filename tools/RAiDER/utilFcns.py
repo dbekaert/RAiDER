@@ -15,7 +15,6 @@ from osgeo import gdal, osr
 import progressbar
 
 from RAiDER.constants import (
-    Zenith,
     _g0 as g0,
     _RE as Re,
     R_EARTH_MAX as Rmax,
@@ -25,6 +24,11 @@ from RAiDER import Geo2rdr
 from RAiDER.logger import *
 
 gdal.UseExceptions()
+
+
+def projectDelays(delay, inc):
+    '''Project zenith delays to LOS'''
+    return delay / cosd(inc)
 
 
 def floorish(val, frac):
@@ -153,6 +157,7 @@ def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
     '''
     write a 1-D array to a NETCDF5 file
     '''
+    from RAiDER.losreader import Zenith
     if delayType is None:
         delayType = "Zenith"
 
@@ -303,8 +308,7 @@ def checkShapes(los, lats, lons, hts):
     Make sure that by the time the code reaches here, we have a
     consistent set of line-of-sight and position data.
     '''
-    if los is None:
-        los = Zenith
+    from RAiDER.losreader import Zenith
     test1 = hts.shape == lats.shape == lons.shape
     try:
         test2 = los.shape[:-1] == hts.shape
@@ -326,6 +330,8 @@ def checkLOS(los, Npts):
            of points, which represent the projection value), or
        (3) a set of vectors, same number as the number of points.
      '''
+    from RAiDER.losreader import Zenith
+
     # los is a bunch of vectors or Zenith
     if los is not Zenith:
         los = los.reshape(-1, 3)

@@ -11,7 +11,8 @@ from numpy import nan
 from osgeo import gdal
 from test import DATA_DIR, TEST_DIR, pushd
 
-from RAiDER.constants import Zenith, _ZMIN, _ZREF
+from RAiDER.constants import _ZMIN, _ZREF
+from RAiDER.losreader import Zenith
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.models.weatherModel import (
     WeatherModel,

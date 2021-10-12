@@ -13,7 +13,8 @@ from test import TEST_DIR, pushd
 import RAiDER.runProgram
 
 from RAiDER.checkArgs import checkArgs, makeDelayFileNames, modelName2Module
-from RAiDER.constants import Zenith, _ZREF
+from RAiDER.constants import _ZREF
+from RAiDER.losreader import Zenith
 
 
 SCENARIO_1 = os.path.join(TEST_DIR, "scenario_1")
