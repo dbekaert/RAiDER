@@ -429,8 +429,8 @@ class WeatherModel(ABC):
            True if weather model contains bounding box of OutLats and outLons
            and False otherwise.
         """
-        xmin_input, xmax_input = np.min(outLons), np.max(outLons)
-        ymin_input, ymax_input = np.min(outLats), np.max(outLats)
+        xmin_input, xmax_input = np.nanmin(outLons), np.nanmax(outLons)
+        ymin_input, ymax_input = np.nanmin(outLats), np.nanmax(outLats)
         input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
 
         xmin, ymin, xmax, ymax = self.bbox
