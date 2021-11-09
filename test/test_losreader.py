@@ -192,24 +192,29 @@ def test_los_to_lv_3c():
 
 def test_los_to_lv_4():
     assert np.allclose(
-        inc_hd_to_enu(35, 0),
-        np.array([0, np.sin(np.radians(35)), np.cos(np.radians(35))])
+        inc_hd_to_enu(90, 0),
+        np.array([0, 1, 0])
     )
 
 
 def test_los_to_lv_5():
     assert np.allclose(
-        inc_hd_to_enu(35, 180),
-        np.array([0, -np.sin(np.radians(35)), np.cos(np.radians(35))])
+        inc_hd_to_enu(90, 90),
+        np.array([1, 0, 0])
     )
-
 
 def test_los_to_lv_6():
     assert np.allclose(
-        inc_hd_to_enu(35, 90),
-        np.array([-np.sin(np.radians(35)), 0, np.cos(np.radians(35))])
+        inc_hd_to_enu(90, 180),
+        np.array([0, -1, 0])
     )
 
+
+def test_los_to_lv_7():
+    assert np.allclose(
+        inc_hd_to_enu(90, 270),
+        np.array([-1, 0, 0])
+    )
 
 def test_zenith_1():
     assert np.allclose(

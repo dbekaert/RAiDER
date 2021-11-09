@@ -247,7 +247,7 @@ def inc_hd_to_enu(incidence, heading):
     if np.any(incidence < 0):
         raise ValueError('inc_hd_to_enu: Incidence angle cannot be less than 0')
 
-    east = sind(incidence) * cosd(heading + 90)
+    east = - sind(incidence) * cosd(heading + 90)
     north = sind(incidence) * sind(heading + 90)
     up = cosd(incidence)
 
