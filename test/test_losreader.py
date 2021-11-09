@@ -216,6 +216,18 @@ def test_los_to_lv_7():
         np.array([-1, 0, 0])
     )
 
+def test_los_to_lv_8():
+    assert np.allclose(
+        inc_hd_to_enu(45, 90),
+        np.array([np.sqrt(2)/2, 0, np.sqrt(2)/2])
+    )
+
+def test_los_to_lv_9():
+    assert np.allclose(
+        inc_hd_to_enu(45, 180),
+        np.array([0, -np.sqrt(2)/2, np.sqrt(2)/2])
+    )
+
 def test_zenith_1():
     assert np.allclose(
         getZenithLookVecs(np.array([0]), np.array([0]), np.array([0])),
