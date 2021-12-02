@@ -298,11 +298,12 @@ def mergeDelayFiles(
     )
 
     # only keep observation closest to Localtime
-    dfc['Localtimediff'] = abs((dfc['Datetime'] - \
-                           dfc['Localtime']).dt.total_seconds() / 3600)
-    dfc = dfc.loc[dfc.groupby(['ID','Localtime']).Localtimediff.idxmin() \
-                  ].reset_index(drop=True)
-    dfc.drop(columns=['Localtimediff'], inplace=True)
+    if 'Localtime' in dfc.keys():
+        dfc['Localtimediff'] = abs((dfc['Datetime'] - \
+                               dfc['Localtime']).dt.total_seconds() / 3600)
+        dfc = dfc.loc[dfc.groupby(['ID','Localtime']).Localtimediff.idxmin() \
+                      ].reset_index(drop=True)
+        dfc.drop(columns=['Localtimediff'], inplace=True)
 
     # estimate residual
     dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
