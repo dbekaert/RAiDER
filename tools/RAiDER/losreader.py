@@ -235,7 +235,7 @@ def inc_hd_to_enu(incidence, heading):
     Parameters
     ----------
     incidence: ndarray	       - incidence angle in deg from vertical
-    heading: ndarray 	       - heading angle in deg clockwise from north
+    heading: ndarray 	       - heading angle in deg counter-clockwise from east
     lats/lons/heights: ndarray - WGS84 ellipsoidal target (ground pixel) locations
 
     Returns
