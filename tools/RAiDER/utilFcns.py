@@ -941,8 +941,8 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         geoheight    - The geopotential heights
     '''
     geopotential = np.zeros_like(t)
-    pressurelvs = np.zeros_like(z)
-    geoheight = np.zeros_like(z)
+    pressurelvs = np.zeros_like(geopotential)
+    geoheight = np.zeros_like(geopotential)
 
     # log surface pressure
     # Note that we integrate from the ground up, so from the largest model level to 0
