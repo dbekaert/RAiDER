@@ -47,8 +47,7 @@ def cosd(x):
 
 
 def lla2ecef(lat, lon, height):
-    T = Transformer.from_crs(4326, 4978)
-
+    T = Transformer.from_crs(4326, 4978, always_xy=True)
     return T.transform(lon, lat, height)
 
 

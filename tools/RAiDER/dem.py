@@ -134,14 +134,20 @@ def download_dem(
                 # Use the existing DEM!
                 _, _, _, geoProj, trans, noDataVal, _ = readRaster(outName)
                 out = gdal_open(outName)
+                save_flag = False
                 logger.info('I am using an existing DEM')
 
         except AttributeError:
-            logger.warning(
-                'Existing DEM does not contain geo-referencing info, so '
-                'I will download a new one.'
-            )
-            do_download = True
+            out = gdal_open(outName)
+            if lats.shape==out.shape:
+                do_download = False
+                save_flag = False
+            else:
+                logger.warning(
+                    'Existing DEM does not contain geo-referencing info, so '
+                    'I will download a new one.'
+                )
+                do_download = True
 
         except OSError:
             try:

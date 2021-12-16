@@ -6,11 +6,12 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import h5py
 import itertools
 import multiprocessing as mp
 import time
+import xarray
 
-import h5py
 from netCDF4 import Dataset
 import numpy as np
 from pyproj import CRS, Transformer
@@ -22,27 +23,79 @@ from RAiDER.makePoints import makePoints1D
 from RAiDER.losreader import getZenithLookVecs
 
 
-def calculate_rays(pnts_file, stepSize=_STEP):
+def calculate_start_points(x,y,z,ds):
     '''
-    From a set of lats/lons/hgts, compute ray paths from the ground to the
-    top of the atmosphere, using either a set of look vectors or the zenith
+    Parameters
+    ----------
+    wm_file: str   - A file containing a regularized weather model. 
+
+    Returns
+    -------
+    SP: ndarray    - a * x 3 array containing the XYZ locations of the pixels in ECEF coordinates. 
+                     Note the ordering of the array is [Y X Z]
     '''
-    t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts from WGS84 geodetic to WGS84 geocentric
+    [X, Y, Z] = np.meshgrid(x, y, z)
 
-    with h5py.File(pnts_file, 'r+') as f:
-        ndv = f.attrs['NoDataValue']
-        lon = f['lon'][()]
-        lat = f['lat'][()]
-        hgt = f['hgt'][()]
+    try:
+        t = Transformer.from_crs(ds['CRS'], 4978, always_xy=True)  # converts to WGS84 geocentric
+    except:
+        print("I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+        t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts to WGS84 geocentric
 
-    lon[lon == ndv] = np.nan
-    lat[lat == ndv] = np.nan
-    hgt[hgt == ndv] = np.nan
+    return np.moveaxis(np.array(t.transform(X, Y, Z)), 0, -1), np.stack([X,Y,Z],axis=-1)
 
-    sp = np.moveaxis(np.array(t.transform(lon, lat, hgt)), 0, -1)
 
-    with h5py.File(pnts_file, 'r+') as f:
-        f['Rays_SP'][...] = sp.astype(np.float64)  # ensure double is maintained
+def get_delays(
+    stepSize,
+    SP,
+    LOS,
+    wm_file,
+    cpu_num=0
+):
+    '''
+    Create the integration points for each ray path.
+    '''
+    ifWet, ifHydro = getInterpolators(wm_file)
+
+    #with h5py.File(pnts_file, 'r') as f:
+    #    Nrays = f.attrs['NumRays']
+    #    chunkSize = f.attrs['ChunkSize']
+    #    in_shape = f['lon'].attrs['Shape']
+    #    arrSize = f['lon'].shape
+    #    max_len = np.nanmax(f['Rays_len'])
+
+    with xarray.load_dataset(wm_file) as f:
+        try:
+            wm_proj = f.attrs['CRS']
+        except:
+            wm_proj = 4326
+            print("I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+            t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts to WGS84 geocentric
+
+    in_shape = SP.shape[:-1]
+    chunkSize = in_shape
+    CHUNKS = chunk(in_shape, in_shape)
+    Nchunks = len(CHUNKS)
+    max_len = 15000
+    stepSize = 100
+
+    chunk_inputs = [(kk, CHUNKS[kk], wm_proj, SP, LOS,
+                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
+
+    if Nchunks == 1:
+        delays = process_chunk(*chunk_inputs[0])
+    else:
+        with mp.Pool() as pool:
+            individual_results = pool.starmap(process_chunk, chunk_inputs)
+        try:
+            delays = np.concatenate(individual_results)
+        except ValueError:
+            delays = np.concatenate(individual_results, axis=-1)
+
+    wet_delay = delays[0, ...].reshape(in_shape)
+    hydro_delay = delays[1, ...].reshape(in_shape)
+
+    return wet_delay, hydro_delay
 
 
 def getInterpolators(wm_file, kind='pointwise'):
@@ -68,47 +121,6 @@ def getInterpolators(wm_file, kind='pointwise'):
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
 
     return ifWet, ifHydro
-
-
-def get_delays(
-    stepSize,
-    pnts_file,
-    wm_file,
-    cpu_num=0
-):
-    '''
-    Create the integration points for each ray path.
-    '''
-    ifWet, ifHydro = getInterpolators(wm_file)
-
-    with h5py.File(pnts_file, 'r') as f:
-        Nrays = f.attrs['NumRays']
-        chunkSize = f.attrs['ChunkSize']
-        in_shape = f['lon'].attrs['Shape']
-        arrSize = f['lon'].shape
-        max_len = np.nanmax(f['Rays_len'])
-
-    CHUNKS = chunk(chunkSize, in_shape)
-    Nchunks = len(CHUNKS)
-
-    with h5py.File(pnts_file, 'r') as f:
-        chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['LOS']),
-                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
-
-    if Nchunks == 1:
-        delays = process_chunk(*chunk_inputs[0])
-    else:
-        with mp.Pool() as pool:
-            individual_results = pool.starmap(process_chunk, chunk_inputs)
-        try:
-            delays = np.concatenate(individual_results)
-        except ValueError:
-            delays = np.concatenate(individual_results, axis=-1)
-
-    wet_delay = delays[0, ...].reshape(in_shape)
-    hydro_delay = delays[1, ...].reshape(in_shape)
-
-    return wet_delay, hydro_delay
 
 
 def make_interpolator(xs, ys, zs, data):
@@ -210,14 +222,12 @@ def makeChunksFromInds(startInd, chunkSize, in_shape):
     return chunks
 
 
-def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file):
+def process_chunk(k, chunkInds, proj_wm, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file):
     """
     Perform the interpolation and integration over a single chunk.
     """
     # Transformer from ECEF to weather model
-    p1 = CRS.from_epsg(4978)
-    proj_wm = getProjFromWMFile(wm_file)
-    t = Transformer.from_proj(p1, proj_wm, always_xy=True)
+    t = Transformer.from_crs(4978, proj_wm, always_xy=True)
 
     # datatype must be specific for the cython makePoints* function
     _DTYPE = np.float64
@@ -241,15 +251,6 @@ def process_chunk(k, chunkInds, SP, SLV, chunkSize, stepSize, ifWet, ifHydro, ma
     int_delays = _integrateLOS(stepSize, delay_wet, delay_hydro)
 
     return int_delays
-
-
-def getProjFromWMFile(wm_file):
-    '''
-    Returns the projection of an HDF5 file
-    '''
-    with Dataset(wm_file, mode='r') as f:
-        wm_proj = CRS.from_string(f.variables['WGS84'].spatial_ref)
-    return wm_proj
 
 
 def interpolate2(fun, x, y, z):

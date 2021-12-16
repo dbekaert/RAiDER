@@ -10,15 +10,17 @@ import os
 
 import h5py
 import numpy as np
+import xarray
+
 from netCDF4 import Dataset
 from pyproj import CRS, Transformer
+from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 from RAiDER.constants import _STEP, _ZREF
 from RAiDER.delayFcns import (
     getInterpolators,
-    calculate_rays,
+    calculate_start_points,
     get_delays,
-    getProjFromWMFile,
 )
 from RAiDER.dem import getHeights
 from RAiDER.interpolator import interp_along_axis
@@ -26,7 +28,7 @@ from RAiDER.logger import *
 from RAiDER.losreader import getLookVectors, Zenith, Conventional
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
-    gdal_open, writeDelays, projectDelays, writePnts2HDF5
+    gdal_open, writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
 )
 
 
@@ -106,23 +108,30 @@ def tropo_delay(args):
         np.nanmin(hgts), np.nanmax(hgts)
     )
 
+    ####################################################################
+    # Transform the query points 
+    pnt_proj = CRS.from_epsg(4326)
+    ds = xarray.load_dataset(weather_model_file)
+    try:
+        wm_proj = ds['CRS']
+    except:
+        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+        wm_proj = 4326
+    if wm_proj != pnt_proj:
+        pnts = transformPoints(
+            lats,
+            lons,
+            hgts,
+            pnt_proj,
+            wm_proj
+        )
+    else:
+        # interpolators require y, x, z
+        pnts = np.stack([lats, lons, hgts], axis=-1)
+
+    ####################################################################
     # Do different things if ZTD or STD is requested
     if (los is Zenith) or (los[0] == 'los'):
-        # Transform the query points if needed
-        pnt_proj = CRS.from_epsg(4326)
-        wm_proj = getProjFromWMFile(weather_model_file).to_string()
-        if wm_proj != pnt_proj:
-            pnts = transformPoints(
-                lats,
-                lons,
-                hgts,
-                pnt_proj,
-                wm_proj
-            )
-        else:
-            # interpolators require y, x, z
-            pnts = np.stack([lats, lons, hgts], axis=-1)
-
         # either way I'll need the ZTD
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay = ifWet(pnts)
@@ -162,23 +171,54 @@ def tropo_delay(args):
             logger.debug('Beginning line-of-sight calculation')
             
             # Convert the line-of-sight inputs to look vectors
-            los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
+            in_shape = ds['longitude'].values.shape
+            mask = ds.z.values < zref
+            lat = ds['latitude'].values[mask,...]
+            lon = ds['longitude'].values[mask,...]
+            hgt = np.moveaxis(np.tile(ds.z.values[mask], (*in_shape[1:], 1)), (0, 1, 2), (1, 2, 0))
+            lat[lat < -90] = np.nan; lon[lon < -90] = np.nan; hgt[hgt< -90] = np.nan;
+            los, lengths = getLookVectors(
+                los, 
+                lat,
+                lon,
+                hgt,
+                zref=zref, 
+                time=time
+            )
 
             # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
+            #writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
 
         logger.debug('Beginning raytracing calculation')
         logger.debug('Reference integration step is {:1.1f} m'.format(_STEP))
 
-        calculate_rays(pnts_file, _STEP)
+        sp = np.stack(lla2ecef(lat, lon, hgt), axis=-1)
 
         wet, hydro = get_delays(
-            step,
-            pnts_file,
+            _STEP,
+            sp,
+            los,
             weather_model_file,
         )
 
         logger.debug('Finished raytracing calculation')
+
+        ifWet   = Interpolator(
+            (ds.z.values[mask], ds.y.values, ds.x.values), 
+            wet, 
+            fill_value=np.nan,
+            bounds_error=False,
+        )
+        ifHydro = Interpolator(
+            (ds.z.values[mask], ds.y.values, ds.x.values), 
+            hydro, 
+            fill_value=np.nan,
+            bounds_error=False,
+        )
+        wetDelay = ifWet(pnts)
+        hydroDelay = ifHydro(pnts)
+
+    del ds # cleanup
 
     ###########################################################
     # Write the delays to file
