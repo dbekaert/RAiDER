@@ -19,7 +19,7 @@ import pandas as pd
 from osgeo import gdal
 from pyproj import Proj
 from shapely.geometry import shape, Polygon
-from dem_stitcher.stitcher import download_dem as download_stitched_dem
+from dem_stitcher.stitcher import stitch_dem as download_stitched_dem
 
 import RAiDER.utilFcns
 
