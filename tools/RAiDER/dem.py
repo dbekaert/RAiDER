@@ -19,7 +19,7 @@ import pandas as pd
 from osgeo import gdal
 from pyproj import Proj
 from shapely.geometry import shape, Polygon
-from dem_stitcher.stitcher import download_dem as download_stitched_dem
+from dem_stitcher.stitcher import stitch_dem as download_stitched_dem
 
 import RAiDER.utilFcns
 
@@ -156,11 +156,12 @@ def download_dem(
     # Otherwise download a new DEM
     if do_download:
         folder = os.sep.join(os.path.split(outName)[:-1])
-        fname = os.path.split(outName)[-1]
-        full_res_dem = getDEM(inExtent, folder)
-        _, _, _, geoProj, trans, noDataVal, _ = readRaster(full_res_dem)
-        out = gdal_open(full_res_dem)
+        full_res_dem = os.path.join(folder, 'GLO30.dem')
         logger.info('I am downloading a new DEM')
+        getDEM(inExtent, full_res_dem)
+        _, _, _, geoProj, trans, noDataVal, _ = readRaster(full_res_dem)
+        logger.info('DEM download complete')
+        out = gdal_open(full_res_dem)
 
     out = out[::-1]
     # Interpolate to the query points
@@ -262,7 +263,7 @@ def isInside(extent1, extent2):
 
 
 def getDEM(extent: list,
-           out_dir: str = os.getcwd(),
+           dem_path: str,
            dem_name: str = 'glo_30',
            num_threads: int = 5) -> str:
     """Downloads tiles, merges, and gets ellipsoidal height of DEM. Output
@@ -286,7 +287,7 @@ def getDEM(extent: list,
         Absolute path of the downloaded file. This will be area centered
         centered coordinates for agreement with weather model.
     """
-
+    
     if num_threads > 5:
         warn('More than 5 threads may be problematic for downloading '
              'large tiles')
@@ -294,12 +295,14 @@ def getDEM(extent: list,
               extent[0],
               extent[3],
               extent[1]]
-    dem_path = download_stitched_dem(bounds,
-                                     dem_name,
-                                     out_dir,
-                                     dst_area_or_point='Area',
-                                     max_workers=num_threads)
-    return str(dem_path.absolute())
+    download_stitched_dem(
+        bounds,
+        dem_name,
+        dem_path,
+        dst_ellipsoidal_height=True, # use the ellipsoidal heights
+        dst_area_or_point='Area',
+        max_workers=num_threads,
+    )
 
 
 def getArea(extent):
