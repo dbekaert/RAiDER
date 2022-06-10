@@ -77,7 +77,7 @@ def test_isInside(llsimple):
 @pytest.mark.long
 def test_getDEM(tmp_path):
     with pushd(tmp_path):
-        getDEM([18.5, 18.9, -73.2, -72.8], tmp_path)
+        getDEM([18.5, 18.9, -73.2, -72.8], os.path.join(tmp_path, 'test.dem'))
 
 
 def test_isNDArray():

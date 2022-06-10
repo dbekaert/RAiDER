@@ -36,6 +36,6 @@ dependencies:
  - xarray
  - pip
  - pip:
-   - dem_stitcher
+   - dem_stitcher==2.1.1
    - boto3
    - geopandas
