@@ -44,3 +44,4 @@ dependencies:
    - dem_stitcher==2.1.1
    - boto3
    - geopandas
+   - autopep8
