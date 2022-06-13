@@ -167,11 +167,11 @@ def download_dem(
     # Interpolate to the query points
     logger.debug('Beginning interpolation')
     outInterp = interpolateDEM(
-            out, 
-            np.stack((lats, lons), axis=-1), 
-            inExtent, 
-            method='linear',
-        )
+        out,
+        np.stack((lats, lons), axis=-1),
+        inExtent,
+        method='linear',
+    )
     logger.debug('Interpolation finished')
 
     # Write the DEM to requested location
@@ -186,12 +186,12 @@ def download_dem(
             RAiDER.utilFcns.writeArrayToRaster(outInterp, outName, noDataValue=noDataVal)
         elif outInterp.ndim == 1:
             RAiDER.utilFcns.writeArrayToFile(
-                    lons, 
-                    lats, 
-                    outInterp, 
-                    outName, 
-                    noDataValue=noDataVal
-                )
+                lons,
+                lats,
+                outInterp,
+                outName,
+                noDataValue=noDataVal
+            )
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':
@@ -287,7 +287,7 @@ def getDEM(extent: list,
         Absolute path of the downloaded file. This will be area centered
         centered coordinates for agreement with weather model.
     """
-    
+
     if num_threads > 5:
         warn('More than 5 threads may be problematic for downloading '
              'large tiles')
@@ -299,7 +299,7 @@ def getDEM(extent: list,
         bounds,
         dem_name,
         dem_path,
-        dst_ellipsoidal_height=True, # use the ellipsoidal heights
+        dst_ellipsoidal_height=True,  # use the ellipsoidal heights
         dst_area_or_point='Area',
         max_workers=num_threads,
     )
