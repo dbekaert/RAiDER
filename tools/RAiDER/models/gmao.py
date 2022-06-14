@@ -1,15 +1,14 @@
+import os
 import datetime as dt
 import numpy as np
-import pandas as pd
 import shutil
 import h5py
 import pydap.cas.urs
 import pydap.client
-import requests
 from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, requests_retry_session
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,

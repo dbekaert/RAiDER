@@ -1,19 +1,14 @@
 import datetime
 
 import numpy as np
-import xarray as xr
 
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.utilFcns import convertLons
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.model_levels import (
-    LEVELS_137_HEIGHTS,
     LEVELS_91_HEIGHTS,
     LEVELS_25_HEIGHTS,
-    A_137_HRES,
-    B_137_HRES,
     A_91_HRES,
     B_91_HRES,
 )

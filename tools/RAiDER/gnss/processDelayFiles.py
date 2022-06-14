@@ -1,5 +1,4 @@
 from textwrap import dedent
-import numpy as np
 import argparse
 import datetime
 import glob
@@ -98,13 +97,13 @@ def getDateTime(filename):
 
 def update_time(row, localTime_hrs):
     '''Update with local origin time'''
-    localTime_estimate = row['Datetime'].replace(hour=localTime_hrs, \
+    localTime_estimate = row['Datetime'].replace(hour=localTime_hrs,
                                                  minute=0, second=0)
     # determine if you need to shift days
     time_shift = datetime.timedelta(days=0)
     # round to nearest hour
     days_diff = (row['Datetime'] -
-                 datetime.timedelta(seconds=math.floor( \
+                 datetime.timedelta(seconds=math.floor(
                      row['Localtime']) * 3600)).day - \
         localTime_estimate.day
     # if lon <0, check if you need to add day
@@ -117,7 +116,7 @@ def update_time(row, localTime_hrs):
         # subtract day
         if days_diff != 0:
             time_shift = -datetime.timedelta(days=1)
-    return localTime_estimate + datetime.timedelta(seconds=row['Localtime'] \
+    return localTime_estimate + datetime.timedelta(seconds=row['Localtime']
                                                    * 3600) + time_shift
 
 
@@ -258,14 +257,14 @@ def mergeDelayFiles(
     # drop extra columns
     expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay',
                              'hydroDelay', raider_delay]
-    dfr = dfr.drop(columns=[col for col in dfr if col not in \
+    dfr = dfr.drop(columns=[col for col in dfr if col not in
                             expected_data_columns])
     dfz = pd.read_csv(ztdFile, parse_dates=['Datetime'])
     # drop extra columns
     expected_data_columns = ['ID', 'Date', 'wet_delay', 'hydrostatic_delay',
                              'times', 'sigZTD', 'Lat', 'Lon', 'Hgt_m', 'Datetime',
                              col_name]
-    dfz = dfz.drop(columns=[col for col in dfz if col not in \
+    dfz = dfz.drop(columns=[col for col in dfz if col not in
                             expected_data_columns])
     # only pass common locations and times
     dfz = pass_common_obs(dfr, dfz)
@@ -299,9 +298,9 @@ def mergeDelayFiles(
 
     # only keep observation closest to Localtime
     if 'Localtime' in dfc.keys():
-        dfc['Localtimediff'] = abs((dfc['Datetime'] - \
+        dfc['Localtimediff'] = abs((dfc['Datetime'] -
                                     dfc['Localtime']).dt.total_seconds() / 3600)
-        dfc = dfc.loc[dfc.groupby(['ID', 'Localtime']).Localtimediff.idxmin() \
+        dfc = dfc.loc[dfc.groupby(['ID', 'Localtime']).Localtimediff.idxmin()
                       ].reset_index(drop=True)
         dfc.drop(columns=['Localtimediff'], inplace=True)
 
@@ -334,7 +333,7 @@ def readZTDFile(filename, col_name='ZTD'):
         data = pd.read_csv(filename, parse_dates=['Date'])
         times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
         data['Datetime'] = data['Date'] + times
-    except (KeyError, ValueError) as e:
+    except (KeyError, ValueError):
         data = pd.read_csv(filename, parse_dates=['Datetime'])
 
     data.rename(columns={col_name: 'ZTD'}, inplace=True)

@@ -1,3 +1,6 @@
+from pyproj import CRS
+import numpy as np
+import datetime
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -96,7 +99,7 @@ class customModelReader(WeatherModel):
         # if surface pressure (in logarithm) is provided as "p" along with the surface geopotential "z" (needs to be
         # added to the auxilliary function "self._makeDataCubes"), one can use the following line to convert to
         # geopotential, pressure level and geopotential height; otherwise commented out
-        z, p, hgt = self._calculategeoh(z, p)
+        z, p, hgt = self._calculategeoh(z, p)  # TODO: z is undefined
 
         # if the geopotential is provided as "z" (needs to be added to the auxilliary function "self._makeDataCubes"),
         # one can use the following line to convert to geopotential height; otherwise, commented out

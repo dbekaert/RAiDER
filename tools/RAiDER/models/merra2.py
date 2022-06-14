@@ -1,5 +1,4 @@
-import h5py
-
+import os
 import datetime as dt
 import numpy as np
 import pydap.cas.urs
@@ -8,7 +7,7 @@ import pydap.client
 from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.utilFcns import writeWeatherVars2NETCDF4
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,

@@ -1,11 +1,9 @@
 import datetime
 
-import numpy as np
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.logger import *
-from RAiDER.models.model_levels import A_137_ERA5, B_137_ERA5, LEVELS_137_HEIGHTS, LEVELS_25_HEIGHTS
+from RAiDER.logger import logger
 
 
 class ERA5(ECMWF):
