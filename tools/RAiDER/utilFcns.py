@@ -517,38 +517,6 @@ def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize
         f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
 
-# def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
-#     '''
-#     Write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to an HDF5 file
-#     that can be accessed by external programs.
-
-#     The point of doing this is to alleviate some of the memory load of keeping
-#     the full model in memory and make it easier to scale up the program.
-#     '''
-
-#     if outName is None:
-#         outName = os.path.join(
-#             os.getcwd() + '/weather_files',
-#             self._Name + datetime.strftime(
-#                 self._time, '_%Y_%m_%d_T%H_%M_%S'
-#             ) + '.h5'
-#         )
-
-#     with h5py.File(outName, 'w') as f:
-#         lon = f.create_dataset('lons', data=lon.astype(np.float64))
-#         lat = f.create_dataset('lats', data=lat.astype(np.float64))
-
-#         X = f.create_dataset('x', data=x)
-#         Y = f.create_dataset('y', data=y)
-#         Z = f.create_dataset('z', data=z)
-
-#         Q = f.create_dataset('q', data=q)
-#         P = f.create_dataset('p', data=p)
-#         T = f.create_dataset('t', data=t)
-
-#         f.create_dataset('Projection', data=proj.to_json())
-
-
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
 # Credits go to Tom Payne
 
