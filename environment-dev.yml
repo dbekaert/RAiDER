@@ -11,6 +11,7 @@ channels:
 dependencies:
 # Regular dependencies. Keep these in sync with environment.yml
  - python>=3
+ - autopep8
  - cartopy
  - cdsapi
  - cfgrib
@@ -44,4 +45,4 @@ dependencies:
    - dem_stitcher==2.1.1
    - boto3
    - geopandas
-   - autopep8
+
