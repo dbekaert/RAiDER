@@ -10,18 +10,16 @@ import numpy as np
 from numpy import ndarray
 import pandas as pd
 import pyproj
-from pyproj import CRS, Transformer
+from pyproj import Transformer
 from osgeo import gdal, osr
 import progressbar
 
 from RAiDER.constants import (
     _g0 as g0,
-    _RE as Re,
     R_EARTH_MAX as Rmax,
     R_EARTH_MIN as Rmin,
 )
-from RAiDER import Geo2rdr
-from RAiDER.logger import *
+from RAiDER.logger import logger
 
 gdal.UseExceptions()
 
@@ -120,7 +118,7 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         fname = fname + '.vrt'
     try:
         ds = gdal.Open(fname, gdal.GA_ReadOnly)
-    except:
+    except:  # TODO: Which error(s)?
         raise OSError('File {} could not be opened'.format(fname))
     proj = ds.GetProjection()
     gt = ds.GetGeoTransform()
@@ -136,7 +134,7 @@ def gdal_open(fname, returnProj=False, userNDV=None):
             try:
                 ndv = b.GetNoDataValue()
                 data[data == ndv] = np.nan
-            except:
+            except:  # TODO: Which error(s)?
                 logger.debug('NoDataValue attempt failed*******')
         val.append(data)
         b = None
@@ -157,7 +155,6 @@ def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
     '''
     write a 1-D array to a NETCDF5 file
     '''
-    from RAiDER.losreader import Zenith
     if delayType is None:
         delayType = "Zenith"
 
@@ -208,8 +205,8 @@ def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
     array[np.isnan(array)] = noDataValue
     with open(filename, 'w') as f:
         f.write('Lat,Lon,Hgt_m\n')
-        for l, L, a in zip(lats, lons, array):
-            f.write('{},{},{}\n'.format(l, L, a))
+        for lat, lon, height in zip(lats, lons, array):
+            f.write('{},{},{}\n'.format(lat, lon, height))
 
 
 def round_date(date, precision):
@@ -425,7 +422,7 @@ def getTimeFromFile(filename):
     try:
         out = p.search(filename).group()
         return datetime.strptime(out, fmt)
-    except:
+    except:  # TODO: Which error(s)?
         raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
 
 
@@ -510,7 +507,7 @@ def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize
             z.attrs['standard_name'] = np.string_("height")
             z.attrs['units'] = np.string_("m")
         else:
-            raise NotImplemented
+            raise NotImplementedError
 
         los.attrs['grid_mapping'] = np.string_(projname)
         sp.attrs['grid_mapping'] = np.string_(projname)
@@ -520,36 +517,36 @@ def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize
         f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
 
 
-def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
-    '''
-    Write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to an HDF5 file
-    that can be accessed by external programs.
+# def writeWeatherVars2HDF5(lat, lon, x, y, z, q, p, t, proj, outName=None):
+#     '''
+#     Write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to an HDF5 file
+#     that can be accessed by external programs.
 
-    The point of doing this is to alleviate some of the memory load of keeping
-    the full model in memory and make it easier to scale up the program.
-    '''
+#     The point of doing this is to alleviate some of the memory load of keeping
+#     the full model in memory and make it easier to scale up the program.
+#     '''
 
-    if outName is None:
-        outName = os.path.join(
-            os.getcwd() + '/weather_files',
-            self._Name + datetime.strftime(
-                self._time, '_%Y_%m_%d_T%H_%M_%S'
-            ) + '.h5'
-        )
+#     if outName is None:
+#         outName = os.path.join(
+#             os.getcwd() + '/weather_files',
+#             self._Name + datetime.strftime(
+#                 self._time, '_%Y_%m_%d_T%H_%M_%S'
+#             ) + '.h5'
+#         )
 
-    with h5py.File(outName, 'w') as f:
-        lon = f.create_dataset('lons', data=lon.astype(np.float64))
-        lat = f.create_dataset('lats', data=lat.astype(np.float64))
+#     with h5py.File(outName, 'w') as f:
+#         lon = f.create_dataset('lons', data=lon.astype(np.float64))
+#         lat = f.create_dataset('lats', data=lat.astype(np.float64))
 
-        X = f.create_dataset('x', data=x)
-        Y = f.create_dataset('y', data=y)
-        Z = f.create_dataset('z', data=z)
+#         X = f.create_dataset('x', data=x)
+#         Y = f.create_dataset('y', data=y)
+#         Z = f.create_dataset('z', data=z)
 
-        Q = f.create_dataset('q', data=q)
-        P = f.create_dataset('p', data=p)
-        T = f.create_dataset('t', data=t)
+#         Q = f.create_dataset('q', data=q)
+#         P = f.create_dataset('p', data=p)
+#         T = f.create_dataset('t', data=t)
 
-        f.create_dataset('Projection', data=proj.to_json())
+#         f.create_dataset('Projection', data=proj.to_json())
 
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
@@ -602,7 +599,7 @@ def WGS84_to_UTM(lon, lat, common_center=False):
     shp = lat.shape
     lon = np.ravel(lon)
     lat = np.ravel(lat)
-    if common_center == True:
+    if common_center:
         lon0 = np.median(lon)
         lat0 = np.median(lat)
         z0, l0, x0, y0 = project((lon0, lat0))
@@ -613,7 +610,7 @@ def WGS84_to_UTM(lon, lat, common_center=False):
     for ind in range(lon.__len__()):
         longitude = lon[ind]
         latitude = lat[ind]
-        if common_center == True:
+        if common_center:
             z, l, x, y = project((longitude, latitude), z0, l0)
         else:
             z, l, x, y = project((longitude, latitude))
