@@ -1,10 +1,8 @@
-import os
 import pytest
 
 import numpy as np
 
 import pyproj
-from test import DATA_DIR, pushd
 
 from RAiDER.utilFcns import writePnts2HDF5
 from RAiDER.delay import (

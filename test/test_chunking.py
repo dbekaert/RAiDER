@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from RAiDER.delayFcns import chunk, makeChunksFromInds, makeChunkStartInds
 

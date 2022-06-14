@@ -11,12 +11,11 @@ import itertools
 import multiprocessing
 import os
 import pandas as pd
-import requests
 from textwrap import dedent
 
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
-from RAiDER.logger import *
+from RAiDER.logger import logger, logging
 from RAiDER.getStationDelays import get_station_data
 from RAiDER.utilFcns import requests_retry_session
 
@@ -332,7 +331,7 @@ def query_repos(
         long_cross_zero = 1
 
     # Handle station query
-    if long_cross_zero is 1:
+    if long_cross_zero == 1:
         bbox1 = bbox.copy()
         bbox2 = bbox.copy()
         bbox1[3] = 360.0

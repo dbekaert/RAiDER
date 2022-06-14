@@ -10,7 +10,7 @@ from RAiDER.cli.parser import add_bbox, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
 from RAiDER.delay import tropo_delay
-from RAiDER.logger import *
+from RAiDER.logger import logger, logging
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.processWM import weather_model_debug
 
@@ -184,7 +184,7 @@ def parseCMD():
     # multi-processing approach
     if not args['parallel'] == 1:
         if not args['download_only']:
-            raise RuntimeError('Cannot process multiple delay calculations in parallel,' \
+            raise RuntimeError('Cannot process multiple delay calculations in parallel,'
                                ' either specify --download_only or set parallel = 1')
 
         # split the args across the number of concurrent jobs

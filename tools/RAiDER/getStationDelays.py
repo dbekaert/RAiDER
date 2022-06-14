@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-from RAiDER.logger import *
+from RAiDER.logger import logger
 
 
 def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
@@ -87,7 +87,7 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
                     # units: mm, mm, mm, deg, deg, deg, deg, mm, mm, K
                     trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
                         [float(t) for t in split_lines[2:]]
-                except:
+                except:  # TODO: What error(s)?
                     continue
                 site = split_lines[0]
                 year, doy, seconds = [int(n)
@@ -137,7 +137,7 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
             hydro_delay = np.array(dhydro)
 
         # if time not specified, pass all times
-        if returnTime == None:
+        if returnTime is None:
             filtoutput = {'ID': [site] * len(wet_delay), 'Date': [time] * len(wet_delay), 'ZTD': delay, 'wet_delay': wet_delay,
                           'hydrostatic_delay': hydro_delay, 'times': times, 'sigZTD': sig}
             filtoutput = [{key: value[k] for key, value in filtoutput.items()}
