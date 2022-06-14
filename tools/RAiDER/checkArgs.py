@@ -15,7 +15,7 @@ import pandas as pd
 from textwrap import dedent
 from datetime import datetime
 
-from RAiDER.losreader import Zenith, Conventional
+from RAiDER.losreader import Zenith
 from RAiDER.llreader import readLL
 
 
@@ -57,7 +57,7 @@ def checkArgs(args, p):
     except ModuleNotFoundError:
         raise NotImplementedError(
             dedent('''
-                Model {} is not yet fully implemented, 
+                Model {} is not yet fully implemented,
                 please contribute!
                 '''.format(args.model))
         )
@@ -149,7 +149,7 @@ def checkArgs(args, p):
         try:
             hgts = indf['Hgt_m'].values
             heights = ('pandas', wetNames)
-        except:
+        except BaseException:  # TODO: Which error(s)?
             heights = ('merge', wetNames)
     elif useWeatherNodes:
         heights = ('skip', None)

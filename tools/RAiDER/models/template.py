@@ -54,12 +54,12 @@ class customModelReader(WeatherModel):
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''
         Fetch weather model data from the custom weather model "ABCD"
-        Inputs (no need to change in the custom weather model reader): 
-        lats - latitude 
-        lons - longitude 
+        Inputs (no need to change in the custom weather model reader):
+        lats - latitude
+        lons - longitude
         time - datatime object (year,month,day,hour,minute,second)
         out - name of downloaded dataset file from the custom weather model server
-        Nextra - buffer of latitude/longitude for determining the bounding box 
+        Nextra - buffer of latitude/longitude for determining the bounding box
         '''
 
         # bounding box plus a buffer using the helper function from the WeatherModel base class
@@ -78,8 +78,8 @@ class customModelReader(WeatherModel):
     def load_weather(self, filename):
         '''
         Load weather model variables from the downloaded file named filename
-        Inputs: 
-        filename - filename of the downloaded weather model file 
+        Inputs:
+        filename - filename of the downloaded weather model file
         '''
 
         # Auxilliary function:
@@ -135,12 +135,12 @@ class customModelReader(WeatherModel):
         '''
         Auxilliary function:
         Download weather model data from a server
-        Inputs: 
-        out - filename for saving the retrieved data file 
-        model_name - name of the custom weather model 
+        Inputs:
+        out - filename for saving the retrieved data file
+        model_name - name of the custom weather model
         date_time - datatime object (year,month,day,hour,minute,second)
         bounding_box - lat/lon bounding box for the region of interest
-        Output: 
+        Output:
         out - returned filename from input
         '''
         pass
@@ -148,11 +148,11 @@ class customModelReader(WeatherModel):
     def _makeDataCubes(self, filename):
         '''
         Auxilliary function:
-        Read 3-D data cubes from downloaded file or directly from weather model weblink (in which case, there is no 
+        Read 3-D data cubes from downloaded file or directly from weather model weblink (in which case, there is no
         need to download and save any file; rather, the weblink needs to be hardcoded in the custom reader, e.g. GMAO)
-        Input: 
+        Input:
         filename - filename of the downloaded weather model file from the server
-        Outputs: 
+        Outputs:
         lats - latitude (3-D data cube)
         lons - longitude (3-D data cube)
         xs - x-direction grid dimension of the native weather model coordinates (3-D data cube; if in lat/lon, _xs = _lons)

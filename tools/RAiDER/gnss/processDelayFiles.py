@@ -42,7 +42,7 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
             outName=outName,
             source=source
         )
-    except:
+    except BaseException:
         concatDelayFiles(
             files,
             sort_list=['ID', 'Date'],
@@ -143,9 +143,9 @@ def concatDelayFiles(
     ref=None,
     col_name='ZTD'
 ):
-    ''' 
-    Read a list of .csv files containing the same columns and append them 
-    together, sorting by specified columns 
+    '''
+    Read a list of .csv files containing the same columns and append them
+    together, sorting by specified columns
     '''
     dfList = []
 
@@ -357,18 +357,18 @@ def create_parser():
     p.add_argument(
         '--raider', dest='raider_file',
         help=dedent("""\
-            .csv file containing RAiDER-derived Zenith Delays. 
+            .csv file containing RAiDER-derived Zenith Delays.
             Should contain columns "ID" and "Datetime" in addition to the delay column
-            If the file does not exist, I will attempt to create it from a directory of 
-            delay files. 
+            If the file does not exist, I will attempt to create it from a directory of
+            delay files.
             """),
         required=True
     )
     p.add_argument(
         '--raiderDir', '-d', dest='raider_folder',
         help=dedent("""\
-            Directory containing RAiDER-derived Zenith Delay files.  
-            Files should be named with a Datetime in the name and contain the 
+            Directory containing RAiDER-derived Zenith Delay files.
+            Files should be named with a Datetime in the name and contain the
             column "ID" as the delay column names.
             """),
         default=os.getcwd()
@@ -376,8 +376,8 @@ def create_parser():
     p.add_argument(
         '--gnssDir', '-gd', dest='gnss_folder',
         help=dedent("""\
-            Directory containing GNSS-derived Zenith Delay files.  
-            Files should contain the column "ID" as the delay column names 
+            Directory containing GNSS-derived Zenith Delay files.
+            Files should contain the column "ID" as the delay column names
             and times should be denoted by the "Date" key.
             """),
         default=os.getcwd()

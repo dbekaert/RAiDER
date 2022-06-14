@@ -118,7 +118,7 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         fname = fname + '.vrt'
     try:
         ds = gdal.Open(fname, gdal.GA_ReadOnly)
-    except:  # TODO: Which error(s)?
+    except BaseException:  # TODO: Which error(s)?
         raise OSError('File {} could not be opened'.format(fname))
     proj = ds.GetProjection()
     gt = ds.GetGeoTransform()
@@ -134,7 +134,7 @@ def gdal_open(fname, returnProj=False, userNDV=None):
             try:
                 ndv = b.GetNoDataValue()
                 data[data == ndv] = np.nan
-            except:  # TODO: Which error(s)?
+            except BaseException:  # TODO: Which error(s)?
                 logger.debug('NoDataValue attempt failed*******')
         val.append(data)
         b = None
@@ -422,7 +422,7 @@ def getTimeFromFile(filename):
     try:
         out = p.search(filename).group()
         return datetime.strptime(out, fmt)
-    except:  # TODO: Which error(s)?
+    except BaseException:  # TODO: Which error(s)?
         raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
 
 

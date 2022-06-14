@@ -67,7 +67,7 @@ class Zenith(LOS):
 
 class Conventional(LOS):
     """
-    Special value indicating that the zenith delay will 
+    Special value indicating that the zenith delay will
     be projected using the standard cos(inc) scaling.
     """
 
@@ -117,11 +117,11 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
 
     Returns
     -------
-    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in 
-                          an Earth-centered, earth-fixed reference frame (ECEF). 
-                          Convention is vectors point from the target pixel to the 
+    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in
+                          an Earth-centered, earth-fixed reference frame (ECEF).
+                          Convention is vectors point from the target pixel to the
                           sensor.
-    lengths: ndarray    - array of <in_shape> of the distnce from the surface to 
+    lengths: ndarray    - array of <in_shape> of the distnce from the surface to
                           the top of the troposphere (denoted by zref)
 
     Example:
@@ -163,7 +163,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
             lengths = (zref - heights) / enu[..., 2]
 
         # Otherwise, throw an error
-        except:
+        except BaseException:
             raise ValueError(
                 'getLookVectors: I cannot parse the file {}'.format(look_vecs)
             )
@@ -218,10 +218,10 @@ def get_sv(los_file, ref_time, pad=3 * 3600):
     except ValueError:
         try:
             svs = read_ESA_Orbit_file(los_file, ref_time)
-        except:
+        except BaseException:
             try:
                 svs = read_shelve(los_file)
-            except:
+            except BaseException:
                 raise ValueError(
                     'get_sv: I cannot parse the statevector file {}'.format(los_file)
                 )
@@ -471,7 +471,7 @@ def read_ESA_Orbit_file(filename, ref_time):
 # @jit(nopython=True)
 def get_radar_coordinate(xyz, svs, t0=None):
     '''
-    Calculate the coordinate of the sensor in ECEF at the time corresponding to ***. 
+    Calculate the coordinate of the sensor in ECEF at the time corresponding to ***.
 
     Parameters
     ----------
@@ -531,7 +531,7 @@ def interpolate(t, var, tq):
     Returns
     -------
     x, y, z: double    - sensor position in ECEF
-    vx, vy, vz: double - sensor velocity 
+    vx, vy, vz: double - sensor velocity
     '''
     f = interp1d(t, var)
     return f(tq)

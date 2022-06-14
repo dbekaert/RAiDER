@@ -39,7 +39,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     if height_type == 'dem':
         try:
             hts = gdal_open(height_data)
-        except:
+        except BaseException:
             logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
                 height_data, exc_info=True
