@@ -105,8 +105,8 @@ def update_time(row, localTime_hrs):
     # round to nearest hour
     days_diff = (row['Datetime'] -
                  datetime.timedelta(seconds=math.floor( \
-                 row['Localtime'] )*3600)).day - \
-                 localTime_estimate.day
+                     row['Localtime']) * 3600)).day - \
+        localTime_estimate.day
     # if lon <0, check if you need to add day
     if row['Lon'] < 0:
         # add day
@@ -204,9 +204,9 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
 
     # filter out data outside of --localtime hour threshold
     dfr['Localtime_u'] = dfr['Localtime'] + \
-                         datetime.timedelta(hours=localTime_hrthreshold)
+        datetime.timedelta(hours=localTime_hrthreshold)
     dfr['Localtime_l'] = dfr['Localtime'] - \
-                         datetime.timedelta(hours=localTime_hrthreshold)
+        datetime.timedelta(hours=localTime_hrthreshold)
     OG_total = dfr.shape[0]
     dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) &
               (dfr['Datetime'] <= dfr['Localtime_u'])]
@@ -214,20 +214,20 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     # only keep observation closest to Localtime
     print('Total number of datapoints dropped in {} for not being within '
           '{} hrs of specified local-time {}: {} out of {}'.format(
-          raiderFile, localTime.split(' ')[1], localTime.split(' ')[0],
-          dfr.shape[0], OG_total))
+              raiderFile, localTime.split(' ')[1], localTime.split(' ')[0],
+              dfr.shape[0], OG_total))
     dfz['Localtime_u'] = dfz['Localtime'] + \
-                         datetime.timedelta(hours=localTime_hrthreshold)
+        datetime.timedelta(hours=localTime_hrthreshold)
     dfz['Localtime_l'] = dfz['Localtime'] - \
-                         datetime.timedelta(hours=localTime_hrthreshold)
+        datetime.timedelta(hours=localTime_hrthreshold)
     OG_total = dfz.shape[0]
     dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) &
               (dfz['Datetime'] <= dfz['Localtime_u'])]
     # only keep observation closest to Localtime
     print('Total number of datapoints dropped in {} for not being within '
           '{} hrs of specified local-time {}: {} out of {}'.format(
-          ztdFile, localTime.split(' ')[1], localTime.split(' ')[0],
-          dfz.shape[0], OG_total))
+              ztdFile, localTime.split(' ')[1], localTime.split(' ')[0],
+              dfz.shape[0], OG_total))
 
     # drop all lines with nans
     dfr.dropna(how='any', inplace=True)
@@ -256,14 +256,14 @@ def mergeDelayFiles(
     print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
     # drop extra columns
-    expected_data_columns = ['ID','Lat','Lon','Hgt_m','Datetime','wetDelay',
-                             'hydroDelay',raider_delay]
+    expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay',
+                             'hydroDelay', raider_delay]
     dfr = dfr.drop(columns=[col for col in dfr if col not in \
                             expected_data_columns])
     dfz = pd.read_csv(ztdFile, parse_dates=['Datetime'])
     # drop extra columns
-    expected_data_columns = ['ID','Date','wet_delay','hydrostatic_delay',
-                             'times','sigZTD','Lat','Lon','Hgt_m','Datetime',
+    expected_data_columns = ['ID', 'Date', 'wet_delay', 'hydrostatic_delay',
+                             'times', 'sigZTD', 'Lat', 'Lon', 'Hgt_m', 'Datetime',
                              col_name]
     dfz = dfz.drop(columns=[col for col in dfz if col not in \
                             expected_data_columns])
@@ -300,8 +300,8 @@ def mergeDelayFiles(
     # only keep observation closest to Localtime
     if 'Localtime' in dfc.keys():
         dfc['Localtimediff'] = abs((dfc['Datetime'] - \
-                               dfc['Localtime']).dt.total_seconds() / 3600)
-        dfc = dfc.loc[dfc.groupby(['ID','Localtime']).Localtimediff.idxmin() \
+                                    dfc['Localtime']).dt.total_seconds() / 3600)
+        dfc = dfc.loc[dfc.groupby(['ID', 'Localtime']).Localtimediff.idxmin() \
                       ].reset_index(drop=True)
         dfc.drop(columns=['Localtimediff'], inplace=True)
 

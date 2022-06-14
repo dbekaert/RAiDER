@@ -84,7 +84,8 @@ def test_checkArgs_outfmt_5(parsed_args):
     args, p = parsed_args
     args.query_area = os.path.join(SCENARIO_2, 'stations.csv')
     argDict = checkArgs(args, p)
-    assert pd.read_csv(argDict['wetFilenames'][0]).shape == (8,4)
+    assert pd.read_csv(argDict['wetFilenames'][0]).shape == (8, 4)
+
 
 def test_checkArgs_outloc_1(parsed_args):
     '''Test that the default output and weather model directories are correct'''

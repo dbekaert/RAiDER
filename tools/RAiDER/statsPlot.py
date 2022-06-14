@@ -207,8 +207,8 @@ def midpoint(p1, p2):
     dx = math.cos(lat2) * math.cos(dlon)
     dy = math.cos(lat2) * math.sin(dlon)
     lat3 = math.atan2(math.sin(lat1) + math.sin(lat2), \
-               math.sqrt((math.cos(lat1) + dx) * \
-               (math.cos(lat1) + dx) + dy * dy))
+                      math.sqrt((math.cos(lat1) + dx) * \
+                                (math.cos(lat1) + dx) + dy * dy))
     lon3 = lon1 + math.atan2(dy, math.cos(lat1) + dx)
 
     return(int(math.degrees(lon3)))
@@ -935,7 +935,7 @@ class RaiderStats(object):
         # if user-specified key is the same as the 'Date' field, rename
         if self.col_name == 'Date':
             logger.warning('Input key {} same as "Date" field name, rename the former'.format(self.col_name))
-            self.col_name  += '_plot'
+            self.col_name += '_plot'
             data[self.col_name] = data['Date']
 
         # convert to specified output unit
@@ -1004,7 +1004,7 @@ class RaiderStats(object):
         # estimate central longitude lines if '--time_lines' specified
         if self.time_lines and 'Datetime' in self.df.keys():
             self.df['Date_hr'] = self.df['Datetime'].dt.hour.astype( \
-                                           np.float).astype("Int32")
+                np.float).astype("Int32")
             # get list of unique times
             all_hrs = list(set(self.df['Date_hr']))
             all_hrs.sort()
@@ -1017,15 +1017,15 @@ class RaiderStats(object):
                                        [0, min(self.df['Lon'])]))
             else:
                 for i in enumerate(all_hrs):
-                    # last entry 
-                    if i[0] == len(all_hrs)-1:
-                        lons = self.df[self.df['Date_hr'] > all_hrs[i[0]-1]]
+                    # last entry
+                    if i[0] == len(all_hrs) - 1:
+                        lons = self.df[self.df['Date_hr'] > all_hrs[i[0] - 1]]
                     # first entry
                     elif i[0] == 0:
-                        lons = self.df[self.df['Date_hr'] < all_hrs[i[0]+1]]
+                        lons = self.df[self.df['Date_hr'] < all_hrs[i[0] + 1]]
                     else:
-                        lons = self.df[(self.df['Date_hr'] > all_hrs[i[0]-1]) \
-                                   & (self.df['Date_hr'] < all_hrs[i[0]+1])]
+                        lons = self.df[(self.df['Date_hr'] > all_hrs[i[0] - 1]) \
+                                       & (self.df['Date_hr'] < all_hrs[i[0] + 1])]
                     central_points.append(([0, max(lons['Lon'])], \
                                            [0, min(lons['Lon'])]))
             # get central longitudes

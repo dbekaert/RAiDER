@@ -31,8 +31,10 @@ _SLANT_RANGE_THRESH = 5e6
 
 class LOS(ABC):
     '''LOS Class definition for handling look vectors'''
+
     def __init__(self):
         self._lats, self._lons, self._heights = None
+
     def setPoints(self, lats, lons=None, heights=None):
         '''Set the pixel locations'''
         if (lats is None) and (self._lats is None):
@@ -40,14 +42,14 @@ class LOS(ABC):
 
         # Will overwrite points by default
         if lons is None:
-            llh = lats # assume points are [lats lons heights]
-            self._lats = llh[...,0]
-            self._lons = llh[...,1]
-            self._heights = llh[...,2]
+            llh = lats  # assume points are [lats lons heights]
+            self._lats = llh[..., 0]
+            self._lons = llh[..., 1]
+            self._heights = llh[..., 2]
         elif heights is None:
             self._lats = lats
             self._lons = lons
-            self._heights = np.zeros((len(lats),1))
+            self._heights = np.zeros((len(lats), 1))
         else:
             self._lats = lats
             self._lons = lons
@@ -56,6 +58,7 @@ class LOS(ABC):
 
 class Zenith(LOS):
     """Special value indicating a look vector of "zenith"."""
+
     def __call__(self, lats=None, lons=None, heights=None):
         '''Set point locations and calculate Zenith look vectors'''
         self.setPoint(lats, lons, heights)
@@ -67,6 +70,7 @@ class Conventional(LOS):
     Special value indicating that the zenith delay will 
     be projected using the standard cos(inc) scaling.
     """
+
     def __init__(self, los_filename):
         '''read in and parse a line-of-sight file'''
         self._filename = los_filename

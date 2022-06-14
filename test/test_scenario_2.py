@@ -71,4 +71,3 @@ def test_computeDelay(tmp_path):
     # get the true delay from the weather model
     assert np.nanmax(np.abs((est_delay['wetDelay'].values - true_delay['wetDelay'].values) / true_delay['wetDelay'].values)) < _RTOL
     assert np.nanmax(np.abs((est_delay['hydroDelay'].values - true_delay['hydroDelay'].values) / true_delay['hydroDelay'].values)) < _RTOL
-

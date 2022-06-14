@@ -84,7 +84,7 @@ def tropo_delay(args):
     if download_only:
         return None, None
     elif useWeatherNodes:
-        if heights[0]=='lvs':
+        if heights[0] == 'lvs':
             # compute delays at the correct levels
             raise NotImplementedError
         else:
@@ -95,7 +95,6 @@ def tropo_delay(args):
                 '{}'.format(weather_model_file)
             )
         return None, None
-        
 
     ###########################################################
     # If query points are specified, pull the height info
@@ -160,7 +159,7 @@ def tropo_delay(args):
 
         if write_flag:
             logger.debug('Beginning line-of-sight calculation')
-            
+
             # Convert the line-of-sight inputs to look vectors
             los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
 
@@ -187,14 +186,14 @@ def tropo_delay(args):
     if heights[0] == 'lvs':
         outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(
-            flag, 
-            wetDelay, 
-            hydroDelay, 
-            lats, 
+            flag,
+            wetDelay,
+            hydroDelay,
+            lats,
             lons,
-            outName, 
-            zlevels=hgts, 
-            outformat=outformat, 
+            outName,
+            zlevels=hgts,
+            outformat=outformat,
             delayType=delayType
         )
         logger.info('Finished writing data to %s', outName)
