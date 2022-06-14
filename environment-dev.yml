@@ -37,6 +37,7 @@ dependencies:
  - sysroot_linux-64
  - rasterio
  # Dev dependencies. Only needed for contributing
+ - autopep8
  - pytest
  - pytest-cov
  - pytest-timeout
