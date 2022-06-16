@@ -222,10 +222,7 @@ class ECMWF(WeatherModel):
             'param': var,
             "stream": "oper",
             "type": "an",
-            "year": "{}".format(acqTime.year),
-            "month": "{}".format(acqTime.month),
-            "day": "{}".format(acqTime.day),
-            "time": "{}".format(datetime.time.strftime(acqTime.time(), '%H:%M')),
+            "date": acqTime.strftime("%Y-%m-%d %H:%M"),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
