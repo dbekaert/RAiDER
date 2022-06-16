@@ -58,7 +58,7 @@ def test_computeDelay(tmp_path):
         args['hydroFilenames'] = hydroFile
         args['verbose'] = True
 
-        (_, _) = tropo_delay(args)
+        tropo_delay(args)
 
     # get the results
     est_delay = pd.read_csv(wetFile).drop_duplicates(subset=["Lat", "Lon"])

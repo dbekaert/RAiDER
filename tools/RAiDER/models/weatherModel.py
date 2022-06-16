@@ -1,6 +1,8 @@
+from typing import Optional
 import datetime
 import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 import numpy as np
 import netCDF4
@@ -36,8 +38,8 @@ class WeatherModel(ABC):
 
         self._lon_res = None
         self._lat_res = None
-        self._x_res = None
-        self._y_res = None
+        # self._x_res = None
+        # self._y_res = None
 
         self._classname = None
         self._dataset = None
@@ -178,7 +180,7 @@ class WeatherModel(ABC):
         _zlevels=None,
         zref=_ZREF,
         **kwargs
-    ):
+    ) -> Optional[Path]:
         '''
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
@@ -217,12 +219,12 @@ class WeatherModel(ABC):
         '''
         pass
 
-    def _get_time(self, filename=None):
-        if filename is None:
-            filename = self.files[0]
-        with netCDF4.Dataset(filename, mode='r') as f:
-            time = f.attrs['datetime'].copy()
-        self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
+    # def _get_time(self, filename=None):
+    #     if filename is None:
+    #         filename = self.files[0]
+    #     with netCDF4.Dataset(filename, mode='r') as f:
+    #         time = f.attrs['datetime'].copy()
+    #     self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
     def plot(self, plotType='pqt', savefig=True):
         '''
@@ -392,6 +394,9 @@ class WeatherModel(ABC):
             with rasterio.open(f'netcdf:{weather_model_path}') as ds:
                 datasets = ds.subdatasets
 
+            if len(datasets) == 0:
+                raise ValueError('No subdatasets found in the weather model. The file may be corrupt.\nWeather model path: {}'.format(weather_model_path))
+
             with rasterio.open(datasets[0]) as ds:
                 bounds = ds.bounds
 
@@ -462,19 +467,6 @@ class WeatherModel(ABC):
 
         return weather_model_box.contains(input_box)
 
-    def _isOutside(self, extent1, extent2):
-        '''
-        Determine whether any of extent1  lies outside extent2
-        extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
-        '''
-        t1 = extent1[0] < extent2[0]
-        t2 = extent1[1] > extent2[1]
-        t3 = extent1[2] < extent2[2]
-        t4 = extent1[3] > extent2[3]
-        if np.any([t1, t2, t3, t4]):
-            return True
-        return False
-
     def _trimExtent(self, extent):
         '''
         get the bounding box around a set of lats/lons
@@ -492,7 +484,7 @@ class WeatherModel(ABC):
             return
 
         # indices of the part of the grid to keep
-        ny, nx, nz = self._p.shape
+        ny, nx, _ = self._p.shape
         index1 = max(np.arange(len(ma1))[ma1][0] - 2, 0)
         index2 = min(np.arange(len(ma1))[ma1][-1] + 2, ny)
         index3 = max(np.arange(len(ma2))[ma2][0] - 2, 0)
@@ -607,14 +599,14 @@ class WeatherModel(ABC):
 
         return lat_min, lat_max, lon_min, lon_max
 
-    def getProjection(self):
-        '''
-        Returns the native weather projection, which should be a pyproj object
-        '''
-        return self._proj
+    # def getProjection(self):
+    #     '''
+    #     Returns the native weather projection, which should be a pyproj object
+    #     '''
+    #     return self._proj
 
-    def getPoints(self):
-        return self._xs.copy(), self._ys.copy(), self._zs.copy()
+    # def getPoints(self):
+    #     return self._xs.copy(), self._ys.copy(), self._zs.copy()
 
     def getXY_gdal(self, filename):
         '''
@@ -679,7 +671,7 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-    def out_file(self, outLoc, lats=None, lons=None):
+    def out_file(self, outLoc, lats=None, lons=None) -> Path:
         if lats is None:
             lats = self._lats
         if lons is None:
@@ -718,7 +710,7 @@ class WeatherModel(ABC):
         NoDataValue=-3.4028234e+38,
         chunk=(1, 128, 128),
         mapping_name='WGS84'
-    ):
+    ) -> Path:
         '''
         By calling the abstract/modular netcdf writer
         (RAiDER.utilFcns.write2NETCDF4core), write the weather model data

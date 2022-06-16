@@ -4,7 +4,7 @@ Modified by Yang Lei, GPS/Caltech
 """
 import datetime
 import os
-import urllib.request
+# import urllib.request
 
 import numpy as np
 
@@ -14,8 +14,8 @@ from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import logger
 from RAiDER.utilFcns import (
     writeWeatherVars2NETCDF4,
-    read_NCMR_loginInfo,
-    show_progress
+    # read_NCMR_loginInfo,
+    # show_progress
 )
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -51,8 +51,8 @@ class NCMR(WeatherModel):
         self._lon_res = .17578125                  # grid spacing in longitude
         self._lat_res = .11718750                  # grid spacing in latitude
 
-        self._x_res = .17578125                  # same as longitude
-        self._y_res = .11718750                  # same as latitude
+        # self._x_res = .17578125                  # same as longitude
+        # self._y_res = .11718750                  # same as latitude
 
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
@@ -97,21 +97,25 @@ class NCMR(WeatherModel):
 
         from netCDF4 import Dataset
 
-        ############# Use these lines and modify the link when actually downloading NCMR data from a weblink #############
-        url, username, password = read_NCMR_loginInfo()
-        filename = os.path.basename(out)
-        url = f'ftp://{username}:{password}@{url}/TEST/{filename}'
-        filepath = f'{out[:-3]}_raw.nc'
-        if not os.path.exists(filepath):
-            logger.info('Fetching URL: %s', url)
-            local_filename, headers = urllib.request.urlretrieve(url, filepath, show_progress)
-        else:
-            logger.warning('Weather model already exists, skipping download')
-        ########################################################################################################################
+        ########################################################################
+        # DEBUG: Use these lines and modify the link when actually downloading
+        # NCMR data from a weblink
+        # url, username, password = read_NCMR_loginInfo()
+        # filename = os.path.basename(out)
+        # url = f'ftp://{username}:{password}@{url}/TEST/{filename}'
+        # filepath = f'{out[:-3]}_raw.nc'
+        # if not os.path.exists(filepath):
+        #     logger.info('Fetching URL: %s', url)
+        #     local_filename, headers = urllib.request.urlretrieve(url, filepath, show_progress)
+        # else:
+        #     logger.warning('Weather model already exists, skipping download')
+        ########################################################################
 
-        ############# For debugging: use pre-downloaded files; Remove/comment out it when actually downloading NCMR data from a weblink #############
+        ########################################################################
+        # DEBUG: use pre-downloaded files; Remove/comment out it when actually
+        # downloading NCMR data from a weblink
 #        filepath = os.path.dirname(out) + '/NCUM_ana_mdllev_20180701_00z.nc'
-        ########################################################################################################################
+        ########################################################################
 
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._bounds[0] - (-89.94141)) / self._lat_res)
@@ -171,9 +175,12 @@ class NCMR(WeatherModel):
 
             lons[lons > 180] -= 360
 
-        ############# For debugging: comment it out when using pre-downloaded raw data files and don't want to remove them for test; Uncomment it when actually downloading NCMR data from a weblink #############
-        os.remove(filepath)
-        ########################################################################################################################
+        ########################################################################
+        # DEBUG: comment it out when using pre-downloaded raw data files and
+        # don't want to remove them for test; Uncomment it when actually
+        # downloading NCMR data from a weblink
+        # os.remove(filepath)
+        ########################################################################
 
         try:
             writeWeatherVars2NETCDF4(self, lats, lons, hgt, q, p, t, outName=out)

@@ -34,8 +34,8 @@ class HRRR(WeatherModel):
         # 3 km horizontal grid spacing
         self._lat_res = 3. / 111
         self._lon_res = 3. / 111
-        self._x_res = 3.
-        self._y_res = 3.
+        # self._x_res = 3.
+        # self._y_res = 3.
 
         self._Nproc = 1
         self._Name = 'HRRR'

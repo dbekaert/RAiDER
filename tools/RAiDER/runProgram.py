@@ -1,3 +1,5 @@
+from RAiDER.types import Arguments
+
 import argparse
 import copy
 import multiprocessing
@@ -15,7 +17,7 @@ from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.processWM import weather_model_debug
 
 
-def create_parser():
+def create_parser() -> argparse.ArgumentParser:
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -143,7 +145,7 @@ def create_parser():
     return p
 
 
-def parseCMD():
+def parseCMD() -> None:
     """
     Parse command-line arguments and pass to tropo_delay
     We'll parse arguments and call delay.py.
@@ -200,14 +202,13 @@ def parseCMD():
     return
 
 
-def _tropo_delay(args):
-
+def _tropo_delay(args: Arguments) -> None:
     args_copy = copy.deepcopy(args)
 
-    if 0 < len(args['times']) < 2:
+    if len(args['times']) == 1:
         args_copy['times'] = args['times'][0]
         try:
-            (_, _) = tropo_delay(args_copy)
+            tropo_delay(args_copy)
         except RuntimeError:
             logger.exception("Date %s failed", args_copy['times'])
     else:
@@ -216,13 +217,13 @@ def _tropo_delay(args):
                 args_copy['times'] = tim
                 args_copy['wetFilenames'] = wetFilename
                 args_copy['hydroFilenames'] = hydroFilename
-                (_, _) = tropo_delay(args_copy)
+                tropo_delay(args_copy)
             except RuntimeError:
                 logger.exception("Date %s failed", tim)
                 continue
 
 
-def parseCMD_weather_model_debug():
+def parseCMD_weather_model_debug() -> None:
     """
     Parse command-line arguments and pass to prepareWeatherModel
     We'll parse arguments and call delay.py.

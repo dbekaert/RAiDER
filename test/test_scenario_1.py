@@ -98,7 +98,7 @@ def core_test_tropo_delay(tmp_path, modelName):
     )
 
     with pushd(tmp_path):
-        # packing the dictionairy
+        # packing the dictionary
         args = {}
         args['los'] = Zenith
         args['lats'] = lats
@@ -118,7 +118,7 @@ def core_test_tropo_delay(tmp_path, modelName):
         args['hydroFilenames'] = hydro_file
         args['verbose'] = True
 
-        (_, _) = tropo_delay(args)
+        tropo_delay(args)
 
         # get the results
         wet = gdal_open(wet_file)

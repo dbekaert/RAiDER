@@ -10,14 +10,14 @@ def delay_parser():
     return RAiDER.runProgram.create_parser()
 
 
-@pytest.fixture
-def stats_parser():
-    pass
+# @pytest.fixture
+# def stats_parser():
+#     pass
 
 
-@pytest.fixture
-def gnss_parser():
-    pass
+# @pytest.fixture
+# def gnss_parser():
+#     pass
 
 
 def test_delay_args(delay_parser):

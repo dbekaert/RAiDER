@@ -40,8 +40,8 @@ class GMAO(WeatherModel):
         # horizontal grid spacing
         self._lat_res = 0.25
         self._lon_res = 0.3125
-        self._x_res = 0.3125
-        self._y_res = 0.25
+        # self._x_res = 0.3125
+        # self._y_res = 0.25
 
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
@@ -71,7 +71,7 @@ class GMAO(WeatherModel):
         time1 = time
         time = roundTime(time, 3 * 60 * 60)
         if not time1 == time:
-            logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
+            logger.warning('Rounded given hour from %d to %d', time1.hour, time.hour)
 
         DT = time - T0
         time_ind = int(DT.total_seconds() / 3600.0 / 3.0)

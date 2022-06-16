@@ -29,9 +29,9 @@ def projectDelays(delay, inc):
     return delay / cosd(inc)
 
 
-def floorish(val, frac):
-    '''Round a value to the lower fractional part'''
-    return val - (val % frac)
+# def floorish(val, frac):
+#     '''Round a value to the lower fractional part'''
+#     return val - (val % frac)
 
 
 def sind(x):
@@ -56,7 +56,6 @@ def enu2ecef(
     up: ndarray,
     lat0: ndarray,
     lon0: ndarray,
-    h0: ndarray,
 ):
     """
     Parameters
@@ -300,23 +299,23 @@ def padLower(invar):
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def checkShapes(los, lats, lons, hts):
-    '''
-    Make sure that by the time the code reaches here, we have a
-    consistent set of line-of-sight and position data.
-    '''
-    from RAiDER.losreader import Zenith
-    test1 = hts.shape == lats.shape == lons.shape
-    try:
-        test2 = los.shape[:-1] == hts.shape
-    except AttributeError:
-        test2 = los is Zenith
+# def checkShapes(los, lats, lons, hts):
+#     '''
+#     Make sure that by the time the code reaches here, we have a
+#     consistent set of line-of-sight and position data.
+#     '''
+#     from RAiDER.losreader import Zenith
+#     test1 = hts.shape == lats.shape == lons.shape
+#     try:
+#         test2 = los.shape[:-1] == hts.shape
+#     except AttributeError:
+#         test2 = los is Zenith
 
-    if not test1 and test2:
-        raise ValueError(
-            'I need lats, lons, heights, and los to all be the same shape. ' +
-            'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
-            'heights had shape {}, and los was not Zenith'.format(hts.shape))
+#     if not test1 and test2:
+#         raise ValueError(
+#             'I need lats, lons, heights, and los to all be the same shape. ' +
+#             'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
+#             'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
 def checkLOS(los, Npts):
@@ -554,13 +553,13 @@ def project(coordinates, z=None, l=None):
     return z, l, x, y
 
 
-def unproject(z, l, x, y):
-    if z not in _projections:
-        _projections[z] = pyproj.Proj(proj='utm', zone=z, ellps='WGS84')
-    if l < 'N':
-        y -= 10000000
-    lng, lat = _projections[z](x, y, inverse=True)
-    return (lng, lat)
+# def unproject(z, l, x, y):
+#     if z not in _projections:
+#         _projections[z] = pyproj.Proj(proj='utm', zone=z, ellps='WGS84')
+#     if l < 'N':
+#         y -= 10000000
+#     lng, lat = _projections[z](x, y, inverse=True)
+#     return (lng, lat)
 
 
 def WGS84_to_UTM(lon, lat, common_center=False):
@@ -589,23 +588,23 @@ def WGS84_to_UTM(lon, lat, common_center=False):
     return np.reshape(Z, shp), np.reshape(L, shp), np.reshape(X, shp), np.reshape(Y, shp)
 
 
-def UTM_to_WGS84(z, l, x, y):
-    shp = x.shape
-    z = np.ravel(z)
-    l = np.ravel(l)
-    x = np.ravel(x)
-    y = np.ravel(y)
-    lat = x.copy()
-    lon = x.copy()
-    for ind in range(z.__len__()):
-        zz = z[ind]
-        ll = l[ind]
-        xx = x[ind]
-        yy = y[ind]
-        coordinates = unproject(zz, ll, xx, yy)
-        lat[ind] = coordinates[1]
-        lon[ind] = coordinates[0]
-    return np.reshape(lon, shp), np.reshape(lat, shp)
+# def UTM_to_WGS84(z, l, x, y):
+#     shp = x.shape
+#     z = np.ravel(z)
+#     l = np.ravel(l)
+#     x = np.ravel(x)
+#     y = np.ravel(y)
+#     lat = x.copy()
+#     lon = x.copy()
+#     for ind in range(z.__len__()):
+#         zz = z[ind]
+#         ll = l[ind]
+#         xx = x[ind]
+#         yy = y[ind]
+#         coordinates = unproject(zz, ll, xx, yy)
+#         lat[ind] = coordinates[1]
+#         lon[ind] = coordinates[0]
+#     return np.reshape(lon, shp), np.reshape(lat, shp)
 
 
 def requests_retry_session(retries=10, session=None):
@@ -827,16 +826,15 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
     return nc_outfile
 
 
-def convertLons(inLons):
-    '''Convert lons from 0-360 to -180-180'''
-    mask = inLons > 180
-    outLons = inLons
-    outLons[mask] = outLons[mask] - 360
-    return outLons
+# def convertLons(inLons):
+#     '''Convert lons from 0-360 to -180-180'''
+#     mask = inLons > 180
+#     outLons = inLons
+#     outLons[mask] = outLons[mask] - 360
+#     return outLons
 
 
 def read_NCMR_loginInfo(filepath=None):
-
     from pathlib import Path
 
     if filepath is None:

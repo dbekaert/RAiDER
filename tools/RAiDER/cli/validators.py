@@ -1,3 +1,4 @@
+from typing import List
 import itertools
 from argparse import Action, ArgumentError, ArgumentTypeError
 from datetime import date, time, timedelta
@@ -126,13 +127,18 @@ class DateListAction(Action):
             metavar=metavar
         )
 
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(self, _, namespace, values: List[date], option_string=None):
         if len(values) > 3 or not values:
             raise ArgumentError(self, "Only 1, 2 dates, or 2 dates and interval may be supplied")
 
+        # Set values to a list of all dates between the start and end date,
+        # inclusive.
         if len(values) == 2:
             start, end = values
-            values = [start + timedelta(days=k) for k in range(0, (end - start).days + 1, 1)]
+            values = [start + timedelta(days=k) for k in range(0, (end - start).days + 1)]
+
+        # Set values to a list of every stepsize'th date between the start and
+        # end date, inclusive.
         elif len(values) == 3:
             start, end, stepsize = values
 
@@ -180,7 +186,7 @@ class BBoxAction(Action):
             metavar=metavar
         )
 
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(self, _, namespace, values, option_string=None):
         S, N, W, E = values
 
         if N <= S or E <= W:

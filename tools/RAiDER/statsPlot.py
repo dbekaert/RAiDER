@@ -385,7 +385,7 @@ class VariogramAnalysis():
             y = y[mask]
 
         # deramp
-        temp1, temp2, x, y = WGS84_to_UTM(x, y, common_center=True)
+        _, _, x, y = WGS84_to_UTM(x, y, common_center=True)
         A = np.array([x, y, np.ones(len(x))]).T
         ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
         data = data - (np.matmul(A, ramp))
@@ -1502,14 +1502,18 @@ class RaiderStats(object):
         '''
         return A * np.sin(w * t + p) + c
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2e', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
+    # This function takes a lot of arguments, so force keyword arguments only
+    # for clarity
+    def __call__(self, gridarr, plottype, *, workdir='./', drawgridlines=False, colorbarfmt='%.2e', stationsongrids=None, plotFormat='pdf', userTitle=None):
         '''
-            Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
+        Visualize a suite of statistics w.r.t. stations. Pass either a list of
+        points or a gridded array as the first argument. Alternatively, you may
+        superimpose your gridded array with a supplementary list of points by
+        passing the latter through the stationsongrids argument.
         '''
         from cartopy import crs as ccrs
         from cartopy import feature as cfeature
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
-        from matplotlib import ticker as mticker
         from mpl_toolkits.axes_grid1 import make_axes_locatable
 
         # If specified workdir doesn't exist, create it
@@ -1650,13 +1654,13 @@ class RaiderStats(object):
                              s=0.5, marker='.', color='b', transform=ccrs.PlateCarree())
 
             # draw gridlines, if specified
-            if drawgridlines:
-                gl = axes.gridlines(crs=ccrs.PlateCarree(
-                ), linewidth=0.5, color='black', alpha=0.5, linestyle='-', zorder=3)
-                gl.xlocator = mticker.FixedLocator(np.arange(
-                    self.plotbbox[0], self.plotbbox[1] + self.spacing, self.spacing).tolist())
-                gl.ylocator = mticker.FixedLocator(np.arange(
-                    self.plotbbox[2], self.plotbbox[3] + self.spacing, self.spacing).tolist())
+            # if drawgridlines:
+            #     gl = axes.gridlines(crs=ccrs.PlateCarree(
+            #     ), linewidth=0.5, color='black', alpha=0.5, linestyle='-', zorder=3)
+                # gl.xlocator = mticker.FixedLocator(np.arange(
+                #     self.plotbbox[0], self.plotbbox[1] + self.spacing, self.spacing).tolist())
+                # gl.ylocator = mticker.FixedLocator(np.arange(
+                #     self.plotbbox[2], self.plotbbox[3] + self.spacing, self.spacing).tolist())
 
         # Add labels to colorbar, if necessary
         if 'cbar_ax' in locals():

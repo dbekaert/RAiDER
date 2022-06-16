@@ -50,8 +50,8 @@ class MERRA2(WeatherModel):
         # horizontal grid spacing
         self._lat_res = 0.5
         self._lon_res = 0.625
-        self._x_res = 0.625
-        self._y_res = 0.5
+        # self._x_res = 0.625
+        # self._y_res = 0.5
 
         self._Name = 'MERRA2'
         self.files = None

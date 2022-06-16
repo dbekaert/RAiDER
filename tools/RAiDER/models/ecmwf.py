@@ -1,3 +1,4 @@
+from typing import Literal
 from abc import abstractmethod
 import datetime
 
@@ -34,7 +35,7 @@ class ECMWF(WeatherModel):
         self._lat_res = 0.2
         self._proj = CRS.from_epsg(4326)
 
-        self._model_level_type = 'ml'  # Default
+        self._model_level_type: Literal["ml", "pl"] = "ml"
 
     def setLevelType(self, levelType):
         '''Set the level type to model levels or pressure levels'''
@@ -199,9 +200,9 @@ class ECMWF(WeatherModel):
         lon_min,
         lon_max,
         lon_step,
-        acqTime,
-        outname
-    ):
+        acqTime: datetime.datetime,
+        outname: str
+    ) -> None:
         import cdsapi
         c = cdsapi.Client(verify=0)
 
@@ -212,24 +213,22 @@ class ECMWF(WeatherModel):
             var = "129/130/133/152"  # 'lnsp', 'q', 'z', 't'
             levType = 'model_level'
 
-        bbox = [lat_max, lon_min, lat_min, lon_max]
-
-        dataDict = {
+        params = {
             "product_type": "reanalysis",
-            "{}".format(levType): 'all',
-            "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
-            'param': var,
+            str(levType): "all",
+            "levtype": self._model_level_type,  # 'ml' for model levels or 'pl' for pressure levels
+            "param": var,
             "stream": "oper",
             "type": "an",
             "date": acqTime.strftime("%Y-%m-%d %H:%M"),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
-            "area": bbox,
+            "area": [lat_max, lon_min, lat_min, lon_max],
             "format": "netcdf"}
 
         try:
-            c.retrieve('reanalysis-era5-pressure-levels', dataDict, outname)
+            c.retrieve('reanalysis-era5-pressure-levels', params, outname)
         except Exception as e:
             logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
             logger.warning('Query time: {}'.format(acqTime))

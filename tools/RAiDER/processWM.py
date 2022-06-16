@@ -6,6 +6,11 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from typing import List, Optional
+import datetime as dt
+from RAiDER.types import Lats, Lons, WeatherDict
+from pathlib import Path
+
 import os
 import numpy as np
 from RAiDER.logger import logger
@@ -14,16 +19,16 @@ import matplotlib.pyplot as plt
 
 
 def prepareWeatherModel(
-    weatherDict,
-    time=None,
-    wmLoc=None,
-    lats=None,
-    lons=None,
-    zref=None,
-    download_only=False,
-    makePlots=False,
-    force_download=False,
-):
+    weatherDict: WeatherDict,
+    times: List[dt.datetime]=None,
+    wmLoc: Path=None,
+    lats: Lats=None,
+    lons: Lons=None,
+    zref: float=None,
+    download_only: bool=False,
+    makePlots: bool=False,
+    force_download: bool=False,
+) -> Optional[Path]:
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
@@ -134,19 +139,19 @@ def prepareWeatherModel(
         del weather_model
 
 
-def checkBounds(weather_model, outLats, outLons):
-    '''Check the bounds of a weather model'''
-    ds = xr.load_dataset(weather_model.files[0])  # TODO: xr is undefined
-    coords = ds.coords  # coords is dict-like
-    keys = [k for k in coords.keys()]
-    xc = coords[keys[0]]
-    yc = coords[keys[1]]
-    lat_bounds = [yc.min(), yc.max()]
-    lon_bounds = [xc.min(), xc.max()]
-    self_extent = lat_bounds + lon_bounds
-    in_extent = weather_model._getExtent(outLats, outLons)
+# def checkBounds(weather_model, outLats, outLons):
+#     '''Check the bounds of a weather model'''
+#     ds = xr.load_dataset(weather_model.files[0])  # TODO: xr is undefined
+#     coords = ds.coords  # coords is dict-like
+#     keys = [k for k in coords.keys()]
+#     xc = coords[keys[0]]
+#     yc = coords[keys[1]]
+#     lat_bounds = [yc.min(), yc.max()]
+#     lon_bounds = [xc.min(), xc.max()]
+#     self_extent = lat_bounds + lon_bounds
+#     in_extent = weather_model._getExtent(outLats, outLons)
 
-    return in_extent, self_extent
+#     return in_extent, self_extent
 
 
 def weather_model_debug(

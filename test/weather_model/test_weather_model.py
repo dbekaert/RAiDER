@@ -1,5 +1,4 @@
 import datetime
-import os
 import operator
 import pytest
 
@@ -7,7 +6,6 @@ import numpy as np
 
 from functools import reduce
 from numpy import nan
-from test import DATA_DIR
 
 from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.models.weatherModel import (
@@ -24,13 +22,6 @@ from RAiDER.models.hrrr import HRRR
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
-
-
-WEATHER_FILE = os.path.join(
-    DATA_DIR,
-    "weather_files",
-    "ERA-5_2018_07_01_T00_00_00.nc"
-)
 
 
 @pytest.fixture
