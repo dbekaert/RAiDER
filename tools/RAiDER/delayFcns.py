@@ -8,7 +8,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import itertools
 import multiprocessing as mp
-import time
 
 import h5py
 from netCDF4 import Dataset
@@ -16,10 +15,9 @@ import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
-from RAiDER.constants import _STEP, _ZREF, _RE
+from RAiDER.constants import _STEP
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
-from RAiDER.losreader import getZenithLookVecs
 
 
 def calculate_rays(pnts_file, stepSize=_STEP):
@@ -47,7 +45,7 @@ def calculate_rays(pnts_file, stepSize=_STEP):
 
 def getInterpolators(wm_file, kind='pointwise'):
     '''
-    Read 3D gridded data from a processed weather model file and wrap it with 
+    Read 3D gridded data from a processed weather model file and wrap it with
     an interpolator
     '''
     # Get the weather model data
@@ -82,10 +80,8 @@ def get_delays(
     ifWet, ifHydro = getInterpolators(wm_file)
 
     with h5py.File(pnts_file, 'r') as f:
-        Nrays = f.attrs['NumRays']
         chunkSize = f.attrs['ChunkSize']
         in_shape = f['lon'].attrs['Shape']
-        arrSize = f['lon'].shape
         max_len = np.nanmax(f['Rays_len'])
 
     CHUNKS = chunk(chunkSize, in_shape)

@@ -1,14 +1,10 @@
 import datetime
 import os
 import pytest
-import urllib.error
 
 import numpy as np
 
 from test import TEST_DIR, pushd
-
-from pathlib import Path
-from test import DATA_DIR, TEST_DIR, pushd
 
 from RAiDER.losreader import Zenith
 from RAiDER.delay import tropo_delay
@@ -47,15 +43,6 @@ def test_tropo_delay_ERA5T(tmp_path):
 
 
 @pytest.mark.long
-def test_tropo_delay_GMAO(tmp_path):
-    '''
-    Scenario:
-    1: Small area, GMAO, Zenith delay
-    '''
-    core_test_tropo_delay(tmp_path, modelName="GMAO")
-
-
-@pytest.mark.long
 def test_tropo_delay_MERRA2(tmp_path):
     '''
     Scenario:
@@ -84,7 +71,7 @@ def test_tropo_delay_GMAO(tmp_path):
 
 def core_test_tropo_delay(tmp_path, modelName):
     '''
-    Scenario: 
+    Scenario:
     1: Small area, Zenith delay
     '''
     lats = gdal_open(os.path.join(

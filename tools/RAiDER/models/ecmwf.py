@@ -6,11 +6,10 @@ import xarray as xr
 
 from pyproj import CRS
 
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER import utilFcns as util
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
-    LEVELS_25_HEIGHTS,
     A_137_HRES,
     B_137_HRES,
 )

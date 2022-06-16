@@ -16,7 +16,7 @@ from RAiDER.models.weatherModel import WeatherModel
 #
 class WRF(WeatherModel):
     '''
-    WRF class definition, based on the WeatherModel base class. 
+    WRF class definition, based on the WeatherModel base class.
     '''
     # TODO: finish implementing
 

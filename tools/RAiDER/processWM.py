@@ -136,7 +136,7 @@ def prepareWeatherModel(
 
 def checkBounds(weather_model, outLats, outLons):
     '''Check the bounds of a weather model'''
-    ds = xr.load_dataset(weather_model.files[0])
+    ds = xr.load_dataset(weather_model.files[0])  # TODO: xr is undefined
     coords = ds.coords  # coords is dict-like
     keys = [k for k in coords.keys()]
     xc = coords[keys[0]]
@@ -165,9 +165,9 @@ def weather_model_debug(
     raiderWeatherModelDebug main function.
     """
 
-    log.debug('Starting to run the weather model calculation with debugging plots')
-    log.debug('Time type: %s', type(time))
-    log.debug('Time: %s', time.strftime('%Y%m%d'))
+    logger.debug('Starting to run the weather model calculation with debugging plots')
+    logger.debug('Time type: %s', type(time))
+    logger.debug('Time: %s', time.strftime('%Y%m%d'))
 
     # location of the weather model files
     logger.debug('Beginning weather model pre-processing')
@@ -176,6 +176,7 @@ def weather_model_debug(
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
+    # TODO: make_weather_model_filename is undefined
     wm_filename = make_weather_model_filename(
         weather_model['name'],
         time,
