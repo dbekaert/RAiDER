@@ -4,7 +4,7 @@ import pytest
 import numpy as np
 
 from datetime import datetime
-from test import TEST_DIR, DATA_DIR, pushd
+from test import TEST_DIR
 
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
