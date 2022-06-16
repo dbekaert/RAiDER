@@ -4,7 +4,6 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from argparse import ArgumentParser
 from test import GEOM_DIR, TEST_DIR
 
 import RAiDER.runProgram

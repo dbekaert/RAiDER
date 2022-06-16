@@ -1,11 +1,10 @@
 import datetime
-import logging
 
 import numpy as np
 import requests
 from pyproj import CRS
 
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,

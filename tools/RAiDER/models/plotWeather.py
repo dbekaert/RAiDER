@@ -41,7 +41,8 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
 
     # Now get the data to plot
     plots = [p1 / 1e2, e1 / 1e2, t1 - 273.15, p2 / 1e2, e2 / 1e2, t2 - 273.15]
-    titles = ('P (hPa)', 'E (hPa)'.format(z1), 'T (C)', '', '', '')
+    # titles = ('P (hPa)', 'E (hPa)'.format(z1), 'T (C)', '', '', '')
+    titles = ('P (hPa)', 'E (hPa)', 'T (C)', '', '', '')
 
     # setup the plot
     f = plt.figure(figsize=(18, 14))
@@ -118,10 +119,10 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     plots = [w1, h1, w2, h2]
 
     # titles
-    titles = ('Wet refractivity'.format(z1),
-              'Hydrostatic refractivity'.format(z1),
-              ''.format(z2),
-              ''.format(z2))
+    titles = ('Wet refractivity {}'.format(z1),
+              'Hydrostatic refractivity {}'.format(z1),
+              '{}'.format(z2),
+              '{}'.format(z2))
 
     # setup the plot
     f = plt.figure(figsize=(14, 10))

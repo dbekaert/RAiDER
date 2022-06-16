@@ -3,7 +3,7 @@ import pytest
 
 import numpy as np
 
-from test import DATA_DIR, pushd
+from test import pushd
 
 from RAiDER.dem import (
     getBufferedExtent, isOutside, isInside, forceNDArray, getDEM
@@ -68,9 +68,6 @@ def test_isOutside2(llsimple):
 
 def test_isInside(llsimple):
     assert isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple))
-
-
-def test_isInside(llsimple):
     assert not isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
 
 

@@ -1,5 +1,4 @@
-import h5py
-
+import os
 import datetime as dt
 import numpy as np
 import pydap.cas.urs
@@ -8,7 +7,7 @@ import pydap.client
 from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.utilFcns import writeWeatherVars2NETCDF4
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -128,7 +127,7 @@ class MERRA2(WeatherModel):
             p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        except:
+        except BaseException:
             logger.exception("MERRA-2: Unable to read weathermodel data")
         ########################################################################################################################
 

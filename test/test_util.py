@@ -5,14 +5,13 @@ import pytest
 
 import numpy as np
 
-from datetime import time
 from test import TEST_DIR
 from osgeo import gdal, osr
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, gdal_open, sind,
     writeArrayToRaster, writeResultsToHDF5, gdal_extents,
-    getTimeFromFile, enu2ecef, ecef2enu, lla2ecef,
+    getTimeFromFile, enu2ecef, ecef2enu,
 )
 
 
@@ -336,6 +335,7 @@ def test_WGS84_to_UTM():
 
 @pytest.mark.skipif(True, reason='Need to ensure this file always get written before this executes')
 def test_read_weather_model_file():
+    # TODO: read_wm_file is undefined
     weather_model_obj = read_wm_file(
         os.path.join(
             SCENARIO_DIR,
