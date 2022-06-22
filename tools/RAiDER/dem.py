@@ -8,11 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from logging import warn
 import os
-import re
-import requests
-import time
 
-import multiprocessing as mp
 import numpy as np
 import pandas as pd
 
@@ -24,7 +20,7 @@ from dem_stitcher.stitcher import stitch_dem as download_stitched_dem
 import RAiDER.utilFcns
 
 from RAiDER.interpolator import interpolateDEM
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.utilFcns import gdal_open, gdal_extents
 
 

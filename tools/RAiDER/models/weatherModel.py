@@ -151,7 +151,7 @@ class WeatherModel(ABC):
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
         '''
-        if self._Name is 'GMAO' or self._Name is 'MERRA2':
+        if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
         else:
             ex_buffer_lon_max = 0.0
@@ -188,8 +188,6 @@ class WeatherModel(ABC):
         if os.path.exists(self._out_name):
             return self._out_name
         else:
-            exists_flag = False
-
             # Compute the bounds of the query points
             self._ll_bounds = self._get_ll_bounds(
                 lats=outLats,
@@ -342,7 +340,6 @@ class WeatherModel(ABC):
         if zref is None:
             zref = self._zmax
 
-        hgts = np.tile(self._zs.copy(), self._lats.shape[:2] + (1,))
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 

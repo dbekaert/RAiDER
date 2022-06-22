@@ -6,13 +6,11 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import logging
 import os
 
 import numpy as np
 import pandas as pd
 
-from RAiDER.logger import *
 from RAiDER.utilFcns import gdal_open
 
 

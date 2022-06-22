@@ -147,7 +147,6 @@ def checkArgs(args, p):
     elif flag == 'station_file':
         indf = pd.read_csv(args.query_area)
         try:
-            hgts = indf['Hgt_m'].values
             heights = ('pandas', wetNames)
         except BaseException:  # TODO: Which error(s)?
             heights = ('merge', wetNames)
