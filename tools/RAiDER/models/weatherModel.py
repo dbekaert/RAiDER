@@ -395,6 +395,9 @@ class WeatherModel(ABC):
             with rasterio.open(f'netcdf:{weather_model_path}') as ds:
                 datasets = ds.subdatasets
 
+            if len(datasets) == 0:
+                raise ValueError('No subdatasets found in the weather model. The file may be corrupt.\nWeather model path: {}'.format(weather_model_path))
+
             with rasterio.open(datasets[0]) as ds:
                 bounds = ds.bounds
 
