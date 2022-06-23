@@ -30,7 +30,7 @@ class ERA5(ECMWF):
     def __pressure_levels__(self):
         pass
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, lats, lons, times, out, Nextra=2):
         '''
         Fetch a weather model from ECMWF
         '''
@@ -40,7 +40,7 @@ class ERA5(ECMWF):
         # execute the search at ECMWF
         try:
             self._get_from_cds(
-                lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, time,
+                lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, times,
                 out)
         except Exception as e:
             logger.warning(e)

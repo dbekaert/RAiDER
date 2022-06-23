@@ -45,11 +45,11 @@ def prepareWeatherModel(
     # check whether weather model files are supplied or should be downloaded
     download_flag = True
     if weather_model.files is None:
-        if time is None:
+        if times is None:
             raise RuntimeError(
                 'prepareWeatherModel: Either a file or a time must be specified'
             )
-        weather_model.filename(time, wmLoc)
+        weather_model.filename(times, wmLoc)
         if os.path.exists(weather_model.files[0]):
             if not force_download:
                 logger.warning(
@@ -62,7 +62,7 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        weather_model.fetch(*weather_model.files, lats, lons, time)
+        weather_model.fetch(*weather_model.files, lats, lons, times)
     else:
         time = getTimeFromFile(weather_model.files[0])
         weather_model.setTime(time)
@@ -162,7 +162,7 @@ def weather_model_debug(
     weather_model,
     wmLoc,
     zref,
-    time,
+    times,
     out,
     download_only
 ):
@@ -171,8 +171,8 @@ def weather_model_debug(
     """
 
     logger.debug('Starting to run the weather model calculation with debugging plots')
-    logger.debug('Time type: %s', type(time))
-    logger.debug('Time: %s', time.strftime('%Y%m%d'))
+    logger.debug('Times type: %s', type(times))
+    logger.debug('Times: %s', times[0].strftime('%Y%m%d') if len(times) == 1 else times[0].strftime('%Y%m%d') + '/' + times[-1].strftime('%Y%m%d'))
 
     # location of the weather model files
     logger.debug('Beginning weather model pre-processing')
@@ -184,7 +184,7 @@ def weather_model_debug(
     # TODO: make_weather_model_filename is undefined
     wm_filename = make_weather_model_filename(
         weather_model['name'],
-        time,
+        times,
         ll_bounds
     )
     weather_model_file = os.path.join(wmLoc, wm_filename)
@@ -192,7 +192,7 @@ def weather_model_debug(
     if not os.path.exists(weather_model_file):
         prepareWeatherModel(
             weather_model,
-            time,
+            times,
             wmLoc=wmLoc,
             lats=lats,
             lons=lons,

@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import List, Literal
 from abc import abstractmethod
 import datetime
 
@@ -200,7 +200,7 @@ class ECMWF(WeatherModel):
         lon_min,
         lon_max,
         lon_step,
-        acqTime: datetime.datetime,
+        acqTimes: List[datetime.datetime],
         outname: str
     ) -> None:
         import cdsapi
@@ -220,18 +220,26 @@ class ECMWF(WeatherModel):
             "param": var,
             "stream": "oper",
             "type": "an",
-            "date": acqTime.strftime("%Y-%m-%d %H:%M"),
+            "time": acqTimes[0].strftime("%H:%M"),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
             "area": [lat_max, lon_min, lat_min, lon_max],
             "format": "netcdf"}
 
+        if len(acqTimes) == 1:
+            params["date"] = acqTimes[0].strftime("%Y-%m-%d")
+        else:
+            params["date"] = "{}/{}".format(
+                acqTimes[0].strftime("%Y-%m-%d"),
+                acqTimes[-1].strftime("%Y-%m-%d")
+            )
+
         try:
             c.retrieve('reanalysis-era5-pressure-levels', params, outname)
         except Exception as e:
             logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
-            logger.warning('Query time: {}'.format(acqTime))
+            logger.warning('Query time: {}'.format(params["date"]))
             logger.exception(e)
             raise Exception
 

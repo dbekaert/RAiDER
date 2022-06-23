@@ -43,7 +43,7 @@ def tropo_delay(args):
     wmLoc = args['wmLoc']
     zref = args['zref']
     outformat = args['outformat']
-    time = args['times']
+    times = args['times']
     download_only = args['download_only']
     wetFilename = args['wetFilenames']
     hydroFilename = args['hydroFilenames']
@@ -52,8 +52,8 @@ def tropo_delay(args):
 
     # logging
     logger.debug('Starting to run the weather model calculation')
-    logger.debug('Time type: {}'.format(type(time)))
-    logger.debug('Time: {}'.format(time.strftime('%Y%m%d')))
+    logger.debug('Times type: {}'.format(type(times)))
+    logger.debug('Times: %s', times[0].strftime('%Y%m%d') if len(times) == 1 else times[0].strftime('%Y%m%d') + '/' + times[-1].strftime('%Y%m%d'))
     logger.debug('Flag type is {}'.format(flag))
     logger.debug('DEM/height type is "{}"'.format(heights[0]))
     logger.debug('Max integration height is {:1.1f} m'.format(zref))
@@ -68,7 +68,7 @@ def tropo_delay(args):
 
     weather_model_file = prepareWeatherModel(
         weather_model,
-        time,
+        times,
         wmLoc=wmLoc,
         lats=lats,
         lons=lons,

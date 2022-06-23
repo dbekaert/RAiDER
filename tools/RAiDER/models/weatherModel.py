@@ -117,19 +117,19 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, out, lats, lons, time):
+    def fetch(self, out, lats, lons, times):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
         '''
-        self.checkTime(time)
+        self.checkTime(times[0])
         lats, lons = self.checkLL(lats, lons)
 
-        self._time = time
-        self._fetch(lats, lons, time, out)
+        self._time = times[0]
+        self._fetch(lats, lons, times, out)
 
     @abstractmethod
-    def _fetch(self, lats, lons, time, out):
+    def _fetch(self, lats, lons, times, out):
         '''
         Placeholder method. Should be implemented in each weather model type class
         '''
@@ -685,22 +685,22 @@ class WeatherModel(ABC):
         )
         return os.path.join(outLoc, f)
 
-    def filename(self, time=None, outLoc='weather_files'):
+    def filename(self, times=None, outLoc='weather_files'):
         '''
         Create a filename to store the weather model
         '''
         os.makedirs(outLoc, exist_ok=True)
 
-        if time is None:
-            if self._time is None:
+        if times is None:
+            if self._time[0] is None:
                 raise ValueError('Time must be specified before the file can be written')
             else:
-                time = self._time
+                time = self._time[0]
 
         f = make_raw_weather_data_filename(
             outLoc,
             self._Name,
-            time,
+            times,
         )
 
         self.files = [f]
@@ -896,13 +896,20 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def make_raw_weather_data_filename(outLoc, name, time):
+def make_raw_weather_data_filename(outLoc, name, times):
     ''' Filename generator for the raw downloaded weather model data '''
+    if len(times) == 1:
+        string_formatted_time = times[0].strftime("%Y_%m_%d_T%H_%M_%S")
+    else:
+        string_formatted_time = "{}-{}".format(
+            times[0].strftime("%Y_%m_%d_T%H_%M_%S"),
+            times[-1].strftime("%Y_%m_%d_T%H_%M_%S")
+        )
     f = os.path.join(
         outLoc,
         '{}_{}.{}'.format(
             name,
-            datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S'),
+            string_formatted_time,
             'nc'
         )
     )
