@@ -11,6 +11,7 @@ channels:
 dependencies:
  - python>=3
  - cartopy
+ - boto3
  - cdsapi
  - cfgrib
  - cmake
@@ -19,6 +20,7 @@ dependencies:
  - dask
  - ecmwf-api-client
  - gdal>=3.0
+ - geopandas
  - h5py
  - libgdal
  - matplotlib
@@ -37,5 +39,3 @@ dependencies:
  - pip
  - pip:
    - dem_stitcher==2.1.1
-   - boto3
-   - geopandas
