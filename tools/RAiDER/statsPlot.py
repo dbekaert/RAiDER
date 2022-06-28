@@ -918,7 +918,7 @@ class RaiderStats(object):
             data = pd.read_csv(self.fname, parse_dates=['Datetime'])
             data['Date'] = data['Datetime'].apply(lambda x: x.date())
             data['Date'] = data['Date'].apply(lambda x: dt.datetime.strptime(x.strftime("%Y-%m-%d"), "%Y-%m-%d"))
-        except BaseException:
+        except:  # TODO: Which exception(s)?
             data = pd.read_csv(self.fname, parse_dates=['Date'])
 
         # check if user-specified key is valid
@@ -1029,7 +1029,7 @@ class RaiderStats(object):
         if self.bbox is not None:
             try:
                 self.bbox = [float(val) for val in self.bbox.split()]
-            except BaseException:
+            except:  # TODO: Which exception(s)?
                 raise Exception(
                     'Cannot understand the --bounding_box argument. String input is incorrect or path does not exist.')
         self.plotbbox, self.grid_dim, self.gridpoints = self._get_extent()

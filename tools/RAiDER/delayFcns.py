@@ -85,13 +85,13 @@ def get_delays(
         max_len = np.nanmax(f['Rays_len'])
 
     CHUNKS = chunk(chunkSize, in_shape)
-    Nchunks = len(CHUNKS)
+    n_chunks = len(CHUNKS)
 
     with h5py.File(pnts_file, 'r') as f:
         chunk_inputs = [(kk, CHUNKS[kk], np.array(f['Rays_SP']), np.array(f['LOS']),
-                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
+                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(n_chunks)]
 
-    if Nchunks == 1:
+    if n_chunks == 1:
         delays = process_chunk(*chunk_inputs[0])
     else:
         with mp.Pool() as pool:
@@ -107,16 +107,16 @@ def get_delays(
     return wet_delay, hydro_delay
 
 
-def make_interpolator(xs, ys, zs, data):
-    '''
-    Function to create and return an Interpolator object
-    '''
-    return RegularGridInterpolator(
-        (ys.ravel(), xs.ravel(), zs.ravel()),
-        data,
-        bounds_error=False,
-        fill_value=np.nan
-    )
+# def make_interpolator(xs, ys, zs, data):
+    # '''
+    # Function to create and return an Interpolator object
+    # '''
+    # return RegularGridInterpolator(
+    #     (ys.ravel(), xs.ravel(), zs.ravel()),
+    #     data,
+    #     bounds_error=False,
+    #     fill_value=np.nan
+    # )
 
 
 def chunk(chunkSize, in_shape):

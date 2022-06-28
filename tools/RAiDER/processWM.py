@@ -32,9 +32,7 @@ def prepareWeatherModel(
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
-    weather_model, weather_files = (weatherDict['type'],
-                                    weatherDict['files']
-                                    )
+    weather_model, weather_files = (weatherDict['type'], weatherDict['files'])
     weather_model.files = weather_files
 
     # Ensure the file output location exists

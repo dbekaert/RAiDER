@@ -61,20 +61,20 @@ class NCMR(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, lats, lons, _, out, n_extra=2):
         '''
         Fetch weather model data from NCMR: note we only extract the lat/lon bounds for this weather model;
-        fetching data is not needed here as we don't actually download data , data exist in same system
+        fetching data is not needed here as we don't actually download data, data exist in same system
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, n_extra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
 
         # Auxillary function:
         '''
         download data of the NCMR model and save it in desired location
         '''
-        self._files = self._download_ncmr_file(out, time, self._bounds)
+        self._files = self._download_ncmr_file(out, self._bounds)
 
     def load_weather(self, filename=None, *args, **kwargs):
         '''
@@ -89,13 +89,14 @@ class NCMR(WeatherModel):
 
         self._makeDataCubes(filename)
 
-    def _download_ncmr_file(self, out, date_time, bounding_box):
+    def _download_ncmr_file(self, out, bounding_box):
         '''
         Download weather model data (whole globe) from NCMR weblink, crop it to the region of interest, and save the cropped data as a standard .nc file of RAiDER (e.g. "NCMR_YYYY_MM_DD_THH_MM_SS.nc");
         Temporarily download data from NCMR ftp 'https://ftp.ncmrwf.gov.in/pub/outgoing/SAC/NCUM_OSF/' and copied in weather_models folder
         '''
-
         from netCDF4 import Dataset
+
+        filepath = f'{out[:-3]}_raw.nc'
 
         ########################################################################
         # DEBUG: Use these lines and modify the link when actually downloading
@@ -103,7 +104,6 @@ class NCMR(WeatherModel):
         # url, username, password = read_NCMR_loginInfo()
         # filename = os.path.basename(out)
         # url = f'ftp://{username}:{password}@{url}/TEST/{filename}'
-        # filepath = f'{out[:-3]}_raw.nc'
         # if not os.path.exists(filepath):
         #     logger.info('Fetching URL: %s', url)
         #     local_filename, headers = urllib.request.urlretrieve(url, filepath, show_progress)
@@ -183,7 +183,7 @@ class NCMR(WeatherModel):
         ########################################################################
 
         try:
-            writeWeatherVars2NETCDF4(self, lats, lons, hgt, q, p, t, outName=out)
+            writeWeatherVars2NETCDF4(self, lats, lons, hgt, q, p, t, out_name=out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

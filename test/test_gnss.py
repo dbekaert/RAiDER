@@ -96,6 +96,6 @@ def test_concatDelayFiles(tmp_path, temp_file):
         out_name = os.path.join(tmp_path, 'out.csv')
         concatDelayFiles(
             [new_name, new_name2],
-            outName=out_name
+            out_name=out_name
         )
     assert file_len(out_name) == file_length

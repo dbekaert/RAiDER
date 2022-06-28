@@ -62,7 +62,8 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
     final_stationTarlist = []
     for j in stationTarlist:
         # get the date of the file
-        time, yearFromFile, doyFromFile = get_date(os.path.basename(j).split('.'))
+        # time, yearFromFile, doyFromFile = get_date(os.path.basename(j).split('.'))
+        time, _, doyFromFile = get_date(os.path.basename(j).split('.'))
         # check if in list of specified input dates
         if time.strftime('%Y-%m-%d') not in dateList:
             continue
@@ -84,9 +85,10 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
                 try:
                     split_lines = line.split()
                     # units: mm, mm, mm, deg, deg, deg, deg, mm, mm, K
-                    trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
-                        [float(t) for t in split_lines[2:]]
-                except BaseException:  # TODO: What error(s)?
+                    # trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
+                    #     [float(t) for t in split_lines[2:]]
+                    trotot, trototSD, trwet = [float(t) for t in split_lines[2:5]]
+                except:  # TODO: What error(s)?
                     continue
                 site = split_lines[0]
                 year, doy, seconds = [int(n)

@@ -1,10 +1,9 @@
 from typing import List, Literal
 from abc import abstractmethod
-import datetime
 
+import datetime
 import numpy as np
 import xarray as xr
-
 from pyproj import CRS
 
 from RAiDER.logger import logger
@@ -39,7 +38,7 @@ class ECMWF(WeatherModel):
 
     def setLevelType(self, levelType):
         '''Set the level type to model levels or pressure levels'''
-        if levelType in ['ml', 'pl']:
+        if levelType in ('ml', 'pl'):
             self._model_level_type = levelType
         else:
             raise RuntimeError('Level type {} is not recognized'.format(levelType))
@@ -130,12 +129,12 @@ class ECMWF(WeatherModel):
         self._xs = self._lons.copy()
         self._zs = np.flip(h, axis=2)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, lats, lons, time, out, n_extra=2):
         '''
         Fetch a weather model from ECMWF
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, n_extra)
 
         # execute the search at ECMWF
         try:
@@ -165,7 +164,7 @@ class ECMWF(WeatherModel):
         server.retrieve({
             "class": self._classname,  # ERA-Interim
             'dataset': self._dataset,
-            "expver": "{}".format(self._expver),
+            "expver": self._expver,
             # They warn me against all, but it works well
             "levelist": 'all',
             "levtype": "ml",  # Model levels
@@ -173,14 +172,14 @@ class ECMWF(WeatherModel):
             "stream": "oper",
             # date: Specify a single date as "2015-08-01" or a period as
             # "2015-08-01/to/2015-08-31".
-            "date": datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
+            "date": corrected_date.strftime("%Y-%m-%d"),
             # type: Use an (analysis) unless you have a particular reason to
             # use fc (forecast).
             "type": "an",
             # time: With type=an, time can be any of
             # "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can
             # be any of "00:00:00/12:00:00",
-            "time": datetime.time.strftime(corrected_date.time(), "%H:%M:%S"),
+            "time": corrected_date.strftime("%H:%M:%S"),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -201,7 +200,7 @@ class ECMWF(WeatherModel):
         lon_max,
         lon_step,
         acqTimes: List[datetime.datetime],
-        outname: str
+        out_name: str
     ) -> None:
         import cdsapi
         c = cdsapi.Client(verify=0)
@@ -236,7 +235,7 @@ class ECMWF(WeatherModel):
             )
 
         try:
-            c.retrieve('reanalysis-era5-pressure-levels', params, outname)
+            c.retrieve('reanalysis-era5-pressure-levels', params, out_name)
         except Exception as e:
             logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
             logger.warning('Query time: {}'.format(params["date"]))
@@ -259,15 +258,15 @@ class ECMWF(WeatherModel):
             {
                 'class': self._classname,
                 'dataset': self._dataset,
-                'expver': "{}".format(self._expver),
+                'expver': self._expver,
                 'resol': "av",
                 'stream': "oper",
                 'type': "an",
                 'levelist': "all",
-                'levtype': "{}".format(self._model_level_type),
+                'levtype': self._model_level_type,
                 'param': param,
-                'date': datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
-                'time': "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
+                'date': corrected_date.strftime("%Y-%m-%d"),
+                'time': corrected_date.strftime('%H:%M'),
                 'step': "0",
                 'grid': "{}/{}".format(lon_step, lat_step),
                 'area': "{}/{}/{}/{}".format(lat_max, util.floorish(lon_min, 0.1), util.floorish(lat_min, 0.1), lon_max),

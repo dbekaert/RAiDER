@@ -1,9 +1,4 @@
-from typing import Any, List, Optional, Tuple, TypedDict
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
-
+from typing import Any, List, Literal, Optional, Tuple, TypedDict
 from pathlib import Path
 import datetime as dt
 import numpy as np

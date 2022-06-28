@@ -4,8 +4,6 @@ import argparse
 import copy
 import multiprocessing
 import numpy as np
-import pandas as pd
-
 from textwrap import dedent
 
 from RAiDER.checkArgs import checkArgs

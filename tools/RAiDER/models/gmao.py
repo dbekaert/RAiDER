@@ -52,12 +52,12 @@ class GMAO(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, lats, lons, time, out, n_extra=2):
         '''
         Fetch weather model data from GMAO
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, n_extra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
 
         # calculate the array indices for slicing the GMAO variable arrays
@@ -144,7 +144,7 @@ class GMAO(WeatherModel):
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
+            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, out_name=out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

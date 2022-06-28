@@ -61,12 +61,12 @@ class MERRA2(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, lats, lons, time, out, n_extra=2):
         '''
         Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, n_extra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
 
         # check whether the file already exists
@@ -127,12 +127,12 @@ class MERRA2(WeatherModel):
             p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        except BaseException:
+        except:  # TODO: Which exception(s)?
             logger.exception("MERRA-2: Unable to read weathermodel data")
         ########################################################################################################################
 
         try:
-            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
+            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, out_name=out)
         except Exception as e:
             logger.debug(e)
             logger.exception("MERRA-2: Unable to save weathermodel to file")

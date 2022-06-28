@@ -88,7 +88,7 @@ def tropo_delay(args):
                 'Only Zenith delays at the weather model nodes '
                 'are requested, so I am exiting now. Delays have '
                 'been written to the weather model file; see '
-                '{}'.format(weather_model_file)
+                + str(weather_model_file)
             )
         return None, None
 
@@ -125,7 +125,8 @@ def tropo_delay(args):
 
         # Now do the projection if Conventional slant delay is requested
         if los is not Zenith:
-            inc, hd = gdal_open(los[1])
+            # inc, hd = gdal_open(los[1])
+            inc = gdal_open(los[1])[0]
             wetDelay = projectDelays(wetDelay, inc)
             hydroDelay = projectDelays(hydroDelay, inc)
 
@@ -160,7 +161,7 @@ def tropo_delay(args):
             los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
 
             # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
+            writePnts2HDF5(lats, lons, hgts, los, lengths, out_name=pnts_file)
 
         logger.debug('Beginning raytracing calculation')
         logger.debug('Reference integration step is {:1.1f} m'.format(_STEP))
@@ -180,19 +181,19 @@ def tropo_delay(args):
     # Different options depending on the inputs
 
     if heights[0] == 'lvs':
-        outName = wetFilename[0].replace('wet', 'delays')
+        out_name = wetFilename[0].replace('wet', 'delays')
         writeDelays(
             flag,
             wetDelay,
             hydroDelay,
             lats,
             lons,
-            outName,
+            out_name,
             zlevels=hgts,
             outformat=outformat,
             delayType=delayType
         )
-        logger.info('Finished writing data to %s', outName)
+        logger.info('Finished writing data to %s', out_name)
 
     else:
         if not isinstance(wetFilename, str):

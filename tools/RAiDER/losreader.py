@@ -158,7 +158,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
             lengths = (zref - heights) / enu[..., 2]
 
         # Otherwise, throw an error
-        except BaseException:
+        except:  # TODO: Which exception(s)?
             raise ValueError(
                 'getLookVectors: I cannot parse the file {}'.format(look_vecs)
             )
@@ -213,10 +213,10 @@ def get_sv(los_file, ref_time, pad=3 * 3600):
     except ValueError:
         try:
             svs = read_ESA_Orbit_file(los_file, ref_time)
-        except BaseException:
+        except:  # TODO: Which exception(s)?
             try:
                 svs = read_shelve(los_file)
-            except BaseException:
+            except:  # TODO: Which exception(s)?
                 raise ValueError(
                     'get_sv: I cannot parse the statevector file {}'.format(los_file)
                 )

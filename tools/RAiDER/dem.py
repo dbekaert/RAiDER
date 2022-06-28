@@ -35,7 +35,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     if height_type == 'dem':
         try:
             hts = gdal_open(height_data)
-        except BaseException:
+        except:  # TODO: Which exception(s)?
             logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
                 height_data, exc_info=True
@@ -64,7 +64,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
             data = pd.read_csv(f)
             lats = data['Lat'].values
             lons = data['Lon'].values
-            hts = download_dem(lats, lons, outName=f, save_flag='merge')
+            hts = download_dem(lats, lons, out_name=f, save_flag='merge')
             data['Hgt_m'] = hts
             data.to_csv(f)
     elif height_type == 'pandas':
@@ -78,7 +78,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
             height_type = 'download'
 
     if height_type == 'download':
-        hts = download_dem(lats, lons, outName=os.path.abspath(height_data))
+        hts = download_dem(lats, lons, out_name=os.path.abspath(height_data))
 
     lats, lons, hts = [forceNDArray(v) for v in (lats, lons, hts)]
 
@@ -95,9 +95,9 @@ def forceNDArray(arg):
 def download_dem(
     lats,
     lons,
+    *,
     save_flag='new',
-    checkDEM=True,
-    outName=os.path.join(os.getcwd(), 'warpedDEM'),
+    out_name=os.path.join(os.getcwd(), 'warpedDEM'),
     buf=0.02
 ):
     '''  Download a DEM if one is not already present. '''
@@ -106,18 +106,18 @@ def download_dem(
     inExtent = getBufferedExtent(lats, lons, buf=buf)
 
     # Check if the DEM exists, use it if I can, otherwise download a new one
-    if os.path.exists(outName):
+    if os.path.exists(out_name):
         do_download = False
         logger.warning(
             'A DEM already exists in {}, checking extents'
-            .format(os.path.dirname(outName))
+            .format(os.path.dirname(out_name))
         )
 
         try:
             if isOutside(
                 inExtent,
                 getBufferedExtent(
-                    gdal_extents(outName),
+                    gdal_extents(out_name),
                     buf=buf
                 )
             ):
@@ -128,8 +128,8 @@ def download_dem(
                 )
             else:
                 # Use the existing DEM!
-                _, _, _, geoProj, trans, noDataVal, _ = readRaster(outName)
-                out = gdal_open(outName)
+                _, _, _, geoProj, trans, noDataVal, _ = readRaster(out_name)
+                out = gdal_open(out_name)
                 logger.info('I am using an existing DEM')
 
         except AttributeError:
@@ -141,7 +141,7 @@ def download_dem(
 
         except OSError:
             try:
-                hgts = RAiDER.utilFcns.read_hgt_file(outName)
+                hgts = RAiDER.utilFcns.read_hgt_file(out_name)
                 return hgts
             except KeyError:
                 logger.warning('The station file does not contain height information, I will download it')
@@ -151,7 +151,7 @@ def download_dem(
 
     # Otherwise download a new DEM
     if do_download:
-        folder = os.sep.join(os.path.split(outName)[:-1])
+        folder = os.sep.join(os.path.split(out_name)[:-1])
         full_res_dem = os.path.join(folder, 'GLO30.dem')
         logger.info('I am downloading a new DEM')
         getDEM(inExtent, full_res_dem)
@@ -179,22 +179,22 @@ def download_dem(
         # Need to ensure that noData values are consistently handled and
         # can be passed on to GDAL
         if outInterp.ndim == 2:
-            RAiDER.utilFcns.writeArrayToRaster(outInterp, outName, noDataValue=noDataVal)
+            RAiDER.utilFcns.writeArrayToRaster(outInterp, out_name, noDataValue=noDataVal)
         elif outInterp.ndim == 1:
             RAiDER.utilFcns.writeArrayToFile(
                 lons,
                 lats,
                 outInterp,
-                outName,
+                out_name,
                 noDataValue=noDataVal
             )
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':
         import pandas as pd
-        df = pd.read_csv(outName)
+        df = pd.read_csv(out_name)
         df['Hgt_m'] = outInterp
-        df.to_csv(outName, index=False)
+        df.to_csv(out_name, index=False)
     else:
         pass
 
@@ -301,54 +301,54 @@ def getDEM(extent: list,
     )
 
 
-def getArea(extent):
-    '''
-    Get the area in square km encompassed by a lat/lon bounding box
-    '''
-    lat_min, lat_max, lon_min, lon_max = extent
+# def getArea(extent):
+#     '''
+#     Get the area in square km encompassed by a lat/lon bounding box
+#     '''
+#     lat_min, lat_max, lon_min, lon_max = extent
 
-    # use equal area projection centered on/bracketing AOI
-    pa = Proj(
-        "+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(
-            lat_min,
-            lat_max,
-            (lat_max + lat_min) / 2,
-            (lon_max + lon_min) / 2
-        )
-    )
+#     # use equal area projection centered on/bracketing AOI
+#     pa = Proj(
+#         "+proj=aea +lat_1={} +lat_2={} +lat_0={} +lon_0={}".format(
+#             lat_min,
+#             lat_max,
+#             (lat_max + lat_min) / 2,
+#             (lon_max + lon_min) / 2
+#         )
+#     )
 
-    # Use shapely to get coordinates along box
-    bbox = Polygon(
-        np.column_stack(
-            (
-                np.array(
-                    [
-                        lon_min,
-                        lon_max,
-                        lon_max,
-                        lon_min,
-                        lon_min
-                    ]
-                ),
-                np.array(
-                    [
-                        lat_min,
-                        lat_min,
-                        lat_max,
-                        lat_max,
-                        lat_min
-                    ]
-                )
-            )
-        )
-    )
+#     # Use shapely to get coordinates along box
+#     bbox = Polygon(
+#         np.column_stack(
+#             (
+#                 np.array(
+#                     [
+#                         lon_min,
+#                         lon_max,
+#                         lon_max,
+#                         lon_min,
+#                         lon_min
+#                     ]
+#                 ),
+#                 np.array(
+#                     [
+#                         lat_min,
+#                         lat_min,
+#                         lat_max,
+#                         lat_max,
+#                         lat_min
+#                     ]
+#                 )
+#             )
+#         )
+#     )
 
-    lon, lat = bbox.exterior.coords.xy
-    x, y = pa(lon, lat)
-    cop = {"type": "Polygon", "coordinates": [zip(x, y)]}
-    shape_area = shape(cop).area / 1e6  # area in km^2
+#     lon, lat = bbox.exterior.coords.xy
+#     x, y = pa(lon, lat)
+#     cop = {"type": "Polygon", "coordinates": [zip(x, y)]}
+#     shape_area = shape(cop).area / 1e6  # area in km^2
 
-    return shape_area
+#     return shape_area
 
 
 def readRaster(filename, band_num=None):

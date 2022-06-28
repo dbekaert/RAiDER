@@ -144,7 +144,7 @@ class WeatherModel(ABC):
         else:
             raise ValueError('"time" must be a string or a datetime object')
 
-    def checkLL(self, lats, lons, Nextra=2):
+    def checkLL(self, lats, lons, n_extra=2):
         '''
         Need to correct lat/lon bounds because not all of the weather models have valid
         data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
@@ -163,11 +163,11 @@ class WeatherModel(ABC):
         ex_buffer_lat_max = 0.0
         ex_buffer_lon_min = 0.0
 
-        # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
-        lats[lats < (-90.0 + Nextra * self._lat_res + ex_buffer_lat_min)] = (-90.0 + Nextra * self._lat_res + ex_buffer_lat_min)
-        lats[lats > (90.0 - Nextra * self._lat_res - ex_buffer_lat_max)] = (90.0 - Nextra * self._lat_res - ex_buffer_lat_max)
-        lons[lons < (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)] = (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)
-        lons[lons > (180.0 - Nextra * self._lon_res - ex_buffer_lon_max)] = (180.0 - Nextra * self._lon_res - ex_buffer_lon_max)
+        # At boundary lats and lons, need to modify n_extra buffer so that the lats and lons do not exceed the boundary
+        lats[lats < (-90.0 + n_extra * self._lat_res + ex_buffer_lat_min)] = (-90.0 + n_extra * self._lat_res + ex_buffer_lat_min)
+        lats[lats > (90.0 - n_extra * self._lat_res - ex_buffer_lat_max)] = (90.0 - n_extra * self._lat_res - ex_buffer_lat_max)
+        lons[lons < (-180.0 + n_extra * self._lon_res + ex_buffer_lon_min)] = (-180.0 + n_extra * self._lon_res + ex_buffer_lon_min)
+        lons[lons > (180.0 - n_extra * self._lon_res - ex_buffer_lon_max)] = (180.0 - n_extra * self._lon_res - ex_buffer_lon_max)
 
         return lats, lons
 
@@ -194,7 +194,7 @@ class WeatherModel(ABC):
             self._ll_bounds = self._get_ll_bounds(
                 lats=outLats,
                 lons=outLons,
-                Nextra=2
+                n_extra=2
             )
 
             # Load the weather just for the query points
@@ -578,7 +578,7 @@ class WeatherModel(ABC):
 
         return geopotential, pressurelvs, geoheight
 
-    def _get_ll_bounds(self, lats=None, lons=None, Nextra=2):
+    def _get_ll_bounds(self, lats=None, lons=None, n_extra=2):
         '''
         returns the extents of lat/lon plus a buffer
         '''
@@ -592,10 +592,10 @@ class WeatherModel(ABC):
                 lons = self._lons
 
         if not using_bbox:
-            lat_min = np.nanmin(lats) - Nextra * self._lat_res
-            lat_max = np.nanmax(lats) + Nextra * self._lat_res
-            lon_min = np.nanmin(lons) - Nextra * self._lon_res
-            lon_max = np.nanmax(lons) + Nextra * self._lon_res
+            lat_min = np.nanmin(lats) - n_extra * self._lat_res
+            lat_max = np.nanmax(lats) + n_extra * self._lat_res
+            lon_min = np.nanmin(lons) - n_extra * self._lon_res
+            lon_max = np.nanmax(lons) + n_extra * self._lon_res
 
         return lat_min, lat_max, lon_min, lon_max
 
@@ -638,7 +638,7 @@ class WeatherModel(ABC):
         if _zlevels is None:
             try:
                 _zlevels = self._zlevels
-            except BaseException:
+            except:  # TODO: Which exception(s)?
                 _zlevels = np.nanmean(self._zs, axis=(0, 1))
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
@@ -726,7 +726,7 @@ class WeatherModel(ABC):
 
         nc_outfile = netCDF4.Dataset(f, 'w', clobber=True, format='NETCDF4')
         nc_outfile.setncattr('Conventions', 'CF-1.6')
-        nc_outfile.setncattr('datetime', datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
+        nc_outfile.setncattr('datetime', self._time.strftime("%Y_%m_%dT%H_%M_%S"))
         nc_outfile.setncattr('date_created', datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
         title = 'Weather model data and delay calculations'
         nc_outfile.setncattr('title', title)

@@ -48,7 +48,7 @@ def convertAllFiles(dirLoc):
     convert all RSC files to VRT files contained in dirLoc
     '''
     import glob
-    files = glob.glob('*.rsc')
+    files = glob.glob(dirLoc + '*.rsc')
     for f in files:
         makeVRT(f)
 

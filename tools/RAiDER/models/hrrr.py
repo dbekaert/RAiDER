@@ -37,9 +37,9 @@ class HRRR(WeatherModel):
         # self._x_res = 3.
         # self._y_res = 3.
 
-        self._Nproc = 1
+        # self._Nproc = 1
         self._Name = 'HRRR'
-        self._Npl = 0
+        # self._Npl = 0
         self.files = None
         self._bounds = None
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
@@ -59,12 +59,12 @@ class HRRR(WeatherModel):
         p1 = CRS('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={a} +b={a} +units=m +no_defs'.format(lat1=lat1, lat2=lat2, lat0=lat0, lon0=lon0, x0=x0, y0=y0, a=earth_radius))
         self._proj = p1
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, lats, lons, time, out, n_extra=2):
         '''
         Fetch weather model data from HRRR
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, n_extra)
         self._bounds = (lat_min, lat_max, lon_min, lon_max)
         self.files = self._download_hrrr_file(time, 'hrrr', out=out,
                                               field='prs', verbose=True)
@@ -81,7 +81,7 @@ class HRRR(WeatherModel):
         xArr, yArr, lats, lons, temps, qs, geo_hgt, pl = \
             self._makeDataCubes(filename, verbose=False)
 
-        Ny, Nx = lats.shape
+        # Ny, Nx = lats.shape
 
         lons[lons > 180] -= 360
 
@@ -113,7 +113,7 @@ class HRRR(WeatherModel):
         # For some reason z is opposite the others
         self._p = np.flip(self._p, axis=2)
 
-    def _makeDataCubes(self, outName, verbose=False):
+    def _makeDataCubes(self, out_name, verbose=False):
         '''
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
@@ -121,7 +121,7 @@ class HRRR(WeatherModel):
         pl = self._getPresLevels()
         pl = np.array([self._convertmb2Pa(p) for p in pl['Values']])
 
-        t, z, q, xArr, yArr, lats, lons = self._pull_hrrr_data(outName, verbose=verbose)
+        t, z, q, xArr, yArr, lats, lons = self._pull_hrrr_data(out_name, verbose=verbose)
 
         return xArr, yArr, lats.T, lons.T, np.moveaxis(t, [0, 1, 2], [2, 1, 0]), np.moveaxis(q, [0, 1, 2], [2, 1, 0]), np.moveaxis(z, [0, 1, 2], [2, 1, 0]), pl
 

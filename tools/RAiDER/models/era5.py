@@ -30,12 +30,12 @@ class ERA5(ECMWF):
     def __pressure_levels__(self):
         pass
 
-    def _fetch(self, lats, lons, times, out, Nextra=2):
+    def _fetch(self, lats, lons, times, out, n_extra=2):
         '''
         Fetch a weather model from ECMWF
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, n_extra)
 
         # execute the search at ECMWF
         try:

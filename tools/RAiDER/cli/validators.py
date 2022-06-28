@@ -127,7 +127,7 @@ class DateListAction(Action):
             metavar=metavar
         )
 
-    def __call__(self, _, namespace, values: List[date], option_string=None):
+    def __call__(self, _, namespace, values: List[date], __=None):
         if len(values) > 3 or not values:
             raise ArgumentError(self, "Only 1, 2 dates, or 2 dates and interval may be supplied")
 
@@ -186,7 +186,7 @@ class BBoxAction(Action):
             metavar=metavar
         )
 
-    def __call__(self, _, namespace, values, option_string=None):
+    def __call__(self, _, namespace, values, __=None):
         S, N, W, E = values
 
         if N <= S or E <= W:

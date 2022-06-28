@@ -23,6 +23,8 @@ class HRES(ECMWF):
         # initialize a weather model
         WeatherModel.__init__(self)
 
+        self.setLevelType(level_type)
+
         # model constants
         self._k1 = 0.776   # [K/Pa]
         self._k2 = 0.233   # [K/Pa]
@@ -78,12 +80,12 @@ class HRES(ECMWF):
         elif self._model_level_type == 'pl':
             self._load_pressure_levels(filename)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, lats, lons, time, out, n_extra=2):
         '''
         Fetch a weather model from ECMWF
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, n_extra)
 
         if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
             self.update_a_b()

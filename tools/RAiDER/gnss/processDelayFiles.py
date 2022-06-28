@@ -12,7 +12,7 @@ import pandas as pd
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
-def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=None, col_name='ZTD'):
+def combineDelayFiles(out_name, loc=os.getcwd(), source='model', ext='.csv', ref=None, col_name='ZTD'):
     files = glob.glob(os.path.join(loc, '*' + ext))
 
     if source == 'model':
@@ -23,14 +23,14 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
     if len(files) == 1:
         if source == 'model':
             import shutil
-            shutil.copy(files[0], outName)
+            shutil.copy(files[0], out_name)
         else:
             files = readZTDFile(files[0], col_name=col_name)
             # drop all lines with nans
             files.dropna(how='any', inplace=True)
             # drop all duplicate lines
             files.drop_duplicates(inplace=True)
-            files.to_csv(outName, index=False)
+            files.to_csv(out_name, index=False)
         return
 
     print('Combining {} delay files'.format(source))
@@ -38,14 +38,14 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
         concatDelayFiles(
             files,
             sort_list=['ID', 'Datetime'],
-            outName=outName,
+            out_name=out_name,
             source=source
         )
-    except BaseException:
+    except:  # TODO: Which exception(s)?
         concatDelayFiles(
             files,
             sort_list=['ID', 'Date'],
-            outName=outName,
+            out_name=out_name,
             source=source,
             ref=ref,
             col_name=col_name
@@ -137,7 +137,7 @@ def concatDelayFiles(
     fileList,
     sort_list=['ID', 'Datetime'],
     return_df=False,
-    outName=None,
+    out_name=None,
     source='model',
     ref=None,
     col_name='ZTD'
@@ -174,14 +174,14 @@ def concatDelayFiles(
     )
     )
 
-    if return_df or outName is None:
+    if return_df or out_name is None:
         return df_c
     else:
         # drop all lines with nans
         df_c.dropna(how='any', inplace=True)
         # drop all duplicate lines
         df_c.drop_duplicates(inplace=True)
-        df_c.to_csv(outName, index=False)
+        df_c.to_csv(out_name, index=False)
 
 
 def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
@@ -246,7 +246,7 @@ def mergeDelayFiles(
     ztdFile,
     col_name='ZTD',
     raider_delay='totalDelay',
-    outName=None,
+    out_name=None,
     localTime=None
 ):
     '''
@@ -307,22 +307,21 @@ def mergeDelayFiles(
     # estimate residual
     dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
 
-    print('Total number of rows in the concatenated file: '
-          '{}'.format(dfc.shape[0]))
+    print('Total number of rows in the concatenated file: {}'.format(dfc.shape[0]))
     print('Total number of rows containing NaNs: {}'.format(
         dfc[dfc.isna().any(axis=1)].shape[0]
     )
     )
     print('Merge finished')
 
-    if outName is None:
+    if out_name is None:
         return dfc
     else:
         # drop all lines with nans
         dfc.dropna(how='any', inplace=True)
         # drop all duplicate lines
         dfc.drop_duplicates(inplace=True)
-        dfc.to_csv(outName, index=False)
+        dfc.to_csv(out_name, index=False)
 
 
 def readZTDFile(filename, col_name='ZTD'):
@@ -460,6 +459,6 @@ def parseCMD():
             args.gnss_file,
             col_name=args.column_name,
             raider_delay=args.raider_column_name,
-            outName=args.out_name,
+            out_name=args.out_name,
             localTime=args.local_time
         )

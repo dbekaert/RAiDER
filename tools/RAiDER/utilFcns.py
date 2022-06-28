@@ -425,7 +425,7 @@ def getTimeFromFile(filename):
         raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
 
 
-def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize=None, noDataValue=0., epsg=4326):
+def writePnts2HDF5(lats, lons, hgts, los, lengths, out_name='testx.h5', chunkSize=None, noDataValue=0., epsg=4326):
     '''
     Write query points to an HDF5 file for storage and access
     '''
@@ -438,13 +438,13 @@ def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize
     in_shape = lats.shape
 
     # create directory if needed
-    os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
+    os.makedirs(os.path.abspath(os.path.dirname(out_name)), exist_ok=True)
 
     # Set up the chunking
     if chunkSize is None:
         chunkSize = getChunkSize(in_shape)
 
-    with h5py.File(outName, 'w') as f:
+    with h5py.File(out_name, 'w') as f:
         f.attrs['Conventions'] = np.string_("CF-1.8")
 
         x = f.create_dataset('lon', data=lons, chunks=chunkSize, fillvalue=noDataValue)
@@ -622,7 +622,7 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataValue=None, chunk=(1, 91, 144), mapping_name='WGS84'):
+def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, out_name=None, NoDataValue=None, chunk=(1, 91, 144), mapping_name='WGS84'):
     '''
     By calling the abstract/modular netcdf writer (RAiDER.utilFcns.write2NETCDF4core), write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to a NETCDF4 file
     that can be accessed by external programs.
@@ -633,8 +633,8 @@ def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataVal
 
     import netCDF4
 
-    if outName is None:
-        outName = os.path.join(
+    if out_name is None:
+        out_name = os.path.join(
             os.getcwd() + '/weather_files',
             self._Name + datetime.strftime(
                 self._time, '_%Y_%m_%d_T%H_%M_%S'
@@ -644,14 +644,14 @@ def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataVal
     if NoDataValue is None:
         NoDataValue = -9999.
 
-    self._time = getTimeFromFile(outName)
+    self._time = getTimeFromFile(out_name)
 
     dimidZ, dimidY, dimidX = t.shape
     chunk_lines_Y = np.min([chunk[1], dimidY])
     chunk_lines_X = np.min([chunk[2], dimidX])
     ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
 
-    nc_outfile = netCDF4.Dataset(outName, 'w', clobber=True, format='NETCDF4')
+    nc_outfile = netCDF4.Dataset(out_name, 'w', clobber=True, format='NETCDF4')
     nc_outfile.setncattr('Conventions', 'CF-1.6')
     nc_outfile.setncattr('datetime', datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
     nc_outfile.setncattr('date_created', datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
