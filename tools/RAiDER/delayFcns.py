@@ -94,7 +94,7 @@ def get_delays(
     if n_chunks == 1:
         delays = process_chunk(*chunk_inputs[0])
     else:
-        with mp.Pool() as pool:
+        with mp.Pool(cpu_num) as pool:
             individual_results = pool.starmap(process_chunk, chunk_inputs)
         try:
             delays = np.concatenate(individual_results)
