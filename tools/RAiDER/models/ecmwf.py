@@ -24,7 +24,7 @@ class ECMWF(WeatherModel):
 
     def __init__(self):
         # initialize a weather model
-        WeatherModel.__init__(self)
+        super().__init__()
 
         # model constants
         self._k1 = 0.776   # [K/Pa]

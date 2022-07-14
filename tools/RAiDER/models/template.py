@@ -7,7 +7,7 @@ from RAiDER.models.model_levels import LEVELS_137_HEIGHTS
 
 class customModelReader(WeatherModel):
     def __init__(self):
-        WeatherModel.__init__(self)
+        super().__init__()
         self._humidityType = 'q'  # can be "q" (specific humidity) or "rh" (relative humidity)
         self._model_level_type = 'pl'  # Default, pressure levels are "pl", and model levels are "ml"
         self._classname = 'abcd'  # name of the custom weather model

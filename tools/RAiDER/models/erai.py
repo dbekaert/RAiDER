@@ -8,7 +8,7 @@ class ERAI(ECMWF):
     # A and B parameters to calculate pressures for model levels,
     #  extracted from an ECMWF ERA-Interim GRIB file and then hardcoded here
     def __init__(self):
-        ECMWF.__init__(self)
+        super().__init__()
         self._classname = 'ei'
         self._expver = '0001'
         self._dataset = 'interim'

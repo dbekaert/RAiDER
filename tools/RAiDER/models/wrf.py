@@ -22,7 +22,7 @@ class WRF(WeatherModel):
     # TODO: finish implementing
 
     def __init__(self):
-        WeatherModel.__init__(self)
+        super().__init__()
 
         self._k1 = 0.776  # K/Pa
         self._k2 = 0.233  # K/Pa
@@ -168,7 +168,7 @@ class UnitTypeError(Exception):
 
     def __init___(self, varName, unittype):
         msg = "Unknown units for {}: '{}'".format(varName, unittype)
-        Exception.__init__(self, msg)
+        super().__init__(msg)
 
 
 def checkUnits(unitCheck, varName):

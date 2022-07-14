@@ -14,7 +14,7 @@ from RAiDER.models.model_levels import (
 class HRRR(WeatherModel):
     def __init__(self):
         # initialize a weather model
-        WeatherModel.__init__(self)
+        super().__init__()
 
         self._humidityType = 'q'
         self._model_level_type = 'pl'  # Default, pressure levels are 'pl'

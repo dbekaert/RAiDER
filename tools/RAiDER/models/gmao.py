@@ -20,7 +20,7 @@ class GMAO(WeatherModel):
     # https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv
     def __init__(self):
         # initialize a weather model
-        WeatherModel.__init__(self)
+        super().__init__()
 
         self._humidityType = 'q'
         self._model_level_type = 'ml'  # Default, pressure levels are 'pl'

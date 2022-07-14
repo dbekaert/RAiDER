@@ -10,7 +10,7 @@ class ERA5(ECMWF):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
     def __init__(self):
-        ECMWF.__init__(self)
+        super().__init__()
 
         self._humidityType = 'q'
         self._expver = '0001'

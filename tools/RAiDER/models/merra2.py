@@ -26,7 +26,7 @@ class MERRA2(WeatherModel):
         import calendar
 
         # initialize a weather model
-        WeatherModel.__init__(self)
+        super().__init__()
 
         self._humidityType = 'q'
         self._model_level_type = 'ml'  # Default, pressure levels are 'pl'

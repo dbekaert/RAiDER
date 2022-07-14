@@ -21,7 +21,7 @@ class HRES(ECMWF):
 
     def __init__(self, level_type='ml'):
         # initialize a weather model
-        WeatherModel.__init__(self)
+        super().__init__()
 
         self.setLevelType(level_type)
 
