@@ -8,14 +8,16 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from typing import List, Optional
 import datetime as dt
-from RAiDER.types import Lats, Lons, WeatherDict
 from pathlib import Path
+from RAiDER.types import Lats, Lons, WeatherDict
 
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+import xarray as xr
 from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
-import matplotlib.pyplot as plt
+from RAiDER.models.weatherModel import make_raw_weather_data_filename
 
 
 def prepareWeatherModel(
@@ -28,7 +30,7 @@ def prepareWeatherModel(
     download_only: bool=False,
     makePlots: bool=False,
     force_download: bool=False,
-) -> Optional[Path]:
+) -> Optional[List[Path]]:
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
@@ -60,7 +62,7 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        weather_model.fetch(*weather_model.files, lats, lons, times)
+        weather_model.fetch(weather_model.files[0], lats, lons, times)
     else:
         time = getTimeFromFile(weather_model.files[0])
         weather_model.setTime(time)
@@ -76,6 +78,24 @@ def prepareWeatherModel(
                 'points; you need to download a larger area.'
             )
 
+    # Split the data from the range into one file per day and update the
+    # weather model with the new files
+    date_range_filename = weather_model.files[0]
+    weather_model.files = []
+    for i, time in enumerate(times):
+        with xr.open_dataset(date_range_filename) as block:
+            block["z"] = block.z[i]
+            block["q"] = block.q[i]
+            block["t"] = block.t[i]
+            single_date_filename = make_raw_weather_data_filename(
+                wmLoc,
+                weather_model._Name,
+                [time],
+            )
+            block.to_netcdf(single_date_filename)
+            weather_model.files.append(single_date_filename)
+    os.remove(date_range_filename)
+
     # If only downloading, exit now
     if download_only:
         logger.warning(
@@ -84,57 +104,60 @@ def prepareWeatherModel(
         return None
 
     # Otherwise, load the weather model data
-    f = weather_model.load(
-        wmLoc,
-        outLats=lats,
-        outLons=lons,
-        zref=zref,
-    )
-    if f is not None:
-        logger.warning(
-            'The processed weather model file already exists,'
-            ' so I will use that.'
+    out_files: List[Path] = []
+    for filename in weather_model.files:
+        f = weather_model.load(
+            filename,
+            wmLoc,
+            outLats=lats,
+            outLons=lons,
+            zref=zref,
         )
-        return f
+        if f is not None:
+            logger.warning(
+                'The processed weather model file already exists,'
+                ' so I will use that.'
+            )
+            return f
 
-    # Logging some basic info
-    logger.debug(
-        'Number of weather model nodes: {}'.format(
-            np.prod(weather_model.getWetRefractivity().shape)
+        # Logging some basic info
+        logger.debug(
+            'Number of weather model nodes: {}'.format(
+                np.prod(weather_model.getWetRefractivity().shape)
+            )
         )
-    )
-    shape = weather_model.getWetRefractivity().shape
-    logger.debug(f'Shape of weather model: {shape}')
-    logger.debug(
-        'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
-        np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
-        np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)
-    )
-    logger.debug('Weather model: %s', weather_model.Model())
-    logger.debug(
-        'Mean value of the wet refractivity: %f',
-        np.nanmean(weather_model.getWetRefractivity())
-    )
-    logger.debug(
-        'Mean value of the hydrostatic refractivity: %f',
-        np.nanmean(weather_model.getHydroRefractivity())
-    )
-    logger.debug(weather_model)
+        shape = weather_model.getWetRefractivity().shape
+        logger.debug(f'Shape of weather model: {shape}')
+        logger.debug(
+            'Bounds of the weather model: %.2f/%.2f/%.2f/%.2f (SNWE)',
+            np.nanmin(weather_model._ys), np.nanmax(weather_model._ys),
+            np.nanmin(weather_model._xs), np.nanmax(weather_model._xs)
+        )
+        logger.debug('Weather model: %s', weather_model.Model())
+        logger.debug(
+            'Mean value of the wet refractivity: %f',
+            np.nanmean(weather_model.getWetRefractivity())
+        )
+        logger.debug(
+            'Mean value of the hydrostatic refractivity: %f',
+            np.nanmean(weather_model.getHydroRefractivity())
+        )
+        logger.debug(weather_model)
 
-    if makePlots:
-        weather_model.plot('wh', True)
-        weather_model.plot('pqt', True)
-        plt.close('all')
+        if makePlots:
+            weather_model.plot('wh', True)
+            weather_model.plot('pqt', True)
+            plt.close('all')
 
-    try:
-        f = weather_model.write()
-        return f
-    except Exception as e:
-        logger.exception("Unable to save weathermodel to file")
-        logger.exception(e)
-        raise RuntimeError("Unable to save weathermodel to file")
-    finally:
-        del weather_model
+        try:
+            f = weather_model.write()
+            out_files.append(f)
+        except Exception as e:
+            logger.exception("Unable to save weathermodel to file")
+            logger.exception(e)
+            raise RuntimeError("Unable to save weathermodel to file")
+    del weather_model
+    return out_files
 
 
 # def checkBounds(weather_model, outLats, outLons):

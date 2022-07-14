@@ -1,5 +1,6 @@
 from typing import List, Literal
 from abc import abstractmethod
+from pathlib import Path
 
 import datetime
 import numpy as np
@@ -200,23 +201,14 @@ class ECMWF(WeatherModel):
         lon_max,
         lon_step,
         acqTimes: List[datetime.datetime],
-        out_name: str
+        out_name: Path,
     ) -> None:
         import cdsapi
         c = cdsapi.Client(verify=0)
 
-        if self._model_level_type == 'pl':
-            var = ['z', 'q', 't']
-            levType = 'pressure_level'
-        else:
-            var = "129/130/133/152"  # 'lnsp', 'q', 'z', 't'
-            levType = 'model_level'
-
         params = {
             "product_type": "reanalysis",
-            str(levType): "all",
             "levtype": self._model_level_type,  # 'ml' for model levels or 'pl' for pressure levels
-            "param": var,
             "stream": "oper",
             "type": "an",
             "time": acqTimes[0].strftime("%H:%M"),
@@ -224,7 +216,15 @@ class ECMWF(WeatherModel):
             # be any of "3/6/9/12".
             "step": "0",
             "area": [lat_max, lon_min, lat_min, lon_max],
-            "format": "netcdf"}
+            "format": "netcdf"
+        }
+
+        if self._model_level_type == 'pl':
+            params["param"] = ['z', 'q', 't']
+            params["pressure_level"] = "all"
+        else:
+            params["param"] = "129/130/133/152"  # 'lnsp', 'q', 'z', 't'
+            params["model_level"] = "all"
 
         if len(acqTimes) == 1:
             params["date"] = acqTimes[0].strftime("%Y-%m-%d")

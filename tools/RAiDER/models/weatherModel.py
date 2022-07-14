@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 import datetime
 import os
 from abc import ABC, abstractmethod
@@ -117,7 +117,7 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, out, lats, lons, times):
+    def fetch(self, out: Path, lats, lons, times):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
@@ -173,6 +173,7 @@ class WeatherModel(ABC):
 
     def load(
         self,
+        filename: Path,
         outLoc,
         *args,
         outLats=None,
@@ -198,7 +199,7 @@ class WeatherModel(ABC):
             )
 
             # Load the weather just for the query points
-            self.load_weather(*args, **kwargs)
+            self.load_weather(filename, *args, **kwargs)
 
             # Process the weather model data
             self._find_e()
@@ -685,7 +686,7 @@ class WeatherModel(ABC):
         )
         return os.path.join(outLoc, f)
 
-    def filename(self, times=None, outLoc='weather_files'):
+    def filename(self, times: List[datetime.datetime]=None, outLoc='weather_files'):
         '''
         Create a filename to store the weather model
         '''
@@ -694,8 +695,6 @@ class WeatherModel(ABC):
         if times is None:
             if self._time[0] is None:
                 raise ValueError('Time must be specified before the file can be written')
-            else:
-                time = self._time[0]
 
         f = make_raw_weather_data_filename(
             outLoc,

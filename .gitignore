@@ -24,3 +24,4 @@ test/*/geom/*.nc
 dist/
 tools/RAiDER.egg-info/
 tools/bindings/utils/makePoints.c
+debug-outputs/

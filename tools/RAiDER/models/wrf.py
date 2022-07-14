@@ -1,3 +1,4 @@
+from pathlib import Path
 import numpy as np
 import scipy.io.netcdf as netcdf
 from pyproj import CRS, Transformer
@@ -74,7 +75,7 @@ class WRF(WeatherModel):
         # TODO: Not sure if WRF provides this
         self._levels = list(range(self._zs.shape[2]))
 
-    def _get_wm_nodes(self, nodeFile):
+    def _get_wm_nodes(self, nodeFile: Path):
         with netcdf.netcdf_file(nodeFile, 'r', maskandscale=True) as outf:
             lats = outf.variables['XLAT'][0].copy()  # Takes only the first date!
             lons = outf.variables['XLONG'][0].copy()
