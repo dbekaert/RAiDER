@@ -1,11 +1,10 @@
 import datetime
-import logging
 
 import numpy as np
 import requests
 from pyproj import CRS
 
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -59,7 +58,6 @@ class HRRR(WeatherModel):
         earth_radius = 6371229
         p1 = CRS('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={a} +b={a} +units=m +no_defs'.format(lat1=lat1, lat2=lat2, lat0=lat0, lon0=lon0, x0=x0, y0=y0, a=earth_radius))
         self._proj = p1
-
 
     def _fetch(self, lats, lons, time, out, Nextra=2):
         '''

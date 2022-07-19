@@ -8,11 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from logging import warn
 import os
-import re
-import requests
-import time
 
-import multiprocessing as mp
 import numpy as np
 import pandas as pd
 
@@ -24,7 +20,7 @@ from dem_stitcher.stitcher import stitch_dem
 import RAiDER.utilFcns
 
 from RAiDER.interpolator import interpolateDEM
-from RAiDER.logger import *
+from RAiDER.logger import logger
 from RAiDER.utilFcns import gdal_open, gdal_extents
 
 
@@ -39,7 +35,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     if height_type == 'dem':
         try:
             hts = gdal_open(height_data)
-        except:
+        except BaseException:
             logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
                 height_data, exc_info=True
@@ -156,16 +152,18 @@ def download_dem(
     # Otherwise download a new DEM
     if do_download:
         folder = os.sep.join(os.path.split(outName)[:-1])
-        fname = os.path.split(outName)[-1]
+        bounds = [np.floor(inExtent[0]), np.floor(inExtent[1]),
+                  np.ceil(inExtent[2]), np.ceil(inExtent[3])]
 
-        bounds = [extent[2],
-                  extent[0],
-                  extent[3],
-                  extent[1]]
+        dem_res = 0.0002777777777777777775
         out, p = stitch_dem(bounds,
-                      dem_name='glo_30',
-                      dst_ellipsoidal_height=True,
-                      dst_area_or_point='Area')
+                            dem_name='glo_30',
+                            dst_ellipsoidal_height=True,
+                            dst_area_or_point='Point',
+                            n_threads_downloading=5,
+                            # ensures square resolution
+                            dst_resolution=dem_res
+                            )
         if writeDEM:
             with rasterio.open('GLO30_fullres_dem.tif', 'w', **p) as ds:
                 ds.write(X, 1)
@@ -173,11 +171,11 @@ def download_dem(
     # Interpolate to the query points
     logger.debug('Beginning interpolation')
     outInterp = interpolateDEM(
-            out, #[::-1]
-            np.stack((lats, lons), axis=-1), 
-            inExtent, 
-            method='linear',
-        )
+        out,
+        np.stack((lats, lons), axis=-1),
+        inExtent,
+        method='linear',
+    )
     logger.debug('Interpolation finished')
 
     # Write the DEM to requested location
@@ -193,12 +191,12 @@ def download_dem(
                 ds.write(outInterp, 1)
         elif outInterp.ndim == 1:
             RAiDER.utilFcns.writeArrayToFile(
-                    lons, 
-                    lats, 
-                    outInterp, 
-                    outName, 
-                    noDataValue=noDataVal
-                )
+                lons,
+                lats,
+                outInterp,
+                outName,
+                noDataValue=noDataVal
+            )
         else:
             raise RuntimeError('Why is the DEM 3-dimensional?')
     elif save_flag == 'merge':

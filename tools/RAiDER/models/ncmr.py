@@ -14,7 +14,6 @@ from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import logger
 from RAiDER.utilFcns import (
     writeWeatherVars2NETCDF4,
-    roundTime,
     read_NCMR_loginInfo,
     show_progress
 )

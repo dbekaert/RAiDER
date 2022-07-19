@@ -31,14 +31,14 @@ def readRSC(rscFilename):
 
 
 def vrtStr(xSize, ySize, lon1, lat1, lonStep, latStep, filename, dtype='Float32'):
-    string = '''<VRTDataset rasterXSize="{xSize}" rasterYSize="{ySize}">
+    string = f'''<VRTDataset rasterXSize="{xSize}" rasterYSize="{ySize}">
   <SRS>EPSG:4326</SRS>
   <GeoTransform> {lon1}, {lonStep},  0.0000000000000000e+00,  {lat1},  0.0000000000000000e+00, {latStep}</GeoTransform>
   <VRTRasterBand dataType="{dtype}" band="1" subClass="VRTRawRasterBand">
     <SourceFilename relativeToVRT="1">{filename}</SourceFilename>
   </VRTRasterBand>
 </VRTDataset>
-'''.format(xSize=xSize, ySize=ySize, filename=filename, dtype=dtype, lon1=lon1, lat1=lat1)
+'''
 
     return string
 

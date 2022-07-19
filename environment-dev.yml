@@ -11,6 +11,8 @@ channels:
 dependencies:
 # Regular dependencies. Keep these in sync with environment.yml
  - python>=3.8
+ - autopep8
+ - boto3
  - cartopy
  - cdsapi
  - cfgrib
@@ -19,6 +21,7 @@ dependencies:
  - cython
  - dask
  - gdal>=3.0
+ - geopandas
  - h5py
  - libgdal
  - matplotlib
@@ -36,11 +39,11 @@ dependencies:
  - sysroot_linux-64
  - rasterio
  # Dev dependencies. Only needed for contributing
+ - autopep8
  - pytest
  - pytest-cov
  - pytest-timeout
  - pip
  - pip:
-   - dem_stitcher
-   - boto3
-   - geopandas
+   - dem_stitcher==2.1.1
+

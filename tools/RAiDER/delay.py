@@ -10,10 +10,9 @@ import os
 
 import h5py
 import numpy as np
-from netCDF4 import Dataset
 from pyproj import CRS, Transformer
 
-from RAiDER.constants import _STEP, _ZREF
+from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators,
     calculate_rays,
@@ -21,9 +20,8 @@ from RAiDER.delayFcns import (
     getProjFromWMFile,
 )
 from RAiDER.dem import getHeights
-from RAiDER.interpolator import interp_along_axis
-from RAiDER.logger import *
-from RAiDER.losreader import getLookVectors, Zenith, Conventional
+from RAiDER.logger import logger
+from RAiDER.losreader import getLookVectors, Zenith
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
     gdal_open, writeDelays, projectDelays, writePnts2HDF5
@@ -39,7 +37,6 @@ def tropo_delay(args):
     los = args['los']
     lats = args['lats']
     lons = args['lons']
-    ll_bounds = args['ll_bounds']
     heights = args['heights']
     flag = args['flag']
     weather_model = args['weather_model']
@@ -47,7 +44,6 @@ def tropo_delay(args):
     zref = args['zref']
     outformat = args['outformat']
     time = args['times']
-    out = args['out']
     download_only = args['download_only']
     wetFilename = args['wetFilenames']
     hydroFilename = args['hydroFilenames']
@@ -84,7 +80,7 @@ def tropo_delay(args):
     if download_only:
         return None, None
     elif useWeatherNodes:
-        if heights[0]=='lvs':
+        if heights[0] == 'lvs':
             # compute delays at the correct levels
             raise NotImplementedError
         else:
@@ -95,7 +91,6 @@ def tropo_delay(args):
                 '{}'.format(weather_model_file)
             )
         return None, None
-        
 
     ###########################################################
     # If query points are specified, pull the height info
@@ -160,7 +155,7 @@ def tropo_delay(args):
 
         if write_flag:
             logger.debug('Beginning line-of-sight calculation')
-            
+
             # Convert the line-of-sight inputs to look vectors
             los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
 
@@ -173,7 +168,7 @@ def tropo_delay(args):
         calculate_rays(pnts_file, _STEP)
 
         wet, hydro = get_delays(
-            step,
+            step,  # TODO: step is undefined
             pnts_file,
             weather_model_file,
         )
@@ -187,14 +182,14 @@ def tropo_delay(args):
     if heights[0] == 'lvs':
         outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(
-            flag, 
-            wetDelay, 
-            hydroDelay, 
-            lats, 
+            flag,
+            wetDelay,
+            hydroDelay,
+            lats,
             lons,
-            outName, 
-            zlevels=hgts, 
-            outformat=outformat, 
+            outName,
+            zlevels=hgts,
+            outformat=outformat,
             delayType=delayType
         )
         logger.info('Finished writing data to %s', outName)
@@ -229,7 +224,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
 
 def transformPoints(lats, lons, hgts, old_proj, new_proj):
     '''
-    Transform lat/lon/hgt data to an array of points in a new 
+    Transform lat/lon/hgt data to an array of points in a new
     projection
 
     Parameters

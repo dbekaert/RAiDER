@@ -8,22 +8,20 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import datetime
-import os.path
 import shelve
 
 import xml.etree.ElementTree as ET
 import numpy as np
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from scipy.interpolate import interp1d
-#from numba import jit
+# from numba import jit
 
 from RAiDER.utilFcns import (
     cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
 )
 
-from RAiDER import Geo2rdr
-from RAiDER.constants import _ZREF, _RE
+from RAiDER.constants import _ZREF
 
 
 _SLANT_RANGE_THRESH = 5e6
@@ -31,8 +29,10 @@ _SLANT_RANGE_THRESH = 5e6
 
 class LOS(ABC):
     '''LOS Class definition for handling look vectors'''
+
     def __init__(self):
         self._lats, self._lons, self._heights = None
+
     def setPoints(self, lats, lons=None, heights=None):
         '''Set the pixel locations'''
         if (lats is None) and (self._lats is None):
@@ -40,14 +40,14 @@ class LOS(ABC):
 
         # Will overwrite points by default
         if lons is None:
-            llh = lats # assume points are [lats lons heights]
-            self._lats = llh[...,0]
-            self._lons = llh[...,1]
-            self._heights = llh[...,2]
+            llh = lats  # assume points are [lats lons heights]
+            self._lats = llh[..., 0]
+            self._lons = llh[..., 1]
+            self._heights = llh[..., 2]
         elif heights is None:
             self._lats = lats
             self._lons = lons
-            self._heights = np.zeros((len(lats),1))
+            self._heights = np.zeros((len(lats), 1))
         else:
             self._lats = lats
             self._lons = lons
@@ -56,6 +56,7 @@ class LOS(ABC):
 
 class Zenith(LOS):
     """Special value indicating a look vector of "zenith"."""
+
     def __call__(self, lats=None, lons=None, heights=None):
         '''Set point locations and calculate Zenith look vectors'''
         self.setPoint(lats, lons, heights)
@@ -64,9 +65,10 @@ class Zenith(LOS):
 
 class Conventional(LOS):
     """
-    Special value indicating that the zenith delay will 
+    Special value indicating that the zenith delay will
     be projected using the standard cos(inc) scaling.
     """
+
     def __init__(self, los_filename):
         '''read in and parse a line-of-sight file'''
         self._filename = los_filename
@@ -75,7 +77,6 @@ class Conventional(LOS):
         '''Read the LOS file and convert it to look vectors'''
         self.setPoints(lats, lons, heights)
         LOS_enu = inc_hd_to_enu(*gdal_open(self._filename))
-        lengths = (zref - self._heights) / cosd(gdal_open(los_type)[0])
         return enu2ecef(
             LOS_enu[..., 0],
             LOS_enu[..., 1],
@@ -113,11 +114,11 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
 
     Returns
     -------
-    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in 
-                          an Earth-centered, earth-fixed reference frame (ECEF). 
-                          Convention is vectors point from the target pixel to the 
+    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in
+                          an Earth-centered, earth-fixed reference frame (ECEF).
+                          Convention is vectors point from the target pixel to the
                           sensor.
-    lengths: ndarray    - array of <in_shape> of the distnce from the surface to 
+    lengths: ndarray    - array of <in_shape> of the distnce from the surface to
                           the top of the troposphere (denoted by zref)
 
     Example:
@@ -131,8 +132,6 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
         los_type = Zenith
     else:
         los_type, los_file = los_type
-
-    in_shape = lats.shape
 
     if los_type is Zenith:
         look_vecs = Zenith(lats, lons, heights)
@@ -159,7 +158,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
             lengths = (zref - heights) / enu[..., 2]
 
         # Otherwise, throw an error
-        except:
+        except BaseException:
             raise ValueError(
                 'getLookVectors: I cannot parse the file {}'.format(look_vecs)
             )
@@ -214,10 +213,10 @@ def get_sv(los_file, ref_time, pad=3 * 3600):
     except ValueError:
         try:
             svs = read_ESA_Orbit_file(los_file, ref_time)
-        except:
+        except BaseException:
             try:
                 svs = read_shelve(los_file)
-            except:
+            except BaseException:
                 raise ValueError(
                     'get_sv: I cannot parse the statevector file {}'.format(los_file)
                 )
@@ -445,7 +444,6 @@ def read_ESA_Orbit_file(filename, ref_time):
     vy = np.ones(numOSV)
     vz = np.ones(numOSV)
 
-    times = []
     for i, st in enumerate(data_block[0]):
         t[i] = (
             datetime.datetime.strptime(
@@ -467,7 +465,7 @@ def read_ESA_Orbit_file(filename, ref_time):
 # @jit(nopython=True)
 def get_radar_coordinate(xyz, svs, t0=None):
     '''
-    Calculate the coordinate of the sensor in ECEF at the time corresponding to ***. 
+    Calculate the coordinate of the sensor in ECEF at the time corresponding to ***.
 
     Parameters
     ----------
@@ -527,7 +525,7 @@ def interpolate(t, var, tq):
     Returns
     -------
     x, y, z: double    - sensor position in ECEF
-    vx, vy, vz: double - sensor velocity 
+    vx, vy, vz: double - sensor velocity
     '''
     f = interp1d(t, var)
     return f(tq)

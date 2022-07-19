@@ -9,7 +9,6 @@ from test import TEST_DIR, pushd
 
 from RAiDER.delay import tropo_delay
 from RAiDER.losreader import Zenith
-from RAiDER.utilFcns import gdal_open
 from RAiDER.checkArgs import modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
@@ -19,16 +18,13 @@ _RTOL = 1e-2
 @pytest.mark.long
 def test_computeDelay(tmp_path):
     '''
-    Scenario to use: 
+    Scenario to use:
     2: GNSS station list
     '''
     wetName = 'stations_with_Delays.csv'
     wetFile = os.path.join(SCENARIO_DIR, wetName)
     # Not used for station file input, only passed for consistent input arguments
     hydroFile = wetFile
-
-    # load the weather model type and date for the given scenario
-    wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
 
     true_delay = os.path.join(SCENARIO_DIR, 'ERA5_true_GNSS.csv')
 
@@ -71,4 +67,3 @@ def test_computeDelay(tmp_path):
     # get the true delay from the weather model
     assert np.nanmax(np.abs((est_delay['wetDelay'].values - true_delay['wetDelay'].values) / true_delay['wetDelay'].values)) < _RTOL
     assert np.nanmax(np.abs((est_delay['hydroDelay'].values - true_delay['hydroDelay'].values) / true_delay['hydroDelay'].values)) < _RTOL
-
