@@ -44,4 +44,4 @@ dependencies:
  - pytest-timeout
  - pip
  - pip:
-   - dem-stitcher>=2.2.0
+   - dem-stitcher>=2.3.0
