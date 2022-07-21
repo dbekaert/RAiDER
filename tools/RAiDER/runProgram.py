@@ -191,49 +191,14 @@ def parseCMD() -> None:
         # split the args across the number of concurrent jobs
         Nprocs = len(lst_new_args)
         with multiprocessing.Pool(Nprocs) as pool:
-            pool.map(_tropo_delay, lst_new_args)
+            pool.map(tropo_delay, lst_new_args)
 
     # Otherwise a regular for-loop
     else:
         for new_args in lst_new_args:
-            _tropo_delay(new_args)
+            tropo_delay(new_args)
 
     return
-
-
-def _tropo_delay(args: Arguments) -> None:
-    try:
-        tropo_delay(args)
-    except RuntimeError:
-        logger.exception("Date %s failed", args['times'])
-
-    # args_copy = copy.deepcopy(args)
-
-    # if len(args['times']) == 1:
-    #     args_copy['times'] = args['times'][0]
-    #     try:
-    #         tropo_delay(args_copy)
-    #     except RuntimeError:
-    #         logger.exception("Date %s failed", args_copy['times'])
-    # elif args['weather_model']['name'] == 'era5':
-    #     # If the selected API supports it, make a single request with a range of
-    #     # dates instead of making a unique request for each date.
-    #     # TODO: Do this check before splitting the date range into a list to
-    #     # avoid wasting work.
-    #     try:
-    #         tropo_delay(args_copy)
-    #     except RuntimeError:
-    #         logger.exception("Date %s failed", args_copy['times'])
-    # else:
-    #     for tim, wetFilename, hydroFilename in zip(args['times'], args['wetFilenames'], args['hydroFilenames']):
-    #         try:
-    #             args_copy['times'] = tim
-    #             args_copy['wetFilenames'] = wetFilename
-    #             args_copy['hydroFilenames'] = hydroFilename
-    #             tropo_delay(args_copy)
-    #         except RuntimeError:
-    #             logger.exception("Date %s failed", tim)
-    #             continue
 
 
 def parseCMD_weather_model_debug() -> None:
