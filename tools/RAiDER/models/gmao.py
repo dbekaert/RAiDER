@@ -114,15 +114,15 @@ class GMAO(WeatherModel):
             base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_{time.hour:02}00.V01.nc4'
             url = f'{root.format(time.year, time.month, time.day)}/{base}'
             f = '{}_raw{}'.format(*os.path.splitext(out))
-            if not os.path.exists(f):
+            if os.path.exists(f):
+                logger.warning('Weather model %s already exists, skipping download', f)
+            else:
                 logger.info('Fetching URL: %s', url)
                 session = requests_retry_session()
                 resp = session.get(url, stream=True)
                 assert resp.ok, f'Could not access url for time: {time}'
                 with open(f, 'wb') as fh:
                     shutil.copyfileobj(resp.raw, fh)
-            else:
-                logger.warning('Weather model already exists, skipping download')
 
             with h5py.File(f, 'r') as ds:
                 q = ds['QV'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]

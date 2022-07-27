@@ -108,7 +108,7 @@ class NCMR(WeatherModel):
         #     logger.info('Fetching URL: %s', url)
         #     local_filename, headers = urllib.request.urlretrieve(url, filepath, show_progress)
         # else:
-        #     logger.warning('Weather model already exists, skipping download')
+        #     logger.warning('Weather model %s already exists, skipping download', filepath)
         ########################################################################
 
         ########################################################################
