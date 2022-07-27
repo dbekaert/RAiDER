@@ -51,10 +51,16 @@ def prepareWeatherModel(
             )
         weather_model.filename(times, wmLoc)
         if os.path.exists(weather_model.files[0]):
-            if not force_download:
+            if force_download:
                 logger.warning(
-                    'Weather model already exists, please remove it ("%s") if you want '
-                    'to download a new one.', weather_model.files
+                    '(Force download) Weather model already exists: "%s" but '
+                    'will be re-downloaded.',
+                    weather_model.files
+                )
+            else:
+                logger.warning(
+                    'Weather model already exists: "%s". Skipping download.',
+                    weather_model.files
                 )
                 download_flag = False
     else:
@@ -115,10 +121,11 @@ def prepareWeatherModel(
         )
         if f is not None:
             logger.warning(
-                'The processed weather model file already exists,'
-                ' so I will use that.'
+                'Skipping processing for %s because it is already processed',
+                filename
             )
-            return f
+            out_files.append(f)
+            continue
 
         # Logging some basic info
         logger.debug(
@@ -156,7 +163,6 @@ def prepareWeatherModel(
             logger.exception("Unable to save weathermodel to file")
             logger.exception(e)
             raise RuntimeError("Unable to save weathermodel to file")
-    del weather_model
     return out_files
 
 
