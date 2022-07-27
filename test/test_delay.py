@@ -1,7 +1,5 @@
 import pytest
-
 import numpy as np
-
 import pyproj
 
 from RAiDER.utilFcns import writePnts2HDF5
