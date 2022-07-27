@@ -9,18 +9,17 @@ channels:
  - anaconda
  - defaults
 dependencies:
- - python>=3
+ - python>=3.8
  - cartopy
- - boto3
  - cdsapi
  - cfgrib
  - cmake
  - cxx-compiler
  - cython
  - dask
+ - dem_stitcher>=2.3.0
  - ecmwf-api-client
  - gdal>=3.0
- - geopandas
  - h5py
  - libgdal
  - matplotlib
@@ -29,7 +28,6 @@ dependencies:
  - pandas
  - progressbar
  - pydap>3.2.2|<3.2.2
- - pygrib
  - pyproj>=2.2.0
  - rasterio
  - scipy
@@ -37,5 +35,3 @@ dependencies:
  - sysroot_linux-64
  - xarray
  - pip
- - pip:
-   - dem_stitcher==2.1.1

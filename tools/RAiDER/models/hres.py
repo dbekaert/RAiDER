@@ -49,10 +49,6 @@ class HRES(ECMWF):
 
         self.setLevelType('ml')
 
-    def __pressure_levels__(self):
-        self._levels = 25
-        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
-
     def update_a_b(self):
         # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted
         # based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels

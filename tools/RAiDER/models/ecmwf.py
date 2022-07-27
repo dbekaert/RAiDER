@@ -11,6 +11,7 @@ from RAiDER.logger import logger
 from RAiDER import utilFcns as util
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
+    LEVELS_25_HEIGHTS,
     A_137_HRES,
     B_137_HRES,
 )
@@ -49,9 +50,9 @@ class ECMWF(WeatherModel):
         else:
             self.__pressure_levels__()
 
-    @abstractmethod
     def __pressure_levels__(self):
-        pass
+        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
+        self._levels = len(self._zlevels)
 
     def __model_levels__(self):
         self._levels = 137
@@ -196,7 +197,6 @@ class ECMWF(WeatherModel):
         self,
         lat_min,
         lat_max,
-        lat_step,
         lon_min,
         lon_max,
         lon_step,
