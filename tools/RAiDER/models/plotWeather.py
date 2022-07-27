@@ -87,6 +87,7 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
                         wspace=0.3)
 
     if savefig:
+        # TODO: save to --out directory instead of project root
         plt.savefig('{}_weather_hgt{}_and_{}m.pdf'.format(weatherObj._Name, z1, z2))
     return f
 

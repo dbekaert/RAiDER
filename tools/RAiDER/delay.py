@@ -7,17 +7,13 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-
 import h5py
 import numpy as np
 from pyproj import CRS, Transformer
 
 from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
-    getInterpolators,
-    calculate_rays,
-    get_delays,
-    getProjFromWMFile,
+    getInterpolators, calculate_rays, get_delays, getProjFromWMFile
 )
 from RAiDER.dem import getHeights
 from RAiDER.logger import logger
@@ -33,7 +29,7 @@ def tropo_delay(args):
     raiderDelay main function.
     """
 
-    # unpacking the dictionairy
+    # unpacking the dictionary
     los = args['los']
     lats = args['lats']
     lons = args['lons']

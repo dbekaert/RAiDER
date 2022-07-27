@@ -138,7 +138,7 @@ class WeatherModel(ABC):
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
         ''' Set the time for a weather model '''
         if isinstance(time, str):
-            self._time = datetime.datetime.strptime(time, fmt)
+            self._time = time.strptime(fmt)
         elif isinstance(time, datetime.datetime):
             self._time = time
         else:
@@ -690,10 +690,13 @@ class WeatherModel(ABC):
         '''
         Create a filename to store the weather model
         '''
+        # TODO: Do all weather model sources support date ranges? If not, the
+        # old version of this function should be restored here and the new
+        # version should be moved to the ecmwf class as a method override.
         os.makedirs(outLoc, exist_ok=True)
 
         if times is None:
-            if self._time[0] is None:
+            if self._time is None:
                 raise ValueError('Time must be specified before the file can be written')
 
         f = make_raw_weather_data_filename(
@@ -919,7 +922,7 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def make_raw_weather_data_filename(outLoc, name, times):
+def make_raw_weather_data_filename(outLoc, name, times) -> str:
     ''' Filename generator for the raw downloaded weather model data '''
     if len(times) == 1:
         string_formatted_time = times[0].strftime("%Y_%m_%d_T%H_%M_%S")
@@ -928,7 +931,7 @@ def make_raw_weather_data_filename(outLoc, name, times):
             times[0].strftime("%Y_%m_%d_T%H_%M_%S"),
             times[-1].strftime("%Y_%m_%d_T%H_%M_%S")
         )
-    f = os.path.join(
+    return os.path.join(
         outLoc,
         '{}_{}.{}'.format(
             name,
@@ -936,7 +939,6 @@ def make_raw_weather_data_filename(outLoc, name, times):
             'nc'
         )
     )
-    return f
 
 
 def find_svp(t):
