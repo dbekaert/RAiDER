@@ -20,6 +20,7 @@ dependencies:
  - cython
  - dask
  - gdal>=3.0
+ - geopandas
  - h5py
  - libgdal
  - matplotlib
