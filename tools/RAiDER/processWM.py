@@ -110,22 +110,23 @@ def prepareWeatherModel(
         )
         return None
 
-    # Otherwise, load the weather model data
+    # Otherwise, process the weather model data
     out_files: List[Path] = []
-    for filename in weather_model.files:
-        f = weather_model.load(
+    for filename, time in zip(weather_model.files, times):
+        weather_model.setTime(time)
+        processed_data_filename = weather_model.load(
             filename,
             wmLoc,
             outLats=lats,
             outLons=lons,
             zref=zref,
         )
-        if f is not None:
+        if processed_data_filename is not None:
             logger.warning(
                 'Skipping processing for %s because it is already processed',
                 filename
             )
-            out_files.append(f)
+            out_files.append(processed_data_filename)
             continue
 
         # Logging some basic info
@@ -158,8 +159,8 @@ def prepareWeatherModel(
             plt.close('all')
 
         try:
-            f = weather_model.write()
-            out_files.append(f)
+            processed_data_filename = weather_model.write()
+            out_files.append(processed_data_filename)
         except Exception as e:
             logger.exception("Unable to save weathermodel to file")
             logger.exception(e)

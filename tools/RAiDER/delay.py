@@ -41,8 +41,8 @@ def tropo_delay(args):
     outformat = args['outformat']
     times = args['times']
     download_only = args['download_only']
-    wetFilename = args['wetFilenames']
-    hydroFilename = args['hydroFilenames']
+    wetFilenames = args['wetFilenames']
+    hydroFilenames = args['hydroFilenames']
     pnts_file = args['pnts_file']
     verbose = args['verbose']
 
@@ -62,7 +62,7 @@ def tropo_delay(args):
     logger.debug('Beginning weather model pre-processing')
     logger.debug('Download-only is {}'.format(download_only))
 
-    weather_model_file = prepareWeatherModel(
+    weather_model_files = prepareWeatherModel(
         weather_model,
         times,
         wmLoc=wmLoc,
@@ -83,8 +83,8 @@ def tropo_delay(args):
             logger.debug(
                 'Only Zenith delays at the weather model nodes '
                 'are requested, so I am exiting now. Delays have '
-                'been written to the weather model file; see '
-                + str(weather_model_file)
+                'been written to the weather model file(s); see:\n'
+                + '\n  '.join(weather_model_files)
             )
         return None, None
 
@@ -98,110 +98,106 @@ def tropo_delay(args):
     )
 
     # Do different things if ZTD or STD is requested
-    if (los is Zenith) or (los[0] == 'los'):
-        # Transform the query points if needed
-        pnt_proj = CRS.from_epsg(4326)
-        wm_proj = getProjFromWMFile(weather_model_file).to_string()
-        if wm_proj != pnt_proj:
-            pnts = transformPoints(
+    wetDelays = []
+    hydroDelays = []
+    for i, filename in enumerate(weather_model_files):
+        if (los is Zenith) or (los[i] == 'los'):
+            # Transform the query points if needed
+            pnt_proj = CRS.from_epsg(4326)
+            wm_proj = getProjFromWMFile(filename).to_string()
+            if wm_proj != pnt_proj:
+                pnts = transformPoints(
+                    lats,
+                    lons,
+                    hgts,
+                    pnt_proj,
+                    wm_proj
+                )
+            else:
+                # interpolators require y, x, z
+                pnts = np.stack([lats, lons, hgts], axis=-1)
+
+            # either way I'll need the ZTD
+            ifWet, ifHydro = getInterpolators(filename, 'total')
+            wetDelays.append(ifWet(pnts))
+            hydroDelays.append(ifHydro(pnts))
+
+            # Now do the projection if Conventional slant delay is requested
+            if los is not Zenith:
+                # inc, hd = gdal_open(los[1])
+                inc = gdal_open(los[1])[i]
+                wetDelay[i] = projectDelays(wetDelay[i], inc)
+                hydroDelay[i] = projectDelays(hydroDelay[i], inc)
+
+        else:
+            ###########################################################
+            # If asking for line-of-sight, do the full raytracing calculation
+            # Requires handling the query points
+            ###########################################################
+            query_shape = lats.shape
+            logger.debug('Lats shape is {}'.format(query_shape))
+            logger.debug(
+                'lat/lon box is %f/%f/%f/%f (SNWE)',
+                np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
+            )
+
+            # Write the input query points to a file
+            # Check whether the query points file already exists
+            write_flag = checkQueryPntsFile(pnts_file, query_shape)
+
+            # Throw an error if the user passes the same filename but different points
+            if os.path.exists(pnts_file) and write_flag:
+                logger.error(
+                    'The input query points file exists but does not match the '
+                    'shape of the input query points, either change the file '
+                    'name or delete the query points file %s', pnts_file
+                )
+
+            if write_flag:
+                logger.debug('Beginning line-of-sight calculation')
+
+                # Convert the line-of-sight inputs to look vectors
+                # TODO: time is undefined
+                los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
+
+                # write to an HDF5 file
+                writePnts2HDF5(lats, lons, hgts, los, lengths, out_name=pnts_file)
+
+            logger.debug('Beginning raytracing calculation')
+            logger.debug('Reference integration step is {:1.1f} m'.format(_STEP))
+
+            calculate_rays(pnts_file, _STEP)
+
+            # TODO: step is undefined
+            wet, hydro = get_delays(step, pnts_file, filename)
+
+            logger.debug('Finished raytracing calculation')
+
+        ###########################################################
+        # Write the delays to file
+        # Different options depending on the inputs
+        if heights[i] == 'lvs':
+            out_name = wetFilenames[i].replace('wet', 'delays')
+            writeDelays(
+                flag,
+                wetDelays[i],
+                hydroDelays[i],
                 lats,
                 lons,
-                hgts,
-                pnt_proj,
-                wm_proj
+                out_name,
+                zlevels=hgts,
+                outformat=outformat,
+                delayType=delayType
             )
+            logger.info('Finished writing data to %s', out_name)
+
         else:
-            # interpolators require y, x, z
-            pnts = np.stack([lats, lons, hgts], axis=-1)
+            writeDelays(flag, wetDelays[i], hydroDelay[i], lats, lons,
+                        wetFilenames[i], hydroFilenames[i], outformat=outformat,
+                        proj=None, gt=None, ndv=0.)
+            logger.info('Finished writing data to %s', wetFilenames[i])
 
-        # either way I'll need the ZTD
-        ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
-        wetDelay = ifWet(pnts)
-        hydroDelay = ifHydro(pnts)
-
-        # Now do the projection if Conventional slant delay is requested
-        if los is not Zenith:
-            # inc, hd = gdal_open(los[1])
-            inc = gdal_open(los[1])[0]
-            wetDelay = projectDelays(wetDelay, inc)
-            hydroDelay = projectDelays(hydroDelay, inc)
-
-    else:
-        ###########################################################
-        # If asking for line-of-sight, do the full raytracing calculation
-        # Requires handling the query points
-        ###########################################################
-        query_shape = lats.shape
-        logger.debug('Lats shape is {}'.format(query_shape))
-        logger.debug(
-            'lat/lon box is %f/%f/%f/%f (SNWE)',
-            np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
-        )
-
-        # Write the input query points to a file
-        # Check whether the query points file already exists
-        write_flag = checkQueryPntsFile(pnts_file, query_shape)
-
-        # Throw an error if the user passes the same filename but different points
-        if os.path.exists(pnts_file) and write_flag:
-            logger.error(
-                'The input query points file exists but does not match the '
-                'shape of the input query points, either change the file '
-                'name or delete the query points file ({})'.format(pnts_file)
-            )
-
-        if write_flag:
-            logger.debug('Beginning line-of-sight calculation')
-
-            # Convert the line-of-sight inputs to look vectors
-            los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
-
-            # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, lengths, out_name=pnts_file)
-
-        logger.debug('Beginning raytracing calculation')
-        logger.debug('Reference integration step is {:1.1f} m'.format(_STEP))
-
-        calculate_rays(pnts_file, _STEP)
-
-        wet, hydro = get_delays(
-            step,  # TODO: step is undefined
-            pnts_file,
-            weather_model_file,
-        )
-
-        logger.debug('Finished raytracing calculation')
-
-    ###########################################################
-    # Write the delays to file
-    # Different options depending on the inputs
-
-    if heights[0] == 'lvs':
-        out_name = wetFilename[0].replace('wet', 'delays')
-        writeDelays(
-            flag,
-            wetDelay,
-            hydroDelay,
-            lats,
-            lons,
-            out_name,
-            zlevels=hgts,
-            outformat=outformat,
-            delayType=delayType
-        )
-        logger.info('Finished writing data to %s', out_name)
-
-    else:
-        if not isinstance(wetFilename, str):
-            wetFilename = wetFilename[0]
-            hydroFilename = hydroFilename[0]
-
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
-                    wetFilename, hydroFilename, outformat=outformat,
-                    proj=None, gt=None, ndv=0.)
-        logger.info('Finished writing data to %s', wetFilename)
-
-    return wetDelay, hydroDelay
+    return wetDelays, hydroDelays
 
 
 def checkQueryPntsFile(pnts_file, query_shape):
