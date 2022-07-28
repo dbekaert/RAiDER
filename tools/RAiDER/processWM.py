@@ -86,21 +86,22 @@ def prepareWeatherModel(
 
     # Split the data from the range into one file per day and update the
     # weather model with the new files
-    date_range_filename = weather_model.files[0]
-    weather_model.files = []
-    for i, time in enumerate(times):
-        with xr.open_dataset(date_range_filename) as block:
-            block["z"] = block.z[i]
-            block["q"] = block.q[i]
-            block["t"] = block.t[i]
-            single_date_filename = make_raw_weather_data_filename(
-                wmLoc,
-                weather_model._Name,
-                [time],
-            )
-            block.to_netcdf(single_date_filename)
-            weather_model.files.append(single_date_filename)
-    os.remove(date_range_filename)
+    if len(times) > 1:
+        date_range_filename = weather_model.files[0]
+        weather_model.files = []
+        for i, time in enumerate(times):
+            with xr.open_dataset(date_range_filename) as block:
+                block["z"] = block.z[i]
+                block["q"] = block.q[i]
+                block["t"] = block.t[i]
+                single_date_filename = make_raw_weather_data_filename(
+                    wmLoc,
+                    weather_model._Name,
+                    [time],
+                )
+                block.to_netcdf(single_date_filename)
+                weather_model.files.append(single_date_filename)
+        os.remove(date_range_filename)
 
     # If only downloading, exit now
     if download_only:
