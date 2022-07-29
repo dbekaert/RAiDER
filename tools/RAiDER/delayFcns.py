@@ -107,18 +107,6 @@ def get_delays(
     return wet_delay, hydro_delay
 
 
-# def make_interpolator(xs, ys, zs, data):
-    # '''
-    # Function to create and return an Interpolator object
-    # '''
-    # return RegularGridInterpolator(
-    #     (ys.ravel(), xs.ravel(), zs.ravel()),
-    #     data,
-    #     bounds_error=False,
-    #     fill_value=np.nan
-    # )
-
-
 def chunk(chunkSize, in_shape):
     '''
     Create a set of indices to use as chunks

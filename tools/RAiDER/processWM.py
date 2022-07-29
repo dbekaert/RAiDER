@@ -170,7 +170,7 @@ def prepareWeatherModel(
 
 # def checkBounds(weather_model, outLats, outLons):
 #     '''Check the bounds of a weather model'''
-#     ds = xr.load_dataset(weather_model.files[0])  # TODO: xr is undefined
+#     ds = xr.load_dataset(weather_model.files[0])
 #     coords = ds.coords  # coords is dict-like
 #     keys = [k for k in coords.keys()]
 #     xc = coords[keys[0]]

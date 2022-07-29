@@ -84,9 +84,6 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
                 # Attempt to read data
                 try:
                     split_lines = line.split()
-                    # units: mm, mm, mm, deg, deg, deg, deg, mm, mm, K
-                    # trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
-                    #     [float(t) for t in split_lines[2:]]
                     trotot, trototSD, trwet = [float(t) for t in split_lines[2:5]]
                 except:  # TODO: What error(s)?
                     continue

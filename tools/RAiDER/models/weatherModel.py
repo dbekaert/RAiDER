@@ -38,8 +38,6 @@ class WeatherModel(ABC):
 
         self._lon_res = None
         self._lat_res = None
-        # self._x_res = None
-        # self._y_res = None
 
         self._classname = None
         self._dataset = None

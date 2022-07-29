@@ -1,5 +1,4 @@
 import datetime
-import os
 import operator
 import pytest
 
@@ -7,7 +6,6 @@ import numpy as np
 
 from functools import reduce
 from numpy import nan
-from test import DATA_DIR
 
 from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.models.weatherModel import (
