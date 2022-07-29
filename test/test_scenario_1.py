@@ -74,12 +74,8 @@ def core_test_tropo_delay(tmp_path, modelName):
     Scenario:
     1: Small area, Zenith delay
     '''
-    lats = gdal_open(os.path.join(
-        SCENARIO_DIR, 'geom', 'lat.dat'
-    ))
-    lons = gdal_open(os.path.join(
-        SCENARIO_DIR, 'geom', 'lon.dat'
-    ))
+    lats = gdal_open(os.path.join(SCENARIO_DIR, 'geom', 'lat.dat'))
+    lons = gdal_open(os.path.join(SCENARIO_DIR, 'geom', 'lon.dat'))
 
     if modelName == 'ERAI':
         time = datetime.datetime(2018, 1, 3, 23, 0)
@@ -111,11 +107,11 @@ def core_test_tropo_delay(tmp_path, modelName):
         args['wmLoc'] = wmLoc
         args['zref'] = 20000.
         args['outformat'] = "envi"
-        args['times'] = time
+        args['times'] = [time]
         args['out'] = tmp_path
         args['download_only'] = False
-        args['wetFilenames'] = wet_file
-        args['hydroFilenames'] = hydro_file
+        args['wetFilenames'] = [wet_file]
+        args['hydroFilenames'] = [hydro_file]
         args['verbose'] = True
 
         tropo_delay(args)

@@ -13,10 +13,14 @@ build
 CMake*
 Makefile
 dummy*
-./weather_files
+/weather_files
 test/data
 test/*/*/real/
 test/*/geom/*.dem
+test/*.h5
+test/test_geom/*.nc
+/*.h5
+*.csv
 *.log
 *.pdf
 *.cpp
@@ -25,3 +29,4 @@ dist/
 tools/RAiDER.egg-info/
 tools/bindings/utils/makePoints.c
 debug-outputs/
+tmp.*

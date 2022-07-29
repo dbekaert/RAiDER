@@ -115,12 +115,13 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, out: Path, lats, lons, times):
+    def fetch(self, out: Path, lats, lons, times: List[datetime.datetime]):
         '''
-        Checks the input datetime against the valid date range for the model and then
-        calls the model _fetch routine
+        Checks the input datetime against the valid date range for the model and
+        then calls the model _fetch routine
         '''
-        self.checkTime(times[0])
+        for time in times:
+            self.checkTime(time)
         lats, lons = self.checkLL(lats, lons)
 
         self._time = times[0]
@@ -920,7 +921,7 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def make_raw_weather_data_filename(outLoc, name, times) -> str:
+def make_raw_weather_data_filename(outLoc, name, times: List[datetime.datetime]) -> str:
     ''' Filename generator for the raw downloaded weather model data '''
     if len(times) == 1:
         string_formatted_time = times[0].strftime("%Y_%m_%d_T%H_%M_%S")

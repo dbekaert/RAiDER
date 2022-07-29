@@ -205,8 +205,8 @@ def test_mwmf():
 def test_mrwmf():
     outLoc = './'
     name = 'ERA-5'
-    time = datetime.datetime(2020, 1, 1)
-    assert make_raw_weather_data_filename(outLoc, name, time) == \
+    times = [datetime.datetime(2020, 1, 1)]
+    assert make_raw_weather_data_filename(outLoc, name, times) == \
         './ERA-5_2020_01_01_T00_00_00.nc'
 
 

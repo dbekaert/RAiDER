@@ -1,4 +1,5 @@
 # Unit and other tests
+from RAiDER.types import Arguments
 from datetime import datetime
 import numpy as np
 import os
@@ -38,8 +39,8 @@ def test_computeDelay(tmp_path):
 
     with pushd(tmp_path):
 
-        # packing the dictionairy
-        args = {}
+        # packing the dictionary
+        args: Arguments = {}
         args['los'] = Zenith
         args['lats'] = lats
         args['lons'] = lons
@@ -51,11 +52,11 @@ def test_computeDelay(tmp_path):
         args['wmLoc'] = None
         args['zref'] = 20000.
         args['outformat'] = "csv"
-        args['times'] = datetime(2020, 1, 3, 23, 0, 0)
+        args['times'] = [datetime(2020, 1, 3, 23, 0, 0)]
         args['out'] = tmp_path
         args['download_only'] = False
-        args['wetFilenames'] = wetFile
-        args['hydroFilenames'] = hydroFile
+        args['wetFilenames'] = [wetFile]
+        args['hydroFilenames'] = [hydroFile]
         args['verbose'] = True
 
         tropo_delay(args)

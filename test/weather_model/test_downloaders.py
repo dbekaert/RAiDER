@@ -18,7 +18,7 @@ def test_era5():
         os.path.join(TEST_DIR, 'test_geom', 'test_era5.nc'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
-        datetime(2020, 1, 1, 0, 0, 0)
+        [datetime(2020, 1, 1, 0, 0, 0)]
     )
 
 
@@ -29,7 +29,7 @@ def test_era5t():
         os.path.join(TEST_DIR, 'test_geom', 'test_era5t.nc'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
-        datetime(2020, 1, 1, 0, 0, 0)
+        [datetime(2020, 1, 1, 0, 0, 0)]
     )
 
 
@@ -40,5 +40,5 @@ def test_erai():
         os.path.join(TEST_DIR, 'test_geom', 'test_erai.nc'),
         np.array([10, 10.1, 10.2]),
         np.array([-72, -72, -72]),
-        datetime(2017, 1, 1, 0, 0, 0)
+        [datetime(2017, 1, 1, 0, 0, 0)]
     )
