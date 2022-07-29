@@ -13,13 +13,13 @@ build
 CMake*
 Makefile
 dummy*
-weather_files
+./weather_files
 test/data
+test/*/*/real/
+test/*/geom/*.dem
 *.log
 *.pdf
 *.cpp
-test/*/geom/*.dem
-test/*/geom/*.nc
 .eggs/
 dist/
 tools/RAiDER.egg-info/
