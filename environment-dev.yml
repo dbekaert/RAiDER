@@ -12,6 +12,7 @@ dependencies:
 # Regular dependencies. Keep these in sync with environment.yml
  - python>=3
  - autopep8
+ - boto3
  - cartopy
  - cdsapi
  - cfgrib
@@ -45,6 +46,4 @@ dependencies:
  - pip
  - pip:
    - dem_stitcher==2.1.1
-   - boto3
-   - geopandas
 
