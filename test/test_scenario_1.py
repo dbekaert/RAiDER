@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import os
 import pytest
 
@@ -78,11 +78,11 @@ def core_test_tropo_delay(tmp_path, modelName):
     lons = gdal_open(os.path.join(SCENARIO_DIR, 'geom', 'lon.dat'))
 
     if modelName == 'ERAI':
-        time = datetime.datetime(2018, 1, 3, 23, 0)
+        time = dt.datetime(2018, 1, 3, 23, 0)
     elif modelName == 'NCMR':
-        time = datetime.datetime(2018, 7, 1, 0, 0)
+        time = dt.datetime(2018, 7, 1, 0, 0)
     else:
-        time = datetime.datetime(2020, 1, 3, 23, 0)
+        time = dt.datetime(2020, 1, 3, 23, 0)
 
     wmLoc = os.path.join(SCENARIO_DIR, 'weather_files')
     if not os.path.exists(wmLoc):
