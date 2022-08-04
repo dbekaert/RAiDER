@@ -82,9 +82,18 @@ class Conventional(LOS):
             LOS_enu[..., 1],
             LOS_enu[..., 2],
             self._lats,
-            self._lons,
-            self._heights
+            self._lons
         )
+
+
+# class Raytracing(LOS):
+#     def __call__(self, lats, lons, heights, orbit_file):
+#         import isce3
+#         state_vectors = get_svs(orbit_file)
+#         look_vecs = isce3.geometry.(
+#             lats, lons, heights, orbit_file
+#         )
+#         calculate_rays(look_vecs)
 
 
 def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 * 3600):
@@ -145,16 +154,13 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
     else:
         try:
             svs = np.stack(get_sv(los_type, time, pad), axis=-1)
-            xyz_targets = np.stack(lla2ecef(lats, lons, heights), axis=-1)
-            look_vecs = state_to_los(
-                svs,
-                xyz_targets,
-            )
-            enu = ecef2enu(
-                look_vecs,
-                lats,
-                lons,
-                heights)
+            xyz_targets = np.stack(lla2ecef(lats, lons, heights), axis=-1)  # Ground pixels
+
+            # Get unit vectors from orbit file
+            look_vecs = state_to_los(svs, xyz_targets)
+
+            # Convert to local ENU
+            enu = ecef2enu(look_vecs, lats, lons)
             lengths = (zref - heights) / enu[..., 2]
 
         # Otherwise, throw an error

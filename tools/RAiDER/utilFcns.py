@@ -76,7 +76,7 @@ def enu2ecef(
     return np.stack((u, v, w), axis=-1)
 
 
-def ecef2enu(xyz, lat, lon, height):
+def ecef2enu(xyz, lat, lon):
     '''Convert ECEF xyz to ENU'''
     x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
 
