@@ -95,24 +95,32 @@ def core_test_tropo_delay(tmp_path, modelName):
 
     with pushd(tmp_path):
         # packing the dictionary
-        args = {}
-        args['los'] = Zenith
-        args['lats'] = lats
-        args['lons'] = lons
-        args['ll_bounds'] = (15.75, 18.25, -103.24, -99.75)
-        args['heights'] = ("dem", os.path.join(TEST_DIR, "test_geom", "warpedDEM.dem"))
-        args['pnts_file'] = 'lat_query_points.h5'
-        args['flag'] = "files"
-        args['weather_model'] = {"type": model_obj(), "files": None, "name": modelName}
-        args['wmLoc'] = wmLoc
-        args['zref'] = 20000.
-        args['outformat'] = "envi"
-        args['times'] = [time]
-        args['out'] = tmp_path
-        args['download_only'] = False
-        args['wetFilenames'] = [wet_file]
-        args['hydroFilenames'] = [hydro_file]
-        args['verbose'] = True
+        args = {
+            "los": Zenith,
+            "lats": lats,
+            "lons": lons,
+            "ll_bounds": (15.75, 18.25, -103.24, -99.75),
+            "heights": (
+                "dem",
+                os.path.join(TEST_DIR, "test_geom", "warpedDEM.dem")
+            ),
+            "pnts_file": "lat_query_points.h5",
+            "flag": "files",
+            "weather_model": {
+                "type": model_obj(),
+                "files": None,
+                "name": modelName
+            },
+            "wmLoc": wmLoc,
+            "zref": 20000.,
+            "outformat": "envi",
+            "times": [time],
+            "out": tmp_path,
+            "download_only": False,
+            "wetFilenames": [wet_file],
+            "hydroFilenames": [hydro_file],
+            "verbose": True,
+        }
 
         tropo_delay(args)
 

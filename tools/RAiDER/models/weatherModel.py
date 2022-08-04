@@ -1,5 +1,5 @@
 from typing import List, Optional
-import datetime
+import datetime as dt
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -45,9 +45,9 @@ class WeatherModel(ABC):
         self._model_level_type = 'ml'
 
         self._valid_range = (
-            datetime.date(1900, 1, 1),
+            dt.date(1900, 1, 1),
         )  # Tuple of min/max years where data is available.
-        self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
+        self._lag_time = dt.timedelta(days=30)  # Availability lag time in days
         self._time = None
 
         self._bbox = None
@@ -115,7 +115,7 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, out: Path, lats, lons, times: List[datetime.datetime]):
+    def fetch(self, out: Path, lats, lons, times: List[dt.datetime]):
         '''
         Checks the input datetime against the valid date range for the model and
         then calls the model _fetch routine
@@ -137,8 +137,8 @@ class WeatherModel(ABC):
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
         ''' Set the time for a weather model '''
         if isinstance(time, str):
-            self._time = datetime.datetime.strptime(time, fmt)
-        elif isinstance(time, datetime.datetime):
+            self._time = dt.datetime.strptime(time, fmt)
+        elif isinstance(time, dt.datetime):
             self._time = time
         else:
             raise ValueError('"time" must be a string or a datetime object')
@@ -224,7 +224,7 @@ class WeatherModel(ABC):
     #         filename = self.files[0]
     #     with netCDF4.Dataset(filename, mode='r') as f:
     #         time = f.attrs['datetime'].copy()
-    #     self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
+    #     self.time = dt.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
     def plot(self, plotType='pqt', savefig=True):
         '''
@@ -253,7 +253,7 @@ class WeatherModel(ABC):
                 pass
             elif self._valid_range[1] < time:
                 raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
-        if time > datetime.datetime.utcnow() - self._lag_time:
+        if time > dt.datetime.utcnow() - self._lag_time:
             raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
 
     def _convertmb2Pa(self, pres):
@@ -685,7 +685,7 @@ class WeatherModel(ABC):
         )
         return os.path.join(outLoc, f)
 
-    def filename(self, times: List[datetime.datetime]=None, outLoc='weather_files'):
+    def filename(self, times: List[dt.datetime]=None, outLoc='weather_files'):
         '''
         Create a filename to store the weather model
         '''
@@ -728,7 +728,7 @@ class WeatherModel(ABC):
         nc_outfile = netCDF4.Dataset(f, 'w', clobber=True, format='NETCDF4')
         nc_outfile.setncattr('Conventions', 'CF-1.6')
         nc_outfile.setncattr('datetime', self._time.strftime("%Y_%m_%dT%H_%M_%S"))
-        nc_outfile.setncattr('date_created', datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
+        nc_outfile.setncattr('date_created', dt.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
         title = 'Weather model data and delay calculations'
         nc_outfile.setncattr('title', title)
 
@@ -921,7 +921,7 @@ def make_weather_model_filename(name, time, ll_bounds):
     )
 
 
-def make_raw_weather_data_filename(outLoc, name, times: List[datetime.datetime]) -> str:
+def make_raw_weather_data_filename(outLoc, name, times: List[dt.datetime]) -> str:
     ''' Filename generator for the raw downloaded weather model data '''
     if len(times) == 1:
         string_formatted_time = times[0].strftime("%Y_%m_%d_T%H_%M_%S")

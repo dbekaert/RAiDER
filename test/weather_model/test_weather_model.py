@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import operator
 import pytest
 
@@ -83,8 +83,8 @@ class MockWeatherModel(WeatherModel):
         super().__init__()
 
         self._Name = "MOCK"
-        self._valid_range = (datetime.datetime(1970, 1, 1), "Present")
-        self._lag_time = datetime.timedelta(days=15)
+        self._valid_range = (dt.datetime(1970, 1, 1), "Present")
+        self._lag_time = dt.timedelta(days=15)
 
     def _fetch(self, lats, lons, time, out):
         pass
@@ -107,22 +107,22 @@ def test_weatherModel_basic1(model):
     # check some defaults
     assert wm._humidityType == 'q'
 
-    wm.setTime(datetime.datetime(2020, 1, 1, 6, 0, 0))
-    assert wm._time == datetime.datetime(2020, 1, 1, 6, 0, 0)
+    wm.setTime(dt.datetime(2020, 1, 1, 6, 0, 0))
+    assert wm._time == dt.datetime(2020, 1, 1, 6, 0, 0)
 
     wm.setTime('2020-01-01T00:00:00')
-    assert wm._time == datetime.datetime(2020, 1, 1, 0, 0, 0)
+    assert wm._time == dt.datetime(2020, 1, 1, 0, 0, 0)
 
     wm.setTime('19720229', fmt='%Y%m%d')  # test a leap year
-    assert wm._time == datetime.datetime(1972, 2, 29, 0, 0, 0)
+    assert wm._time == dt.datetime(1972, 2, 29, 0, 0, 0)
 
     with pytest.raises(RuntimeError):
-        wm.checkTime(datetime.datetime(1950, 1, 1))
+        wm.checkTime(dt.datetime(1950, 1, 1))
 
-    wm.checkTime(datetime.datetime(2000, 1, 1))
+    wm.checkTime(dt.datetime(2000, 1, 1))
 
     with pytest.raises(RuntimeError):
-        wm.checkTime(datetime.datetime.now())
+        wm.checkTime(dt.datetime.now())
 
 
 def test_uniform_in_z_small(model):
@@ -196,7 +196,7 @@ def test_uniform_in_z_large(model):
 
 def test_mwmf():
     name = 'ERA-5'
-    time = datetime.datetime(2020, 1, 1)
+    time = dt.datetime(2020, 1, 1)
     ll_bounds = (-90, 90, -180, 180)
     assert make_weather_model_filename(name, time, ll_bounds) == \
         'ERA-5_2020_01_01_T00_00_00_90S_90N_180W_180E.nc'
@@ -205,7 +205,7 @@ def test_mwmf():
 def test_mrwmf():
     outLoc = './'
     name = 'ERA-5'
-    times = [datetime.datetime(2020, 1, 1)]
+    times = [dt.datetime(2020, 1, 1)]
     assert make_raw_weather_data_filename(outLoc, name, times) == \
         './ERA-5_2020_01_01_T00_00_00.nc'
 
@@ -232,8 +232,8 @@ def test_erai(erai):
     wm = erai
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-I'
-    assert wm._valid_range[0] == datetime.datetime(1979, 1, 1)
-    assert wm._valid_range[1] == datetime.datetime(2019, 8, 31)
+    assert wm._valid_range[0] == dt.datetime(1979, 1, 1)
+    assert wm._valid_range[1] == dt.datetime(2019, 8, 31)
     assert wm._proj.to_epsg() == 4326
 
 
@@ -241,7 +241,7 @@ def test_era5(era5):
     wm = era5
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-5'
-    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1)
+    assert wm._valid_range[0] == dt.datetime(1950, 1, 1)
     assert wm._proj.to_epsg() == 4326
 
 
@@ -249,7 +249,7 @@ def test_era5t(era5t):
     wm = era5t
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-5T'
-    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1)
+    assert wm._valid_range[0] == dt.datetime(1950, 1, 1)
     assert wm._proj.to_epsg() == 4326
 
 
@@ -257,7 +257,7 @@ def test_hres(hres):
     wm = hres
     assert wm._humidityType == 'q'
     assert wm._Name == 'HRES'
-    assert wm._valid_range[0] == datetime.datetime(1983, 4, 20)
+    assert wm._valid_range[0] == dt.datetime(1983, 4, 20)
     assert wm._proj.to_epsg() == 4326
     assert wm._levels == 137
 
@@ -269,7 +269,7 @@ def test_gmao(gmao):
     wm = gmao
     assert wm._humidityType == 'q'
     assert wm._Name == 'GMAO'
-    assert wm._valid_range[0] == datetime.datetime(2014, 2, 20)
+    assert wm._valid_range[0] == dt.datetime(2014, 2, 20)
     assert wm._proj.to_epsg() == 4326
 
 
@@ -277,7 +277,7 @@ def test_merra2(merra2):
     wm = merra2
     assert wm._humidityType == 'q'
     assert wm._Name == 'MERRA2'
-    assert wm._valid_range[0] == datetime.datetime(1980, 1, 1)
+    assert wm._valid_range[0] == dt.datetime(1980, 1, 1)
     assert wm._proj.to_epsg() == 4326
 
 
@@ -285,7 +285,7 @@ def test_hrrr(hrrr):
     wm = hrrr
     assert wm._humidityType == 'q'
     assert wm._Name == 'HRRR'
-    assert wm._valid_range[0] == datetime.datetime(2016, 7, 15)
+    assert wm._valid_range[0] == dt.datetime(2016, 7, 15)
     assert wm._proj.to_epsg() is None
 
 
@@ -293,7 +293,7 @@ def test_ncmr(ncmr):
     wm = ncmr
     assert wm._humidityType == 'q'
     assert wm._Name == 'NCMR'
-    assert wm._valid_range[0] == datetime.datetime(2015, 12, 1)
+    assert wm._valid_range[0] == dt.datetime(2015, 12, 1)
 
 
 def test_find_svp():
