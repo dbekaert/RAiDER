@@ -17,14 +17,15 @@ dependencies:
  - cdsapi
  - cfgrib
  - cmake
- - netcdf4
  - cython
  - dask
+ - dem_stitcher
  - gdal>=3.0
  - geopandas
  - h5py
  - libgdal
  - matplotlib
+ - netcdf4
  - numpy
  - pandas
  - progressbar
@@ -44,6 +45,4 @@ dependencies:
  - pytest-cov
  - pytest-timeout
  - pip
- - pip:
-   - dem_stitcher==2.1.1
 
