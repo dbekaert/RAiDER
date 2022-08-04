@@ -137,7 +137,7 @@ class WeatherModel(ABC):
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
         ''' Set the time for a weather model '''
         if isinstance(time, str):
-            self._time = time.strptime(fmt)
+            self._time = datetime.datetime.strptime(time, fmt)
         elif isinstance(time, datetime.datetime):
             self._time = time
         else:
