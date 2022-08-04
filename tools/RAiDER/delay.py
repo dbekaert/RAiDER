@@ -126,8 +126,8 @@ def tropo_delay(args):
             if los is not Zenith:
                 # inc, hd = gdal_open(los[1])
                 inc = gdal_open(los[1])[i]
-                wetDelay[i] = projectDelays(wetDelay[i], inc)
-                hydroDelay[i] = projectDelays(hydroDelay[i], inc)
+                wetDelays[i] = projectDelays(wetDelays[i], inc)
+                hydroDelays[i] = projectDelays(hydroDelays[i], inc)
 
         else:
             ###########################################################
@@ -192,7 +192,7 @@ def tropo_delay(args):
             logger.info('Finished writing data to %s', out_name)
 
         else:
-            writeDelays(flag, wetDelays[i], hydroDelay[i], lats, lons,
+            writeDelays(flag, wetDelays[i], hydroDelays[i], lats, lons,
                         wetFilenames[i], hydroFilenames[i], outformat=outformat,
                         proj=None, gt=None, ndv=0.)
             logger.info('Finished writing data to %s', wetFilenames[i])
