@@ -18,6 +18,7 @@ dependencies:
  - cxx-compiler
  - cython
  - dask
+ - dem-stitcher>=2.3.0
  - ecmwf-api-client
  - gdal>=3.0
  - geopandas
@@ -37,5 +38,3 @@ dependencies:
  - sysroot_linux-64
  - xarray
  - pip
- - pip:
-   - dem-stitcher>=2.3.0
