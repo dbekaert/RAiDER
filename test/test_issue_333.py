@@ -38,7 +38,7 @@ def test_single_date(here, attributes_to_check, lats, lons) -> None:
     out_dir_real = here / "single_date/real/weather_files"
     out_dir_expected = here / "single_date/expected/weather_files"
     times = [
-        dt.datetime(2020, 1, 3, 23, 0),
+        dt.datetime(2020, 1, 3, 0, 0),
     ]
     weather_dict: WeatherDict = {
         "type": ERA5(),
@@ -76,9 +76,9 @@ def test_date_range(here, attributes_to_check, lats, lons) -> None:
     out_dir_real = here / "date_range/real/weather_files"
     out_dir_expected = here / "date_range/expected/weather_files"
     times = [
-        dt.datetime(2020, 1, 3, 23, 0),
-        dt.datetime(2020, 1, 4, 23, 0),
-        dt.datetime(2020, 1, 5, 23, 0),
+        dt.datetime(2020, 1, 3, 0, 0),
+        dt.datetime(2020, 1, 4, 0, 0),
+        dt.datetime(2020, 1, 5, 0, 0),
     ]
     weather_dict: WeatherDict = {
         "type": ERA5(),
