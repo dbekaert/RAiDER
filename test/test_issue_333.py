@@ -1,3 +1,4 @@
+import pytest
 import os
 import glob
 import numpy as np
@@ -9,12 +10,33 @@ from RAiDER.models.era5 import ERA5
 from RAiDER.processWM import prepareWeatherModel
 
 
-def test_single_date() -> None:
-    ATTRIBUTES_TO_CHECK = (
+# Fix for funny business where CircleCI runs tests from ./tests/ instead of ./
+def chdir_to_project_root():
+    if os.getcwd().endswith("test"):
+        os.chdir("..")
+
+
+@pytest.fixture
+def attributes_to_check():
+    return (
         "z", "t", "p", "e",
         "hydro", "hydro_total",
         "wet", "wet_total"
     )
+
+
+@pytest.fixture
+def lats():
+    return np.array([39.0, 40.0])
+
+
+@pytest.fixture
+def lons():
+    return np.array([-79.0, -78.0])
+
+
+def test_single_date(attributes_to_check, lats, lons) -> None:
+    chdir_to_project_root()
     out_dir_real = "test/issue_333/single_date/real/weather_files"
     out_dir_expected = "test/issue_333/single_date/expected/weather_files"
     times = [
@@ -34,8 +56,8 @@ def test_single_date() -> None:
         weatherDict=weather_dict,
         times=times,
         wmLoc=out_dir_real,
-        lats=np.array([39.0, 40.0]),
-        lons=np.array([-79.0, -78.0]),
+        lats=lats,
+        lons=lons,
         download_only=False,
         makePlots=1,
     )
@@ -48,16 +70,12 @@ def test_single_date() -> None:
     for path_real, path_expected in zip(paths_real, paths_expected):
         with xr.open_dataset(path_expected) as ds_expected:
             with xr.open_dataset(path_real) as ds_real:
-                for attribute in ATTRIBUTES_TO_CHECK:
+                for attribute in attributes_to_check:
                     assert ds_real[attribute].equals(ds_expected[attribute])
 
 
-def test_date_range() -> None:
-    ATTRIBUTES_TO_CHECK = (
-        "z", "t", "p", "e",
-        "hydro", "hydro_total",
-        "wet", "wet_total"
-    )
+def test_date_range(attributes_to_check, lats, lons) -> None:
+    chdir_to_project_root()
     out_dir_real = "test/issue_333/date_range/real/weather_files"
     out_dir_expected = "test/issue_333/date_range/expected/weather_files"
     times = [
@@ -79,8 +97,8 @@ def test_date_range() -> None:
         weatherDict=weather_dict,
         times=times,
         wmLoc=out_dir_real,
-        lats=np.array([39.0, 40.0]),
-        lons=np.array([-79.0, -78.0]),
+        lats=lats,
+        lons=lons,
         download_only=False,
         makePlots=1,
     )
@@ -93,7 +111,7 @@ def test_date_range() -> None:
     for path_real, path_expected in zip(paths_real, paths_expected):
         with xr.open_dataset(path_expected) as ds_expected:
             with xr.open_dataset(path_real) as ds_real:
-                for attribute in ATTRIBUTES_TO_CHECK:
+                for attribute in attributes_to_check:
                     # Assert that the real and expected data is equal *within
                     # a certain tolerance*. Somewhere through processing, the
                     # data is being subject to some kind of rounding error.
