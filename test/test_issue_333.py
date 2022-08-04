@@ -1,6 +1,6 @@
 import pytest
 import os
-import glob
+import pathlib
 import numpy as np
 import datetime as dt
 import xarray as xr
@@ -10,10 +10,9 @@ from RAiDER.models.era5 import ERA5
 from RAiDER.processWM import prepareWeatherModel
 
 
-# Fix for funny business where CircleCI runs tests from ./tests/ instead of ./
-def chdir_to_project_root():
-    if os.getcwd().endswith("test"):
-        os.chdir("..")
+@pytest.fixture
+def here():
+    return pathlib.Path(__file__).parent.resolve()
 
 
 @pytest.fixture
@@ -35,10 +34,9 @@ def lons():
     return np.array([-79.0, -78.0])
 
 
-def test_single_date(attributes_to_check, lats, lons) -> None:
-    chdir_to_project_root()
-    out_dir_real = "test/issue_333/single_date/real/weather_files"
-    out_dir_expected = "test/issue_333/single_date/expected/weather_files"
+def test_single_date(here, attributes_to_check, lats, lons) -> None:
+    out_dir_real = here / "single_date/real/weather_files"
+    out_dir_expected = here / "single_date/expected/weather_files"
     times = [
         dt.datetime(2020, 1, 3, 23, 0),
     ]
@@ -49,7 +47,7 @@ def test_single_date(attributes_to_check, lats, lons) -> None:
     }
 
     # Clear the test's output directory
-    for filename in glob.glob(out_dir_real + "/*"):
+    for filename in out_dir_real.glob("*"):
         os.remove(filename)
 
     paths_real = prepareWeatherModel(
@@ -61,10 +59,10 @@ def test_single_date(attributes_to_check, lats, lons) -> None:
         download_only=False,
         makePlots=1,
     )
-    paths_expected = glob.glob(out_dir_expected + "/*")
+    paths_expected = out_dir_expected.glob("*")
 
-    filenames_real = list(map(os.path.basename, paths_real))
-    filenames_expected = list(map(os.path.basename, paths_expected))
+    filenames_real = sorted(list(map(os.path.basename, paths_real)))
+    filenames_expected = sorted(list(map(os.path.basename, paths_expected)))
     assert filenames_real == filenames_expected
 
     for path_real, path_expected in zip(paths_real, paths_expected):
@@ -74,10 +72,9 @@ def test_single_date(attributes_to_check, lats, lons) -> None:
                     assert ds_real[attribute].equals(ds_expected[attribute])
 
 
-def test_date_range(attributes_to_check, lats, lons) -> None:
-    chdir_to_project_root()
-    out_dir_real = "test/issue_333/date_range/real/weather_files"
-    out_dir_expected = "test/issue_333/date_range/expected/weather_files"
+def test_date_range(here, attributes_to_check, lats, lons) -> None:
+    out_dir_real = here / "date_range/real/weather_files"
+    out_dir_expected = here / "date_range/expected/weather_files"
     times = [
         dt.datetime(2020, 1, 3, 23, 0),
         dt.datetime(2020, 1, 4, 23, 0),
@@ -90,7 +87,7 @@ def test_date_range(attributes_to_check, lats, lons) -> None:
     }
 
     # Clear the test's output directory
-    for filename in glob.glob(out_dir_real + "/*"):
+    for filename in out_dir_real.glob("*"):
         os.remove(filename)
 
     paths_real = prepareWeatherModel(
@@ -102,10 +99,11 @@ def test_date_range(attributes_to_check, lats, lons) -> None:
         download_only=False,
         makePlots=1,
     )
-    paths_expected = glob.glob(out_dir_expected + "/*")
+    paths_expected = out_dir_expected.glob("*")
 
-    filenames_real = list(map(os.path.basename, paths_real))
-    filenames_expected = list(map(os.path.basename, paths_expected))
+    # The assertions after this one depend on the lists being in the same order
+    filenames_real = sorted(list(map(os.path.basename, paths_real)))
+    filenames_expected = sorted(list(map(os.path.basename, paths_expected)))
     assert filenames_real == filenames_expected
 
     for path_real, path_expected in zip(paths_real, paths_expected):
