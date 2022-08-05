@@ -19,7 +19,7 @@ dependencies:
  - netcdf4
  - cython
  - dask
- - dem-stitcher>=2.3.0
+ - dem_stitcher>=2.3.0
  - gdal>=3.0
  - geopandas
  - h5py

@@ -18,7 +18,7 @@ dependencies:
  - cxx-compiler
  - cython
  - dask
- - dem-stitcher>=2.3.0
+ - dem_stitcher>=2.3.0
  - ecmwf-api-client
  - gdal>=3.0
  - geopandas
