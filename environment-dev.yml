@@ -11,7 +11,6 @@ channels:
 dependencies:
 # Regular dependencies. Keep these in sync with environment.yml
  - python>=3.8
- - boto3
  - cartopy
  - cdsapi
  - cfgrib
@@ -20,7 +19,6 @@ dependencies:
  - dask
  - dem_stitcher>=2.3.0
  - gdal>=3.0
- - geopandas
  - h5py
  - libgdal
  - matplotlib
@@ -28,7 +26,6 @@ dependencies:
  - numpy
  - pandas
  - progressbar
- - pygrib
  - pyproj>=2.2.0
  - scipy
  - xarray
