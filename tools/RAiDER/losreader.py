@@ -8,22 +8,20 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 import datetime
-import os.path
 import shelve
 
 import xml.etree.ElementTree as ET
 import numpy as np
 
-from abc import ABC, abstractmethod
+from abc import ABC
 from scipy.interpolate import interp1d
-#from numba import jit
+# from numba import jit
 
 from RAiDER.utilFcns import (
     cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
 )
 
-from RAiDER import Geo2rdr
-from RAiDER.constants import _ZREF, _RE
+from RAiDER.constants import _ZREF
 
 
 _SLANT_RANGE_THRESH = 5e6
@@ -79,7 +77,6 @@ class Conventional(LOS):
         '''Read the LOS file and convert it to look vectors'''
         self.setPoints(lats, lons, heights)
         LOS_enu = inc_hd_to_enu(*gdal_open(self._filename))
-        lengths = (zref - self._heights) / cosd(gdal_open(los_type)[0])
         return enu2ecef(
             LOS_enu[..., 0],
             LOS_enu[..., 1],
@@ -135,8 +132,6 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
         los_type = Zenith
     else:
         los_type, los_file = los_type
-
-    in_shape = lats.shape
 
     if los_type is Zenith:
         look_vecs = Zenith(lats, lons, heights)
@@ -449,7 +444,6 @@ def read_ESA_Orbit_file(filename, ref_time):
     vy = np.ones(numOSV)
     vz = np.ones(numOSV)
 
-    times = []
     for i, st in enumerate(data_block[0]):
         t[i] = (
             datetime.datetime.strptime(

@@ -1,5 +1,4 @@
 import datetime
-import glob
 import os
 import operator
 import pytest
@@ -8,12 +7,9 @@ import numpy as np
 
 from functools import reduce
 from numpy import nan
-from osgeo import gdal
-from test import DATA_DIR, TEST_DIR, pushd
+from test import DATA_DIR
 
 from RAiDER.constants import _ZMIN, _ZREF
-from RAiDER.losreader import Zenith
-from RAiDER.processWM import prepareWeatherModel
 from RAiDER.models.weatherModel import (
     WeatherModel,
     find_svp,
@@ -224,8 +220,6 @@ def test_mrwmf():
 
 
 def test_checkLL_era5(era5):
-    lats_good = np.array([-89, -45, 0, 45, 89])
-    lons_good = np.array([-179, -90, 0, 90, 179])
     lats = np.array([-90, -45, 0, 45, 90])
     lons = np.array([-180, -90, 0, 90, 180])
     lats2, lons2 = era5.checkLL(lats, lons)
