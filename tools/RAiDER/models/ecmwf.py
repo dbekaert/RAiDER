@@ -10,6 +10,7 @@ from RAiDER.logger import logger
 from RAiDER import utilFcns as util
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
+    LEVELS_25_HEIGHTS,
     A_137_HRES,
     B_137_HRES,
 )
@@ -48,9 +49,9 @@ class ECMWF(WeatherModel):
         else:
             self.__pressure_levels__()
 
-    @abstractmethod
     def __pressure_levels__(self):
-        pass
+        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
+        self._levels = len(self._zlevels)
 
     def __model_levels__(self):
         self._levels = 137
@@ -195,10 +196,8 @@ class ECMWF(WeatherModel):
         self,
         lat_min,
         lat_max,
-        lat_step,
         lon_min,
         lon_max,
-        lon_step,
         acqTime,
         outname
     ):
@@ -214,25 +213,26 @@ class ECMWF(WeatherModel):
 
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
+        # I referenced https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
         dataDict = {
-            "product_type": "reanalysis",
-            "{}".format(levType): 'all',
+            "class": "ea",
+            "expver": "1",
+            "levelist": 'all',
             "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
             'param': var,
             "stream": "oper",
             "type": "an",
-            "year": "{}".format(acqTime.year),
-            "month": "{}".format(acqTime.month),
-            "day": "{}".format(acqTime.day),
+            "date": "{}".format(acqTime.strftime('%Y-%m-%d')),
             "time": "{}".format(datetime.time.strftime(acqTime.time(), '%H:%M')),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
             "area": bbox,
+            "grid": [0.25,.25],
             "format": "netcdf"}
 
         try:
-            c.retrieve('reanalysis-era5-pressure-levels', dataDict, outname)
+            c.retrieve('reanalysis-era5-complete', dataDict, outname)
         except Exception as e:
             logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
             logger.warning('Query time: {}'.format(acqTime))
