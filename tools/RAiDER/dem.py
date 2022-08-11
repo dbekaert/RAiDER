@@ -15,7 +15,7 @@ import pandas as pd
 from osgeo import gdal
 from pyproj import Proj
 from shapely.geometry import shape, Polygon
-from dem_stitcher.stitcher import stitch_dem as download_stitched_dem
+from dem_stitcher.stitcher import stitch_dem
 
 import RAiDER.utilFcns
 
@@ -97,7 +97,7 @@ def download_dem(
     lons,
     save_flag='new',
     checkDEM=True,
-    outName=os.path.join(os.getcwd(), 'warpedDEM'),
+    outName='warpedDEM',
     buf=0.02
 ):
     '''  Download a DEM if one is not already present. '''
@@ -152,14 +152,22 @@ def download_dem(
     # Otherwise download a new DEM
     if do_download:
         folder = os.sep.join(os.path.split(outName)[:-1])
-        full_res_dem = os.path.join(folder, 'GLO30.dem')
-        logger.info('I am downloading a new DEM')
-        getDEM(inExtent, full_res_dem)
-        _, _, _, geoProj, trans, noDataVal, _ = readRaster(full_res_dem)
-        logger.info('DEM download complete')
-        out = gdal_open(full_res_dem)
+        bounds = [np.floor(inExtent[0]), np.floor(inExtent[1]),
+                  np.ceil(inExtent[2]), np.ceil(inExtent[3])]
 
-    out = out[::-1]
+        dem_res = 0.0002777777777777777775
+        out, p = stitch_dem(bounds,
+                            dem_name='glo_30',
+                            dst_ellipsoidal_height=True,
+                            dst_area_or_point='Point',
+                            n_threads_downloading=5,
+                            # ensures square resolution
+                            dst_resolution=dem_res
+                            )
+        if writeDEM:
+            with rasterio.open('GLO30_fullres_dem.tif', 'w', **p) as ds:
+                ds.write(X, 1)
+
     # Interpolate to the query points
     logger.debug('Beginning interpolation')
     outInterp = interpolateDEM(
@@ -179,7 +187,8 @@ def download_dem(
         # Need to ensure that noData values are consistently handled and
         # can be passed on to GDAL
         if outInterp.ndim == 2:
-            RAiDER.utilFcns.writeArrayToRaster(outInterp, outName, noDataValue=noDataVal)
+            with rasterio.open(outName, 'w', **p) as ds:
+                ds.write(outInterp, 1)
         elif outInterp.ndim == 1:
             RAiDER.utilFcns.writeArrayToFile(
                 lons,
@@ -256,49 +265,6 @@ def isInside(extent1, extent2):
     if np.all([t1, t2, t3, t4]):
         return True
     return False
-
-
-def getDEM(extent: list,
-           dem_path: str,
-           dem_name: str = 'glo_30',
-           num_threads: int = 5) -> str:
-    """Downloads tiles, merges, and gets ellipsoidal height of DEM. Output
-    format is an ISCE formatted (gdal-readable) raster.
-
-    Parameters
-    ----------
-    extent : list
-
-    out_dir : str, optional
-        Directory to write the DEM raster to
-    dem_name : str, optional
-        A list containing [lat_min, lat_max, lon_min, lon_max]
-    num_threads : int, optional
-        Number of threads to use when warping. Use multi-threading for i/o
-        intensive work. More than 5 threads is problematic.
-
-    Returns
-    -------
-    str
-        Absolute path of the downloaded file. This will be area centered
-        centered coordinates for agreement with weather model.
-    """
-
-    if num_threads > 5:
-        warn('More than 5 threads may be problematic for downloading '
-             'large tiles')
-    bounds = [extent[2],
-              extent[0],
-              extent[3],
-              extent[1]]
-    download_stitched_dem(
-        bounds,
-        dem_name,
-        dem_path,
-        dst_ellipsoidal_height=True,  # use the ellipsoidal heights
-        dst_area_or_point='Area',
-        max_workers=num_threads,
-    )
 
 
 def getArea(extent):

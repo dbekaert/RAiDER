@@ -10,25 +10,22 @@ channels:
  - defaults
 dependencies:
 # Regular dependencies. Keep these in sync with environment.yml
- - python>=3
- - autopep8
- - boto3
+ - python>=3.8
  - cartopy
  - cdsapi
  - cfgrib
  - cmake
- - netcdf4
  - cython
  - dask
+ - dem_stitcher>=2.3.0
  - gdal>=3.0
- - geopandas
  - h5py
  - libgdal
  - matplotlib
+ - netcdf4
  - numpy
  - pandas
  - progressbar
- - pygrib
  - pyproj>=2.2.0
  - scipy
  - xarray
@@ -44,6 +41,3 @@ dependencies:
  - pytest-cov
  - pytest-timeout
  - pip
- - pip:
-   - dem_stitcher==2.1.1
-
