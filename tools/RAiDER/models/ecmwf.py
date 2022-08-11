@@ -228,7 +228,7 @@ class ECMWF(WeatherModel):
             # be any of "3/6/9/12".
             "step": "0",
             "area": bbox,
-            "grid": [0.25,.25],
+            "grid": [0.25, .25],
             "format": "netcdf"}
 
         try:
