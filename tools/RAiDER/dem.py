@@ -96,7 +96,7 @@ def download_dem(
     lats,
     lons,
     save_flag='new',
-    checkDEM=True,
+    writeDEM=False,
     outName='warpedDEM',
     buf=0.02
 ):
@@ -128,7 +128,7 @@ def download_dem(
                 )
             else:
                 # Use the existing DEM!
-                _, _, _, geoProj, trans, noDataVal, _ = readRaster(outName)
+                _, _, _, _, _, noDataVal, _ = readRaster(outName)
                 out = gdal_open(outName)
                 save_flag = False
                 logger.info('I am using an existing DEM')
@@ -158,19 +158,16 @@ def download_dem(
     # Otherwise download a new DEM
     if do_download:
         folder = os.sep.join(os.path.split(outName)[:-1])
-        bounds = [np.floor(inExtent[0]), np.floor(inExtent[1]),
-                  np.ceil(inExtent[2]), np.ceil(inExtent[3])]
+        bounds = [np.ceil(inExtent[2]), np.floor(inExtent[0]), 
+                 np.ceil(inExtent[3]), np.floor(inExtent[1]),]
 
-        dem_res = 0.0002777777777777777775
         out, p = stitch_dem(bounds,
                             dem_name='glo_30',
                             dst_ellipsoidal_height=True,
                             dst_area_or_point='Point',
-                            n_threads_downloading=5,
-                            # ensures square resolution
-                            dst_resolution=dem_res
                             )
         if writeDEM:
+            import rasterio
             with rasterio.open('GLO30_fullres_dem.tif', 'w', **p) as ds:
                 ds.write(X, 1)
 
