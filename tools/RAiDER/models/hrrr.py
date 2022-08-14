@@ -161,9 +161,9 @@ class HRRR(WeatherModel):
                 x=(["x"], xArr),
                 y=(["y"], yArr),
             ),
-            attrs=dict(
-                'Weather_model': 'HRRR',
-            )
+            attrs={
+                'Weather_model':'HRRR',
+           }
         )
         ds_new.to_netcdf(filename)
             
