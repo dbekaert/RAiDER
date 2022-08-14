@@ -144,7 +144,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
 
     else:
         try:
-            svs = np.stack(get_sv(los_type, time, pad), axis=-1)
+            svs = np.stack(get_sv(los_file, time, pad), axis=-1)
             xyz_targets = np.stack(lla2ecef(lats, lons, heights), axis=-1)
             look_vecs = state_to_los(
                 svs,
@@ -160,7 +160,7 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
         # Otherwise, throw an error
         except BaseException:
             raise ValueError(
-                'getLookVectors: I cannot parse the file {}'.format(look_vecs)
+                'getLookVectors: I cannot parse the file {}'.format(los_file)
             )
 
     mask = (np.isnan(heights) | np.isnan(lats) | np.isnan(lons))
@@ -262,8 +262,8 @@ def state_to_los(svs, xyz_targets):
 
     Parameters
     ----------
-    t, x, y, z, vx, vy, vz  	- time, position, and velocity in ECEF of the sensor
-    lats, lons, heights     	- Ellipsoidal (WGS84) positions of target ground pixels
+    svs            - t, x, y, z, vx, vy, vz - time, position, and velocity in ECEF of the sensor
+    xyz_targets    - lats, lons, heights - Ellipsoidal (WGS84) positions of target ground pixels
 
     Returns
     -------
@@ -298,8 +298,11 @@ def state_to_los(svs, xyz_targets):
     slant_range = []
     los = np.empty((Npts, 3), dtype=np.float64)
     for k in range(Npts):
-        los[k, :], sr = get_radar_coordinate(target_xyz[k, :], svs)
-        slant_range.append(sr)
+        if ~any(np.isnan(target_xyz[k,:])):
+            los[k, :], sr = get_radar_coordinate(target_xyz[k, :], svs)
+            slant_range.append(sr)
+        else:
+            slant_range.append(np.nan)
     slant_ranges = np.array(slant_range)
 
     # Sanity check for purpose of tracking problems
@@ -479,7 +482,7 @@ def get_radar_coordinate(xyz, svs, t0=None):
     '''
     # initialize search
     if t0 is None:
-        t = (svs[:, 0].max() - svs[:, 0].min()) / 2
+        t = np.nanmean(svs[:, 0])
     else:
         t = t0
 

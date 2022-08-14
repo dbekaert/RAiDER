@@ -45,8 +45,7 @@ def cosd(x):
 
 
 def lla2ecef(lat, lon, height):
-    T = Transformer.from_crs(4326, 4978)
-
+    T = Transformer.from_crs(4326, 4978, always_xy=True)
     return T.transform(lon, lat, height)
 
 
@@ -880,3 +879,86 @@ def getChunkSize(in_shape):
         ) for s in in_shape
     )
     return chunkSize
+
+
+def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
+    '''
+    Calculate pressure, geopotential, and geopotential height
+    from the surface pressure and model levels provided by a weather model.
+    The model levels are numbered from the highest eleveation to the lowest.
+
+    Parameters
+    ----------
+        lnsp: ndarray         - [y, x] array of log surface pressure
+        t: ndarray            - [z, y, x] cube of temperatures
+        q: ndarray            - [z, y, x] cube of specific humidity
+        geopotential: ndarray - [z, y, x] cube of geopotential values
+        a: ndarray            - [z] vector of a values
+        b: ndarray            - [z] vector of b values
+        num_levels: int       - integer number of model levels
+
+    Returns
+    -------
+        geopotential - The geopotential in units of height times acceleration
+        pressurelvs  - The pressure at each of the model levels for each of
+                       the input points
+        geoheight    - The geopotential heights
+    '''
+    geopotential = np.zeros_like(t)
+    pressurelvs = np.zeros_like(geopotential)
+    geoheight = np.zeros_like(geopotential)
+
+    # log surface pressure
+    # Note that we integrate from the ground up, so from the largest model level to 0
+    sp = np.exp(lnsp)
+
+    if len(a) != num_levels + 1 or len(b) != num_levels + 1:
+        raise ValueError(
+            'I have here a model with {} levels, but parameters a '.format(num_levels) +
+            'and b have lengths {} and {} respectively. Of '.format(len(a), len(b)) +
+            'course, these three numbers should be equal.')
+
+    # Integrate up into the atmosphere from *lowest level*
+    z_h = 0  # initial value
+    for lev, t_level, q_level in zip(
+            range(num_levels, 0, -1), t[::-1], q[::-1]):
+
+        # lev is the level number 1-60, we need a corresponding index
+        # into ts and qs
+        # ilevel = num_levels - lev # << this was Ray's original, but is a typo
+        # because indexing like that results in pressure and height arrays that
+        # are in the opposite orientation to the t/q arrays.
+        ilevel = lev - 1
+
+        # compute moist temperature
+        t_level = t_level * (1 + 0.609133 * q_level)
+
+        # compute the pressures (on half-levels)
+        Ph_lev = a[lev - 1] + (b[lev - 1] * sp)
+        Ph_levplusone = a[lev] + (b[lev] * sp)
+
+        pressurelvs[ilevel] = Ph_lev# + Ph_levplusone) / 2  # average pressure at half-levels above and below
+
+        if lev == 1:
+            dlogP = np.log(Ph_levplusone / 0.1)
+            alpha = np.log(2)
+        else:
+            dlogP = np.log(Ph_levplusone) - np.log(Ph_lev)
+            alpha = 1 - ((Ph_lev / (Ph_levplusone - Ph_lev)) * dlogP)
+
+        TRd = t_level * R_d
+
+        # z_f is the geopotential of this full level
+        # integrate from previous (lower) half-level z_h to the full level
+        z_f = z_h + TRd * alpha + z
+
+        # Geopotential (add in surface geopotential)
+        geopotential[ilevel] = z_f
+        geoheight[ilevel] = geopotential[ilevel] / g0
+
+        # z_h is the geopotential of 'half-levels'
+        # integrate z_h to next half level
+        z_h += TRd * dlogP
+
+    return geopotential, pressurelvs, geoheight
+

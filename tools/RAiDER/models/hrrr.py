@@ -1,7 +1,11 @@
 import datetime
+import logging
+import xarray
 
 import numpy as np
 import requests
+
+from cfgrib.xarray_store import open_dataset
 from pyproj import CRS
 
 from RAiDER.logger import logger
@@ -129,20 +133,40 @@ class HRRR(WeatherModel):
         '''
         Get the variables from a HRRR grib2 file
         '''
-        from cfgrib.xarray_store import open_dataset
 
         # Pull the native grid
         xArr, yArr = self.getXY_gdal(filename)
 
         # open the dataset and pull the data
-        ds = open_dataset(filename,
-                          backend_kwargs={'filter_by_keys': {'typeOfLevel': 'isobaricInhPa'}})
+        ds = open_dataset(
+            filename,
+            backend_kwargs={'filter_by_keys': {'typeOfLevel': 'isobaricInhPa'}}
+        )
         t = ds['t'].values.copy()
         z = ds['gh'].values.copy()
         q = ds['q'].values.copy()
         lats = ds['t'].latitude.values.copy()
         lons = ds['t'].longitude.values.copy()
 
+        ds_new = xarray.Dataset(
+            data_vars=dict(
+                t= (["x", "y", 'level'], t),
+                z= (["x", "y", 'level'], z),
+                q= (["x", "y", 'level'], q),
+                lons=(["x", "y", "level"], lons),
+                lats=(["x", "y", "level"], lats),
+            ),
+            coords=dict(
+                level=np.arange(137) + 1,
+                x=(["x"], xArr),
+                y=(["y"], yArr),
+            ),
+            attrs=dict(
+                'Weather_model': 'HRRR',
+            )
+        )
+        ds_new.to_netcdf(filename)
+            
         return t, z, q, xArr, yArr, lats, lons
 
     def _getPresLevels(self, low=50, high=1013.2, inc=25):
