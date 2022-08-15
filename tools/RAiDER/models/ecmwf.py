@@ -199,7 +199,6 @@ class ECMWF(WeatherModel):
         lat_max,
         lon_min,
         lon_max,
-        lon_step,
         acqTimes: List[datetime.datetime],
         out_name: Path,
     ) -> None:

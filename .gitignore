@@ -1,5 +1,6 @@
 __pycache__
-.vscode
+.vscode/
+.pytest_cache/
 *.pyc
 *~
 *.swp
@@ -19,6 +20,7 @@ test/*/*/real/
 test/*/geom/*.dem
 test/*.h5
 test/test_geom/*.nc
+test/issue_333/**/*.nc
 /*.h5
 *.csv
 *.log

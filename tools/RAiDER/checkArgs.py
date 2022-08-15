@@ -8,10 +8,8 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import importlib
 import os
-
 import numpy as np
 import pandas as pd
-
 from textwrap import dedent
 from datetime import datetime
 
@@ -27,7 +25,7 @@ def checkArgs(args, p):
 
     # Argument checking
     if args.heightlvs is not None:
-        if (args.outformat.lower() != 'hdf5') and (args.outformat is not None):
+        if args.outformat.lower() != 'hdf5' and args.outformat is not None:
             raise ValueError('If you want to use height levels you must specify HDF5 as your "outformat"')
 
     if args.wmLoc is not None:
@@ -40,7 +38,7 @@ def checkArgs(args, p):
     # Query Area
     lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
 
-    if (np.min(lat) < -90) | (np.max(lat) > 90):
+    if np.min(lat) < -90 or np.max(lat) > 90:
         raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc

@@ -11,7 +11,6 @@ import numpy as np
 import pandas as pd
 import rasterio
 from osgeo import gdal
-from shapely.geometry import Polygon
 from dem_stitcher.stitcher import stitch_dem
 
 import RAiDER.utilFcns
