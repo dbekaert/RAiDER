@@ -98,7 +98,7 @@ def download_dem(
     lats,
     lons,
     save_flag='new',
-    writeDEM=True,
+    writeDEM=False,
     outName='warpedDEM',
     buf=0.02
 ):
@@ -166,22 +166,22 @@ def download_dem(
         folder = os.sep.join(os.path.split(outName)[:-1])
         # inExtent is SNWE
         # dem-stitcher wants WSEN
-        bounds = [np.ceil(inExtent[2]), np.floor(inExtent[0]), 
-                 np.ceil(inExtent[3]), np.floor(inExtent[1]),]
+        bounds = [np.floor(inExtent[2]), np.floor(inExtent[0]), 
+                 np.ceil(inExtent[3]), np.ceil(inExtent[1]),]
 
-        out, p = stitch_dem(bounds,
+        zvals, metadata = stitch_dem(bounds,
                             dem_name='glo_30',
                             dst_ellipsoidal_height=True,
-                            dst_area_or_point='Point',
+                            dst_area_or_point='Area',
                             )
         if writeDEM:
-            with rasterio.open('GLO30_fullres_dem.tif', 'w', **p) as ds:
-                ds.write(out, 1)
+            with rasterio.open('GLO30_fullres_dem.tif', 'w', **metadata) as ds:
+                ds.write(zvals, 1)
 
     # Interpolate to the query points
     logger.debug('Beginning interpolation')
     outInterp = interpolateDEM(
-        out,
+        zvals,
         np.stack((lats, lons), axis=-1),
         inExtent,
         method='linear',
@@ -197,7 +197,10 @@ def download_dem(
         # Need to ensure that noData values are consistently handled and
         # can be passed on to GDAL
         if outInterp.ndim == 2:
-            with rasterio.open(outName, 'w', **p) as ds:
+            metadata['height'] = outInterp.shape[0]
+            metadata['width'] = outInterp.shape[1]
+            metadata['transform'] = None
+            with rasterio.open(outName, 'w', **metadata) as ds:
                 ds.write(outInterp, 1)
         elif outInterp.ndim == 1:
             RAiDER.utilFcns.writeArrayToFile(
@@ -237,7 +240,7 @@ def getBufferedExtent(lats, lons=None, buf=0.):
         elif lons.size == 1:
             out = [np.nanmin(lats), np.nanmax(lats), lons - buf, lons + buf]
     except AttributeError:
-        if isinstance(lats, tuple) and len(lats) == 2:
+        if (isinstance(lats, tuple) or isinstance(lats,list)) and len(lats) == 2:
             out = [min(lats) - buf, max(lats) + buf, min(lons) - buf, max(lons) + buf]
     except Exception as e:
         logger.warning('getBufferExtent failed: lats type: {}\n, content: {}'.format(type(lats), lats))
