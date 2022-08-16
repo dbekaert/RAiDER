@@ -8,6 +8,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from logging import warn
 import os
+import rasterio
 
 import numpy as np
 import pandas as pd
@@ -35,6 +36,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     if height_type == 'dem':
         try:
             hts = gdal_open(height_data)
+            assert hts.shape == lats.shape
         except BaseException:
             logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
@@ -96,7 +98,7 @@ def download_dem(
     lats,
     lons,
     save_flag='new',
-    writeDEM=False,
+    writeDEM=True,
     outName='warpedDEM',
     buf=0.02
 ):
@@ -114,10 +116,14 @@ def download_dem(
         )
 
         try:
+            ll = gdal_extents(outName)
+            lons = ll[:2]
+            lats = ll[2:]
             if isOutside(
                 inExtent,
                 getBufferedExtent(
-                    gdal_extents(outName),
+                    lats, 
+                    lons,
                     buf=buf
                 )
             ):
@@ -158,6 +164,8 @@ def download_dem(
     # Otherwise download a new DEM
     if do_download:
         folder = os.sep.join(os.path.split(outName)[:-1])
+        # inExtent is SNWE
+        # dem-stitcher wants WSEN
         bounds = [np.ceil(inExtent[2]), np.floor(inExtent[0]), 
                  np.ceil(inExtent[3]), np.floor(inExtent[1]),]
 
@@ -167,9 +175,8 @@ def download_dem(
                             dst_area_or_point='Point',
                             )
         if writeDEM:
-            import rasterio
             with rasterio.open('GLO30_fullres_dem.tif', 'w', **p) as ds:
-                ds.write(X, 1)
+                ds.write(out, 1)
 
     # Interpolate to the query points
     logger.debug('Beginning interpolation')

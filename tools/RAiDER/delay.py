@@ -34,11 +34,31 @@ from RAiDER.utilFcns import (
 def tropo_delay(args):
     """
     raiderDelay main function.
+    
+    Parameters
+    ----------
+    args: dict  Parameters and inputs needed for processing, 
+                containing the following key-value pairs:
+        
+        los     - tuple, Zenith class object, ('los', 2-band los file), or ('sv', orbit_file)
+        lats    - ndarray
+        lons    - ndarray
+        heights - see checkArgs for format
+        flag    - 
+        weather_model   - type of weather model to use
+        wmLoc   - Directory containing weather model files
+        zref    - max integration height
+        outformat       - File format to use for raster outputs
+        time    - list of datetimes to calculate delays
+        download_only   - Only download the raw weather model data and exit
+        wetFilename     - 
+        hydroFilename   - 
+        pnts_file       - Input a points file from previous run
+        verbose - verbose printing
     """
-
     # unpacking the dictionairy
-    los = args['los']
-    lats = args['lats']
+    los = args['los'] 
+    lats = args['lats'] # 
     lons = args['lons']
     heights = args['heights']
     flag = args['flag']
