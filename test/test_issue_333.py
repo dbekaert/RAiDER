@@ -12,7 +12,7 @@ from RAiDER.processWM import prepareWeatherModel
 
 @pytest.fixture
 def here():
-    return pathlib.Path(__file__).parent.resolve()
+    return pathlib.Path(__file__).parent / "issue_333"
 
 
 @pytest.fixture
