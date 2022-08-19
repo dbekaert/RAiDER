@@ -52,14 +52,14 @@ class LOS(ABC):
             self._lats = lats
             self._lons = lons
             self._heights = heights
-
+    
 
 class Zenith(LOS):
     """Special value indicating a look vector of "zenith"."""
 
     def __call__(self, lats=None, lons=None, heights=None):
         '''Set point locations and calculate Zenith look vectors'''
-        self.setPoint(lats, lons, heights)
+        self.setPoints(lats, lons, heights)
         return getZenithLookVecs(self._lats, self._lons, self._heights)
 
 
@@ -85,6 +85,7 @@ class Conventional(LOS):
             self._lons,
             self._heights
         )
+
 
 
 def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 * 3600):
