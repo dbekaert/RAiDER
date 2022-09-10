@@ -14,26 +14,24 @@ Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rig
 THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS. USE AT YOUR OWN RISK.
 
 ## Contents
-
 - [RAiDER](#raider)
   - [Contents](#contents)
   - [1. Installing RAiDER](#3-installing-raider)
     - [With Conda](#with-conda)
     - [From Source](#3-installing-raider)
-  - [2. Software Dependencies](#1-software-dependencies)
-    - [Python dependencies](#python-dependencies)
-    - [Python Jupyter dependencies](#python-jupyter-dependencies)
-  - [3. Setup of third-party weather model access](#4-setup-of-third-party-weather-model-access)
-  - [4. Running RAiDER and Documentation](#5-running-raider-and-documentation)
-  - [5. Citing](#6-citation)
-  - [6. Contributors](#7-contributors)
-
+  - [2. Setup of third-party weather model access](#4-setup-of-third-party-weather-model-access)
+  - [3. Running RAiDER and Documentation](#5-running-raider-and-documentation)
+  - [4. Citing](#6-citation)
+  - [5. Contributors](#7-contributors)
 ------
 ## 1. Getting Started
 
 RAiDER has been tested on the following systems:
 - Ubuntu v.16 and up
 - Mac OS v.10 and up
+
+RAiDER does **not** currently run on arm64 processors on Mac. We will update this note once the build becomes available. 
+
 ### Installing With Conda
 RAiDER is available on [conda-forge](https://anaconda.org/conda-forge/raider). __[Conda](https://docs.conda.io/en/latest/index.html)__ is a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. We recommend using [Miniforge](https://github.com/conda-forge/miniforge), a conda environment manager that uses conda-forge as its default code repo. Alternatively,see __[here](https://docs.anaconda.com/anaconda/install/)__ for help installing Anaconda and __[here](https://docs.conda.io/en/latest/miniconda.html)__ for installing Miniconda.
 
@@ -55,22 +53,22 @@ conda activate RAiDER
 pip install -e .
 ```
 ------
-## 3. Setup of third party weather model access
+## 2. Setup of third party weather model access
 RAiDER has the ability to download weather models from third-parties; some of which require license agreements. See [here](WeatherModels.md) for details.
 
 ------
-## 4. Running RAiDER and Documentation
+## 3. Running RAiDER and Documentation
 For detailed documentation, examples, and Jupyter notebooks see the [RAiDER-docs repository](https://github.com/dbekaert/RAiDER-docs).
 We welcome contributions of other examples on how to leverage the RAiDER  (see [here](https://github.com/dbekaert/RAiDER/blob/master/CONTRIBUTING.md) for instructions).
 ``` raiderDelay.py -h ``` provides a help menu and list of example commands to get started.
 The RAiDER scripts are highly modulized in Python and allows for building your own processing workflow.
 
 ------
-## 5. Citation
+## 4. Citation
 TODO
 
 ------
-## 7. Contributors
+## 5. Contributors
 * David Bekaert
 * Jeremy Mauarer
 * Raymond Hogenson
