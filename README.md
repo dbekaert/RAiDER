@@ -70,8 +70,9 @@ TODO
 ------
 ## 5. Contributors
 * David Bekaert
-* Jeremy Mauarer
+* Jeremy Maurer
 * Raymond Hogenson
+* Heresh Fattahi
 * Yang Lei
 * Rohan Weeden
 * Simran Sangha
