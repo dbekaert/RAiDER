@@ -31,12 +31,13 @@ class LOS(ABC):
     '''LOS Class definition for handling look vectors'''
 
     def __init__(self):
-        self._lats, self._lons, self._heights = None
+        self._lats, self._lons, self._heights = None, None, None
+        self._look_vecs = None
 
     def setPoints(self, lats, lons=None, heights=None):
         '''Set the pixel locations'''
         if (lats is None) and (self._lats is None):
-            raise RuntimeError("You haven't set up any point locations yet")
+            raise RuntimeError("You haven't given any point locations")
 
         # Will overwrite points by default
         if lons is None:
@@ -53,14 +54,19 @@ class LOS(ABC):
             self._lons = lons
             self._heights = heights
     
+    def getXYZ(self):
+        self._xyz = lla2ecef(self._lats, self._lons, self._heights)
 
 class Zenith(LOS):
     """Special value indicating a look vector of "zenith"."""
 
-    def __call__(self, lats=None, lons=None, heights=None):
+    def __call__(self, delays):
         '''Set point locations and calculate Zenith look vectors'''
-        self.setPoints(lats, lons, heights)
-        return getZenithLookVecs(self._lats, self._lons, self._heights)
+        if self._lats is None:
+            raise ValueError('Target points not set')
+        if self._look_vecs is None:
+            self._look_vecs = getZenithLookVecs(self._lats, self._lons, self._heights)
+        return delays / self._look_vecs[...,-1]
 
 
 class Conventional(LOS):
@@ -68,28 +74,30 @@ class Conventional(LOS):
     Special value indicating that the zenith delay will
     be projected using the standard cos(inc) scaling.
     """
-
-    def __init__(self, los_filename):
-        '''read in and parse a line-of-sight file'''
-        self._filename = los_filename
-
-    def __call__(self, lats=None, lons=None, heights=None, zref=_ZREF):
+    def __init__(self, filename=None):
+        self._file = filename
+        
+    def __call__(self, delays, time=None, pad=None):
         '''Read the LOS file and convert it to look vectors'''
-        self.setPoints(lats, lons, heights)
-        LOS_enu = inc_hd_to_enu(*gdal_open(self._filename))
-        return enu2ecef(
-            LOS_enu[..., 0],
-            LOS_enu[..., 1],
-            LOS_enu[..., 2],
-            self._lats,
-            self._lons,
-            self._heights
-        )
+        if self._lats is None:
+            raise ValueError('Target points not set')
+        if self._filename is None:
+            raise ValueError('LOS file not set')
 
+        try:
+            LOS_enu = inc_hd_to_enu(*gdal_open(self._filename))
+        except:
+            svs = np.stack(get_sv(self._filename, time, pad), axis=-1)
+            self.getXYZ()
+            LOS_enu = state_to_los(svs, self._xyz)
+        
+        return delays / LOS_enu[...,-1]
 
+class Raytracing(LOS):
+    """
+    Special value indicating that full raytracing will be
+    used to calculate slant delays.
 
-def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 * 3600):
-    '''
     Get unit look vectors pointing from the ground (target) pixels to the sensor,
     or to Zenith. Can be accomplished using an ISCE-style 2-band LOS file or a
     file containing orbital statevectors.
@@ -99,13 +107,6 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
     because they are in an ECEF reference frame instead of a local ENU. This is done
     because the construction of rays is done in ECEF rather than the local ENU.
 
-    Parameters
-    ----------
-    los_type: LookVector object or tuple  - Either a Zenith object or a tuple,
-                                             with the second element containing
-                                             the name of either a line-of-sight
-                                             file or orbital statevectors file
-    lats/lons/heights: ndarray             - WGS-84 coordinates of the target pixels
     time: python datetime                  - user-requested query time. Must be
                                              compatible with the orbit file passed.
                                              Only required for a statevector file.
@@ -124,51 +125,23 @@ def getLookVectors(los_type, lats, lons, heights, zref=_ZREF, time=None, pad=3 *
 
     Example:
     --------
-    >>> from RAiDER.losreader import Zenith, getLookVectors
+    >>> from RAiDER.losreader import Raytracing
     >>> import numpy as np
-    >>> getLookVectors(Zenith, np.array([0]), np.array([0]), np.array([0]))
-    >>> # array([[1, 0, 0]])
-    '''
-    if (los_type is None) or (los_type is Zenith):
-        los_type = Zenith
-    else:
-        los_type, los_file = los_type
+    >>> #TODO
+    >>> # 
+    """
+    def __init__(self, filename=None):
+        '''read in and parse a statevector file'''
+        self._file = filename
 
-    if los_type is Zenith:
-        look_vecs = Zenith(lats, lons, heights)
-        lengths = zref - heights
-
-    elif (los_type is Conventional) or (los_type == 'los'):
-        # If an LOS file is supplied, can only do the conventional approach
-        c = Conventional(los_file)
-        look_vecs = c(lats, lons, heights, zref=zref)
-
-    else:
-        try:
-            svs = np.stack(get_sv(los_file, time, pad), axis=-1)
-            xyz_targets = np.stack(lla2ecef(lats, lons, heights), axis=-1)
-            look_vecs = state_to_los(
-                svs,
-                xyz_targets,
-            )
-            enu = ecef2enu(
-                look_vecs,
-                lats,
-                lons,
-                heights)
-            lengths = (zref - heights) / enu[..., 2]
-
-        # Otherwise, throw an error
-        except BaseException:
-            raise ValueError(
-                'getLookVectors: I cannot parse the file {}'.format(los_file)
-            )
-
-    mask = (np.isnan(heights) | np.isnan(lats) | np.isnan(lons))
-    lengths[mask] = 0.
-    look_vecs[mask, :] = np.nan
-
-    return look_vecs.astype(np.float64), lengths
+    def getVectors(self, time, pad=None):
+        '''
+        Calculate look vectors for raytracing
+        '''
+        svs = np.stack(get_sv(self._file, time, pad), axis=-1)
+        self.getXYZ()
+        LOS_enu = state_to_los(svs, self._xyz)
+        self._look_vecs = 
 
 
 def getZenithLookVecs(lats, lons, heights):

@@ -114,6 +114,7 @@ def tropo_delay(args):
                 '{}'.format(weather_model_file)
             )
         return None, None
+    ###########################################################
 
     ###########################################################
     # If query points are specified, pull the height info
@@ -124,7 +125,6 @@ def tropo_delay(args):
         np.nanmin(hgts), np.nanmax(hgts)
     )
 
-    ####################################################################
     # Transform the query points 
     pnt_proj = CRS.from_epsg(4326)
     ds = xarray.load_dataset(weather_model_file)
@@ -144,6 +144,7 @@ def tropo_delay(args):
     else:
         # interpolators require y, x, z
         pnts = np.stack([lats, lons, hgts], axis=-1)
+    ####################################################################
 
     ####################################################################
     # Do different things if ZTD or STD is requested

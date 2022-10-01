@@ -12,6 +12,8 @@ from RAiDER.losreader import (
     inc_hd_to_enu,
     get_sv,
     getZenithLookVecs,
+    Conventional,
+    Zenith,
 )
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
@@ -251,3 +253,42 @@ def test_zenith_6():
         getZenithLookVecs(np.array([0]), np.array([0]), np.array([1000])),
         np.array([1, 0, 0])
     )
+
+
+def test_Zenith():
+    lats = np.array([-90, 0, 0, 90])
+    lons = np.array([-90, 0, 90, 180])
+    hgts = np.array([-10, 0, 10, 1000])
+
+    unit_vecs = np.array([[0,0,-1], [1,0,0], [0,1,0], [0,0,1]])
+
+    z = Zenith()
+    with pytest.raises(RuntimeError):
+        z.setPoints(lats=None)
+    with pytest.raises(ValueError):
+            output = z()
+    
+    z.setPoints(lats=lats, lons=lons, heights = hgts)
+    assert z._lats.shape == (4,)
+    assert z._lats.shape == z._lons.shape
+    assert np.allclose(z._heights, hgts)
+
+    output = z()
+    assert output.shape == (4,3)
+    assert np.allclose(output, unit_vecs)
+
+def test_Conventional():
+    lats = np.array([-90, 0, 0, 90])
+    lons = np.array([-90, 0, 90, 180])
+    hgts = np.array([-10, 0, 10, 1000])
+
+    c = Conventional()
+
+    with pytest.raises(ValueError):
+        c()
+    
+    c.setPoints(lats, lons, hgts)
+    with pytest.raises(ValueError):
+        c()
+    
+    
