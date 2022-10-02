@@ -45,11 +45,11 @@ def checkArgs(args, p):
 
     # Line of sight calc
     if args.lineofsight is not None:
-        los = ('los', args.lineofsight)
+        los = Conventional(args.lineofsight)
     elif args.statevectors is not None:
-        los = ('sv', args.statevectors)
+        los = Conventional(args.statevectors)
     else:
-        los = Zenith
+        los = Zenith()
 
     # Weather
     try:

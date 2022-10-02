@@ -24,7 +24,7 @@ from RAiDER.delayFcns import (
 )
 from RAiDER.dem import getHeights
 from RAiDER.logger import logger
-from RAiDER.losreader import getLookVectors, Zenith
+from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
     gdal_open, writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
@@ -105,7 +105,9 @@ def tropo_delay(args):
     elif useWeatherNodes:
         if heights[0] == 'lvs':
             # compute delays at the correct levels
-            raise NotImplementedError
+            ds = xarray.load_dataset(weather_model_file)
+            ds['wet_total'] = ds['wet_total'].interp(z=heights[1])
+            ds['hydro_total'] = ds['hydro_total'].interp(z=heights[1])
         else:
             logger.debug(
                 'Only Zenith delays at the weather model nodes '
@@ -147,93 +149,24 @@ def tropo_delay(args):
     ####################################################################
 
     ####################################################################
-    # Do different things if ZTD or STD is requested
-    if (los is Zenith) or (los[0] == 'los'):
+    # Calculate delays
+    los.setPoints(lats, lons, hgts)
+    if (los is Zenith) or (los is Conventional):
         # either way I'll need the ZTD
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
-        # Now do the projection if Conventional slant delay is requested
-        if los is not Zenith:
-            inc, hd = gdal_open(los[1])
-            wetDelay = projectDelays(wetDelay, inc)
-            hydroDelay = projectDelays(hydroDelay, inc)
+        # return the delays (ZTD or STD)
+        wetDelay = los(wetDelay)
+        hydroDelay = los(hydroDelay)
 
     else:
         ###########################################################
-        # If asking for line-of-sight, do the full raytracing calculation
+        # Full raytracing calculation
         # Requires handling the query points
         ###########################################################
-        query_shape = lats.shape
-        logger.debug('Lats shape is {}'.format(query_shape))
-        logger.debug(
-            'lat/lon box is %f/%f/%f/%f (SNWE)',
-            np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
-        )
-
-        # Write the input query points to a file
-        # Check whether the query points file already exists
-        write_flag = checkQueryPntsFile(pnts_file, query_shape)
-
-        # Throw an error if the user passes the same filename but different points
-        if os.path.exists(pnts_file) and write_flag:
-            logger.error(
-                'The input query points file exists but does not match the '
-                'shape of the input query points, either change the file '
-                'name or delete the query points file ({})'.format(pnts_file)
-            )
-
-        if write_flag:
-            logger.debug('Beginning line-of-sight calculation')
-
-            # Convert the line-of-sight inputs to look vectors
-            in_shape = ds['longitude'].values.shape
-            mask = ds.z.values < zref
-            lat = ds['latitude'].values[mask,...]
-            lon = ds['longitude'].values[mask,...]
-            hgt = np.moveaxis(np.tile(ds.z.values[mask], (*in_shape[1:], 1)), (0, 1, 2), (1, 2, 0))
-            lat[lat < -90] = np.nan; lon[lon < -90] = np.nan; hgt[hgt< -90] = np.nan;
-            los, lengths = getLookVectors(
-                los, 
-                lat,
-                lon,
-                hgt,
-                zref=zref, 
-                time=time
-            )
-
-            # write to an HDF5 file
-            #writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
-
-        logger.debug('Beginning raytracing calculation')
-        logger.debug('Reference integration step is {:1.1f} m'.format(_STEP))
-
-        sp = np.stack(lla2ecef(lat, lon, hgt), axis=-1)
-
-        wet, hydro = get_delays(
-            _STEP,
-            sp,
-            los,
-            weather_model_file,
-        )
-
-        logger.debug('Finished raytracing calculation')
-
-        ifWet   = Interpolator(
-            (ds.z.values[mask], ds.y.values, ds.x.values), 
-            wet, 
-            fill_value=np.nan,
-            bounds_error=False,
-        )
-        ifHydro = Interpolator(
-            (ds.z.values[mask], ds.y.values, ds.x.values), 
-            hydro, 
-            fill_value=np.nan,
-            bounds_error=False,
-        )
-        wetDelay = ifWet(pnts)
-        hydroDelay = ifHydro(pnts)
+        raise NotImplementedError
 
     del ds # cleanup
 
