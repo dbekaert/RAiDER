@@ -1,0 +1,45 @@
+# create environment : conda env create -f environment-isce3.yml
+# update dependencies: conda env update -f environment-isce3.yml
+# remove environment : conda env remove -n RISCE3
+# enter  environment : conda activate RISCE3
+# exit   environment : conda deactivate
+name: RISCE3
+channels:
+ - conda-forge
+ - anaconda
+ - defaults
+dependencies:
+# Regular dependencies. Keep these in sync with environment.yml
+ - python>=3.8
+ - isce3
+ - cartopy
+ - cdsapi
+ - cfgrib
+ - cmake
+ - cython
+ - dask
+ - dem_stitcher>=2.3.0
+ - gdal>=3.0
+ - h5py
+ - libgdal
+ - matplotlib
+ - netcdf4
+ - numpy
+ - pandas
+ - progressbar
+ - pyproj>=2.2.0
+ - scipy
+ - xarray
+ - shapely
+ - isce3
+ - pydap>3.2.2|<3.2.2
+ - ecmwf-api-client
+ - cxx-compiler
+ - sysroot_linux-64
+ - rasterio
+ # Dev dependencies. Only needed for contributing
+ - autopep8
+ - pytest
+ - pytest-cov
+ - pytest-timeout
+ - pip
