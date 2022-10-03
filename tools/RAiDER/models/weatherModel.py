@@ -389,6 +389,7 @@ class WeatherModel(ABC):
             if self.files is None:
                 raise ValueError('Need to save weather model as netcdf')
             weather_model_path = self.files[0]
+            print(weather_model_path)
             with rasterio.open(f'netcdf:{weather_model_path}') as ds:
                 datasets = ds.subdatasets
 

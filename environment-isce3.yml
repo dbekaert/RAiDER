@@ -24,6 +24,7 @@ dependencies:
  - libgdal
  - matplotlib
  - netcdf4
+ - lxml
  - numpy
  - pandas
  - progressbar
