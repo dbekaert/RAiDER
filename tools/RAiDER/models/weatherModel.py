@@ -15,7 +15,9 @@ from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
-from RAiDER.utilFcns import robmax, robmin, write2NETCDF4core
+from RAiDER.utilFcns import (
+    robmax, robmin, write2NETCDF4core, calcgeoh,
+)
 
 
 class WeatherModel(ABC):
@@ -389,7 +391,6 @@ class WeatherModel(ABC):
             if self.files is None:
                 raise ValueError('Need to save weather model as netcdf')
             weather_model_path = self.files[0]
-            print(weather_model_path)
             with rasterio.open(f'netcdf:{weather_model_path}') as ds:
                 datasets = ds.subdatasets
 
@@ -529,66 +530,7 @@ class WeatherModel(ABC):
                            the input points
             geoheight    - The geopotential heights
         '''
-        geopotential = np.zeros_like(self._t)
-        pressurelvs = np.zeros_like(geopotential)
-        geoheight = np.zeros_like(geopotential)
-
-        # surface pressure: pressure at the surface!
-        # Note that we integrate from the ground up, so from the largest model level to 0
-        sp = np.exp(lnsp)
-
-        # t should be structured [z, y, x]
-        levelSize = self._levels
-
-        if len(self._a) != levelSize + 1 or len(self._b) != levelSize + 1:
-            raise ValueError(
-                'I have here a model with {} levels, but parameters a '.format(levelSize) +
-                'and b have lengths {} and {} respectively. Of '.format(len(self._a), len(self._b)) +
-                'course, these three numbers should be equal.')
-
-        # Integrate up into the atmosphere from *lowest level*
-        z_h = 0  # initial value
-        for lev, t_level, q_level in zip(
-                range(levelSize, 0, -1), self._t[::-1], self._q[::-1]):
-
-            # lev is the level number 1-60, we need a corresponding index
-            # into ts and qs
-            # ilevel = levelSize - lev # << this was Ray's original, but is a typo
-            # because indexing like that results in pressure and height arrays that
-            # are in the opposite orientation to the t/q arrays.
-            ilevel = lev - 1
-
-            # compute moist temperature
-            t_level = t_level * (1 + 0.609133 * q_level)
-
-            # compute the pressures (on half-levels)
-            Ph_lev = self._a[lev - 1] + (self._b[lev - 1] * sp)
-            Ph_levplusone = self._a[lev] + (self._b[lev] * sp)
-
-            pressurelvs[ilevel] = (Ph_lev + Ph_levplusone) / 2  # average pressure at half-levels above and below
-
-            if lev == 1:
-                dlogP = np.log(Ph_levplusone / 0.1)
-                alpha = np.log(2)
-            else:
-                dlogP = np.log(Ph_levplusone) - np.log(Ph_lev)
-                alpha = 1 - ((Ph_lev / (Ph_levplusone - Ph_lev)) * dlogP)
-
-            TRd = t_level * self._R_d
-
-            # z_f is the geopotential of this full level
-            # integrate from previous (lower) half-level z_h to the full level
-            z_f = z_h + TRd * alpha + z
-
-            # Geopotential (add in surface geopotential)
-            geopotential[ilevel] = z_f
-            geoheight[ilevel] = geopotential[ilevel] / self._g0
-
-            # z_h is the geopotential of 'half-levels'
-            # integrate z_h to next half level
-            z_h += TRd * dlogP
-
-        return geopotential, pressurelvs, geoheight
+        return calcgeoh(lnsp, self._t, self._q, z, self._a, self._b, self._R_d, self._levels)
 
     def _get_ll_bounds(self, lats=None, lons=None, Nextra=2):
         '''

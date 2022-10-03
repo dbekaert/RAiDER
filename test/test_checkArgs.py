@@ -12,7 +12,7 @@ import RAiDER.runProgram
 
 from RAiDER.checkArgs import checkArgs, makeDelayFileNames, modelName2Module
 from RAiDER.constants import _ZREF
-from RAiDER.losreader import Zenith
+from RAiDER.losreader import Zenith, Conventional, Raytracing
 
 
 SCENARIO_1 = os.path.join(TEST_DIR, "scenario_1")
@@ -151,8 +151,8 @@ def test_los_1(parsed_args):
     args, p = parsed_args
     args.lineofsight = 'los.rdr'
     argDict = checkArgs(args, p)
-    assert argDict['los'][0] == 'los'
-    assert argDict['los'][1] == 'los.rdr'
+    assert isinstance(argDict['los'], Conventional)
+    assert argDict['los']._file == 'los.rdr'
 
 
 def test_los_2(parsed_args):
@@ -160,15 +160,15 @@ def test_los_2(parsed_args):
     args, p = parsed_args
     args.statevectors = 'sv.txt'
     argDict = checkArgs(args, p)
-    assert argDict['los'][0] == 'sv'
-    assert argDict['los'][1] == 'sv.txt'
+    assert isinstance(argDict['los'],  Conventional)
+    assert argDict['los']._file == 'sv.txt'
 
 
 def test_los_3(parsed_args):
     '''Tests that lats out of bounds raises error'''
     args, p = parsed_args
     argDict = checkArgs(args, p)
-    assert argDict['los'] == Zenith
+    assert isinstance(argDict['los'], Zenith)
 
 
 def test_models_1a(parsed_args):

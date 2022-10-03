@@ -12,6 +12,7 @@ import os
 import numpy as np
 import pandas as pd
 
+import rasterio
 from osgeo import gdal
 from pyproj import Proj
 from shapely.geometry import shape, Polygon
@@ -35,6 +36,7 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     if height_type == 'dem':
         try:
             hts = gdal_open(height_data)
+            assert hts.shape == lats.shape
         except BaseException:
             logger.warning(
                 'File %s could not be opened; requires GDAL-readable file.',
@@ -96,7 +98,7 @@ def download_dem(
     lats,
     lons,
     save_flag='new',
-    checkDEM=True,
+    writeDEM=False,
     outName='warpedDEM',
     buf=0.02
 ):
@@ -114,10 +116,14 @@ def download_dem(
         )
 
         try:
+            ll = gdal_extents(outName)
+            lons = ll[:2]
+            lats = ll[2:]
             if isOutside(
                 inExtent,
                 getBufferedExtent(
-                    gdal_extents(outName),
+                    lats,
+                    lons,
                     buf=buf
                 )
             ):
@@ -128,17 +134,22 @@ def download_dem(
                 )
             else:
                 # Use the existing DEM!
-                _, _, _, geoProj, trans, noDataVal, _ = readRaster(outName)
+                _, _, _, _, _, noDataVal, _ = readRaster(outName)
                 out = gdal_open(outName)
+                save_flag = False
                 logger.info('I am using an existing DEM')
 
         except AttributeError:
-            logger.warning(
-                'Existing DEM does not contain geo-referencing info, so '
-                'I will download a new one.'
-            )
-            do_download = True
-
+            out = gdal_open(outName)
+            if lats.shape==out.shape:
+                do_download = False
+                save_flag = False
+            else:
+                logger.warning(
+                    'Existing DEM does not contain geo-referencing info, so '
+                    'I will download a new one.'
+                )
+                do_download = True
         except OSError:
             try:
                 hgts = RAiDER.utilFcns.read_hgt_file(outName)
@@ -152,26 +163,24 @@ def download_dem(
     # Otherwise download a new DEM
     if do_download:
         folder = os.sep.join(os.path.split(outName)[:-1])
-        bounds = [np.floor(inExtent[0]), np.floor(inExtent[1]),
-                  np.ceil(inExtent[2]), np.ceil(inExtent[3])]
+        # inExtent is SNWE
+        # dem-stitcher wants WSEN
+        bounds = [np.floor(inExtent[2]), np.floor(inExtent[0]),
+                 np.ceil(inExtent[3]), np.ceil(inExtent[1]),]
 
-        dem_res = 0.0002777777777777777775
-        out, p = stitch_dem(bounds,
+        zvals, metadata = stitch_dem(bounds,
                             dem_name='glo_30',
                             dst_ellipsoidal_height=True,
-                            dst_area_or_point='Point',
-                            n_threads_downloading=5,
-                            # ensures square resolution
-                            dst_resolution=dem_res
+                            dst_area_or_point='Area',
                             )
         if writeDEM:
-            with rasterio.open('GLO30_fullres_dem.tif', 'w', **p) as ds:
-                ds.write(X, 1)
+            with rasterio.open('GLO30_fullres_dem.tif', 'w', **metadata) as ds:
+                ds.write(zvals, 1)
 
     # Interpolate to the query points
     logger.debug('Beginning interpolation')
     outInterp = interpolateDEM(
-        out,
+        zvals,
         np.stack((lats, lons), axis=-1),
         inExtent,
         method='linear',
@@ -187,7 +196,10 @@ def download_dem(
         # Need to ensure that noData values are consistently handled and
         # can be passed on to GDAL
         if outInterp.ndim == 2:
-            with rasterio.open(outName, 'w', **p) as ds:
+            metadata['height'] = outInterp.shape[0]
+            metadata['width'] = outInterp.shape[1]
+            metadata['transform'] = None
+            with rasterio.open(outName, 'w', **metadata) as ds:
                 ds.write(outInterp, 1)
         elif outInterp.ndim == 1:
             RAiDER.utilFcns.writeArrayToFile(
@@ -227,7 +239,7 @@ def getBufferedExtent(lats, lons=None, buf=0.):
         elif lons.size == 1:
             out = [np.nanmin(lats), np.nanmax(lats), lons - buf, lons + buf]
     except AttributeError:
-        if isinstance(lats, tuple) and len(lats) == 2:
+        if (isinstance(lats, tuple) or isinstance(lats,list)) and len(lats) == 2:
             out = [min(lats) - buf, max(lats) + buf, min(lons) - buf, max(lons) + buf]
     except Exception as e:
         logger.warning('getBufferExtent failed: lats type: {}\n, content: {}'.format(type(lats), lats))
