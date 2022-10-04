@@ -15,6 +15,8 @@ import numpy as np
 from abc import ABC
 from scipy.interpolate import interp1d
 
+import isce3.ext.isce3 as isce3
+
 from RAiDER.utilFcns import (
     cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
 )
@@ -144,7 +146,7 @@ class Raytracing(LOS):
         '''read in and parse a statevector file'''
         self._file = filename
 
-    def getLookVectors(self, time, pad=None):
+    def getLookVectors(self, time, pad=3*60):
         '''
         Calculate look vectors for raytracing
         '''
@@ -191,7 +193,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-def get_sv(los_file, ref_time, pad=3 * 3600):
+def get_sv(los_file, ref_time, pad=3*60):
     """
     Read an LOS file and return orbital state vectors
 
@@ -214,7 +216,7 @@ def get_sv(los_file, ref_time, pad=3 * 3600):
         svs = read_txt_file(los_file)
     except ValueError:
         try:
-            svs = read_ESA_Orbit_file(los_file, ref_time)
+            svs = read_ESA_Orbit_file(los_file)
         except BaseException:
             try:
                 svs = read_shelve(los_file)
@@ -223,7 +225,7 @@ def get_sv(los_file, ref_time, pad=3 * 3600):
                     'get_sv: I cannot parse the statevector file {}'.format(los_file)
                 )
 
-    idx = cut_times(svs[0], pad=pad)
+    idx = cut_times(svs[0], ref_time, pad=pad)
     svs = [d[idx] for d in svs]
     return svs
 
@@ -264,7 +266,7 @@ def read_shelve(filename):
     if numSV == 0:
         raise ValueError('read_shelve: the file has not statevectors')
 
-    t = np.ones(numSV)
+    t = []
     x = np.ones(numSV)
     y = np.ones(numSV)
     z = np.ones(numSV)
@@ -273,7 +275,7 @@ def read_shelve(filename):
     vz = np.ones(numSV)
 
     for i, st in enumerate(obj.orbit.stateVectors):
-        t[i] = st.time.second + st.time.minute * 60.0
+        t.append(st.time)
         x[i] = st.position[0]
         y[i] = st.position[1]
         z[i] = st.position[2]
@@ -281,6 +283,7 @@ def read_shelve(filename):
         vy[i] = st.velocity[1]
         vz[i] = st.velocity[2]
 
+    t = np.array(t)
     return t, x, y, z, vx, vy, vz
 
 
@@ -311,7 +314,9 @@ def read_txt_file(filename):
     with open(filename, 'r') as f:
         for line in f:
             try:
-                t_, x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in line.split()]
+                parts = line.strip().split()
+                t_ = datetime.datetime.fromisoformat(parts[0])
+                x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in parts[1:]]
             except ValueError:
                 raise ValueError(
                     "I need {} to be a 7 column text file, with ".format(filename) +
@@ -331,20 +336,18 @@ def read_txt_file(filename):
     return [np.array(a) for a in [t, x, y, z, vx, vy, vz]]
 
 
-def read_ESA_Orbit_file(filename, ref_time):
+def read_ESA_Orbit_file(filename):
     '''
     Read orbit data from an orbit file supplied by ESA
 
     Parameters
     ----------
     filename: str             - string of the orbit filename
-    ref_time: python datetime - user requested python datetime
 
     Returns
     -------
     t: Nt x 1 ndarray   - a numpy vector with Nt elements containing time
-                          in seconds since the reference time, within "pad"
-                          seconds of the reference time
+                          in python datetime
     x, y, z: Nt x 1 ndarrays    - x/y/z positions of the sensor at the times t
     vx, vy, vz: Nt x 1 ndarrays - x/y/z velocities of the sensor at the times t
     '''
@@ -353,7 +356,7 @@ def read_ESA_Orbit_file(filename, ref_time):
     data_block = root[1]
     numOSV = len(data_block[0])
 
-    t = np.ones(numOSV)
+    t = []
     x = np.ones(numOSV)
     y = np.ones(numOSV)
     z = np.ones(numOSV)
@@ -362,12 +365,12 @@ def read_ESA_Orbit_file(filename, ref_time):
     vz = np.ones(numOSV)
 
     for i, st in enumerate(data_block[0]):
-        t[i] = (
+        t.append (
             datetime.datetime.strptime(
                 st[1].text,
                 'UTC=%Y-%m-%dT%H:%M:%S.%f'
-            ) - ref_time
-        ).total_seconds()
+            )
+        )
 
         x[i] = float(st[4].text)
         y[i] = float(st[5].text)
@@ -375,7 +378,7 @@ def read_ESA_Orbit_file(filename, ref_time):
         vx[i] = float(st[7].text)
         vy[i] = float(st[8].text)
         vz[i] = float(st[9].text)
-
+    t = np.array(t)
     return [t, x, y, z, vx, vy, vz]
 
 
@@ -401,7 +404,7 @@ def state_to_los(svs, xyz_targets):
     >>> time = datetime.datetime(2018,11,12,23,0,0)
     >>> # download the orbit file beforehand
     >>> esa_orbit_file = 'S1A_OPER_AUX_POEORB_OPOD_20181203T120749_V20181112T225942_20181114T005942.EOF'
-    >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file, time)
+    >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file)
     >>> LOS = losr.state_to_los(*svs, lats=lats, lons=lons, heights=heights)
     '''
 
@@ -445,21 +448,24 @@ def state_to_los(svs, xyz_targets):
     return los_ecef
 
 
-def cut_times(times, pad=3600 * 3):
+def cut_times(times, ref_time, pad=3600 * 3):
     """
     Slice the orbit file around the reference aquisition time. This is done
     by default using a three-hour window, which for Sentinel-1 empirically
     works out to be roughly the largest window allowed by the orbit time.
     Parameters
     ----------
-    times: Nt x 1 ndarray     - Vector of orbit times as seconds since the
-                                user-requested time
+    times: Nt x 1 ndarray     - Vector of orbit times as datetime
+    ref_time: datetime        - Reference time
     pad: int                  - integer time in seconds to use as padding
     Returns
     -------
     idx: Nt x 1 logical ndarray - a mask of times within the padded request time.
     """
-    return np.abs(times) < pad
+    diff = np.array(
+        [(x-ref_time).total_seconds() for x in times]
+    )
+    return np.abs(diff) < pad
 
 
 def get_radar_coordinate(xyz, svs, t0=None):
