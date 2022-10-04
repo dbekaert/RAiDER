@@ -851,6 +851,14 @@ def read_NCMR_loginInfo(filepath=None):
     return url, username, password
 
 
+def read_EarthData_loginInfo(filepath=None):
+
+    from netrc import netrc
+
+    urs_usr, _, urs_pwd = netrc().hosts["urs.earthdata.nasa.gov"]
+    return urs_usr, urs_pwd
+
+
 pbar = None
 
 
