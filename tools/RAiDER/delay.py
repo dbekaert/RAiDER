@@ -10,27 +10,51 @@ import os
 
 import h5py
 import numpy as np
+import xarray
+from netCDF4 import Dataset
 from pyproj import CRS, Transformer
+from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators,
-    calculate_rays,
+    calculate_start_points,
     get_delays,
-    getProjFromWMFile,
 )
 from RAiDER.dem import getHeights
 from RAiDER.logger import logger
-from RAiDER.losreader import getLookVectors, Zenith
+from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
-    gdal_open, writeDelays, projectDelays, writePnts2HDF5
+    gdal_open, writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
 )
 
 
 def tropo_delay(args):
     """
     raiderDelay main function.
+
+
+    Parameters
+    ----------
+    args: dict  Parameters and inputs needed for processing,
+                containing the following key-value pairs:
+
+        los     - tuple, Zenith class object, ('los', 2-band los file), or ('sv', orbit_file)
+        lats    - ndarray
+        lons    - ndarray
+        heights - see checkArgs for format
+        flag    -
+        weather_model   - type of weather model to use
+        wmLoc   - Directory containing weather model files
+        zref    - max integration height
+        outformat       - File format to use for raster outputs
+        time    - list of datetimes to calculate delays
+        download_only   - Only download the raw weather model data and exit
+        wetFilename     -
+        hydroFilename   -
+        pnts_file       - Input a points file from previous run
+        verbose - verbose printing
     """
 
     # unpacking the dictionairy
@@ -82,7 +106,9 @@ def tropo_delay(args):
     elif useWeatherNodes:
         if heights[0] == 'lvs':
             # compute delays at the correct levels
-            raise NotImplementedError
+            ds = xarray.load_dataset(weather_model_file)
+            ds['wet_total'] = ds['wet_total'].interp(z=heights[1])
+            ds['hydro_total'] = ds['hydro_total'].interp(z=heights[1])
         else:
             logger.debug(
                 'Only Zenith delays at the weather model nodes '
@@ -101,79 +127,44 @@ def tropo_delay(args):
         np.nanmin(hgts), np.nanmax(hgts)
     )
 
-    # Do different things if ZTD or STD is requested
-    if (los is Zenith) or (los[0] == 'los'):
-        # Transform the query points if needed
-        pnt_proj = CRS.from_epsg(4326)
-        wm_proj = getProjFromWMFile(weather_model_file).to_string()
-        if wm_proj != pnt_proj:
-            pnts = transformPoints(
-                lats,
-                lons,
-                hgts,
-                pnt_proj,
-                wm_proj
-            )
-        else:
-            # interpolators require y, x, z
-            pnts = np.stack([lats, lons, hgts], axis=-1)
+    # Transform the query points 
+    pnt_proj = CRS.from_epsg(4326)
+    ds = xarray.load_dataset(weather_model_file)
+    try:
+        wm_proj = ds['CRS']
+    except:
+        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+        wm_proj = 4326
+    if wm_proj != pnt_proj:
+        pnts = transformPoints(
+            lats,
+            lons,
+            hgts,
+            pnt_proj,
+            wm_proj
+        )
+    else:
+        # interpolators require y, x, z
+        pnts = np.stack([lats, lons, hgts], axis=-1)
+    ####################################################################
 
+    ####################################################################
+    # Calculate delays
+    los.setPoints(lats, lons, hgts)
+    if (los is Zenith) or (los is Conventional):
         # either way I'll need the ZTD
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
-        # Now do the projection if Conventional slant delay is requested
-        if los is not Zenith:
-            inc, hd = gdal_open(los[1])
-            wetDelay = projectDelays(wetDelay, inc)
-            hydroDelay = projectDelays(hydroDelay, inc)
+        # return the delays (ZTD or STD)
+        wetDelay = los(wetDelay)
+        hydroDelay = los(hydroDelay)
 
     else:
-        ###########################################################
-        # If asking for line-of-sight, do the full raytracing calculation
-        # Requires handling the query points
-        ###########################################################
-        query_shape = lats.shape
-        logger.debug('Lats shape is {}'.format(query_shape))
-        logger.debug(
-            'lat/lon box is %f/%f/%f/%f (SNWE)',
-            np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)
-        )
+        raise NotImplementedError
 
-        # Write the input query points to a file
-        # Check whether the query points file already exists
-        write_flag = checkQueryPntsFile(pnts_file, query_shape)
-
-        # Throw an error if the user passes the same filename but different points
-        if os.path.exists(pnts_file) and write_flag:
-            logger.error(
-                'The input query points file exists but does not match the '
-                'shape of the input query points, either change the file '
-                'name or delete the query points file ({})'.format(pnts_file)
-            )
-
-        if write_flag:
-            logger.debug('Beginning line-of-sight calculation')
-
-            # Convert the line-of-sight inputs to look vectors
-            los, lengths = getLookVectors(los, lats, lons, hgts, zref=zref, time=time)
-
-            # write to an HDF5 file
-            writePnts2HDF5(lats, lons, hgts, los, lengths, outName=pnts_file)
-
-        logger.debug('Beginning raytracing calculation')
-        logger.debug('Reference integration step is {:1.1f} m'.format(_STEP))
-
-        calculate_rays(pnts_file, _STEP)
-
-        wet, hydro = get_delays(
-            step,  # TODO: step is undefined
-            pnts_file,
-            weather_model_file,
-        )
-
-        logger.debug('Finished raytracing calculation')
+    del ds  # cleanup
 
     ###########################################################
     # Write the delays to file

@@ -8,10 +8,15 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4, read_EarthData_loginInfo
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
+
+
+# Path to Netrc file, can be controlled by env var
+# Useful for containers - similar to CDSAPI_RC
+EARTHDATA_RC = os.environ.get("EARTHDATA_RC", None)
 
 
 def Model():
@@ -106,9 +111,12 @@ class MERRA2(WeatherModel):
         ml_min = 0
         ml_max = 71
 
+        # Earthdata credentials
+        earthdata_usr, earthdata_pwd = read_EarthData_loginInfo(EARTHDATA_RC)
+
         # open the dataset and pull the data
         url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
-        session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
+        session = pydap.cas.urs.setup_session(earthdata_usr, earthdata_pwd, check_url=url)
         ds = pydap.client.open_url(url, session=session)
 
         ############# The MERRA-2 server changes the pydap data retrieval format frequently between these two formats; so better to retain both of them rather than only using either one of them #############

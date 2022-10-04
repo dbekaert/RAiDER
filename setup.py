@@ -19,9 +19,6 @@ from Cython.Build import cythonize  # isort:skip
 
 # Parameter defs
 CWD = os.getcwd()
-GEOMETRY_DIR = os.path.join(CWD, "tools", "bindings", "geometry")
-CPP_DIR = os.path.join(GEOMETRY_DIR, "cpp", "classes")
-CYTHON_DIR = os.path.join(GEOMETRY_DIR, "cython", "Geo2rdr")
 UTIL_DIR = os.path.join(CWD, 'tools', 'bindings', 'utils')
 
 
@@ -65,22 +62,6 @@ pybind_extensions = [
 
 
 cython_extensions = [
-    Extension(
-        name="RAiDER.Geo2rdr",
-        sources=[
-            *glob.glob(os.path.join(CPP_DIR, "*/*.cc")),
-            *glob.glob(os.path.join(CYTHON_DIR, "*.pyx"))
-        ],
-        include_dirs=[
-            np.get_include(),
-            os.path.join(CPP_DIR, "Geometry"),
-            os.path.join(CPP_DIR, "Utility"),
-            os.path.join(CPP_DIR, "Orbit")
-        ],
-        extra_compile_args=['-std=c++11'],
-        extra_link_args=['-lm'],
-        language="c++"
-    ),
     Extension(
         name="RAiDER.makePoints",
         sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")),
