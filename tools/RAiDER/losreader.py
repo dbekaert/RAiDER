@@ -92,10 +92,10 @@ class Conventional(LOS):
 
         try:
             # if an ISCE-style los file is passed open it with GDAL
-            LOS_enu = inc_hd_to_enu(*gdal_open(self._filename))
+            LOS_enu = inc_hd_to_enu(*gdal_open(self._file))
         except:
             # Otherwise, treat it as an orbit / statevector file
-            svs = np.stack(get_sv(self._filename, self._time, self._pad), axis=-1)
+            svs = np.stack(get_sv(self._file, self._time, self._pad), axis=-1)
             self.getXYZ()
             LOS_enu = state_to_los(svs, self._xyz)
 
