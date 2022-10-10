@@ -15,7 +15,7 @@ import numpy as np
 from abc import ABC
 from scipy.interpolate import interp1d
 
-import isce3.ext.isce3 as isce3
+import isce3.ext.isce3 as isce
 
 from RAiDER.utilFcns import (
     cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
@@ -418,9 +418,9 @@ def state_to_los(svs, llh_targets):
         )
 
     # Convert svs to isce3 orbit
-    orb = isce3.core.Orbit([
-        isce3.core.StateVector(
-            isce3.core.DateTime(row[0]),
+    orb = isce.core.Orbit([
+        isce.core.StateVector(
+            isce.core.DateTime(row[0]),
             row[1:4], row[4:7]
         ) for row in svs
     ])
@@ -487,9 +487,9 @@ def get_radar_pos(llh, orb, out="lookangle"):
 
     # Get some isce3 constants for this inversion
     # TODO - Assuming right-looking for now
-    elp = isce3.core.Ellipsoid()
-    dop = isce3.core.LUT2d()
-    look = isce3.core.LookSide.Right
+    elp = isce.core.Ellipsoid()
+    dop = isce.core.LUT2d()
+    look = isce.core.LookSide.Right
 
     # Iterate for each point
     # TODO - vectorize / parallelize
@@ -509,7 +509,7 @@ def get_radar_pos(llh, orb, out="lookangle"):
 
             # Wavelength does not matter  for zero doppler
             try:
-                aztime, slant_range = isce3.geometry.geo2rdr(
+                aztime, slant_range = isce.geometry.geo2rdr(
                     inp, elp, orb, dop, 0.06, look,
                     threshold=residual_threshold,
                     maxiter=num_iteration,
