@@ -47,7 +47,13 @@ def checkArgs(args, p):
     if args.lineofsight is not None:
         los = Conventional(args.lineofsight)
     elif args.statevectors is not None:
-        los = Conventional(args.statevectors)
+        # TODO - refactor once inout interface is designed
+        # ref_time can be start / mid time tag of reference date
+        # Arc only needs to span image - 60 secs is usually enough with mid tag
+        # or 3 mins with start time tag
+        los = Conventional(args.statevectors,
+                           datetime.combine(args.dateList[0], args.time),
+                           10*60)
     else:
         los = Zenith()
 
