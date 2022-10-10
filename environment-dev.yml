@@ -20,7 +20,7 @@ dependencies:
  - dem_stitcher>=2.3.0
  - gdal>=3.0
  - h5py
- - isce3
+ - isce3>=0.8.0
  - libgdal
  - lxml
  - matplotlib
