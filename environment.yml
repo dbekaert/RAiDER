@@ -21,7 +21,9 @@ dependencies:
  - ecmwf-api-client
  - gdal>=3.0
  - h5py
+ - isce3
  - libgdal
+ - lxml
  - matplotlib
  - netcdf4
  - numpy
