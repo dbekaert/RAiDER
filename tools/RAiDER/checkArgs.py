@@ -47,7 +47,13 @@ def checkArgs(args, p):
     if args.lineofsight is not None:
         los = Conventional(args.lineofsight)
     elif args.statevectors is not None:
-        los = Conventional(args.statevectors)
+        # TODO - refactor once inout interface is designed
+        # ref_time can be start / mid time tag of reference date
+        # Arc only needs to span image - 60 secs is usually enough with mid tag
+        # or 3 mins with start time tag
+        los = Conventional(args.statevectors,
+                           datetime.combine(args.dateList[0], args.time),
+                           10*60)
     else:
         los = Zenith()
 
@@ -192,7 +198,7 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
         model_name=weather_model_name,
         time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",
-        los="ztd" if isZenith(los) else "std",
+        los="ztd" if (isinstance(los, Zenith) or los is None) else "std",
         ext=outformat
     )
     hydroname, wetname = (
@@ -220,12 +226,3 @@ def modelName2Module(model_name):
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name, wmObject
-
-
-def isZenith(los):
-    '''Zenith checker'''
-    if los is None:
-        return True
-    if los is Zenith:
-        return True
-    return False

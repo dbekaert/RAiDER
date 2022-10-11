@@ -15,13 +15,12 @@ import numpy as np
 from abc import ABC
 from scipy.interpolate import interp1d
 
+import isce3.ext.isce3 as isce
+
 from RAiDER.utilFcns import (
     cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
 )
 from RAiDER.constants import _ZREF
-
-
-_SLANT_RANGE_THRESH = 5e6
 
 
 class LOS(ABC):
@@ -50,9 +49,6 @@ class LOS(ABC):
             self._lats = lats
             self._lons = lons
             self._heights = heights
-
-    def getXYZ(self):
-        self._xyz = lla2ecef(self._lats, self._lons, self._heights)
 
 
 class Zenith(LOS):
@@ -90,14 +86,19 @@ class Conventional(LOS):
 
         try:
             # if an ISCE-style los file is passed open it with GDAL
-            LOS_enu = inc_hd_to_enu(*gdal_open(self._filename))
-        except:
+            LOS_enu = inc_hd_to_enu(*gdal_open(self._file))
+        except OSError:
             # Otherwise, treat it as an orbit / statevector file
-            svs = np.stack(get_sv(self._filename, self._time, self._pad), axis=-1)
-            self.getXYZ()
-            LOS_enu = state_to_los(svs, self._xyz)
+            svs = np.stack(
+                get_sv(self._file, self._time, self._pad), axis=-1
+            )
+            LOS_enu = state_to_los(svs,
+                                  [self._lats, self._lons, self._heights])
 
-        return delays / LOS_enu[...,-1]
+        if delays.shape == LOS_enu.shape:
+            return delays / LOS_enu
+        else:
+            return delays / LOS_enu[..., -1]
 
 
 class Raytracing(LOS):
@@ -144,13 +145,13 @@ class Raytracing(LOS):
         '''read in and parse a statevector file'''
         self._file = filename
 
-    def getLookVectors(self, time, pad=None):
+    def getLookVectors(self, time, pad=3*60):
         '''
         Calculate look vectors for raytracing
         '''
         svs = np.stack(get_sv(self._file, time, pad), axis=-1)
-        self.getXYZ()
-        LOS_enu = state_to_los(svs, self._xyz)
+        LOS_enu = state_to_los(svs,
+                              [self._lats, self._lons, self._heights])
         self._look_vecs = enu2ecef(
             LOS_enu[..., 0],
             LOS_enu[..., 1],
@@ -191,7 +192,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-def get_sv(los_file, ref_time, pad=3 * 3600):
+def get_sv(los_file, ref_time, pad=3*60):
     """
     Read an LOS file and return orbital state vectors
 
@@ -214,7 +215,7 @@ def get_sv(los_file, ref_time, pad=3 * 3600):
         svs = read_txt_file(los_file)
     except ValueError:
         try:
-            svs = read_ESA_Orbit_file(los_file, ref_time)
+            svs = read_ESA_Orbit_file(los_file)
         except BaseException:
             try:
                 svs = read_shelve(los_file)
@@ -223,8 +224,10 @@ def get_sv(los_file, ref_time, pad=3 * 3600):
                     'get_sv: I cannot parse the statevector file {}'.format(los_file)
                 )
 
-    idx = cut_times(svs[0], pad=pad)
-    svs = [d[idx] for d in svs]
+    if ref_time:
+        idx = cut_times(svs[0], ref_time, pad=pad)
+        svs = [d[idx] for d in svs]
+
     return svs
 
 
@@ -264,7 +267,7 @@ def read_shelve(filename):
     if numSV == 0:
         raise ValueError('read_shelve: the file has not statevectors')
 
-    t = np.ones(numSV)
+    t = []
     x = np.ones(numSV)
     y = np.ones(numSV)
     z = np.ones(numSV)
@@ -273,7 +276,7 @@ def read_shelve(filename):
     vz = np.ones(numSV)
 
     for i, st in enumerate(obj.orbit.stateVectors):
-        t[i] = st.time.second + st.time.minute * 60.0
+        t.append(st.time)
         x[i] = st.position[0]
         y[i] = st.position[1]
         z[i] = st.position[2]
@@ -281,6 +284,7 @@ def read_shelve(filename):
         vy[i] = st.velocity[1]
         vz[i] = st.velocity[2]
 
+    t = np.array(t)
     return t, x, y, z, vx, vy, vz
 
 
@@ -311,7 +315,9 @@ def read_txt_file(filename):
     with open(filename, 'r') as f:
         for line in f:
             try:
-                t_, x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in line.split()]
+                parts = line.strip().split()
+                t_ = datetime.datetime.fromisoformat(parts[0])
+                x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in parts[1:]]
             except ValueError:
                 raise ValueError(
                     "I need {} to be a 7 column text file, with ".format(filename) +
@@ -331,20 +337,18 @@ def read_txt_file(filename):
     return [np.array(a) for a in [t, x, y, z, vx, vy, vz]]
 
 
-def read_ESA_Orbit_file(filename, ref_time):
+def read_ESA_Orbit_file(filename):
     '''
     Read orbit data from an orbit file supplied by ESA
 
     Parameters
     ----------
     filename: str             - string of the orbit filename
-    ref_time: python datetime - user requested python datetime
 
     Returns
     -------
     t: Nt x 1 ndarray   - a numpy vector with Nt elements containing time
-                          in seconds since the reference time, within "pad"
-                          seconds of the reference time
+                          in python datetime
     x, y, z: Nt x 1 ndarrays    - x/y/z positions of the sensor at the times t
     vx, vy, vz: Nt x 1 ndarrays - x/y/z velocities of the sensor at the times t
     '''
@@ -353,7 +357,7 @@ def read_ESA_Orbit_file(filename, ref_time):
     data_block = root[1]
     numOSV = len(data_block[0])
 
-    t = np.ones(numOSV)
+    t = []
     x = np.ones(numOSV)
     y = np.ones(numOSV)
     z = np.ones(numOSV)
@@ -362,12 +366,12 @@ def read_ESA_Orbit_file(filename, ref_time):
     vz = np.ones(numOSV)
 
     for i, st in enumerate(data_block[0]):
-        t[i] = (
+        t.append (
             datetime.datetime.strptime(
                 st[1].text,
                 'UTC=%Y-%m-%dT%H:%M:%S.%f'
-            ) - ref_time
-        ).total_seconds()
+            )
+        )
 
         x[i] = float(st[4].text)
         y[i] = float(st[5].text)
@@ -375,12 +379,12 @@ def read_ESA_Orbit_file(filename, ref_time):
         vx[i] = float(st[7].text)
         vy[i] = float(st[8].text)
         vz[i] = float(st[9].text)
-
+    t = np.array(t)
     return [t, x, y, z, vx, vy, vz]
 
 
 ############################
-def state_to_los(svs, xyz_targets):
+def state_to_los(svs, llh_targets):
     '''
     Converts information from a state vector for a satellite orbit, given in terms of
     position and velocity, to line-of-sight information at each (lon,lat, height)
@@ -388,7 +392,8 @@ def state_to_los(svs, xyz_targets):
     Parameters
     ----------
     svs            - t, x, y, z, vx, vy, vz - time, position, and velocity in ECEF of the sensor
-    xyz_targets    - lats, lons, heights - Ellipsoidal (WGS84) positions of target ground pixels
+    llh_targets    - lats, lons, heights - Ellipsoidal (WGS84) positions of target ground pixels
+
     Returns
     -------
     LOS 			- * x 3 matrix of LOS unit vectors in ECEF (*not* ENU)
@@ -401,8 +406,8 @@ def state_to_los(svs, xyz_targets):
     >>> time = datetime.datetime(2018,11,12,23,0,0)
     >>> # download the orbit file beforehand
     >>> esa_orbit_file = 'S1A_OPER_AUX_POEORB_OPOD_20181203T120749_V20181112T225942_20181114T005942.EOF'
-    >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file, time)
-    >>> LOS = losr.state_to_los(*svs, lats=lats, lons=lons, heights=heights)
+    >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file)
+    >>> LOS = losr.state_to_los(*svs, [lats, lons, heights], xyz)
     '''
 
     # check the inputs
@@ -412,119 +417,130 @@ def state_to_los(svs, xyz_targets):
             ' for orbit interpolation'
         )
 
+    # Convert svs to isce3 orbit
+    orb = isce.core.Orbit([
+        isce.core.StateVector(
+            isce.core.DateTime(row[0]),
+            row[1:4], row[4:7]
+        ) for row in svs
+    ])
+
     # Flatten the input array for convenience
-    in_shape = xyz_targets.shape
-    target_xyz = np.stack([xyz_targets[..., 0].flatten(), xyz_targets[..., 1].flatten(), xyz_targets[..., 2].flatten()], axis=-1)
-    Npts = len(target_xyz)
+    in_shape = llh_targets[0].shape
+    target_llh = np.stack([x.flatten() for x in llh_targets], axis=-1)
+    Npts = len(target_llh)
 
     # Iterate through targets and compute LOS
-    slant_range = []
-    los = np.empty((Npts, 3), dtype=np.float64)
-    for k in range(Npts):
-        if ~any(np.isnan(target_xyz[k,:])):
-            los[k, :], sr = get_radar_coordinate(target_xyz[k, :], svs)
-            slant_range.append(sr)
-        else:
-            slant_range.append(np.nan)
-    slant_ranges = np.array(slant_range)
+    los_ang, slant_range = get_radar_pos(target_llh, orb, out="lookangle")
 
-    # Sanity check for purpose of tracking problems
-    if slant_ranges.max() > _SLANT_RANGE_THRESH:
-        raise RuntimeError(
-            '''
-            state_to_los:
-            It appears that your input datetime and/or orbit file does not
-            correspond to the lats/lons that you've passed. Please verify
-            that the input datetime is the closest possible to the
-            acquisition times of the interferogram, and the orbit file covers
-            the same range of time.
-            '''
-        )
-
-    los_ecef = los.reshape(in_shape)
-    return los_ecef
+    los_factor = np.cos(np.deg2rad(los_ang)).reshape(in_shape)
+    return los_factor
 
 
-def cut_times(times, pad=3600 * 3):
+def cut_times(times, ref_time, pad=3600 * 3):
     """
     Slice the orbit file around the reference aquisition time. This is done
     by default using a three-hour window, which for Sentinel-1 empirically
     works out to be roughly the largest window allowed by the orbit time.
     Parameters
     ----------
-    times: Nt x 1 ndarray     - Vector of orbit times as seconds since the
-                                user-requested time
+    times: Nt x 1 ndarray     - Vector of orbit times as datetime
+    ref_time: datetime        - Reference time
     pad: int                  - integer time in seconds to use as padding
     Returns
     -------
     idx: Nt x 1 logical ndarray - a mask of times within the padded request time.
     """
-    return np.abs(times) < pad
+    diff = np.array(
+        [(x-ref_time).total_seconds() for x in times]
+    )
+    return np.abs(diff) < pad
 
 
-def get_radar_coordinate(xyz, svs, t0=None):
+def get_radar_pos(llh, orb, out="lookangle"):
     '''
     Calculate the coordinate of the sensor in ECEF at the time corresponding to ***.
 
     Parameters
     ----------
-    svs: ndarray   - Nt x 7 matrix of statevectors: [t x y z vx vy vz]
-    xyz: ndarray   - position of the target in ECEF
-    t0: double     - starting point of the time at which the sensor imaged the target xyz
+    orb: isce3.core.Orbit   - Nt x 7 matrix of statevectors: [t x y z vx vy vz]
+    llh: ndarray   - position of the target in LLH
+    out: str    - either lookangle or ecef for vector
 
     Returns
     -------
-    sensor_xyz: ndarray  - position of the sensor in ECEF
+    los: ndarray  - Satellite position vector in ECEF or look angle
+    sr:  ndarray  - Slant range in meters
     '''
-    # initialize search
-    if t0 is None:
-        t = np.nanmean(svs[:, 0])
-    else:
-        t = t0
+    if out not in ["lookangle", "ecef"]:
+        raise ValueError(
+            f"vector kwargs must be angle or ecef - not {vector}"
+        )
 
-    dt = 1.0
-    num_iteration = 20
-    residual_threshold = 0.000000001
+    num_iteration = 30
+    residual_threshold = 1.0e-7
 
-    dts = []
-    for k in range(num_iteration):
-        x = interpolate(svs[:, 0], svs[:, 1], t)
-        y = interpolate(svs[:, 0], svs[:, 2], t)
-        z = interpolate(svs[:, 0], svs[:, 3], t)
-        vx = interpolate(svs[:, 0], svs[:, 4], t)
-        vy = interpolate(svs[:, 0], svs[:, 5], t)
-        vz = interpolate(svs[:, 0], svs[:, 6], t)
-        E1 = vx * (xyz[0] - x) + vy * (xyz[1] - y) + vz * (xyz[2] - z)
-        dE1 = vx * vx + vy * vy + vz * vz
-        dt = E1 / dE1
-        dts.append(dt)
-        t = t + dt
-        if np.abs(dt) < residual_threshold:
-            break
-
-    los_x = xyz[0] - x
-    los_y = xyz[1] - y
-    los_z = xyz[2] - z
-
-    slant_range = np.sqrt(
-        np.square(los_x) + np.square(los_y) + np.square(los_z)
+    # Get xyz positions of targets here
+    targ_xyz = np.stack(
+        lla2ecef(llh[:, 0], llh[:, 1], llh[:, 2]), axis=-1
     )
-    return np.array([los_x, los_y, los_z]) / slant_range, slant_range
 
+    # Get some isce3 constants for this inversion
+    # TODO - Assuming right-looking for now
+    elp = isce.core.Ellipsoid()
+    dop = isce.core.LUT2d()
+    look = isce.core.LookSide.Right
 
-def interpolate(t, var, tq):
-    '''
-    Interpolate a set of statevectors to the requested input time
+    # Iterate for each point
+    # TODO - vectorize / parallelize
+    sr = np.empty((llh.shape[0],), dtype=np.float64)
+    if out == "lookangle":
+        output = np.empty((llh.shape[0],), dtype=np.float64)
+    else:
+        output = np.empty((llh.shape[0], 3), dtype=np.float64)
+    for ind, pt in enumerate(llh):
+        if not any(np.isnan(pt)):
+            # ISCE3 always uses xy convention
+            inp = np.array([np.deg2rad(pt[1]),
+                   np.deg2rad(pt[0]),
+                   pt[2]])
+            # Local normal vector
+            nv = elp.n_vector(inp[0], inp[1])
 
-    Parameters
-    ----------
-    statevectors: ndarray   - an Nt x 7 matrix of statevectors: [t x y z vx vy vz]
-    tref: double            - reference time requested (must be in the scope of t)
+            # Wavelength does not matter  for zero doppler
+            try:
+                aztime, slant_range = isce.geometry.geo2rdr(
+                    inp, elp, orb, dop, 0.06, look,
+                    threshold=residual_threshold,
+                    maxiter=num_iteration,
+                    delta_range=10.0)
+                sat_xyz, _ = orb.interpolate(aztime)
+                sr[ind] = slant_range
 
-    Returns
-    -------
-    x, y, z: double    - sensor position in ECEF
-    vx, vy, vz: double - sensor velocity
-    '''
-    f = interp1d(t, var)
-    return f(tq)
+                delta = sat_xyz - targ_xyz[ind, :]
+                if out == "lookangle":
+                    # TODO - if we only ever need cos(lookang),
+                    # skip the arccos here and cos above
+                    delta = delta / np.linalg.norm(delta)
+                    output[ind] = np.rad2deg(
+                        np.arccos(
+                            np.dot(delta, nv)
+                        )
+                    )
+                else:
+                    output[ind, :] = (sat_xyz - targ_xyz) / slant_range
+            except Exception as e:
+                raise e
+                sat_xyz[ind, :] = np.nan
+                sr[ind] = np.nan
+                output[ind, ...] = np.nan
+        else:
+            sat_xyz[ind, :] = np.nan
+            sr[ind] = np.nan
+            output[ind, ...] = np.nan
+
+    # For debugging
+    # print(np.nanmin(sr), np.nanmax(sr), np.sum(np.isnan(sr)))
+    # print(np.nanmin(output), np.nanmax(output), np.sum(np.isnan(output)))
+
+    return output, sr

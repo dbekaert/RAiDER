@@ -151,7 +151,7 @@ def tropo_delay(args):
     ####################################################################
     # Calculate delays
     los.setPoints(lats, lons, hgts)
-    if (los is Zenith) or (los is Conventional):
+    if isinstance(los, (Zenith, Conventional)):
         # either way I'll need the ZTD
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay = ifWet(pnts)

@@ -21,7 +21,6 @@ SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
 
 @pytest.fixture
 def svs():
-    ref_time = datetime.datetime(2018, 11, 12, 23, 0, 42)
     T = [
         datetime.datetime(2018, 11, 12, 23, 0, 2),
         datetime.datetime(2018, 11, 12, 23, 0, 12),
@@ -32,7 +31,6 @@ def svs():
         datetime.datetime(2018, 11, 12, 23, 1, 2),
         datetime.datetime(2018, 11, 12, 23, 1, 12),
     ]
-    tr = np.array([(t - ref_time).total_seconds() for t in T])
     x = np.array([
         -2064965.285362,
         -2056228.553736,
@@ -93,70 +91,86 @@ def svs():
         -7217.591940,
         -7235.952940,
     ])
-    return [tr, x, y, z, vx, vy, vz], ref_time
+    return [T, x, y, z, vx, vy, vz]
 
 
 def test_read_ESA_Orbit_file(svs):
-    true_svs, ref_time = svs
+    true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'S1_orbit_example.EOF')
-    svs = read_ESA_Orbit_file(filename, ref_time)
-    assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
+    svs = read_ESA_Orbit_file(filename)
+    assert [np.allclose(
+        [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
+        np.zeros(len(svs[0]))
+    )]
+    assert [np.allclose(s, ts) for s, ts in zip(svs[1:], true_svs[1:])]
 
 
 def test_read_txt_file(svs):
-    true_svs, ref_time = svs
+    true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'S1_sv_file.txt')
     svs = read_txt_file(filename)
-    assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
+    assert [np.allclose(
+        [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
+        np.zeros(len(svs[0]))
+    )]
+    assert [np.allclose(s, ts) for s, ts in zip(svs[1:], true_svs[1:])]
 
 
 def test_get_sv_1(svs):
-    true_svs, ref_time = svs
+    true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'S1_orbit_example.EOF')
-    svs = get_sv(filename, ref_time)
-    assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
+    svs = get_sv(filename, true_svs[0][0])
+    assert [np.allclose(
+        [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
+        np.zeros(len(svs[0]))
+    )]
+    assert [np.allclose(s, ts) for s, ts in zip(svs[1:], true_svs[1:])]
 
 
 def test_get_sv_2(svs):
-    true_svs, ref_time = svs
+    true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'S1_sv_file.txt')
-    svs = get_sv(filename, ref_time)
-    assert [np.allclose(s, ts) for s, ts in zip(svs, true_svs)]
+    svs = get_sv(filename, true_svs[0][0])
+    assert [np.allclose(
+        [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
+        np.zeros(len(svs[0]))
+    )]
+    assert [np.allclose(s, ts) for s, ts in zip(svs[1:], true_svs[1:])]
 
 
 def test_get_sv_3(svs):
-    true_svs, ref_time = svs
+    true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'incorrect_file.txt')
     with pytest.raises(ValueError):
-        get_sv(filename, ref_time)
+        get_sv(filename, true_svs[0][0])
 
 
 def test_get_sv_4(svs):
-    true_svs, ref_time = svs
+    true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'no_exist.txt')
     with pytest.raises(FileNotFoundError):
-        get_sv(filename, ref_time)
+        get_sv(filename, true_svs[0][0])
 
 
 def test_cut_times(svs):
-    true_svs, ref_time = svs
-    assert len(true_svs[0][cut_times(true_svs[0])]) == len(true_svs[0])
+    true_svs = svs
+    assert all(cut_times(true_svs[0], true_svs[0][0]))
 
 
 def test_cut_times_2(svs):
-    true_svs, ref_time = svs
-    assert len(true_svs[0][cut_times(true_svs[0], pad=5)]) == 1
+    true_svs = svs
+    assert sum(cut_times(true_svs[0], true_svs[0][0], pad=5)) == 1
 
 
 def test_cut_times_3(svs):
-    true_svs, ref_time = svs
-    assert len(true_svs[0][cut_times(true_svs[0], pad=15)]) == 3
+    true_svs = svs
+    assert np.sum(cut_times(true_svs[0], true_svs[0][4], pad=15)) == 3
 
 
 def test_cut_times_4(svs):
-    true_svs, ref_time = svs
+    true_svs = svs
 
-    assert len(true_svs[0][cut_times(true_svs[0], pad=400)]) == len(true_svs[0])
+    assert np.sum(cut_times(true_svs[0], true_svs[0][0], pad=400)) == len(true_svs[0])
 
 
 def test_los_to_lv():
