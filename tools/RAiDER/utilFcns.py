@@ -50,6 +50,12 @@ def lla2ecef(lat, lon, height):
     return T.transform(lon, lat, height)
 
 
+def ecef2lla(x, y, z):
+    T = Transformer.from_crs(4978, 4326, always_xy=True)
+
+    return T.transform(x, y, z)
+
+
 def enu2ecef(
     east: ndarray,
     north: ndarray,

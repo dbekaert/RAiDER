@@ -18,7 +18,7 @@ from scipy.interpolate import interp1d
 import isce3.ext.isce3 as isce
 
 from RAiDER.utilFcns import (
-    cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
+    cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
 )
 from RAiDER.constants import _ZREF
 
@@ -188,13 +188,33 @@ class Raytracing(LOS):
                 out="ecef"
             )
 
+    def getTopOfAtmosphere(self, toaheight=15000.):
+        """
+        This function computes the starting point of the rays at the top of
+        the atmosphere
+        """
+
+        # Guess top point
+        pos = self._xyz + toaheight * self._lookvecs
+
+        for niter in range(5):
+            pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
+            pos = pos + (pos_llh[..., 2] - toaheight) * self._lookvecs
+
+        # The converged solution represents top of the rays
+        self._topxyz = pos
+
+        # This is for debugging the approach
+        print("Stats for TOA computation: ")
+        print("Height min: ", np.nanmin(pos_llh[..., 2]))
+        print("Height max: ", np.nanmax(pos_llh[..., 2]))
 
     def calculateDelays(self, delays):
         '''
         Here "delays" is point-wise delays (i.e. refractivities), not 
         integrated ZTD/STD.
         '''
-        # Create rays
+        # Create rays  (Rays go from _topxyz to _xyz)
         # Interpolate delays to rays
         # Integrate along rays
         # Return STD
