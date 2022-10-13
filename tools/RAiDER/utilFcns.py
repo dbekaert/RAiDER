@@ -944,7 +944,7 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         Ph_lev = a[lev - 1] + (b[lev - 1] * sp)
         Ph_levplusone = a[lev] + (b[lev] * sp)
 
-        pressurelvs[ilevel] = Ph_lev# + Ph_levplusone) / 2  # average pressure at half-levels above and below
+        pressurelvs[ilevel] = Ph_lev  # + Ph_levplusone) / 2  # average pressure at half-levels above and below
 
         if lev == 1:
             dlogP = np.log(Ph_levplusone / 0.1)
