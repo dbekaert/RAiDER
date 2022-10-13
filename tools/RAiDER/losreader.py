@@ -146,6 +146,7 @@ class Raytracing(LOS):
 
     def __init__(self, filename=None, time=None, pad=None):
         '''read in and parse a statevector file'''
+        super().__init__()
         self._file = filename
         self._time = time
         self._pad = pad
@@ -199,15 +200,15 @@ class Raytracing(LOS):
 
         for niter in range(5):
             pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
-            pos = pos + (pos_llh[..., 2] - toaheight) * self._lookvecs
+            pos = pos + self._lookvecs * (pos_llh[2] - toaheight)[:, None]
 
         # The converged solution represents top of the rays
         self._topxyz = pos
 
         # This is for debugging the approach
         print("Stats for TOA computation: ")
-        print("Height min: ", np.nanmin(pos_llh[..., 2]))
-        print("Height max: ", np.nanmax(pos_llh[..., 2]))
+        print("Height min: ", np.nanmin(pos_llh[2]))
+        print("Height max: ", np.nanmax(pos_llh[2]))
 
     def calculateDelays(self, delays):
         '''
