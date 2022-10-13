@@ -13,41 +13,50 @@ import numpy as np
 import pandas as pd
 
 from textwrap import dedent
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
 
-from RAiDER.losreader import Zenith, Conventional
+from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.llreader import readLL
 
 
-def checkArgs(args, p):
+def checkArgs(args):
     '''
     Helper fcn for checking argument compatibility and returns the
     correct variables
     '''
-
-    # Argument checking
-    if args.heightlvs is not None:
-        if (args.outformat.lower() != 'hdf5') and (args.outformat is not None):
-            raise ValueError('If you want to use height levels you must specify HDF5 as your "outformat"')
-
-    if args.wmLoc is not None:
-        wmLoc = args.wmLoc
-    else:
-        wmLoc = os.path.join(args.out, 'weather_files')
-    if not os.path.exists(wmLoc):
-        os.mkdir(wmLoc)
+    if args.weather_model_directory is None:
+        args.weather_model_directory = os.path.join(args.output_directory, 'weather_files')
+    if not os.path.exists(args.weather_model_directory):
+        os.mkdir(args.weather_model_directory)
 
     # Query Area
-    lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
+    if args.lat_file is not None:
+        pass
+        # lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
+    elif args.station_file is not None:
+        pass
+    elif args.bounding_box is not None:
+        lat, lon = None, None # TODO
+        if (np.min(lat) < -90) | (np.max(lat) > 90):
+            raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
+    elif args.use_dem_xy:
+        pass
+    else:
+        raise ValueError('No valid query points or bounding box found in configuration file {}'.format(args.customTemplateFile))
 
-    if (np.min(lat) < -90) | (np.max(lat) > 90):
-        raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
-
-    # Line of sight calc
-    if args.lineofsight is not None:
-        los = Conventional(args.lineofsight)
-    elif args.statevectors is not None:
-        los = Conventional(args.statevectors)
+    # Line of sight 
+    if args.orbit_file is not None:
+        args.los = Conventional(args.los_file)
+    elif args.los_file is not None:
+        if args.ray_trace:
+            args.los = Raytracing(args.orbit_file)
+        else:
+            args.los = Conventional(args.orbit_file)
+    elif args.los_cube is not None:
+        if args.ray_trace:
+            args.los = Raytracing(args.los_cube)
+        else:
+            args.los = Conventional(args.los_cube)
     else:
         los = Zenith()
 
@@ -61,65 +70,40 @@ def checkArgs(args, p):
                 please contribute!
                 '''.format(args.model))
         )
-    if args.model in ['WRF', 'HDF5'] and args.files is None:
-        raise RuntimeError(
-            'Argument --files is required with model {}'.format(args.model)
-        )
 
     # handle the datetimes requested
-    datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
+    args.time = time(args.time)
 
-    weathers = {
-        'type': model_obj(),
-        'files': args.files,
-        'name': args.model.lower().replace('-', '')
-    }
-
-    # zref
-    zref = args.zref
-
-    # parallel or concurrent runs
-    parallel = args.parallel
-    if not parallel == 1:
-        import multiprocessing
-        # asses the number of concurrent jobs to be executed
-        max_threads = multiprocessing.cpu_count()
-        if parallel == 'all':
-            parallel = max_threads
-        parallel = parallel if parallel < max_threads else max_threads
-
-    # Misc
-    download_only = args.download_only
-    verbose = args.verbose
-    useWeatherNodes = flag == 'bounding_box'
-
-    # Output
-    out = args.out
-    pnts_file = os.path.join(out, 'geom', pnts_file)
-    if out is None:
-        out = os.getcwd()
-    if args.outformat is None:
-        if args.heightlvs is not None:
-            outformat = 'hdf5'
-        elif flag == 'station_file':
-            outformat = 'csv'
-        elif useWeatherNodes:
-            outformat = 'hdf5'
-        else:
-            outformat = 'envi'
+    if (args.date_start is None) and (args.date_list is None):
+        raise ValueError('You must specify either a date_list or date_start in the configuration file')
+    elif args.date_start is not None:
+        args.date_start = date(args.date_start[:4], args.date_start[4:6], args.date_start[6:])
     else:
-        outformat = args.outformat.lower()
+        args.date_list = [date(d[:4], d[4:6], d[6:]) for d in args.date_list]
+    if args.date_end is not None:
+        args.date_end = date(args.date_end[:4], args.date_end[4:6], args.date_end[6:])
+    else:
+        args.date_end = args.date_start
+    if args.date_list is None:
+        if args.date_end is not None:
+            if args.date_inc is None:
+                args.date_inc = 1
+        args.date_list = [args.date_start + timedelta(days=args.date_inc) for k in range(0, (args.date_end - args.date_start).days + 1, 1)]
+    args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
+
+    # Initiate the weather model object
+    args.weather_model = model_obj()
+    args.useWeatherNodes = [True if args.bounding_box is not None else False]
 
     wetNames, hydroNames = [], []
-    for time in datetimeList:
-        if flag == 'station_file':
+    for time in args.date_list:
+        if args.station_file is not None:
             wetFilename = os.path.join(
-                out,
-                '{}_Delay_{}_Zmax{}.csv'
+                args.out,
+                '{}_Delay_{}.csv'
                 .format(
                     args.model,
-                    time.strftime('%Y%m%dT%H%M%S'),
-                    zref
+                    args.time.strftime('%Y%m%dT%H%M%S'),
                 )
             )
             hydroFilename = wetFilename
@@ -129,54 +113,29 @@ def checkArgs(args, p):
             indf.to_csv(wetFilename, index=False)
         else:
             wetFilename, hydroFilename = makeDelayFileNames(
-                time,
-                los,
-                outformat,
+                args.time,
+                args.los,
+                args.raster_format,
                 args.model,
-                out
+                args.out,
             )
 
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)
 
     # DEM
-    if args.dem is not None:
-        heights = ('dem', args.dem)
-    elif args.heightlvs is not None:
-        heights = ('lvs', args.heightlvs)
-    elif flag == 'station_file':
-        indf = pd.read_csv(args.query_area)
-        try:
-            heights = ('pandas', wetNames)
-        except BaseException:  # TODO: Which error(s)?
-            heights = ('merge', wetNames)
-    elif useWeatherNodes:
-        heights = ('skip', None)
-    else:
-        heights = ('download', os.path.join(out, 'geom', 'warpedDEM.dem'))
+    if (args.heightlvs is None) and (args.dem is None):
+        args.dem = 'Download'
+        if args.station_file is not None:
+            df = pd.read_csv(args.station_file)
+            if 'Hgt_m' in df.columns:
+                args.dem = None
+    if args.dem == 'Download':
+        args.dem_path = os.path.join(args.out, 'geom')
+        if not os.path.exists(args.dem_path):
+            os.mkdir(args.dem_path)
 
-    # put all the arguments in a dictionary
-    outArgs = {}
-    outArgs['los'] = los
-    outArgs['lats'] = lat
-    outArgs['lons'] = lon
-    outArgs['ll_bounds'] = bounds
-    outArgs['heights'] = heights
-    outArgs['flag'] = flag
-    outArgs['weather_model'] = weathers
-    outArgs['wmLoc'] = wmLoc
-    outArgs['zref'] = zref
-    outArgs['outformat'] = outformat
-    outArgs['times'] = datetimeList
-    outArgs['download_only'] = download_only
-    outArgs['out'] = out
-    outArgs['verbose'] = verbose
-    outArgs['wetFilenames'] = wetNames
-    outArgs['hydroFilenames'] = hydroNames
-    outArgs['parallel'] = parallel
-    outArgs['pnts_file'] = pnts_file
-
-    return outArgs
+    return args
 
 
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):
@@ -192,7 +151,7 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
         model_name=weather_model_name,
         time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",
-        los="ztd" if isZenith(los) else "std",
+        los=["ztd" if los==Zenith else 'std'],
         ext=outformat
     )
     hydroname, wetname = (
@@ -220,12 +179,3 @@ def modelName2Module(model_name):
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name, wmObject
-
-
-def isZenith(los):
-    '''Zenith checker'''
-    if los is None:
-        return True
-    if los is Zenith:
-        return True
-    return False

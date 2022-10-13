@@ -1,12 +1,8 @@
 import argparse
-import copy
-import multiprocessing
 import os
+import sys
 
-import numpy as np
-
-from textwrap import dedent
-
+import RAiDER
 from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type, time_type
@@ -40,8 +36,8 @@ Program to calculate troposphere total delays using a weather model
 EXAMPLES = """
 Usage examples:
 raiderDelay.py -g 
-raiderDelay.py 
-raiderDelay.py 
+raiderDelay.py customTemplatefile.cfg
+raiderDelay.py --dostep=load_weather_model
 """
 
 def create_parser():
@@ -158,14 +154,16 @@ def create_parser():
     return p
 
 
-def parseCMD():
+def parseCMD(iargs=None):
     """
     Parse command-line arguments and pass to tropo_delay
     We'll parse arguments and call delay.py.
     """
 
     p = create_parser()
-    args = p.parse_args()
+    args = p.parse_args(args=iargs)
+
+    args.argv = iargs if iargs else sys.argv[1:]
 
     # default input file
     template_file = os.path.join(
@@ -182,8 +180,8 @@ def parseCMD():
     if (not args.customTemplateFile
             and not os.path.isfile(os.path.basename(template_file))
             and not args.generate_template):
-        parser.print_usage()
-        print(EXAMPLE)
+        p.print_usage()
+        print(EXAMPLES)
         
         msg = "No template file found! It requires that a:"
         msg += "\n  a custom template file, OR"
@@ -259,7 +257,6 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
 
     Modified from MintPy's 'read_template'
     """
-
     if skip_chars and isinstance(skip_chars, str):
         skip_chars = [skip_chars]
 
@@ -292,6 +289,9 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
                 for skip_char in skip_chars:
                     value.replace(skip_char, '')
 
+            if key == 'model':
+                value = value.upper().replace("-", "")
+            if key == 
             if value != '':
                 template[key] = value
 

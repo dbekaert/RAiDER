@@ -41,47 +41,6 @@ def get_the_latest_default_template_file(work_dir):
     return cfile
 
 
-    # Package arguments for processing
-    allTimesFiles = zip(
-        args['times'],
-        args['wetFilenames'],
-        args['hydroFilenames']
-    )
-
-    allTimesFiles_chunk = np.array_split(
-        list(allTimesFiles),
-        args['parallel']
-    )
-
-    lst_new_args = []
-    for chunk in allTimesFiles_chunk:
-        if chunk.size == 0:
-            continue
-        times, wetFilenames, hydroFilenames = chunk.transpose()
-        args_copy = copy.deepcopy(args)
-        args_copy['times'] = times.tolist()
-        args_copy['wetFilenames'] = wetFilenames.tolist()
-        args_copy['hydroFilenames'] = hydroFilenames.tolist()
-        lst_new_args.append(args_copy)
-
-    # multi-processing approach
-    if not args['parallel'] == 1:
-        if not args['download_only']:
-            raise RuntimeError('Cannot process multiple delay calculations in parallel,'
-                               ' either specify --download_only or set parallel = 1')
-
-        # split the args across the number of concurrent jobs
-        Nprocs = len(lst_new_args)
-        with multiprocessing.Pool(Nprocs) as pool:
-            pool.map(_tropo_delay, lst_new_args)
-
-    # Otherwise a regular for-loop
-    else:
-        for new_args in lst_new_args:
-            _tropo_delay(new_args)
-
-
-
 def _tropo_delay(args):
 
     args_copy = copy.deepcopy(args)

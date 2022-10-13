@@ -1,17 +1,18 @@
-# vim: set filetype=cfg:
+# vim: set filetype=yaml:
 ##------------------------ raiderDelay.cfg ------------------------##
 ########## 1. Date and time
 ## Dates can be a single date, two dates that define a set of dates every day, or two dates with an interval
-## Standard formats are accepted
-date_start          = auto  # first date to download. Specified as YYYYMMDD
-date_end            = auto  # last date to download, auto for None (single date)
-date_step           = auto  # date interval to download; e.g. 12 for every 12 days. Auto for none (downloads every day)
-time                = auto  # time to download in UTC time. Specified as HH:MM:SS or HH:MM
+## Standard formats are accepted. 
+date_start:   # first date to download. Specified as YYYYMMDD
+date_end:   # last date to download, auto for None (single date)
+date_step:   # date interval to download; e.g. 12 for every 12 days. Auto for none (downloads every day)
+date_list:   # Pass in a list of dates directly to process
+time:   # time to download in UTC time. Specified as HH:MM:SS or HH:MM
 
 ########## 2. Weather model
 ## Currently implemented weather models include: 
 ## ERA-5 (ECMWF), ERA-5T (ECMWF), HRES (ECMWF), ERA-I (ECMWF), NCMR (ISRO), HRRR (NOAA), GMAO (NASA), MERRA-2 (NASA)
-weather_model       = auto  ## don't include the text in parentheses in the models above
+weather_model:   ## don't include the text in parentheses in the models above
 
 ########## 3. Query points
 ## There are four options for specifying query points: 
@@ -20,10 +21,10 @@ weather_model       = auto  ## don't include the text in parentheses in the mode
 ## 3. A bounding box in lat/lon specified as a space-separated list: South North West East
 ## 4. Pass a geocoded file for the line-of-sight option (see section 4 below). 
 ##    If a geocoded file is passed the relevant points will be automatically extracted.
-lat_file            = auto
-lon_file            = auto
-station_file        = auto
-bounding_box        = auto
+lat_file: 
+lon_file: 
+station_file: 
+bounding_box: 
 
 ########## 4. Height info
 ##  RAiDER will automatically download a DEM if needed; otherwise you may pass
@@ -32,9 +33,9 @@ bounding_box        = auto
 ##  DEM pixels.
 ##  Alternatively, specify a space-delimited list of height levels on which delays
 ##  will be calculated at lat/lon values of your query points.
-dem_file            = auto
-use_dem_xy          = False
-height_levels       = auto
+dem: 
+use_dem_xy: 
+height_levels: 
 
 ########## 5. Line-of-sight or zenith calculations
 ##  RAiDER currently supports four options: 
@@ -45,12 +46,15 @@ height_levels       = auto
 ##  2. Specify a georeferenced line-of-sight cube. This should be an 
 ##     xarray-readable NETCDF4 file containing the field "los."
 ##  3. Specify an orbit file containing state vector files
-los_file            = auto
-los_cube            = auto
-orbit_file          = auto
+los_file: 
+los_cube: 
+orbit_file:  # currently ESA-formatted files are accepted
+ray_trace: False  # Use projected slant delay by default
  
 ########## 6. Run-time parameters
 ## 
-verbose             = True
-raster_format       = GTiff # Can be any gdal-compatible format
-output_directory    = auto # uses the runtime directory by default
+verbose: True
+raster_format: GTiff # Can be any gdal-compatible format
+output_directory: . # uses the runtime directory by default
+weather_model_directory: 
+zref: # Integration height. Only used in raytracing. 
