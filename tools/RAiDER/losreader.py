@@ -189,33 +189,45 @@ class Raytracing(LOS):
                 out="ecef"
             )
 
-    def getTopOfAtmosphere(self, toaheight=15000.):
+    def getIntersectionWithHeight(self, height):
         """
-        This function computes the starting point of the rays at the top of
-        the atmosphere
+        This function computes the intersection point of a ray at a height
+        level
         """
+        # We just leverage the same code as finding top of atmosphere here
+        return getTopOfAtmosphere(self._xyz, self._lookvecs, height)
 
-        # Guess top point
-        pos = self._xyz + toaheight * self._lookvecs
+    def getIntersectionWithLevels(self, levels):
+        """
+        This function returns the points at which rays intersect the
+        given height levels. This way we have same number of points in
+        each ray and only at level transitions.
 
-        for niter in range(5):
-            pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
-            pos = pos + self._lookvecs * (pos_llh[2] - toaheight)[:, None]
+        For targets that are above a given height level, the ray points are set
+        to nan to indicate that it does not contribute to the integration of
+        rays.
 
-        # The converged solution represents top of the rays
-        self._topxyz = pos
+        Output:
+            rays: (self._lats.shape, len(levels),  3)
+        """
+        rays = np.zeros(list(self._lats.shape) + [len(levels), 3])
 
-        # This is for debugging the approach
-        print("Stats for TOA computation: ")
-        print("Height min: ", np.nanmin(pos_llh[2]))
-        print("Height max: ", np.nanmax(pos_llh[2]))
+        # This can be further vectorized, if there is enough memory
+        for ind, z in enumerate(levels):
+            rays[..., ind, :] = self.getIntersectionWithHeight(z)
+
+            # Set pixels above level to nan
+            value = rays[..., ind, :]
+            value[self._heights > z, :] = np.nan
+
+        return rays
 
     def calculateDelays(self, delays):
         '''
-        Here "delays" is point-wise delays (i.e. refractivities), not 
+        Here "delays" is point-wise delays (i.e. refractivities), not
         integrated ZTD/STD.
         '''
-        # Create rays  (Rays go from _topxyz to _xyz)
+        # Create rays  (Use getIntersectionWithLevels above)
         # Interpolate delays to rays
         # Integrate along rays
         # Return STD
@@ -606,3 +618,23 @@ def get_radar_pos(llh, orb, out="lookangle"):
         return output, targ_xyz
     else:
         raise NotImplementedError("Unexpected logic in get_radar_pos")
+
+
+def getTopOfAtmosphere(xyz, lookvecs, toaheight):
+    """
+    Get ray intersection at given height
+    """
+    # Guess top point
+    pos = xyz + toaheight * lookvecs
+
+    for niter in range(5):
+        pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
+        pos = pos + lookvecs * (pos_llh[2] - toaheight)[..., None]
+
+    # This is for debugging the approach
+    print("Stats for TOA computation: ", toaheight)
+    print("Height min: ", np.nanmin(pos_llh[2]))
+    print("Height max: ", np.nanmax(pos_llh[2]))
+
+    # The converged solution represents top of the rays
+    return pos

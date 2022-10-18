@@ -44,6 +44,6 @@ def test_toa():
                        [0.0, 6388137.0, 0.0],
                        [0.0, -6388137.0, 0.0]])
 
-    z.getTopOfAtmosphere(toaheight=10000.)
+    topxyz = z.getIntersectionWithHeight(10000.)
 
-    assert np.allclose(z._topxyz, toppts)
+    assert np.allclose(topxyz, toppts)
