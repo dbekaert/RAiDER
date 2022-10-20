@@ -31,6 +31,7 @@ def readLL(*args):
                 lon_stats[0][0], lon_stats[0][1])
 
         lats, lons, llproj = readLLFromBBox(snwe)
+        llproj = lat_stats[1]
         fname = os.path.basename(args[0][0]).split('.')[0]
 
     elif len(args[0]) == 4:
