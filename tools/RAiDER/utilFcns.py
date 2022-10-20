@@ -167,8 +167,9 @@ def gdal_stats(fname, band=1, userNDV=None):
     try:
         ds = gdal.Open(fname, gdal.GA_ReadOnly)
     except BaseException:  # TODO: Which error(s)?
-        gdal.SetConfigOption("GDAL_PAM_ENABLED", old_config_val)
         raise OSError('File {} could not be opened'.format(fname))
+    finally:
+        gdal.SetConfigOption("GDAL_PAM_ENABLED", old_config_val)
     proj = ds.GetProjection()
     gt = ds.GetGeoTransform()
 
