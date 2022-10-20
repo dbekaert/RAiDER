@@ -132,8 +132,8 @@ def test_readLL_files(parser, llfiles):
     assert proj == ''
 
     lats, lons, llproj, bounds, flag, pnts_file_name = readLL(args.query_area)
-    assert np.allclose(lats, lat_true)
-    assert np.allclose(lons, lon_true)
+    assert lats == latfile
+    assert lons == lonfile
     assert llproj == ''
 
     # Hard code the lat/lon bounds to test against changing the files

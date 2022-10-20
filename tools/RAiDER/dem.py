@@ -22,7 +22,7 @@ import RAiDER.utilFcns
 
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.logger import logger
-from RAiDER.utilFcns import gdal_open, gdal_extents
+from RAiDER.utilFcns import gdal_open, gdal_extents, get_file_and_band
 
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
@@ -30,7 +30,15 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     Fcn to return heights from a DEM, either one that already exists
     or will download one if needed.
     '''
+    # TODO - All files are assumed to be one band files here. Generalize.
+
     height_type, height_data = heights
+    if isinstance(lats, str):
+        lats = gdal_open(lats)
+
+    if isinstance(lons, str):
+        lons = gdal_open(lons)
+
     in_shape = lats.shape
 
     if height_type == 'dem':

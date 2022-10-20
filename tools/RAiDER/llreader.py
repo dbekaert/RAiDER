@@ -11,7 +11,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from RAiDER.utilFcns import gdal_open
+from RAiDER.utilFcns import gdal_open, gdal_stats, get_file_and_band
 
 
 def readLL(*args):
@@ -20,9 +20,18 @@ def readLL(*args):
     the appropriate outputs
     '''
     if len(args[0]) == 2:
-        # If they are files, open them
+        # If they are files, open them for stats
         flag = 'files'
-        lats, lons, llproj = readLLFromLLFiles(*args[0])
+
+        latinfo= get_file_and_band(args[0][0])
+        loninfo = get_file_and_band(args[0][1])
+        lat_stats = gdal_stats(latinfo[0], band=latinfo[1])
+        lon_stats = gdal_stats(loninfo[0], band=loninfo[1])
+        snwe = (lat_stats[0][0], lat_stats[0][1],
+                lon_stats[0][0], lon_stats[0][1])
+
+        lats, lons, llproj = readLLFromBBox(snwe)
+        llproj = lat_stats[1]
         fname = os.path.basename(args[0][0]).split('.')[0]
 
     elif len(args[0]) == 4:
@@ -38,8 +47,12 @@ def readLL(*args):
     else:
         raise RuntimeError('llreader: Cannot parse query region: {}'.format(args))
 
-    lats, lons = forceNDArray(lats), forceNDArray(lons)
     bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
+    # If files, pass file names instead of arrays 
+    if flag == "files":
+        lats = args[0][0]
+        lons = args[0][1]
+
 
     pnts_file_name = 'query_points_' + fname + '.h5'
 

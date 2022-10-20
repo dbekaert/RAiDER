@@ -50,6 +50,12 @@ def lla2ecef(lat, lon, height):
     return T.transform(lon, lat, height)
 
 
+def ecef2lla(x, y, z):
+    T = Transformer.from_crs(4978, 4326, always_xy=True)
+
+    return T.transform(x, y, z)
+
+
 def enu2ecef(
     east: ndarray,
     north: ndarray,
@@ -149,6 +155,46 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         return data
     else:
         return data, proj, gt
+
+
+def gdal_stats(fname, band=1, userNDV=None):
+    if os.path.exists(fname + '.vrt'):
+        fname = fname + '.vrt'
+
+    # Turn off PAM to avoid creating .aux.xml files
+    old_config_val = gdal.GetConfigOption("GDAL_PAM_ENABLED")
+    gdal.SetConfigOption("GDAL_PAM_ENABLED", "NO")
+    try:
+        ds = gdal.Open(fname, gdal.GA_ReadOnly)
+    except BaseException:  # TODO: Which error(s)?
+        raise OSError('File {} could not be opened'.format(fname))
+    finally:
+        gdal.SetConfigOption("GDAL_PAM_ENABLED", old_config_val)
+    proj = ds.GetProjection()
+    gt = ds.GetGeoTransform()
+
+
+    stats = ds.GetRasterBand(band).GetStatistics(0, 1)
+    ds = None
+
+    return stats, proj, gt
+
+
+def get_file_and_band(filestr):
+    """
+    Support file;bandnum as input for filename strings
+    """
+    parts = filestr.split(";")
+
+    # Defaults to first band if no bandnum is provided
+    if len(parts) == 1:
+        return filestr.strip(), 1
+    elif len(parts) == 2:
+        return parts[0].strip(), int(parts[1].strip())
+    else:
+        raise ValueError(
+            f"Cannot interpret {filestr} as valid filename"
+        )
 
 
 def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
@@ -944,7 +990,7 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         Ph_lev = a[lev - 1] + (b[lev - 1] * sp)
         Ph_levplusone = a[lev] + (b[lev] * sp)
 
-        pressurelvs[ilevel] = Ph_lev# + Ph_levplusone) / 2  # average pressure at half-levels above and below
+        pressurelvs[ilevel] = Ph_lev  # + Ph_levplusone) / 2  # average pressure at half-levels above and below
 
         if lev == 1:
             dlogP = np.log(Ph_levplusone / 0.1)

@@ -18,7 +18,7 @@ from scipy.interpolate import interp1d
 import isce3.ext.isce3 as isce
 
 from RAiDER.utilFcns import (
-    cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu
+    cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
 )
 from RAiDER.constants import _ZREF
 
@@ -71,6 +71,7 @@ class Conventional(LOS):
     Special value indicating that the zenith delay will
     be projected using the standard cos(inc) scaling.
     """
+
     def __init__(self, filename=None, time=None, pad=None):
         super().__init__()
         self._file = filename
@@ -93,7 +94,8 @@ class Conventional(LOS):
                 get_sv(self._file, self._time, self._pad), axis=-1
             )
             LOS_enu = state_to_los(svs,
-                                  [self._lats, self._lons, self._heights])
+                                   [self._lats, self._lons, self._heights],
+                                   out="lookangle")
 
         if delays.shape == LOS_enu.shape:
             return delays / LOS_enu
@@ -141,35 +143,94 @@ class Raytracing(LOS):
 >>> #TODO
     >>> # 
     """
-    def __init__(self, filename=None):
-        '''read in and parse a statevector file'''
-        self._file = filename
 
-    def getLookVectors(self, time, pad=3*60):
+    def __init__(self, filename=None, time=None, pad=None):
+        '''read in and parse a statevector file'''
+        super().__init__()
+        self._file = filename
+        self._time = time
+        self._pad = pad
+
+    def getLookVectors(self, time, pad=3 * 60):
         '''
         Calculate look vectors for raytracing
         '''
-        svs = np.stack(get_sv(self._file, time, pad), axis=-1)
-        LOS_enu = state_to_los(svs,
-                              [self._lats, self._lons, self._heights])
-        self._look_vecs = enu2ecef(
-            LOS_enu[..., 0],
-            LOS_enu[..., 1],
-            LOS_enu[..., 2],
-            self._lats,
-            self._lons,
-            self._heights
-        )
+        if self._lats is None:
+            raise ValueError('Target points not set')
+        if self._file is None:
+            raise ValueError('LOS file not set')
+
+        try:
+            # if an ISCE-style los file is provided, use GDAL
+            LOS_enu = inc_hd_to_enu(*gdal_open(self._file))
+            self._lookvecs = enu2ecef(
+                LOS_enu[..., 0],
+                LOS_enu[..., 1],
+                LOS_enu[..., 2],
+                self._lats,
+                self._lons,
+                self._heights
+            )
+            self._xyz = np.stack(
+                lla2ecef([
+                    self._lats,
+                    self._lons,
+                    self._heights
+                ]), axis=-1
+            )
+
+        except OSError:
+            # Otherwise treat it as a state vector file
+            svs = np.stack(
+                get_sv(self._file, self._time, self._pad), axis=-1
+            )
+            self._lookvecs, self._xyz = state_to_los(
+                svs, [self._lats, self._lons, self._heights],
+                out="ecef"
+            )
+
+    def getIntersectionWithHeight(self, height):
+        """
+        This function computes the intersection point of a ray at a height
+        level
+        """
+        # We just leverage the same code as finding top of atmosphere here
+        return getTopOfAtmosphere(self._xyz, self._lookvecs, height)
+
+    def getIntersectionWithLevels(self, levels):
+        """
+        This function returns the points at which rays intersect the
+        given height levels. This way we have same number of points in
+        each ray and only at level transitions.
+
+        For targets that are above a given height level, the ray points are set
+        to nan to indicate that it does not contribute to the integration of
+        rays.
+
+        Output:
+            rays: (self._lats.shape, len(levels),  3)
+        """
+        rays = np.zeros(list(self._lats.shape) + [len(levels), 3])
+
+        # This can be further vectorized, if there is enough memory
+        for ind, z in enumerate(levels):
+            rays[..., ind, :] = self.getIntersectionWithHeight(z)
+
+            # Set pixels above level to nan
+            value = rays[..., ind, :]
+            value[self._heights > z, :] = np.nan
+
+        return rays
 
     def calculateDelays(self, delays):
         '''
-        Here "delays" is point-wise delays (i.e. refractivities), not 
+        Here "delays" is point-wise delays (i.e. refractivities), not
         integrated ZTD/STD.
         '''
-        # Create rays
+        # Create rays  (Use getIntersectionWithLevels above)
         # Interpolate delays to rays
         # Integrate along rays
-        # Return STD 
+        # Return STD
         raise NotImplementedError
 
 
@@ -192,7 +253,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-def get_sv(los_file, ref_time, pad=3*60):
+def get_sv(los_file, ref_time, pad=3 * 60):
     """
     Read an LOS file and return orbital state vectors
 
@@ -366,7 +427,7 @@ def read_ESA_Orbit_file(filename):
     vz = np.ones(numOSV)
 
     for i, st in enumerate(data_block[0]):
-        t.append (
+        t.append(
             datetime.datetime.strptime(
                 st[1].text,
                 'UTC=%Y-%m-%dT%H:%M:%S.%f'
@@ -384,7 +445,7 @@ def read_ESA_Orbit_file(filename):
 
 
 ############################
-def state_to_los(svs, llh_targets):
+def state_to_los(svs, llh_targets, out="lookangle"):
     '''
     Converts information from a state vector for a satellite orbit, given in terms of
     position and velocity, to line-of-sight information at each (lon,lat, height)
@@ -409,6 +470,10 @@ def state_to_los(svs, llh_targets):
     >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file)
     >>> LOS = losr.state_to_los(*svs, [lats, lons, heights], xyz)
     '''
+    if out not in ["lookangle", "ecef"]:
+        raise ValueError(
+            f"Output type can be lookangle or ecef - not {out}"
+        )
 
     # check the inputs
     if np.min(svs.shape) < 4:
@@ -431,10 +496,15 @@ def state_to_los(svs, llh_targets):
     Npts = len(target_llh)
 
     # Iterate through targets and compute LOS
-    los_ang, slant_range = get_radar_pos(target_llh, orb, out="lookangle")
-
-    los_factor = np.cos(np.deg2rad(los_ang)).reshape(in_shape)
-    return los_factor
+    if out == "lookangle":
+        los_ang, slant_range = get_radar_pos(target_llh, orb, out="lookangle")
+        los_factor = np.cos(np.deg2rad(los_ang)).reshape(in_shape)
+        return los_factor
+    elif out == "ecef":
+        los_xyz, targ_xyz = get_radar_pos(target_llh, orb, out="ecef")
+        return los_xyz, targ_xyz
+    else:
+        raise NotImplementedError("Unexpected logic in state_to_los")
 
 
 def cut_times(times, ref_time, pad=3600 * 3):
@@ -452,7 +522,7 @@ def cut_times(times, ref_time, pad=3600 * 3):
     idx: Nt x 1 logical ndarray - a mask of times within the padded request time.
     """
     diff = np.array(
-        [(x-ref_time).total_seconds() for x in times]
+        [(x - ref_time).total_seconds() for x in times]
     )
     return np.abs(diff) < pad
 
@@ -469,12 +539,16 @@ def get_radar_pos(llh, orb, out="lookangle"):
 
     Returns
     -------
-    los: ndarray  - Satellite position vector in ECEF or look angle
-    sr:  ndarray  - Slant range in meters
+    if out == "lookangle"
+        los: ndarray  - Satellite incidence angle
+        sr:  ndarray  - Slant range in meters
+    if out == "ecef"
+        los_xyz: ndarray - Satellite LOS in ECEF from target to satellite
+        targ_xyz: ndarray - Target XYZ positions in ECEF
     '''
     if out not in ["lookangle", "ecef"]:
         raise ValueError(
-            f"vector kwargs must be angle or ecef - not {vector}"
+            f"out kwarg must be lookangle or ecef - not {out}"
         )
 
     num_iteration = 30
@@ -502,8 +576,8 @@ def get_radar_pos(llh, orb, out="lookangle"):
         if not any(np.isnan(pt)):
             # ISCE3 always uses xy convention
             inp = np.array([np.deg2rad(pt[1]),
-                   np.deg2rad(pt[0]),
-                   pt[2]])
+                            np.deg2rad(pt[0]),
+                            pt[2]])
             # Local normal vector
             nv = elp.n_vector(inp[0], inp[1])
 
@@ -523,9 +597,7 @@ def get_radar_pos(llh, orb, out="lookangle"):
                     # skip the arccos here and cos above
                     delta = delta / np.linalg.norm(delta)
                     output[ind] = np.rad2deg(
-                        np.arccos(
-                            np.dot(delta, nv)
-                        )
+                        np.arccos(np.dot(delta, nv))
                     )
                 else:
                     output[ind, :] = (sat_xyz - targ_xyz) / slant_range
@@ -539,8 +611,30 @@ def get_radar_pos(llh, orb, out="lookangle"):
             sr[ind] = np.nan
             output[ind, ...] = np.nan
 
-    # For debugging
-    # print(np.nanmin(sr), np.nanmax(sr), np.sum(np.isnan(sr)))
-    # print(np.nanmin(output), np.nanmax(output), np.sum(np.isnan(output)))
+    # If lookangle is requested
+    if out == "lookangle":
+        return output, sr
+    elif out == "ecef":
+        return output, targ_xyz
+    else:
+        raise NotImplementedError("Unexpected logic in get_radar_pos")
 
-    return output, sr
+
+def getTopOfAtmosphere(xyz, lookvecs, toaheight):
+    """
+    Get ray intersection at given height
+    """
+    # Guess top point
+    pos = xyz + toaheight * lookvecs
+
+    for niter in range(5):
+        pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
+        pos = pos + lookvecs * (pos_llh[2] - toaheight)[..., None]
+
+    # This is for debugging the approach
+    print("Stats for TOA computation: ", toaheight)
+    print("Height min: ", np.nanmin(pos_llh[2]))
+    print("Height max: ", np.nanmax(pos_llh[2]))
+
+    # The converged solution represents top of the rays
+    return pos
