@@ -40,7 +40,7 @@ def checkArgs(args, p):
     # Query Area
     lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
 
-    if (np.min(lat) < -90) | (np.max(lat) > 90):
+    if (np.min(bounds[:2]) < -90) | (np.max(bounds[:2]) > 90):
         raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
 
     # Line of sight calc

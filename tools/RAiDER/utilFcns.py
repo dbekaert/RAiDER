@@ -157,6 +157,45 @@ def gdal_open(fname, returnProj=False, userNDV=None):
         return data, proj, gt
 
 
+def gdal_stats(fname, band=1, userNDV=None):
+    if os.path.exists(fname + '.vrt'):
+        fname = fname + '.vrt'
+
+    # Turn off PAM to avoid creating .aux.xml files
+    old_config_val = gdal.GetConfigOption("GDAL_PAM_ENABLED")
+    gdal.SetConfigOption("GDAL_PAM_ENABLED", "NO")
+    try:
+        ds = gdal.Open(fname, gdal.GA_ReadOnly)
+    except BaseException:  # TODO: Which error(s)?
+        gdal.SetConfigOption("GDAL_PAM_ENABLED", old_config_val)
+        raise OSError('File {} could not be opened'.format(fname))
+    proj = ds.GetProjection()
+    gt = ds.GetGeoTransform()
+
+
+    stats = ds.GetRasterBand(band).GetStatistics(0, 1)
+    ds = None
+
+    return stats, proj, gt
+
+
+def get_file_and_band(filestr):
+    """
+    Support file;bandnum as input for filename strings
+    """
+    parts = filestr.split(";")
+
+    # Defaults to first band if no bandnum is provided
+    if len(parts) == 1:
+        return filestr.strip(), 1
+    elif len(parts) == 2:
+        return parts[0].strip(), int(parts[1].strip())
+    else:
+        raise ValueError(
+            f"Cannot interpret {filestr} as valid filename"
+        )
+
+
 def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
     '''
     write a 1-D array to a NETCDF5 file
