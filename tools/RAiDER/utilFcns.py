@@ -118,37 +118,43 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
-    val = []
     with rasterio.open(fname) as src:
         proj = src.crs
         gt = src.transform.to_gdal()
-        bnds = range(src.count)
+
+        # For all bands
+        nodata = src.nodatavals
+
+        # If user requests a band
         if band is not None:
-            bnds = [band - 1]
-
-        for bnd in bnds:
-            data = src.read(bnd+1)
-            if userNDV is not None:
-                logger.debug('Using user-supplied NoDataValue')
-                data[data == userNDV] = np.nan
+            ndv = nodata[band-1]
+            data = src.read(band)
+            nodataToNan(data, [userNDV, nodata[band-1]])
+        else:
+            data = src.read()
+            if data.ndim > 2:
+                for bnd in range(data.shape[0]):
+                    val = data[band, ...]
+                    nodataToNan(val, [userNDV, nodata[bnd]])
             else:
-                try:
-                    ndv = src.nodatavals[bnd]
-                    data[data == ndv] = np.nan
-                except BaseException:  # TODO: Which error(s)?
-                    logger.debug('NoDataValue attempt failed*******')
-            val.append(data)
-    src.close()
+                nodataToNan(data, nodatavals + [userNDV])
 
-    if len(val) > 1:
-        data = np.stack(val)
-    else:
-        data = val[0]
+        if data.ndim > 2 and data.shape[0] == 1:
+            data = data[0, ...]
 
     if not returnProj:
         return data
     else:
         return data, proj, gt
+
+
+def nodataToNan(inarr, listofvals):
+    """
+    Setting values to nan as needed
+    """
+    for val in listofvals:
+        if val is not None:
+            inarr[inarr == val] = np.nan
 
 
 def rio_stats(fname, band=1, userNDV=None):
@@ -799,16 +805,7 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         for k, v in crs.to_cf().items():
             var.setncattr(k, v)
 
-        # TODO - delete this once we know part above works as expected
-        # var.setncattr('grid_mapping_name', grid_mapping)
-        # var.setncattr('straight_vertical_longitude_from_pole', srs.GetProjParm('central_meridian'))
-        # var.setncattr('false_easting', srs.GetProjParm('false_easting'))
-        # var.setncattr('false_northing', srs.GetProjParm('false_northing'))
-        # var.setncattr('latitude_of_projection_origin', np.sign(srs.GetProjParm('latitude_of_origin')) * 90.0)
-        # var.setncattr('latitude_of_origin', srs.GetProjParm('latitude_of_origin'))
-        # var.setncattr('semi_major_axis', float(srs.GetAttrValue('GEOGCS|SPHEROID', 1)))
-        # var.setncattr('scale_factor_at_projection_origin', 1)
-        # var.setncattr('inverse_flattening', float(srs.GetAttrValue('GEOGCS|SPHEROID', 2)))
+        # These might not be needed as to_cf adds a crs_wkt
         var.setncattr('spatial_ref', crs.to_wkt())
         var.setncattr('spatial_proj4', crs.to_proj4())
         var.setncattr('spatial_epsg', epsg)

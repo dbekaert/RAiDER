@@ -4,6 +4,7 @@ import os
 import pytest
 
 import numpy as np
+import pyproj
 import rasterio
 
 from test import TEST_DIR
@@ -233,7 +234,7 @@ def test_rio_extent():
     # Create a simple georeferenced test file
     with rasterio.open("test.tif", mode="w",
                        width=11, height=11, count=1,
-                       dtype=np.float64, crs="EPSG:4326",
+                       dtype=np.float64, crs=pyproj.CRS.from_epsg(4326),
                        transform=rasterio.Affine.from_gdal(
                            17.0, 0.1, 0, 18.0, 0, -0.1
                        )) as dst:

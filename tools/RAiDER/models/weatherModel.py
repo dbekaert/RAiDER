@@ -566,10 +566,9 @@ class WeatherModel(ABC):
         '''
         Pull the grid info (x,y) from a gdal-readable file
         '''
-        ds = rasterio.open(filename)
-        xSize, ySize = ds.width, ds.height
-        trans = ds.transform.to_gdal()
-        ds.close()
+        with rasterio.open(filename) as ds:
+            xSize, ySize = ds.width, ds.height
+            trans = ds.transform.to_gdal()
 
         # make regular point grid
         pixelSizeX = trans[1]
