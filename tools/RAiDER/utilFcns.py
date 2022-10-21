@@ -98,18 +98,26 @@ def ecef2enu(xyz, lat, lon, height):
     return np.stack((e, n, u), axis=-1)
 
 
-def rio_extents(fname):
+def rio_profile(fname):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
     with rasterio.open(fname) as src:
-        gt = src.transform.to_gdal()
-        proj = src.crs
-        xSize = src.width
-        ySize = src.height
+        profile = src.profile
 
-    if not proj or not gt:
-        raise AttributeError('File {} does not contain geotransform information'.format(fname))
+    if profile["crs"] is None:
+        raise AttributeError(
+            f"{fname} does not contain geotransform information"
+        )
+    return profile
+
+def rio_extents(profile):
+    gt = profile["transform"].to_gdal()
+    xSize = profile["width"]
+    ySize = profile["height"]
+
+    if profile["crs"] is None or not gt:
+        raise AttributeError('Profile does not contain geotransform information')
 
     return [gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2], gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]]
 
@@ -119,8 +127,7 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
         fname = fname + '.vrt'
 
     with rasterio.open(fname) as src:
-        proj = src.crs
-        gt = src.transform.to_gdal()
+        profile = src.profile
 
         # For all bands
         nodata = src.nodatavals
@@ -145,7 +152,7 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
     if not returnProj:
         return data
     else:
-        return data, proj, gt
+        return data, profile
 
 
 def nodataToNan(inarr, listofvals):

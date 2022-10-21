@@ -63,12 +63,15 @@ def readLL(*args):
 
 def readLLFromLLFiles(latfile, lonfile):
     ''' Read ISCE-style files having pixel lat and lon in radar coordinates '''
-    lats, llproj, _ = rio_open(latfile, returnProj=True)
-    lons, llproj2, _ = rio_open(lonfile, returnProj=True)
+    lats, llproj = rio_open(latfile, returnProj=True)
+    lons, llproj2 = rio_open(lonfile, returnProj=True)
     lats[lats == 0.] = np.nan
     lons[lons == 0.] = np.nan
-    if llproj != llproj2:
-        raise ValueError('The projection of the lat and lon files are not compatible')
+    print(llproj)
+    print(llproj2)
+    if llproj["crs"]  and llproj2["crs"]:
+        if llproj.crs != llproj2.crs:
+            raise ValueError('The projection of the lat and lon files are not compatible')
     return lats, lons, llproj
 
 

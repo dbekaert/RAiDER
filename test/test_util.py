@@ -11,8 +11,8 @@ from test import TEST_DIR
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, rio_open, sind,
-    writeArrayToRaster, writeResultsToHDF5, rio_extents,
-    getTimeFromFile, enu2ecef, ecef2enu,
+    writeArrayToRaster, writeResultsToHDF5, rio_profile,
+    rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
 )
 
 
@@ -239,13 +239,13 @@ def test_rio_extent():
                            17.0, 0.1, 0, 18.0, 0, -0.1
                        )) as dst:
         dst.write(np.random.randn(11, 11), 1)
-
-    assert rio_extents('test.tif') == [17.0, 18.0, 18.0, 17.0]
+    profile = rio_profile("test.tif")
+    assert rio_extents(profile) == [17.0, 18.0, 18.0, 17.0]
 
 
 def test_rio_extent2():
     with pytest.raises(AttributeError):
-        rio_extents(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
+        rio_profile(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
 
 
 def test_getTimeFromFile():

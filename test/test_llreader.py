@@ -129,7 +129,7 @@ def test_readLL_files(parser, llfiles):
 
     assert np.allclose(lat_true, lats)
     assert np.allclose(lon_true, lons)
-    assert proj is None
+    assert proj["crs"] is None
 
     lats, lons, llproj, bounds, flag, pnts_file_name = readLL(args.query_area)
     assert lats == latfile

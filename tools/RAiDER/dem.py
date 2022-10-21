@@ -21,7 +21,7 @@ import RAiDER.utilFcns
 
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_open, rio_extents, get_file_and_band
+from RAiDER.utilFcns import rio_open, rio_profile, rio_extents, get_file_and_band
 
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
@@ -124,9 +124,9 @@ def download_dem(
         )
 
         try:
-            ll = rio_extents(outName)
-            lons = ll[:2]
-            lats = ll[2:]
+            bounds = rio_extents(rio_profile(outName))
+            lons = bounds[:2]
+            lats = bounds[2:]
             if isOutside(
                 inExtent,
                 getBufferedExtent(

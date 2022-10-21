@@ -74,7 +74,7 @@ def makeLOSFile(incFile, azFile, fmt='ENVI', filename='los.rdr'):
     '''
     Create a line-of-sight file from ARIA-derived azimuth and inclination files
     '''
-    az, az_proj, az_gt = rio_open(azFile, returnProj=True)
+    az, az_prof = rio_open(azFile, returnProj=True)
     az[az == 0] = np.nan
     inc = rio_open(incFile)
 
@@ -86,8 +86,8 @@ def makeLOSFile(incFile, azFile, fmt='ENVI', filename='los.rdr'):
     # Write the data to a file
     with rasterio.open(filename, mode="w", count=2,
                        driver=fmt, width=array_shp[1],
-                       height=array_shp[0], crs=az_proj,
-                       transform=rasterio.Affine.from_gdal(*az_gt),
+                       height=array_shp[0], crs=az_prof.crs,
+                       transform=az_prof.transform,
                        dtype=az.dtype, nodata=0.) as dst:
         dst.write(inc, 1)
         dst.write(heading, 2)
