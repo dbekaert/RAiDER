@@ -111,6 +111,7 @@ def rio_profile(fname):
         )
     return profile
 
+
 def rio_extents(profile):
     gt = profile["transform"].to_gdal()
     xSize = profile["width"]
@@ -134,9 +135,9 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
 
         # If user requests a band
         if band is not None:
-            ndv = nodata[band-1]
+            ndv = nodata[band - 1]
             data = src.read(band)
-            nodataToNan(data, [userNDV, nodata[band-1]])
+            nodataToNan(data, [userNDV, nodata[band - 1]])
         else:
             data = src.read()
             if data.ndim > 2:
@@ -225,7 +226,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     # Data type
     if "complex" in str(array.dtype):
         dtype = np.complex64
-    elif "float" in  str(array.dtype):
+    elif "float" in str(array.dtype):
         dtype = np.float32
     else:
         dtype = np.uint8
@@ -236,9 +237,10 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         trans = rasterio.Affine.from_gdal(*gt)
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
-                       dtype = dtype, crs=proj, nodata=noDataValue,
+                       dtype=dtype, crs=proj, nodata=noDataValue,
                        driver=fmt, transform=trans) as dst:
         dst.write(array, 1)
+
 
 def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
     '''

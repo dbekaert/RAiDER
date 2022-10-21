@@ -152,7 +152,7 @@ def download_dem(
 
         except AttributeError:
             out = rio_open(outName)
-            if lats.shape==out.shape:
+            if lats.shape == out.shape:
                 do_download = False
                 save_flag = False
             else:
@@ -177,13 +177,13 @@ def download_dem(
         # inExtent is SNWE
         # dem-stitcher wants WSEN
         bounds = [np.floor(inExtent[2]), np.floor(inExtent[0]),
-                 np.ceil(inExtent[3]), np.ceil(inExtent[1]),]
+                  np.ceil(inExtent[3]), np.ceil(inExtent[1]), ]
 
         zvals, metadata = stitch_dem(bounds,
-                            dem_name='glo_30',
-                            dst_ellipsoidal_height=True,
-                            dst_area_or_point='Area',
-                            )
+                                     dem_name='glo_30',
+                                     dst_ellipsoidal_height=True,
+                                     dst_area_or_point='Area',
+                                     )
         if writeDEM:
             with rasterio.open('GLO30_fullres_dem.tif', 'w', **metadata) as ds:
                 ds.write(zvals, 1)
@@ -250,7 +250,7 @@ def getBufferedExtent(lats, lons=None, buf=0.):
         elif lons.size == 1:
             out = [np.nanmin(lats), np.nanmax(lats), lons - buf, lons + buf]
     except AttributeError:
-        if (isinstance(lats, tuple) or isinstance(lats,list)) and len(lats) == 2:
+        if (isinstance(lats, tuple) or isinstance(lats, list)) and len(lats) == 2:
             out = [min(lats) - buf, max(lats) + buf, min(lons) - buf, max(lons) + buf]
     except Exception as e:
         logger.warning('getBufferExtent failed: lats type: {}\n, content: {}'.format(type(lats), lats))

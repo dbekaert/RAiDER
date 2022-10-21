@@ -205,7 +205,7 @@ def midpoint(p1, p2):
     dy = math.cos(lat2) * math.sin(dlon)
     lon3 = lon1 + math.atan2(dy, math.cos(lat1) + dx)
 
-    return(int(math.degrees(lon3)))
+    return (int(math.degrees(lon3)))
 
 
 def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
@@ -243,7 +243,7 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
 
     # Finalize VRT
     vrtname = fname + ".vrt"
-    rasterio.shutil.copy(fname, fname+".vrt", driver="VRT")
+    rasterio.shutil.copy(fname, fname + ".vrt", driver="VRT")
 
     return
 

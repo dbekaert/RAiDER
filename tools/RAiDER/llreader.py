@@ -23,7 +23,7 @@ def readLL(*args):
         # If they are files, open them for stats
         flag = 'files'
 
-        latinfo= get_file_and_band(args[0][0])
+        latinfo = get_file_and_band(args[0][0])
         loninfo = get_file_and_band(args[0][1])
         lat_stats = rio_stats(latinfo[0], band=latinfo[1])
         lon_stats = rio_stats(loninfo[0], band=loninfo[1])
@@ -50,11 +50,10 @@ def readLL(*args):
         raise RuntimeError('llreader: Cannot parse query region: {}'.format(args))
 
     bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
-    # If files, pass file names instead of arrays 
+    # If files, pass file names instead of arrays
     if flag == "files":
         lats = args[0][0]
         lons = args[0][1]
-
 
     pnts_file_name = 'query_points_' + fname + '.h5'
 
@@ -69,7 +68,7 @@ def readLLFromLLFiles(latfile, lonfile):
     lons[lons == 0.] = np.nan
     print(llproj)
     print(llproj2)
-    if llproj["crs"]  and llproj2["crs"]:
+    if llproj["crs"] and llproj2["crs"]:
         if llproj.crs != llproj2.crs:
             raise ValueError('The projection of the lat and lon files are not compatible')
     return lats, lons, llproj
