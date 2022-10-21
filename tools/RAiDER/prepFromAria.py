@@ -7,9 +7,8 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
-from osgeo import gdal
-
-from RAiDER.utilFcns import gdal_open, writeArrayToRaster
+import rasterio
+from RAiDER.utilFcns import rio_open, writeArrayToRaster
 
 
 def parse_args():
@@ -49,11 +48,11 @@ def makeLatLonGrid(inFile, lonFileName, latFileName, fmt='ENVI'):
     '''
     Convert the geocoded grids to lat/lon files for input to RAiDER
     '''
-    ds = gdal.Open(inFile, gdal.GA_ReadOnly)
-    xSize = ds.RasterXSize
-    ySize = ds.RasterYSize
-    gt = ds.GetGeoTransform()
-    proj = ds.GetProjection()
+    ds = rasterio.open(inFile)
+    xSize = ds.width
+    ySize = ds.height
+    gt = ds.transform.to_gdal()
+    proj = ds.crs
 
     # Create the xy grid
     xStart = gt[0]
@@ -75,37 +74,23 @@ def makeLOSFile(incFile, azFile, fmt='ENVI', filename='los.rdr'):
     '''
     Create a line-of-sight file from ARIA-derived azimuth and inclination files
     '''
-    az, az_proj, az_gt = gdal_open(azFile, returnProj=True)
+    az, az_proj, az_gt = rio_open(azFile, returnProj=True)
     az[az == 0] = np.nan
-    inc = gdal_open(incFile)
+    inc = rio_open(incFile)
 
     heading = 90 - az
     heading[np.isnan(heading)] = 0.
 
     array_shp = np.shape(az)[:2]
-    dType = az.dtype
-
-    if 'complex' in str(dType):
-        dType = gdal.GDT_CFloat32
-    elif 'float' in str(dType):
-        dType = gdal.GDT_Float32
-    else:
-        dType = gdal.GDT_Byte
 
     # Write the data to a file
-    driver = gdal.GetDriverByName(fmt)
-    ds = driver.Create(filename, array_shp[1], array_shp[0], 2, dType)
-    ds.SetProjection(az_proj)
-    ds.SetGeoTransform(az_gt)
-    b1 = ds.GetRasterBand(1)
-    b1.WriteArray(inc)
-    b1.SetNoDataValue(0.)
-    b2 = ds.GetRasterBand(2)
-    b2.WriteArray(heading)
-    b2.SetNoDataValue(0.)
-    ds = None
-    b1 = None
-    b2 = None
+    with rasterio.open(filename, mode="w", count=2,
+                       driver=fmt, width=array_shp[1],
+                       height=array_shp[0], crs=az_proj,
+                       transform=rasterio.Affine.from_gdal(*az_gt),
+                       dtype=az.dtype, nodata=0.) as dst:
+        dst.write(inc, 1)
+        dst.write(heading, 2)
 
     return 0
 

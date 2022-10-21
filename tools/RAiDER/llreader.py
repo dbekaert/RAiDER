@@ -11,7 +11,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from RAiDER.utilFcns import gdal_open, gdal_stats, get_file_and_band
+from RAiDER.utilFcns import rio_open, rio_stats, get_file_and_band
 
 
 def readLL(*args):
@@ -25,10 +25,12 @@ def readLL(*args):
 
         latinfo= get_file_and_band(args[0][0])
         loninfo = get_file_and_band(args[0][1])
-        lat_stats = gdal_stats(latinfo[0], band=latinfo[1])
-        lon_stats = gdal_stats(loninfo[0], band=loninfo[1])
-        snwe = (lat_stats[0][0], lat_stats[0][1],
-                lon_stats[0][0], lon_stats[0][1])
+        lat_stats = rio_stats(latinfo[0], band=latinfo[1])
+        lon_stats = rio_stats(loninfo[0], band=loninfo[1])
+
+        # TODO - handle dateline crossing here
+        snwe = (lat_stats[0].min, lat_stats[0].max,
+                lon_stats[0].min, lon_stats[0].max)
 
         lats, lons, llproj = readLLFromBBox(snwe)
         llproj = lat_stats[1]
@@ -61,8 +63,8 @@ def readLL(*args):
 
 def readLLFromLLFiles(latfile, lonfile):
     ''' Read ISCE-style files having pixel lat and lon in radar coordinates '''
-    lats, llproj, _ = gdal_open(latfile, returnProj=True)
-    lons, llproj2, _ = gdal_open(lonfile, returnProj=True)
+    lats, llproj, _ = rio_open(latfile, returnProj=True)
+    lons, llproj2, _ = rio_open(lonfile, returnProj=True)
     lats[lats == 0.] = np.nan
     lons[lons == 0.] = np.nan
     if llproj != llproj2:

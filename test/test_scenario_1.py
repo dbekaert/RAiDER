@@ -8,7 +8,7 @@ from test import TEST_DIR, pushd
 
 from RAiDER.losreader import Zenith
 from RAiDER.delay import tropo_delay
-from RAiDER.utilFcns import gdal_open
+from RAiDER.utilFcns import rio_open
 from RAiDER.checkArgs import makeDelayFileNames, modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
@@ -74,10 +74,10 @@ def core_test_tropo_delay(tmp_path, modelName):
     Scenario:
     1: Small area, Zenith delay
     '''
-    lats = gdal_open(os.path.join(
+    lats = rio_open(os.path.join(
         SCENARIO_DIR, 'geom', 'lat.dat'
     ))
-    lons = gdal_open(os.path.join(
+    lons = rio_open(os.path.join(
         SCENARIO_DIR, 'geom', 'lon.dat'
     ))
 
@@ -121,16 +121,16 @@ def core_test_tropo_delay(tmp_path, modelName):
         (_, _) = tropo_delay(args)
 
         # get the results
-        wet = gdal_open(wet_file)
-        hydro = gdal_open(hydro_file)
-        true_wet = gdal_open(
+        wet = rio_open(wet_file)
+        hydro = rio_open(hydro_file)
+        true_wet = rio_open(
             os.path.join(
                 SCENARIO_DIR,
                 modelName + "/wet.envi"
             ),
             userNDV=0.
         )
-        true_hydro = gdal_open(
+        true_hydro = rio_open(
             os.path.join(
                 SCENARIO_DIR,
                 modelName + "/hydro.envi"

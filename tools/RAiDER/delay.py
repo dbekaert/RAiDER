@@ -26,7 +26,7 @@ from RAiDER.logger import logger
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
-    gdal_open, writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
+    writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
 )
 
 

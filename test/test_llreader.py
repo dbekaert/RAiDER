@@ -8,7 +8,7 @@ from test import GEOM_DIR, TEST_DIR
 
 import RAiDER.runProgram
 
-from RAiDER.utilFcns import gdal_open
+from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
     readLL,
     readLLFromLLFiles,
@@ -123,18 +123,18 @@ def test_readLL_files(parser, llfiles):
     ])
     assert args.query_area == ([latfile, lonfile])
 
-    lat_true = gdal_open(latfile)
-    lon_true = gdal_open(lonfile)
+    lat_true = rio_open(latfile)
+    lon_true = rio_open(lonfile)
     lats, lons, proj = readLLFromLLFiles(*args.query_area)
 
     assert np.allclose(lat_true, lats)
     assert np.allclose(lon_true, lons)
-    assert proj == ''
+    assert proj is None
 
     lats, lons, llproj, bounds, flag, pnts_file_name = readLL(args.query_area)
     assert lats == latfile
     assert lons == lonfile
-    assert llproj == ''
+    assert llproj is None
 
     # Hard code the lat/lon bounds to test against changing the files
     bounds_true = [15.75, 18.25, -103.25, -99.75]
