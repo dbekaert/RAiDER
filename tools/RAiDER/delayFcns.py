@@ -21,7 +21,7 @@ from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
 
 
-def calculate_start_points(x,y,z,ds):
+def calculate_start_points(x, y, z, ds):
     '''
     Parameters
     ----------
@@ -39,7 +39,7 @@ def calculate_start_points(x,y,z,ds):
         print("I can't find a CRS in the weather model file, so I will assume you are using WGS84")
         t = Transformer.from_crs(4326, 4978, always_xy=True)  # converts to WGS84 geocentric
 
-    return np.moveaxis(np.array(t.transform(X, Y, Z)), 0, -1), np.stack([X,Y,Z],axis=-1)
+    return np.moveaxis(np.array(t.transform(X, Y, Z)), 0, -1), np.stack([X, Y, Z], axis=-1)
 
 
 def get_delays(
@@ -70,7 +70,7 @@ def get_delays(
     stepSize = 100
 
     chunk_inputs = [(kk, CHUNKS[kk], wm_proj, SP, LOS,
-                         chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
+                     chunkSize, stepSize, ifWet, ifHydro, max_len, wm_file) for kk in range(Nchunks)]
 
     if Nchunks == 1:
         delays = process_chunk(*chunk_inputs[0])

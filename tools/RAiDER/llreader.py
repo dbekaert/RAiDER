@@ -11,7 +11,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from RAiDER.utilFcns import gdal_open, gdal_stats, get_file_and_band
+from RAiDER.utilFcns import rio_open, rio_stats, get_file_and_band
 
 
 def readLL(*args):
@@ -23,12 +23,14 @@ def readLL(*args):
         # If they are files, open them for stats
         flag = 'files'
 
-        latinfo= get_file_and_band(args[0][0])
+        latinfo = get_file_and_band(args[0][0])
         loninfo = get_file_and_band(args[0][1])
-        lat_stats = gdal_stats(latinfo[0], band=latinfo[1])
-        lon_stats = gdal_stats(loninfo[0], band=loninfo[1])
-        snwe = (lat_stats[0][0], lat_stats[0][1],
-                lon_stats[0][0], lon_stats[0][1])
+        lat_stats = rio_stats(latinfo[0], band=latinfo[1])
+        lon_stats = rio_stats(loninfo[0], band=loninfo[1])
+
+        # TODO - handle dateline crossing here
+        snwe = (lat_stats[0].min, lat_stats[0].max,
+                lon_stats[0].min, lon_stats[0].max)
 
         lats, lons, llproj = readLLFromBBox(snwe)
         llproj = lat_stats[1]
@@ -48,11 +50,10 @@ def readLL(*args):
         raise RuntimeError('llreader: Cannot parse query region: {}'.format(args))
 
     bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
-    # If files, pass file names instead of arrays 
+    # If files, pass file names instead of arrays
     if flag == "files":
         lats = args[0][0]
         lons = args[0][1]
-
 
     pnts_file_name = 'query_points_' + fname + '.h5'
 
@@ -61,12 +62,15 @@ def readLL(*args):
 
 def readLLFromLLFiles(latfile, lonfile):
     ''' Read ISCE-style files having pixel lat and lon in radar coordinates '''
-    lats, llproj, _ = gdal_open(latfile, returnProj=True)
-    lons, llproj2, _ = gdal_open(lonfile, returnProj=True)
+    lats, llproj = rio_open(latfile, returnProj=True)
+    lons, llproj2 = rio_open(lonfile, returnProj=True)
     lats[lats == 0.] = np.nan
     lons[lons == 0.] = np.nan
-    if llproj != llproj2:
-        raise ValueError('The projection of the lat and lon files are not compatible')
+    print(llproj)
+    print(llproj2)
+    if llproj["crs"] and llproj2["crs"]:
+        if llproj.crs != llproj2.crs:
+            raise ValueError('The projection of the lat and lon files are not compatible')
     return lats, lons, llproj
 
 

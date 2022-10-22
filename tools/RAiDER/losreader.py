@@ -18,7 +18,7 @@ from scipy.interpolate import interp1d
 import isce3.ext.isce3 as isce
 
 from RAiDER.utilFcns import (
-    cosd, sind, gdal_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
+    cosd, sind, rio_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
 )
 from RAiDER.constants import _ZREF
 
@@ -87,7 +87,7 @@ class Conventional(LOS):
 
         try:
             # if an ISCE-style los file is passed open it with GDAL
-            LOS_enu = inc_hd_to_enu(*gdal_open(self._file))
+            LOS_enu = inc_hd_to_enu(*rio_open(self._file))
         except OSError:
             # Otherwise, treat it as an orbit / statevector file
             svs = np.stack(
@@ -162,7 +162,7 @@ class Raytracing(LOS):
 
         try:
             # if an ISCE-style los file is provided, use GDAL
-            LOS_enu = inc_hd_to_enu(*gdal_open(self._file))
+            LOS_enu = inc_hd_to_enu(*rio_open(self._file))
             self._lookvecs = enu2ecef(
                 LOS_enu[..., 0],
                 LOS_enu[..., 1],
@@ -461,7 +461,7 @@ def state_to_los(svs, llh_targets, out="lookangle"):
     Example:
     >>> import datetime
     >>> import numpy
-    >>> from RAiDER.utilFcns import gdal_open
+    >>> from RAiDER.utilFcns import rio_open
     >>> import RAiDER.losreader as losr
     >>> lats, lons, heights = np.array([-76.1]), np.array([36.83]), np.array([0])
     >>> time = datetime.datetime(2018,11,12,23,0,0)

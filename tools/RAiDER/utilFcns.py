@@ -11,8 +11,8 @@ from numpy import ndarray
 import pandas as pd
 import pyproj
 from pyproj import Transformer
-from osgeo import gdal, osr
 import progressbar
+import rasterio
 
 from RAiDER.constants import (
     _g0 as g0,
@@ -20,8 +20,6 @@ from RAiDER.constants import (
     R_EARTH_MIN as Rmin,
 )
 from RAiDER.logger import logger
-
-gdal.UseExceptions()
 
 
 def projectDelays(delay, inc):
@@ -100,82 +98,83 @@ def ecef2enu(xyz, lat, lon, height):
     return np.stack((e, n, u), axis=-1)
 
 
-def gdal_extents(fname):
+def rio_profile(fname):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
-    try:
-        ds = gdal.Open(fname, gdal.GA_ReadOnly)
-    except Exception:
-        raise OSError('File {} could not be opened'.format(fname))
 
-    # Check whether the file is georeferenced
-    proj = ds.GetProjection()
-    gt = ds.GetGeoTransform()
-    if not proj or not gt:
-        raise AttributeError('File {} does not contain geotransform information'.format(fname))
+    with rasterio.open(fname) as src:
+        profile = src.profile
 
-    xSize, ySize = ds.RasterXSize, ds.RasterYSize
+    if profile["crs"] is None:
+        raise AttributeError(
+            f"{fname} does not contain geotransform information"
+        )
+    return profile
+
+
+def rio_extents(profile):
+    gt = profile["transform"].to_gdal()
+    xSize = profile["width"]
+    ySize = profile["height"]
+
+    if profile["crs"] is None or not gt:
+        raise AttributeError('Profile does not contain geotransform information')
 
     return [gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2], gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]]
 
 
-def gdal_open(fname, returnProj=False, userNDV=None):
+def rio_open(fname, returnProj=False, userNDV=None, band=None):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
-    try:
-        ds = gdal.Open(fname, gdal.GA_ReadOnly)
-    except BaseException:  # TODO: Which error(s)?
-        raise OSError('File {} could not be opened'.format(fname))
-    proj = ds.GetProjection()
-    gt = ds.GetGeoTransform()
 
-    val = []
-    for band in range(ds.RasterCount):
-        b = ds.GetRasterBand(band + 1)  # gdal counts from 1, not 0
-        data = b.ReadAsArray()
-        if userNDV is not None:
-            logger.debug('Using user-supplied NoDataValue')
-            data[data == userNDV] = np.nan
+    with rasterio.open(fname) as src:
+        profile = src.profile
+
+        # For all bands
+        nodata = src.nodatavals
+
+        # If user requests a band
+        if band is not None:
+            ndv = nodata[band - 1]
+            data = src.read(band)
+            nodataToNan(data, [userNDV, nodata[band - 1]])
         else:
-            try:
-                ndv = b.GetNoDataValue()
-                data[data == ndv] = np.nan
-            except BaseException:  # TODO: Which error(s)?
-                logger.debug('NoDataValue attempt failed*******')
-        val.append(data)
-        b = None
-    ds = None
+            data = src.read()
+            if data.ndim > 2:
+                for bnd in range(data.shape[0]):
+                    val = data[band, ...]
+                    nodataToNan(val, [userNDV, nodata[bnd]])
+            else:
+                nodataToNan(data, nodatavals + [userNDV])
 
-    if len(val) > 1:
-        data = np.stack(val)
-    else:
-        data = val[0]
+        if data.ndim > 2 and data.shape[0] == 1:
+            data = data[0, ...]
 
     if not returnProj:
         return data
     else:
-        return data, proj, gt
+        return data, profile
 
 
-def gdal_stats(fname, band=1, userNDV=None):
+def nodataToNan(inarr, listofvals):
+    """
+    Setting values to nan as needed
+    """
+    for val in listofvals:
+        if val is not None:
+            inarr[inarr == val] = np.nan
+
+
+def rio_stats(fname, band=1, userNDV=None):
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
     # Turn off PAM to avoid creating .aux.xml files
-    old_config_val = gdal.GetConfigOption("GDAL_PAM_ENABLED")
-    gdal.SetConfigOption("GDAL_PAM_ENABLED", "NO")
-    try:
-        ds = gdal.Open(fname, gdal.GA_ReadOnly)
-    except BaseException:  # TODO: Which error(s)?
-        raise OSError('File {} could not be opened'.format(fname))
-    finally:
-        gdal.SetConfigOption("GDAL_PAM_ENABLED", old_config_val)
-    proj = ds.GetProjection()
-    gt = ds.GetGeoTransform()
-
-
-    stats = ds.GetRasterBand(band).GetStatistics(0, 1)
-    ds = None
+    with rasterio.Env(GDAL_PAM_ENABLED="NO"):
+        with rasterio.open(fname) as src:
+            gt = src.transform.to_gdal()
+            proj = src.crs
+            stats = src.statistics(band)
 
     return stats, proj, gt
 
@@ -223,25 +222,24 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     array_shp = np.shape(array)
     if array.ndim != 2:
         raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
-    dType = array.dtype
-    if 'complex' in str(dType):
-        dType = gdal.GDT_CFloat32
-    elif 'float' in str(dType):
-        dType = gdal.GDT_Float32
-    else:
-        dType = gdal.GDT_Byte
 
-    driver = gdal.GetDriverByName(fmt)
-    ds = driver.Create(filename, array_shp[1], array_shp[0], 1, dType)
-    if proj is not None:
-        ds.SetProjection(proj)
+    # Data type
+    if "complex" in str(array.dtype):
+        dtype = np.complex64
+    elif "float" in str(array.dtype):
+        dtype = np.float32
+    else:
+        dtype = np.uint8
+
+    # Geotransform
+    trans = None
     if gt is not None:
-        ds.SetGeoTransform(gt)
-    b1 = ds.GetRasterBand(1)
-    b1.WriteArray(array)
-    b1.SetNoDataValue(noDataValue)
-    ds = None
-    b1 = None
+        trans = rasterio.Affine.from_gdal(*gt)
+    with rasterio.open(filename, mode="w", count=1,
+                       width=array_shp[1], height=array_shp[0],
+                       dtype=dtype, crs=proj, nodata=noDataValue,
+                       driver=fmt, transform=trans) as dst:
+        dst.write(array, 1)
 
 
 def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
@@ -528,8 +526,7 @@ def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize
         f.attrs['NoDataValue'] = noDataValue
 
         # CF 1.8 Convention stuff
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(epsg)
+        crs = pyproj.CRS.from_epsg(epsg)
         projds = f.create_dataset(projname, (), dtype='i')
         projds[()] = epsg
 
@@ -538,7 +535,8 @@ def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize
         projds.attrs['inverse_flattening'] = 298.257223563
         projds.attrs['ellipsoid'] = np.string_("WGS84")
         projds.attrs['epsg_code'] = epsg
-        projds.attrs['spatial_ref'] = np.string_(srs.ExportToWkt())
+        # TODO - Remove the wkt version after verification
+        projds.attrs['spatial_ref'] = np.string_(crs.to_wkt("WKT1_GDAL"))
 
         # Geodetic latitude / longitude
         if epsg == 4326:
@@ -799,8 +797,7 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
     if mapping_name == 'WGS84':
 
         epsg = 4326
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(epsg)
+        crs = pyproj.CRS.from_epsg(epsg)
 
         grid_mapping = 'WGS84'  # need to set this as an attribute for the image variables
         datatype = np.dtype('S1')
@@ -814,17 +811,12 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
         )
         # variable made, now add attributes
 
-        var.setncattr('grid_mapping_name', grid_mapping)
-        var.setncattr('straight_vertical_longitude_from_pole', srs.GetProjParm('central_meridian'))
-        var.setncattr('false_easting', srs.GetProjParm('false_easting'))
-        var.setncattr('false_northing', srs.GetProjParm('false_northing'))
-        var.setncattr('latitude_of_projection_origin', np.sign(srs.GetProjParm('latitude_of_origin')) * 90.0)
-        var.setncattr('latitude_of_origin', srs.GetProjParm('latitude_of_origin'))
-        var.setncattr('semi_major_axis', float(srs.GetAttrValue('GEOGCS|SPHEROID', 1)))
-        var.setncattr('scale_factor_at_projection_origin', 1)
-        var.setncattr('inverse_flattening', float(srs.GetAttrValue('GEOGCS|SPHEROID', 2)))
-        var.setncattr('spatial_ref', srs.ExportToWkt())
-        var.setncattr('spatial_proj4', srs.ExportToProj4())
+        for k, v in crs.to_cf().items():
+            var.setncattr(k, v)
+
+        # These might not be needed as to_cf adds a crs_wkt
+        var.setncattr('spatial_ref', crs.to_wkt())
+        var.setncattr('spatial_proj4', crs.to_proj4())
         var.setncattr('spatial_epsg', epsg)
         var.setncattr('GeoTransform', ' '.join(str(x) for x in tran))  # note this has pixel size in it - set  explicitly above
 
