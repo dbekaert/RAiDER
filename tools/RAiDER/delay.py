@@ -26,7 +26,7 @@ from RAiDER.logger import logger
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
-    gdal_open, writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
+    writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
 )
 
 
@@ -41,8 +41,8 @@ def tropo_delay(args):
                 containing the following key-value pairs:
 
         los     - tuple, Zenith class object, ('los', 2-band los file), or ('sv', orbit_file)
-        lats    - ndarray
-        lons    - ndarray
+        lats    - ndarray or str
+        lons    - ndarray or str
         heights - see checkArgs for format
         flag    -
         weather_model   - type of weather model to use
@@ -61,6 +61,7 @@ def tropo_delay(args):
     los = args['los']
     lats = args['lats']
     lons = args['lons']
+    ll_bounds = args['ll_bounds']
     heights = args['heights']
     flag = args['flag']
     weather_model = args['weather_model']
@@ -94,8 +95,8 @@ def tropo_delay(args):
         weather_model,
         time,
         wmLoc=wmLoc,
-        lats=lats,
-        lons=lons,
+        lats=ll_bounds[:2] if isinstance(lats, str) else lats,
+        lons=ll_bounds[2:] if isinstance(lons, str) else lons,
         zref=zref,
         download_only=download_only,
         makePlots=verbose,
@@ -119,39 +120,42 @@ def tropo_delay(args):
         return None, None
 
     ###########################################################
-    # If query points are specified, pull the height info
-    logger.debug('Beginning DEM calculation')
-    lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
-    logger.debug(
-        'DEM height range for the queried region is %.2f-%.2f m',
-        np.nanmin(hgts), np.nanmax(hgts)
-    )
-
-    # Transform the query points 
-    pnt_proj = CRS.from_epsg(4326)
+    # Load the downloaded model file
     ds = xarray.load_dataset(weather_model_file)
     try:
         wm_proj = ds['CRS']
     except:
         print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
         wm_proj = 4326
-    if wm_proj != pnt_proj:
-        pnts = transformPoints(
-            lats,
-            lons,
-            hgts,
-            pnt_proj,
-            wm_proj
-        )
-    else:
-        # interpolators require y, x, z
-        pnts = np.stack([lats, lons, hgts], axis=-1)
     ####################################################################
 
     ####################################################################
     # Calculate delays
-    los.setPoints(lats, lons, hgts)
-    if (los is Zenith) or (los is Conventional):
+    if isinstance(los, (Zenith, Conventional)):
+        # Start actual processing here
+        logger.debug("Beginning DEM calculation")
+        # Lats, Lons will be translated from file to array here if needed
+        lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
+        logger.debug(
+            'DEM height range for the queried region is %.2f-%.2f m',
+            np.nanmin(hgts), np.nanmax(hgts)
+        )
+        los.setPoints(lats, lons, hgts)
+
+        # Transform query points if needed
+        pnt_proj = CRS.from_epsg(4326)
+        if wm_proj != pnt_proj:
+            pnts = transformPoints(
+                lats,
+                lons,
+                hgts,
+                pnt_proj,
+                wm_proj
+            )
+        else:
+            # interpolators require y, x, z
+            pnts = np.stack([lats, lons, hgts], axis=-1)
+
         # either way I'll need the ZTD
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay = ifWet(pnts)
@@ -161,8 +165,10 @@ def tropo_delay(args):
         wetDelay = los(wetDelay)
         hydroDelay = los(hydroDelay)
 
-    else:
+    elif isinstance(los, Raytracing):
         raise NotImplementedError
+    else:
+        raise ValueError("Unknown operation type")
 
     del ds  # cleanup
 

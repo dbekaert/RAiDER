@@ -4,14 +4,15 @@ import os
 import pytest
 
 import numpy as np
+import pyproj
+import rasterio
 
 from test import TEST_DIR
-from osgeo import gdal, osr
 
 from RAiDER.utilFcns import (
-    _least_nonzero, cosd, gdal_open, sind,
-    writeArrayToRaster, writeResultsToHDF5, gdal_extents,
-    getTimeFromFile, enu2ecef, ecef2enu,
+    _least_nonzero, cosd, rio_open, sind,
+    writeArrayToRaster, writeResultsToHDF5, rio_profile,
+    rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
 )
 
 
@@ -116,8 +117,8 @@ def test_cosd():
     )
 
 
-def test_gdal_open():
-    out = gdal_open(os.path.join(TEST_DIR, "test_geom", "lat.rdr"), False)
+def test_rio_open():
+    out = rio_open(os.path.join(TEST_DIR, "test_geom", "lat.rdr"), False)
 
     assert np.allclose(out.shape, (45, 226))
 
@@ -145,11 +146,13 @@ def test_writeArrayToRaster(tmp_path):
     filename = str(tmp_path / 'dummy.out')
 
     writeArrayToRaster(array, filename)
-    dataset = gdal.Open(filename, gdal.GA_ReadOnly)
-    band = dataset.GetRasterBand(1)
+    with rasterio.open(filename) as src:
+        band = src.read(1)
+        noval = src.nodatavals[0]
 
-    assert band.GetNoDataValue() == 0
-    assert np.allclose(band.ReadAsArray(), array)
+
+    assert noval == 0
+    assert np.allclose(band, array)
 
 
 def test_makePoints0D_cython(make_points_0d_data):
@@ -227,24 +230,22 @@ def test_least_nonzero_2():
     )
 
 
-def test_gdal_extent():
+def test_rio_extent():
     # Create a simple georeferenced test file
-    ds = gdal.GetDriverByName('GTiff').Create('test.tif', 11, 11, 1, gdal.GDT_Float64)
-    ds.SetGeoTransform((17.0, 0.1, 0, 18.0, 0, -0.1))
-    band = ds.GetRasterBand(1)
-    band.WriteArray(np.random.randn(11, 11))
-    srs = osr.SpatialReference()
-    srs.ImportFromEPSG(4326)
-    ds.SetProjection(srs.ExportToWkt())
-    ds = None
-    band = None
-
-    assert gdal_extents('test.tif') == [17.0, 18.0, 18.0, 17.0]
+    with rasterio.open("test.tif", mode="w",
+                       width=11, height=11, count=1,
+                       dtype=np.float64, crs=pyproj.CRS.from_epsg(4326),
+                       transform=rasterio.Affine.from_gdal(
+                           17.0, 0.1, 0, 18.0, 0, -0.1
+                       )) as dst:
+        dst.write(np.random.randn(11, 11), 1)
+    profile = rio_profile("test.tif")
+    assert rio_extents(profile) == [17.0, 18.0, 18.0, 17.0]
 
 
-def test_gdal_extent2():
+def test_rio_extent2():
     with pytest.raises(AttributeError):
-        gdal_extents(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
+        rio_profile(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
 
 
 def test_getTimeFromFile():

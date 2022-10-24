@@ -2,9 +2,10 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: ubuntu:bionic
+      - image: cimg/python:3.10.6
+        user: root
     environment:
-      PYTHON_VERSION: 3.7.1
+      PYTHON_VERSION: 3.10.6
     steps:
       - checkout
       - run:
@@ -13,8 +14,8 @@ jobs:
             apt update --yes && apt-get upgrade --yes
             apt install -y --no-install-recommends wget ca-certificates git
             cd $HOME
-            wget "https://repo.anaconda.com/miniconda/Miniconda3-4.7.10-Linux-x86_64.sh" -O miniconda.sh
-            printf '%s' "8a324adcc9eaf1c09e22a992bb6234d91a94146840ee6b11c114ecadafc68121  miniconda.sh" | sha256sum -c
+            wget "https://repo.anaconda.com/miniconda/Miniconda3-py39_4.12.0-Linux-x86_64.sh" -O miniconda.sh
+            printf '%s' "78f39f9bae971ec1ae7969f0516017f2413f17796670f7040725dd83fcff5689  miniconda.sh" | sha256sum -c
             bash miniconda.sh -b -p $HOME/miniconda
       - run:
           name: Setup environment and run tests

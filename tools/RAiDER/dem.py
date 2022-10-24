@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 
 import rasterio
-from osgeo import gdal
 from pyproj import Proj
 from shapely.geometry import shape, Polygon
 from dem_stitcher.stitcher import stitch_dem
@@ -22,7 +21,7 @@ import RAiDER.utilFcns
 
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.logger import logger
-from RAiDER.utilFcns import gdal_open, gdal_extents
+from RAiDER.utilFcns import rio_open, rio_profile, rio_extents, get_file_and_band
 
 
 def getHeights(lats, lons, heights, useWeatherNodes=False):
@@ -31,11 +30,20 @@ def getHeights(lats, lons, heights, useWeatherNodes=False):
     or will download one if needed.
     '''
     height_type, height_data = heights
+    if isinstance(lats, str):
+        latinfo = get_file_and_band(lats)
+        lats = rio_open(latinfo[0], band=latinfo[1])
+
+    if isinstance(lons, str):
+        loninfo = get_file_and_band(lons)
+        lons = rio_open(loninfo[0], band=loninfo[1])
+
     in_shape = lats.shape
 
     if height_type == 'dem':
         try:
-            hts = gdal_open(height_data)
+            htinfo = get_file_and_band(height_data)
+            hts = rio_open(htinfo[0], band=htinfo[1])
             assert hts.shape == lats.shape
         except BaseException:
             logger.warning(
@@ -116,9 +124,9 @@ def download_dem(
         )
 
         try:
-            ll = gdal_extents(outName)
-            lons = ll[:2]
-            lats = ll[2:]
+            bounds = rio_extents(rio_profile(outName))
+            lons = bounds[:2]
+            lats = bounds[2:]
             if isOutside(
                 inExtent,
                 getBufferedExtent(
@@ -134,14 +142,17 @@ def download_dem(
                 )
             else:
                 # Use the existing DEM!
-                _, _, _, _, _, noDataVal, _ = readRaster(outName)
-                out = gdal_open(outName)
+                ds = rasterio.open(outName)
+                noDataVal = ds.nodatavals[0]
+                ds.close()
+
+                out = rio_open(outName)
                 save_flag = False
                 logger.info('I am using an existing DEM')
 
         except AttributeError:
-            out = gdal_open(outName)
-            if lats.shape==out.shape:
+            out = rio_open(outName)
+            if lats.shape == out.shape:
                 do_download = False
                 save_flag = False
             else:
@@ -166,13 +177,13 @@ def download_dem(
         # inExtent is SNWE
         # dem-stitcher wants WSEN
         bounds = [np.floor(inExtent[2]), np.floor(inExtent[0]),
-                 np.ceil(inExtent[3]), np.ceil(inExtent[1]),]
+                  np.ceil(inExtent[3]), np.ceil(inExtent[1]), ]
 
         zvals, metadata = stitch_dem(bounds,
-                            dem_name='glo_30',
-                            dst_ellipsoidal_height=True,
-                            dst_area_or_point='Area',
-                            )
+                                     dem_name='glo_30',
+                                     dst_ellipsoidal_height=True,
+                                     dst_area_or_point='Area',
+                                     )
         if writeDEM:
             with rasterio.open('GLO30_fullres_dem.tif', 'w', **metadata) as ds:
                 ds.write(zvals, 1)
@@ -239,7 +250,7 @@ def getBufferedExtent(lats, lons=None, buf=0.):
         elif lons.size == 1:
             out = [np.nanmin(lats), np.nanmax(lats), lons - buf, lons + buf]
     except AttributeError:
-        if (isinstance(lats, tuple) or isinstance(lats,list)) and len(lats) == 2:
+        if (isinstance(lats, tuple) or isinstance(lats, list)) and len(lats) == 2:
             out = [min(lats) - buf, max(lats) + buf, min(lons) - buf, max(lons) + buf]
     except Exception as e:
         logger.warning('getBufferExtent failed: lats type: {}\n, content: {}'.format(type(lats), lats))
@@ -327,38 +338,3 @@ def getArea(extent):
     shape_area = shape(cop).area / 1e6  # area in km^2
 
     return shape_area
-
-
-def readRaster(filename, band_num=None):
-    '''
-    Read a GDAL VRT file and return its attributes
-    '''
-    try:
-        ds = gdal.Open(filename, gdal.GA_ReadOnly)
-        if ds is None:
-            raise RuntimeError('readRaster: cannot find file {}'.format(filename))
-    except Exception as e:
-        ds = None
-        raise RuntimeError('readRaster: cannot open file {}. Reason: {}'.format(filename, e))
-
-    xSize = ds.RasterXSize
-    ySize = ds.RasterYSize
-    geoProj = ds.GetProjection()
-    trans = ds.GetGeoTransform()
-    Nbands = ds.RasterCount
-
-    # Read a band if I can
-    if band_num is None:
-        band_num = 1
-        print('Using band one for dataType')
-    try:
-        dType = ds.GetRasterBand(band_num).DataType
-        noDataVal = ds.GetRasterBand(band_num).GetNoDataValue()
-        print('Could not access band {}, skipping noDataValue and dType'.format(band_num))
-    except AttributeError:
-        dType = None
-        noDataVal = None
-
-    ds = None
-
-    return xSize, ySize, dType, geoProj, trans, noDataVal, Nbands

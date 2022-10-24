@@ -18,9 +18,9 @@ dependencies:
  - cython
  - dask
  - dem_stitcher>=2.3.0
- - gdal>=3.0
  - h5py
- - libgdal
+ - isce3>=0.8.0
+ - lxml
  - matplotlib
  - netcdf4
  - numpy

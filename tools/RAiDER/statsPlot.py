@@ -15,9 +15,9 @@ from scipy.optimize import OptimizeWarning
 from shapely.strtree import STRtree
 from shapely.geometry import Point, Polygon
 from matplotlib import pyplot as plt
-from osgeo import gdal
 import pandas as pd
 import numpy as np
+import rasterio
 import argparse
 import copy
 import datetime as dt
@@ -205,26 +205,15 @@ def midpoint(p1, p2):
     dy = math.cos(lat2) * math.sin(dlon)
     lon3 = lon1 + math.atan2(dy, math.cos(lat1) + dx)
 
-    return(int(math.degrees(lon3)))
+    return (int(math.degrees(lon3)))
 
 
-def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt='%.2f', stationsongrids=False, time_lines=False, gdal_fmt='float32', noData=np.nan):
+def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
+                  colorbarfmt='%.2f', stationsongrids=False, time_lines=False,
+                  dtype="float32", noData=np.nan):
     '''
         Function to save gridded-arrays as GDAL-readable file.
     '''
-
-    gdalMap = {'byte': 1,
-               'int16': 3,
-               'int32': 5,
-               'float32': 6,
-               'float64': 7,
-               'cfloat32': 10,
-               'cfloat64': 11}
-
-    # Write data to file
-    gdalfile = gdal.GetDriverByName('GTiff').Create(fname, df.shape[1], df.shape[0], 1, gdalMap[gdal_fmt])
-    gdalfile.GetRasterBand(1).WriteArray(df)
-
     # Pass metadata
     metadata_dict = {}
     metadata_dict['gridfile_type'] = gridfile_type
@@ -245,15 +234,16 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit, colorbarfmt
     else:
         metadata_dict['time_lines'] = 'False'
 
-    # Write metadata to file
-    gdalfile.SetMetadata(metadata_dict)
+    # Write data to file
+    with rasterio.open(fname, mode="w", count=1,
+                       width=df.shape[1], height=df.shape[0],
+                       dtype=dtype, nodata=noData) as dst:
+        dst.write(df, 1)
+        dst.update_tags(1, **metadata_dict)
 
-    # update with nodata val
-    gdalfile.GetRasterBand(1).SetNoDataValue(np.nan)
     # Finalize VRT
-    gdal.Translate(fname + '.vrt', gdalfile, options=gdal.TranslateOptions(format="VRT", noData=noData))
-
-    gdalfile = None
+    vrtname = fname + ".vrt"
+    rasterio.shutil.copy(fname, fname + ".vrt", driver="VRT")
 
     return
 
@@ -263,8 +253,11 @@ def load_gridfile(fname, unit):
         Function to load gridded-arrays saved from previous runs.
     '''
 
-    df = gdal.Open(fname)
-    grid_array = np.array(df.ReadAsArray(), dtype=float)
+    with rasterio.open(fname) as src:
+        grid_array = src.read().astype(float)
+
+        # Read metadata variables needed for plotting
+        metadata_dict = src.tags()
 
     # Initiate no-data array to mask data
     nodat_arr = [0, np.nan, np.inf]
@@ -275,8 +268,6 @@ def load_gridfile(fname, unit):
         grid_array = np.ma.masked_where(grid_array == i, grid_array)
     grid_array = np.ma.filled(grid_array, np.nan)
 
-    # Read metadata variables needed for plotting
-    metadata_dict = df.GetMetadata_Dict()
     # Make plotting command a global variable
     gridfile_type = metadata_dict['gridfile_type']
     globals()[gridfile_type] = True
@@ -1075,7 +1066,9 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_heatmap' + '.tif')
                 save_gridfile(self.grid_heatmap, 'grid_heatmap', gridfile_name, self.plotbbox, self.spacing,
-                              self.unit, colorbarfmt='%1i', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='int16',
+                              self.unit, colorbarfmt='%1i',
+                              stationsongrids=self.stationsongrids,
+                              time_lines=self.time_lines, dtype='int16',
                               noData=0)
 
         if self.grid_delay_mean:
@@ -1089,7 +1082,9 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_mean' + '.tif')
                 save_gridfile(self.grid_delay_mean, 'grid_delay_mean', gridfile_name, self.plotbbox, self.spacing,
-                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                              self.unit, colorbarfmt='%.2f',
+                              stationsongrids=self.stationsongrids,
+                              time_lines=self.time_lines, dtype='float32')
 
         if self.grid_delay_median:
             # Take mean of station-wise medians per gridcell
@@ -1102,7 +1097,9 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_median' + '.tif')
                 save_gridfile(self.grid_delay_median, 'grid_delay_median', gridfile_name, self.plotbbox, self.spacing,
-                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                              self.unit, colorbarfmt='%.2f',
+                              stationsongrids=self.stationsongrids,
+                              time_lines=self.time_lines, dtype='float32')
 
         if self.grid_delay_stdev:
             # Take mean of station-wise stdev per gridcell
@@ -1115,7 +1112,9 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_stdev' + '.tif')
                 save_gridfile(self.grid_delay_stdev, 'grid_delay_stdev', gridfile_name, self.plotbbox, self.spacing,
-                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                              self.unit, colorbarfmt='%.2f',
+                              stationsongrids=self.stationsongrids,
+                              time_lines=self.time_lines, dtype='float32')
 
         if self.grid_delay_absolute_mean:
             # Take mean of all data per gridcell
@@ -1127,7 +1126,9 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_mean' + '.tif')
                 save_gridfile(self.grid_delay_absolute_mean, 'grid_delay_absolute_mean', gridfile_name, self.plotbbox, self.spacing,
-                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                              self.unit, colorbarfmt='%.2f',
+                              stationsongrids=self.stationsongrids,
+                              time_lines=self.time_lines, dtype='float32')
 
         if self.grid_delay_absolute_median:
             # Take median of all data per gridcell
@@ -1139,7 +1140,9 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_median' + '.tif')
                 save_gridfile(self.grid_delay_absolute_median, 'grid_delay_absolute_median', gridfile_name, self.plotbbox, self.spacing,
-                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                              self.unit, colorbarfmt='%.2f',
+                              stationsongrids=self.stationsongrids,
+                              time_lines=self.time_lines, dtype='float32')
 
         if self.grid_delay_absolute_stdev:
             # Take stdev of all data per gridcell
@@ -1151,7 +1154,9 @@ class RaiderStats(object):
             if self.grid_to_raster:
                 gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_delay_absolute_stdev' + '.tif')
                 save_gridfile(self.grid_delay_absolute_stdev, 'grid_delay_absolute_stdev', gridfile_name, self.plotbbox, self.spacing,
-                              self.unit, colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                              self.unit, colorbarfmt='%.2f',
+                              stationsongrids=self.stationsongrids,
+                              time_lines=self.time_lines, dtype='float32')
 
         # If specified, compute phase/amplitude fits
         if self.station_seasonal_phase or self.grid_seasonal_phase or self.grid_seasonal_absolute_phase:
@@ -1213,7 +1218,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_phase' + '.tif')
                     save_gridfile(self.grid_seasonal_phase, 'grid_seasonal_phase', gridfile_name, self.plotbbox, self.spacing,
-                                  'days', colorbarfmt='%.1i', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'days', colorbarfmt='%.1i',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass mean amplitude of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['ampfit'].mean()
                 unique_points = unique_points.groupby(['gridnode'])['ampfit'].mean()
@@ -1224,7 +1231,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_amplitude' + '.tif')
                     save_gridfile(self.grid_seasonal_amplitude, 'grid_seasonal_amplitude', gridfile_name, self.plotbbox, self.spacing,
-                                  self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  self.unit, colorbarfmt='%.3f',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass mean period of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['periodfit'].mean()
                 unique_points = unique_points.groupby(['gridnode'])['periodfit'].mean()
@@ -1235,7 +1244,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_period' + '.tif')
                     save_gridfile(self.grid_seasonal_period, 'grid_seasonal_period', gridfile_name, self.plotbbox, self.spacing,
-                                  'years', colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'years', colorbarfmt='%.2f',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 ########################################################################################################################
                 # Pass mean phase stdev of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['phsfit_c'].mean()
@@ -1247,7 +1258,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_phase_stdev' + '.tif')
                     save_gridfile(self.grid_seasonal_phase_stdev, 'grid_seasonal_phase_stdev', gridfile_name, self.plotbbox, self.spacing,
-                                  'days', colorbarfmt='%.1i', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'days', colorbarfmt='%.1i',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass mean amplitude stdev of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['ampfit_c'].mean()
                 unique_points = unique_points.groupby(['gridnode'])['ampfit_c'].mean()
@@ -1258,7 +1271,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_amplitude_stdev' + '.tif')
                     save_gridfile(self.grid_seasonal_amplitude_stdev, 'grid_seasonal_amplitude_stdev', gridfile_name, self.plotbbox, self.spacing,
-                                  self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  self.unit, colorbarfmt='%.3f',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass mean period stdev of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['periodfit_c'].mean()
                 unique_points = unique_points.groupby(['gridnode'])['periodfit_c'].mean()
@@ -1269,7 +1284,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_period_stdev' + '.tif')
                     save_gridfile(self.grid_seasonal_period_stdev, 'grid_seasonal_period_stdev', gridfile_name, self.plotbbox, self.spacing,
-                                  'years', colorbarfmt='%.2e', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'years', colorbarfmt='%.2e',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass mean seasonal fit RMSE of station-wise means per gridcell
                 unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)['seasonalfit_rmse'].mean()
                 unique_points = unique_points.groupby(['gridnode'])['seasonalfit_rmse'].mean()
@@ -1280,7 +1297,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_fit_rmse' + '.tif')
                     save_gridfile(self.grid_seasonal_fit_rmse, 'grid_seasonal_fit_rmse', gridfile_name, self.plotbbox, self.spacing,
-                                  self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  self.unit, colorbarfmt='%.3f',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
             ########################################################################################################################
             if self.grid_seasonal_absolute_phase:
                 # Pass absolute mean phase of all data per gridcell
@@ -1292,7 +1311,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_phase' + '.tif')
                     save_gridfile(self.grid_seasonal_absolute_phase, 'grid_seasonal_absolute_phase', gridfile_name, self.plotbbox, self.spacing,
-                                  'days', colorbarfmt='%.1i', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'days', colorbarfmt='%.1i',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass absolute mean amplitude of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['ampfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
@@ -1302,7 +1323,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_amplitude' + '.tif')
                     save_gridfile(self.grid_seasonal_absolute_amplitude, 'grid_seasonal_absolute_amplitude', gridfile_name, self.plotbbox, self.spacing,
-                                  self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  self.unit, colorbarfmt='%.3f',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass absolute mean period of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['periodfit'].mean()
                 unique_points.dropna(how='any', inplace=True)
@@ -1312,7 +1335,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_period' + '.tif')
                     save_gridfile(self.grid_seasonal_absolute_period, 'grid_seasonal_absolute_period', gridfile_name, self.plotbbox, self.spacing,
-                                  'years', colorbarfmt='%.2f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'years', colorbarfmt='%.2f',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 ########################################################################################################################
                 # Pass absolute mean phase stdev of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['phsfit_c'].mean()
@@ -1323,7 +1348,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_phase_stdev' + '.tif')
                     save_gridfile(self.grid_seasonal_absolute_phase_stdev, 'grid_seasonal_absolute_phase_stdev', gridfile_name, self.plotbbox, self.spacing,
-                                  'days', colorbarfmt='%.1i', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'days', colorbarfmt='%.1i',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass absolute mean amplitude stdev of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['ampfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
@@ -1333,7 +1360,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_amplitude_stdev' + '.tif')
                     save_gridfile(self.grid_seasonal_absolute_amplitude_stdev, 'grid_seasonal_absolute_amplitude_stdev', gridfile_name, self.plotbbox, self.spacing,
-                                  self.unit, colorbarfmt='%.3f', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  self.unit, colorbarfmt='%.3f',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
                 # Pass absolute mean period stdev of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['periodfit_c'].mean()
                 unique_points.dropna(how='any', inplace=True)
@@ -1343,7 +1372,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_period_stdev' + '.tif')
                     save_gridfile(self.grid_seasonal_absolute_period_stdev, 'grid_seasonal_absolute_period_stdev', gridfile_name, self.plotbbox, self.spacing,
-                                  'years', colorbarfmt='%.2e', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  'years', colorbarfmt='%.2e',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
 
                 # Pass absolute mean seasonal fit RMSE of all data per gridcell
                 unique_points = self.df.groupby(['gridnode'])['seasonalfit_rmse'].mean()
@@ -1354,7 +1385,9 @@ class RaiderStats(object):
                 if self.grid_to_raster:
                     gridfile_name = os.path.join(self.workdir, self.col_name + '_' + 'grid_seasonal_absolute_fit_rmse' + '.tif')
                     save_gridfile(self.grid_seasonal_absolute_fit_rmse, 'grid_seasonal_absolute_fit_rmse', gridfile_name, self.plotbbox, self.spacing,
-                                  self.unit, colorbarfmt='%.2e', stationsongrids=self.stationsongrids, time_lines=self.time_lines, gdal_fmt='float32')
+                                  self.unit, colorbarfmt='%.2e',
+                                  stationsongrids=self.stationsongrids,
+                                  time_lines=self.time_lines, dtype='float32')
 
     def _amplitude_and_phase(self, station, tt, yy, min_span=2, min_frac=0.6, period_limit=0.):
         '''
@@ -1988,15 +2021,18 @@ def stats_analyses(
             # write range
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_range' + '.tif')
             save_gridfile(df_stats.grid_range, 'grid_range', gridfile_name, df_stats.plotbbox, df_stats.spacing,
-                          df_stats.unit, colorbarfmt='%1i', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+                          df_stats.unit, colorbarfmt='%1i',
+                          stationsongrids=df_stats.stationsongrids, dtype='float32')
             # write sill
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variance' + '.tif')
             save_gridfile(df_stats.grid_variance, 'grid_variance', gridfile_name, df_stats.plotbbox, df_stats.spacing,
-                          df_stats.unit + '^2', colorbarfmt='%.3e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+                          df_stats.unit + '^2', colorbarfmt='%.3e',
+                          stationsongrids=df_stats.stationsongrids, dtype='float32')
             # write variogram rmse
             gridfile_name = os.path.join(workdir, col_name + '_' + 'grid_variogram_rmse' + '.tif')
             save_gridfile(df_stats.grid_variogram_rmse, 'grid_variogram_rmse', gridfile_name, df_stats.plotbbox, df_stats.spacing,
-                          df_stats.unit, colorbarfmt='%.2e', stationsongrids=df_stats.stationsongrids, gdal_fmt='float32')
+                          df_stats.unit, colorbarfmt='%.2e',
+                          stationsongrids=df_stats.stationsongrids, dtype='float32')
 
     if isinstance(df_stats.grid_range, np.ndarray):
         # plot range heatmap
