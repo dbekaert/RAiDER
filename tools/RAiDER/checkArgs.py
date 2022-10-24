@@ -16,7 +16,8 @@ from textwrap import dedent
 from datetime import datetime, date, time, timedelta
 
 from RAiDER.losreader import Zenith, Conventional, Raytracing
-from RAiDER.llreader import readLL
+from RAiDER.llreader import bounds_from_latlon_rasters, bounds_from_csv
+from tools.RAiDER.utilFcns import rio_extents, rio_profile
 
 
 def checkArgs(args):
@@ -24,26 +25,38 @@ def checkArgs(args):
     Helper fcn for checking argument compatibility and returns the
     correct variables
     '''
+
+    #########################################################################################################################
+    # Directories
     if args.weather_model_directory is None:
         args.weather_model_directory = os.path.join(args.output_directory, 'weather_files')
     if not os.path.exists(args.weather_model_directory):
         os.mkdir(args.weather_model_directory)
 
+    #########################################################################################################################
     # Query Area
     if args.lat_file is not None:
-        pass
-        # lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
+        args.in_proj, args.bounding_box, args.pnts_file = bounds_from_latlon_rasters(args.lat_file, args.lon_file)
+
     elif args.station_file is not None:
-        pass
+        args.bounding_box, args.pnts_file, use_csv_heights = bounds_from_csv(args.station_file)
+        args.in_proj = 'EPSG:4326',
+         
     elif args.bounding_box is not None:
-        lat, lon = None, None # TODO
-        if (np.min(lat) < -90) | (np.max(lat) > 90):
-            raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
+        if (np.min(args.bounding_box[0]) < -90) | (np.max(args.bounding_box[1]) > 90):
+            raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched? Should be SNWE')
+        args.pnts_file = '_'.join([str(int(a)) for a in [a for a in args.bounding_box][0]])
+        args.ll_proj = 'EPSG:4326'
+
     elif args.use_dem_xy:
-        pass
+        try:
+            args.bounding_box = rio_extents(rio_profile(args.dem))
+        except FileNotFoundError:
+            raise ValueError('You must specify a valid dem in the configuration file in order to use the xy points')
     else:
         raise ValueError('No valid query points or bounding box found in configuration file {}'.format(args.customTemplateFile))
 
+    #########################################################################################################################
     # Line of sight 
     if args.orbit_file is not None:
         args.los = Conventional(args.los_file)
@@ -60,7 +73,8 @@ def checkArgs(args):
     else:
         los = Zenith()
 
-    # Weather
+    #########################################################################################################################
+    # Weather model
     try:
         _, model_obj = modelName2Module(args.model)
     except ModuleNotFoundError:
@@ -70,8 +84,11 @@ def checkArgs(args):
                 please contribute!
                 '''.format(args.model))
         )
+    args.weather_model = model_obj()
+    args.useWeatherNodes = [True if args.bounding_box is not None else False]
 
-    # handle the datetimes requested
+    #########################################################################################################################
+    # Date and Time parsing
     args.time = time(args.time)
 
     if (args.date_start is None) and (args.date_list is None):
@@ -91,10 +108,8 @@ def checkArgs(args):
         args.date_list = [args.date_start + timedelta(days=args.date_inc) for k in range(0, (args.date_end - args.date_start).days + 1, 1)]
     args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
 
-    # Initiate the weather model object
-    args.weather_model = model_obj()
-    args.useWeatherNodes = [True if args.bounding_box is not None else False]
-
+    #########################################################################################################################
+    # filenames
     wetNames, hydroNames = [], []
     for time in args.date_list:
         if args.station_file is not None:
@@ -123,17 +138,21 @@ def checkArgs(args):
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)
 
+    #########################################################################################################################
     # DEM
-    if (args.heightlvs is None) and (args.dem is None):
-        args.dem = 'Download'
-        if args.station_file is not None:
-            df = pd.read_csv(args.station_file)
-            if 'Hgt_m' in df.columns:
-                args.dem = None
-    if args.dem == 'Download':
-        args.dem_path = os.path.join(args.out, 'geom')
-        if not os.path.exists(args.dem_path):
-            os.mkdir(args.dem_path)
+    if args.dem is None:
+        if (args.station_file is not None) and use_csv_heights:
+            args.dem_type = 'csv'
+            args.dem = args.station_file
+        elif args.heightlvs is not None:
+            args.dem_type = 'interpolate'
+        else:
+            args.dem_type = 'download'
+            args.dem_path = os.path.join(args.out, 'geom', 'GLO30.dem')
+            if not os.path.exists(args.dem_path):
+                os.mkdir(args.dem_path)
+    else:
+        args.dem_type = 'dem'
 
     return args
 

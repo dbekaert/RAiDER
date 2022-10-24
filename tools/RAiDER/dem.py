@@ -24,87 +24,48 @@ from RAiDER.logger import logger
 from RAiDER.utilFcns import rio_open, rio_profile, rio_extents, get_file_and_band
 
 
-def getHeights(lats, lons, heights, useWeatherNodes=False):
+def getHeights(ll_bounds, dem_type, dem_file, useWeatherNodes=False):
     '''
     Fcn to return heights from a DEM, either one that already exists
     or will download one if needed.
     '''
-    height_type, height_data = heights
-    if isinstance(lats, str):
-        latinfo = get_file_and_band(lats)
-        lats = rio_open(latinfo[0], band=latinfo[1])
+    # height_type, height_data = heights
+    if dem_type == 'dem':
+        htinfo = get_file_and_band(dem_file)
+        hts = rio_open(htinfo[0], band=htinfo[1])
+    
+    elif dem_type == 'csv':
+        # Heights are in the .csv file
+        hts = pd.read_csv(dem_file)['Hgt_m'].values
 
-    if isinstance(lons, str):
-        loninfo = get_file_and_band(lons)
-        lons = rio_open(loninfo[0], band=loninfo[1])
+    elif dem_type == 'interpolate':
+        # heights will be vertically interpolated to the heightlvs
+        hts = None
 
-    in_shape = lats.shape
+    elif dem_type == 'download':
+        hts = download_dem(
+            ll_bounds, 
+            writeDEM = True,
+            outName=dem_file,
+        )
 
-    if height_type == 'dem':
-        try:
-            htinfo = get_file_and_band(height_data)
-            hts = rio_open(htinfo[0], band=htinfo[1])
-            assert hts.shape == lats.shape
-        except BaseException:
-            logger.warning(
-                'File %s could not be opened; requires GDAL-readable file.',
-                height_data, exc_info=True
-            )
-            logger.info('Proceeding with DEM download')
-            height_type = 'download'
-
-    elif height_type == 'lvs':
-        if height_data is not None and useWeatherNodes:
-            hts = height_data
-        elif height_data is not None:
-            hts = height_data
-            latlist, lonlist, hgtlist = [], [], []
-            for ht in hts:
-                latlist.append(lats.flatten())
-                lonlist.append(lons.flatten())
-                hgtlist.append(np.array([ht] * len(lats.flatten())))
-            lats = np.array(latlist).reshape(in_shape + (len(height_data),))
-            lons = np.array(lonlist).reshape(in_shape + (len(height_data),))
-            hts = np.array(hgtlist).reshape(in_shape + (len(height_data),))
-        else:
-            raise RuntimeError('Heights must be specified with height option "lvs"')
-
-    elif height_type == 'merge':
-        for f in height_data:
-            data = pd.read_csv(f)
-            lats = data['Lat'].values
-            lons = data['Lon'].values
-            hts = download_dem(lats, lons, outName=f, save_flag='merge')
-            data['Hgt_m'] = hts
-            data.to_csv(f)
-    elif height_type == 'pandas':
-        data = pd.read_csv(height_data[0])
-        hts = data['Hgt_m'].values
     else:
-        if useWeatherNodes:
-            hts = None
-            height_type = 'skip'
-        else:
-            height_type = 'download'
+        raise RuntimeError('dem_type must be speicified')
 
-    if height_type == 'download':
-        hts = download_dem(lats, lons, outName=os.path.abspath(height_data))
+    # elif height_type == 'merge':
+    #     for f in height_data:
+    #         data = pd.read_csv(f)
+    #         lats = data['Lat'].values
+    #         lons = data['Lon'].values
+    #         hts = download_dem(lats, lons, outName=f, save_flag='merge')
+    #         data['Hgt_m'] = hts
+    #         data.to_csv(f)
 
-    lats, lons, hts = [forceNDArray(v) for v in (lats, lons, hts)]
-
-    return lats, lons, hts
-
-
-def forceNDArray(arg):
-    if arg is None:
-        return None
-    else:
-        return np.array(arg)
+    return hts
 
 
 def download_dem(
-    lats,
-    lons,
+    ll_bounds,
     save_flag='new',
     writeDEM=False,
     outName='warpedDEM',

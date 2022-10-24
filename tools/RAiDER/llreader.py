@@ -8,90 +8,41 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 
-import numpy as np
 import pandas as pd
 
-from RAiDER.utilFcns import rio_open, rio_stats, get_file_and_band
+from RAiDER.utilFcns import rio_stats, get_file_and_band
 
 
-def readLL(*args):
+def bounds_from_latlon_rasters(latfile, lonfile):
     '''
     Parse lat/lon/height inputs and return
     the appropriate outputs
     '''
-    if len(args[0]) == 2:
-        # If they are files, open them for stats
-        flag = 'files'
+    latinfo = get_file_and_band(latfile)
+    loninfo = get_file_and_band(lonfile)
+    lat_stats, lat_proj, _ = rio_stats(latinfo[0], band=latinfo[1])
+    lon_stats, lon_proj, _ = rio_stats(loninfo[0], band=loninfo[1])
 
-        latinfo = get_file_and_band(args[0][0])
-        loninfo = get_file_and_band(args[0][1])
-        lat_stats = rio_stats(latinfo[0], band=latinfo[1])
-        lon_stats = rio_stats(loninfo[0], band=loninfo[1])
+    if lat_proj != lon_proj:
+        raise ValueError('Projection information for Latitude and Longitude files does not match')
 
-        # TODO - handle dateline crossing here
-        snwe = (lat_stats[0].min, lat_stats[0].max,
-                lon_stats[0].min, lon_stats[0].max)
+    # TODO - handle dateline crossing here
+    snwe = (lat_stats.min, lat_stats.max,
+            lon_stats.min, lon_stats.max)
 
-        lats, lons, llproj = readLLFromBBox(snwe)
-        llproj = lat_stats[1]
-        fname = os.path.basename(args[0][0]).split('.')[0]
-
-    elif len(args[0]) == 4:
-        flag = 'bounding_box'
-        lats, lons, llproj = readLLFromBBox(*args)
-        fname = '_'.join([str(int(a)) for a in [a for a in args][0]])
-
-    elif isinstance(args[0], str):
-        flag = 'station_file'
-        lats, lons, llproj = readLLFromStationFile(*args)
-        fname = os.path.basename(args[0]).split('.')[0]
-
-    else:
-        raise RuntimeError('llreader: Cannot parse query region: {}'.format(args))
-
-    bounds = (np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons))
-    # If files, pass file names instead of arrays
-    if flag == "files":
-        lats = args[0][0]
-        lons = args[0][1]
-
-    pnts_file_name = 'query_points_' + fname + '.h5'
-
-    return lats, lons, llproj, bounds, flag, pnts_file_name
+    fname = os.path.basename(latfile).split('.')[0]
+    
+    return lat_proj, snwe, fname
 
 
-def readLLFromLLFiles(latfile, lonfile):
-    ''' Read ISCE-style files having pixel lat and lon in radar coordinates '''
-    lats, llproj = rio_open(latfile, returnProj=True)
-    lons, llproj2 = rio_open(lonfile, returnProj=True)
-    lats[lats == 0.] = np.nan
-    lons[lons == 0.] = np.nan
-    print(llproj)
-    print(llproj2)
-    if llproj["crs"] and llproj2["crs"]:
-        if llproj.crs != llproj2.crs:
-            raise ValueError('The projection of the lat and lon files are not compatible')
-    return lats, lons, llproj
-
-
-def readLLFromBBox(bbox):
-    ''' Convert string bounding box to numpy lat/lon arrays '''
-    S, N, W, E = bbox
-    lats = np.array([float(S), float(N)])
-    lons = np.array([float(W), float(E)])
-    return lats, lons, 'EPSG:4326'
-
-
-def readLLFromStationFile(fname):
+def bounds_from_csv(station_file):
     '''
-    Helper fcn for checking argument compatibility
+    station_file should be a comma-delimited file with at least "Lat" 
+    and "Lon" columns, which should be EPSG: 4326 projection (i.e WGS84)
     '''
     stats = pd.read_csv(fname).drop_duplicates(subset=["Lat", "Lon"])
-    return stats['Lat'].values, stats['Lon'].values, 'EPSG:4326'
-
-
-def forceNDArray(arg):
-    if arg is None:
-        return None
-    else:
-        return np.array(arg)
+    if 'Hgt_m' in stats.columns:
+        use_csv_heights = True
+    snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
+    fname = os.path.basename(station_file).split('.')[0]
+    return snwe, fname, use_csv_heights

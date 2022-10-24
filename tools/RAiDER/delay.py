@@ -61,8 +61,8 @@ def tropo_delay(args):
     los = args['los']
     lats = args['lats']
     lons = args['lons']
-    ll_bounds = args['ll_bounds']
-    heights = args['heights']
+    ll_bounds = args['bounding_box']
+    heights = args['dem']
     flag = args['flag']
     weather_model = args['weather_model']
     wmLoc = args['wmLoc']
@@ -85,7 +85,6 @@ def tropo_delay(args):
 
     ###########################################################
     # weather model calculation
-    useWeatherNodes = flag == 'bounding_box'
     delayType = ["Zenith" if los is Zenith else "LOS"]
 
     logger.debug('Beginning weather model pre-processing')
@@ -104,7 +103,7 @@ def tropo_delay(args):
 
     if download_only:
         return None, None
-    elif useWeatherNodes:
+    elif args['useWeatherNodes']:
         if heights[0] == 'lvs':
             # compute delays at the correct levels
             ds = xarray.load_dataset(weather_model_file)
@@ -135,7 +134,7 @@ def tropo_delay(args):
         # Start actual processing here
         logger.debug("Beginning DEM calculation")
         # Lats, Lons will be translated from file to array here if needed
-        lats, lons, hgts = getHeights(lats, lons, heights, useWeatherNodes)
+        lats, lons, hgts = getHeights(ll_bounds, heights, args['useWeatherNodes'])
         logger.debug(
             'DEM height range for the queried region is %.2f-%.2f m',
             np.nanmin(hgts), np.nanmax(hgts)
