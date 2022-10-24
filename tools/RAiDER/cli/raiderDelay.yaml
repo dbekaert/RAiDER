@@ -33,14 +33,15 @@ date_step:   # date interval to download. Default is 1, i.e. every day between d
 ## Alternatively, you can also directly specify a comma-delimited list. 
 date_list:   # e.g. [20200101, 20200201, 20200301]
 
-########## 1. Time UTC
+
+########## 2. Time in UTC
 ## REQUIRED: TRUE
 ## FORMATS: HH:MM:SS; HH:MM
 ##
 ## Time is in UTC time and should be specified as HH:MM:SS or HH:MM
 time:
 
-########## 2. Weather model
+########## 3. Weather model
 ## REQUIRED: TRUE
 ## FORMATS: string, Select name from list below
 ## 
@@ -50,7 +51,8 @@ time:
 ## for more details and information on licensing
 weather_model:
 
-########## 3. Query points
+
+########## 4. Query points
 ## REQUIRED: FALSE
 ## FORMATS: string or list of floats
 ## 
@@ -64,7 +66,8 @@ lon_file:
 station_file: 
 bounding_box: 
 
-########## 4. Height info
+
+########## 5. Height info
 ## REQUIRED: FALSE
 ## FORMATS: None, string, list of floats
 ## 
@@ -79,7 +82,8 @@ dem:
 use_dem_latlon: False
 height_levels: 
 
-########## 5. Line-of-sight or zenith calculations
+
+########## 6. Line-of-sight or zenith calculations
 ## REQUIRED: FALSE
 ## FORMATS: string
 ## 
@@ -98,7 +102,8 @@ los_cube:
 # File containing orbit statevectors, see *** for details 
 orbit_file: 
 
-########## 6. Run-time parameters
+
+########## 7. Run-time parameters
 ## REQUIRED: FALSE
 ##
 verbose: True
