@@ -40,6 +40,38 @@ raiderDelay.py customTemplatefile.cfg
 raiderDelay.py --dostep=load_weather_model
 """
 
+DEFAULT_DICT = dict(
+    look_dir='right',
+    date_start=None,
+    date_end=None,
+    date_step=None,
+    date_list=None,
+    time=None,
+    end_time=None,
+    weather_model=None,
+    lat_file=None,
+    lon_file=None,
+    station_file=None,
+    bounding_box=None,
+    utm_zone=None,
+    grid_x=None,
+    grid_y=None,
+    dem=None,
+    use_dem_latlon=False,
+    height_levels=None,
+    ray_trace=False,
+    zref=_ZREF,
+    los_file=None,
+    los_convention='isce',
+    los_cube=None,
+    orbit_file=None,
+    verbose=True,
+    raster_format='GTiff'
+    output_directory=os.getcwd(),
+    weather_model_directory=os.path.join(output_directory,'weather_files'),
+    output_projection='EPSG:4236',
+)
+
 def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
@@ -69,87 +101,6 @@ def create_parser():
                       help='end processing at the named step (default: %(default)s)')
     step.add_argument('--dostep', dest='doStep', metavar='STEP',
                       help='run processing at the named step only')
-
-
-    # datetime = p.add_argument_group('Datetime')
-    # datetime.add_argument(
-    #     '--date', dest='dateList',
-    #     help=dedent("""\
-    #         Date to calculate delay.
-    #         Can be a single date, a list of two dates (earlier, later) with 1-day interval, or a list of two dates and interval in days (earlier, later, interval).
-    #         Example accepted formats:
-    #            YYYYMMDD or
-    #            YYYYMMDD YYYYMMDD
-    #            YYYYMMDD YYYYMMDD N
-    #         """),
-    #     nargs="+",
-    #     action=DateListAction,
-    #     type=date_type,
-    #     required=True
-    # )
-
-    # datetime.add_argument(
-    #     '--time', dest='time',
-    #     help=dedent('''\
-    #     Calculate delay at this time.
-    #     Example formats:
-    #        THHMMSS,
-    #        HHMMSS, or
-    #        HH:MM:SS'''),
-    #     type=time_type, required=True)
-
-    # # Area
-    # area = p.add_argument_group('Area of Interest (Supply one)').add_mutually_exclusive_group(required=True)
-    # area.add_argument(
-    #     '--latlon',
-    #     '-ll',
-    #     nargs=2,
-    #     dest='query_area',
-    #     help='GDAL-readable latitude and longitude raster files (2 single-band files)',
-    #     metavar=('LAT', 'LONG')
-    # )
-    # add_bbox(area)
-    # area.add_argument(
-    #     '--station_file',
-    #     default=None,
-    #     type=str,
-    #     dest='query_area',
-    #     help=('CSV file with a list of stations, containing at least '
-    #           'the columns "Lat" and "Lon"')
-    # )
-
-    # # Line of sight
-    # los = p.add_argument_group(
-    #     'Specify a Line-of-sight or state vector file. If neither argument is supplied, the Zenith delay will be returned'
-    # ).add_mutually_exclusive_group()
-    # los.add_argument(
-    #     '--lineofsight', '-l',
-    #     help='GDAL-readable two-band line-of-sight file (B1: inclination, B2: heading)',
-    #          metavar='LOS', default=None)
-    # los.add_argument(
-    #     '--statevectors', '-s', default=None, metavar='SV',
-    #     help='An ESA orbit file or text file containing state vectors specifying '
-    #          'the orbit of the sensor.')
-
-    # # heights
-    # heights = p.add_argument_group('Height data. Default is ground surface for specified lat/lons, height levels otherwise')
-    # heights.add_argument(
-    #     '--dem', '-d', default=None,
-    #     help="""Specify a DEM to use with lat/lon inputs.""")
-    # heights.add_argument(
-    #     '--heightlvs',
-    #     help=("""A space-deliminited list of heights"""),
-    #     default=None, nargs='+', type=float)
-
-    # # Weather model
-    # p.add_argument(
-    #     '--model',
-    #     help="Weather model to access.",
-    #     type=lambda s: s.upper().replace("-", ""),
-    #     choices=ALLOWED_MODELS,
-    #     default='ERA5T')
-
-    add_verbose(p)
 
     return p
 
@@ -183,10 +134,9 @@ def parseCMD(iargs=None):
         p.print_usage()
         print(EXAMPLES)
         
-        msg = "No template file found! It requires that a:"
-        msg += "\n  a custom template file, OR"
-        msg += "\n  2) the default template file 'raiderDelay.cfg' "
-        msg += "\n exists in current directory."
+        msg = "No template file found! It requires that either:"
+        msg += "\n  a custom template file, OR the default template "
+        msg += "\n  file 'raiderDelay.yaml' exists in current directory."
         raise SystemExit('ERROR: {}'.format(msg))
 
     if  args.customTemplateFile:
@@ -199,14 +149,7 @@ def parseCMD(iargs=None):
     # check which steps to run
     args.runSteps = read_inps2run_steps(args, step_list=STEP_LIST)
 
-    # Argument checking
-    args = checkArgs(args, p)
-
-    if args.verbose:
-        logger.setLevel(logging.DEBUG)
-
     return args
-
 
 
 def read_inps2run_steps(inps, step_list):
@@ -252,8 +195,7 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
                 delimiter  - str, string to separate the key and value
                 skip_chars - list of str, skip certain charaters in values
     Returns:    template   - dict, file content
-    Examples:   template = read_template('KyushuAlosAT424.txt')
-                template = read_template('smallbaselineApp.cfg')
+    Examples:   template = read_template('raiderDelay.yaml')
 
     Modified from MintPy's 'read_template'
     """
@@ -272,7 +214,7 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
     lines = [x.strip() for x in lines]
 
     # parse line by line
-    template = {}
+    template = DEFAULT_DICT
     for line in lines:
         # split on the 1st occurrence of delimiter
         c = [i.strip() for i in line.split(delimiter, 1)]
@@ -291,9 +233,8 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
 
             if key == 'model':
                 value = value.upper().replace("-", "")
-            if key == 
-            if value != '':
-                template[key] = value
+        
+        template[key]=value
 
     return template
 
@@ -302,12 +243,21 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
 def main(iargs=None):
     # parse
     inps = parseCMD(iargs)
+    
+    # Read the template file
+    args = read_template_file(inps.customTemplateFile)
+    
+    # Argument checking
+    args = checkArgs(args)
 
-    # import
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
+
+    # Run the list of commands
     from RAiDER.runProgram import _tropo_delay
 
     # run
-    _tropo_delay(inps)
+    _tropo_delay(args)
 
 
 ###########################################################################################

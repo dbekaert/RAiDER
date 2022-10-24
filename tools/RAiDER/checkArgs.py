@@ -19,6 +19,8 @@ from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.llreader import bounds_from_latlon_rasters, bounds_from_csv
 from tools.RAiDER.utilFcns import rio_extents, rio_profile
 
+_BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees 
+
 
 def checkArgs(args):
     '''
@@ -71,7 +73,7 @@ def checkArgs(args):
         else:
             args.los = Conventional(args.los_cube)
     else:
-        los = Zenith()
+        args.los = Zenith()
 
     #########################################################################################################################
     # Weather model
@@ -85,6 +87,8 @@ def checkArgs(args):
                 '''.format(args.model))
         )
     args.weather_model = model_obj()
+
+    #TODO: This needs to get updated to account for height levels
     args.useWeatherNodes = [True if args.bounding_box is not None else False]
 
     #########################################################################################################################
@@ -144,15 +148,42 @@ def checkArgs(args):
         if (args.station_file is not None) and use_csv_heights:
             args.dem_type = 'csv'
             args.dem = args.station_file
+        elif args.height_file_rdr is not None:
+            args.dem_type = 'hgt'
+            args.dem = args.height_file_rdr
         elif args.heightlvs is not None:
             args.dem_type = 'interpolate'
         else:
             args.dem_type = 'download'
-            args.dem_path = os.path.join(args.out, 'geom', 'GLO30.dem')
-            if not os.path.exists(args.dem_path):
-                os.mkdir(args.dem_path)
+            dem_path = os.path.join(args.out, 'geom')
+            args.dem = os.path.join(dem_path, 'GLO30.dem')
+            if not os.path.exists(dem_path):
+                os.mkdir(dem_path)
     else:
-        args.dem_type = 'dem'
+        if os.path.exists(args.dem):
+            dem_bounds = rio_extents(rio_profile(args.dem))
+            lats = dem_bounds[:2]
+            lons = dem_bounds[2:]
+            if isOutside(
+                args.bounding_box,
+                getBufferedExtent(
+                    lats,
+                    lons,
+                    buf=_BUFFER_SIZE,
+                )
+            ):
+                raise ValueError(
+                    'Existing DEM does not cover the area of the input lat/lon '
+                    'points; either move the DEM, delete it, or change the input '
+                    'points.'
+                )
+            args.dem_type = 'dem'
+            dem_path = os.path.dirname(args.dem)
+            if not os.path.exists(dem_path):
+                os.mkdir(dem_path)
+        else:
+            args.dem_type = 'download'
+        
 
     return args
 
@@ -198,3 +229,58 @@ def modelName2Module(model_name):
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name, wmObject
+
+
+def getBufferedExtent(lats, lons=None, buf=0.):
+    '''
+    get the bounding box around a set of lats/lons
+    '''
+    if lons is None:
+        lats, lons = lats[..., 0], lons[..., 1]
+
+    try:
+        if (lats.size == 1) & (lons.size == 1):
+            out = [lats - buf, lats + buf, lons - buf, lons + buf]
+        elif (lats.size > 1) & (lons.size > 1):
+            out = [np.nanmin(lats), np.nanmax(lats), np.nanmin(lons), np.nanmax(lons)]
+        elif lats.size == 1:
+            out = [lats - buf, lats + buf, np.nanmin(lons), np.nanmax(lons)]
+        elif lons.size == 1:
+            out = [np.nanmin(lats), np.nanmax(lats), lons - buf, lons + buf]
+    except AttributeError:
+        if (isinstance(lats, tuple) or isinstance(lats, list)) and len(lats) == 2:
+            out = [min(lats) - buf, max(lats) + buf, min(lons) - buf, max(lons) + buf]
+    except Exception as e:
+        raise RuntimeError('Not a valid lat/lon shape or variable')
+
+    return np.array(out)
+
+
+def isOutside(extent1, extent2):
+    '''
+    Determine whether any of extent1  lies outside extent2
+    extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
+    Equal extents are considered "inside"
+    '''
+    t1 = extent1[0] < extent2[0]
+    t2 = extent1[1] > extent2[1]
+    t3 = extent1[2] < extent2[2]
+    t4 = extent1[3] > extent2[3]
+    if np.any([t1, t2, t3, t4]):
+        return True
+    return False
+
+
+def isInside(extent1, extent2):
+    '''
+    Determine whether all of extent1 lies inside extent2
+    extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon].
+    Equal extents are considered "inside"
+    '''
+    t1 = extent1[0] <= extent2[0]
+    t2 = extent1[1] >= extent2[1]
+    t3 = extent1[2] <= extent2[2]
+    t4 = extent1[3] >= extent2[3]
+    if np.all([t1, t2, t3, t4]):
+        return True
+    return False
