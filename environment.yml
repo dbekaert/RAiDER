@@ -41,3 +41,4 @@ dependencies:
  - pytest
  - pytest-cov
  - pytest-timeout
+ - pytest-console-scripts
