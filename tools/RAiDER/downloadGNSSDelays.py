@@ -381,7 +381,7 @@ def query_repos(
     logger.debug('Completed processing')
 
 
-if __name__ == "__main__":
+def main():
     inps = cmd_line_parse()
 
     query_repos(

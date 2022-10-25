@@ -9,6 +9,7 @@
 import glob
 import os
 import re
+from pathlib import Path
 
 import numpy as np
 from setuptools import Extension, find_packages, setup
@@ -72,25 +73,47 @@ cython_extensions = [
 setup(
     name='RAiDER',
     version=get_version(),
-    description='This is the RAiDER package',
-    package_dir={
-        'tools': 'tools',
-        '': 'tools'
-    },
-    packages=['tools'] + find_packages('tools'),
+    description='Raytracing Atmospheric Delay Estimation for RADAR',
+    long_description=(Path(__file__).parent / 'README.md').read_text(),
+    long_description_content_type='text/markdown',
+    url='https://github.com/dbekaert/RAiDER',
+
+    license='Apache License 2.0',
+    classifiers=[
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: Apache Software License',
+        'Natural Language :: English',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+    ],
+
+    python_requires='~=3.8',
+    setup_requires=['pybind11>=2.5.0'],
+    install_requires=[],
+
+    package_dir={'': 'tools'},
+    packages=find_packages('tools'),
+
     ext_modules=cythonize(
         cython_extensions,
         quiet=True,
         compiler_directives={'language_level': 3}
     ) + pybind_extensions,
-    scripts=[
-        'tools/bin/prepARIA.py',
-        'tools/bin/raiderCombine.py',
-        'tools/bin/raiderDelay.py',
-        'tools/bin/raiderStats.py',
-        'tools/bin/raiderDownloadGNSS.py',
-        'tools/bin/raiderWeatherModelDebug.py'
-    ],
-    setup_requires=['pybind11>=2.5.0'],
+
+    entry_points={
+        'console_scripts': [
+            'RAiDER = RAiDER.__main__:main'
+            'generateGACOSVRT.py = RAiDER.models.generateGACOSVRT:main',
+            'prepARIA.py = RAiDER.prepFromAria:prepFromAria',
+            'raiderCombine.py = RAiDER.gnss.processDelayFiles:parseCMD',
+            'raiderDelay.py = RAiDER.runProgram:parseCMD',
+            'raiderStats.py = RAiDER.statsPlot:main',
+            'raiderDownloadGNSS.py = RAiDER.downloadGNSSDelays:main',
+            'raiderWeatherModelDebug.py = RAiDER.runProgram:parseCMD_weather_model_debug',
+        ]
+    },
+
     zip_safe=False,
 )

@@ -53,7 +53,7 @@ def convertAllFiles(dirLoc):
         makeVRT(f)
 
 
-if __name__ == '__main__':
+def main():
     import sys
     if len(sys.argv) == 2:
         makeVRT(sys.argv[1])

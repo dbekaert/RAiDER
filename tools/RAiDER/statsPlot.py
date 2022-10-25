@@ -2051,7 +2051,7 @@ def stats_analyses(
                  colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
 
-if __name__ == "__main__":
+def main():
     inps = cmd_line_parse()
 
     stats_analyses(
@@ -2067,6 +2067,7 @@ if __name__ == "__main__":
         inps.seasonalinterval,
         inps.obs_errlimit,
         inps.figdpi,
+        inps.user_title,
         inps.plot_fmt,
         inps.cbounds,
         inps.colorpercentile,

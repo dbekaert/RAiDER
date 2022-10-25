@@ -10,6 +10,8 @@ channels:
  - defaults
 dependencies:
  - python>=3.8
+ - pip
+ # For running
  - cartopy
  - cdsapi
  - cfgrib
@@ -34,4 +36,8 @@ dependencies:
  - shapely
  - sysroot_linux-64
  - xarray
- - pip
+ # For packaging and testing
+ - autopep8
+ - pytest
+ - pytest-cov
+ - pytest-timeout
