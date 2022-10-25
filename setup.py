@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: David Bekaert, Jeremy Maurer, and Piyush Agram
@@ -10,6 +9,7 @@ import re
 from pathlib import Path
 
 import numpy as np
+from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import Extension, find_packages, setup
 
 # Cythonize should be imported after setuptools. See:
@@ -28,44 +28,27 @@ def get_version():
     return m.group(1)
 
 
-# Based on https://github.com/pybind/python_example/blob/master/setup.py
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path
-    The purpose of this class is to postpone importing pybind11
-    until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
-
-    def __str__(self):
-        import pybind11
-        return pybind11.get_include()
-
-
 pybind_extensions = [
-    Extension(
+    Pybind11Extension(
         'RAiDER.interpolate',
-        # Sort input source files to ensure bit-for-bit reproducible builds
-        # (https://github.com/pybind/python_example/pull/53)
-        sorted([
+        [
             'tools/bindings/interpolate/src/module.cpp',
             'tools/bindings/interpolate/src/interpolate.cpp'
-        ]),
-        include_dirs=[
-            # Path to pybind11 headers
-            get_pybind_include(),
         ],
-        extra_compile_args=['-std=c++17'],
-        language='c++'
     ),
 ]
 
-
-cython_extensions = [
-    Extension(
-        name="RAiDER.makePoints",
-        sources=[str(f) for f in UTIL_DIR.glob("*.pyx")],
-        include_dirs=[np.get_include()]
-    ),
-]
+cython_extensions = cythonize(
+    [
+        Extension(
+            name="RAiDER.makePoints",
+            sources=[str(f) for f in UTIL_DIR.glob("*.pyx")],
+            include_dirs=[np.get_include()]
+        ),
+    ],
+    quiet=True,
+    compiler_directives={'language_level': 3}
+)
 
 setup(
     name='RAiDER',
@@ -92,11 +75,8 @@ setup(
     package_dir={'': 'tools'},
     packages=find_packages('tools'),
 
-    ext_modules=cythonize(
-        cython_extensions,
-        quiet=True,
-        compiler_directives={'language_level': 3}
-    ) + pybind_extensions,
+    ext_modules=cython_extensions + pybind_extensions,
+    cmdclass={"build_ext": build_ext},
 
     entry_points={
         'console_scripts': [
