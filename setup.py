@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: David Bekaert, Jeremy Maurer, and Piyush Agram
@@ -6,11 +5,11 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import glob
-import os
 import re
+from pathlib import Path
 
 import numpy as np
+from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import Extension, find_packages, setup
 
 # Cythonize should be imported after setuptools. See:
@@ -18,8 +17,7 @@ from setuptools import Extension, find_packages, setup
 from Cython.Build import cythonize  # isort:skip
 
 # Parameter defs
-CWD = os.getcwd()
-UTIL_DIR = os.path.join(CWD, 'tools', 'bindings', 'utils')
+UTIL_DIR = Path.cwd() / 'tools' / 'bindings' / 'utils'
 
 
 def get_version():
@@ -30,68 +28,69 @@ def get_version():
     return m.group(1)
 
 
-# Based on https://github.com/pybind/python_example/blob/master/setup.py
-class get_pybind_include(object):
-    """Helper class to determine the pybind11 include path
-    The purpose of this class is to postpone importing pybind11
-    until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
-
-    def __str__(self):
-        import pybind11
-        return pybind11.get_include()
-
-
 pybind_extensions = [
-    Extension(
+    Pybind11Extension(
         'RAiDER.interpolate',
-        # Sort input source files to ensure bit-for-bit reproducible builds
-        # (https://github.com/pybind/python_example/pull/53)
-        sorted([
+        [
             'tools/bindings/interpolate/src/module.cpp',
             'tools/bindings/interpolate/src/interpolate.cpp'
-        ]),
-        include_dirs=[
-            # Path to pybind11 headers
-            get_pybind_include(),
         ],
-        extra_compile_args=['-std=c++17'],
-        language='c++'
     ),
 ]
 
-
-cython_extensions = [
-    Extension(
-        name="RAiDER.makePoints",
-        sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")),
-        include_dirs=[np.get_include()]
-    ),
-]
+cython_extensions = cythonize(
+    [
+        Extension(
+            name="RAiDER.makePoints",
+            sources=[str(f) for f in UTIL_DIR.glob("*.pyx")],
+            include_dirs=[np.get_include()]
+        ),
+    ],
+    quiet=True,
+    compiler_directives={'language_level': 3}
+)
 
 setup(
     name='RAiDER',
     version=get_version(),
-    description='This is the RAiDER package',
-    package_dir={
-        'tools': 'tools',
-        '': 'tools'
-    },
-    packages=['tools'] + find_packages('tools'),
-    ext_modules=cythonize(
-        cython_extensions,
-        quiet=True,
-        compiler_directives={'language_level': 3}
-    ) + pybind_extensions,
-    scripts=[
-        'tools/bin/prepARIA.py',
-        'tools/bin/raiderCombine.py',
-        'tools/bin/raiderDelay.py',
-        'tools/bin/raiderStats.py',
-        'tools/bin/raiderDownloadGNSS.py',
-        'tools/bin/raiderWeatherModelDebug.py',
-        'tools/bin/raiderCube.py'
+    description='Raytracing Atmospheric Delay Estimation for RADAR',
+    long_description=(Path(__file__).parent / 'README.md').read_text(),
+    long_description_content_type='text/markdown',
+    url='https://github.com/dbekaert/RAiDER',
+
+    license='Apache License 2.0',
+    classifiers=[
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: Apache Software License',
+        'Natural Language :: English',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
-    setup_requires=['pybind11>=2.5.0'],
+
+    python_requires='~=3.8',
+    # install_requires=[],
+
+    package_dir={'': 'tools'},
+    packages=find_packages('tools'),
+
+    ext_modules=cython_extensions + pybind_extensions,
+    cmdclass={"build_ext": build_ext},
+
+    entry_points={
+        'console_scripts': [
+            'RAiDER = RAiDER.__main__:main',
+            'generateGACOSVRT.py = RAiDER.models.generateGACOSVRT:main',
+            'prepARIA.py = RAiDER.prepFromAria:prepFromAria',
+            'raiderCombine.py = RAiDER.gnss.processDelayFiles:parseCMD',
+            'raiderDelay.py = RAiDER.runProgram:parseCMD',
+            'raiderCube.py = RAiDER.prepareCube:parseCMD',
+            'raiderStats.py = RAiDER.statsPlot:main',
+            'raiderDownloadGNSS.py = RAiDER.downloadGNSSDelays:main',
+            'raiderWeatherModelDebug.py = RAiDER.runProgram:parseCMD_weather_model_debug',
+        ]
+    },
+
     zip_safe=False,
 )
