@@ -26,7 +26,7 @@ jobs:
             mamba update -y mamba
             mamba create -n myenv python=$PYTHON_VERSION -c conda-forge
             source activate myenv
-            mamba env create -f environment-dev.yml
+            mamba env create -f environment.yml
             conda activate RAiDER
             pip install coveralls
             echo url: https://cds.climate.copernicus.eu/api/v2 > $HOME/.cdsapirc
@@ -51,8 +51,7 @@ jobs:
             export PATH="$HOME/miniconda/bin:$PATH"
             source activate myenv
             conda activate RAiDER
-            python setup.py build
-            python setup.py install
+            python -m pip install .
             python -c "import RAiDER; from RAiDER.delay import tropo_delay"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis"
             raiderDelay.py -h
@@ -66,7 +65,7 @@ jobs:
             source activate myenv
             conda activate RAiDER
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            py.test -m "not long" test/ $COV_OPTIONS --cov-report=
+            pytest -m "not long" test/ $COV_OPTIONS --cov-report=
       - run:
           name: Report coverage
           command: |
