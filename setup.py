@@ -6,8 +6,6 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import glob
-import os
 import re
 from pathlib import Path
 
@@ -19,8 +17,7 @@ from setuptools import Extension, find_packages, setup
 from Cython.Build import cythonize  # isort:skip
 
 # Parameter defs
-CWD = os.getcwd()
-UTIL_DIR = os.path.join(CWD, 'tools', 'bindings', 'utils')
+UTIL_DIR = Path.cwd() / 'tools' / 'bindings' / 'utils'
 
 
 def get_version():
@@ -65,7 +62,7 @@ pybind_extensions = [
 cython_extensions = [
     Extension(
         name="RAiDER.makePoints",
-        sources=glob.glob(os.path.join(UTIL_DIR, "*.pyx")),
+        sources=[str(f) for f in UTIL_DIR.glob("*.pyx")],
         include_dirs=[np.get_include()]
     ),
 ]
@@ -90,8 +87,7 @@ setup(
     ],
 
     python_requires='~=3.8',
-    setup_requires=['pybind11>=2.5.0'],
-    install_requires=[],
+    # install_requires=[],
 
     package_dir={'': 'tools'},
     packages=find_packages('tools'),
@@ -104,7 +100,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'RAiDER = RAiDER.__main__:main'
+            'RAiDER = RAiDER.__main__:main',
             'generateGACOSVRT.py = RAiDER.models.generateGACOSVRT:main',
             'prepARIA.py = RAiDER.prepFromAria:prepFromAria',
             'raiderCombine.py = RAiDER.gnss.processDelayFiles:parseCMD',
