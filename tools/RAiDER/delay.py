@@ -26,7 +26,8 @@ from RAiDER.logger import logger
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
-    writeDelays, projectDelays, writePnts2HDF5, lla2ecef,
+    writeDelays, projectDelays, writePnts2HDF5,
+    lla2ecef, transform_bbox, clip_bbox,
 )
 
 
@@ -202,6 +203,121 @@ def tropo_delay(args):
         logger.info('Finished writing data to %s', wetFilename)
 
     return wetDelay, hydroDelay
+
+
+def tropo_delay_cube(args):
+    """
+    raiderDelay cube generation function.
+
+    Parameters
+    ----------
+    ll_bounds       - Lat/Lon bbox
+    heights         - Height levels for output cube
+    weather_model   - Type of weather model to use
+    wmLoc           - Directory containing weather model files
+    zref            - max integration height
+    spacinginm      - output cube spacing in meters
+    crs             - output cube pyproj crs
+    out             - output directory
+    outformat       - File format to use for raster outputs
+    time            - Datetime to calculate delay
+    download_only   - Only download the raw weather model data
+    filename        - Output filename
+    verbose         - Verbose printing
+    """
+
+    # logging
+    logger.debug('Starting to run the weather model cube calculation')
+    logger.debug(f'Time: {args["time"]}')
+    logger.debug(f'Output height range is {min(args["heights"])} to {max(args["heights"])}')
+    logger.debug(f'Max integration height is {args["zref"]:1.1f} m')
+    logger.debug(f'Output cube projection is {args["crs"].to_wkt()}')
+    logger.debug(f'Output cube spacing is {args["spacinginm"]} m')
+
+    # We are using zenith model only for now
+    logger.debug('Beginning weather model pre-processing')
+    logger.debug(f'Download_only is {args["download_only"]}')
+
+    weather_model_file = prepareWeatherModel(
+        args["weather_model"],
+        args["time"],
+        wmLoc=args["wmLoc"],
+        lats=args["ll_bounds"][:2],
+        lons=args["ll_bounds"][2:],
+        zref=args["zref"],
+        download_only=args["download_only"],
+        makePlots=args["verbose"],
+    )
+
+    if args["download_only"]:
+        return None, None
+
+    # Determine the output grid extent here
+    wesn = args["ll_bounds"][2:] + args["ll_bounds"][:2]
+    out_snwe = transform_bbox(
+        wesn, src_crs=4326, dest_crs=args["crs"]
+    )
+
+    # Clip output grid to multiples of spacing
+    # If output is desired in degrees
+    if args["crs"].axis_info[0].unit_name == "degree":
+        spacing = args["spacinginm"]/ 1.0e5
+        out_snwe = clip_bbox(out_snwe, spacing)
+    else:
+        spacing = args["spacinginm"]
+        out_snwe = clip_bbox(out_snwe, spacing)
+
+    # Load downloaded weather model file to get projection info
+    ds = xarray.load_dataset(weather_model_file)
+    try:
+        wm_proj = ds["CRS"]
+    except:
+        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+        wm_proj = CRS.from_epsg(4326)
+    ds.close()
+
+    # Get ZTD interpolators
+    ifWet, ifHydro = getInterpolators(weather_model_file, "total")
+
+    # Output grid points - North up grid
+    zpts = np.array(args["heights"])
+    xpts = np.arange(out_snwe[2], out_snwe[3] + spacing, spacing)
+    ypts =np.arange(out_snwe[1], out_snwe[0] - spacing, -spacing)
+    xx, yy = np.meshgrid(xpts, ypts)
+    # Output arrays
+    wetDelay = np.zeros((zpts.size, ypts.size, xpts.size))
+    hydroDelay = np.zeros(wetDelay.shape)
+
+    # Loop over heights and compute delays
+    for ii, ht in enumerate(zpts):
+        # pts is in weather model system
+        if wm_proj != args["crs"]:
+            pts = transformPoints(
+                yy, xx, np.full(yy.shape, ht),
+                args["crs"], wm_proj
+            )
+        else:
+            pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
+
+        wetDelay[ii,...] = ifWet(pts)
+        hydroDelay[ii,...] = ifHydro(pts)
+
+    # Write output file
+    ds = xarray.Dataset(
+        data_vars=dict(
+            wet=(["z", "y", "x"], wetDelay),
+            hydro=(["z", "y", "x"], hydroDelay),
+        ),
+        coords=dict(
+            x=(["x"], xpts),
+            y=(["y"], ypts),
+            z=(["z"], zpts),
+        ),
+        attrs=dict(
+            description="RAiDER geo cube",
+        ),
+    )
+    ds.to_netcdf(args["filename"], mode="w")
 
 
 def checkQueryPntsFile(pnts_file, query_shape):
