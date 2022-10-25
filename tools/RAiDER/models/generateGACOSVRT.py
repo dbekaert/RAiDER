@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 #
 # Author: Jeremy Maurer, building on a prior code by Ray
 # Copyright 2018
