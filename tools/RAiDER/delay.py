@@ -7,7 +7,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-
+import datetime
 import h5py
 import numpy as np
 import xarray
@@ -303,10 +303,21 @@ def tropo_delay_cube(args):
         hydroDelay[ii,...] = ifHydro(pts)
 
     # Write output file
+    # Modify this as needed for NISAR / other projects
     ds = xarray.Dataset(
         data_vars=dict(
-            wet=(["z", "y", "x"], wetDelay),
-            hydro=(["z", "y", "x"], hydroDelay),
+            wet=(["z", "y", "x"],
+                 wetDelay,
+                 {"units" : "m",
+                  "description": "wet zenith delay",
+                  "grid_mapping": "cube_projection",
+                 }),
+            hydro=(["z", "y", "x"],
+                   hydroDelay,
+                   {"units": "m",
+                    "description": "hydrostatic zenith delay",
+                    "grid_mapping": "cube_projection",
+                   }),
         ),
         coords=dict(
             x=(["x"], xpts),
@@ -314,9 +325,46 @@ def tropo_delay_cube(args):
             z=(["z"], zpts),
         ),
         attrs=dict(
+            Conventions="CF-1.7",
+            title="RAiDER geo cube",
+            source=os.path.basename(weather_model_file),
+            history=str(datetime.datetime.utcnow()) + " RAiDER",
             description="RAiDER geo cube",
+            reference_time=str(args["time"]),
         ),
     )
+
+    # Write projection system mapping
+    ds["cube_projection"] = int()
+    for k, v in args["crs"].to_cf().items():
+        ds.cube_projection.attrs[k] = v
+
+    # Write z-axis information
+    ds.z.attrs["axis"] = "Z"
+    ds.z.attrs["units"] = "m"
+    ds.z.attrs["description"] = "height above ellipsoid"
+
+    # If in degrees
+    if args["crs"].axis_info[0].unit_name == "degree":
+        ds.y.attrs["units"] = "degrees_north"
+        ds.y.attrs["standard_name"] = "latitude"
+        ds.y.attrs["long_name"] = "latitude"
+
+        ds.x.attrs["units"] = "degrees_east"
+        ds.x.attrs["standard_name"] = "longitude"
+        ds.x.attrs["long_name"] = "longitude"
+
+    else:
+        ds.y.attrs["axis"] = "Y"
+        ds.y.attrs["standard_name"] = "projection_y_coordinate"
+        ds.y.attrs["long_name"] = "y-coordinate in projected coordinate system"
+        ds.y.attrs["units"] = "m"
+
+        ds.x.attrs["axis"] = "X"
+        ds.x.attrs["standard_name"] = "projection_x_coordinate"
+        ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
+        ds.x.attrs["units"] = "m"
+
     ds.to_netcdf(args["filename"], mode="w")
 
 
