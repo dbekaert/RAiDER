@@ -13,6 +13,7 @@ from RAiDER.utilFcns import (
     _least_nonzero, cosd, rio_open, sind,
     writeArrayToRaster, writeResultsToHDF5, rio_profile,
     rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
+    transform_bbox, clip_bbox,
 )
 
 
@@ -450,3 +451,24 @@ def test_ecef2enu_9():
     llh = np.array([0, 180, 0])
     ecef = ecef2enu(enu, llh[0], llh[1], llh[2])
     assert np.allclose(ecef, np.array([-1, 0, -1]))
+
+
+def test_transform_bbox_1():
+    wesn = [-77.0, -76.0, 34.0, 35.0]
+    snwe = wesn[2:] + wesn[:2]
+
+    assert transform_bbox(wesn, src_crs=4326, dest_crs=4326) == snwe
+
+
+def test_transform_bbox_2():
+    wesn = [-77.0, -76.0, 34.0, 35.0]
+
+    expected_snwe = [3762606.6598762725,
+                     3874870.6347308,
+                     315290.16886786406,
+                     408746.7471660769]
+
+    snwe = transform_bbox(wesn, src_crs=4326, dest_crs=32618, margin=0.)
+    assert np.allclose(snwe, expected_snwe)
+
+    assert clip_bbox(wesn, 0.01) == wesn
