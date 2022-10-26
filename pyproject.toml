@@ -1,0 +1,14 @@
+[build-system]
+requires =[
+    "setuptools>=42",
+    "wheel",
+    "numpy",
+    "cython",
+    "pybind11>=2.5.0"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.isort]
+known_first_party = "RAiDER"
+multi_line_output = 5
+default_section = "THIRDPARTY"

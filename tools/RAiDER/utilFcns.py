@@ -652,6 +652,51 @@ def UTM_to_WGS84(z, l, x, y):
     return np.reshape(lon, shp), np.reshape(lat, shp)
 
 
+def transform_bbox(wesn, dest_crs=4326, src_crs=4326, margin=100.):
+    """
+    Transform bbox to lat/lon or another CRS for use with rest of workflow
+    Returns SNWE
+    """
+    # TODO - Handle dateline crossing
+    if isinstance(src_crs, int):
+        src_crs = pyproj.CRS.from_epsg(src_crs)
+    elif isinstance(src_crs, str):
+        src_crs = pyproj.CRS(src_crs)
+
+    if isinstance(dest_crs, int):
+        dest_crs = pyproj.CRS.from_epsg(dest_crs)
+    elif isinstance(dest_crs, str):
+        dest_crs = pyproj.CRS(dest_crs)
+
+    # If dest_crs is same as src_crs
+    if dest_crs == src_crs:
+        snwe = [wesn[2], wesn[3], wesn[0], wesn[1]]
+        return snwe
+
+    T = Transformer.from_crs(src_crs, dest_crs, always_xy=True)
+    xs = np.linspace(wesn[0]-margin, wesn[1]+margin, num=11)
+    ys = np.linspace(wesn[2]-margin, wesn[3]+margin, num=11)
+    X, Y = np.meshgrid(xs, ys)
+
+    # Transform to lat/lon
+    xx, yy = T.transform(X, Y)
+
+    # query_area convention
+    snwe = [np.nanmin(yy), np.nanmax(yy),
+            np.nanmin(xx), np.nanmax(xx)]
+    return snwe
+
+
+def clip_bbox(bbox, spacing):
+    """
+    Clip box to multiple of spacing
+    """
+    return [np.floor(bbox[0] / spacing) * spacing,
+            np.ceil(bbox[1] / spacing) * spacing,
+            np.floor(bbox[2] / spacing) * spacing,
+            np.ceil(bbox[3] / spacing) * spacing]
+
+
 def requests_retry_session(retries=10, session=None):
     """ https://www.peterbe.com/plog/best-practice-with-retries-with-requests """
     import requests
