@@ -219,7 +219,6 @@ def tropo_delay_cube(args):
     out             - output directory
     outformat       - File format to use for raster outputs
     time            - Datetime to calculate delay
-    download_only   - Only download the raw weather model data
     filename        - Output filename
     verbose         - Verbose printing
     """
@@ -234,7 +233,6 @@ def tropo_delay_cube(args):
 
     # We are using zenith model only for now
     logger.debug('Beginning weather model pre-processing')
-    logger.debug(f'Download_only is {args["download_only"]}')
 
     weather_model_file = prepareWeatherModel(
         args["weather_model"],
@@ -243,12 +241,8 @@ def tropo_delay_cube(args):
         lats=args["ll_bounds"][:2],
         lons=args["ll_bounds"][2:],
         zref=args["zref"],
-        download_only=args["download_only"],
         makePlots=args["verbose"],
     )
-
-    if args["download_only"]:
-        return None, None
 
     # Determine the output grid extent here
     wesn = args["ll_bounds"][2:] + args["ll_bounds"][:2]
@@ -281,24 +275,12 @@ def tropo_delay_cube(args):
     zpts = np.array(args["heights"])
     xpts = np.arange(out_snwe[2], out_snwe[3] + spacing, spacing)
     ypts =np.arange(out_snwe[1], out_snwe[0] - spacing, -spacing)
-    xx, yy = np.meshgrid(xpts, ypts)
-    # Output arrays
-    wetDelay = np.zeros((zpts.size, ypts.size, xpts.size))
-    hydroDelay = np.zeros(wetDelay.shape)
 
-    # Loop over heights and compute delays
-    for ii, ht in enumerate(zpts):
-        # pts is in weather model system
-        if wm_proj != args["crs"]:
-            pts = transformPoints(
-                yy, xx, np.full(yy.shape, ht),
-                args["crs"], wm_proj
-            )
-        else:
-            pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
-
-        wetDelay[ii,...] = ifWet(pts)
-        hydroDelay[ii,...] = ifHydro(pts)
+    # Build zenith delay cube
+    wetDelay, hydroDelay =build_cube(
+        xpts, ypts, zpts,
+        wm_proj, args["crs"],
+        [ifWet, ifHydro])
 
     # Write output file
     # Modify this as needed for NISAR / other projects
@@ -400,3 +382,31 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
     '''
     t = Transformer.from_crs(old_proj, new_proj)
     return np.stack(t.transform(lats, lons, hgts), axis=-1).T
+
+
+def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
+    """
+    Iterate over interpolators and build a cube
+    """
+    # Create a regular 2D grid
+    xx, yy = np.meshgrid(xpts, ypts)
+
+    # Output arrays
+    outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
+                  for mm in range(len(interpolators))]
+
+    # Loop over heights and compute delays
+    for ii, ht in enumerate(zpts):
+        # pts is in weather model system
+        if model_crs != pts_crs:
+            pts = transformPoints(
+                yy, xx, np.full(yy.shape, ht),
+                pts_crs, model_crs
+            )
+        else:
+            pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
+
+        for mm, intp in enumerate(interpolators):
+            outputArrs[mm][ii,...] = intp(pts)
+
+    return outputArrs

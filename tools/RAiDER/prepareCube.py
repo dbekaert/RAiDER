@@ -109,10 +109,6 @@ def create_parser():
         choices=["nc", "h5"],
         default="nc")
     add_out(misc)
-    misc.add_argument(
-        '--download_only',
-        help='Download weather model only without processing? Default False',
-        action='store_true', dest='download_only', default=False)
     add_verbose(misc)
 
     return p
@@ -207,7 +203,6 @@ def checkArgs(args, p):
     outArgs["crs"] = args.epsg
     outArgs["outformat"] = args.outformat
     outArgs["time"] = args.datetimeList
-    outArgs["download_only"] = args.download_only
     outArgs["out"] = args.out
     outArgs["verbose"] = args.verbose
     outArgs["filename"] = filenames
