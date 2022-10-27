@@ -10,7 +10,6 @@ channels:
  - defaults
 dependencies:
  - python>=3.8
- - cartopy
  - cdsapi
  - cfgrib
  - cmake
@@ -27,7 +26,7 @@ dependencies:
  - numpy
  - pandas
  - progressbar
- - pydap>3.2.2|<3.2.2
+ - pydap>3.2.2
  - pyproj>=2.2.0
  - rasterio
  - scipy

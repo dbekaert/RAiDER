@@ -28,7 +28,7 @@ def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):
     or will download one if needed.
     '''
     # Make sure lats/lons are passed if needed
-    if ((dem_type = 'download') or (dem_type == 'dem')) and (lats is None):
+    if ((dem_type == 'download') or (dem_type == 'dem')) and (lats is None):
         raise RuntimeError('lats/lons must be specified to interpolate from a DEM')
 
     # height_type, height_data = heights

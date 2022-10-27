@@ -17,7 +17,7 @@ from datetime import datetime, date, time, timedelta
 
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.llreader import bounds_from_latlon_rasters, bounds_from_csv
-from tools.RAiDER.utilFcns import rio_extents, rio_profile
+from RAiDER.utilFcns import rio_extents, rio_profile
 
 _BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees 
 
