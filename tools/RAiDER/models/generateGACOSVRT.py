@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 #
 # Author: Jeremy Maurer, building on a prior code by Ray
 # Copyright 2018
@@ -53,7 +52,7 @@ def convertAllFiles(dirLoc):
         makeVRT(f)
 
 
-if __name__ == '__main__':
+def main():
     import sys
     if len(sys.argv) == 2:
         makeVRT(sys.argv[1])
