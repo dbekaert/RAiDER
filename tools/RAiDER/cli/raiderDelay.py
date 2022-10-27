@@ -1,9 +1,9 @@
 import argparse
 import os
+import shutil
 import sys
 
 import RAiDER
-from RAiDER.checkArgs import checkArgs
 from RAiDER.cli.parser import add_bbox, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
@@ -66,16 +66,15 @@ DEFAULT_DICT = dict(
     los_cube=None,
     orbit_file=None,
     verbose=True,
-    raster_format='GTiff'
+    raster_format='GTiff',
     output_directory=os.getcwd(),
-    weather_model_directory=os.path.join(output_directory,'weather_files'),
+    weather_model_directory=os.path.join(os.getcwd(),'weather_files'),
     output_projection='EPSG:4236',
 )
 
 def create_parser():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
-        help = SHORT_MESSAGE,
         formatter_class = argparse.RawDescriptionHelpFormatter,
         description = HELP_MESSAGE,
         epilog = EXAMPLES,
@@ -121,11 +120,14 @@ def parseCMD(iargs=None):
         os.path.dirname(
             RAiDER.__file__
         ), 
-        'tools', os.sep, 
-        'RAiDER', os.sep, 
-        'cli', os.sep, 
-        'raiderDelay.cfg'
+        'cli', 'raiderDelay.yaml'
     )
+    if '-g' in args.argv:
+        shutil.copyfile(
+                template_file, 
+                os.path.join(os.getcwd(), 'raiderDelay.yaml'),
+            )
+        sys.exit(0)
 
     # check: existence of input template files
     if (not args.customTemplateFile
@@ -239,27 +241,3 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
     return template
 
 
-##########################################################################
-def main(iargs=None):
-    # parse
-    inps = parseCMD(iargs)
-    
-    # Read the template file
-    args = read_template_file(inps.customTemplateFile)
-    
-    # Argument checking
-    args = checkArgs(args)
-
-    if args.verbose:
-        logger.setLevel(logging.DEBUG)
-
-    # Run the list of commands
-    from RAiDER.runProgram import _tropo_delay
-
-    # run
-    _tropo_delay(args)
-
-
-###########################################################################################
-if __name__ == '__main__':
-    main(sys.argv[1:])

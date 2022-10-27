@@ -84,7 +84,7 @@ setup(
             'generateGACOSVRT.py = RAiDER.models.generateGACOSVRT:main',
             'prepARIA.py = RAiDER.prepFromAria:prepFromAria',
             'raiderCombine.py = RAiDER.gnss.processDelayFiles:parseCMD',
-            'raiderDelay.py = RAiDER.runProgram:parseCMD',
+            'raiderDelay.py = RAiDER.runProgram:main',
             'raiderCube.py = RAiDER.prepareCube:parseCMD',
             'raiderStats.py = RAiDER.statsPlot:main',
             'raiderDownloadGNSS.py = RAiDER.downloadGNSSDelays:main',
