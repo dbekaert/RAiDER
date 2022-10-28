@@ -463,3 +463,6 @@ def parseCMD():
             outName=args.out_name,
             localTime=args.local_time
         )
+
+def main():
+    parseCMD()

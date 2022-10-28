@@ -102,3 +102,6 @@ def prepFromAria():
     args, p = parse_args()
     makeLOSFile(args.incFile, args.azFile, args.fmt, args.los_file)
     makeLatLonGrid(args.incFile, args.lon_file, args.lat_file, args.fmt)
+
+def main():
+    prepFromAria()
