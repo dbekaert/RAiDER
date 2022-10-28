@@ -247,3 +247,9 @@ def parseCMD_weather_model_debug():
         except RuntimeError:
             logger.exception("Date %s failed", tim)
             continue
+
+def mainDelay():
+    parseCMD()
+
+def mainDebug():
+    parseCMD_weather_model_debug()
