@@ -2,13 +2,12 @@ import argparse
 import os
 import shutil
 import sys
+import yaml
 
 import RAiDER
-from RAiDER.cli.parser import add_bbox, add_out, add_verbose
-from RAiDER.cli.validators import DateListAction, date_type, time_type
 from RAiDER.constants import _ZREF
 from RAiDER.logger import logger, logging
-from RAiDER.models.allowed import ALLOWED_MODELS
+from RAiDER.cli.validators import enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
 
 STEP_LIST = [
     'load_weather_model',
@@ -40,37 +39,46 @@ raiderDelay.py customTemplatefile.cfg
 raiderDelay.py --dostep=load_weather_model
 """
 
+class AttributeDict(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
 DEFAULT_DICT = dict(
-    look_dir='right',
-    date_start=None,
-    date_end=None,
-    date_step=None,
-    date_list=None,
-    time=None,
-    end_time=None,
-    weather_model=None,
-    lat_file=None,
-    lon_file=None,
-    station_file=None,
-    bounding_box=None,
-    utm_zone=None,
-    grid_x=None,
-    grid_y=None,
-    dem=None,
-    use_dem_latlon=False,
-    height_levels=None,
-    ray_trace=False,
-    zref=_ZREF,
-    los_file=None,
-    los_convention='isce',
-    los_cube=None,
-    orbit_file=None,
-    verbose=True,
-    raster_format='GTiff',
-    output_directory=os.getcwd(),
-    weather_model_directory=os.path.join(os.getcwd(),'weather_files'),
-    output_projection='EPSG:4236',
-)
+        look_dir='right',
+        date_start=None,
+        date_end=None,
+        date_step=None,
+        date_list=None,
+        time=None,
+        end_time=None,
+        weather_model=None,
+        lat_file=None,
+        lon_file=None,
+        station_file=None,
+        bounding_box=None,
+        utm_zone=None,
+        grid_x=None,
+        grid_y=None,
+        dem=None,
+        use_dem_latlon=False,
+        height_levels=None,
+        ray_trace=False,
+        zref=_ZREF,
+        los_file=None,
+        los_convention='isce',
+        los_cube=None,
+        orbit_file=None,
+        verbose=True,
+        raster_format='GTiff',
+        output_directory=os.getcwd(),
+        weather_model_directory=os.path.join(
+            os.getcwd(),
+            'weather_files'
+        ),
+        output_projection='EPSG:4236',
+    )
+
 
 def create_parser():
     """Parse command line arguments using argparse."""
@@ -87,7 +95,7 @@ def create_parser():
     )
 
     p.add_argument(
-        '-g', 
+        '-g', '--generate_template',
         dest='generate_template', 
         action='store_true', 
         help='generate default template (if it does not exist) and exit.'
@@ -190,7 +198,7 @@ def read_inps2run_steps(inps, step_list):
     return run_steps
 
 
-def read_template_file(fname, delimiter='=', skip_chars=None):
+def read_template_file(fname):
     """
     Read the template file into a dictionary structure.
     Parameters: fname      - str, full path to the template file
@@ -201,43 +209,53 @@ def read_template_file(fname, delimiter='=', skip_chars=None):
 
     Modified from MintPy's 'read_template'
     """
-    if skip_chars and isinstance(skip_chars, str):
-        skip_chars = [skip_chars]
-
-    # read input text file / string
-    if os.path.isfile(fname):
-        with open(fname) as f:
-            lines = f.readlines()
-    elif isinstance(fname, str):
-        lines = fname.split('\n')
-    else:
-        raise ValueError('{} is not a valid template file name'.format(fname))
-
-    lines = [x.strip() for x in lines]
+    with open(fname, 'r') as f:
+        try:
+            params = yaml.safe_load(f)
+        except yaml.YAMLError as exc:
+            print(exc)
+            raise ValueError('Something is wrong with the yaml file {}'.format(fname))
+    params = drop_nans(params)
+    AttributeDict(params)
 
     # parse line by line
     template = DEFAULT_DICT
-    for line in lines:
-        # split on the 1st occurrence of delimiter
-        c = [i.strip() for i in line.split(delimiter, 1)]
 
-        # ignore commented lines or those without variables
-        if len(c) >= 2 and not line.startswith(('%', '#', '!')):
-            key = c[0]
-            value = str.replace(c[1], '\n', '').split("#")[0].strip()
-            value = os.path.expanduser(value)  # translate ~ symbol
-            value = os.path.expandvars(value)  # translate env variables
+    # Input argment parsing
+    for key, value in params.items():
+        if key == 'runtime_group':
+            for k, v in value.items():
+                if v is not None:
+                    template[k] = v
+        if key == 'weather_model':                
+            template[key]= enforce_wm(value)
+        if key == 'time_group':
+            template.update(enforce_time(AttributeDict(value)))
+        if key == 'date_group':
+            template['date_list'] = parse_dates(AttributeDict(value))
+        if key == 'aoi_group':
+            template['aoi'] = get_query_region(AttributeDict(value))
+        if key == 'los_group':
+            template['los'] = get_los(AttributeDict(value))
+    
+    # Have to guarantee that certain variables exist prior to looking at heights
+    for key, value in params.items():
+        if key == 'height_group':
+            template.update(
+                get_heights(
+                    AttributeDict(value), 
+                    template['output_directory'], 
+                    template['station_file'],
+                    template['bounding_box'],
+                )
+            )
 
-            # skip certain characters by replacing them with empty str
-            if skip_chars:
-                for skip_char in skip_chars:
-                    value.replace(skip_char, '')
+    return AttributeDict(template)
 
-            if key == 'model':
-                value = value.upper().replace("-", "")
-        
-        template[key]=value
 
-    return template
-
+def drop_nans(d):
+    for key, value in d.items():
+        if value is None:
+            del d[key]
+    return d
 

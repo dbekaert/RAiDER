@@ -107,7 +107,7 @@ def fillna3D(array, axis=-1):
     return np.moveaxis(out, -1, axis)
 
 
-def interpolateDEM(demRaster, outLL, extent, method='linear'):
+def interpolateDEM(demRaster, extent, outLL, method='linear'):
     ''' Interpolate a DEM raster to a set of lat/lon query points '''
     minlat, maxlat, minlon, maxlon = extent
     nPixLat = demRaster.shape[0]

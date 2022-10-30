@@ -27,12 +27,13 @@ class ERA5(ECMWF):
         # Default, need to change to ml
         self.setLevelType('pl')
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, out):
         '''
         Fetch a weather model from ECMWF
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._ll_bounds
+        time = self._time
 
         # execute the search at ECMWF
         try:

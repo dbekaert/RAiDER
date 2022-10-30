@@ -5,11 +5,145 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from abc import abstractmethod
 import os
 
+import numpy as np
 import pandas as pd
 
-from RAiDER.utilFcns import rio_stats, get_file_and_band
+from RAiDER.dem import download_dem
+from RAiDER.interpolator import interpolateDEM
+from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band
+
+
+class AOI(object):
+    '''
+    This instantiates a generic AOI class object
+    '''
+    def __init__(self):
+        pass
+    
+    def bounds(self):
+        return self._bounding_box
+    
+
+
+class StationFile(AOI):
+    '''Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns'''
+    def __init__(self, station_file):
+        self._filename = station_file
+        self._bounding_box, self._pnts_file, self._has_heights = bounds_from_csv(station_file)
+        self._proj = 'EPSG:4326'
+    
+    def type(self):
+        return 'station_file'
+ 
+    def readLL(self):
+        df = pd.read_csv(self._filename)
+        return df['Lat'].values, df['Lon'].values
+ 
+    def readZ(self):
+        df = pd.read_csv(self._filename)
+        if self._has_heights:
+            return df['Hgt_m'].values
+        else:
+            zvals, metadata = download_dem(self._bounding_box)
+            z_bounds = get_bbox(metadata)
+            z_out = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            df['Hgt_m'] = z_out
+            df.to_csv(self._filename, index=False)
+            self.__init__(self._filename)
+            return z_out
+
+
+class RasterRDR(AOI):
+    def __init__(self, lat_file, lon_file=None, hgt_file=None, convention='isce'):      
+        # allow for 2-band lat/lon raster
+        self._proj = 'EPSG:4326'
+        if (lon_file is None):
+            self._file = lat_file
+        else:
+            self._latfile = lat_file
+            self._lonfile = lon_file
+            self._proj, self._bounding_box, _ = bounds_from_latlon_rasters(lat_file, lon_file)
+        
+        # keep track of the height file
+        if hgt_file is not None:
+            self._hgtfile = hgt_file
+        
+        self._convention = convention
+    
+    def type(self):
+        return 'radar_rasters'
+    
+    def readLL(self):
+        if self._latfile is not None:
+            return rio_open(self._latfile), rio_open(self._lonfile)
+        elif self._file is not None:
+            return rio_open(self._file)
+        else:
+            raise ValueError('lat/lon files are not defined')
+    
+    def readZ(self):
+        if self._hgtfile is not None:
+            return rio_open(self._hgtfile)
+        else:
+            raise ValueError('hgt file is not defined')
+
+
+class BoundingBox(AOI):
+    '''Parse a bounding box AOI'''
+    def __init__(self, bbox):
+        self._bounding_box = bbox
+    
+    def type(self):
+        return 'bounding_box'
+
+
+class GeocodedFile(AOI):
+    '''Parse a Geocoded file for coordinates'''
+    def __init__(self, filename, is_dem=False):
+        self._filename = filename
+        p = rio_profile(filename)
+        self._size = (p['width'], p['length'])
+        self._bounding_box = rio_extents(p)
+        self._is_dem = is_dem
+        _, self._proj, self._gt = rio_stats(filename)
+    
+    def type(self):
+        return 'geocoded_file'
+
+    def readLL(self):
+        # ll_bounds are SNWE
+        S, N, W, E = self._bounding_box
+        w, l = self._size
+        #TODO: finish this
+        raise NotImplementedError
+    
+    def readZ(self):
+        if self._is_dem:
+            Z, _ = rio_open(self._filename)
+            return Z
+        else:
+            zvals, metadata = download_dem(
+            self._bounding_box,
+            writeDEM = True,
+            outName = os.path.join('GLO30_fullres_dem.tif'),
+        )
+            z_bounds = get_bbox(metadata)
+            z_out = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            return z_out
+    
+class Geocube(AOI):
+    '''Parse a georeferenced data cube'''
+    def __init__(self):
+        raise NotImplementedError
+    
+    def type(self):
+        return 'geocube'
+    
+    def readLL(self):
+        raise NotImplementedError
 
 
 def bounds_from_latlon_rasters(latfile, lonfile):
@@ -45,3 +179,13 @@ def bounds_from_csv(station_file):
     snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
     fname = os.path.basename(station_file).split('.')[0]
     return snwe, fname, use_csv_heights
+
+
+def get_bbox(p):
+    lon_w = p['transform'][2]
+    lat_n = p['transform'][5]
+    pix_lon = p['transform'][0]
+    pix_lat = p['transform'][4]
+    lon_e = lon_w + p['width'] * pix_lon
+    lat_s = lat_n + p['width'] * pix_lat
+    return lat_s, lat_n, lon_w, lon_e

@@ -26,12 +26,13 @@ look_dir: right
 ## 
 ## Dates can be a single date, two dates that define a set of dates every day, or two dates with an interval
 ## These will be ignored in the case that date_list is specified
-date_start:
-date_end:
-date_step:   # date interval to download. Default is 1, i.e. every day between date_start and date_end
+date_group:
+  date_start:
+  date_end:
+  date_step:   # date interval to download. Default is 1, i.e. every day between date_start and date_end
 
-## Alternatively, you can also directly specify a comma-delimited list. 
-date_list:   # e.g. [20200101, 20200201, 20200301]
+  ## Alternatively, you can also directly specify a comma-delimited list. 
+  date_list:   # e.g. [20200101, 20200201, 20200301]
 
 
 ########## 2. Time in UTC
@@ -42,8 +43,9 @@ date_list:   # e.g. [20200101, 20200201, 20200301]
 ## The specified time should be the start time of the acquisition to within a minute
 ## end_time will be the end time of the acquition, if not supplied it will be assumed to be 30 seconds post start time
 ## For downloading weather models, RAiDER currently rounds to the nearest hour rather than interpolating
-time:
-end_time: 
+time_group:
+  time:
+  end_time: 
 
 
 ########## 3. Weather model
@@ -57,7 +59,7 @@ end_time:
 weather_model:
 
 
-########## 4. Query points
+########## 4. Area of Interest 
 ## REQUIRED: FALSE
 ## FORMATS: string or list of floats
 ## 
@@ -68,13 +70,14 @@ weather_model:
 ## 4. Use the lat/lon grid from a geocoded DEM or LOS file (Sections 4 and 5 below)
 ## 5. Specify a UTM zone, bounding box, and grid spacing to define a custom data cube
 ## 6. Same as (5) but without a specified bounding box, the box will be estimated from the time and the orbit file
-lat_file: 
-lon_file: 
-station_file: 
-bounding_box: 
-utm_zone:
-grid_x:
-grid_y:
+aoi_group:
+  lat_file: 
+  lon_file: 
+  station_file: 
+  bounding_box: 
+  utm_zone:
+  grid_x:
+  grid_y:
 
 ########## 5. Height info
 ## REQUIRED: FALSE
@@ -87,10 +90,11 @@ grid_y:
 ##    NOTE: If "use_dem_latlon" is set to true, then delays will be calculated at the DEM pixels.
 ##  4. Height file in radar coordinates matching lat/lon input files (Query points Option 1)
 ##  5. List of height levels, which will be used for all input query points
-dem: 
-use_dem_latlon: False
-height_file_rdr:
-height_levels: 
+height_group:
+  dem: 
+  use_dem_latlon: False
+  height_file_rdr:
+  height_levels: 
 
 
 ########## 6. Line-of-sight or zenith calculations
@@ -99,25 +103,27 @@ height_levels:
 ## 
 ## ZTD calculation: No additional inputs required
 ## STD calculation: 
-ray_trace: False  # Use projected slant delay by default
-zref: # Integration height. Only used in raytracing. 
+los_group:
+  ray_trace: False  # Use projected slant delay by default
+  zref: # Integration height. Only used in raytracing. 
 
-# raster file in radar or geocoordinates
-los_file: 
-los_convention: isce  # can be "isce" or "hyp3", see *** for details
+  # raster file in radar or geocoordinates
+  los_file: 
+  los_convention: isce  # can be "isce" or "hyp3", see *** for details
 
-# NETCDF (HDF5?) file containing look vectors, see *** for details
-los_cube: 
+  # NETCDF (HDF5?) file containing look vectors, see *** for details
+  los_cube: 
 
-# File containing orbit statevectors, see *** for details 
-orbit_file: 
+  # File containing orbit statevectors, see *** for details 
+  orbit_file: 
 
 
 ########## 7. Run-time parameters
 ## REQUIRED: FALSE
 ##
-verbose: True
-raster_format: GTiff # Can be any rasterio-compatible format
-output_directory: . # uses the runtime directory by default
-weather_model_directory: # Defaults to <output directory>/weather_files/
-output_projection:  # Specify the PROJ-compatible projection of the output delays as an EPSG code
+runtime_group:
+  verbose: True
+  raster_format: GTiff # Can be any rasterio-compatible format
+  output_directory: . # uses the runtime directory by default
+  weather_model_directory: # Defaults to <output directory>/weather_files/
+  output_projection:  # Specify the PROJ-compatible projection of the output delays as an EPSG code
