@@ -8,9 +8,11 @@ import pandas as pd
 
 from test import TEST_DIR, pushd
 
-import RAiDER.runProgram
-
-from RAiDER.checkArgs import checkArgs, makeDelayFileNames, modelName2Module
+# import RAiDER.runProgram
+from RAiDER.cli.raiderDelay import (
+    parseCMD, read_template_file, create_parser, read_template_file,
+)
+from RAiDER.checkArgs import checkArgs, makeDelayFileNames
 from RAiDER.constants import _ZREF
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 
@@ -31,7 +33,7 @@ def isWriteable(dirpath):
 
 @pytest.fixture
 def parsed_args(tmp_path):
-    parser = RAiDER.runProgram.create_parser()
+    parser = create_parser()
     args = parser.parse_args([
         '--date', '20200103',
         '--time', '23:00:00',

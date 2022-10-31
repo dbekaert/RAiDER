@@ -11,6 +11,8 @@ import os
 import numpy as np
 import pandas as pd
 
+from pyproj import CRS
+
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band
@@ -21,25 +23,29 @@ class AOI(object):
     This instantiates a generic AOI class object
     '''
     def __init__(self):
-        pass
+        self._bounding_box = None
+        self._proj = CRS.from_epsg(4326)
     
     def bounds(self):
         return self._bounding_box
+    
+    def projection(self):
+        return self._proj
     
 
 
 class StationFile(AOI):
     '''Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns'''
     def __init__(self, station_file):
+        AOI.__init__(self)
         self._filename = station_file
-        self._bounding_box, self._pnts_file, self._has_heights = bounds_from_csv(station_file)
-        self._proj = 'EPSG:4326'
+        self._bounding_box = bounds_from_csv(station_file)
     
     def type(self):
         return 'station_file'
  
     def readLL(self):
-        df = pd.read_csv(self._filename)
+        df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         return df['Lat'].values, df['Lon'].values
  
     def readZ(self):
@@ -57,9 +63,9 @@ class StationFile(AOI):
 
 
 class RasterRDR(AOI):
-    def __init__(self, lat_file, lon_file=None, hgt_file=None, convention='isce'):      
+    def __init__(self, lat_file, lon_file=None, hgt_file=None, convention='isce'):
+        AOI.__init__(self)
         # allow for 2-band lat/lon raster
-        self._proj = 'EPSG:4326'
         if (lon_file is None):
             self._file = lat_file
         else:
@@ -94,6 +100,7 @@ class RasterRDR(AOI):
 class BoundingBox(AOI):
     '''Parse a bounding box AOI'''
     def __init__(self, bbox):
+        AOI.__init__(self)
         self._bounding_box = bbox
     
     def type(self):
@@ -103,6 +110,7 @@ class BoundingBox(AOI):
 class GeocodedFile(AOI):
     '''Parse a Geocoded file for coordinates'''
     def __init__(self, filename, is_dem=False):
+        AOI.__init__(self)
         self._filename = filename
         p = rio_profile(filename)
         self._size = (p['width'], p['length'])
@@ -137,6 +145,7 @@ class GeocodedFile(AOI):
 class Geocube(AOI):
     '''Parse a georeferenced data cube'''
     def __init__(self):
+        AOI.__init__(self)
         raise NotImplementedError
     
     def type(self):
@@ -173,12 +182,11 @@ def bounds_from_csv(station_file):
     station_file should be a comma-delimited file with at least "Lat" 
     and "Lon" columns, which should be EPSG: 4326 projection (i.e WGS84)
     '''
-    stats = pd.read_csv(fname).drop_duplicates(subset=["Lat", "Lon"])
+    stats = pd.read_csv(station_file).drop_duplicates(subset=["Lat", "Lon"])
     if 'Hgt_m' in stats.columns:
         use_csv_heights = True
     snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
-    fname = os.path.basename(station_file).split('.')[0]
-    return snwe, fname, use_csv_heights
+    return snwe
 
 
 def get_bbox(p):

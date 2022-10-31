@@ -82,7 +82,6 @@ setup(
         'console_scripts': [
             'generateGACOSVRT.py = RAiDER.models.generateGACOSVRT:main',
             'raiderDelay.py = RAiDER.runProgram:main',
-            'raiderCube.py = RAiDER.prepareCube:parseCMD',
             'prepARIA.py = RAiDER.prepFromAria:main',
             'raiderCombine.py = RAiDER.gnss.processDelayFiles:main',
             'raiderCube.py = RAiDER.prepareCube:main',

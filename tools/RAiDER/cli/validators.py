@@ -146,15 +146,15 @@ def enforce_bbox(bbox):
     S, N, W, E = bbox
 
     if N <= S or E <= W:
-        raise ValueError(self, 'Bounding box has no size; make sure you use "S N W E"')
+        raise ValueError('Bounding box has no size; make sure you use "S N W E"')
 
     for sn in (S, N):
         if sn < -90 or sn > 90:
-            raise ValueError(self, 'Lats are out of S/N bounds (-90 to 90).')
+            raise ValueError('Lats are out of S/N bounds (-90 to 90).')
 
     for we in (W, E):
         if we < -180 or we > 180:
-            raise ValueError(self, 'Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.')
+            raise ValueError('Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.')
     
     return bbox
 
@@ -178,16 +178,16 @@ def parse_dates(arg_dict):
            start = enforce_valid_dates(start)
 
        if end is not None:
-           end = enforce_valid_dates(start)
+           end = enforce_valid_dates(end)
        else:
            end = start 
 
        if step is None:
            step = 1
        else:
-            step = int(step)
+            step = int(step) # Note that fractional steps are ignored
         
-       L = [start + timedelta(days=step) for k in range(0, (end - start).days + 1, 1)]
+       L = [start + timedelta(days=step) for step in range(0, (end - start).days + 1, step)]
 
     return L
 
