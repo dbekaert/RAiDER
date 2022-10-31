@@ -34,4 +34,3 @@ def main(iargs=None):
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
-

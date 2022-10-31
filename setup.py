@@ -80,17 +80,16 @@ setup(
 
     entry_points={
         'console_scripts': [
-            # 'RAiDER = RAiDER.__main__:main',
             'generateGACOSVRT.py = RAiDER.models.generateGACOSVRT:main',
-            'prepARIA.py = RAiDER.prepFromAria:prepFromAria',
-            'raiderCombine.py = RAiDER.gnss.processDelayFiles:parseCMD',
             'raiderDelay.py = RAiDER.runProgram:main',
             'raiderCube.py = RAiDER.prepareCube:parseCMD',
+            'prepARIA.py = RAiDER.prepFromAria:main',
+            'raiderCombine.py = RAiDER.gnss.processDelayFiles:main',
+            'raiderCube.py = RAiDER.prepareCube:main',
             'raiderStats.py = RAiDER.statsPlot:main',
             'raiderDownloadGNSS.py = RAiDER.downloadGNSSDelays:main',
-            'raiderWeatherModelDebug.py = RAiDER.runProgram:parseCMD_weather_model_debug',
         ]
     },
-
+    
     zip_safe=False,
 )
