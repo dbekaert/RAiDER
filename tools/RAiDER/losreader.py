@@ -632,14 +632,15 @@ def getTopOfAtmosphere(xyz, lookvecs, toaheight):
     # Guess top point
     pos = xyz + toaheight * lookvecs
 
-    for niter in range(5):
+    for niter in range(10):
         pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
-        pos = pos + lookvecs * (pos_llh[2] - toaheight)[..., None]
+        pos = pos + lookvecs * (toaheight - pos_llh[2])[..., None]
 
     # This is for debugging the approach
-    print("Stats for TOA computation: ", toaheight)
-    print("Height min: ", np.nanmin(pos_llh[2]))
-    print("Height max: ", np.nanmax(pos_llh[2]))
+    # print("Stats for TOA computation: ", toaheight,
+    #      toaheight - np.nanmin(pos_llh[2]),
+    #      toaheight - np.nanmax(pos_llh[2]),
+    #     )
 
     # The converged solution represents top of the rays
     return pos

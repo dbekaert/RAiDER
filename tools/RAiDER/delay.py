@@ -13,8 +13,8 @@ import numpy as np
 import xarray
 from netCDF4 import Dataset
 from pyproj import CRS, Transformer
-from scipy.interpolate import RegularGridInterpolator as Interpolator
 
+import isce3.ext.isce3 as isce
 from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators,
@@ -24,7 +24,7 @@ from RAiDER.delayFcns import (
 from RAiDER.dem import getHeights
 from RAiDER.logger import logger
 from RAiDER.llreader import BoundingBox
-from RAiDER.losreader import Zenith, Conventional, Raytracing
+from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
     writeDelays, projectDelays, writePnts2HDF5,
@@ -113,13 +113,14 @@ def tropo_delay(dt, wf, hf, args):
         return None, None
 
     ###########################################################
-    # Load the downloaded model file
+    # Load the downloaded model file for CRS information
     ds = xarray.load_dataset(weather_model_file)
     try:
         wm_proj = ds['CRS']
     except:
         print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
         wm_proj = 4326
+    ds.close()
     ####################################################################
 
     ####################################################################
@@ -196,6 +197,7 @@ def tropo_delay(dt, wf, hf, args):
 
     return wetDelay, hydroDelay
 
+
 def tropo_delay_cube(args):
     """
     raiderDelay cube generation function.
@@ -212,6 +214,7 @@ def tropo_delay_cube(args):
     outformat       - File format to use for raster outputs
     time            - Datetime to calculate delay
     filename        - Output filename
+    orbit           - Orbit filename
     verbose         - Verbose printing
     """
 
@@ -260,19 +263,33 @@ def tropo_delay_cube(args):
         wm_proj = CRS.from_epsg(4326)
     ds.close()
 
-    # Get ZTD interpolators
-    ifWet, ifHydro = getInterpolators(weather_model_file, "total")
 
     # Output grid points - North up grid
     zpts = np.array(args["heights"])
     xpts = np.arange(out_snwe[2], out_snwe[3] + spacing, spacing)
     ypts =np.arange(out_snwe[1], out_snwe[0] - spacing, -spacing)
 
+    # If no orbit is provided
     # Build zenith delay cube
-    wetDelay, hydroDelay =build_cube(
-        xpts, ypts, zpts,
-        wm_proj, args["crs"],
-        [ifWet, ifHydro])
+    if args["orbit"] is None:
+        # Get ZTD interpolators
+        ifWet, ifHydro = getInterpolators(weather_model_file, "total")
+
+        # Build cube
+        wetDelay, hydroDelay = build_cube(
+            xpts, ypts, zpts,
+            wm_proj, args["crs"],
+            [ifWet, ifHydro])
+    else:
+        # Get pointwise interpolators
+        ifWet, ifHydro = getInterpolators(weather_model_file, "pointwise")
+
+        # Build cube
+        wetDelay, hydroDelay = build_cube_ray(
+            xpts, ypts, zpts,
+            args["time"], args["orbit"],
+            wm_proj, args["crs"],
+            [ifWet, ifHydro])
 
     # Write output file
     # Modify this as needed for NISAR / other projects
@@ -400,5 +417,175 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 
         for mm, intp in enumerate(interpolators):
             outputArrs[mm][ii,...] = intp(pts)
+
+    return outputArrs
+
+
+def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, model_crs, pts_crs, interpolators):
+    """
+    Iterate over interpolators and build a cube
+    """
+    # Some constants for this module
+    MAX_SEGMENT_LENGTH = 1000.
+    MAX_TROPO_HEIGHT = 50000.
+
+
+    # First load the state vectors into an isce orbit
+    orb = isce.core.Orbit([
+        isce.core.StateVector(
+            isce.core.DateTime(row[0]),
+            row[1:4], row[4:7]
+        ) for row in np.stack(
+            get_sv(orbit_file, ref_time, pad=600), axis=-1
+        )
+    ])
+
+    # ISCE3 data structures
+    # TODO - Assuming right-looking for now
+    elp = isce.core.Ellipsoid()
+    dop = isce.core.LUT2d()
+    look = isce.core.LookSide.Right
+
+    # Get model heights in an array
+    # Assumption: All interpolators here are on the same grid
+    model_zs = interpolators[0].grid[2]
+
+    # Create a regular 2D grid
+    xx, yy = np.meshgrid(xpts, ypts)
+
+    # Output arrays
+    outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
+                  for mm in range(len(interpolators))]
+
+    # Various transformers needed here
+    epsg4326 = CRS.from_epsg(4326)
+    cube_to_llh = Transformer.from_crs(pts_crs, epsg4326,
+                                       always_xy=True)
+    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs)
+
+    # Loop over heights of output cube and compute delays
+    for hh, ht in enumerate(zpts):
+        # Slices to fill on output
+        outSubs = [x[hh, ...] for x in outputArrs]
+
+        # Step 1:  transform points to llh and xyz
+        if pts_crs != epsg4326:
+            llh = cube_to_llh.transform(xx, yy, np.full(yy.shape, ht))
+        else:
+            llh = [xx, yy, np.full(yy.shape, ht)]
+
+        xyz = np.stack(
+            lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)),
+            axis=-1)
+
+        llh[0] = np.deg2rad(llh[0])
+        llh[1] = np.deg2rad(llh[1])
+
+        # Step 2 - get LOS vectors for targets
+        # TODO - Modify when isce3 vectorization is available
+        los = np.full(xyz.shape, np.nan)
+        for ii in range(yy.shape[0]):
+            for jj in range(yy.shape[1]):
+                inp = np.array([
+                    llh[0][ii, jj],
+                    llh[1][ii, jj],
+                    ht])
+                inp_xyz = xyz[ii, jj, :]
+
+                if any(np.isnan(inp)) or any(np.isnan(inp_xyz)):
+                    continue
+
+                # Local normal vector
+                nv = elp.n_vector(inp[0], inp[1])
+
+                # Wavelength does not matter for 
+                try:
+                    aztime, slant_range = isce.geometry.geo2rdr(
+                        inp, elp, orb, dop, 0.06, look,
+                        threshold=1.0e-7,
+                        maxiter=30,
+                        delta_range=10.0)
+                    sat_xyz, _ = orb.interpolate(aztime)
+                    los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
+                except Exception as e:
+                    los[ii, jj, :] = np.nan
+
+        # Free memory here
+        llh = None
+
+        # Step 3 - Determine delays between each model height per ray
+        # Assumption: zpts (output cube) and model_zs (model) are assumed to be
+        # sorted in height
+        # We start integrating bottom up
+        low_xyz = None
+        high_xyz = None
+        for zz in range(model_zs.size-1):
+            # Low and High for model interval
+            low_ht = model_zs[zz]
+            high_ht = model_zs[zz + 1]
+
+            # If high_ht < height of point - no contribution to integral
+            # If low_ht > max_tropo_height - no contribution to integral
+            if (high_ht <= ht) or (low_ht >= MAX_TROPO_HEIGHT):
+                continue
+
+            # If low_ht < height of point - integral only up to height of point
+            if low_ht < ht:
+                low_ht = ht
+
+            # If high_ht > max_tropo_height - integral only up to max tropo
+            # height
+            if high_ht > MAX_TROPO_HEIGHT:
+                high_ht = MAX_TROPO_HEIGHT
+
+            # Continue only if needed - 1m troposphere does nothing
+            if np.abs(high_ht - low_ht) < 1.0:
+                continue
+
+            # If high_xyz was defined, make new low_xyz - save computation
+            if high_xyz is not None:
+                low_xyz = high_xyz
+            else:
+                low_xyz = getTopOfAtmosphere(xyz, los, low_ht)
+
+            # Compute high_xyz
+            high_xyz = getTopOfAtmosphere(xyz, los, high_ht)
+
+            # Compute ray length
+            ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)
+
+            # Determine number of parts to break ray into
+            nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
+            if (nParts == 1):
+                1/0
+
+            # fractions
+            fracs = np.linspace(0., 1., num=nParts)
+
+            # Integrate over the ray
+            for findex, ff in enumerate(fracs):
+                # Ray point in ECEF coordinates
+                pts_xyz = low_xyz + ff * (high_xyz - low_xyz)
+
+                # Ray point in model coordinates
+                pts = np.stack(
+                    ecef_to_model.transform(
+                        pts_xyz[..., 0],
+                        pts_xyz[..., 1],
+                        pts_xyz[..., 2]
+                    ), axis=-1)
+
+                # Trapezoidal integration with scaling
+                wt = 0.5 if findex in [0, fracs.size-1] else 1.0
+                wt *= ray_length *1.0e-6 / (nParts - 1.0)
+
+                # For each interpolator, integrate between levels
+                for mm, out in enumerate(outSubs):
+                    val =  interpolators[mm](pts)
+
+                    # TODO - This should not occur if there is enough padding in model
+                    val[np.isnan(val)] = 0.0
+                    out += wt * val
+
 
     return outputArrs

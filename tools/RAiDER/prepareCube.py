@@ -44,6 +44,13 @@ def create_parser():
         type=str,
         required=True
     )
+    datetimes.add_argument(
+        '--orbit', dest='orbit',
+        help="Orbit file to use",
+        type=str,
+        default=None,
+        required=False
+    )
 
     # Area
     area = p.add_argument_group('Area of Interest (Supply one)').add_mutually_exclusive_group(required=True)
@@ -57,7 +64,7 @@ def create_parser():
     )
 
     # Cube
-    cube = p.add_argument_group('Output cube parameters').add_mutually_exclusive_group(required=True)
+    cube = p.add_argument_group('Output cube parameters')
 
     cube.add_argument(
         '--heightlvs',
@@ -189,7 +196,7 @@ def checkArgs(args, p):
     filenames = []
     for time in args.datetimeList:
         filenames.append(
-            makeDelayFileName(time, args.outformat, args.model, args.out)
+            makeDelayFileName(time, args.outformat, args.model, args.orbit, args.out)
         )
 
     # Gather output in one dictionary
@@ -206,15 +213,21 @@ def checkArgs(args, p):
     outArgs["out"] = args.out
     outArgs["verbose"] = args.verbose
     outArgs["filename"] = filenames
+    outArgs["orbit"] = args.orbit
 
     return outArgs
 
 
-def makeDelayFileName(time, outformat, model_name, out):
+def makeDelayFileName(time, outformat, model_name, orbit, out):
     '''
     return name for the netcdf or h5 file
     '''
-    filename = f"{model_name}_tropo_{time:%Y%m%dT%H%M%S}_zstd.{outformat}"
+    if orbit is None:
+        otype = "zstd"
+    else:
+        otype = "rayd"
+
+    filename = f"{model_name}_tropo_{time:%Y%m%dT%H%M%S}_{otype}.{outformat}"
     return os.path.join(out, filename)
 
 
