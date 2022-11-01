@@ -1,5 +1,12 @@
 <VRTDataset rasterXSize="226" rasterYSize="45">
   <VRTRasterBand dataType="Float64" band="1">
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">21.493668454337</MDI>
+      <MDI key="STATISTICS_MEAN">18.706121111652</MDI>
+      <MDI key="STATISTICS_MINIMUM">15.763767828026</MDI>
+      <MDI key="STATISTICS_STDDEV">1.5837206786523</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">96.18</MDI>
+    </Metadata>
     <NoDataValue>0</NoDataValue>
     <SimpleSource>
       <SourceFilename relativeToVRT="1">lat.rdr</SourceFilename>

@@ -95,7 +95,7 @@ class MockWeatherModel(WeatherModel):
         self._valid_range = (datetime.datetime(1970, 1, 1), "Present")
         self._lag_time = datetime.timedelta(days=15)
 
-    def _fetch(self, lats, lons, time, out):
+    def _fetch(self, ll_bounds, time, out):
         pass
 
     def load_weather(self, *args, **kwargs):
@@ -217,24 +217,6 @@ def test_mrwmf():
     time = datetime.datetime(2020, 1, 1)
     assert make_raw_weather_data_filename(outLoc, name, time) == \
         './ERA-5_2020_01_01_T00_00_00.nc'
-
-
-def test_checkLL_era5(era5):
-    lats = np.array([-90, -45, 0, 45, 90])
-    lons = np.array([-180, -90, 0, 90, 180])
-    lats2, lons2 = era5.checkLL(lats, lons)
-    assert np.allclose(lats2, lats)
-    assert np.allclose(lons2, lons)
-
-
-def test_checkLL_era5_2(era5):
-    lats_good = np.array([-89, -45, 0, 45, 89])
-    lons_good = np.array([-179, -90, 0, 90, 179])
-    lats = np.array([-95, -45, 0, 45, 90])
-    lons = np.array([-180, -90, 0, 90, 200])
-    lats2, lons2 = era5.checkLL(lats, lons)
-    assert np.allclose(lats2, lats_good)
-    assert np.allclose(lons2, lons_good)
 
 
 def test_erai(erai):

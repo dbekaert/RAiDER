@@ -54,7 +54,7 @@ class customModelReader(WeatherModel):
         p1 = CRS('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={a} +b={a} +units=m +no_defs'.format(lat1=lat1, lat2=lat2, lat0=lat0, lon0=lon0, x0=x0, y0=y0, a=earth_radius))
         self._proj = p1
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, out):
         '''
         Fetch weather model data from the custom weather model "ABCD"
         Inputs (no need to change in the custom weather model reader):
@@ -64,19 +64,13 @@ class customModelReader(WeatherModel):
         out - name of downloaded dataset file from the custom weather model server
         Nextra - buffer of latitude/longitude for determining the bounding box
         '''
-
-        # bounding box plus a buffer using the helper function from the WeatherModel base class
-        # This part can be kept without modification.
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
-        self._bounds = (lat_min, lat_max, lon_min, lon_max)
-
         # Auxilliary function:
         # download dataset of the custom weather model "ABCD" from a server and then save it to a file named out.
         # This function needs to be writen by the users. For download from the weather model server, the weather model
         # name, time and bounding box may be needed to retrieve the dataset; for cases where no file is actually
         # downloaded, e.g. the GMAO and MERRA-2 models using OpenDAP, this function can be omitted leaving the data
         # retrieval to the following "load_weather" function.
-        self._files = self._download_abcd_file(out, 'abcd', time, self._bounds)
+        self._files = self._download_abcd_file(out, 'abcd', self._time, self._ll_bounds)
 
     def load_weather(self, filename):
         '''

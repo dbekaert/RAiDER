@@ -130,12 +130,12 @@ class ECMWF(WeatherModel):
         self._xs = self._lons.copy()
         self._zs = np.flip(h, axis=2)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, out):
         '''
         Fetch a weather model from ECMWF
         '''
         # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
+        lat_min, lat_max, lon_min, lon_max = self._ll_bounds
 
         # execute the search at ECMWF
         try:
@@ -146,13 +146,14 @@ class ECMWF(WeatherModel):
                 lon_min,
                 lon_max,
                 self._lon_res,
-                time,
+                self._time,
                 out
             )
         except Exception as e:
             logger.warning('Query point bounds are {}/{}/{}/{}'.format(lat_min, lat_max, lon_min, lon_max))
-            logger.warning('Query time: {}'.format(time))
+            logger.warning('Query time: {}'.format(self._time))
             logger.exception(e)
+
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
                         lon_step, time, out):

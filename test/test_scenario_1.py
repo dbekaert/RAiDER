@@ -9,7 +9,8 @@ from test import TEST_DIR, pushd
 from RAiDER.losreader import Zenith
 from RAiDER.delay import tropo_delay
 from RAiDER.utilFcns import rio_open
-from RAiDER.checkArgs import makeDelayFileNames, modelName2Module
+from RAiDER.checkArgs import makeDelayFileNames
+from RAiDER.cli.validators import modelName2Module
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-2

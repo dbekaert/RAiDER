@@ -5,183 +5,69 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import importlib
 import os
 
-import numpy as np
 import pandas as pd
 
-from textwrap import dedent
 from datetime import datetime
 
-from RAiDER.losreader import Zenith, Conventional
-from RAiDER.llreader import readLL
+from RAiDER.losreader import Zenith
+from RAiDER.llreader import BoundingBox
 
 
-def checkArgs(args, p):
+def checkArgs(args):
     '''
     Helper fcn for checking argument compatibility and returns the
     correct variables
     '''
 
-    # Argument checking
-    if args.heightlvs is not None:
-        if (args.outformat.lower() != 'hdf5') and (args.outformat is not None):
-            raise ValueError('If you want to use height levels you must specify HDF5 as your "outformat"')
+    #########################################################################################################################
+    # Directories
+    if not os.path.exists(args.weather_model_directory):
+        os.mkdir(args.weather_model_directory)
 
-    if args.wmLoc is not None:
-        wmLoc = args.wmLoc
-    else:
-        wmLoc = os.path.join(args.out, 'weather_files')
-    if not os.path.exists(wmLoc):
-        os.mkdir(wmLoc)
+    #########################################################################################################################
+    # Date and Time parsing
+    args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
 
-    # Query Area
-    lat, lon, llproj, bounds, flag, pnts_file = readLL(args.query_area)
-
-    if (np.min(bounds[:2]) < -90) | (np.max(bounds[:2]) > 90):
-        raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched?')
-
-    # Line of sight calc
-    if args.lineofsight is not None:
-        los = Conventional(args.lineofsight)
-    elif args.statevectors is not None:
-        # TODO - refactor once inout interface is designed
-        # ref_time can be start / mid time tag of reference date
-        # Arc only needs to span image - 60 secs is usually enough with mid tag
-        # or 3 mins with start time tag
-        los = Conventional(args.statevectors,
-                           datetime.combine(args.dateList[0], args.time),
-                           10 * 60)
-    else:
-        los = Zenith()
-
-    # Weather
-    try:
-        _, model_obj = modelName2Module(args.model)
-    except ModuleNotFoundError:
-        raise NotImplementedError(
-            dedent('''
-                Model {} is not yet fully implemented,
-                please contribute!
-                '''.format(args.model))
-        )
-    if args.model in ['WRF', 'HDF5'] and args.files is None:
-        raise RuntimeError(
-            'Argument --files is required with model {}'.format(args.model)
-        )
-
-    # handle the datetimes requested
-    datetimeList = [datetime.combine(d, args.time) for d in args.dateList]
-
-    weathers = {
-        'type': model_obj(),
-        'files': args.files,
-        'name': args.model.lower().replace('-', '')
-    }
-
-    # zref
-    zref = args.zref
-
-    # parallel or concurrent runs
-    parallel = args.parallel
-    if not parallel == 1:
-        import multiprocessing
-        # asses the number of concurrent jobs to be executed
-        max_threads = multiprocessing.cpu_count()
-        if parallel == 'all':
-            parallel = max_threads
-        parallel = parallel if parallel < max_threads else max_threads
-
-    # Misc
-    download_only = args.download_only
-    verbose = args.verbose
-    useWeatherNodes = flag == 'bounding_box'
-
-    # Output
-    out = args.out
-    pnts_file = os.path.join(out, 'geom', pnts_file)
-    if out is None:
-        out = os.getcwd()
-    if args.outformat is None:
-        if args.heightlvs is not None:
-            outformat = 'hdf5'
-        elif flag == 'station_file':
-            outformat = 'csv'
-        elif useWeatherNodes:
-            outformat = 'hdf5'
-        else:
-            outformat = 'envi'
-    else:
-        outformat = args.outformat.lower()
-
+    #########################################################################################################################
+    # filenames
     wetNames, hydroNames = [], []
-    for time in datetimeList:
-        if flag == 'station_file':
-            wetFilename = os.path.join(
-                out,
-                '{}_Delay_{}_Zmax{}.csv'
-                .format(
-                    args.model,
-                    time.strftime('%Y%m%dT%H%M%S'),
-                    zref
+    for d in args.date_list:
+        if not args.aoi is not BoundingBox:
+            if args.station_file is not None:
+                wetFilename = os.path.join(
+                    args.output_directory,
+                    '{}_Delay_{}.csv'
+                    .format(
+                        args.weather_model,
+                        args.time.strftime('%Y%m%dT%H%M%S'),
+                    )
                 )
-            )
-            hydroFilename = wetFilename
+                hydroFilename = wetFilename
 
-            # copy the input file to the output location for editing
-            indf = pd.read_csv(args.query_area).drop_duplicates(subset=["Lat", "Lon"])
-            indf.to_csv(wetFilename, index=False)
+                # copy the input file to the output location for editing
+                indf = pd.read_csv(args.query_area).drop_duplicates(subset=["Lat", "Lon"])
+                indf.to_csv(wetFilename, index=False)
+            else:
+                wetFilename, hydroFilename = makeDelayFileNames(
+                    d,
+                    args.los,
+                    args.raster_format,
+                    args.weather_model,
+                    args.output_directory,
+                )
+
+            wetNames.append(wetFilename)
+            hydroNames.append(hydroFilename)
         else:
-            wetFilename, hydroFilename = makeDelayFileNames(
-                time,
-                los,
-                outformat,
-                args.model,
-                out
-            )
+            wetNames.append(None)
+            hydroNames.append(None)
+                
+    args.wetFilenames = wetNames
+    args.hydroFilenames = hydroNames
 
-        wetNames.append(wetFilename)
-        hydroNames.append(hydroFilename)
-
-    # DEM
-    if args.dem is not None:
-        heights = ('dem', args.dem)
-    elif args.heightlvs is not None:
-        heights = ('lvs', args.heightlvs)
-    elif flag == 'station_file':
-        indf = pd.read_csv(args.query_area)
-        try:
-            heights = ('pandas', wetNames)
-        except BaseException:  # TODO: Which error(s)?
-            heights = ('merge', wetNames)
-    elif useWeatherNodes:
-        heights = ('skip', None)
-    else:
-        heights = ('download', os.path.join(out, 'geom', 'warpedDEM.dem'))
-
-    # put all the arguments in a dictionary
-    outArgs = {}
-    outArgs['los'] = los
-    outArgs['lats'] = lat
-    outArgs['lons'] = lon
-    outArgs['ll_bounds'] = bounds
-    outArgs['heights'] = heights
-    outArgs['flag'] = flag
-    outArgs['weather_model'] = weathers
-    outArgs['wmLoc'] = wmLoc
-    outArgs['zref'] = zref
-    outArgs['outformat'] = outformat
-    outArgs['times'] = datetimeList
-    outArgs['download_only'] = download_only
-    outArgs['out'] = out
-    outArgs['verbose'] = verbose
-    outArgs['wetFilenames'] = wetNames
-    outArgs['hydroFilenames'] = hydroNames
-    outArgs['parallel'] = parallel
-    outArgs['pnts_file'] = pnts_file
-
-    return outArgs
+    return args
 
 
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):
@@ -209,19 +95,4 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     return wet_file_name, hydro_file_name
 
 
-def modelName2Module(model_name):
-    """Turn an arbitrary string into a module name.
-    Takes as input a model name, which hopefully looks like ERA-I, and
-    converts it to a module name, which will look like erai. I doesn't
-    always produce a valid module name, but that's not the goal. The
-    goal is just to handle common cases.
-    Inputs:
-       model_name  - Name of an allowed weather model (e.g., 'era-5')
-    Outputs:
-       module_name - Name of the module
-       wmObject    - callable, weather model object
-    """
-    module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
-    model_module = importlib.import_module(module_name)
-    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name, wmObject
+
