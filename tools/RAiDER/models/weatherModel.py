@@ -117,19 +117,24 @@ class WeatherModel(ABC):
     def Model(self):
         return self._Name
 
-    def fetch(self, out, lats, lons, time):
+    def fetch(self, out, ll_bounds, time):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
+        
+        Parameters
+        ----------
+        out - 
+        ll_bounds - 4 x 1 array, SNWE
+        time = UTC datetime
         '''
         self.checkTime(time)
-        lats, lons = self.checkLL(lats, lons)
-
-        self._time = time
-        self._fetch(lats, lons, time, out)
+        self.set_latlon_bounds(ll_bounds)
+        self.setTime(time)
+        self._fetch(out)
 
     @abstractmethod
-    def _fetch(self, lats, lons, time, out):
+    def _fetch(self, out):
         '''
         Placeholder method. Should be implemented in each weather model type class
         '''
@@ -144,7 +149,10 @@ class WeatherModel(ABC):
         else:
             raise ValueError('"time" must be a string or a datetime object')
 
-    def checkLL(self, lats, lons, Nextra=2):
+    def get_latlon_bounds(self):
+        raise NotImplementedError
+
+    def set_latlon_bounds(self, ll_bounds, Nextra=2):
         '''
         Need to correct lat/lon bounds because not all of the weather models have valid
         data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
@@ -158,25 +166,22 @@ class WeatherModel(ABC):
         else:
             ex_buffer_lon_max = 0.0
 
-        # These are generalized for potential extra buffer in future models
-        ex_buffer_lat_min = 0.0
-        ex_buffer_lat_max = 0.0
-        ex_buffer_lon_min = 0.0
-
         # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
-        lats[lats < (-90.0 + Nextra * self._lat_res + ex_buffer_lat_min)] = (-90.0 + Nextra * self._lat_res + ex_buffer_lat_min)
-        lats[lats > (90.0 - Nextra * self._lat_res - ex_buffer_lat_max)] = (90.0 - Nextra * self._lat_res - ex_buffer_lat_max)
-        lons[lons < (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)] = (-180.0 + Nextra * self._lon_res + ex_buffer_lon_min)
-        lons[lons > (180.0 - Nextra * self._lon_res - ex_buffer_lon_max)] = (180.0 - Nextra * self._lon_res - ex_buffer_lon_max)
+        S, N, W, E = ll_bounds
 
-        return lats, lons
+        # Adjust bounds if they get near the poles or IDL
+        S = np.max([S, -90.0 + Nextra * self._lat_res])
+        N = np.min([N, 90.0 - Nextra * self._lat_res])
+        W = np.max([W, -180.0 + Nextra * self._lon_res])
+        E = np.min([E, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
+
+        self._ll_bounds = np.array([S, N, W, E])
 
     def load(
         self,
         outLoc,
         *args,
-        outLats=None,
-        outLons=None,
+        ll_bounds=None,
         _zlevels=None,
         zref=_ZREF,
         **kwargs
@@ -185,18 +190,13 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        # If the weather file has already been processed, do nothing
-        self._out_name = self.out_file(outLoc, lats=outLats, lons=outLons)
+        self.set_latlon_bounds(ll_bounds)
+
+        # If the weather file has already been processed, do nothing        
+        self._out_name = self.out_file(outLoc)
         if os.path.exists(self._out_name):
             return self._out_name
         else:
-            # Compute the bounds of the query points
-            self._ll_bounds = self._get_ll_bounds(
-                lats=outLats,
-                lons=outLons,
-                Nextra=2
-            )
-
             # Load the weather just for the query points
             self.load_weather(*args, **kwargs)
 
@@ -206,7 +206,7 @@ class WeatherModel(ABC):
             self._checkForNans()
             self._get_wet_refractivity()
             self._get_hydro_refractivity()
-            self._adjust_grid(lats=outLats, lons=outLons)
+            self._adjust_grid(ll_bounds)
 
             # Compute Zenith delays at the weather model grid nodes
             self._getZTD(zref)
@@ -310,7 +310,7 @@ class WeatherModel(ABC):
     def getHydroRefractivity(self):
         return self._hydrostatic_refractivity
 
-    def _adjust_grid(self, lats=None, lons=None):
+    def _adjust_grid(self, ll_bounds=None):
         '''
         This function pads the weather grid with a level at self._zmin, if
         it does not already go that low.
@@ -322,17 +322,13 @@ class WeatherModel(ABC):
             # first add in a new layer at zmin
             self._zs = np.insert(self._zs, 0, self._zmin)
 
-            self._lons = np.concatenate((self._lons[:, :, 0][..., np.newaxis], self._lons), axis=2)
-            self._lats = np.concatenate((self._lats[:, :, 0][..., np.newaxis], self._lats), axis=2)
-
             self._p = util.padLower(self._p)
             self._t = util.padLower(self._t)
             self._e = util.padLower(self._e)
             self._wet_refractivity = util.padLower(self._wet_refractivity)
             self._hydrostatic_refractivity = util.padLower(self._hydrostatic_refractivity)
-            if lats is not None:
-                in_extent = self._getExtent(lats, lons)
-                self._trimExtent(in_extent)
+            if ll_bounds is not None:
+                self._trimExtent(ll_bounds)
 
     def _getZTD(self, zref=None):
         '''
@@ -406,8 +402,7 @@ class WeatherModel(ABC):
         return self._bbox
 
     def checkContainment(self: weatherModel,
-                         outLats: np.ndarray,
-                         outLons: np.ndarray,
+                         ll_bounds: np.ndarray,
                          buffer_deg: float = 1e-5) -> bool:
         """"
         Checks containment of weather model bbox of outLats and outLons
@@ -431,10 +426,8 @@ class WeatherModel(ABC):
            True if weather model contains bounding box of OutLats and outLons
            and False otherwise.
         """
-        xmin_input, xmax_input = np.min(outLons), np.max(outLons)
-        ymin_input, ymax_input = np.min(outLats), np.max(outLats)
+        ymin_input, ymax_input, xmin_input, xmax_input = ll_bounds
         input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
-
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
 
@@ -532,26 +525,6 @@ class WeatherModel(ABC):
         '''
         return calcgeoh(lnsp, self._t, self._q, z, self._a, self._b, self._R_d, self._levels)
 
-    def _get_ll_bounds(self, lats=None, lons=None, Nextra=2):
-        '''
-        returns the extents of lat/lon plus a buffer
-        '''
-        using_bbox = False
-        if lats is None:
-            if self._lats is None:
-                lon_min, lat_min, lon_max, lat_max = self.bbox
-                using_bbox = True
-            else:
-                lats = self._lats
-                lons = self._lons
-
-        if not using_bbox:
-            lat_min = np.nanmin(lats) - Nextra * self._lat_res
-            lat_max = np.nanmax(lats) + Nextra * self._lat_res
-            lon_min = np.nanmin(lons) - Nextra * self._lon_res
-            lon_max = np.nanmax(lons) + Nextra * self._lon_res
-
-        return lat_min, lat_max, lon_min, lon_max
 
     def getProjection(self):
         '''
@@ -623,17 +596,11 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
-    def out_file(self, outLoc, lats=None, lons=None):
-        if lats is None:
-            lats = self._lats
-        if lons is None:
-            lons = self._lons
-
-        bounds = self._get_ll_bounds(lats=lats, lons=lons)
+    def out_file(self, outLoc):
         f = make_weather_model_filename(
             self._Name,
             self._time,
-            bounds
+            self._ll_bounds,
         )
         return os.path.join(outLoc, f)
 

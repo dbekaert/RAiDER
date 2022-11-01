@@ -244,6 +244,8 @@ def parseCMD():
             logger.exception(f"Datetime {time} failed")
             continue
 
+def main():
+    parseCMD()
 
 if __name__ == '__main__':
     parseCMD()

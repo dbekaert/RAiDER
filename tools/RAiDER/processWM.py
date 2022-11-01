@@ -13,11 +13,10 @@ import matplotlib.pyplot as plt
 
 
 def prepareWeatherModel(
-    weatherDict,
+    weather_model,
     time=None,
     wmLoc=None,
-    lats=None,
-    lons=None,
+    ll_bounds=None,
     zref=None,
     download_only=False,
     makePlots=False,
@@ -26,11 +25,6 @@ def prepareWeatherModel(
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
     '''
-    weather_model, weather_files = (weatherDict['type'],
-                                    weatherDict['files']
-                                    )
-    weather_model.files = weather_files
-
     # Ensure the file output location exists
     if wmLoc is None:
         wmLoc = os.path.join(os.getcwd(), 'weather_files')
@@ -56,11 +50,11 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        weather_model.fetch(*weather_model.files, lats, lons, time)
+        weather_model.fetch(*weather_model.files, ll_bounds, time)
     else:
         time = getTimeFromFile(weather_model.files[0])
         weather_model.setTime(time)
-        containment = weather_model.checkContainment(lats, lons)
+        containment = weather_model.checkContainment(ll_bounds)
 
         if not containment:
             logger.error(
@@ -82,8 +76,7 @@ def prepareWeatherModel(
     # Otherwise, load the weather model data
     f = weather_model.load(
         wmLoc,
-        outLats=lats,
-        outLons=lons,
+        ll_bounds = ll_bounds,
         zref=zref,
     )
     if f is not None:

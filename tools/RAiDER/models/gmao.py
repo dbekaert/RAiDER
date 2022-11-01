@@ -52,19 +52,17 @@ class GMAO(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, out):
         '''
         Fetch weather model data from GMAO
         '''
-        # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
-        self._bounds = (lat_min, lat_max, lon_min, lon_max)
-
+        time = self._time 
+        
         # calculate the array indices for slicing the GMAO variable arrays
-        lat_min_ind = int((self._bounds[0] - (-90.0)) / self._lat_res)
-        lat_max_ind = int((self._bounds[1] - (-90.0)) / self._lat_res)
-        lon_min_ind = int((self._bounds[2] - (-180.0)) / self._lon_res)
-        lon_max_ind = int((self._bounds[3] - (-180.0)) / self._lon_res)
+        lat_min_ind = int((self._ll_bounds[0] - (-90.0)) / self._lat_res)
+        lat_max_ind = int((self._ll_bounds[1] - (-90.0)) / self._lat_res)
+        lon_min_ind = int((self._ll_bounds[2] - (-180.0)) / self._lon_res)
+        lon_max_ind = int((self._ll_bounds[3] - (-180.0)) / self._lon_res)
 
         T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
         # round time to nearest third hour

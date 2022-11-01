@@ -8,6 +8,7 @@ Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rig
 #
 # import RAiDER
 # RAiDER.Geo2rdr
-from RAiDER import interpolate, makePoints
+# from RAiDER import interpolate, makePoints
 __copyright__ = 'Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rights reserved.'
-__all__ = ['interpolate', 'makePoints', __copyright__]
+# __all__ = ['interpolate', 'makePoints', __copyright__]
+

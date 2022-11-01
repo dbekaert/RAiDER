@@ -71,11 +71,14 @@ class Conventional(LOS):
     be projected using the standard cos(inc) scaling.
     """
 
-    def __init__(self, filename=None, time=None, pad=None):
+    def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
         super().__init__()
         self._file = filename
         self._time = time
         self._pad = pad
+        self._convention = los_convention
+        if self._convention == 'hyp3':
+            raise NotImplementedError()
 
     def __call__(self, delays):
         '''Read the LOS file and convert it to look vectors'''
@@ -143,12 +146,15 @@ class Raytracing(LOS):
     >>> # 
     """
 
-    def __init__(self, filename=None, time=None, pad=None):
+    def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
         '''read in and parse a statevector file'''
         super().__init__()
         self._file = filename
         self._time = time
         self._pad = pad
+        self._convention = los_convention
+        if self._convention == 'hyp3':
+            raise NotImplementedError()
 
     def getLookVectors(self, time, pad=3 * 60):
         '''

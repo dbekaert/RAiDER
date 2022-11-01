@@ -933,5 +933,5 @@ def test_interpolateDEM():
     x = np.arange(10)
     dem = np.outer(x, x)
     extent = [0, 9, 0, 9]
-    out = interpolateDEM(dem, np.array([[4.5, 4.5], [0.5, 0.5], [10, 10]]), extent)
+    out = interpolateDEM(dem, extent, np.array([[4.5, 4.5], [0.5, 0.5], [10, 10]]))
     assert np.allclose(out, np.array([20.25, 0.25, np.nan]), equal_nan=True)

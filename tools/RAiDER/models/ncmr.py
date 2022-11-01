@@ -61,20 +61,18 @@ class NCMR(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, lats, lons, time, out, Nextra=2):
+    def _fetch(self, out):
         '''
         Fetch weather model data from NCMR: note we only extract the lat/lon bounds for this weather model;
         fetching data is not needed here as we don't actually download data , data exist in same system
         '''
-        # bounding box plus a buffer
-        lat_min, lat_max, lon_min, lon_max = self._get_ll_bounds(lats, lons, Nextra)
-        self._bounds = (lat_min, lat_max, lon_min, lon_max)
+        time = self._time 
 
         # Auxillary function:
         '''
         download data of the NCMR model and save it in desired location
         '''
-        self._files = self._download_ncmr_file(out, time, self._bounds)
+        self._files = self._download_ncmr_file(out, time, self._ll_bounds)
 
     def load_weather(self, filename=None, *args, **kwargs):
         '''

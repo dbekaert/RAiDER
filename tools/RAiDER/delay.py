@@ -23,6 +23,7 @@ from RAiDER.delayFcns import (
 )
 from RAiDER.dem import getHeights
 from RAiDER.logger import logger
+from RAiDER.llreader import BoundingBox
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
@@ -31,12 +32,11 @@ from RAiDER.utilFcns import (
 )
 
 
-def tropo_delay(args):
+def tropo_delay(dt, wf, hf, args):
     """
     raiderDelay main function.
 
-
-    Parameters
+    Parameterss
     ----------
     args: dict  Parameters and inputs needed for processing,
                 containing the following key-value pairs:
@@ -45,7 +45,6 @@ def tropo_delay(args):
         lats    - ndarray or str
         lons    - ndarray or str
         heights - see checkArgs for format
-        flag    -
         weather_model   - type of weather model to use
         wmLoc   - Directory containing weather model files
         zref    - max integration height
@@ -57,31 +56,25 @@ def tropo_delay(args):
         pnts_file       - Input a points file from previous run
         verbose - verbose printing
     """
-
     # unpacking the dictionairy
+    wetFilename = wf
+    hydroFilename = hf
+
     los = args['los']
-    lats = args['lats']
-    lons = args['lons']
     ll_bounds = args['bounding_box']
     heights = args['dem']
-    flag = args['flag']
     weather_model = args['weather_model']
-    wmLoc = args['wmLoc']
+    wmLoc = args['weather_model_directory']
     zref = args['zref']
-    outformat = args['outformat']
-    time = args['times']
-    download_only = args['download_only']
-    wetFilename = args['wetFilenames']
-    hydroFilename = args['hydroFilenames']
-    pnts_file = args['pnts_file']
+    outformat = args['raster_format']
+    download_only = False
     verbose = args['verbose']
-
+    aoi = args['aoi']
+    
     # logging
     logger.debug('Starting to run the weather model calculation')
-    logger.debug('Time type: {}'.format(type(time)))
-    logger.debug('Time: {}'.format(time.strftime('%Y%m%d')))
-    logger.debug('Flag type is {}'.format(flag))
-    logger.debug('DEM/height type is "{}"'.format(heights[0]))
+    logger.debug('Time type: {}'.format(type(dt)))
+    logger.debug('Time: {}'.format(dt.strftime('%Y%m%d')))
     logger.debug('Max integration height is {:1.1f} m'.format(zref))
 
     ###########################################################
@@ -91,25 +84,25 @@ def tropo_delay(args):
     logger.debug('Beginning weather model pre-processing')
     logger.debug('Download-only is {}'.format(download_only))
 
+    if ll_bounds is None:
+        ll_bounds = aoi.bounds()
+
     weather_model_file = prepareWeatherModel(
         weather_model,
-        time,
+        dt,
         wmLoc=wmLoc,
-        lats=ll_bounds[:2] if isinstance(lats, str) else lats,
-        lons=ll_bounds[2:] if isinstance(lons, str) else lons,
+        ll_bounds=ll_bounds,
         zref=zref,
         download_only=download_only,
         makePlots=verbose,
     )
 
-    if download_only:
-        return None, None
-    elif args['useWeatherNodes']:
-        if heights[0] == 'lvs':
+    if aoi.type() == 'bounding_box':
+        if args['height_levels'] is not None:
             # compute delays at the correct levels
             ds = xarray.load_dataset(weather_model_file)
-            ds['wet_total'] = ds['wet_total'].interp(z=heights[1])
-            ds['hydro_total'] = ds['hydro_total'].interp(z=heights[1])
+            ds['wet_total'] = ds['wet_total'].interp(z=args['height_levels'])
+            ds['hydro_total'] = ds['hydro_total'].interp(z=args['height_levels'])
         else:
             logger.debug(
                 'Only Zenith delays at the weather model nodes '
@@ -135,11 +128,11 @@ def tropo_delay(args):
         # Start actual processing here
         logger.debug("Beginning DEM calculation")
         # Lats, Lons will be translated from file to array here if needed
-        lats, lons, hgts = getHeights(ll_bounds, heights, args['useWeatherNodes'])
-        logger.debug(
-            'DEM height range for the queried region is %.2f-%.2f m',
-            np.nanmin(hgts), np.nanmax(hgts)
-        )
+
+        # read lats/lons
+        lats, lons = aoi.readLL()
+        hgts = aoi.readZ()
+
         los.setPoints(lats, lons, hgts)
 
         # Transform query points if needed
@@ -179,7 +172,7 @@ def tropo_delay(args):
     if heights[0] == 'lvs':
         outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(
-            flag,
+            aoi.type(),
             wetDelay,
             hydroDelay,
             lats,
@@ -196,7 +189,7 @@ def tropo_delay(args):
             wetFilename = wetFilename[0]
             hydroFilename = hydroFilename[0]
 
-        writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+        writeDelays(aoi.type(), wetDelay, hydroDelay, lats, lons,
                     wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
         logger.info('Finished writing data to %s', wetFilename)
