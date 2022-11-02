@@ -31,7 +31,7 @@ def enforce_wm(value):
 
 def get_los(args):
     if args.orbit_file is not None:
-        if args.raytrace:
+        if args.ray_trace:
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)

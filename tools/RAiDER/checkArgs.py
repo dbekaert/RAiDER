@@ -49,21 +49,22 @@ def checkArgs(args):
                 # copy the input file to the output location for editing
                 indf = pd.read_csv(args.query_area).drop_duplicates(subset=["Lat", "Lon"])
                 indf.to_csv(wetFilename, index=False)
+
             else:
-                wetFilename, hydroFilename = makeDelayFileNames(
-                    d,
-                    args.los,
-                    args.raster_format,
-                    args.weather_model,
-                    args.output_directory,
-                )
+                wetNames.append(None)
+                hydroNames.append(None)
+        else:
+            wetFilename, hydroFilename = makeDelayFileNames(
+                d,
+                args.los,
+                args.raster_format,
+                args.weather_model._dataset.upper(),
+                args.output_directory,
+            )
 
             wetNames.append(wetFilename)
             hydroNames.append(hydroFilename)
-        else:
-            wetNames.append(None)
-            hydroNames.append(None)
-                
+
     args.wetFilenames = wetNames
     args.hydroFilenames = hydroNames
 

@@ -70,7 +70,7 @@ def tropo_delay(dt, wf, hf, args):
     download_only = False
     verbose = args['verbose']
     aoi = args['aoi']
-    
+
     # logging
     logger.debug('Starting to run the weather model calculation')
     logger.debug('Time type: {}'.format(type(dt)))
@@ -155,6 +155,10 @@ def tropo_delay(dt, wf, hf, args):
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
+        # TODO - handle this better during parsing
+        los._pad = 600
+        los._time = dt
+
         # return the delays (ZTD or STD)
         wetDelay = los(wetDelay)
         hydroDelay = los(hydroDelay)
@@ -170,7 +174,7 @@ def tropo_delay(dt, wf, hf, args):
     # Write the delays to file
     # Different options depending on the inputs
 
-    if heights[0] == 'lvs':
+    if heights is not None:
         outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(
             aoi.type(),

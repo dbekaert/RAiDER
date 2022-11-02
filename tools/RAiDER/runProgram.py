@@ -13,10 +13,10 @@ from RAiDER.logger import logger
 def main(iargs=None):
     # parse
     inps = parseCMD(iargs)
-    
+
     # Read the template file
     params = read_template_file(inps.customTemplateFile)
-    
+
     # Argument checking
     params = checkArgs(params)
 
@@ -25,8 +25,8 @@ def main(iargs=None):
 
     # run
     for t, w, f in zip(
-        params['date_list'], 
-        params['wetFilenames'], 
+        params['date_list'],
+        params['wetFilenames'],
         params['hydroFilenames']
     ):
         try:

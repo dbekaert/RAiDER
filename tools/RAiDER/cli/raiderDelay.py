@@ -63,6 +63,7 @@ DEFAULT_DICT = dict(
         dem=None,
         use_dem_latlon=False,
         height_levels=None,
+        height_file_rdr=None,
         ray_trace=False,
         zref=_ZREF,
         los_file=None,
@@ -227,7 +228,7 @@ def read_template_file(fname):
             for k, v in value.items():
                 if v is not None:
                     template[k] = v
-        if key == 'weather_model':                
+        if key == 'weather_model':
             template[key]= enforce_wm(value)
         if key == 'time_group':
             template.update(enforce_time(AttributeDict(value)))
@@ -237,14 +238,14 @@ def read_template_file(fname):
             template['aoi'] = get_query_region(AttributeDict(value))
         if key == 'los_group':
             template['los'] = get_los(AttributeDict(value))
-    
+
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
         if key == 'height_group':
             template.update(
                 get_heights(
-                    AttributeDict(value), 
-                    template['output_directory'], 
+                    AttributeDict(value),
+                    template['output_directory'],
                     template['station_file'],
                     template['bounding_box'],
                 )
