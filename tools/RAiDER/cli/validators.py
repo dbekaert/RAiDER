@@ -123,7 +123,7 @@ def get_query_region(args):
 
     elif args.use_dem_latlon:
         query = GeocodedFile(args.dem, is_dem=True)
-    
+ 
     elif args.los_cube:
         query = Geocube(args.los_cube)
 

@@ -5,7 +5,7 @@ import sys
 import yaml
 
 import RAiDER
-from RAiDER.constants import _ZREF
+from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.logger import logger, logging
 from RAiDER.cli.validators import enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
 
@@ -23,8 +23,8 @@ through the step immediately preceding the starting step of the current run.
 
 
 HELP_MESSAGE = """
-Command line options for RAiDER processing to calculate tropospheric 
-delay from a weather model. Default options can be found by running 
+Command line options for RAiDER processing to calculate tropospheric
+delay from a weather model. Default options can be found by running
 raiderDelay.py --generate_config.
 """
 
@@ -34,7 +34,7 @@ Program to calculate troposphere total delays using a weather model
 
 EXAMPLES = """
 Usage examples:
-raiderDelay.py -g 
+raiderDelay.py -g
 raiderDelay.py customTemplatefile.cfg
 raiderDelay.py --dostep=load_weather_model
 """
@@ -66,6 +66,7 @@ DEFAULT_DICT = dict(
         height_file_rdr=None,
         ray_trace=False,
         zref=_ZREF,
+        cube_spacing_in_m=_CUBE_SPACING_IN_M,  # TODO - Where are these parsed?
         los_file=None,
         los_convention='isce',
         los_cube=None,
@@ -88,7 +89,7 @@ def create_parser():
         description = HELP_MESSAGE,
         epilog = EXAMPLES,
     )
-    
+
     p.add_argument(
         'customTemplateFile', nargs='?',
         help='custom template with option settings.\n' +
@@ -97,8 +98,8 @@ def create_parser():
 
     p.add_argument(
         '-g', '--generate_template',
-        dest='generate_template', 
-        action='store_true', 
+        dest='generate_template',
+        action='store_true',
         help='generate default template (if it does not exist) and exit.'
     )
 
@@ -128,12 +129,12 @@ def parseCMD(iargs=None):
     template_file = os.path.join(
         os.path.dirname(
             RAiDER.__file__
-        ), 
+        ),
         'cli', 'raiderDelay.yaml'
     )
     if '-g' in args.argv:
         shutil.copyfile(
-                template_file, 
+                template_file,
                 os.path.join(os.getcwd(), 'raiderDelay.yaml'),
             )
         sys.exit(0)
@@ -144,7 +145,7 @@ def parseCMD(iargs=None):
             and not args.generate_template):
         p.print_usage()
         print(EXAMPLES)
-        
+
         msg = "No template file found! It requires that either:"
         msg += "\n  a custom template file, OR the default template "
         msg += "\n  file 'raiderDelay.yaml' exists in current directory."
@@ -154,7 +155,7 @@ def parseCMD(iargs=None):
         # check the existence
         if not os.path.isfile(args.customTemplateFile):
             raise FileNotFoundError(args.customTemplateFile)
-        
+
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
     # check which steps to run
