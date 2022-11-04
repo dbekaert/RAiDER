@@ -31,7 +31,7 @@ def enforce_wm(value):
 
 def get_los(args):
     if args.orbit_file is not None:
-        if args.raytrace:
+        if args.ray_trace:
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
@@ -123,7 +123,7 @@ def get_query_region(args):
 
     elif args.use_dem_latlon:
         query = GeocodedFile(args.dem, is_dem=True)
-    
+ 
     elif args.los_cube:
         query = Geocube(args.los_cube)
 

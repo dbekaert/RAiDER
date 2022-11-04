@@ -27,8 +27,3 @@ def test_raider__main__6(script_runner):
 def test_raider__main__7(script_runner):
     ret = script_runner.run('raiderDownloadGNSS.py', '-h')
     assert ret.success
-
-
-def test_raider__main__9(script_runner):
-    ret = script_runner.run('raiderCube.py', '-h')
-    assert ret.success

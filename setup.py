@@ -84,11 +84,9 @@ setup(
             'raiderDelay.py = RAiDER.runProgram:main',
             'prepARIA.py = RAiDER.prepFromAria:main',
             'raiderCombine.py = RAiDER.gnss.processDelayFiles:main',
-            'raiderCube.py = RAiDER.prepareCube:main',
             'raiderStats.py = RAiDER.statsPlot:main',
             'raiderDownloadGNSS.py = RAiDER.downloadGNSSDelays:main',
         ]
     },
-    
     zip_safe=False,
 )
