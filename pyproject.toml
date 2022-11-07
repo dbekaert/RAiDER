@@ -1,6 +1,7 @@
 [build-system]
 requires =[
-    "setuptools>=42",
+    "setuptools>=61.0",
+    "setuptools_scm[toml]>=6.2",
     "wheel",
     "numpy",
     "cython",
@@ -8,7 +9,52 @@ requires =[
 ]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "RAiDER"
+authors = [
+    {name="David Bekaert", email="david.bekaert@jpl.nasa.gov"},
+    {name="Jeremy Maurer", email="maurer.jeremy@gmail.com"},
+    {name="Piyush Agram", email="piyush@descarteslabs.com"}
+]
+description = "Raytracing Atmospheric Delay Estimation for RADAR"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "Apache License 2.0"}
+classifiers=[
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: Apache Software License",
+        "Natural Language :: English",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+]
+# dependencies = []
+dynamic = ["version"]
+
+[project.urls]
+homepage = "https://github.com/dbekaert/RAiDER"
+documentation = "https://github.com/dbekaert/RAiDER-docs"
+repository = "https://github.com/dbekaert/RAiDER"
+"Bug Tracker" = "https://github.com/dbekaert/RAiDER/issues"
+
+[project.scripts]
+"generateGACOSVRT.py" = "RAiDER.models.generateGACOSVRT:main"
+"raiderDelay.py" = "RAiDER.runProgram:main"
+"prepARIA.py" = "RAiDER.prepFromAria:main"
+"raiderCombine.py" = "RAiDER.gnss.processDelayFiles:main"
+"raiderStats.py" = "RAiDER.statsPlot:main"
+"raiderDownloadGNSS.py" = "RAiDER.downloadGNSSDelays:main"
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+where = ["tools"]
+
 [tool.isort]
 known_first_party = "RAiDER"
 multi_line_output = 5
 default_section = "THIRDPARTY"
+
+[tool.setuptools_scm]
