@@ -625,22 +625,28 @@ def get_radar_pos(llh, orb, out="lookangle"):
         raise NotImplementedError("Unexpected logic in get_radar_pos")
 
 
-def getTopOfAtmosphere(xyz, lookvecs, toaheight):
+def getTopOfAtmosphere(xyz, lookvecs, toaheight, factor=None):
     """
     Get ray intersection at given height
     """
+    if factor is not None:
+        maxIter = 3
+    else:
+        maxIter = 10
+        factor = 1.
+
     # Guess top point
     pos = xyz + toaheight * lookvecs
 
     for niter in range(10):
         pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
-        pos = pos + lookvecs * (toaheight - pos_llh[2])[..., None]
+        pos = pos + lookvecs * ((toaheight - pos_llh[2])/factor)[..., None]
 
     # This is for debugging the approach
     # print("Stats for TOA computation: ", toaheight,
-    #      toaheight - np.nanmin(pos_llh[2]),
-    #      toaheight - np.nanmax(pos_llh[2]),
-    #     )
+    #       toaheight - np.nanmin(pos_llh[2]),
+    #       toaheight - np.nanmax(pos_llh[2]),
+    # )
 
     # The converged solution represents top of the rays
     return pos
