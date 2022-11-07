@@ -21,6 +21,7 @@ dependencies:
  - dem_stitcher>=2.3.0
  - ecmwf-api-client
  - h5py
+ - h5netcdf
  - isce3>=0.8.0
  - lxml
  - matplotlib

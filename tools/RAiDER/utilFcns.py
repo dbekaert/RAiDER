@@ -663,6 +663,10 @@ def transform_bbox(wesn, dest_crs=4326, src_crs=4326, margin=100.):
     elif isinstance(src_crs, str):
         src_crs = pyproj.CRS(src_crs)
 
+    # Handle margin for input bbox in degrees
+    if src_crs.axis_info[0].unit_name == "degree":
+        margin = margin / 1.0e5
+
     if isinstance(dest_crs, int):
         dest_crs = pyproj.CRS.from_epsg(dest_crs)
     elif isinstance(dest_crs, str):

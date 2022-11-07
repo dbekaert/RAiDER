@@ -167,7 +167,8 @@ def tropo_delay(dt, wf, hf, args):
                 lons,
                 hgts,
                 pnt_proj,
-                wm_proj
+                wm_proj,
+                flip_xy=pnt_proj.axis_info[0].abbrev in ["X","E","Lon"]
             )
         else:
             # interpolators require y, x, z
@@ -244,9 +245,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     cube_spacing = args["cube_spacing_in_m"]
     ll_bounds = aoi.bounds()
 
-    # TODO - Fix this after the parser
-    cube_spacing = 250.
-
     # logging
     logger.debug('Starting to run the weather model cube calculation')
     logger.debug(f'Time: {dt}')
@@ -286,6 +284,9 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     else:
         out_spacing = cube_spacing
         out_snwe = clip_bbox(out_snwe, out_spacing)
+
+    logger.debug(f"Output SNWE: {out_snwe}")
+    logger.debug(f"Output cube spacing: {out_spacing}")
 
     # Load downloaded weather model file to get projection info
     ds = xarray.load_dataset(weather_model_file)
@@ -414,7 +415,7 @@ def checkQueryPntsFile(pnts_file, query_shape):
     return write_flag
 
 
-def transformPoints(lats, lons, hgts, old_proj, new_proj):
+def transformPoints(lats, lons, hgts, old_proj, new_proj,flip_xy=False):
     '''
     Transform lat/lon/hgt data to an array of points in a new
     projection
@@ -426,13 +427,17 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
     hgts - Ellipsoidal height in meters
     old_proj - the original projection of the points
     new_proj - the new projection in which to return the points
+    flip_xy - Boolean flag to specify XY order of old_proj
 
     Returns
     -------
     the array of query points in the weather model coordinate system
     '''
     t = Transformer.from_crs(old_proj, new_proj)
-    return np.stack(t.transform(lats, lons, hgts), axis=-1).T
+    if flip_xy:
+        return np.stack(t.transform(lons, lats, hgts), axis=-1).T
+    else:
+        return np.stack(t.transform(lats, lons, hgts), axis=-1).T
 
 
 def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
@@ -458,10 +463,12 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 
         # pts is in weather model system
         if model_crs != pts_crs:
-            pts = transformPoints(
-                yy, xx, np.full(yy.shape, ht),
-                pts_crs, model_crs
-            )
+            pts = np.transpose(
+                transformPoints(
+                    yy, xx, np.full(yy.shape, ht),
+                    pts_crs, model_crs,
+                    flip_xy=pts_crs.axis_info[0].abbrev in ["X", "E", "Lon"]
+                ), (2, 1, 0))
         else:
             pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
 
@@ -607,7 +614,9 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, model_crs, pts_crs, i
             # Determine number of parts to break ray into
             nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
             if (nParts == 1):
-                1/0
+                raise RuntimeError(
+                    "Ray with one segment encountered"
+                )
 
             # fractions
             fracs = np.linspace(0., 1., num=nParts)
