@@ -4,8 +4,7 @@ FROM condaforge/mambaforge:latest
 #    https://github.com/opencontainers/image-spec/blob/master/annotations.md
 LABEL org.opencontainers.image.title="RAiDER"
 LABEL org.opencontainers.image.description="Raytracing Atmospheric Delay Estimation for RADAR"
-#LABEL org.opencontainers.image.vendor=""
-#LABEL org.opencontainers.image.authors=""
+LABEL org.opencontainers.image.authors="David Bekaert<david.bekaert@jpl.nasa.gov>, Jeremy Maurer <maurer.jeremy@gmail.com>, Piyush Agram <piyush@descarteslabs.com>"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.url="https://github.com/dbekaert/RAiDER"
 LABEL org.opencontainers.image.source="https://github.com/dbekaert/RAiDER"
