@@ -1,11 +1,13 @@
 import datetime
 import logging
+import requests
 import xarray
 
 import numpy as np
-import requests
 
 from cfgrib.xarray_store import open_dataset
+from herbie import Herbie
+from pathlib import Path
 from pyproj import CRS
 
 from RAiDER.logger import logger
@@ -69,8 +71,13 @@ class HRRR(WeatherModel):
         '''
         # bounding box plus a buffer
         time = self._time
-        self.files = self._download_hrrr_file(time, 'hrrr', out=out,
-                                              field='prs', verbose=True)
+        self.files = self._download_hrrr_file(
+            time, 
+            'hrrr', 
+            out=out,
+            field='prs', 
+            verbose=True,
+        )
 
 
     def load_weather(self, *args, filename=None, **kwargs):
@@ -106,7 +113,6 @@ class HRRR(WeatherModel):
 
         self._t = temps
         self._q = qs
-
         self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
                                   self._zs.shape)
         self._xs = _xs
@@ -116,6 +122,7 @@ class HRRR(WeatherModel):
 
         # For some reason z is opposite the others
         self._p = np.flip(self._p, axis=2)
+
 
     def _makeDataCubes(self, outName, verbose=False):
         '''
@@ -177,16 +184,13 @@ class HRRR(WeatherModel):
         '''
         Download a HRRR model
         '''
-        fxx = '00'
-        grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{}.grib2' \
-            .format(model, field, DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
-
-        logger.debug('Downloading %s to %s', grib2file, out)
-
-        r = requests.get(grib2file)
-        with open(out, 'wb') as f:
-            f.write(r.content)
-
-        logger.debug('Success!')
-
-        return out
+        H = Herbie(
+            DATE.strftime('%Y-%m-%d %H:%M'),
+            model=model,
+            product=field,
+            overwrite=True,
+            verbose=verbose,
+            save_dir=Path(out),
+        )
+        p = H.download(":(SPFH|PRES|TMP|HGT):")
+        return p

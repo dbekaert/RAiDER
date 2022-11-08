@@ -255,6 +255,8 @@ def convert_time(inp):
             return time(*strptime(inp, tf)[3:6])
         except ValueError:
             pass
+        except TypeError:
+            breakpoint()
     
     raise ValueError(
                 'Unable to coerce {} to a time.'+ 
