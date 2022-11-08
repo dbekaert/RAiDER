@@ -6,8 +6,7 @@
 name: RAiDER
 channels:
  - conda-forge
- - anaconda
- - defaults
+ - nodefaults
 dependencies:
  - python>=3.8
  - pip
