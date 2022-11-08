@@ -627,7 +627,17 @@ def get_radar_pos(llh, orb, out="lookangle"):
 
 def getTopOfAtmosphere(xyz, lookvecs, toaheight, factor=None):
     """
-    Get ray intersection at given height
+    Get ray intersection at given height.
+
+    We use simple Newton-Raphson for this computation. This cannot be done
+    exactly since closed form expression from xyz to llh is super compliated.
+
+    If a factor (cos of inc angle) is provided - iterations are lot faster.
+    If factor is not provided solutions converges to
+        - 0.01 mm at heights near zero in 10 iterations
+        - 10 cm at heights above 40km in 10 iterations
+
+    If factor is know, we converge in 3 iterations to less than a micron.
     """
     if factor is not None:
         maxIter = 3
