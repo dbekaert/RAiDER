@@ -256,8 +256,8 @@ def read_template_file(fname):
 
 
 def drop_nans(d):
-    for key, value in d.items():
-        if value is None:
+    for key in list(d.keys()):
+        if d[key] is None:
             del d[key]
     return d
 
