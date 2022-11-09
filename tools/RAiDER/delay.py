@@ -219,6 +219,9 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     except CRSError:
         raise ValueError('output_projection argument is not a valid CRS specifier')
 
+    # For testing multiprocessing
+    # TODO - move this to configuration
+    nproc = 1
 
     # logging
     logger.debug('Starting to run the weather model cube calculation')
@@ -310,14 +313,26 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             )
 
         # Get pointwise interpolators
-        ifWet, ifHydro = getInterpolators(weather_model_file, "pointwise")
+        ifWet, ifHydro = getInterpolators(weather_model_file,
+                                          kind="pointwise",
+                                          shared=(nproc > 1))
 
         # Build cube
-        wetDelay, hydroDelay = build_cube_ray(
-            xpts, ypts, zpts,
-            dt, args["los"]._file, args["look_dir"],
-            wm_proj, crs,
-            [ifWet, ifHydro])
+        if nproc == 1:
+            wetDelay, hydroDelay = build_cube_ray(
+                xpts, ypts, zpts,
+                dt, args["los"]._file, args["look_dir"],
+                wm_proj, crs,
+                [ifWet, ifHydro])
+
+        ### Use multi-processing here
+        else:
+            # Pre-build output arrays
+
+            # Create worker pool
+
+            # Loop over heights
+            print("Testing")
 
     # Write output file
     # Modify this as needed for NISAR / other projects
@@ -471,7 +486,9 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
     """
     Iterate over interpolators and build a cube
     """
+
     # Some constants for this module
+    # TODO - Read this from constants or configuration
     MAX_SEGMENT_LENGTH = 1000.
     MAX_TROPO_HEIGHT = 50000.
 
@@ -615,7 +632,13 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
                 cos_factor = (high_ht - low_ht) / ray_length
 
             # Determine number of parts to break ray into
-            nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
+            try:
+                nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
+            except ValueError:
+                raise ValueError(
+                    "geo2rdr did not converge. Check orbit coverage"
+                )
+
             if (nParts == 1):
                 raise RuntimeError(
                     "Ray with one segment encountered"
