@@ -1,11 +1,14 @@
 import datetime
 import logging
+import os
+import shutil
+import requests
 import xarray
 
 import numpy as np
-import requests
 
-from cfgrib.xarray_store import open_dataset
+from herbie import Herbie
+from pathlib import Path
 from pyproj import CRS
 
 from RAiDER.logger import logger
@@ -69,8 +72,9 @@ class HRRR(WeatherModel):
         '''
         # bounding box plus a buffer
         time = self._time
-        self.files = self._download_hrrr_file(time, 'hrrr', out=out,
-                                              field='prs', verbose=True)
+
+        self.files = self._download_hrrr_file(time, out)
+        
 
 
     def load_weather(self, *args, filename=None, **kwargs):
@@ -82,16 +86,22 @@ class HRRR(WeatherModel):
             filename = self.files
 
         # read data from grib file
-        xArr, yArr, lats, lons, temps, qs, geo_hgt, pl = \
-            self._makeDataCubes(filename, verbose=False)
+        pl = self._getPresLevels()
+        pl = np.array([self._convertmb2Pa(p) for p in pl['Values']])
+        ds = xarray.open_dataset(filename)
+        xArr = ds['x'].values
+        yArr = ds['y'].values
+        lats = ds['lats'].values
+        lons = ds['lons'].values
+        temps = ds['t'].values
+        qs = ds['q'].values
+        geo_hgt = ds['z'].values
 
         Ny, Nx = lats.shape
 
         lons[lons > 180] -= 360
 
         # data cube format should be lats,lons,heights
-        lats, lons = lats.T, lons.T
-        geo_hgt, temps, qs = geo_hgt.swapaxes(0, 1), temps.swapaxes(0, 1), qs.swapaxes(0, 1)
         _xs = np.broadcast_to(xArr[np.newaxis, :, np.newaxis],
                               geo_hgt.shape)
         _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
@@ -106,7 +116,6 @@ class HRRR(WeatherModel):
 
         self._t = temps
         self._q = qs
-
         self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
                                   self._zs.shape)
         self._xs = _xs
@@ -117,30 +126,20 @@ class HRRR(WeatherModel):
         # For some reason z is opposite the others
         self._p = np.flip(self._p, axis=2)
 
-    def _makeDataCubes(self, outName, verbose=False):
+
+    def _makeDataCubes(self, filename, out=None):
         '''
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
         '''
-        pl = self._getPresLevels()
-        pl = np.array([self._convertmb2Pa(p) for p in pl['Values']])
+        if out is None:
+            out = filename
 
-        t, z, q, xArr, yArr, lats, lons = self._pull_hrrr_data(outName, verbose=verbose)
-
-        return xArr, yArr, lats.T, lons.T, np.moveaxis(t, [0, 1, 2], [2, 1, 0]), np.moveaxis(q, [0, 1, 2], [2, 1, 0]), np.moveaxis(z, [0, 1, 2], [2, 1, 0]), pl
-
-    def _pull_hrrr_data(self, filename, verbose=False):
-        '''
-        Get the variables from a HRRR grib2 file
-        '''
         # Pull the native grid
         xArr, yArr = self.getXY_gdal(filename)
 
         # open the dataset and pull the data
-        ds = open_dataset(
-            filename,
-            backend_kwargs={'filter_by_keys': {'typeOfLevel': 'isobaricInhPa'}}
-        )
+        ds = xarray.open_dataset(filename, engine='cfgrib', filter_by_keys={'typeOfLevel': 'isobaricInhPa'})
         t = ds['t'].values.copy()
         z = ds['gh'].values.copy()
         q = ds['q'].values.copy()
@@ -149,14 +148,14 @@ class HRRR(WeatherModel):
 
         ds_new = xarray.Dataset(
             data_vars=dict(
-                t= (["x", "y", 'level'], t),
-                z= (["x", "y", 'level'], z),
-                q= (["x", "y", 'level'], q),
-                lons=(["x", "y", "level"], lons),
-                lats=(["x", "y", "level"], lats),
+                t= (["y", "x", "level"], np.moveaxis(t, [0, 1, 2], [2, 0, 1])),
+                z= (["y", "x", "level"], np.moveaxis(z, [0, 1, 2], [2, 0, 1])),
+                q= (["y", "x", "level"], np.moveaxis(q, [0, 1, 2], [2, 0, 1])),
+                lons=(["y", "x"], lons),
+                lats=(["y", "x"], lats),
             ),
             coords=dict(
-                level=np.arange(137) + 1,
+                level=np.arange(40) + 1, #TODO: is this correct? was 137...
                 x=(["x"], xArr),
                 y=(["y"], yArr),
             ),
@@ -164,8 +163,8 @@ class HRRR(WeatherModel):
                 'Weather_model':'HRRR',
            }
         )
-        ds_new.to_netcdf(filename)
-        return t, z, q, xArr, yArr, lats, lons
+        ds_new.to_netcdf(out)
+
 
     def _getPresLevels(self, low=50, high=1013.2, inc=25):
         presList = [float(v) for v in range(int(low // 1), int(high // 1), int(inc // 1))]
@@ -173,20 +172,20 @@ class HRRR(WeatherModel):
         outDict = {'Values': presList, 'units': 'mb', 'Name': 'Pressure_levels'}
         return outDict
 
-    def _download_hrrr_file(self, DATE, model, out, field='prs', verbose=False):
+    def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''
         Download a HRRR model
         '''
-        fxx = '00'
-        grib2file = 'https://pando-rgw01.chpc.utah.edu/{}/{}/{}/{}.t{:02d}z.wrf{}f{}.grib2' \
-            .format(model, field, DATE.strftime('%Y%m%d'), model, DATE.hour, field, fxx)
+        H = Herbie(
+            DATE.strftime('%Y-%m-%d %H:%M'),
+            model=model,
+            product=product,
+            overwrite=False,
+            verbose=True,
+            save_dir=Path(os.path.dirname(out)),
+        )
+        pf = H.download(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
 
-        logger.debug('Downloading %s to %s', grib2file, out)
-
-        r = requests.get(grib2file)
-        with open(out, 'wb') as f:
-            f.write(r.content)
-
-        logger.debug('Success!')
+        self._makeDataCubes(pf, out)
 
         return out

@@ -20,7 +20,19 @@
 ## NISAR: left
 look_dir: right
 
-########## 1. Date
+
+########## 1. Weather model
+## REQUIRED: TRUE
+## FORMATS: string, Select name from list below
+## 
+## Currently implemented weather models include: 
+## ERA-5, ERA-5T, HRES, ERA-I, NCMR, HRRR, GMAO, MERRA-2
+## See https://github.com/dbekaert/RAiDER/blob/10686ee3f3533a33ca0788d866003c363f58fd5e/WeatherModels.md 
+## for more details and information on licensing
+weather_model:
+
+
+########## 2. Date
 ## REQUIRED: TRUE
 ## FORMATS: YYYYMMDD
 ## 
@@ -35,7 +47,7 @@ date_group:
   date_list:   # e.g. [20200101, 20200201, 20200301]
 
 
-########## 2. Time in UTC
+########## 3. Time in UTC
 ## REQUIRED: TRUE
 ## FORMATS: HH:MM:SS; HH:MM
 ##
@@ -46,17 +58,6 @@ date_group:
 time_group:
   time:
   end_time: 
-
-
-########## 3. Weather model
-## REQUIRED: TRUE
-## FORMATS: string, Select name from list below
-## 
-## Currently implemented weather models include: 
-## ERA-5, ERA-5T, HRES, ERA-I, NCMR, HRRR, GMAO, MERRA-2
-## See https://github.com/dbekaert/RAiDER/blob/10686ee3f3533a33ca0788d866003c363f58fd5e/WeatherModels.md 
-## for more details and information on licensing
-weather_model:
 
 
 ########## 4. Area of Interest 
@@ -71,13 +72,14 @@ weather_model:
 ## 5. Specify a UTM zone, bounding box, and grid spacing to define a custom data cube
 ## 6. Same as (5) but without a specified bounding box, the box will be estimated from the time and the orbit file
 aoi_group:
+  bounding_box: 
   lat_file: 
   lon_file: 
-  station_file: 
-  bounding_box: 
   utm_zone:
   grid_x:
   grid_y:
+  station_file: 
+
 
 ########## 5. Height info
 ## REQUIRED: FALSE

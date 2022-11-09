@@ -21,6 +21,7 @@ dependencies:
  - dem_stitcher>=2.3.0
  - ecmwf-api-client
  - h5py
+ - herbie-data
  - h5netcdf
  - isce3>=0.8.0
  - lxml
@@ -32,6 +33,7 @@ dependencies:
  - pydap>3.2.2
  - pyproj>=2.2.0
  - rasterio
+ - s3fs
  - scipy
  - shapely
  - sysroot_linux-64

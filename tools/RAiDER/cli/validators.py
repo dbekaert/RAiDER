@@ -106,25 +106,24 @@ def get_query_region(args):
     '''
     Parse the query region from inputs
     '''
-
-    # set defaults
-     # Get bounds from the inputs
-    if args.lat_file is not None:
+    # Get bounds from the inputs
+    if 'lat_file' in args.keys():
         query = RasterRDR(args.lat_file, args.lon_file, args.height_file_rdr)
 
-    elif args.station_file is not None:
+    elif 'station_file' in args.keys():
         query = StationFile(args.station_file)
 
-    elif args.bounding_box is not None:
+    elif 'bounding_box' in args.keys():
         bbox = enforce_bbox(args.bounding_box)
         if (np.min(bbox[0]) < -90) | (np.max(bbox[1]) > 90):
             raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched? Should be SNWE')
         query = BoundingBox(bbox)
 
-    elif args.use_dem_latlon:
+    #TODO the next two options won't be reached currently because they are not in the aoi_group
+    elif 'use_dem_latlon' in args.keys():
         query = GeocodedFile(args.dem, is_dem=True)
  
-    elif args.los_cube:
+    elif 'los_cube' in args.keys():
         query = Geocube(args.los_cube)
 
     else:
@@ -255,6 +254,8 @@ def convert_time(inp):
             return time(*strptime(inp, tf)[3:6])
         except ValueError:
             pass
+        except TypeError:
+            breakpoint()
     
     raise ValueError(
                 'Unable to coerce {} to a time.'+ 
