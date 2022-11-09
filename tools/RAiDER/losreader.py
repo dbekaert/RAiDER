@@ -48,6 +48,9 @@ class LOS(ABC):
             self._lats = lats
             self._lons = lons
             self._heights = heights
+    
+    def is_Zenith(self):
+        return False
 
 
 class Zenith(LOS):
@@ -63,6 +66,9 @@ class Zenith(LOS):
     def __call__(self, delays):
         '''Placeholder method for consistency with the other classes'''
         return delays
+    
+    def is_Zenith(self):
+        return True
 
 
 class Conventional(LOS):

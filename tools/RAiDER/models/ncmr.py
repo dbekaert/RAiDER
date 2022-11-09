@@ -41,6 +41,7 @@ class NCMR(WeatherModel):
         self._valid_range = (datetime.datetime(2015, 12, 1), "Present")
         # Availability lag time in days/hours
         self._lag_time = datetime.timedelta(hours=6)
+        self._time_res = 1
 
         # model constants
         self._k1 = 0.776   # [K/Pa]

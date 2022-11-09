@@ -125,8 +125,12 @@ class GeocodedFile(AOI):
         # ll_bounds are SNWE
         S, N, W, E = self._bounding_box
         w, l = self._size
-        #TODO: finish this
-        raise NotImplementedError
+        px = (E - W) / l
+        py = (N - S) / w
+        x = np.array([W + (t * px) for t in range(l)])
+        y = np.array([S + (t * py) for t in range(w)])
+        X, Y = np.meshgrid(x,y)
+        return Y, X # lats, lons
     
     def readZ(self):
         if self._is_dem:

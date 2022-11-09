@@ -30,18 +30,18 @@ def enforce_wm(value):
 
 
 def get_los(args):
-    if args.orbit_file is not None:
+    if 'orbit_file' in args.keys():
         if args.ray_trace:
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
-    elif args.los_file is not None:
+    elif 'los_file' in args.keys():
         if args.ray_trace:
             los = Raytracing(args.los_file, args.los_convention)
         else:
             los = Conventional(args.los_file, args.los_convention)
-    elif args.los_cube is not None:
-        raise NotImplementedError()
+    elif 'los_cube' in args.keys():
+        raise NotImplementedError('LOS_cube is not yet implemented')
 #        if args.ray_trace:
 #            los = Raytracing(args.los_cube)
 #        else:
@@ -65,39 +65,41 @@ def get_heights(args, out, station_file, bounding_box=None):
             'height_levels': None,
         }
 
-    if args.dem is None:
+    if 'dem' in args.keys():
         if (station_file is not None):
             if 'Hgt_m' not in pd.read_csv(station_file):
                 out['dem'] = os.path.join(dem_path, 'GLO30.dem')
-
-        elif args.height_file_rdr is not None:
-            out['height_file_rdr'] = args.height_file_rdr
-
-        elif args.height_levels is not None:
-            out['height_levels'] = [float(l) for l in args.height_levels.strip().split()]
-
+        elif os.path.exists(args.dem):
+            out['dem'] = args['dem']
+            if bounding_box is not None:
+                dem_bounds = rio_extents(rio_profile(args.dem))
+                lats = dem_bounds[:2]
+                lons = dem_bounds[2:]
+                if isOutside(
+                    bounding_box,
+                    getBufferedExtent(
+                        lats,
+                        lons,
+                        buf=_BUFFER_SIZE,
+                    )
+                ):
+                    raise ValueError(
+                                'Existing DEM does not cover the area of the input lat/lon '
+                                'points; either move the DEM, delete it, or change the input '
+                                'points.'
+                            )
         else:
-            out['dem'] = os.path.join(dem_path, 'GLO30.dem')
+            pass # will download the dem later
+
+    elif 'height_file_rdr' in args.keys():
+        out['height_file_rdr'] = args.height_file_rdr
+
+    elif 'height_levels' in args.keys():
+        out['height_levels'] = [float(l) for l in args.height_levels.strip().split()]
 
     else:
-        if bounding_box is not None:
-            dem_bounds = rio_extents(rio_profile(args.dem))
-            lats = dem_bounds[:2]
-            lons = dem_bounds[2:]
-            if isOutside(
-                bounding_box,
-                getBufferedExtent(
-                    lats,
-                    lons,
-                    buf=_BUFFER_SIZE,
-                )
-            ):
-                raise ValueError(
-                            'Existing DEM does not cover the area of the input lat/lon '
-                            'points; either move the DEM, delete it, or change the input '
-                            'points.'
-                        )
-    out['dem'] = args.dem
+        # download the DEM if needed
+        out['dem'] = os.path.join(dem_path, 'GLO30.dem')
 
     return out 
 
@@ -122,6 +124,9 @@ def get_query_region(args):
     #TODO the next two options won't be reached currently because they are not in the aoi_group
     elif 'use_dem_latlon' in args.keys():
         query = GeocodedFile(args.dem, is_dem=True)
+    
+    elif 'geocoded_file' in args.keys():
+        query = GeocodedFile(args.geocoded_file, is_dem=False)
  
     elif 'los_cube' in args.keys():
         query = Geocube(args.los_cube)
@@ -162,31 +167,30 @@ def parse_dates(arg_dict):
     '''
     Determine the requested dates from the input parameters
     '''
-    start = arg_dict['date_start']
-    end = arg_dict['date_end']
-    step = arg_dict['date_step']
-    l = arg_dict['date_list']
-
-    if l is not None:
+    
+    if 'date_list' in arg_dict.keys():
+        l = arg_dict['date_list']
         L = [enforce_valid_dates(d) for d in l]
 
     else:
-       if (start is None) and (l is None):
-            raise ValueError('You must specify either a date_list or date_start in the configuration file')
-       else:
-           start = enforce_valid_dates(start)
+        try:
+            start = arg_dict['date_start']
+        except KeyError:
+            raise ValueError('Inputs must include either date_list or date_start')
+        start = enforce_valid_dates(start)
 
-       if end is not None:
-           end = enforce_valid_dates(end)
-       else:
+        if 'date_end' in arg_dict.keys():
+            end = arg_dict['date_end']    
+            end = enforce_valid_dates(end)
+        else:
            end = start 
 
-       if step is None:
-           step = 1
-       else:
-            step = int(step) # Note that fractional steps are ignored
+        if 'date_step' in arg_dict.keys():
+            step = int(arg_dict['date_step'])
+        else:
+            step = 1
         
-       L = [start + timedelta(days=step) for step in range(0, (end - start).days + 1, step)]
+        L = [start + timedelta(days=step) for step in range(0, (end - start).days + 1, step)]
 
     return L
 
@@ -218,8 +222,12 @@ def enforce_time(arg_dict):
     '''
     Parse an input time (required to be ISO 8601)
     '''
-    arg_dict['time'] = convert_time(arg_dict['time'])
-    if arg_dict['end_time'] is not None:
+    try:
+        arg_dict['time'] = convert_time(arg_dict['time'])
+    except KeyError:
+        raise ValueError('You must specify a "time" in the input config file')
+
+    if 'end_time' in arg_dict.keys():
         arg_dict['end_time'] = convert_time(arg_dict['end_time'])
     return arg_dict
 
@@ -254,8 +262,6 @@ def convert_time(inp):
             return time(*strptime(inp, tf)[3:6])
         except ValueError:
             pass
-        except TypeError:
-            breakpoint()
     
     raise ValueError(
                 'Unable to coerce {} to a time.'+ 

@@ -29,6 +29,8 @@ class HRRR(WeatherModel):
         self._classname = 'hrrr'
         self._dataset = 'hrrr'
 
+        self._time_res = 1
+
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(2016, 7, 15), "Present")
         self._lag_time = datetime.timedelta(hours=3)  # Availability lag time in days

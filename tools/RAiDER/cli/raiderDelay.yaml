@@ -69,16 +69,13 @@ time_group:
 ## 2. A comma-delimited file (station_file) containing at least the columns Lat and Lon, and optionally Hgt_m
 ## 3. A bounding box in lat/lon specified as a space-separated list: South North West East
 ## 4. Use the lat/lon grid from a geocoded DEM or LOS file (Sections 4 and 5 below)
-## 5. Specify a UTM zone, bounding box, and grid spacing to define a custom data cube
-## 6. Same as (5) but without a specified bounding box, the box will be estimated from the time and the orbit file
+## 5. Specify a geocoded file, e.g. ARIA GUNW product, from which the AOI will be determined
 aoi_group:
   bounding_box: 
   lat_file: 
   lon_file: 
-  utm_zone:
-  grid_x:
-  grid_y:
   station_file: 
+  geocoded_file: 
 
 
 ########## 5. Height info
