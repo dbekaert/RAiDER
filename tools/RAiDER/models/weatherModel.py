@@ -625,17 +625,18 @@ class WeatherModel(ABC):
         self.files = [f]
 
     def write(
-        self,
-        NoDataValue=-3.4028234e+38,
-        chunk=(1, 128, 128),
-        mapping_name='WGS84'
-    ):
+            self,
+            NoDataValue=-3.4028234e+38,
+            chunk=(1, 128, 128),
+        ):
         '''
         By calling the abstract/modular netcdf writer
         (RAiDER.utilFcns.write2NETCDF4core), write the weather model data
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
         # Generate the filename
+        mapping_name= get_mapping(self._proj)
+
         f = self._out_name
 
         dimidY, dimidX, dimidZ = self._t.shape
@@ -861,3 +862,13 @@ def find_svp(t):
 
     svp = svp * 100
     return svp.astype(np.float32)
+
+
+def get_mapping(proj):
+    '''Get CF-complient projection information from a proj'''
+    # In case of WGS-84 lat/lon, keep it simple
+    if proj.to_epsg()==4326:
+        return 'WGS84'
+    else:
+        return proj.to_wkt()
+    
