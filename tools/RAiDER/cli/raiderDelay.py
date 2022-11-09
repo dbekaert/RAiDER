@@ -228,6 +228,10 @@ def read_template_file(fname):
     # Parse the user-provided arguments
     template = DEFAULT_DICT
     for key, value in params.items():
+        if key == 'runtime_group':
+            for k, v in value.items():
+                if v is not None:
+                    template[k] = v
         if key == 'weather_model':
             template[key]= enforce_wm(value)
         if key == 'time_group':
