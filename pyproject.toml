@@ -14,7 +14,8 @@ name = "RAiDER"
 authors = [
     {name="David Bekaert", email="david.bekaert@jpl.nasa.gov"},
     {name="Jeremy Maurer", email="maurer.jeremy@gmail.com"},
-    {name="Piyush Agram", email="piyush@descarteslabs.com"}
+    {name="Piyush Agram", email="piyush@descarteslabs.com"},
+    {name="Simran Sangha", email="simran.s.sangha@jpl.nasa.gov"}    
 ]
 description = "Raytracing Atmospheric Delay Estimation for RADAR"
 readme = "README.md"
