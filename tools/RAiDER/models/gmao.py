@@ -83,31 +83,31 @@ class GMAO(WeatherModel):
             url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
             session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
             ds = pydap.client.open_url(url, session=session)
-            q = ds['qv'].array[
+            qv = ds['qv'].array[
                 time_ind,
                 ml_min:(ml_max + 1),
                 lat_min_ind:(lat_max_ind + 1),
                 lon_min_ind:(lon_max_ind + 1)
-            ][0]
+            ].data[0]
 
             p = ds['pl'].array[
                 time_ind,
                 ml_min:(ml_max + 1),
                 lat_min_ind:(lat_max_ind + 1),
                 lon_min_ind:(lon_max_ind + 1)
-            ][0]
+            ].data[0]
             t = ds['t'].array[
                 time_ind,
                 ml_min:(ml_max + 1),
                 lat_min_ind:(lat_max_ind + 1),
                 lon_min_ind:(lon_max_ind + 1)
-            ][0]
+            ].data[0]
             h = ds['h'].array[
                 time_ind,
                 ml_min:(ml_max + 1),
                 lat_min_ind:(lat_max_ind + 1),
                 lon_min_ind:(lon_max_ind + 1)
-            ][0]
+            ].data[0]
 
         else:
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
@@ -144,7 +144,7 @@ class GMAO(WeatherModel):
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
+            writeWeatherVars2NETCDF4(self, lats, lons, h, qv, p, t, outName=out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

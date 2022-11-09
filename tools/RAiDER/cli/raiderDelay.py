@@ -215,6 +215,8 @@ def read_template_file(fname):
         except yaml.YAMLError as exc:
             print(exc)
             raise ValueError('Something is wrong with the yaml file {}'.format(fname))
+    
+    # Drop any values not specified
     params = drop_nans(params)
 
     # Need to ensure that all the groups exist, even if they are not specified by the user
@@ -226,6 +228,10 @@ def read_template_file(fname):
     # Parse the user-provided arguments
     template = DEFAULT_DICT
     for key, value in params.items():
+        if key == 'runtime_group':
+            for k, v in value.items():
+                if v is not None:
+                    template[k] = v
         if key == 'weather_model':
             template[key]= enforce_wm(value)
         if key == 'time_group':
@@ -259,5 +265,9 @@ def drop_nans(d):
     for key in list(d.keys()):
         if d[key] is None:
             del d[key]
+        elif isinstance(d[key], dict):
+            for k in list(d[key].keys()):
+                if d[key][k] is None:
+                    del d[key][k]
     return d
 
