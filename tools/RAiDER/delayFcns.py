@@ -7,7 +7,6 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import itertools
 import multiprocessing as mp
-import time
 import xarray
 
 from netCDF4 import Dataset
@@ -110,18 +109,6 @@ def getInterpolators(wm_file, kind='pointwise'):
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
 
     return ifWet, ifHydro
-
-
-def make_interpolator(xs, ys, zs, data):
-    '''
-    Function to create and return an Interpolator object
-    '''
-    return RegularGridInterpolator(
-        (ys.ravel(), xs.ravel(), zs.ravel()),
-        data,
-        bounds_error=False,
-        fill_value=np.nan
-    )
 
 
 def chunk(chunkSize, in_shape):
