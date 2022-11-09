@@ -46,7 +46,8 @@ class MERRA2(WeatherModel):
         self._valid_range = (dt.datetime(1980, 1, 1), "Present")
         lag_time = utcnow - enddate
         self._lag_time = dt.timedelta(days=lag_time.days)  # Availability lag time in days
-
+        self._time_res = 1
+        
         # model constants
         self._k1 = 0.776  # [K/Pa]
         self._k2 = 0.233  # [K/Pa]

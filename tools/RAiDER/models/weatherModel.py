@@ -36,6 +36,8 @@ class WeatherModel(ABC):
 
         self.files = None
 
+        self._time_res = None # time resolution of the weather model in hours
+
         self._lon_res = None
         self._lat_res = None
         self._x_res = None

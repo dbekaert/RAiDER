@@ -392,7 +392,7 @@ def read_hgt_file(filename):
     return hgts
 
 
-def roundTime(dt, roundTo=60):
+def round_time(dt, roundTo=60):
     '''
     Round a datetime object to any time lapse in seconds
     dt: datetime.datetime object

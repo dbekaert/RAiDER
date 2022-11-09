@@ -20,6 +20,8 @@ class customModelReader(WeatherModel):
         self._valid_range = (datetime.datetime(2016, 7, 15), "Present")
         #  Availability lag time. Can be specified in hours "hours=3" or in days "days=3"
         self._lag_time = datetime.timedelta(hours=3)
+        # Availabile time resolution; i.e. minimum rate model is available in hours. 1 is hourly
+        self._time_res = 1
 
         # model constants (these three constants are borrowed from ECMWF model and currently
         # set to be default for all other models, which may need to be double checked.)

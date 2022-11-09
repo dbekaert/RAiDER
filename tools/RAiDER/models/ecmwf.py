@@ -31,6 +31,8 @@ class ECMWF(WeatherModel):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
+        self._time_res = 1
+
         self._lon_res = 0.2
         self._lat_res = 0.2
         self._proj = CRS.from_epsg(4326)
@@ -214,6 +216,9 @@ class ECMWF(WeatherModel):
 
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
+        # round to the closest legal time
+        corrected_date = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
+
         # I referenced https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
         dataDict = {
             "class": "ea",
@@ -223,8 +228,8 @@ class ECMWF(WeatherModel):
             'param': var,
             "stream": "oper",
             "type": "an",
-            "date": "{}".format(acqTime.strftime('%Y-%m-%d')),
-            "time": "{}".format(datetime.time.strftime(acqTime.time(), '%H:%M')),
+            "date": "{}".format(corrected_date.strftime('%Y-%m-%d')),
+            "time": "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -245,7 +250,8 @@ class ECMWF(WeatherModel):
 
         server = ECMWFService("mars")
 
-        corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        # round to the closest legal time
+        corrected_date = util.round_date(time, datetime.timedelta(hours=self._time_res))
 
         if self._model_level_type == 'ml':
             param = "129/130/133/152"

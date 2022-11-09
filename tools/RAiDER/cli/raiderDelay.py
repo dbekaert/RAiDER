@@ -57,9 +57,7 @@ DEFAULT_DICT = dict(
         lon_file=None,
         station_file=None,
         bounding_box=None,
-        utm_zone=None,
-        grid_x=None,
-        grid_y=None,
+        geocoded_file=None,
         dem=None,
         use_dem_latlon=False,
         height_levels=None,
@@ -218,17 +216,10 @@ def read_template_file(fname):
             print(exc)
             raise ValueError('Something is wrong with the yaml file {}'.format(fname))
     params = drop_nans(params)
-    AttributeDict(params)
 
-    # parse line by line
+    # Parse the user-provided arguments
     template = DEFAULT_DICT
-
-    # Input argment parsing
     for key, value in params.items():
-        if key == 'runtime_group':
-            for k, v in value.items():
-                if v is not None:
-                    template[k] = v
         if key == 'weather_model':
             template[key]= enforce_wm(value)
         if key == 'time_group':

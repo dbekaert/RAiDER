@@ -28,6 +28,8 @@ class HRES(ECMWF):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
+        self._time_res = 6
+
         # 9 km horizontal grid spacing. This is only used for extending the download-buffer, i.e. not in subsequent processing.
         self._lon_res = 9. / 111  # 0.08108115
         self._lat_res = 9. / 111  # 0.08108115

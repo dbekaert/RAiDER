@@ -9,7 +9,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4, roundTime, requests_retry_session
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4, round_time, requests_retry_session
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -36,6 +36,8 @@ class GMAO(WeatherModel):
         self._k1 = 0.776  # [K/Pa]
         self._k2 = 0.233  # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
+
+        self._time_res = 1
 
         # horizontal grid spacing
         self._lat_res = 0.25
@@ -67,7 +69,7 @@ class GMAO(WeatherModel):
         T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
         # round time to nearest third hour
         time1 = time
-        time = roundTime(time, 3 * 60 * 60)
+        time = round_time(time, 3 * 60 * 60)
         if not time1 == time:
             logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
 
