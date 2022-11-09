@@ -37,20 +37,39 @@ RAiDER is available on [conda-forge](https://anaconda.org/conda-forge/raider). _
 
 Installing RAiDER:
 ```
-conda env create --name RAiDER
+conda env create --name RAiDER  -c conda-forge raider
 conda activate RAiDER
-conda install -c conda-forge raider
 ```
+
+### Using the Docker image
+RAiDER provides a [docker container image](https://docs.docker.com/get-started/) with all the necessary dependencies pre-installed. To get the latest released version: 
+```
+docker pull ghcr.io/dbekaert/raider:latest
+```
+or the current development version:
+```
+docker pull ghcr.io/dbekaert/raider:test
+```
+
+To run the container and jump into a bash shell inside:
+```
+docker run -it --rm ghcr.io/dbekaert/raider:latest
+```
+To mount your current directory inside the container so that files will be written back to your local machine:
+```
+docker run -it -v ${PWD}:/home/raider/work --rm ghcr.io/dbekaert/raider:latest
+cd work
+```
+For more docker run options, see: <https://docs.docker.com/engine/reference/run/>.
+
 ### Installing from source
 You can also install RAiDER directly from source. Doing so is recommended for those who would like to [contribute to the source code](https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md), which we heartily encourage! For more details on installing from source see [here](https://github.com/dbekaert/RAiDER/blob/dev/Installing_from_source.md).
 ```
 git clone https://github.com/dbekaert/RAiDER.git
 cd RAiDER
 conda env create -f environment.yml
-# can also use the development version: 
-# conda env create -f environment-dev.yml
 conda activate RAiDER
-pip install -e .
+python -m pip install -e .
 ```
 ------
 ## 2. Setup of third party weather model access
