@@ -22,6 +22,7 @@ dependencies:
  - ecmwf-api-client
  - h5py
  - herbie
+ - h5netcdf
  - isce3>=0.8.0
  - lxml
  - matplotlib
