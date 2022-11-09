@@ -33,7 +33,7 @@ from RAiDER.utilFcns import (
 )
 
 
-def tropo_delay(dt, wf, hf, args):
+def tropo_delay(dt, wetFilename, hydroFilename, args):
     """
     raiderDelay main function.
 
@@ -58,9 +58,6 @@ def tropo_delay(dt, wf, hf, args):
         verbose - verbose printing
     """
     # unpacking the dictionairy
-    wetFilename = wf
-    hydroFilename = hf
-
     los = args['los']
     ll_bounds = args['bounding_box']
     heights = args['dem']
@@ -102,20 +99,12 @@ def tropo_delay(dt, wf, hf, args):
         # This branch is specifically for cube generation
         try:
             tropo_delay_cube(
-                dt, wf, args,
+                dt, wetFilename, args,
                 model_file=weather_model_file,
             )
         except Exception as e:
             logger.error(e)
             raise RuntimeError('Something went wrong in calculating delays on the cube')
-            
-        else:
-            logger.debug(
-                'Only Zenith delays at the weather model nodes '
-                'are requested, so I am exiting now. Delays have '
-                'been written to the weather model file; see '
-                '{}'.format(weather_model_file)
-            )
         return None, None
 
     ###########################################################
@@ -234,7 +223,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     # logging
     logger.debug('Starting to run the weather model cube calculation')
     logger.debug(f'Time: {dt}')
-    logger.debug(f'Output height range is {min(heights)} to {max(heights)}')
     logger.debug(f'Max integration height is {zref:1.1f} m')
     logger.debug(f'Output cube projection is {crs.to_wkt()}')
     logger.debug(f'Output cube spacing is {cube_spacing} m')
@@ -283,6 +271,8 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     else:
         heights = ds.z.values
     ds.close()
+    logger.debug(f'Output height range is {min(heights)} to {max(heights)}')
+
 
     try:
         wm_proj = ds["CRS"]
@@ -309,7 +299,8 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             xpts, ypts, zpts,
             wm_proj, crs,
             [ifWet, ifHydro])
-    elif args['ray_trace']:
+    
+    else:
         out_type = "slant range"
         out_filename = wf.replace("_ztd", "_std").replace("wet", "tropo")
 
@@ -320,8 +311,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
 
         # Get pointwise interpolators
         ifWet, ifHydro = getInterpolators(weather_model_file, "pointwise")
-
-
 
         # Build cube
         wetDelay, hydroDelay = build_cube_ray(

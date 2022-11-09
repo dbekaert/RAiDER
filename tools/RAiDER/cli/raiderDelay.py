@@ -217,6 +217,12 @@ def read_template_file(fname):
             raise ValueError('Something is wrong with the yaml file {}'.format(fname))
     params = drop_nans(params)
 
+    # Need to ensure that all the groups exist, even if they are not specified by the user
+    group_keys = ['date_group', 'time_group', 'aoi_group', 'height_group', 'los_group', 'runtime_group']
+    for key in group_keys:
+        if not key in params.keys():
+            params[key] = {}
+
     # Parse the user-provided arguments
     template = DEFAULT_DICT
     for key, value in params.items():
@@ -246,7 +252,6 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
-
     return AttributeDict(template)
 
 
