@@ -218,7 +218,6 @@ def read_template_file(fname):
     
     # Drop any values not specified
     params = drop_nans(params)
-    breakpoint()
 
     # Need to ensure that all the groups exist, even if they are not specified by the user
     group_keys = ['date_group', 'time_group', 'aoi_group', 'height_group', 'los_group', 'runtime_group']
