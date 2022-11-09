@@ -466,7 +466,8 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     return outputArrs
 
 
-def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs, pts_crs, interpolators):
+def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
+                   pts_crs, interpolators, outputArrs=None):
     """
     Iterate over interpolators and build a cube
     """
@@ -504,8 +505,11 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs, 
     xx, yy = np.meshgrid(xpts, ypts)
 
     # Output arrays
-    outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
-                  for mm in range(len(interpolators))]
+    output_created_here = False
+    if outputArrs is None:
+        output_created_here = True
+        outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
+                      for mm in range(len(interpolators))]
 
     # Various transformers needed here
     epsg4326 = CRS.from_epsg(4326)
@@ -645,5 +649,5 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs, 
                     val[np.isnan(val)] = 0.0
                     out += wt * val
 
-
-    return outputArrs
+    if output_created_here:
+        return outputArrs
