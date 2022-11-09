@@ -215,7 +215,10 @@ def read_template_file(fname):
         except yaml.YAMLError as exc:
             print(exc)
             raise ValueError('Something is wrong with the yaml file {}'.format(fname))
+    
+    # Drop any values not specified
     params = drop_nans(params)
+    breakpoint()
 
     # Need to ensure that all the groups exist, even if they are not specified by the user
     group_keys = ['date_group', 'time_group', 'aoi_group', 'height_group', 'los_group', 'runtime_group']
@@ -259,5 +262,9 @@ def drop_nans(d):
     for key in list(d.keys()):
         if d[key] is None:
             del d[key]
+        elif isinstance(d[key], dict):
+            for k in list(d[key].keys()):
+                if d[key][k] is None:
+                    del d[key][k]
     return d
 
