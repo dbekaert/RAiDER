@@ -12,7 +12,6 @@ from RAiDER.cli.validators import (
 )
 
 
-
 @pytest.fixture
 def parser():
     return ArgumentParser()
@@ -83,12 +82,10 @@ def test_time_type_error():
 def test_date_list_action():
     date_list = {
         'date_start':'20200101',
-        'date_end':None,
-        'date_step':None,
-        'date_list':None,
     }
     assert date_type(date_list['date_start']) == datetime(2020,1,1)
 
+    
     assert parse_dates(date_list) == [datetime(2020,1,1)]
     
     date_list['date_end'] = '20200103'
