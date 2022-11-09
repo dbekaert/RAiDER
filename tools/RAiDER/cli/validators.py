@@ -69,34 +69,37 @@ def get_heights(args, out, station_file, bounding_box=None):
         if (station_file is not None):
             if 'Hgt_m' not in pd.read_csv(station_file):
                 out['dem'] = os.path.join(dem_path, 'GLO30.dem')
-
-        elif 'height_file_rdr' in args.keys():
-            out['height_file_rdr'] = args.height_file_rdr
-
-        elif 'height_levels' in args.keys():
-            out['height_levels'] = [float(l) for l in args.height_levels.strip().split()]
-
+        elif os.path.exists(args.dem):
+            out['dem'] = args['dem']
+            if bounding_box is not None:
+                dem_bounds = rio_extents(rio_profile(args.dem))
+                lats = dem_bounds[:2]
+                lons = dem_bounds[2:]
+                if isOutside(
+                    bounding_box,
+                    getBufferedExtent(
+                        lats,
+                        lons,
+                        buf=_BUFFER_SIZE,
+                    )
+                ):
+                    raise ValueError(
+                                'Existing DEM does not cover the area of the input lat/lon '
+                                'points; either move the DEM, delete it, or change the input '
+                                'points.'
+                            )
         else:
-            out['dem'] = os.path.join(dem_path, 'GLO30.dem')
+            pass # will download the dem later
+
+    elif 'height_file_rdr' in args.keys():
+        out['height_file_rdr'] = args.height_file_rdr
+
+    elif 'height_levels' in args.keys():
+        out['height_levels'] = [float(l) for l in args.height_levels.strip().split()]
 
     else:
-        if bounding_box is not None:
-            dem_bounds = rio_extents(rio_profile(args.dem))
-            lats = dem_bounds[:2]
-            lons = dem_bounds[2:]
-            if isOutside(
-                bounding_box,
-                getBufferedExtent(
-                    lats,
-                    lons,
-                    buf=_BUFFER_SIZE,
-                )
-            ):
-                raise ValueError(
-                            'Existing DEM does not cover the area of the input lat/lon '
-                            'points; either move the DEM, delete it, or change the input '
-                            'points.'
-                        )
+        # download the DEM if needed
+        out['dem'] = os.path.join(dem_path, 'GLO30.dem')
 
     return out 
 

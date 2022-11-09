@@ -100,32 +100,29 @@ def tropo_delay(dt, wf, hf, args):
     if aoi.type() == 'bounding_box':
         # This branch is specifically for cube generation
         if args['height_levels'] is not None:
-            # If ray tracing is desired for the cube
-            # Slant range delay is computed
-            if isinstance(args['los'], Raytracing):
-                tropo_delay_cube(dt, wf, args, model_file=weather_model_file)
 
-            # If only on weather nodes required
-            elif args['output_projection'] is None:
-                raise NotImplementedError(
-                    "Need to understand this use case better - weather nodes only"
-                )
-                # compute delays at the correct levels
-                # ds = xarray.load_dataset(weather_model_file)
-                # ds['wet_total'] = ds['wet_total'].interp(z=args['height_levels'])
-                # ds['hydro_total'] = ds['hydro_total'].interp(z=args['height_levels'])
+            if los.is_Zenith():
+                ds = xarray.load_dataset(weather_model_file)
+                ds = ds.interp(z=args['height_levels'])
+                ds.to_netcdf(weather_model_file)
+                ds.close()
+                logger.debug(
+                    'I have finished interpolating ZTD to the input'
+                    ' height levels. I have written the delays to '
+                    'the weather model file.')
 
             # Output projection provided but orbit not provided
             # In this case, build zenith delay cube
-            elif args['orbit_file'] is None:
-                tropo_delay_cube(dt, wf, args,
-                                 model_file=weather_model_file)
-
             else:
-                raise RuntimeError(
-                    "Unknown logical sequence in cube sub-chain"
-                )
-
+                try:
+                    tropo_delay_cube(
+                        dt, wf, args,
+                        model_file=weather_model_file,
+                    )
+                except Exception as e:
+                    logger.error(e)
+                    raise RuntimeError('Something went wrong in calculating delays on the cube')
+            
         else:
             logger.debug(
                 'Only Zenith delays at the weather model nodes '
