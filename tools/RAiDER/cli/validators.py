@@ -185,7 +185,7 @@ def parse_dates(arg_dict):
         else:
            end = start 
 
-        if 'step' in arg_dict.keys():
+        if 'date_step' in arg_dict.keys():
             step = int(arg_dict['date_step'])
         else:
             step = 1
