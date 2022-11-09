@@ -395,7 +395,17 @@ class WeatherModel(ABC):
             if len(datasets) == 0:
                 raise ValueError('No subdatasets found in the weather model. The file may be corrupt.\nWeather model path: {}'.format(weather_model_path))
 
-            with rasterio.open(datasets[0]) as ds:
+            # First dataset can end up being a coord. 
+            # So search for temperature here - maybe there is a better way to
+            # do this
+            temp_dataset = None
+            for ds in datasets:
+                if ds.endswith((":t", ":T", ":temperature")):
+                    temp_dataset = ds
+                    break
+
+            logger.debug(f"Using {temp_dataset} for bounds estimation")
+            with rasterio.open(temp_dataset) as ds:
                 bounds = ds.bounds
 
             xmin, ymin, xmax, ymax = tuple(bounds)

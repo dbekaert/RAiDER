@@ -29,7 +29,7 @@ from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfA
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
     writeDelays, projectDelays, writePnts2HDF5,
-    lla2ecef, transform_bbox, clip_bbox,
+    lla2ecef, transform_bbox, clip_bbox, rio_profile,
 )
 
 
@@ -109,13 +109,11 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
 
     ###########################################################
     # Load the downloaded model file for CRS information
-    ds = xarray.load_dataset(weather_model_file)
-    try:
-        wm_proj = ds['CRS']
-    except:
+    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
+    print(wm_proj)
+    if wm_proj is None:
         print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
         wm_proj = 4326
-    ds.close()
     ####################################################################
 
     ####################################################################
@@ -163,8 +161,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
         raise NotImplementedError
     else:
         raise ValueError("Unknown operation type")
-
-    del ds  # cleanup
 
     ###########################################################
     # Write the delays to file
@@ -276,12 +272,12 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     ds.close()
     logger.debug(f'Output height range is {min(heights)} to {max(heights)}')
 
-
-    try:
-        wm_proj = ds["CRS"]
-    except:
-        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
-        wm_proj = CRS.from_epsg(4326)
+    # Load CRS from weather model file
+    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
+    print(wm_proj)
+    if wm_proj is None:
+       print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+       wm_proj = CRS.from_epsg(4326)
 
     # Build the output grid
     zpts = np.array(heights)
