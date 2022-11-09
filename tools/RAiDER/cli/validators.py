@@ -124,6 +124,9 @@ def get_query_region(args):
     #TODO the next two options won't be reached currently because they are not in the aoi_group
     elif 'use_dem_latlon' in args.keys():
         query = GeocodedFile(args.dem, is_dem=True)
+    
+    elif 'geocoded_file' in args.keys():
+        query = GeocodedFile(args.geocoded_file, is_dem=False)
  
     elif 'los_cube' in args.keys():
         query = Geocube(args.los_cube)
