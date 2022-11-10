@@ -95,9 +95,9 @@ class HRRR(WeatherModel):
         yArr = ds['y'].values
         lats = ds['lats'].values
         lons = ds['lons'].values
-        temps = ds['t'].values
-        qs = ds['q'].values
-        geo_hgt = ds['z'].values
+        temps = ds['t'].values.transpose(1, 2, 0)
+        qs = ds['q'].values.transpose(1, 2, 0)
+        geo_hgt = ds['z'].values.transpose(1, 2, 0)
 
         Ny, Nx = lats.shape
 
@@ -119,14 +119,11 @@ class HRRR(WeatherModel):
         self._t = temps
         self._q = qs
         self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
-                                  self._zs.shape)
+                                  geo_hgt.shape)
         self._xs = _xs
         self._ys = _ys
         self._lats = _lats
         self._lons = _lons
-
-        # For some reason z is opposite the others
-        self._p = np.flip(self._p, axis=2)
 
 
     def _makeDataCubes(self, filename, out=None):
@@ -149,6 +146,7 @@ class HRRR(WeatherModel):
         # Determine mask based on query bounds
         lats = ds["latitude"].to_numpy()
         lons = ds["longitude"].to_numpy()
+        levels = ds["isobaricInhPa"].to_numpy()
         shp = lats.shape
         lons[lons > 180.0] -= 360.
         m1 = (S <= lats) & (N >= lats) &\
@@ -179,16 +177,46 @@ class HRRR(WeatherModel):
         # different flavors of HRRR correctly
         # self._proj currently used but these are available
         # as attrs of ds["t"] for example
-        llhtolcc = Transformer.from_crs(4326, self._proj)
-        res = llhtolcc.transform(lats, lons)
-        print("ERROR in X: ", np.abs(res[0] - xArr[None, :]).max())
-        print("ERROR in Y: ", np.abs(res[1] - yArr[:, None]).max())
+        # llhtolcc = Transformer.from_crs(4326, self._proj)
+        # res = llhtolcc.transform(lats, lons)
+        # print("ERROR in X: ", np.abs(res[0] - xArr[None, :]).max())
+        # print("ERROR in Y: ", np.abs(res[1] - yArr[:, None]).max())
 
         # Data variables
         t = ds['t'][:, y_min:y_max, x_min:x_max].to_numpy()
         z = ds['gh'][:, y_min:y_max, x_min:x_max].to_numpy()
         q = ds['q'][:, y_min:y_max, x_min:x_max].to_numpy()
         ds.close()
+
+        # This section is purely for flipping arrays as needed
+        # to match ECMWF reader is doing
+        # All flips are views - no extra memory use
+        # Lon -> From west to east
+        # Lat -> From south to north (ECMWF reads north to south and flips it
+        # load_weather) - So we do south to north here
+        # Pres -> High to Los - (ECWMF does now to high and flips it back) - so
+        # we do high to low
+        # Data is currently in [levels, y, x] order
+        flip_axes = []
+        if levels[-1] > levels[0]:
+            flip_axes.append(0)
+            levels = np.flip(levels)
+
+        if lats[0, 0] > lats[-1, 0]:
+            flip_axes.append(1)
+            lats = np.flip(lats, 0)
+            yArr = np.flip(yArr)
+
+        if lons[0, 0] > lons[0, -1]:
+            flip_axes.append(2)
+            lons = np.flip(lons, 1)
+            xArr = np.flip(xArr)
+
+        flip_axes = tuple(flip_axes)
+        if flip_axes:
+            t = np.flip(t, flip_axes)
+            z = np.flip(z, flip_axes)
+            q = np.flip(q, flip_axes)
 
         # Create output dataset
         ds_new = xarray.Dataset(
@@ -199,10 +227,13 @@ class HRRR(WeatherModel):
                     {"grid_mapping": "proj"}),
                 q= (["level", "y", "x"], q,
                     {"grid_mapping": "proj"}),
+                lats=(["y", "x"], lats),
+                lons=(["y", "x"], lons),
             ),
             coords=dict(
-                level=(["level"], np.arange(t.shape[0]) + 1,
-                       {"description": "model level",
+                level=(["level"], levels,
+                       {"units": "millibars",
+                        "long_name":  "pressure_level",
                         "axis": "Z"}),
                 x=(["x"], xArr,
                    {"standard_name": "projection_x_coordinate",
