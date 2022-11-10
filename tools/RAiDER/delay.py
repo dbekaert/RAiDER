@@ -110,7 +110,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     ###########################################################
     # Load the downloaded model file for CRS information
     wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
-    print(wm_proj)
     if wm_proj is None:
         print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
         wm_proj = 4326
@@ -274,7 +273,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
 
     # Load CRS from weather model file
     wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
-    print(wm_proj)
     if wm_proj is None:
        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
        wm_proj = CRS.from_epsg(4326)
@@ -298,7 +296,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             xpts, ypts, zpts,
             wm_proj, crs,
             [ifWet, ifHydro])
-    
     else:
         out_type = "slant range"
         out_filename = wf.replace("_ztd", "_std").replace("wet", "tropo")
