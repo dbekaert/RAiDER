@@ -547,24 +547,6 @@ class WeatherModel(ABC):
     def getPoints(self):
         return self._xs.copy(), self._ys.copy(), self._zs.copy()
 
-    def getXY_gdal(self, filename):
-        '''
-        Pull the grid info (x,y) from a gdal-readable file
-        '''
-        with rasterio.open(filename) as ds:
-            xSize, ySize = ds.width, ds.height
-            trans = ds.transform.to_gdal()
-
-        # make regular point grid
-        pixelSizeX = trans[1]
-        pixelSizeY = trans[5]
-        eastOrigin = trans[0] + 0.5 * pixelSizeX
-        northOrigin = trans[3] + 0.5 * pixelSizeY
-        xArray = np.arange(eastOrigin, eastOrigin + pixelSizeX * xSize, pixelSizeX)
-        yArray = np.arange(northOrigin, northOrigin + pixelSizeY * ySize, pixelSizeY)
-
-        return xArray, yArray
-
     def _uniform_in_z(self, _zlevels=None):
         '''
         Interpolate all variables to a regular grid in z

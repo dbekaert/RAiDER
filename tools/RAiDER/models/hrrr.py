@@ -9,9 +9,10 @@ import numpy as np
 
 from herbie import Herbie
 from pathlib import Path
-from pyproj import CRS
+from pyproj import CRS, Transformer
 
 from RAiDER.logger import logger
+from RAiDER.utilFcns import rio_profile
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -76,7 +77,6 @@ class HRRR(WeatherModel):
         time = self._time
 
         self.files = self._download_hrrr_file(time, out)
-        
 
 
     def load_weather(self, *args, filename=None, **kwargs):
@@ -137,34 +137,93 @@ class HRRR(WeatherModel):
         if out is None:
             out = filename
 
-        # Pull the native grid
-        xArr, yArr = self.getXY_gdal(filename)
+        # Get profile information from gdal
+        prof = rio_profile(str(filename))
+
+        # Now get bounds
+        S, N, W, E = self._ll_bounds
 
         # open the dataset and pull the data
         ds = xarray.open_dataset(filename, engine='cfgrib', filter_by_keys={'typeOfLevel': 'isobaricInhPa'})
-        t = ds['t'].values.copy()
-        z = ds['gh'].values.copy()
-        q = ds['q'].values.copy()
-        lats = ds['t'].latitude.values.copy()
-        lons = ds['t'].longitude.values.copy()
 
+        # Determine mask based on query bounds
+        lats = ds["latitude"].to_numpy()
+        lons = ds["longitude"].to_numpy()
+        shp = lats.shape
+        lons[lons > 180.0] -= 360.
+        m1 = (S <= lats) & (N >= lats) &\
+                (W <= lons) & (E >= lons)
+
+        # Y extent
+        m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
+        y_min = max(m1_y[0][0] - 2, 0)
+        y_max = min(m1_y[-1][0] + 3, shp[0])
+        m1_y = None
+
+        # X extent
+        m1_x = np.argwhere(np.sum(m1, axis=0) != 0)
+        x_min = max(m1_x[0][0] - 2, 0)
+        x_max = min(m1_x[-1][0] + 3, shp[1])
+        m1_x = None
+        m1 = None
+
+        # Coordinate arrays
+        # HRRR GRIB has data in south-up format
+        trans = prof["transform"].to_gdal()
+        xArr = trans[0] + (np.arange(x_min, x_max) + 0.5) * trans[1]
+        yArr = trans[3] + (prof["height"] * trans[5]) - (np.arange(y_min, y_max) + 0.5) * trans[5]
+        lats = lats[y_min:y_max, x_min:x_max]
+        lons = lons[y_min:y_max, x_min:x_max]
+
+        # TODO: Remove this block once we know we handle
+        # different flavors of HRRR correctly
+        # self._proj currently used but these are available
+        # as attrs of ds["t"] for example
+        llhtolcc = Transformer.from_crs(4326, self._proj)
+        res = llhtolcc.transform(lats, lons)
+        print("ERROR in X: ", np.abs(res[0] - xArr[None, :]).max())
+        print("ERROR in Y: ", np.abs(res[1] - yArr[:, None]).max())
+
+        # Data variables
+        t = ds['t'][:, y_min:y_max, x_min:x_max].to_numpy()
+        z = ds['gh'][:, y_min:y_max, x_min:x_max].to_numpy()
+        q = ds['q'][:, y_min:y_max, x_min:x_max].to_numpy()
+        ds.close()
+
+        # Create output dataset
         ds_new = xarray.Dataset(
             data_vars=dict(
-                t= (["y", "x", "level"], np.moveaxis(t, [0, 1, 2], [2, 0, 1])),
-                z= (["y", "x", "level"], np.moveaxis(z, [0, 1, 2], [2, 0, 1])),
-                q= (["y", "x", "level"], np.moveaxis(q, [0, 1, 2], [2, 0, 1])),
-                lons=(["y", "x"], lons),
-                lats=(["y", "x"], lats),
+                t= (["level", "y", "x"], t,
+                    {"grid_mapping": "proj"}),
+                z= (["level", "y", "x"], z,
+                    {"grid_mapping": "proj"}),
+                q= (["level", "y", "x"], q,
+                    {"grid_mapping": "proj"}),
             ),
             coords=dict(
-                level=np.arange(40) + 1, #TODO: is this correct? was 137...
-                x=(["x"], xArr),
-                y=(["y"], yArr),
+                level=(["level"], np.arange(t.shape[0]) + 1,
+                       {"description": "model level",
+                        "axis": "Z"}),
+                x=(["x"], xArr,
+                   {"standard_name": "projection_x_coordinate",
+                    "units": "m",
+                    "axis": "X"}),
+                y=(["y"], yArr,
+                   {"standard_name": "projection_y_coordinate",
+                    "units": "m",
+                    "axis": "Y"}),
             ),
             attrs={
+                'Conventions': 'CF-1.7',
                 'Weather_model':'HRRR',
            }
         )
+
+        # Write projection of output
+        ds_new["proj"] = int()
+        for k, v in self._proj.to_cf().items():
+            ds_new.proj.attrs[k] = v
+
         ds_new.to_netcdf(out)
 
 
