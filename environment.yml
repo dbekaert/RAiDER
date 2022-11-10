@@ -6,8 +6,7 @@
 name: RAiDER
 channels:
  - conda-forge
- - anaconda
- - defaults
+ - nodefaults
 dependencies:
  - python>=3.8
  - pip
@@ -44,3 +43,4 @@ dependencies:
  - pytest-cov
  - pytest-timeout
  - pytest-console-scripts
+ - setuptools_scm >=6.2
