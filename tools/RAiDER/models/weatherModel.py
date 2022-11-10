@@ -123,10 +123,10 @@ class WeatherModel(ABC):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
-        
+
         Parameters
         ----------
-        out - 
+        out -
         ll_bounds - 4 x 1 array, SNWE
         time = UTC datetime
         '''
@@ -771,7 +771,7 @@ class WeatherModel(ABC):
             dimension_dict,
             dataset_dict,
             tran,
-            mapping_name='WGS84'
+            mapping_name=mapping_name
         )
 
         nc_outfile.sync()  # flush data to disk
