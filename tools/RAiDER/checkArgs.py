@@ -57,7 +57,7 @@ def checkArgs(args):
             wetFilename, hydroFilename = makeDelayFileNames(
                 d,
                 args.los,
-                'nc',
+                args.raster_format,
                 args.weather_model._dataset.upper(),
                 args.output_directory,
             )

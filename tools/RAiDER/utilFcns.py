@@ -844,33 +844,29 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
     from osgeo import osr
 
     if mapping_name == 'WGS84':
-
         epsg = 4326
         crs = pyproj.CRS.from_epsg(epsg)
 
         grid_mapping = 'WGS84'  # need to set this as an attribute for the image variables
-        datatype = np.dtype('S1')
-        dimensions = ()
-
-        var = nc_outfile.createVariable(
-            mapping_name,
-            datatype,
-            dimensions,
-            fill_value=None
-        )
-        # variable made, now add attributes
-
-        for k, v in crs.to_cf().items():
-            var.setncattr(k, v)
-
-        # These might not be needed as to_cf adds a crs_wkt
-        var.setncattr('spatial_ref', crs.to_wkt())
-        var.setncattr('spatial_proj4', crs.to_proj4())
-        var.setncattr('spatial_epsg', epsg)
-        var.setncattr('GeoTransform', ' '.join(str(x) for x in tran))  # note this has pixel size in it - set  explicitly above
-
     else:
-        raise Exception('Grid mapping name not supported; currently, only WGS84 (EPSG: 4326) is supported!')
+        crs = pyproj.CRS.from_wkt(mapping_name)
+        grid_mapping = 'CRS'
+
+    datatype = np.dtype('S1')
+    dimensions = ()
+
+    var = nc_outfile.createVariable(
+        grid_mapping,
+        datatype,
+        dimensions,
+        fill_value=None
+    )
+
+    # variable made, now add attributes
+    for k, v in crs.to_cf().items():
+        var.setncattr(k, v)
+
+    var.setncattr('GeoTransform', ' '.join(str(x) for x in tran))  # note this has pixel size in it - set  explicitly above
 
     for dim in dimension_dict:
         nc_outfile.createDimension(dim, dimension_dict[dim]['length'])
@@ -900,7 +896,8 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
             shuffle=True,
             chunksizes=ChunkSize
         )
-        var.setncattr('grid_mapping', dataset_dict[data]['grid_mapping'])
+        # Override with correct name here
+        var.setncattr('grid_mapping', grid_mapping) # dataset_dict[data]['grid_mapping'])
         var.setncattr('standard_name', dataset_dict[data]['standard_name'])
         var.setncattr('description', dataset_dict[data]['description'])
         if 'units' in dataset_dict[data]:
