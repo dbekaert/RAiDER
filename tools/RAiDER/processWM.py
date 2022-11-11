@@ -63,7 +63,7 @@ def prepareWeatherModel(
             )
             raise RuntimeError(
                 'The weather model passed does not cover all of the input '
-                'points; you need to download a larger area.'
+                'points; please delete or rename it so another can be downloaded.'
             )
 
     # If only downloading, exit now

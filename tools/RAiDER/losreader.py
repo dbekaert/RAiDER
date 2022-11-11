@@ -51,6 +51,9 @@ class LOS(ABC):
             self._lons = lons
             self._heights = heights
     
+    def setTime(self, dt):
+        self._time = dt
+    
     def is_Zenith(self):
         return self._is_zenith
     
@@ -165,6 +168,7 @@ class Raytracing(LOS):
         self._time = time
         self._pad = pad
         self._convention = los_convention
+        self._pad = 600
         if self._convention == 'hyp3':
             raise NotImplementedError()
 
