@@ -28,6 +28,8 @@ class LOS(ABC):
     def __init__(self):
         self._lats, self._lons, self._heights = None, None, None
         self._look_vecs = None
+        self._ray_trace = False
+        self._is_zenith = False
 
     def setPoints(self, lats, lons=None, heights=None):
         '''Set the pixel locations'''
@@ -49,12 +51,21 @@ class LOS(ABC):
             self._lons = lons
             self._heights = heights
     
+    def setTime(self, dt):
+        self._time = dt
+    
     def is_Zenith(self):
-        return False
+        return self._is_zenith
+    
+    def ray_trace(self):
+        return self._ray_trace
 
 
 class Zenith(LOS):
     """Special value indicating a look vector of "zenith"."""
+    def __init__(self):
+        LOS.__init__(self)
+        self._is_zenith = True
 
     def setLookVectors(self):
         '''Set point locations and calculate Zenith look vectors'''
@@ -66,9 +77,6 @@ class Zenith(LOS):
     def __call__(self, delays):
         '''Placeholder method for consistency with the other classes'''
         return delays
-    
-    def is_Zenith(self):
-        return True
 
 
 class Conventional(LOS):
@@ -78,7 +86,7 @@ class Conventional(LOS):
     """
 
     def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
-        super().__init__()
+        LOS.__init__(self)
         self._file = filename
         self._time = time
         self._pad = pad
@@ -154,11 +162,13 @@ class Raytracing(LOS):
 
     def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
         '''read in and parse a statevector file'''
-        super().__init__()
+        LOS.__init__(self)
+        self._ray_trace = True
         self._file = filename
         self._time = time
         self._pad = pad
         self._convention = los_convention
+        self._pad = 600
         if self._convention == 'hyp3':
             raise NotImplementedError()
 

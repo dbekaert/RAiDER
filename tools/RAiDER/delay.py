@@ -59,7 +59,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     """
     # unpacking the dictionairy
     los = args['los']
-    ll_bounds = args['bounding_box']
     heights = args['dem']
     weather_model = args['weather_model']
     wmLoc = args['weather_model_directory']
@@ -68,6 +67,11 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     download_only = False
     verbose = args['verbose']
     aoi = args['aoi']
+
+    if los.ray_trace():
+        ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
+    else:
+        ll_bounds = aoi.bounds()
 
     # logging
     logger.debug('Starting to run the weather model calculation')
@@ -81,9 +85,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
 
     logger.debug('Beginning weather model pre-processing')
     logger.debug('Download-only is {}'.format(download_only))
-
-    if ll_bounds is None:
-        ll_bounds = aoi.bounds()
 
     weather_model_file = prepareWeatherModel(
         weather_model,
@@ -148,10 +149,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
         ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
-
-        # TODO - handle this better during set up of LOS object
-        los._pad = 600
-        los._time = dt
 
         # return the delays (ZTD or STD)
         wetDelay = los(wetDelay)
@@ -262,14 +259,13 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     logger.debug(f"Output cube spacing: {out_spacing}")
 
     # Load downloaded weather model file to get projection info
-    ds = xarray.load_dataset(weather_model_file)
+    with xarray.load_dataset(weather_model_file):
+        # Output grid points - North up grid
+        if args['height_levels'] is not None:
+            heights = args['height_levels']
+        else:
+            heights = ds.z.values
 
-    # Output grid points - North up grid
-    if args['height_levels'] is not None:
-        heights = args['height_levels']
-    else:
-        heights = ds.z.values
-    ds.close()
     logger.debug(f'Output height range is {min(heights)} to {max(heights)}')
 
     # Load CRS from weather model file
@@ -299,9 +295,13 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             xpts, ypts, zpts,
             wm_proj, crs,
             [ifWet, ifHydro])
+    
     else:
         out_type = "slant range"
-        out_filename = wf.replace("_ztd", "_std").replace("wet", "tropo")
+        if not los.ray_trace():
+            out_filename = wf.replace("_ztd", "_std").replace("wet", "tropo")
+        else:
+            out_filename = wf.replace("_ztd", "_ray").replace("wet", "tropo")
 
         if args["look_dir"].lower() not in ["right", "left"]:
             raise ValueError(
@@ -309,26 +309,31 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             )
 
         # Get pointwise interpolators
-        ifWet, ifHydro = getInterpolators(weather_model_file,
-                                          kind="pointwise",
-                                          shared=(nproc > 1))
+        ifWet, ifHydro = getInterpolators(
+            weather_model_file,
+            kind="pointwise",
+            shared=(nproc > 1),
+        )
 
-        # Build cube
-        if nproc == 1:
-            wetDelay, hydroDelay = build_cube_ray(
-                xpts, ypts, zpts,
-                dt, args["los"]._file, args["look_dir"],
-                wm_proj, crs,
-                [ifWet, ifHydro])
+        if los.ray_trace():
+            # Build cube
+            if nproc == 1:
+                wetDelay, hydroDelay = build_cube_ray(
+                    xpts, ypts, zpts,
+                    dt, args["los"]._file, args["look_dir"],
+                    wm_proj, crs,
+                    [ifWet, ifHydro])
 
-        ### Use multi-processing here
+            ### Use multi-processing here
+            else:
+                # Pre-build output arrays
+
+                # Create worker pool
+
+                # Loop over heights
+                raise NotImplementedError
         else:
-            # Pre-build output arrays
-
-            # Create worker pool
-
-            # Loop over heights
-            raise NotImplementedError
+            raise NotImplementedError('Conventional STD is not yet implemented on the cube')
 
     # Write output file
     # Modify this as needed for NISAR / other projects

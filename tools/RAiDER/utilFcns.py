@@ -149,6 +149,11 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
 
         if data.ndim > 2 and data.shape[0] == 1:
             data = data[0, ...]
+        elif data.ndim > 2:
+            dlist = []
+            for k in range(data.shape[0]):
+                dlist.append(data[k,...].copy())
+            data = dlist
 
     if not returnProj:
         return data
