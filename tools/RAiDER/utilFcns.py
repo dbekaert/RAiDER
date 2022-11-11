@@ -866,10 +866,6 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
     for k, v in crs.to_cf().items():
         var.setncattr(k, v)
 
-    # These might not be needed as to_cf adds a crs_wkt
-    # var.setncattr('spatial_ref', crs.to_wkt())
-    # var.setncattr('spatial_proj4', crs.to_proj4())
-    # var.setncattr('spatial_epsg', epsg)
     var.setncattr('GeoTransform', ' '.join(str(x) for x in tran))  # note this has pixel size in it - set  explicitly above
 
     for dim in dimension_dict:
