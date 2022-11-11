@@ -59,7 +59,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     """
     # unpacking the dictionairy
     los = args['los']
-    ll_bounds = args['bounding_box']
     heights = args['dem']
     weather_model = args['weather_model']
     wmLoc = args['weather_model_directory']
@@ -68,6 +67,9 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     download_only = False
     verbose = args['verbose']
     aoi = args['aoi']
+
+    aoi.update_buffer(los)
+    ll_bounds = aoi.bounds()
 
     # logging
     logger.debug('Starting to run the weather model calculation')

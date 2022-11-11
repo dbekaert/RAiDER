@@ -32,6 +32,23 @@ class AOI(object):
     def projection(self):
         return self._proj
     
+    def update_buffer(self, los):
+        '''
+        Check whether an extra lat/lon buffer is needed for raytracing
+        '''
+        breakpoint()
+        if los.ray_trace():
+            # if raytracing, add a 1-degree buffer all around
+            ll_bounds = self._bounding_box
+            ll_bounds[0] = np.max(ll_bounds[0] - 1, -90)
+            ll_bounds[1] = np.max(ll_bounds[1] + 1,  90)
+            ll_bounds[2] = np.max(ll_bounds[2] - 1,-180)
+            ll_bounds[3] = np.max(ll_bounds[3] + 1, 180)
+            self._bounding_box = ll_bounds
+
+
+
+    
 
 
 class StationFile(AOI):
