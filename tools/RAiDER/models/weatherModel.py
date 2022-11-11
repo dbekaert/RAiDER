@@ -123,10 +123,10 @@ class WeatherModel(ABC):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
-        
+
         Parameters
         ----------
-        out - 
+        out -
         ll_bounds - 4 x 1 array, SNWE
         time = UTC datetime
         '''
@@ -395,7 +395,17 @@ class WeatherModel(ABC):
             if len(datasets) == 0:
                 raise ValueError('No subdatasets found in the weather model. The file may be corrupt.\nWeather model path: {}'.format(weather_model_path))
 
-            with rasterio.open(datasets[0]) as ds:
+            # First dataset can end up being a coord. 
+            # So search for temperature here - maybe there is a better way to
+            # do this
+            temp_dataset = None
+            for ds in datasets:
+                if ds.endswith((":t", ":T", ":temperature")):
+                    temp_dataset = ds
+                    break
+
+            logger.debug(f"Using {temp_dataset} for bounds estimation")
+            with rasterio.open(temp_dataset) as ds:
                 bounds = ds.bounds
 
             xmin, ymin, xmax, ymax = tuple(bounds)
@@ -536,24 +546,6 @@ class WeatherModel(ABC):
 
     def getPoints(self):
         return self._xs.copy(), self._ys.copy(), self._zs.copy()
-
-    def getXY_gdal(self, filename):
-        '''
-        Pull the grid info (x,y) from a gdal-readable file
-        '''
-        with rasterio.open(filename) as ds:
-            xSize, ySize = ds.width, ds.height
-            trans = ds.transform.to_gdal()
-
-        # make regular point grid
-        pixelSizeX = trans[1]
-        pixelSizeY = trans[5]
-        eastOrigin = trans[0] + 0.5 * pixelSizeX
-        northOrigin = trans[3] + 0.5 * pixelSizeY
-        xArray = np.arange(eastOrigin, eastOrigin + pixelSizeX * xSize, pixelSizeX)
-        yArray = np.arange(northOrigin, northOrigin + pixelSizeY * ySize, pixelSizeY)
-
-        return xArray, yArray
 
     def _uniform_in_z(self, _zlevels=None):
         '''
@@ -779,7 +771,7 @@ class WeatherModel(ABC):
             dimension_dict,
             dataset_dict,
             tran,
-            mapping_name='WGS84'
+            mapping_name=mapping_name
         )
 
         nc_outfile.sync()  # flush data to disk

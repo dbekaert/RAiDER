@@ -86,9 +86,9 @@ def get_delays(
     return wet_delay, hydro_delay
 
 
-def getInterpolators(wm_file, kind='pointwise'):
+def getInterpolators(wm_file, kind='pointwise', shared=False):
     '''
-    Read 3D gridded data from a processed weather model file and wrap it with 
+    Read 3D gridded data from a processed weather model file and wrap it with
     an interpolator
     '''
     # Get the weather model data
@@ -105,10 +105,35 @@ def getInterpolators(wm_file, kind='pointwise'):
             wet = np.array(f.variables['wet_total'][:]).transpose(1, 2, 0)
             hydro = np.array(f.variables['hydro_total'][:]).transpose(1, 2, 0)
 
+    # If shared interpolators are requested
+    # The arrays are not modified - so turning off lock for performance
+    if shared:
+        xs_wm = make_shared_raw(xs_wm)
+        ys_wm = make_shared_raw(ys_wm)
+        zs_wm = make_shared_raw(zs_wm)
+        wet = make_shared_raw(wet)
+        hydro = make_shared_raw(hydro)
+
+
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
 
     return ifWet, ifHydro
+
+
+def make_shared_raw(inarr):
+    """
+    Make numpy view array of mp.Array
+    """
+    # Create flat shared array
+    shared_arr = mp.RawArray('d', inarr.size)
+    # Create a numpy view of it
+    shared_arr_np = np.ndarray(inarr.shape, dtype=np.float64,
+                               buffer=shared_arr)
+    # Copy data to shared array
+    np.copyto(shared_arr_np, inarr)
+
+    return shared_arr_np
 
 
 def chunk(chunkSize, in_shape):
