@@ -548,6 +548,8 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
     cube_to_llh = Transformer.from_crs(pts_crs, epsg4326,
                                        always_xy=True)
     ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs)
+    # For calling the interpolators
+    flip_xy = model_crs.axis_info[0].direction == "east"
 
     # Loop over heights of output cube and compute delays
     for hh, ht in enumerate(zpts):
@@ -668,12 +670,17 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
                 pts_xyz = low_xyz + ff * (high_xyz - low_xyz)
 
                 # Ray point in model coordinates
-                pts = np.stack(
-                    ecef_to_model.transform(
-                        pts_xyz[..., 0],
-                        pts_xyz[..., 1],
-                        pts_xyz[..., 2]
-                    ), axis=-1)
+                pts = ecef_to_model.transform(
+                    pts_xyz[..., 0],
+                    pts_xyz[..., 1],
+                    pts_xyz[..., 2]
+                )
+
+                # Order for the interpolator
+                if flip_xy:
+                    pts = np.stack((pts[1], pts[0], pts[2]), axis=-1)
+                else:
+                    pts = np.stack(pts, axis=-1)
 
                 # Trapezoidal integration with scaling
                 wt = 0.5 if findex in [0, fracs.size-1] else 1.0
