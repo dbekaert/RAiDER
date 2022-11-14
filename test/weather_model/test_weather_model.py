@@ -7,7 +7,7 @@ import numpy as np
 
 from functools import reduce
 from numpy import nan
-from test import DATA_DIR
+from scipy.interpolate import RegularGridInterpolator as rgi
 
 from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.models.weatherModel import (
@@ -24,13 +24,6 @@ from RAiDER.models.hrrr import HRRR
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
-
-
-WEATHER_FILE = os.path.join(
-    DATA_DIR,
-    "weather_files",
-    "ERA-5_2018_07_01_T00_00_00.nc"
-)
 
 
 @pytest.fixture
@@ -104,13 +97,24 @@ class MockWeatherModel(WeatherModel):
 
     def load_weather(self, *args, **kwargs):
         _N_Z = 32
-        self._y = np.arange(4)
-        self._x = np.arange(6)
-        self._z = np.arange(_N_Z)
-        self._t = np.ones((_N_Z, 4, 6))
+        self._ys = np.arange(4)
+        self._xs = np.arange(6)
+        self._zs = np.arange(_N_Z)
+        self._t = np.ones((4, 6, _N_Z))
         self._e = self._t.copy()
         self._e[:,3:,:] = 2
-        self._p = np.broadcast_to(np.arange(32), self._t.shape).transpose(1, 2, 0)
+        self._p = np.broadcast_to(np.arange(32), self._t.shape)
+
+        self._true_hydro_refr = np.broadcast_to(np.arange(_N_Z), (self._t.shape))
+        self._true_wet_ztd = 1e-6 * 2 * np.broadcast_to(np.flip(self._zs), (self._t.shape))
+        self._true_wet_ztd[:,3:] = 2 * self._true_wet_ztd[:,3:]
+
+        self._true_hydro_ztd = np.zeros(self._t.shape)
+        for layer in range(self._t.shape[2]):
+            self._true_hydro_ztd[:,:,layer] = 1e-6 * np.trapz(self._zs[...,layer:], x=self._zs[...,layer:])
+        
+        self._true_wet_refr = 2 * np.ones(self._t.shape)
+        self._true_wet_refr[:,3:] = 4
 
 
 @pytest.fixture
@@ -310,27 +314,38 @@ def test_find_svp():
 
 
 def test_ztd(model):
-    m = model()
-
-    _N_Z = len(m._z)
+    m = model
+    m.load_weather()
 
     # wet refractivity will vary
     m._get_wet_refractivity()
-    true_out = 2 * np.ones(m._t.shape)
-    true_out[:,3:] = 4
-    assert np.allclose(m._wet_refractivity, true_out)
+    assert np.allclose(m._wet_refractivity, m._true_wet_refr)
 
     # hydro refractivity should be all the same
     m._get_hydro_refractivity()
-    true_out = np.broadcast_to(np.arange(_N_Z), (m._t.shape)).transpose(1, 2, 0)
     assert np.allclose(
         m._hydrostatic_refractivity, 
-        true_out,
+        m._true_hydro_refr,
     )
 
     m._getZTD()
-    true_wet = 64 * 1e-6 * np.ones(m._t.shape)
-    true_wet[:,3:] = 2 * true_wet[:,3:]
-    assert np.allclose(m._wet_ztd, true_wet)
-    assert np.allclose(m._hydrostatic_ztd, 496 * 1e-6)
 
+    assert np.allclose(m._wet_ztd, m._true_wet_ztd)
+    assert np.allclose(m._hydrostatic_ztd, m._true_hydro_ztd)
+
+
+def test_raytracing(model):
+    m = model
+    m.load_weather()
+    m._get_wet_refractivity()
+    m._get_hydro_refractivity()
+
+    ifWet = rgi((m._ys, m._xs, m.zs), m._wet_refractivity)
+    ifHydro = rgi((m._ys, m._xs, m.zs), m._hydrostatic_refractivity)
+    wetDelay, hydroDelay = build_cube_ray(
+        m._xs, m._ys, m._zs,
+        dt, 
+        args["los"]._file, args["look_dir"],
+        None, None,
+        [ifWet, ifHydro],
+    )
