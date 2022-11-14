@@ -337,6 +337,7 @@ class WeatherModel(ABC):
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
+        #TODO: this is not getting used right now
         if zref is None:
             zref = self._zmax
 

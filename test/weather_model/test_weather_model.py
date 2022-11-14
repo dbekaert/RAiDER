@@ -91,6 +91,10 @@ class MockWeatherModel(WeatherModel):
     def __init__(self):
         super().__init__()
 
+        self._k1 = 1
+        self._k2 = 1
+        self._k3 = 1
+
         self._Name = "MOCK"
         self._valid_range = (datetime.datetime(1970, 1, 1), "Present")
         self._lag_time = datetime.timedelta(days=15)
@@ -99,7 +103,14 @@ class MockWeatherModel(WeatherModel):
         pass
 
     def load_weather(self, *args, **kwargs):
-        pass
+        _N_Z = 32
+        self._y = np.arange(4)
+        self._x = np.arange(6)
+        self._z = np.arange(_N_Z)
+        self._t = np.ones((_N_Z, 4, 6))
+        self._e = self._t.copy()
+        self._e[:,3:,:] = 2
+        self._p = np.broadcast_to(np.arange(32), self._t.shape).transpose(1, 2, 0)
 
 
 @pytest.fixture
@@ -296,3 +307,30 @@ def test_find_svp():
         47940.574, 71305.16
     ])
     assert np.allclose(svp_test, svp_true)
+
+
+def test_ztd(model):
+    m = model()
+
+    _N_Z = len(m._z)
+
+    # wet refractivity will vary
+    m._get_wet_refractivity()
+    true_out = 2 * np.ones(m._t.shape)
+    true_out[:,3:] = 4
+    assert np.allclose(m._wet_refractivity, true_out)
+
+    # hydro refractivity should be all the same
+    m._get_hydro_refractivity()
+    true_out = np.broadcast_to(np.arange(_N_Z), (m._t.shape)).transpose(1, 2, 0)
+    assert np.allclose(
+        m._hydrostatic_refractivity, 
+        true_out,
+    )
+
+    m._getZTD()
+    true_wet = 64 * 1e-6 * np.ones(m._t.shape)
+    true_wet[:,3:] = 2 * true_wet[:,3:]
+    assert np.allclose(m._wet_ztd, true_wet)
+    assert np.allclose(m._hydrostatic_ztd, 496 * 1e-6)
+
