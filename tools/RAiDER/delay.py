@@ -259,7 +259,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     logger.debug(f"Output cube spacing: {out_spacing}")
 
     # Load downloaded weather model file to get projection info
-    with xarray.load_dataset(weather_model_file):
+    with xarray.load_dataset(weather_model_file) as ds:
         # Output grid points - North up grid
         if args['height_levels'] is not None:
             heights = args['height_levels']
@@ -279,7 +279,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     # Build the output grid
     zpts = np.array(heights)
     xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
-    ypts =np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+    ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
 
     # If no orbit is provided
     # Build zenith delay cube
@@ -295,7 +295,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             xpts, ypts, zpts,
             wm_proj, crs,
             [ifWet, ifHydro])
-    
+
     else:
         out_type = "slant range"
         if not los.ray_trace():
@@ -592,7 +592,7 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
                 # Local normal vector
                 nv = elp.n_vector(inp[0], inp[1])
 
-                # Wavelength does not matter for 
+                # Wavelength does not matter for
                 try:
                     aztime, slant_range = isce.geometry.geo2rdr(
                         inp, elp, orb, dop, 0.06, look,
