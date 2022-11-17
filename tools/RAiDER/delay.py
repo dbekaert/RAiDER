@@ -183,9 +183,13 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
             wetFilename = wetFilename[0]
             hydroFilename = hydroFilename[0]
 
+        if aoi.type() == 'station_file':
+            wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'
+
         writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
                     wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
+
         logger.info('Finished writing data to %s', wetFilename)
 
     return wetDelay, hydroDelay
