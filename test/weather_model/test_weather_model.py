@@ -31,7 +31,8 @@ from RAiDER.models.ncmr import NCMR
 
 
 _LON0 = 0
-_LAT0 = 45 
+_LAT0 = 45
+_OMEGA = 0.1 / (180/np.pi)
 
 
 @pytest.fixture
@@ -107,7 +108,7 @@ class MockWeatherModel(WeatherModel):
         _N_Z = 32
         self._ys = np.arange(-2,3) + _LAT0
         self._xs = np.arange(-3,4) + _LON0
-        self._zs = np.linspace(0, 5e4, _N_Z)
+        self._zs = np.linspace(0, 1e5, _N_Z)
         self._t = np.ones((len(self._ys), len(self._xs), _N_Z))
         self._e = self._t.copy()
         self._e[:,3:,:] = 2
@@ -145,7 +146,7 @@ def setup_fake_raytracing():
     lat0 = _LAT0 # degrees
     lon0 = _LON0
     hsat = 700000.
-    omega = 0.1 # degrees
+    omega = _OMEGA # degrees
     Nvec = 10
 
     t0 = DateTime("2017-02-12T01:12:30.0")
@@ -159,7 +160,7 @@ def setup_fake_raytracing():
 
     svs = []
     for k in range(Nvec):
-        dt = TimeDelta(10 * k)
+        dt = TimeDelta(100 * k)
         lon = lon0 + omega * dt.total_seconds()
 
         pos = []
@@ -180,30 +181,58 @@ def setup_fake_raytracing():
 
     orb = isce.core.Orbit(svs)
 
-    return orb, look, elp
+    return orb, look, elp, sat_hgt
+
+def solve(R, hsat, ellipsoid, side='left'):
+    # temp = 1.0 + hsat/ellipsoid.a
+    # temp1 = R/ellipsoid.a
+    # temp2 = R/(ellipsoid.a + hsat)
+    t2 = (np.square(hsat) + np.square(R)) - np.square(ellipsoid.a)
+    # cosang = 0.5 * (temp + (1.0/temp) - temp1 * temp2)
+    cosang = 0.5 * t2 / (R * hsat)
+    angdiff = np.arccos(cosang)
+    if side=='left':
+        x = _LAT0 + angdiff
+    else:
+        x = _LAT0 - angdiff
+    return x
 
 
-def llhs(setup_fake_raytracing, model):
-    orb, look_dir, elp = setup_fake_raytracing
+def test_llhs(setup_fake_raytracing, model):
+    orb, look_dir, elp, sat_hgt = setup_fake_raytracing
+    llhs = []
     for k in range(20):
         tinp = 5 + k * 2
-        rng = 800000 + 10 * k
-        expLon = _LON0 + omega * tinp
-        
+        rng = 800000 + 1000 * k
+        expLon = _LON0 + _OMEGA * tinp
+        geocentricLat = solve(rng, sat_hgt, elp)
+
+        xyz = [
+            elp.a * np.cos(geocentricLat) * np.cos(expLon),
+            elp.a * np.cos(geocentricLat) * np.sin(expLon),
+            elp.a * np.sin(geocentricLat)
+        ]
+        llh = elp.xyz_to_lon_lat(xyz)
+        llhs.append(llh)
+
+    assert len(llhs) == 20
 
 
 def test_build_cube_ray(setup_fake_raytracing, model):
-    orb, look_dir, elp = setup_fake_raytracing
+    orb, look_dir, elp, _ = setup_fake_raytracing
     m = model
     m.load_weather()
 
     ys = np.arange(-1,1) + _LAT0
     xs = np.arange(-1,1) + _LON0
-    zs = np.linspace(0, 1e3, 10)
-
-    out = build_cube_ray(xs, ys, zs, orb, look_dir, CRS(4326), CRS(4326), [m.interpWet(), m.interpHydro()], elp=elp)
+    zs = np.arange(0, 1e5, 1e3)
 
     out_true = np.zeros((len(ys), len(xs), len(zs)))
+    
+    breakpoint()
+    out = build_cube_ray(xs, ys, zs, orb, look_dir, CRS(4326), CRS(4326), [m.interpWet(), m.interpHydro()], elp=elp)
+
+    
 
     assert out.shape == out_true.shape
 
