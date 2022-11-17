@@ -65,7 +65,7 @@ class StationFile(AOI):
  
     def readZ(self):
         df = pd.read_csv(self._filename)
-        if self._has_heights:
+        if 'Hgt_m' in df.columns:
             return df['Hgt_m'].values
         else:
             zvals, metadata = download_dem(self._bounding_box)
