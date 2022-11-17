@@ -166,7 +166,7 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     if heights is not None:
         outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(
-            aoi.type(),
+            aoi,
             wetDelay,
             hydroDelay,
             lats,
@@ -183,7 +183,7 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
             wetFilename = wetFilename[0]
             hydroFilename = hydroFilename[0]
 
-        writeDelays(aoi.type(), wetDelay, hydroDelay, lats, lons,
+        writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
                     wetFilename, hydroFilename, outformat=outformat,
                     proj=None, gt=None, ndv=0.)
         logger.info('Finished writing data to %s', wetFilename)

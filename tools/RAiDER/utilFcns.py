@@ -409,7 +409,7 @@ def round_time(dt, roundTo=60):
     return dt + timedelta(0, rounding - seconds, -dt.microsecond)
 
 
-def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
+def writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
                 wetFilename, hydroFilename=None, zlevels=None, delayType=None,
                 outformat=None, proj=None, gt=None, ndv=0.):
     '''
@@ -421,12 +421,11 @@ def writeDelays(flag, wetDelay, hydroDelay, lats, lons,
     hydroDelay[np.isnan(hydroDelay)] = ndv
 
     # Do different things, depending on the type of input
-    if flag == 'station_file':
+    if aoi.type() == 'station_file':
         try:
-            df = pd.read_csv(wetFilename)
+            df = pd.read_csv(aoi._filename)
         except ValueError:
-            wetFilename = wetFilename[0]
-            df = pd.read_csv(wetFilename)
+            df = pd.read_csv(aoi._filename)
 
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
