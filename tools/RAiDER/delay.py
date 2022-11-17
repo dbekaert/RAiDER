@@ -316,11 +316,13 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
         )
 
         if los.ray_trace():
+            orbit = getOrbit(args["los"]._file, dt)
+            look_dir = getLookDir(args["look_dir"])
             # Build cube
             if nproc == 1:
                 wetDelay, hydroDelay = build_cube_ray(
                     xpts, ypts, zpts,
-                    dt, args["los"]._file, args["look_dir"],
+                    orbit, look_dir,
                     wm_proj, crs,
                     [ifWet, ifHydro])
 
@@ -501,10 +503,28 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     return outputArrs
 
 
-def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
-                   pts_crs, interpolators, outputArrs=None):
+def build_cube_ray(
+    xpts, ypts, zpts, orb, look_dir, model_crs, pts_crs, interpolators, 
+    elp=None, outputArrs=None, 
+):
     """
     Iterate over interpolators and build a cube
+
+    Parameters
+    ----------
+    xpts, ypts, zpts    - axes coordinates of the cube
+    orb                 - isce3 orbit object
+    look_dir            - isce3 LookDirection object
+    model_crs           - Weather model CRS
+    pts_crs             - Query grid CRS
+    interpolators       - List of [wet, hydrostatic] 3D interpolator objects
+    elp                 - isce3 ellipsoid object
+    outputArrs          - Output arrays to store the results, can be a pointer
+
+    Returns
+    -------
+    outputArrs if created on the fly; otherwise the code writes directly to 
+    the passed outputArrs
     """
 
     # Some constants for this module
@@ -512,26 +532,11 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
     MAX_SEGMENT_LENGTH = 1000.
     MAX_TROPO_HEIGHT = 50000.
 
-
-    # First load the state vectors into an isce orbit
-    orb = isce.core.Orbit([
-        isce.core.StateVector(
-            isce.core.DateTime(row[0]),
-            row[1:4], row[4:7]
-        ) for row in np.stack(
-            get_sv(orbit_file, ref_time, pad=600), axis=-1
-        )
-    ])
-
     # ISCE3 data structures
-    elp = isce.core.Ellipsoid()
+    if elp is None:
+        elp = isce.core.Ellipsoid()
     dop = isce.core.LUT2d()
-    if look_dir.lower() == "right":
-        look = isce.core.LookSide.Right
-    elif look_dir.lower() == "left":
-        look = isce.core.LookSide.Left
-    else:
-        raise RuntimeError(f"Unknown look direction: {look_dir}")
+
     logger.debug(f"Look direction: {look_dir}")
 
     # Get model heights in an array
@@ -553,6 +558,7 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
     cube_to_llh = Transformer.from_crs(pts_crs, epsg4326,
                                        always_xy=True)
     ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs)
+    
     # For calling the interpolators
     flip_xy = model_crs.axis_info[0].direction == "east"
 
@@ -590,7 +596,8 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
                     continue
 
                 # Local normal vector
-                nv = elp.n_vector(inp[0], inp[1])
+                #TODO: is this needed?
+                # nv = elp.n_vector(inp[0], inp[1])
 
                 # Wavelength does not matter for 
                 try:
@@ -701,3 +708,27 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
 
     if output_created_here:
         return outputArrs
+
+
+def getOrbit(orbit_file, ref_time, pad=600):
+        # First load the state vectors into an isce orbit
+    orb = isce.core.Orbit([
+        isce.core.StateVector(
+            isce.core.DateTime(row[0]),
+            row[1:4], row[4:7]
+        ) for row in np.stack(
+            get_sv(orbit_file, ref_time, pad=pad), axis=-1
+        )
+    ])
+    return orb
+
+
+def getLookDir(look_dir):
+    if look_dir.lower() == "right":
+        look = isce.core.LookSide.Right
+    elif look_dir.lower() == "left":
+        look = isce.core.LookSide.Left
+    else:
+        raise RuntimeError(f"Unknown look direction: {look_dir}")
+    return look
+
