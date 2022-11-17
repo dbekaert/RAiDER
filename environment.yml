@@ -48,3 +48,4 @@ dependencies:
  # For RAiDER-docs
  - jupyterlab
  - jupyter_contrib_nbextensions
+ - wand
