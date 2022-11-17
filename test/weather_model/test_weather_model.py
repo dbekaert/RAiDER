@@ -183,6 +183,15 @@ def setup_fake_raytracing():
     return orb, look, elp
 
 
+def llhs(setup_fake_raytracing, model):
+    orb, look_dir, elp = setup_fake_raytracing
+    for k in range(20):
+        tinp = 5 + k * 2
+        rng = 800000 + 10 * k
+        expLon = _LON0 + omega * tinp
+        
+
+
 def test_build_cube_ray(setup_fake_raytracing, model):
     orb, look_dir, elp = setup_fake_raytracing
     m = model
