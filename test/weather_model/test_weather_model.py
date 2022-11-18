@@ -14,6 +14,7 @@ from pyproj import CRS
 
 from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.delay import build_cube_ray
+from RAiDER.losreader import state_to_los
 from RAiDER.models.weatherModel import (
     WeatherModel,
     find_svp,
@@ -31,7 +32,7 @@ from RAiDER.models.ncmr import NCMR
 
 
 _LON0 = 0
-_LAT0 = 45
+_LAT0 = 0
 _OMEGA = 0.1 / (180/np.pi)
 
 
@@ -147,7 +148,7 @@ def setup_fake_raytracing():
     lon0 = _LON0
     hsat = 700000.
     omega = _OMEGA # degrees
-    Nvec = 10
+    Nvec = 30
 
     t0 = DateTime("2017-02-12T01:12:30.0")
 
@@ -227,12 +228,21 @@ def test_build_cube_ray(setup_fake_raytracing, model):
     xs = np.arange(-1,1) + _LON0
     zs = np.arange(0, 1e5, 1e3)
 
-    out_true = np.zeros((len(ys), len(xs), len(zs)))
-    
-    breakpoint()
-    out = build_cube_ray(xs, ys, zs, orb, look_dir, CRS(4326), CRS(4326), [m.interpWet(), m.interpHydro()], elp=elp)
+    _Y, _X, _Z = np.meshgrid(ys, xs, zs)
 
+    out_true = np.zeros(_Y.shape)
+    t0 = orb.start_time
+    tm1 = orb.end_time
+    ts = np.arange(t0, tm1 + orb.time.spacing, orb.time.spacing)
+    tlist = [orb.reference_epoch + isce.core.TimeDelta(dt) for dt in ts]
+    ts = np.broadcast_to(tlist, (1, len(tlist))).T
+    svs = np.hstack([ts, orb.position, orb.velocity])
+
+    #TODO: Check that the look vectors are not nans
+    breakpoint()
+    lv, xyz = state_to_los(svs, np.stack([_Y.ravel(), _X.ravel(), _Z.ravel()], axis=-1),out="ecef")
     
+    out = build_cube_ray(xs, ys, zs, orb, look_dir, CRS(4326), CRS(4326), [m.interpWet(), m.interpHydro()], elp=elp)
 
     assert out.shape == out_true.shape
 
