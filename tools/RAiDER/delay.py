@@ -402,10 +402,19 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
         ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
         ds.x.attrs["units"] = "m"
 
+
+    ext = os.path.splitext(out_filename)
+    if ext not in '.nc .h5'.split():
+        out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
+        logger.debug('Invalid extension %s for cube. Defaulting to .nc', ext)
+
     if out_filename.endswith(".nc"):
         ds.to_netcdf(out_filename, mode="w")
     elif out_filename.endswith(".h5"):
         ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
+
+    logger.info('Finished writing data to: %s', out_filename)
+    return
 
 
 def checkQueryPntsFile(pnts_file, query_shape):
