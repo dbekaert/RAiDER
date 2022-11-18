@@ -31,6 +31,10 @@ def checkArgs(args):
     args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
 
     #########################################################################################################################
+    # LOS finalizing
+    args.los.setLookDir(args['look_dir'])
+
+    #########################################################################################################################
     # filenames
     wetNames, hydroNames = [], []
     for d in args.date_list:

@@ -297,11 +297,12 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             [ifWet, ifHydro])
     
     else:
-        out_type = "slant range"
         if not los.ray_trace():
             out_filename = wf.replace("_ztd", "_std").replace("wet", "tropo")
+            out_type = "slant range projection"
         else:
             out_filename = wf.replace("_ztd", "_ray").replace("wet", "tropo")
+            out_type = "slant range raytracing"
 
         if args["look_dir"].lower() not in ["right", "left"]:
             raise ValueError(
@@ -316,13 +317,11 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
         )
 
         if los.ray_trace():
-            orbit = getOrbit(args["los"]._file, dt)
-            look_dir = getLookDir(args["look_dir"])
             # Build cube
             if nproc == 1:
                 wetDelay, hydroDelay = build_cube_ray(
                     xpts, ypts, zpts,
-                    orbit, look_dir,
+                    los,
                     wm_proj, crs,
                     [ifWet, ifHydro])
 
@@ -466,9 +465,9 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
                   for mm in range(len(interpolators))]
 
-    # Assume all interpolators to be on same grid
-    zmin = min(interpolators[0].grid[2])
-    zmax = max(interpolators[0].grid[2])
+    # # Assume all interpolators to be on same grid
+    # zmin = min(interpolators[0].grid[2])
+    # zmax = max(interpolators[0].grid[2])
 
     # print("Output grid: ")
     # print("crs: ", pts_crs)
@@ -504,7 +503,7 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 
 
 def build_cube_ray(
-    xpts, ypts, zpts, orb, look_dir, model_crs, pts_crs, interpolators, 
+    xpts, ypts, zpts, los, model_crs, pts_crs, interpolators, 
     elp=None, outputArrs=None, 
 ):
     """
@@ -537,7 +536,7 @@ def build_cube_ray(
         elp = isce.core.Ellipsoid()
     dop = isce.core.LUT2d()
 
-    logger.debug(f"Look direction: {look_dir}")
+    logger.debug(f"Look direction: {los._look_dir}")
 
     # Get model heights in an array
     # Assumption: All interpolators here are on the same grid
@@ -602,11 +601,11 @@ def build_cube_ray(
                 # Wavelength does not matter for 
                 try:
                     aztime, slant_range = isce.geometry.geo2rdr(
-                        inp, elp, orb, dop, 0.06, look,
+                        inp, elp, los._orbit, dop, 0.06, los._look_dir,
                         threshold=1.0e-7,
                         maxiter=30,
                         delta_range=10.0)
-                    sat_xyz, _ = orb.interpolate(aztime)
+                    sat_xyz, _ = los._orbit.interpolate(aztime)
                     los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
                 except Exception as e:
                     los[ii, jj, :] = np.nan
@@ -708,27 +707,3 @@ def build_cube_ray(
 
     if output_created_here:
         return outputArrs
-
-
-def getOrbit(orbit_file, ref_time, pad=600):
-        # First load the state vectors into an isce orbit
-    orb = isce.core.Orbit([
-        isce.core.StateVector(
-            isce.core.DateTime(row[0]),
-            row[1:4], row[4:7]
-        ) for row in np.stack(
-            get_sv(orbit_file, ref_time, pad=pad), axis=-1
-        )
-    ])
-    return orb
-
-
-def getLookDir(look_dir):
-    if look_dir.lower() == "right":
-        look = isce.core.LookSide.Right
-    elif look_dir.lower() == "left":
-        look = isce.core.LookSide.Left
-    else:
-        raise RuntimeError(f"Unknown look direction: {look_dir}")
-    return look
-

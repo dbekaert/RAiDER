@@ -59,6 +59,9 @@ class LOS(ABC):
     
     def ray_trace(self):
         return self._ray_trace
+    
+    def setLookDir(self, look_dir):
+        self._look_dir = getLookDir(look_dir)
 
 
 class Zenith(LOS):
@@ -107,11 +110,12 @@ class Conventional(LOS):
         except OSError:
             # Otherwise, treat it as an orbit / statevector file
             svs = np.stack(
-                get_sv(self._file, self._time, self._pad), axis=-1
+                get_sv(self._file, self._time, self._pad), axis=-1)
+            LOS_enu = state_to_los(
+                svs,
+                [self._lats, self._lons, self._heights],
+                out="lookangle"
             )
-            LOS_enu = state_to_los(svs,
-                                   [self._lats, self._lons, self._heights],
-                                   out="lookangle")
 
         if delays.shape == LOS_enu.shape:
             return delays / LOS_enu
@@ -155,9 +159,6 @@ class Raytracing(LOS):
     --------
     >>> from RAiDER.losreader import Raytracing
     >>> import numpy as np
-
->>> #TODO
-    >>> # 
     """
 
     def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
@@ -172,7 +173,7 @@ class Raytracing(LOS):
         if self._convention == 'hyp3':
             raise NotImplementedError()
 
-    def getLookVectors(self, time, pad=3 * 60):
+    def getLookVectors(self):
         '''
         Calculate look vectors for raytracing
         '''
@@ -205,10 +206,13 @@ class Raytracing(LOS):
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1
             )
-            self._lookvecs, self._xyz = state_to_los(
+            breakpoint()
+            self._lookvecs, self._xyz, self._orbit = state_to_los(
                 svs, [self._lats, self._lons, self._heights],
                 out="ecef"
             )
+
+            
 
     def getIntersectionWithHeight(self, height):
         """
@@ -242,17 +246,6 @@ class Raytracing(LOS):
             value[self._heights > z, :] = np.nan
 
         return rays
-
-    def calculateDelays(self, delays):
-        '''
-        Here "delays" is point-wise delays (i.e. refractivities), not
-        integrated ZTD/STD.
-        '''
-        # Create rays  (Use getIntersectionWithLevels above)
-        # Interpolate delays to rays
-        # Integrate along rays
-        # Return STD
-        raise NotImplementedError
 
 
 def getZenithLookVecs(lats, lons, heights):
@@ -504,26 +497,26 @@ def state_to_los(svs, llh_targets, out="lookangle"):
         )
 
     # Convert svs to isce3 orbit
-    orb = isce.core.Orbit([
-        isce.core.StateVector(
-            isce.core.DateTime(row[0]),
-            row[1:4], row[4:7]
-        ) for row in svs
-    ])
+    try:
+        svs_obj_list = [isce.core.StateVector(isce.core.DateTime(row[0]),row[1:4], row[4:7]) for row in svs]
+    except TypeError:
+        svs_obj_list = [isce.core.StateVector(row[0],row[1:4], row[4:7]) for row in svs]
+    orb = isce.core.Orbit(svs_obj_list)
+
 
     # Flatten the input array for convenience
     in_shape = llh_targets[0].shape
     target_llh = np.stack([x.flatten() for x in llh_targets], axis=-1)
-    Npts = len(target_llh)
+    # Npts = len(target_llh)
 
     # Iterate through targets and compute LOS
     if out == "lookangle":
-        los_ang, slant_range = get_radar_pos(target_llh, orb, out="lookangle")
+        los_ang, _ = get_radar_pos(target_llh, orb, out="lookangle")
         los_factor = np.cos(np.deg2rad(los_ang)).reshape(in_shape)
         return los_factor
     elif out == "ecef":
         los_xyz, targ_xyz = get_radar_pos(target_llh, orb, out="ecef")
-        return los_xyz, targ_xyz
+        return los_xyz, targ_xyz, orb
     else:
         raise NotImplementedError("Unexpected logic in state_to_los")
 
@@ -676,3 +669,13 @@ def getTopOfAtmosphere(xyz, lookvecs, toaheight, factor=None):
 
     # The converged solution represents top of the rays
     return pos
+
+
+def getLookDir(look_dir):
+    if look_dir.lower() == "right":
+        look = isce.core.LookSide.Right
+    elif look_dir.lower() == "left":
+        look = isce.core.LookSide.Left
+    else:
+        raise RuntimeError(f"Unknown look direction: {look_dir}")
+    return look
