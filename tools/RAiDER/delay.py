@@ -304,11 +304,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             out_filename = wf.replace("_ztd", "_ray").replace("wet", "tropo")
             out_type = "slant range raytracing"
 
-        if args["look_dir"].lower() not in ["right", "left"]:
-            raise ValueError(
-                f'Unknown look direction: {args["look_dir"]}'
-            )
-
         # Get pointwise interpolators
         ifWet, ifHydro = getInterpolators(
             weather_model_file,
@@ -582,7 +577,7 @@ def build_cube_ray(
 
         # Step 2 - get LOS vectors for targets
         # TODO - Modify when isce3 vectorization is available
-        los = np.full(xyz.shape, np.nan)
+        LOS_arr = np.full(xyz.shape, np.nan)
         for ii in range(yy.shape[0]):
             for jj in range(yy.shape[1]):
                 inp = np.array([
@@ -606,9 +601,9 @@ def build_cube_ray(
                         maxiter=30,
                         delta_range=10.0)
                     sat_xyz, _ = los._orbit.interpolate(aztime)
-                    los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
+                    LOS_arr[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
                 except Exception as e:
-                    los[ii, jj, :] = np.nan
+                    LOS_arr[ii, jj, :] = np.nan
 
         # Free memory here
         llh = None
@@ -647,10 +642,10 @@ def build_cube_ray(
             if high_xyz is not None:
                 low_xyz = high_xyz
             else:
-                low_xyz = getTopOfAtmosphere(xyz, los, low_ht, factor=cos_factor)
+                low_xyz = getTopOfAtmosphere(xyz, LOS_arr, low_ht, factor=cos_factor)
 
             # Compute high_xyz
-            high_xyz = getTopOfAtmosphere(xyz, los, high_ht, factor=cos_factor)
+            high_xyz = getTopOfAtmosphere(xyz, LOS_arr, high_ht, factor=cos_factor)
 
             # Compute ray length
             ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)

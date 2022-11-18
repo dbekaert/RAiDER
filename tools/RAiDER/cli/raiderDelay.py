@@ -241,8 +241,6 @@ def read_template_file(fname):
             template['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
             template['aoi'] = get_query_region(AttributeDict(value))
-        if key == 'los_group':
-            template['los'] = get_los(AttributeDict(value))
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
@@ -250,6 +248,8 @@ def read_template_file(fname):
 
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
+        if key == 'los_group':
+            template['los'] = get_los(AttributeDict(value), template['time'])
         if key == 'height_group':
             template.update(
                 get_heights(

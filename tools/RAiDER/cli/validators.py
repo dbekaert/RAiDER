@@ -29,15 +29,15 @@ def enforce_wm(value):
     return model_obj()
 
 
-def get_los(args):
+def get_los(args, time):
     if 'orbit_file' in args.keys():
         if args.ray_trace:
-            los = Raytracing(args.orbit_file)
+            los = Raytracing(args.orbit_file, time=time)
         else:
             los = Conventional(args.orbit_file)
     elif 'los_file' in args.keys():
         if args.ray_trace:
-            los = Raytracing(args.los_file, args.los_convention)
+            los = Raytracing(args.los_file, args.los_convention, time=time)
         else:
             los = Conventional(args.los_file, args.los_convention)
     elif 'los_cube' in args.keys():
@@ -48,7 +48,7 @@ def get_los(args):
 #            los = Conventional(args.los_cube)
     else:
         los = Zenith()
-
+        
     return los
 
 

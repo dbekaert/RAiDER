@@ -96,8 +96,8 @@ class Conventional(LOS):
         self._convention = los_convention
         if self._convention == 'hyp3':
             raise NotImplementedError()
-
-    def __call__(self, delays):
+    
+    def setLookVectors(self):
         '''Read the LOS file and convert it to look vectors'''
         if self._lats is None:
             raise ValueError('Target points not set')
@@ -106,21 +106,22 @@ class Conventional(LOS):
 
         try:
             # if an ISCE-style los file is passed open it with GDAL
-            LOS_enu = inc_hd_to_enu(*rio_open(self._file))
+            self._lookvecs = inc_hd_to_enu(*rio_open(self._file))
         except OSError:
             # Otherwise, treat it as an orbit / statevector file
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1)
-            LOS_enu = state_to_los(
+            self._lookvecs = state_to_los(
                 svs,
                 [self._lats, self._lons, self._heights],
                 out="lookangle"
             )
 
-        if delays.shape == LOS_enu.shape:
-            return delays / LOS_enu
+    def __call__(self, delays):
+        if delays.shape == self._lookvecs.shape:
+            return delays / self._lookvecs
         else:
-            return delays / LOS_enu[..., -1]
+            return delays / self._lookvecs[..., -1]
 
 
 class Raytracing(LOS):
@@ -167,13 +168,12 @@ class Raytracing(LOS):
         self._ray_trace = True
         self._file = filename
         self._time = time
-        self._pad = pad
         self._convention = los_convention
-        self._pad = 600
+        self._pad = [600 if pad is None else pad][0]
         if self._convention == 'hyp3':
             raise NotImplementedError()
 
-    def getLookVectors(self):
+    def setLookVectors(self):
         '''
         Calculate look vectors for raytracing
         '''
@@ -206,7 +206,6 @@ class Raytracing(LOS):
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1
             )
-            breakpoint()
             self._lookvecs, self._xyz, self._orbit = state_to_los(
                 svs, [self._lats, self._lons, self._heights],
                 out="ecef"
