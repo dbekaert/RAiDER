@@ -246,6 +246,9 @@ def seconds_of_day(returnTime):
     '''
     Convert HH:MM:SS format time-tag to seconds of day.
     '''
-    h, m, s = map(int, returnTime.split(":"))
+    if isinstance(returnTime, dt.time):
+        h, m, s = returnTime.hour, returnTime.minute, returnTime.second
+    else:
+        h, m, s = map(int, returnTime.split(":"))
 
-    return h * 3600 + m * 60 + s
+    return  h * 3600 + m * 60 + s

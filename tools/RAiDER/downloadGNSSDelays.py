@@ -12,8 +12,8 @@ import os
 import pandas as pd
 from textwrap import dedent
 
-from RAiDER.cli.parser import add_cpus, add_out, add_verbose
-from RAiDER.cli.validators import DateListAction, date_type
+# from RAiDER.cli.parser import add_cpus, add_out, add_verbose
+# from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.logger import logger, logging
 from RAiDER.getStationDelays import get_station_data
 from RAiDER.utilFcns import requests_retry_session
@@ -21,93 +21,93 @@ from RAiDER.utilFcns import requests_retry_session
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
 
-
-def create_parser():
-    """Parse command line arguments using argparse."""
-    p = argparse.ArgumentParser(
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="""
-Check for and download tropospheric zenith delays for a set of GNSS stations from UNR
-
-Example call to virtually access and append zenith delay information to a CSV table in specified output
-directory, across specified range of time (in YYMMDD YYMMDD) and all available times of day, and confined to specified
-geographic bounding box :
-downloadGNSSdelay.py --out products -y 20100101 20141231 -b '39 40 -79 -78'
-
-Example call to virtually access and append zenith delay information to a CSV table in specified output
-directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and distributed globally :
-downloadGNSSdelay.py --out products -y 20100101 20141231 --returntime '00:00:00'
-
-
-Example call to virtually access and append zenith delay information to a CSV table in specified output
-directory, across specified range of time in 12 day steps (in YYMMDD YYMMDD days) and specified time of day, and distributed globally :
-downloadGNSSdelay.py --out products -y 20100101 20141231 12 --returntime '00:00:00'
-
-Example call to virtually access and append zenith delay information to a CSV table in specified output
-directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and distributed globally but restricted
-to list of stations specified in input textfile :
-downloadGNSSdelay.py --out products -y 20100101 20141231 --returntime '00:00:00' -f station_list.txt
-
-NOTE, following example call to physically download zenith delay information not recommended as it is not
-necessary for most applications.
-Example call to physically download and append zenith delay information to a CSV table in specified output
-directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and confined to specified
-geographic bounding box :
-downloadGNSSdelay.py --download --out products -y 20100101 20141231 --returntime '00:00:00' -b '39 40 -79 -78'
-""")
-
-    # Stations to check/download
-    area = p.add_argument_group(
-        'Stations to check/download. Can be a lat/lon bounding box or file, or will run the whole world if not specified')
-    area.add_argument(
-        '--station_file', '-f', default=None, dest='station_file',
-        help=('Text file containing a list of 4-char station IDs separated by newlines'))
-    area.add_argument(
-        '-b', '--bounding_box', dest='bounding_box', type=str, default=None,
-        help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
-    area.add_argument(
-        '--gpsrepo', '-gr', default='UNR', dest='gps_repo',
-        help=('Specify GPS repository you wish to query. Currently supported archives: UNR.'))
-
-    misc = p.add_argument_group("Run parameters")
-    add_out(misc)
-
-    misc.add_argument(
-        '--date', dest='dateList',
-        help=dedent("""\
-            Date to calculate delay.
-            Can be a single date, a list of two dates (earlier, later) with 1-day interval, or a list of two dates and interval in days (earlier, later, interval).
-            Example accepted formats:
-               YYYYMMDD or
-               YYYYMMDD YYYYMMDD
-               YYYYMMDD YYYYMMDD N
-            """),
-        nargs="+",
-        action=DateListAction,
-        type=date_type,
-        required=True
-    )
-
-    misc.add_argument(
-        '--returntime', dest='returnTime',
-        help="Return delays closest to this specified time. If not specified, the GPS delays for all times will be returned. Input in 'HH:MM:SS', e.g. '16:00:00'",
-        default=None)
-
-    misc.add_argument(
-        '--download',
-        help='Physically download data. Note this option is not necessary to proceed with statistical analyses, as data can be handled virtually in the program.',
-        action='store_true', dest='download', default=False)
-
-    add_cpus(misc)
-    add_verbose(misc)
-
-    return p
-
-
-def cmd_line_parse(iargs=None):
-    parser = create_parser()
-    return parser.parse_args(args=iargs)
-
+#
+# def create_parser():
+#     """Parse command line arguments using argparse."""
+#     p = argparse.ArgumentParser(
+#         formatter_class=argparse.RawDescriptionHelpFormatter,
+#         description="""
+# Check for and download tropospheric zenith delays for a set of GNSS stations from UNR
+#
+# Example call to virtually access and append zenith delay information to a CSV table in specified output
+# directory, across specified range of time (in YYMMDD YYMMDD) and all available times of day, and confined to specified
+# geographic bounding box :
+# downloadGNSSdelay.py --out products -y 20100101 20141231 -b '39 40 -79 -78'
+#
+# Example call to virtually access and append zenith delay information to a CSV table in specified output
+# directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and distributed globally :
+# downloadGNSSdelay.py --out products -y 20100101 20141231 --returntime '00:00:00'
+#
+#
+# Example call to virtually access and append zenith delay information to a CSV table in specified output
+# directory, across specified range of time in 12 day steps (in YYMMDD YYMMDD days) and specified time of day, and distributed globally :
+# downloadGNSSdelay.py --out products -y 20100101 20141231 12 --returntime '00:00:00'
+#
+# Example call to virtually access and append zenith delay information to a CSV table in specified output
+# directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and distributed globally but restricted
+# to list of stations specified in input textfile :
+# downloadGNSSdelay.py --out products -y 20100101 20141231 --returntime '00:00:00' -f station_list.txt
+#
+# NOTE, following example call to physically download zenith delay information not recommended as it is not
+# necessary for most applications.
+# Example call to physically download and append zenith delay information to a CSV table in specified output
+# directory, across specified range of time (in YYMMDD YYMMDD) and specified time of day, and confined to specified
+# geographic bounding box :
+# downloadGNSSdelay.py --download --out products -y 20100101 20141231 --returntime '00:00:00' -b '39 40 -79 -78'
+# """)
+#
+#     # Stations to check/download
+#     area = p.add_argument_group(
+#         'Stations to check/download. Can be a lat/lon bounding box or file, or will run the whole world if not specified')
+#     area.add_argument(
+#         '--station_file', '-f', default=None, dest='station_file',
+#         help=('Text file containing a list of 4-char station IDs separated by newlines'))
+#     area.add_argument(
+#         '-b', '--bounding_box', dest='bounding_box', type=str, default=None,
+#         help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'")
+#     area.add_argument(
+#         '--gpsrepo', '-gr', default='UNR', dest='gps_repo',
+#         help=('Specify GPS repository you wish to query. Currently supported archives: UNR.'))
+#
+#     misc = p.add_argument_group("Run parameters")
+#     add_out(misc)
+#
+#     misc.add_argument(
+#         '--date', dest='dateList',
+#         help=dedent("""\
+#             Date to calculate delay.
+#             Can be a single date, a list of two dates (earlier, later) with 1-day interval, or a list of two dates and interval in days (earlier, later, interval).
+#             Example accepted formats:
+#                YYYYMMDD or
+#                YYYYMMDD YYYYMMDD
+#                YYYYMMDD YYYYMMDD N
+#             """),
+#         nargs="+",
+#         action=DateListAction,
+#         type=date_type,
+#         required=True
+#     )
+#
+#     misc.add_argument(
+#         '--returntime', dest='returnTime',
+#         help="Return delays closest to this specified time. If not specified, the GPS delays for all times will be returned. Input in 'HH:MM:SS', e.g. '16:00:00'",
+#         default=None)
+#
+#     misc.add_argument(
+#         '--download',
+#         help='Physically download data. Note this option is not necessary to proceed with statistical analyses, as data can be handled virtually in the program.',
+#         action='store_true', dest='download', default=False)
+#
+#     add_cpus(misc)
+#     add_verbose(misc)
+#
+#     return p
+#
+#
+# def cmd_line_parse(iargs=None):
+#     parser = create_parser()
+#     return parser.parse_args(args=iargs)
+#
 
 def get_station_list(bbox=None, writeLoc=None, userstatList=None, name_appendix=''):
     '''
@@ -309,21 +309,27 @@ def query_repos(
 
     # Setup bounding box
     if bounding_box:
-        if not os.path.isfile(bounding_box):
+        if isinstance(bounding_box, str) and not os.path.isfile(bounding_box):
             try:
                 bbox = [float(val) for val in bounding_box.split()]
             except ValueError:
                 raise Exception(
                     'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
-            if bbox[2] * bbox[3] < 0:
-                long_cross_zero = 1
-            else:
-                long_cross_zero = 0
-            # if necessary, convert negative longitudes to positive
-            if bbox[2] < 0:
-                bbox[2] += 360
-            if bbox[3] < 0:
-                bbox[3] += 360
+        elif isinstance(bounding_box, list):
+            bbox = bounding_box
+
+        else:
+            raise Exception('Passing a file with a bounding box not yet supported.')
+
+        long_cross_zero = 1 if bbox[2] * bbox[3] < 0 else 0
+
+        # if necessary, convert negative longitudes to positive
+        if bbox[2] < 0:
+            bbox[2] += 360
+
+        if bbox[3] < 0:
+            bbox[3] += 360
+
     # If bbox not specified, query stations across the entire globe
     else:
         bbox = [-90, 90, 0, 360]
@@ -379,31 +385,16 @@ def query_repos(
 
     logger.debug('Completed processing')
 
-def main():
-    inps = cmd_line_parse()
+
+def main(inps):
 
     query_repos(
         inps.station_file,
         inps.bounding_box,
         inps.gps_repo,
         inps.out,
-        inps.dateList,
-        inps.returnTime,
-        inps.download,
-        inps.cpus,
-        inps.verbose
-    )
-
-def main():
-    inps = cmd_line_parse()
-
-    query_repos(
-        inps.station_file,
-        inps.bounding_box,
-        inps.gps_repo,
-        inps.out,
-        inps.dateList,
-        inps.returnTime,
+        inps.date_list,
+        inps.time,
         inps.download,
         inps.cpus,
         inps.verbose
