@@ -12,6 +12,7 @@ from RAiDER.cli.validators import enforce_time, enforce_bbox, parse_dates, get_q
 STEP_LIST = [
     'load_weather_model',
     'calculate_delays',
+    'download_gnss',
 ]
 
 STEP_HELP = """Command line options for steps processing with names are chosen from the following list:
@@ -172,18 +173,22 @@ def read_inps2run_steps(inps, step_list):
             msg += '\nAvailable steps: {}'.format(step_list)
             raise ValueError(msg)
 
-    # check: ignore --start/end input if --dostep is specified
+    # currently forcing two delay steps if dostep is NOT specified
+        # check: ignore --start/end input if --dostep is specified; re-implement
     if inps.doStep:
-        inps.startStep = inps.doStep
-        inps.endStep = inps.doStep
+        # inps.startStep = inps.doStep
+        # inps.endStep = inps.doStep
+        run_steps    = [inps.doStep]
 
-    # get list of steps to run
-    idx0 = step_list.index(inps.startStep)
-    idx1 = step_list.index(inps.endStep)
-    if idx0 > idx1:
-        msg = 'start step "{}" CAN NOT be after the end step "{}"'.format(inps.startStep, inps.endStep)
-        raise ValueError(msg)
-    run_steps = step_list[idx0:idx1+1]
+    else:
+        # get list of steps to run
+        idx0 = step_list.index(inps.startStep)
+        idx1 = step_list.index(inps.endStep)
+        if idx0 > idx1:
+            msg = 'start step "{}" CAN NOT be after the end step "{}"'.format(inps.startStep, inps.endStep)
+            raise ValueError(msg)
+
+        run_steps = step_list[idx0:idx1]
 
     # empty the step list if:
     # a) -g OR
@@ -192,7 +197,7 @@ def read_inps2run_steps(inps, step_list):
 
     # print mssage - processing steps
     print('Run routine processing with {} on steps: {}'.format(os.path.basename(__file__), run_steps))
-    print('Remaining steps: {}'.format(step_list[idx0+1:]))
+    # print('Remaining steps: {}'.format(step_list[idx0+1:]))
     print('-'*50)
 
     return run_steps
@@ -215,7 +220,7 @@ def read_template_file(fname):
         except yaml.YAMLError as exc:
             print(exc)
             raise ValueError('Something is wrong with the yaml file {}'.format(fname))
-    
+
     # Drop any values not specified
     params = drop_nans(params)
 
@@ -270,4 +275,3 @@ def drop_nans(d):
                 if d[key][k] is None:
                     del d[key][k]
     return d
-

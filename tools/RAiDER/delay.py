@@ -67,7 +67,7 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     verbose = args['verbose']
     aoi = args['aoi']
     steps = args['runSteps']
-    download_only = True if steps == 'load_weather_model' else False
+    download_only = True if steps[0] == 'load_weather_model' else False
 
     if los.ray_trace():
         ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
@@ -85,7 +85,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     delayType = ["Zenith" if los is Zenith else "LOS"]
 
     logger.debug('Beginning weather model pre-processing')
-    logger.debug('Download-only is {}'.format(download_only))
 
     weather_model_file = prepareWeatherModel(
         weather_model,
@@ -97,6 +96,11 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
         makePlots=verbose,
     )
 
+    if download_only:
+        logger.debug('Weather model has downloaded. Finished.')
+        return None, None
+
+    
     if aoi.type() == 'bounding_box':
         # This branch is specifically for cube generation
         try:

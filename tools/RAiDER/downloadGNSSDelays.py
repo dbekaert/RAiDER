@@ -379,23 +379,10 @@ def query_repos(
 
     logger.debug('Completed processing')
 
-def main():
-    inps = cmd_line_parse()
 
-    query_repos(
-        inps.station_file,
-        inps.bounding_box,
-        inps.gps_repo,
-        inps.out,
-        inps.dateList,
-        inps.returnTime,
-        inps.download,
-        inps.cpus,
-        inps.verbose
-    )
-
-def main():
-    inps = cmd_line_parse()
+def main(inps):
+    # inps = cmd_line_parse()
+    breakpoint()
 
     query_repos(
         inps.station_file,
