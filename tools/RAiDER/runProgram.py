@@ -28,9 +28,14 @@ def main(iargs=None):
 
 
     if 'download_gnss' in step_list:
-        # from RAiDER.downloadGNSSDelays import main
-        # main(params)
-        pass
+        from RAiDER.downloadGNSSDelays import main
+        params['gps_repo'] = 'UNR' # only UNR supported; used to be exposed
+        params['out']      = 'products' # output directory
+        params['download'] = False
+        params['cpus']     = 4
+        params['bounding_box'] = params['aoi'].bounds()
+
+        main(params)
 
 
     if 'load_weather_model' in step_list or 'calculate_delays' in step_list:
