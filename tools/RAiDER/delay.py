@@ -64,9 +64,10 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     wmLoc = args['weather_model_directory']
     zref = args['zref']
     outformat = args['raster_format']
-    download_only = False
     verbose = args['verbose']
     aoi = args['aoi']
+    steps = args['runSteps']
+    download_only = True if steps == 'load_weather_model' else False
 
     if los.ray_trace():
         ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing

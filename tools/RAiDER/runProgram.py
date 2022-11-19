@@ -24,13 +24,19 @@ def main(iargs=None):
         logger.setLevel(logging.DEBUG)
 
     # run
-    for t, w, f in zip(
-        params['date_list'],
-        params['wetFilenames'],
-        params['hydroFilenames']
-    ):
-        try:
-            (_, _) = tropo_delay(t, w, f, params)
-        except RuntimeError:
-            logger.exception("Date %s failed", t)
-            continue
+    step_list       = inps.runSteps
+    params.runSteps = step_list
+    if 'download_gnss' in step_list:
+        pass
+
+    if 'load_weather_model' in step_list or 'calculate_delays' in step_list:
+        for t, w, f in zip(
+            params['date_list'],
+            params['wetFilenames'],
+            params['hydroFilenames']
+        ):
+            try:
+                (_, _) = tropo_delay(t, w, f, params)
+            except RuntimeError:
+                logger.exception("Date %s failed", t)
+                continue
