@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 import h5py
+import xarray as xr
 import numpy as np
 from numpy import ndarray
 import pandas as pd
@@ -99,28 +100,40 @@ def ecef2enu(xyz, lat, lon, height):
 
 
 def rio_profile(fname):
-    if os.path.exists(fname + '.vrt'):
+    ## need to access subdataset directly
+    if os.path.basename(fname).startswith('S1-GUNW'):
+        fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
+        with rasterio.open(fname) as src:
+            profile = src.profile
+
+    elif os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
     with rasterio.open(fname) as src:
         profile = src.profile
+        # if 'S1-GUNW' in fname:
+            # profile['length'] = profile['width']
+            # profile['width']  = profile['height']
 
     if profile["crs"] is None:
         raise AttributeError(
             f"{fname} does not contain geotransform information"
         )
+
     return profile
 
 
 def rio_extents(profile):
+    """ Get a bounding box in SNWE from a rasterio profile """
     gt = profile["transform"].to_gdal()
     xSize = profile["width"]
     ySize = profile["height"]
 
     if profile["crs"] is None or not gt:
         raise AttributeError('Profile does not contain geotransform information')
-
-    return [gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2], gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]]
+    W, E = gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2]
+    N, S = gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]
+    return S, N, W, E
 
 
 def rio_open(fname, returnProj=False, userNDV=None, band=None):
@@ -136,20 +149,20 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
         # If user requests a band
         if band is not None:
             ndv = nodata[band - 1]
-            data = src.read(band)
+            data = src.read(band).squeeze()
             nodataToNan(data, [userNDV, nodata[band - 1]])
+
         else:
-            data = src.read()
+            data = src.read().squeeze()
             if data.ndim > 2:
                 for bnd in range(data.shape[0]):
                     val = data[band, ...]
                     nodataToNan(val, [userNDV, nodata[bnd]])
             else:
-                nodataToNan(data, nodatavals + [userNDV])
+                nodataToNan(data, list(nodata) + [userNDV])
 
-        if data.ndim > 2 and data.shape[0] == 1:
-            data = data[0, ...]
-        elif data.ndim > 2:
+
+        if data.ndim > 2:
             dlist = []
             for k in range(data.shape[0]):
                 dlist.append(data[k,...].copy())
@@ -157,6 +170,7 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
 
     if not returnProj:
         return data
+
     else:
         return data, profile
 
@@ -165,20 +179,24 @@ def nodataToNan(inarr, listofvals):
     """
     Setting values to nan as needed
     """
+    inarr = inarr.astype(float) # nans cannot be integers (i.e. in DEM)
     for val in listofvals:
         if val is not None:
             inarr[inarr == val] = np.nan
 
 
 def rio_stats(fname, band=1, userNDV=None):
+    if os.path.basename(fname).startswith('S1-GUNW'):
+        fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
+
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
     # Turn off PAM to avoid creating .aux.xml files
     with rasterio.Env(GDAL_PAM_ENABLED="NO"):
         with rasterio.open(fname) as src:
-            gt = src.transform.to_gdal()
-            proj = src.crs
+            gt    = src.transform.to_gdal()
+            proj  = src.crs
             stats = src.statistics(band)
 
     return stats, proj, gt
@@ -240,6 +258,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     trans = None
     if gt is not None:
         trans = rasterio.Affine.from_gdal(*gt)
+
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,

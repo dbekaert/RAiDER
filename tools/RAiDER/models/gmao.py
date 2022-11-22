@@ -58,8 +58,8 @@ class GMAO(WeatherModel):
         '''
         Fetch weather model data from GMAO
         '''
-        time = self._time 
-        
+        time = self._time
+
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._ll_bounds[0] - (-90.0)) / self._lat_res)
         lat_max_ind = int((self._ll_bounds[1] - (-90.0)) / self._lat_res)
