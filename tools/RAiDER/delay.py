@@ -16,24 +16,21 @@ from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
 
 import isce3.ext.isce3 as isce
-from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators,
-    calculate_start_points,
-    get_delays,
 )
 from RAiDER.dem import getHeights
 from RAiDER.logger import logger
 from RAiDER.llreader import BoundingBox
 from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
-from RAiDER.processWM import prepareWeatherModel
+from RAiDER.processWM import main as weather_main
 from RAiDER.utilFcns import (
-    writeDelays, projectDelays, writePnts2HDF5,
+    writeDelays, projectDelays,
     lla2ecef, transform_bbox, clip_bbox, rio_profile,
 )
 
 
-def tropo_delay(dt, wetFilename, hydroFilename, args):
+def main(dt, wetFilename, hydroFilename, args):
     """
     raiderDelay main function.
 
@@ -46,8 +43,7 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
         lats    - ndarray or str
         lons    - ndarray or str
         heights - see checkArgs for format
-        weather_model   - type of weather model to use
-        wmLoc   - Directory containing weather model files
+        weather_model_file   - NETCDF file containing a weather model to use for delay calculation
         zref    - max integration height
         outformat       - File format to use for raster outputs
         time    - list of datetimes to calculate delays
@@ -60,20 +56,11 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     # unpacking the dictionairy
     los = args['los']
     heights = args['dem']
-    weather_model = args['weather_model']
-    wmLoc = args['weather_model_directory']
+    weather_model_file = args['weather_model_file']
     zref = args['zref']
     outformat = args['raster_format']
     verbose = args['verbose']
     aoi = args['aoi']
-    steps = args['runSteps']
-    download_only = True if len(steps) == 1 and \
-                        steps[0] == 'load_weather_model' else False
-
-    if los.ray_trace():
-        ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
-    else:
-        ll_bounds = aoi.bounds()
 
     # logging
     logger.debug('Starting to run the weather model calculation')
@@ -84,23 +71,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     ###########################################################
     # weather model calculation
     delayType = ["Zenith" if los is Zenith else "LOS"]
-
-    logger.debug('Beginning weather model pre-processing')
-
-    weather_model_file = prepareWeatherModel(
-        weather_model,
-        dt,
-        wmLoc=wmLoc,
-        ll_bounds=ll_bounds,
-        zref=zref,
-        download_only=download_only,
-        makePlots=verbose,
-    )
-
-    if download_only:
-        logger.debug('Weather model has downloaded. Finished.')
-        return None, None
-
 
     if aoi.type() == 'bounding_box':
         # This branch is specifically for cube generation
@@ -201,22 +171,14 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     return wetDelay, hydroDelay
 
 
-def tropo_delay_cube(dt, wf, args, model_file=None):
+def tropo_delay_cube(
+        dt, wf, ll_bounds, los, weather_model_file, cube_spacing, args, zref=_ZREF,
+    ):
     """
     raiderDelay cube generation function.
 
     Same as tropo_delay() above.
     """
-    los = args['los']
-    weather_model = args['weather_model']
-    wmLoc = args['weather_model_directory']
-    zref = args['zref']
-    download_only = False
-    verbose = args['verbose']
-    aoi = args['aoi']
-    cube_spacing = args["cube_spacing_in_m"]
-    ll_bounds = aoi.bounds()
-
     try:
         crs  = CRS(args['output_projection'])
     except CRSError:
@@ -225,30 +187,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     # For testing multiprocessing
     # TODO - move this to configuration
     nproc = 1
-
-    # logging
-    logger.debug('Starting to run the weather model cube calculation')
-    logger.debug(f'Time: {dt}')
-    logger.debug(f'Max integration height is {zref:1.1f} m')
-    logger.debug(f'Output cube projection is {crs.to_wkt()}')
-    logger.debug(f'Output cube spacing is {cube_spacing} m')
-
-    # We are using zenith model only for now
-    logger.debug('Beginning weather model pre-processing')
-
-    # If weather model file is not provided
-    if model_file is None:
-        weather_model_file = prepareWeatherModel(
-            weather_model,
-            dt,
-            wmLoc=wmLoc,
-            ll_bounds=ll_bounds,
-            zref=zref,
-            download_only=download_only,
-            makePlots=verbose
-        )
-    else:
-        weather_model_file = model_file
 
     # Determine the output grid extent here
     wesn = ll_bounds[2:] + ll_bounds[:2]
@@ -264,9 +202,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     else:
         out_spacing = cube_spacing
         out_snwe = clip_bbox(out_snwe, out_spacing)
-
-    logger.debug(f"Output SNWE: {out_snwe}")
-    logger.debug(f"Output cube spacing: {out_spacing}")
 
     # Load downloaded weather model file to get projection info
     with xarray.load_dataset(weather_model_file) as ds:
@@ -419,7 +354,6 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     elif out_filename.endswith(".h5"):
         ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
 
-    logger.info('Finished writing data to: %s', out_filename)
     return
 
 

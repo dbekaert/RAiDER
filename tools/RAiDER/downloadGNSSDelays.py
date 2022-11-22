@@ -286,20 +286,21 @@ def get_ID(line):
     return stat_id, float(lat), float(lon), float(height)
 
 
-def query_repos(
-    station_file,
-    bounding_box,
-    gps_repo,
-    out,
-    dateList,
-    returnTime,
-    download,
-    cpus,
-    verbose
-):
+def main(arg_dict):
     """
     Main workflow for querying supported GPS repositories for zenith delay information.
     """
+    station_file = arg_dict['station_file']
+    bounding_box = arg_dict['bounding_box']
+    gps_repo = arg_dict['gps_repo']
+    out = arg_dict['out']
+    dateList = arg_dict['dateList']
+    returnTime = arg_dict['returnTime']
+    download = arg_dict['download']
+    cpus = arg_dict['cpus']
+    verbose = arg_dict['verbose']
+
+
     if verbose:
         logger.setLevel(logging.DEBUG)
 
@@ -386,16 +387,3 @@ def query_repos(
     logger.debug('Completed processing')
 
 
-def main(inps):
-
-    query_repos(
-        inps.station_file,
-        inps.bounding_box,
-        inps.gps_repo,
-        inps.out,
-        inps.date_list,
-        inps.time,
-        inps.download,
-        inps.cpus,
-        inps.verbose
-    )

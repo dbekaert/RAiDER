@@ -12,7 +12,7 @@ from RAiDER.utilFcns import getTimeFromFile
 import matplotlib.pyplot as plt
 
 
-def prepareWeatherModel(
+def main(
     weather_model,
     time=None,
     wmLoc=None,
