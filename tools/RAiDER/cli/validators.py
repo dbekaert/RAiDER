@@ -110,7 +110,8 @@ def get_query_region(args):
     '''
     # Get bounds from the inputs
     if 'lat_file' in args.keys():
-        query = RasterRDR(args.lat_file, args.lon_file, args.height_file_rdr)
+        hgt_file = args.get('hgt_file_rdr', None) # only get it if exists
+        query    = RasterRDR(args.lat_file, args.lon_file, hgt_file)
 
     elif 'station_file' in args.keys():
         query = StationFile(args.station_file)
