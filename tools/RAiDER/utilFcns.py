@@ -6,6 +6,7 @@ import re
 from datetime import datetime, timedelta
 
 import h5py
+import xarray as xr
 import numpy as np
 from numpy import ndarray
 import pandas as pd
@@ -99,28 +100,40 @@ def ecef2enu(xyz, lat, lon, height):
 
 
 def rio_profile(fname):
-    if os.path.exists(fname + '.vrt'):
+    ## need to access subdataset directly
+    if os.path.basename(fname).startswith('S1-GUNW'):
+        fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
+        with rasterio.open(fname) as src:
+            profile = src.profile
+
+    elif os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
     with rasterio.open(fname) as src:
         profile = src.profile
+        # if 'S1-GUNW' in fname:
+            # profile['length'] = profile['width']
+            # profile['width']  = profile['height']
 
     if profile["crs"] is None:
         raise AttributeError(
             f"{fname} does not contain geotransform information"
         )
+
     return profile
 
 
 def rio_extents(profile):
+    """ Get a bounding box in SNWE from a rasterio profile """
     gt = profile["transform"].to_gdal()
     xSize = profile["width"]
     ySize = profile["height"]
 
     if profile["crs"] is None or not gt:
         raise AttributeError('Profile does not contain geotransform information')
-
-    return [gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2], gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]]
+    W, E = gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2]
+    N, S = gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]
+    return S, N, W, E
 
 
 def rio_open(fname, returnProj=False, userNDV=None, band=None):
@@ -171,14 +184,17 @@ def nodataToNan(inarr, listofvals):
 
 
 def rio_stats(fname, band=1, userNDV=None):
+    if os.path.basename(fname).startswith('S1-GUNW'):
+        fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
+
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
     # Turn off PAM to avoid creating .aux.xml files
     with rasterio.Env(GDAL_PAM_ENABLED="NO"):
         with rasterio.open(fname) as src:
-            gt = src.transform.to_gdal()
-            proj = src.crs
+            gt    = src.transform.to_gdal()
+            proj  = src.crs
             stats = src.statistics(band)
 
     return stats, proj, gt

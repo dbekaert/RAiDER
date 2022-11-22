@@ -9,28 +9,9 @@ from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.logger import logger, logging
 from RAiDER.cli.validators import enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
 
-STEP_LIST = [
-    'load_weather_model',
-    'calculate_delays',
-    'download_gnss',
-]
-
-STEP_HELP = """Command line options for steps processing with names are chosen from the following list:
-{}
-In order to use either --start or --dostep, it is necessary that a
-previous run was done using one of the steps options to process at least
-through the step immediately preceding the starting step of the current run.
-""".format(STEP_LIST[0:])
-
 
 HELP_MESSAGE = """
-Command line options for RAiDER processing to calculate tropospheric
-delay from a weather model. Default options can be found by running
-raiderDelay.py --generate_config.
-"""
-
-SHORT_MESSAGE = """
-Program to calculate troposphere total delays using a weather model
+  Command line options for RAiDER to download GNSS stations from UNR (MIDAS).
 """
 
 EXAMPLES = """
@@ -40,48 +21,8 @@ raiderDelay.py customTemplatefile.cfg
 raiderDelay.py --dostep=load_weather_model
 """
 
-class AttributeDict(dict):
-    __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
 
-DEFAULT_DICT = dict(
-        look_dir='right',
-        date_start=None,
-        date_end=None,
-        date_step=None,
-        date_list=None,
-        time=None,
-        end_time=None,
-        weather_model=None,
-        lat_file=None,
-        lon_file=None,
-        station_file=None,
-        bounding_box=None,
-        geocoded_file=None,
-        dem=None,
-        use_dem_latlon=False,
-        height_levels=None,
-        height_file_rdr=None,
-        ray_trace=False,
-        zref=_ZREF,
-        cube_spacing_in_m=_CUBE_SPACING_IN_M,  # TODO - Where are these parsed?
-        los_file=None,
-        los_convention='isce',
-        los_cube=None,
-        orbit_file=None,
-        verbose=True,
-        raster_format='GTiff',
-        output_directory=os.getcwd(),
-        weather_model_directory=os.path.join(
-            os.getcwd(),
-            'weather_files'
-        ),
-        output_projection='EPSG:4236',
-    )
-
-
-def create_parser():
+def create_parser_GNSS():
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         formatter_class = argparse.RawDescriptionHelpFormatter,
@@ -102,18 +43,11 @@ def create_parser():
         help='generate default template (if it does not exist) and exit.'
     )
 
-    step = p.add_argument_group('steps processing (start/end/dostep)', STEP_HELP)
-    step.add_argument('--start', dest='startStep', metavar='STEP', default=STEP_LIST[0],
-                      help='start processing at the named step (default: %(default)s).')
-    step.add_argument('--end','--stop', dest='endStep', metavar='STEP',  default=STEP_LIST[-1],
-                      help='end processing at the named step (default: %(default)s)')
-    step.add_argument('--dostep', dest='doStep', metavar='STEP',
-                      help='run processing at the named step only')
 
     return p
 
 
-def parseCMD(iargs=None):
+def parseCMD_GNSS(iargs=None):
     """
     Parse command-line arguments and pass to tropo_delay
     We'll parse arguments and call delay.py.
@@ -132,13 +66,10 @@ def parseCMD(iargs=None):
         'cli', 'raiderDelay.yaml'
     )
     if '-g' in args.argv:
-        dst = os.path.join(os.getcwd(), 'raiderDelay.yaml')
         shutil.copyfile(
                 template_file,
-                dst,
+                os.path.join(os.getcwd(), 'raiderDelay.yaml'),
             )
-
-        logger.info('Wrote %s', dst)
         sys.exit(0)
 
     # check: existence of input template files
@@ -150,7 +81,7 @@ def parseCMD(iargs=None):
 
         msg = "No template file found! It requires that either:"
         msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raiderDelay.yaml' exists in current directory."
+        msg += "\n  file 'raiderGNSS_dl.yaml' exists in current directory."
         raise SystemExit('ERROR: {}'.format(msg))
 
     if  args.customTemplateFile:
@@ -160,45 +91,7 @@ def parseCMD(iargs=None):
 
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
-    # check which steps to run
-    args.runSteps = read_inps2run_steps(args, step_list=STEP_LIST)
-
     return args
-
-
-def read_inps2run_steps(inps, step_list):
-    """read/get run_steps from input arguments."""
-    # check: if start/end/do step input is valid
-    for key in ['startStep', 'endStep', 'doStep']:
-        value = vars(inps)[key]
-        if value and value not in step_list:
-            msg = 'Input step not found: {}'.format(value)
-            msg += '\nAvailable steps: {}'.format(step_list)
-            raise ValueError(msg)
-
-    # currently forcing two delay steps if dostep is NOT specified
-        # check: ignore --start/end input if --dostep is specified; re-implement
-    if inps.doStep:
-        # inps.startStep = inps.doStep
-        # inps.endStep = inps.doStep
-        run_steps    = [inps.doStep]
-
-    else:
-        # get list of steps to run
-        idx0 = step_list.index(inps.startStep)
-        idx1 = step_list.index(inps.endStep)
-        if idx0 > idx1:
-            msg = 'start step "{}" CAN NOT be after the end step "{}"'.format(inps.startStep, inps.endStep)
-            raise ValueError(msg)
-
-        run_steps = step_list[idx0:idx1]
-
-    # print mssage - processing steps
-    print('Run routine processing with {} on steps: {}'.format(os.path.basename(__file__), run_steps))
-    # print('Remaining steps: {}'.format(step_list[idx0+1:]))
-    print('-'*50)
-
-    return run_steps
 
 
 def read_template_file(fname):

@@ -13,7 +13,7 @@ from RAiDER.llreader import BoundingBox, Geocube, RasterRDR, StationFile, Geocod
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.utilFcns import rio_extents, rio_profile
 
-_BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees 
+_BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees
 
 def enforce_wm(value):
     model = value.upper().replace("-", "")
@@ -101,7 +101,7 @@ def get_heights(args, out, station_file, bounding_box=None):
         # download the DEM if needed
         out['dem'] = os.path.join(dem_path, 'GLO30.dem')
 
-    return out 
+    return out
 
 
 def get_query_region(args):
@@ -121,18 +121,20 @@ def get_query_region(args):
             raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched? Should be SNWE')
         query = BoundingBox(bbox)
 
-    #TODO the next two options won't be reached currently because they are not in the aoi_group
-    elif 'use_dem_latlon' in args.keys():
-        query = GeocodedFile(args.dem, is_dem=True)
-    
     elif 'geocoded_file' in args.keys():
         query = GeocodedFile(args.geocoded_file, is_dem=False)
- 
+
+    #TODO the next two options won't be reached currently because they are not in the aoi_group
+    # this may be a deprecated comment ^
+    elif 'use_dem_latlon' in args.keys():
+        query = GeocodedFile(args.dem, is_dem=True)
+
+
     elif 'los_cube' in args.keys():
         query = Geocube(args.los_cube)
 
     else:
-        # TODO: Need to incorporate the cube 
+        # TODO: Need to incorporate the cube
         raise ValueError('No valid query points or bounding box found in the configuration file')
 
     return query
@@ -159,7 +161,7 @@ def enforce_bbox(bbox):
     for we in (W, E):
         if we < -180 or we > 180:
             raise ValueError('Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.')
-    
+
     return bbox
 
 
@@ -167,7 +169,7 @@ def parse_dates(arg_dict):
     '''
     Determine the requested dates from the input parameters
     '''
-    
+
     if 'date_list' in arg_dict.keys():
         l = arg_dict['date_list']
         L = [enforce_valid_dates(d) for d in l]
@@ -180,16 +182,16 @@ def parse_dates(arg_dict):
         start = enforce_valid_dates(start)
 
         if 'date_end' in arg_dict.keys():
-            end = arg_dict['date_end']    
+            end = arg_dict['date_end']
             end = enforce_valid_dates(end)
         else:
-           end = start 
+           end = start
 
         if 'date_step' in arg_dict.keys():
             step = int(arg_dict['date_step'])
         else:
             step = 1
-        
+
         L = [start + timedelta(days=step) for step in range(0, (end - start).days + 1, step)]
 
     return L
@@ -211,7 +213,7 @@ def enforce_valid_dates(arg):
             return datetime.strptime(str(arg), yf)
         except ValueError:
             pass
-            
+
 
     raise ValueError(
         'Unable to coerce {} to a date. Try %Y-%m-%d'.format(arg)
@@ -262,9 +264,9 @@ def convert_time(inp):
             return time(*strptime(inp, tf)[3:6])
         except ValueError:
             pass
-    
+
     raise ValueError(
-                'Unable to coerce {} to a time.'+ 
+                'Unable to coerce {} to a time.'+
                 'Try T%H:%M:%S'.format(inp)
         )
 
@@ -285,6 +287,7 @@ def modelName2Module(model_name):
     model_module = importlib.import_module(module_name)
     wmObject = getattr(model_module, model_name.upper().replace('-', ''))
     return module_name, wmObject
+
 
 def getBufferedExtent(lats, lons=None, buf=0.):
     '''

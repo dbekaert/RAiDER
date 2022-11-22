@@ -91,7 +91,7 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
         weather_model,
         dt,
         wmLoc=wmLoc,
-        ll_bounds=ll_bounds,
+        ll_bounds=ll_bounds, # SNWE
         zref=zref,
         download_only=download_only,
         makePlots=verbose,
