@@ -241,7 +241,7 @@ def test_rio_extent():
                        )) as dst:
         dst.write(np.random.randn(11, 11), 1)
     profile = rio_profile("test.tif")
-    assert rio_extents(profile) == [17.0, 18.0, 17.0, 18.0]
+    assert rio_extents(profile) == (17.0, 18.0, 17.0, 18.0)
 
 
 def test_rio_extent2():
