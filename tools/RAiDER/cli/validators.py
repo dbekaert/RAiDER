@@ -109,7 +109,11 @@ def get_query_region(args):
     Parse the query region from inputs
     '''
     # Get bounds from the inputs
-    if 'lat_file' in args.keys():
+    # make sure this is first
+    if 'use_dem_latlon' in args.keys():
+        query = GeocodedFile(args.dem, is_dem=True)
+
+    elif 'lat_file' in args.keys():
         hgt_file = args.get('hgt_file_rdr', None) # only get it if exists
         query    = RasterRDR(args.lat_file, args.lon_file, hgt_file)
 
@@ -125,18 +129,14 @@ def get_query_region(args):
     elif 'geocoded_file' in args.keys():
         query = GeocodedFile(args.geocoded_file, is_dem=False)
 
-    #TODO the next two options won't be reached currently because they are not in the aoi_group
-    # this may be a deprecated comment ^
-    elif 'use_dem_latlon' in args.keys():
-        query = GeocodedFile(args.dem, is_dem=True)
-
-
+    ## untested
     elif 'los_cube' in args.keys():
         query = Geocube(args.los_cube)
 
     else:
         # TODO: Need to incorporate the cube
         raise ValueError('No valid query points or bounding box found in the configuration file')
+
 
     return query
 

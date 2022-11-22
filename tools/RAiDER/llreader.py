@@ -156,7 +156,7 @@ class GeocodedFile(AOI):
 
     def readZ(self):
         if self._is_dem:
-            return rio_open(self._filename)[0]
+            return rio_open(self._filename)
 
         else:
             zvals, metadata = download_dem(

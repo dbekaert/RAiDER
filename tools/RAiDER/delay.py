@@ -65,7 +65,8 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     zref = args['zref']
     outformat = args['raster_format']
     verbose = args['verbose']
-    aoi = args['aoi']
+    aoi   = args['aoi']
+
     steps = args['runSteps']
     download_only = True if len(steps) == 1 and \
                         steps[0] == 'load_weather_model' else False
@@ -170,25 +171,26 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
     # Write the delays to file
     # Different options depending on the inputs
 
+    if not isinstance(wetFilename, str):
+        wetFilename   = wetFilename[0]
+        hydroFilename = hydroFilename[0]
+
     if heights is not None:
-        outName = wetFilename[0].replace('wet', 'delays')
         writeDelays(
             aoi,
             wetDelay,
             hydroDelay,
             lats,
             lons,
-            outName,
+            wetFilename,
+            hydroFilename,
             zlevels=hgts,
             outformat=outformat,
             delayType=delayType
         )
-        logger.info('Finished writing data to %s', outName)
+        logger.info('Finished writing data to %s', wetFilename)
 
     else:
-        if not isinstance(wetFilename, str):
-            wetFilename = wetFilename[0]
-            hydroFilename = hydroFilename[0]
 
         if aoi.type() == 'station_file':
             wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'

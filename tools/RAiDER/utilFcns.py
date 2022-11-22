@@ -149,20 +149,20 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
         # If user requests a band
         if band is not None:
             ndv = nodata[band - 1]
-            data = src.read(band)
+            data = src.read(band).squeeze()
             nodataToNan(data, [userNDV, nodata[band - 1]])
+
         else:
-            data = src.read()
+            data = src.read().squeeze()
             if data.ndim > 2:
                 for bnd in range(data.shape[0]):
                     val = data[band, ...]
                     nodataToNan(val, [userNDV, nodata[bnd]])
             else:
-                nodataToNan(data, nodatavals + [userNDV])
+                nodataToNan(data, list(nodata) + [userNDV])
 
-        if data.ndim > 2 and data.shape[0] == 1:
-            data = data[0, ...]
-        elif data.ndim > 2:
+
+        if data.ndim > 2:
             dlist = []
             for k in range(data.shape[0]):
                 dlist.append(data[k,...].copy())
@@ -170,6 +170,7 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
 
     if not returnProj:
         return data
+
     else:
         return data, profile
 
@@ -178,6 +179,7 @@ def nodataToNan(inarr, listofvals):
     """
     Setting values to nan as needed
     """
+    inarr = inarr.astype(float) # nans cannot be integers (i.e. in DEM)
     for val in listofvals:
         if val is not None:
             inarr[inarr == val] = np.nan
@@ -256,6 +258,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     trans = None
     if gt is not None:
         trans = rasterio.Affine.from_gdal(*gt)
+
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,

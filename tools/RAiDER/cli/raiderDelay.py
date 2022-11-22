@@ -242,7 +242,11 @@ def read_template_file(fname):
         if key == 'date_group':
             template['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
-            template['aoi'] = get_query_region(AttributeDict(value))
+            ## in case a DEM is passed and should be used
+            dct_temp = {**AttributeDict(value),
+                        **AttributeDict(params['height_group'])}
+            template['aoi'] = get_query_region(AttributeDict(dct_temp))
+
         if key == 'los_group':
             template['los'] = get_los(AttributeDict(value))
         if key == 'look_dir':
