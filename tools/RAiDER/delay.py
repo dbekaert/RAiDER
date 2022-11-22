@@ -102,7 +102,7 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
         return None, None
 
 
-    if aoi.type() == 'bounding_box':
+    if aoi.type() == 'bounding_box' or args['height_levels']:
         # This branch is specifically for cube generation
         try:
             tropo_delay_cube(

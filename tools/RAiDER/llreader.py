@@ -26,11 +26,14 @@ class AOI(object):
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
 
+
     def bounds(self):
         return self._bounding_box
 
+
     def projection(self):
         return self._proj
+
 
     def add_buffer(self, buffer):
         '''
@@ -52,12 +55,15 @@ class StationFile(AOI):
         self._filename = station_file
         self._bounding_box = bounds_from_csv(station_file)
 
+
     def type(self):
         return 'station_file'
+
 
     def readLL(self):
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         return df['Lat'].values, df['Lon'].values
+
 
     def readZ(self):
         df = pd.read_csv(self._filename)
@@ -90,8 +96,10 @@ class RasterRDR(AOI):
 
         self._convention = convention
 
+
     def type(self):
         return 'radar_rasters'
+
 
     def readLL(self):
         if self._latfile is not None:
@@ -100,6 +108,7 @@ class RasterRDR(AOI):
             return rio_open(self._file)
         else:
             raise ValueError('lat/lon files are not defined')
+
 
     def readZ(self):
         if self._hgtfile is not None:
@@ -144,21 +153,22 @@ class GeocodedFile(AOI):
         X, Y = np.meshgrid(x,y)
         return Y, X # lats, lons
 
+
     def readZ(self):
         if self._is_dem:
-            Z, _ = rio_open(self._filename)
-            return Z
+            return rio_open(self._filename)[0]
+
         else:
             zvals, metadata = download_dem(
-            self._bounding_box,
-            writeDEM = True,
-            outName = os.path.join('GLO30_fullres_dem.tif'),
-        )
+                self._bounding_box,
+                writeDEM = True,
+                outName = os.path.join('GLO30_fullres_dem.tif'),
+            )
             z_bounds = get_bbox(metadata)
-            z_out = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
             return z_out
 
-            
+
 class Geocube(AOI):
     '''Parse a georeferenced data cube'''
     def __init__(self):
