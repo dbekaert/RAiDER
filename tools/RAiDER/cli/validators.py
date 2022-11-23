@@ -72,7 +72,7 @@ def get_heights(args, out, station_file, bounding_box=None):
         elif os.path.exists(args.dem):
             out['dem'] = args['dem']
             if bounding_box is not None:
-                dem_bounds = rio_extents(rio_profile(args.dem))
+                dem_bounds = rio_extents(rio_profile(args.dem)[0])
                 lats = dem_bounds[:2]
                 lons = dem_bounds[2:]
                 if isOutside(
