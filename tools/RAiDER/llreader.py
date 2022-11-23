@@ -88,6 +88,7 @@ class RasterRDR(AOI):
         else:
             self._latfile = lat_file
             self._lonfile = lon_file
+            self._gt      = None
             self._proj, self._bounding_box, _ = bounds_from_latlon_rasters(lat_file, lon_file)
 
         # keep track of the height file

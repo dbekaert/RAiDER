@@ -244,7 +244,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     '''
     array_shp = np.shape(array)
     if array.ndim != 2:
-        raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
+        raise RuntimeError(f'writeArrayToRaster: cannot write an array of shape {array_shp} to a raster image')
 
     # Data type
     if "complex" in str(array.dtype):
@@ -259,6 +259,8 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     if gt is not None:
         trans = rasterio.Affine.from_gdal(*gt)
 
+    # breakpoint()
+    # proj = {'init': 'EPSG:4326'}
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,
@@ -439,6 +441,12 @@ def writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
     wetDelay[np.isnan(wetDelay)] = ndv
     hydroDelay[np.isnan(hydroDelay)] = ndv
 
+    try:
+        proj, gt = aoi._proj, aoi._gt
+    except:
+        proj, gt = None, None
+
+
     # Do different things, depending on the type of input
     if aoi.type() == 'station_file':
         try:
@@ -450,6 +458,7 @@ def writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
         df['hydroDelay'] = hydroDelay
         df['totalDelay'] = wetDelay + hydroDelay
         df.to_csv(wetFilename, index=False)
+
 
     elif outformat == 'hdf5':
         writeResultsToHDF5(
