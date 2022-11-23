@@ -134,7 +134,7 @@ class HRRR(WeatherModel):
             out = filename
 
         # Get profile information from gdal
-        prof = rio_profile(str(filename))
+        prof, filename = rio_profile(str(filename))
 
         # Now get bounds
         S, N, W, E = self._ll_bounds

@@ -132,11 +132,10 @@ class GeocodedFile(AOI):
     '''Parse a Geocoded file for coordinates'''
     def __init__(self, filename, is_dem=False):
         AOI.__init__(self)
-        self._filename     = filename
-        self.p             = rio_profile(filename)
-        self._bounding_box = rio_extents(self.p)
-        self._is_dem       = is_dem
-        _, self._proj, self._gt = rio_stats(filename)
+        self._is_dem = is_dem
+        self.p, self._filename  = rio_profile(filename)
+        self._bounding_box      = rio_extents(self.p)
+        _, self._proj, self._gt = rio_stats(self._filename)
 
 
     def type(self):

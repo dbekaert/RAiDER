@@ -23,6 +23,9 @@ from RAiDER.constants import (
 from RAiDER.logger import logger
 
 
+pbar = None
+
+
 def projectDelays(delay, inc):
     '''Project zenith delays to LOS'''
     return delay / cosd(inc)
@@ -120,7 +123,13 @@ def rio_profile(fname):
             f"{fname} does not contain geotransform information"
         )
 
-    return profile
+    elif profile['crs'].to_epsg() != 4326:
+        fname_wgs84 = rio_reproject_geocoded(fname)
+        with rasterio.open(fname_wgs84) as src:
+            profile = src.profile
+        fname = fname_wgs84
+
+    return profile, fname
 
 
 def rio_extents(profile):
@@ -259,8 +268,6 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     if gt is not None:
         trans = rasterio.Affine.from_gdal(*gt)
 
-    # breakpoint()
-    # proj = {'init': 'EPSG:4326'}
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,
@@ -975,9 +982,6 @@ def read_EarthData_loginInfo(filepath=None):
     return urs_usr, urs_pwd
 
 
-pbar = None
-
-
 def show_progress(block_num, block_size, total_size):
     global pbar
     if pbar is None:
@@ -1084,3 +1088,37 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         z_h += TRd * dlogP
 
     return geopotential, pressurelvs, geoheight
+
+
+def rio_reproject_geocoded(fname, epsg=4326):
+    """ Reproject the input geocoded file to 4326
+
+    Write a new geocoded file with with suffix .WGS84
+    Required so weather model bounds align
+    https://rasterio.readthedocs.io/en/latest/topics/reproject.html
+    """
+    dst_crs   = f'EPSG:{epsg}'
+    dst_fname = f'{fname}.WGS84'
+
+    with rasterio.open(fname) as src:
+        transform, width, height = rasterio.warp.calculate_default_transform(
+            src.crs, dst_crs, src.width, src.height, *src.bounds)
+        kwargs = src.meta.copy()
+        kwargs.update({
+            'crs': dst_crs,
+            'transform': transform,
+            'width': width,
+            'height': height
+        })
+
+        with rasterio.open(dst_fname, 'w', **kwargs) as dst:
+            for i in range(1, src.count + 1):
+                rasterio.warp.reproject(
+                    source=rasterio.band(src, i),
+                    destination=rasterio.band(dst, i),
+                    src_transform=src.transform,
+                    src_crs=src.crs,
+                    dst_transform=transform,
+                    dst_crs=dst_crs,
+                    resampling=rasterio.warp.Resampling.nearest)
+    return dst_fname
