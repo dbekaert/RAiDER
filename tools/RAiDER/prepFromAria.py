@@ -94,14 +94,12 @@ def makeLOSFile(incFile, azFile, fmt='ENVI', filename='los.rdr'):
     return 0
 
 
-def prepFromAria():
+def main():
     '''
     A command-line utility to convert ARIA standard product outputs from ARIA-tools to
     RAiDER-compatible format
     '''
+    breakpoint()
     args, p = parse_args()
     makeLOSFile(args.incFile, args.azFile, args.fmt, args.los_file)
     makeLatLonGrid(args.incFile, args.lon_file, args.lat_file, args.fmt)
-
-def main():
-    prepFromAria()
