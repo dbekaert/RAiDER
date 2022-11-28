@@ -159,7 +159,6 @@ def parseCMD(iargs=None):
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
     # check which steps to run
-    breakpoint()
     args.runSteps = read_inps2run_steps(args, step_list=STEP_LIST)
 
     return args

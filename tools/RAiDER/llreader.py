@@ -91,9 +91,7 @@ class RasterRDR(AOI):
             self._proj, self._bounding_box, _ = bounds_from_latlon_rasters(lat_file, lon_file)
 
         # keep track of the height file
-        if hgt_file is not None:
-            self._hgtfile = hgt_file
-
+        self._hgtfile = hgt_file
         self._convention = convention
 
 
@@ -114,7 +112,14 @@ class RasterRDR(AOI):
         if self._hgtfile is not None:
             return rio_open(self._hgtfile)
         else:
-            raise ValueError('hgt file is not defined')
+            zvals, metadata = download_dem(
+                self._bounding_box,
+                writeDEM = True,
+                outName = os.path.join('GLO30_fullres_dem.tif'),
+            )
+            z_bounds = get_bbox(metadata)
+            z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            return z_out
 
 
 class BoundingBox(AOI):
