@@ -156,7 +156,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
             lon = fix_lons(lon)
             stations.append({'ID': statID, 'Lat': lat, 'Lon': lon, 'Hgt_m': height})
 
-    logger.info('%d stations were found', len(stations))
+    logger.info('%d stations were found in %s (SNWE)', len(stations), llhBox)
     stations = pd.DataFrame(stations)
     # Report stations from user's list that do not cover bbox
     if userstatList:
