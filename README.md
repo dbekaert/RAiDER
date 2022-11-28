@@ -67,7 +67,7 @@ You can also install RAiDER directly from source. Doing so is recommended for th
 ```
 git clone https://github.com/dbekaert/RAiDER.git
 cd RAiDER
-conda env create -f environment.yml
+conda create -f environment.yml
 conda activate RAiDER
 python -m pip install -e .
 ```
