@@ -10,23 +10,21 @@ from RAiDER.logger import logger, logging
 from RAiDER.cli.validators import enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
 
 STEP_LIST = [
-    'load_weather_model',
     'calculate_delays',
     'download_gnss',
 ]
 
 STEP_HELP = """Command line options for steps processing with names are chosen from the following list:
-{}
-In order to use either --start or --dostep, it is necessary that a
-previous run was done using one of the steps options to process at least
-through the step immediately preceding the starting step of the current run.
-""".format(STEP_LIST[0:])
+{}.""".format(STEP_LIST[0:])
 
 
 HELP_MESSAGE = """
-Command line options for RAiDER processing to calculate tropospheric
-delay from a weather model. Default options can be found by running
+Command line options for RAiDER processing. Default options can be found by running
 raiderDelay.py --generate_config.
+
+Possible steps:
+1) Download GNSS tropospheric delays ("download_gnss")
+2) Calculate tropospheric delays from a weather model ("calculate_delays")
 """
 
 SHORT_MESSAGE = """
@@ -105,7 +103,7 @@ def create_parser():
     step = p.add_argument_group('steps processing (start/end/dostep)', STEP_HELP)
     step.add_argument('--start', dest='startStep', metavar='STEP', default=STEP_LIST[0],
                       help='start processing at the named step (default: %(default)s).')
-    step.add_argument('--end','--stop', dest='endStep', metavar='STEP',  default=STEP_LIST[-1],
+    step.add_argument('--end','--stop', dest='endStep', metavar='STEP',  default=STEP_LIST[0],
                       help='end processing at the named step (default: %(default)s)')
     step.add_argument('--dostep', dest='doStep', metavar='STEP',
                       help='run processing at the named step only')
@@ -161,6 +159,7 @@ def parseCMD(iargs=None):
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
     # check which steps to run
+    breakpoint()
     args.runSteps = read_inps2run_steps(args, step_list=STEP_LIST)
 
     return args
@@ -179,8 +178,6 @@ def read_inps2run_steps(inps, step_list):
     # currently forcing two delay steps if dostep is NOT specified
         # check: ignore --start/end input if --dostep is specified; re-implement
     if inps.doStep:
-        # inps.startStep = inps.doStep
-        # inps.endStep = inps.doStep
         run_steps    = [inps.doStep]
 
     else:
@@ -191,7 +188,7 @@ def read_inps2run_steps(inps, step_list):
             msg = 'start step "{}" CAN NOT be after the end step "{}"'.format(inps.startStep, inps.endStep)
             raise ValueError(msg)
 
-        run_steps = step_list[idx0:idx1]
+        run_steps = step_list[idx0:idx1+1] # add 1 so that last step is taken
 
     # print mssage - processing steps
     print('Run routine processing with {} on steps: {}'.format(os.path.basename(__file__), run_steps))

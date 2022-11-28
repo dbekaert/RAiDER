@@ -38,7 +38,8 @@ def main(iargs=None):
         main(params)
 
 
-    if 'load_weather_model' in step_list or 'calculate_delays' in step_list:
+    #TODO: separate out the weather model calculation as a separate step
+    if 'calculate_delays' in step_list:
         for t, w, f in zip(
             params['date_list'],
             params['wetFilenames'],
