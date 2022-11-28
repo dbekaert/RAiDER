@@ -172,10 +172,10 @@ class WeatherModel(ABC):
         S, N, W, E = ll_bounds
 
         # Adjust bounds if they get near the poles or IDL
-        S = np.max([S, -90.0 + Nextra * self._lat_res])
-        N = np.min([N, 90.0 - Nextra * self._lat_res])
-        W = np.max([W, -180.0 + Nextra * self._lon_res])
-        E = np.min([E + ex_buffer_lon_max, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
+        S = np.max([S - Nextra * self._lat_res, -90.0 + Nextra * self._lat_res])
+        N = np.min([N + Nextra * self._lat_res, 90.0 - Nextra * self._lat_res])
+        W = np.max([W - Nextra * self._lon_res, -180.0 + Nextra * self._lon_res])
+        E = np.min([E + Nextra * self._lon_res + ex_buffer_lon_max, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
 
         self._ll_bounds = np.array([S, N, W, E])
 
@@ -646,7 +646,6 @@ class WeatherModel(ABC):
         nc_outfile.setncattr('title', title)
 
         tran = [self._xs[0], self._xs[1] - self._xs[0], 0.0, self._ys[0], 0.0, self._ys[1] - self._ys[0]]
-
         dimension_dict = {
             'x': {'varname': 'x',
                   'datatype': np.dtype('float64'),

@@ -877,7 +877,6 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
 
     datatype = np.dtype('S1')
     dimensions = ()
-
     var = nc_outfile.createVariable(
         grid_mapping,
         datatype,
