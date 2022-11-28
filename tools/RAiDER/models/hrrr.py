@@ -88,9 +88,8 @@ class HRRR(WeatherModel):
             filename = self.files
 
         # read data from grib file
-        pl = self._getPresLevels()
-        pl = np.array([self._convertmb2Pa(p) for p in pl['Values']])
         ds = xarray.open_dataset(filename)
+        pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
         xArr = ds['x'].values
         yArr = ds['y'].values
         lats = ds['lats'].values
@@ -231,7 +230,7 @@ class HRRR(WeatherModel):
                 lons=(["y", "x"], lons),
             ),
             coords=dict(
-                level=(["level"], levels,
+                levels=(["level"], levels,
                        {"units": "millibars",
                         "long_name":  "pressure_level",
                         "axis": "Z"}),
@@ -256,13 +255,6 @@ class HRRR(WeatherModel):
             ds_new.proj.attrs[k] = v
 
         ds_new.to_netcdf(out)
-
-
-    def _getPresLevels(self, low=50, high=1013.2, inc=25):
-        presList = [float(v) for v in range(int(low // 1), int(high // 1), int(inc // 1))]
-        presList.append(high)
-        outDict = {'Values': presList, 'units': 'mb', 'Name': 'Pressure_levels'}
-        return outDict
 
     def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''

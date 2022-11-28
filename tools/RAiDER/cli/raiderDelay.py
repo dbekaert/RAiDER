@@ -132,10 +132,13 @@ def parseCMD(iargs=None):
         'cli', 'raiderDelay.yaml'
     )
     if '-g' in args.argv:
+        dst = os.path.join(os.getcwd(), 'raiderDelay.yaml')
         shutil.copyfile(
                 template_file,
-                os.path.join(os.getcwd(), 'raiderDelay.yaml'),
+                dst,
             )
+
+        logger.info('Wrote %s', dst)
         sys.exit(0)
 
     # check: existence of input template files
@@ -190,11 +193,6 @@ def read_inps2run_steps(inps, step_list):
 
         run_steps = step_list[idx0:idx1]
 
-    # empty the step list if:
-    # a) -g OR
-    if inps.generate_template:
-        run_steps = []
-
     # print mssage - processing steps
     print('Run routine processing with {} on steps: {}'.format(os.path.basename(__file__), run_steps))
     # print('Remaining steps: {}'.format(step_list[idx0+1:]))
@@ -244,7 +242,11 @@ def read_template_file(fname):
         if key == 'date_group':
             template['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
-            template['aoi'] = get_query_region(AttributeDict(value))
+            ## in case a DEM is passed and should be used
+            dct_temp = {**AttributeDict(value),
+                        **AttributeDict(params['height_group'])}
+            template['aoi'] = get_query_region(AttributeDict(dct_temp))
+
         if key == 'los_group':
             template['los'] = get_los(AttributeDict(value))
         if key == 'look_dir':
