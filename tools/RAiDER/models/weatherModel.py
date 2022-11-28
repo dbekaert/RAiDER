@@ -444,7 +444,7 @@ class WeatherModel(ABC):
         weather_model_box = box(xmin, ymin, xmax, ymax)
 
         world_box  = box(-180, -90, 180, 90)
-        if self._proj.is_projected and world_box.contains(input_box):
+        if world_box.contains(input_box):
             xmin, ymin = transform_coords(self._proj, 4326, xmin, ymin)
             xmax, ymax = transform_coords(self._proj, 4326, xmax, ymax)
             weather_model_box = box(xmin, ymin, xmax, ymax)

@@ -269,8 +269,6 @@ class HRRR(WeatherModel):
             save_dir=Path(os.path.dirname(out)),
         )
         pf = H.download(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
-        # breakpoint()
-        # ds = H.xarray('q')
 
         self._makeDataCubes(pf, out)
 
