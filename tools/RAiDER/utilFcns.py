@@ -1074,3 +1074,17 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         z_h += TRd * dlogP
 
     return geopotential, pressurelvs, geoheight
+
+
+
+
+def transform_coords(proj1, proj2, x, y):
+    """
+    Transform coordinates from proj1 to proj2 (can be EPSG or crs from proj).
+    e.g. x, y = transform_coords(4326, 4087, lon, lat)
+    """
+    from pyproj import Transformer
+
+    transformer = Transformer.from_crs(proj1, proj2, always_xy=True)
+
+    return transformer.transform(x, y)
