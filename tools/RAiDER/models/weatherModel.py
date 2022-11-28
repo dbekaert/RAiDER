@@ -16,7 +16,7 @@ from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
 from RAiDER.utilFcns import (
-    robmax, robmin, write2NETCDF4core, calcgeoh,
+    robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords
 )
 
 
@@ -194,7 +194,7 @@ class WeatherModel(ABC):
         '''
         self.set_latlon_bounds(ll_bounds)
 
-        # If the weather file has already been processed, do nothing        
+        # If the weather file has already been processed, do nothing
         self._out_name = self.out_file(outLoc)
         if os.path.exists(self._out_name):
             return self._out_name
@@ -395,7 +395,7 @@ class WeatherModel(ABC):
             if len(datasets) == 0:
                 raise ValueError('No subdatasets found in the weather model. The file may be corrupt.\nWeather model path: {}'.format(weather_model_path))
 
-            # First dataset can end up being a coord. 
+            # First dataset can end up being a coord.
             # So search for temperature here - maybe there is a better way to
             # do this
             temp_dataset = None
@@ -439,9 +439,15 @@ class WeatherModel(ABC):
            and False otherwise.
         """
         ymin_input, ymax_input, xmin_input, xmax_input = ll_bounds
-        input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
+        input_box   = box(xmin_input, ymin_input, xmax_input, ymax_input)
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
+
+        world_box  = box(-180, -90, 180, 90)
+        if self._proj.is_projected and world_box.contains(input_box):
+            xmin, ymin = transform_coords(self._proj, 4326, xmin, ymin)
+            xmax, ymax = transform_coords(self._proj, 4326, xmax, ymax)
+            weather_model_box = box(xmin, ymin, xmax, ymax)
 
         # Logger
         input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
@@ -458,7 +464,6 @@ class WeatherModel(ABC):
 
         # If the bounding box goes beyond the normal world extents
         # Look at two x-translates, buffer them, and take their union.
-        world_box = box(-180, -90, 180, 90)
         if not world_box.contains(weather_model_box):
             logger.info('Considering x-translates of weather model +/-360 '
                         'as bounding box outside of -180, -90, 180, 90')
@@ -865,4 +870,3 @@ def get_mapping(proj):
         return 'WGS84'
     else:
         return proj.to_wkt()
-    
