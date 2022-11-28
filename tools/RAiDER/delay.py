@@ -33,7 +33,7 @@ from RAiDER.utilFcns import (
 )
 
 
-def tropo_delay(dt, wetFilename, hydroFilename, args):
+def main(dt, wetFilename, hydroFilename, args):
     """
     raiderDelay main function.
 
