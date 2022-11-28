@@ -175,7 +175,7 @@ class WeatherModel(ABC):
         S = np.max([S, -90.0 + Nextra * self._lat_res])
         N = np.min([N, 90.0 - Nextra * self._lat_res])
         W = np.max([W, -180.0 + Nextra * self._lon_res])
-        E = np.min([E, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
+        E = np.min([E + ex_buffer_lon_max, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
 
         self._ll_bounds = np.array([S, N, W, E])
 
