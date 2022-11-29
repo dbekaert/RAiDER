@@ -41,8 +41,9 @@ repository = "https://github.com/dbekaert/RAiDER"
 
 [project.scripts]
 "generateGACOSVRT.py" = "RAiDER.models.generateGACOSVRT:main"
-"raider.py" = "RAiDER.__main__:main"
-"raiderStats.py" = "RAiDER.statsPlot:main"
+"raider.py" = "RAiDER.cli.__main__:main"
+"prepFromAria.py" = "RAiDER.cli.prepFromAria:main"
+"raiderStats.py"  = "RAiDER.cli.statsPlot:main"
 
 [tool.setuptools]
 zip-safe = false
