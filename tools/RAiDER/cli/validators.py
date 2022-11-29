@@ -110,7 +110,7 @@ def get_query_region(args):
     '''
     # Get bounds from the inputs
     # make sure this is first
-    if 'use_dem_latlon' in args.keys():
+    if ('use_dem_latlon' in args.keys()) and args['use_dem_latlon']:
         query = GeocodedFile(args.dem, is_dem=True)
 
     elif 'lat_file' in args.keys():
