@@ -243,7 +243,7 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     '''
     array_shp = np.shape(array)
     if array.ndim != 2:
-        raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
+        raise RuntimeError(f'writeArrayToRaster: cannot write an array of shape {array_shp} to a raster image')
 
     # Data type
     if "complex" in str(array.dtype):

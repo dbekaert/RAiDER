@@ -1,7 +1,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: Jeremy Maurer
-# Copyright 2020, by the California Institute of Technology. ALL RIGHTS
+# Author: Jeremy Maurer, Brett Buzzanga
+# Copyright 2022, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -53,6 +53,7 @@ def create_parser():
         '--los', default='los.geo', type=str,
         help='Output  ine-of-sight filename')
 
+
     # p.add_argument(
     #     '--lat_filename', '-l', default='lat.rdr', type=str, dest='lat_file',
     #     help=('Output latitude filename'))
@@ -76,33 +77,40 @@ def parseCMD(iargs=None):
     return args
 
 
-def makeLatLonGrid(inFile, lonFileName, latFileName, fmt='ENVI'):
+def makeLatLonGrid(f:str):
     '''
     Convert the geocoded grids to lat/lon files for input to RAiDER
     '''
-    ds = rasterio.open(inFile)
-    xSize = ds.width
-    ySize = ds.height
-    gt = ds.transform.to_gdal()
-    proj = ds.crs
-
-    # Create the xy grid
-    xStart = gt[0]
-    yStart = gt[3]
-    xStep = gt[1]
-    yStep = gt[-1]
-
-    xEnd = xStart + xStep * xSize - 0.5 * xStep
-    yEnd = yStart + yStep * ySize - 0.5 * yStep
-
-    x = np.arange(xStart, xEnd, xStep)
-    y = np.arange(yStart, yEnd, yStep)
-    X, Y = np.meshgrid(x, y)
-    writeArrayToRaster(X, lonFileName, 0., fmt, proj, gt)
-    writeArrayToRaster(Y, latFileName, 0., fmt, proj, gt)
+    group   = 'science/grids/data'
+    lat_f   = os.path.join(f'NETCDF:"{f}":{group}/latitude')
+    lon_f   = os.path.join(f'NETCDF:"{f}":{group}/longitude')
 
 
-def makeLOSFile(f, filename):
+    ds   = xr.open_dataset(f, group='science/grids/data')
+
+    gt   = (0, 1, 0, 0, 0, 1)
+    proj = ds['crs'].crs_wkt
+
+    lats = ds.latitude.data
+    lons = ds.longitude.data
+
+    ySize = len(lats)
+    xSize = len(lons)
+
+    LATS  = np.tile(lats, (xSize, 1)).T
+    LONS  = np.tile(lons, (ySize, 1))
+
+    dst_lat = 'lat.geo'
+    dst_lon = 'lon.geo'
+    writeArrayToRaster(LATS, dst_lat, 0., 'GTiff', proj, gt)
+    writeArrayToRaster(LONS, dst_lon, 0., 'GTiff', proj, gt)
+
+    logger.debug('Wrote: %s', dst_lat)
+    logger.debug('Wrote: %s', dst_lon)
+    return
+
+
+def makeLOSFile(f:str, filename:str):
     """ Create line-of-sight file from ARIA azimuth and incidence layers """
 
     group   = 'science/grids/imagingGeometry'
@@ -185,5 +193,6 @@ def main():
         # ref, sec = parse_dates_GUNW(f)
         # wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
 
-        makeLOSFile(f, args.los)
+        # makeLOSFile(f, args.los)
+        makeLatLonGrid(f)
     # makeLatLonGrid(args.incFile, args.lon_file, args.lat_file, args.fmt)
