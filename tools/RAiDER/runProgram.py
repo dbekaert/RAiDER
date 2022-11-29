@@ -19,8 +19,8 @@ def main(iargs=None):
     # Argument checking
     params = checkArgs(params)
 
-    if params.verbose:
-        logger.setLevel(logging.DEBUG)
+    if not params.verbose:
+        logger.setLevel(logging.INFO)
 
     # run
     step_list       = inps.runSteps
