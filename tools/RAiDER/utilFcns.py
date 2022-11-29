@@ -428,8 +428,8 @@ def round_time(dt, roundTo=60):
     return dt + timedelta(0, rounding - seconds, -dt.microsecond)
 
 
-def writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
-                wetFilename, hydroFilename=None, zlevels=None, delayType=None,
+def writeDelays(aoi, wetDelay, hydroDelay, 
+                wetFilename, hydroFilename=None, 
                 outformat=None, proj=None, gt=None, ndv=0.):
     '''
     Write the delay numpy arrays to files in the format specified
@@ -451,16 +451,6 @@ def writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
         df['totalDelay'] = wetDelay + hydroDelay
         df.to_csv(wetFilename, index=False)
 
-    elif outformat == 'hdf5':
-        writeResultsToHDF5(
-            lats,
-            lons,
-            zlevels,
-            wetDelay,
-            hydroDelay,
-            wetFilename,
-            delayType=delayType
-        )
     else:
         writeArrayToRaster(
             wetDelay,
@@ -877,7 +867,6 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
 
     datatype = np.dtype('S1')
     dimensions = ()
-
     var = nc_outfile.createVariable(
         grid_mapping,
         datatype,
@@ -1084,8 +1073,5 @@ def transform_coords(proj1, proj2, x, y):
     Transform coordinates from proj1 to proj2 (can be EPSG or crs from proj).
     e.g. x, y = transform_coords(4326, 4087, lon, lat)
     """
-    from pyproj import Transformer
-
     transformer = Transformer.from_crs(proj1, proj2, always_xy=True)
-
     return transformer.transform(x, y)

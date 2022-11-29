@@ -19,8 +19,8 @@ def main(iargs=None):
     # Argument checking
     params = checkArgs(params)
 
-    if params.verbose:
-        logger.setLevel(logging.DEBUG)
+    if not params.verbose:
+        logger.setLevel(logging.INFO)
 
     # run
     step_list       = inps.runSteps
@@ -38,7 +38,8 @@ def main(iargs=None):
         main(params)
 
 
-    if 'load_weather_model' in step_list or 'calculate_delays' in step_list:
+    #TODO: separate out the weather model calculation as a separate step
+    if 'calculate_delays' in step_list:
         for t, w, f in zip(
             params['date_list'],
             params['wetFilenames'],

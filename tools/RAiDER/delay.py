@@ -84,8 +84,6 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
 
     ###########################################################
     # weather model calculation
-    delayType = ["Zenith" if los is Zenith else "LOS"]
-
     logger.debug('Beginning weather model pre-processing')
 
     weather_model_file = prepareWeatherModel(
@@ -148,7 +146,7 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
                 hgts,
                 pnt_proj,
                 wm_proj,
-            )
+            ).T
         else:
             # interpolators require y, x, z
             pnts = np.stack([lats, lons, hgts], axis=-1)
@@ -175,31 +173,18 @@ def tropo_delay(dt, wetFilename, hydroFilename, args):
         wetFilename   = wetFilename[0]
         hydroFilename = hydroFilename[0]
 
-    if heights is not None:
-        writeDelays(
-            aoi,
-            wetDelay,
-            hydroDelay,
-            lats,
-            lons,
-            wetFilename,
-            hydroFilename,
-            zlevels=hgts,
-            outformat=outformat,
-            delayType=delayType
-        )
-        logger.info('Finished writing data to %s', wetFilename)
+    if aoi.type() == 'station_file':
+        wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'
 
-    else:
-
-        if aoi.type() == 'station_file':
-            wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'
-
-        writeDelays(aoi, wetDelay, hydroDelay, lats, lons,
-                    wetFilename, hydroFilename, outformat=outformat,
-                    proj=None, gt=None, ndv=0.)
-
-        logger.info('Finished writing data to %s', wetFilename)
+    writeDelays(
+        aoi,
+        wetDelay,
+        hydroDelay,
+        wetFilename,
+        hydroFilename,
+        outformat=outformat,
+    )
+    logger.info('Finished writing data to file')
 
     return wetDelay, hydroDelay
 

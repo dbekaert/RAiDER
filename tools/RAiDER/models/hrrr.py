@@ -12,8 +12,8 @@ from pathlib import Path
 from pyproj import CRS, Transformer
 
 from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_profile
-from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.utilFcns import rio_profile, rio_extents
+from RAiDER.models.weatherModel import WeatherModel, transform_coords
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -135,7 +135,7 @@ class HRRR(WeatherModel):
 
         # Get profile information from gdal
         prof = rio_profile(str(filename))
-
+        
         # Now get bounds
         S, N, W, E = self._ll_bounds
 
@@ -150,6 +150,9 @@ class HRRR(WeatherModel):
         lons[lons > 180.0] -= 360.
         m1 = (S <= lats) & (N >= lats) &\
                 (W <= lons) & (E >= lons)
+
+        if np.sum(m1) == 0:
+            raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
 
         # Y extent
         m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
