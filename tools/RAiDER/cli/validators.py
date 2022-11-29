@@ -30,17 +30,17 @@ def enforce_wm(value):
 
 
 def get_los(args):
-    if 'orbit_file' in args.keys():
+    if ('orbit_file' in args.keys()) and (args['orbit_file'] is not None):
         if args.ray_trace:
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
-    elif 'los_file' in args.keys():
+    elif ('los_file' in args.keys()) and (args['los_file'] is not None):
         if args.ray_trace:
             los = Raytracing(args.los_file, args.los_convention)
         else:
             los = Conventional(args.los_file, args.los_convention)
-    elif 'los_cube' in args.keys():
+    elif ('los_cube' in args.keys()) and (args['los_cube'] is not None):
         raise NotImplementedError('LOS_cube is not yet implemented')
 #        if args.ray_trace:
 #            los = Raytracing(args.los_cube)
