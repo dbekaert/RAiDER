@@ -172,8 +172,7 @@ def parse_dates_GUNW(f:str):
     """ Get the ref/sec date from the filename """
     sec, ref = f.split('-')[6].split('_')
 
-    return ref, sec
-
+    return int(sec), int(ref)
 
 
 def parse_time_GUNW(f:str):
@@ -203,7 +202,7 @@ def update_yaml(dct_cfg, dst='GUNW.yaml'):
     params = {**params, **dct_cfg}
 
     with open(dst, 'w') as fh:
-        yaml.dump(params, fh, default_flow_style=False)
+        yaml.safe_dump(params, fh,  default_flow_style=False)
 
     logger.info (f'Wrote new cfg file: %s', dst)
     return dst
@@ -234,7 +233,8 @@ def main():
                'aoi_group' : {'lat_file': 'lat.geo', 'lon_file': 'lon.geo'},
                'date_group': {'date_list': str(dates)},
                'time_group': {'time': time},
-               'los_group' : {'ray_trace': ray_trace}
+               'los_group' : {'ray_trace': ray_trace},
+               'height_group': {'height_levels': str([100, 500, 1000])}
         }
 
-        update_yaml(cfg)
+        update_yaml(cfg, f'GUNW_{dates[0]}-{dates[1]}.yaml')
