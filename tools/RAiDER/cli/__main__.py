@@ -160,14 +160,15 @@ def parseCMD(iargs=None):
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
     # check: existence of input template files
-    elif not args.generate_tempate and not \
+    elif not args.generate_template and not \
                     os.path.isfile(os.path.basename(template_file)):
         p.print_usage()
         print(EXAMPLES)
 
         msg = "No template file found! It requires that either:"
         msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raider.yaml' exists in current directory."
+        msg += "\n  file 'raider.yaml' exists in current directory "
+        msg += "\n  OR you pass ARIA GUNW products."
         raise SystemExit(f'ERROR: {msg}')
 
 

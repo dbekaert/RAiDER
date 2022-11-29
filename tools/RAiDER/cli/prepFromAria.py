@@ -10,6 +10,8 @@ import glob
 import numpy as np
 import xarray as xr
 import rasterio
+import yaml
+import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 
@@ -26,9 +28,8 @@ def create_parser():
     )
 
     p.add_argument(
-        '-m', '--model', default='HRRR', type=str,
+        '-m', '--model', default='GMAO', type=str,
         help='Weather model (default=HRRR)')
-
 
     p.add_argument(
         '-s', '--slant',  choices=('projection', 'ray'),
@@ -38,6 +39,14 @@ def create_parser():
     p.add_argument(
         '-w', '--write', action='store_true',
         help=('Optionally write the delays into the GUNW products'))
+
+    p.add_argument(
+        '--los_convention', '-lc', choices=('isce', 'hyp3'), default='isce',
+                type=str, help='?')
+
+    p.add_argument(
+        '--los', default='los.geo', type=str,
+        help='Output  ine-of-sight filename')
 
     # Line of sight
     # p.add_argument(
@@ -49,10 +58,6 @@ def create_parser():
     #     help='GDAL-readable raster image file of azimuth',
     #     metavar='AZ', required=True)
     #
-    p.add_argument(
-        '--los', default='los.geo', type=str,
-        help='Output  ine-of-sight filename')
-
 
     # p.add_argument(
     #     '--lat_filename', '-l', default='lat.rdr', type=str, dest='lat_file',
@@ -166,7 +171,9 @@ def get_bbox_GUNW(f:str, buff:float=1e5):
 def parse_dates_GUNW(f:str):
     """ Get the ref/sec date from the filename """
     sec, ref = f.split('-')[6].split('_')
+
     return ref, sec
+
 
 
 def parse_time_GUNW(f:str):
@@ -176,8 +183,30 @@ def parse_time_GUNW(f:str):
 
 
 def parse_look_dir(f:str):
-    look_dir = f.split('-')[3]
+    look_dir = f.split('-')[3].lower()
     return 'right' if look_dir == 'r' else 'left'
+
+
+def update_yaml(dct_cfg, dst='GUNW.yaml'):
+    """ Write a temporary yaml file with the new 'value' for 'key', preserving parms in example_yaml"""
+
+    template_file = os.path.join(
+                    os.path.dirname(RAiDER.__file__), 'cli', 'raider.yaml')
+
+    with open(template_file, 'r') as f:
+        try:
+            params = yaml.safe_load(f)
+        except yaml.YAMLError as exc:
+            print(exc)
+            raise ValueError(f'Something is wrong with the yaml file {example_yaml}')
+
+    params = {**params, **dct_cfg}
+
+    with open(dst, 'w') as fh:
+        yaml.dump(params, fh, default_flow_style=False)
+
+    logger.info (f'Wrote new cfg file: %s', dst)
+    return dst
 
 
 def main():
@@ -185,14 +214,27 @@ def main():
     A command-line utility to convert ARIA standard product outputs from ARIA-tools to
     RAiDER-compatible format
     '''
-    args = parseCMD()
+    args      = parseCMD()
+    ray_trace = True if args.slant == 'ray' else False
 
     for f in args.files:
         # version  = xr.open_dataset(f).attrs['version'] # not used yet
         # SNWE     = get_bbox_GUNW(f)
-        # ref, sec = parse_dates_GUNW(f)
-        # wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
+        wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
+        dates    = parse_dates_GUNW(f)
+        time     = parse_time_GUNW(f)
+        lookdir  = parse_look_dir(f)
 
-        # makeLOSFile(f, args.los)
+        makeLOSFile(f, args.los)
         makeLatLonGrid(f)
-    # makeLatLonGrid(args.incFile, args.lon_file, args.lat_file, args.fmt)
+
+        cfg  = {
+               'look_dir':  lookdir,
+               'weather_model': args.model,
+               'aoi_group' : {'lat_file': 'lat.geo', 'lon_file': 'lon.geo'},
+               'date_group': {'date_list': str(dates)},
+               'time_group': {'time': time},
+               'los_group' : {'ray_trace': ray_trace}
+        }
+
+        update_yaml(cfg)
