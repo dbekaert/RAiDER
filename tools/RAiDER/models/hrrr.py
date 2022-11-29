@@ -151,6 +151,9 @@ class HRRR(WeatherModel):
         m1 = (S <= lats) & (N >= lats) &\
                 (W <= lons) & (E >= lons)
 
+        if np.sum(m1) == 0:
+            raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
+
         # Y extent
         m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
         y_min = max(m1_y[0][0] - 2, 0)
