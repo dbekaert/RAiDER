@@ -11,6 +11,7 @@ import numpy as np
 import xarray as xr
 import rasterio
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
+from RAiDER.logger import logger
 
 
 def create_parser():
@@ -28,9 +29,11 @@ def create_parser():
         '-m', '--model', default='HRRR', type=str,
         help='Weather model (default=HRRR)')
 
+
     p.add_argument(
-        '-s', '--slant',  default='LOS', type=str,
-        help='Delay calculation in LOS or ')
+        '-s', '--slant',  choices=('projection', 'ray'),
+        type=str, default='projection',
+        help='Delay calculation projecting the zenith to slant or along rays ')
 
     p.add_argument(
         '-w', '--write', action='store_true',
@@ -46,9 +49,10 @@ def create_parser():
     #     help='GDAL-readable raster image file of azimuth',
     #     metavar='AZ', required=True)
     #
-    # p.add_argument(
-    #     '--los_filename', '-f', default='los.rdr', type=str, dest='los_file',
-    #     help=('Output Line-of-sight filename'))
+    p.add_argument(
+        '--los', default='los.geo', type=str,
+        help='Output  ine-of-sight filename')
+
     # p.add_argument(
     #     '--lat_filename', '-l', default='lat.rdr', type=str, dest='lat_file',
     #     help=('Output latitude filename'))
@@ -56,10 +60,10 @@ def create_parser():
     #     '--lon_filename', '-L', default='lon.rdr', type=str, dest='lon_file',
     #     help=('Output longitude filename'))
 
-    p.add_argument(
-        '--format', '-t', default='tif', type=str, dest='fmt',
-        help='Output file format (default=tif)')
-
+    # p.add_argument(
+    #     '--format', '-t', default='.tif', type=str, dest='fmt',
+    #     help='Output file format (default=tif)')
+    #
     return p
 
 
@@ -98,32 +102,46 @@ def makeLatLonGrid(inFile, lonFileName, latFileName, fmt='ENVI'):
     writeArrayToRaster(Y, latFileName, 0., fmt, proj, gt)
 
 
-def makeLOSFile(incFile, azFile, fmt='ENVI', filename='los.rdr'):
-    '''
-    Create a line-of-sight file from ARIA-derived azimuth and inclination files
-    '''
-    az, az_prof = rio_open(azFile, returnProj=True)
-    az[az == 0] = np.nan
-    inc = rio_open(incFile)
+def makeLOSFile(f, filename):
+    """ Create line-of-sight file from ARIA azimuth and incidence layers """
 
-    heading = 90 - az
+    group   = 'science/grids/imagingGeometry'
+    azFile  = os.path.join(f'NETCDF:"{f}":{group}/azimuthAngle')
+    incFile = os.path.join(f'NETCDF:"{f}":{group}/incidenceAngle')
+
+    az, az_prof = rio_open(azFile, returnProj=True)
+    az          = np.stack(az)
+    az[az == 0] = np.nan
+    array_shp   = az.shape[1:]
+
+    heading     = 90 - az
     heading[np.isnan(heading)] = 0.
 
-    array_shp = np.shape(az)[:2]
+    inc = rio_open(incFile)
+    inc = np.stack(inc)
 
-    # Write the data to a file
-    with rasterio.open(filename, mode="w", count=2,
-                       driver=fmt, width=array_shp[1],
-                       height=array_shp[0], crs=az_prof.crs,
-                       transform=az_prof.transform,
-                       dtype=az.dtype, nodata=0.) as dst:
-        dst.write(inc, 1)
-        dst.write(heading, 2)
+    hgt = np.arange(inc.shape[0])
+    y   = np.arange(inc.shape[1])
+    x   = np.arange(inc.shape[2])
 
-    return 0
+    da_inc  = xr.DataArray(inc, name='incidenceAngle',
+                coords={'hgt': hgt, 'x': x, 'y': y},
+                dims='hgt y x'.split())
+
+    da_head = xr.DataArray(heading, name='heading',
+                coords={'hgt': hgt, 'x': x, 'y': y},
+                dims='hgt y x'.split())
+
+    ds = xr.merge([da_head, da_inc]).assign_attrs(
+                        crs=str(az_prof['crs']), geo_transform=az_prof['transform'])
+
+    dst = f'{filename}.nc'
+    ds.to_netcdf(dst)
+    logger.debug('Wrote: %s', dst)
+    return dst
 
 
-
+## only this one opens the product; need to get lats/lons actually
 def get_bbox_GUNW(f:str, buff:float=1e5):
     """ Get the bounding box (SNWE) from an ARIA GUNW product """
     import shapely.wkt
@@ -142,6 +160,18 @@ def parse_dates_GUNW(f:str):
     sec, ref = f.split('-')[6].split('_')
     return ref, sec
 
+
+def parse_time_GUNW(f:str):
+    """ Get the center time of the secondary date from the filename """
+    tt = f.split('-')[7]
+    return f'{tt[:2]}:{tt[2:4]}:{tt[4:]}'
+
+
+def parse_look_dir(f:str):
+    look_dir = f.split('-')[3]
+    return 'right' if look_dir == 'r' else 'left'
+
+
 def main():
     '''
     A command-line utility to convert ARIA standard product outputs from ARIA-tools to
@@ -150,17 +180,10 @@ def main():
     args = parseCMD()
 
     for f in args.files:
-        version  = xr.open_dataset(f).attrs['version'] # not used yet
-        SNWE     = get_bbox_GUNW(f)
-        ref, sec = parse_dates_GUNW(f)
-        wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
-        print (version)
-        print (ref)
-        print (sec)
-        print (wavelen)
+        # version  = xr.open_dataset(f).attrs['version'] # not used yet
+        # SNWE     = get_bbox_GUNW(f)
+        # ref, sec = parse_dates_GUNW(f)
+        # wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
 
-        breakpoint()
-
-
-    # makeLOSFile(args.incFile, args.azFile, args.fmt, args.los_file)
+        makeLOSFile(f, args.los)
     # makeLatLonGrid(args.incFile, args.lon_file, args.lat_file, args.fmt)

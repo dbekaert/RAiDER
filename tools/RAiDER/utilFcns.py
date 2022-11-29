@@ -156,11 +156,10 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
             data = src.read().squeeze()
             if data.ndim > 2:
                 for bnd in range(data.shape[0]):
-                    val = data[band, ...]
+                    val = data[bnd, ...]
                     nodataToNan(val, [userNDV, nodata[bnd]])
             else:
                 nodataToNan(data, list(nodata) + [userNDV])
-
 
         if data.ndim > 2:
             dlist = []
