@@ -25,11 +25,15 @@ def create_parser():
     )
 
     p.add_argument(
-        '--model', '-m', default='HRRR', type=str,
+        '-m', '--model', default='HRRR', type=str,
         help='Weather model (default=HRRR)')
 
     p.add_argument(
-        '--write', '-w', action='store_true',
+        '-s', '--slant',  default='LOS', type=str,
+        help='Delay calculation in LOS or ')
+
+    p.add_argument(
+        '-w', '--write', action='store_true',
         help=('Optionally write the delays into the GUNW products'))
 
     # Line of sight
