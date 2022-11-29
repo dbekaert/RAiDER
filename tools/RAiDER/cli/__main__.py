@@ -95,7 +95,7 @@ def create_parser():
     )
 
     p.add_argument(
-        'customTemplateFile', nargs='?', type=argparse.FileType('r'),
+        'customTemplateFile', nargs='?',
         help='custom template with option settings.\n' +
         "ignored if the default smallbaselineApp.cfg is input."
     )
@@ -203,7 +203,7 @@ def read_inps2run_steps(inps, step_list):
         run_steps = step_list[idx0:idx1+1] # add 1 so that last step is taken
 
     # print mssage - processing steps
-    print('Run routine processing with {} on steps: {}'.format(os.path.basename(__file__), run_steps))
+    print(f'Run raider processing with steps: {run_steps}')
     # print('Remaining steps: {}'.format(step_list[idx0+1:]))
     print('-'*50)
 
@@ -292,13 +292,12 @@ def drop_nans(d):
 def main(iargs=None):
     # parse
     inps = parseCMD(iargs)
+    step_list = inps.runSteps
 
     if inps.files:
         params = prepARIA.main()
 
     else:
-        step_list       = inps.runSteps
-        params.runSteps = step_list
 
         # Read the template file
         params = read_template_file(inps.customTemplateFile)
@@ -306,8 +305,10 @@ def main(iargs=None):
         # Argument checking
         params = checkArgs(params)
 
-    if params.verbose:
-        logger.setLevel(logging.DEBUG)
+        params.runSteps = step_list
+
+    if not params.verbose:
+        logger.setLevel(logging.INFO)
 
 
     if 'download_gnss' in step_list:
