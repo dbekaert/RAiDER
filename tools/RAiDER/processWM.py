@@ -59,7 +59,7 @@ def prepareWeatherModel(
         if not containment:
             logger.warning(
                 'The weather model passed does not cover all of the input '
-                'points; you need to download a larger area.'
+                'points; you may need to download a larger area.'
             )
 
     # If only downloading, exit now
