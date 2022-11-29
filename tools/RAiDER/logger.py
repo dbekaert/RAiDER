@@ -61,14 +61,14 @@ logger.setLevel(logging.DEBUG)
 
 stdout_handler = StreamHandler(sys.stdout)
 stdout_handler.setFormatter(CustomFormatter(use_color=os.name != "nt"))
-stdout_handler.setLevel(logging.INFO)
+stdout_handler.setLevel(logging.DEBUG)
 
 debugfile_handler = FileHandler(os.path.join(_log_file_write_location, "debug.log"))
 debugfile_handler.setFormatter(Formatter(
     "[{asctime}] {funcName:>20}:{lineno:<5} {levelname:<10} {message}",
     style="{"
 ))
-debugfile_handler.setLevel(logging.INFO)
+debugfile_handler.setLevel(logging.DEBUG)
 
 errorfile_handler = FileHandler(os.path.join(_log_file_write_location, "error.log"))
 errorfile_handler.setFormatter(Formatter(
