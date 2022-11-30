@@ -13,7 +13,7 @@ from RAiDER.cli.validators import (enforce_time, enforce_bbox, parse_dates,
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.delay import main as main_delay
-from RAiDER.downloadGNSSDelays import main as main_gnss
+from RAiDER.gnss.downloadGNSSDelays import main as main_gnss
 
 STEP_LIST = [
     'calculate_delays',

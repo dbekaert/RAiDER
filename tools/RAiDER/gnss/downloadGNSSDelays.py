@@ -286,16 +286,16 @@ def get_ID(line):
     return stat_id, float(lat), float(lon), float(height)
 
 
-def main(params):
+def main(params=None):
     """
     Main workflow for querying supported GPS repositories for zenith delay information.
     """
-    if params:
+    if params is not None:
         inps = params
         dateList     = inps.date_list
         returnTime   = inps.time
     else:
-        inps = cmd_line_parse(iargs)
+        inps = cmd_line_parse()
         dateList     = inps.dateList
         returnTime   = inps.returnTime
 
