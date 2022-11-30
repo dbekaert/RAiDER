@@ -118,8 +118,7 @@ def create_parser():
 
 def parseCMD(iargs=None):
     """
-    Parse command-line arguments and pass to tropo_delay
-    We'll parse arguments and call delay.py.
+    Parse command-line arguments and pass to delay.py
     """
 
     p = create_parser()
