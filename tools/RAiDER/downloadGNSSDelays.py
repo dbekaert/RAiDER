@@ -12,7 +12,7 @@ import os
 import pandas as pd
 from textwrap import dedent
 
-# from RAiDER.cli.parser import add_cpus, add_out, add_verbose
+from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 # from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.logger import logger, logging
 from RAiDER.getStationDelays import get_station_data
@@ -286,10 +286,11 @@ def get_ID(line):
     return stat_id, float(lat), float(lon), float(height)
 
 
-def main(inps):
+def main(iargs=None):
     """
     Main workflow for querying supported GPS repositories for zenith delay information.
     """
+    inps = cmd_line_parse(iargs)
     station_file = inps.station_file
     bounding_box = inps.bounding_box
     gps_repo     = inps.gps_repo
@@ -384,18 +385,3 @@ def main(inps):
     )
 
     logger.debug('Completed processing')
-
-
-def main(inps):
-
-    query_repos(
-        inps.station_file,
-        inps.bounding_box,
-        inps.gps_repo,
-        inps.out,
-        inps.date_list,
-        inps.time,
-        inps.download,
-        inps.cpus,
-        inps.verbose
-    )
