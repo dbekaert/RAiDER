@@ -13,15 +13,14 @@ Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rig
 THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS. USE AT YOUR OWN RISK.
 
 ## Contents
-- [RAiDER](#raider)
-  - [Contents](#contents)
-  - [1. Installing RAiDER](#3-installing-raider)
-    - [With Conda](#with-conda)
-    - [From Source](#3-installing-raider)
-  - [2. Setup of third-party weather model access](#4-setup-of-third-party-weather-model-access)
-  - [3. Running RAiDER and Documentation](#5-running-raider-and-documentation)
-  - [4. Citing](#6-citation)
-  - [5. Contributors](#7-contributors)
+- [1. Getting Started](#1-getting-started)
+  - [Installing With Conda](#installing-with-conda)
+  - [Using the Docker Image](#using-the-docker-image)
+  - [Installing from Source](#installing-from-source)
+- [2. Setup of third party weather model access](#2-setup-of-third-party-weather-model-access)
+- [3. Running RAiDER and Documentation](#3-running-raider-and-documentation)
+- [4. Citing](#4-citation)
+- [5. Contributors](#5-contributors)
 ------
 ## 1. Getting Started
 
