@@ -94,6 +94,13 @@ def create_parser():
         help='generate default template (if it does not exist) and exit.'
     )
 
+    
+    p.add_argument(
+        '--download-only',
+        action='store_true',
+        help='only download a weather model.'
+    )
+
     return p
 
 
