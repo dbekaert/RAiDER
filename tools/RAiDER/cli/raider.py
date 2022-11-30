@@ -26,7 +26,7 @@ STEP_HELP = f"""Command line options for steps processing with names are chosen 
 
 HELP_MESSAGE = """
 Command line options for RAiDER processing. Default options can be found by running
-raiderDelay.py --generate_config.
+raider.py --generate_config.
 
 Possible steps:
 1) Download GNSS tropospheric delays ("download_gnss")
@@ -39,8 +39,8 @@ Program to calculate troposphere total delays using a weather model
 
 EXAMPLES = """
 Usage examples:
-raiderDelay.py -g
-raiderDelay.py customTemplatefile.cfg
+raider.py -g
+raider.py customTemplatefile.cfg
 """
 
 class AttributeDict(dict):
@@ -208,7 +208,7 @@ def read_template_file(fname):
                 delimiter  - str, string to separate the key and value
                 skip_chars - list of str, skip certain charaters in values
     Returns:    template   - dict, file content
-    Examples:   template = read_template('raiderDelay.yaml')
+    Examples:   template = read_template('raider.yaml')
 
     Modified from MintPy's 'read_template'
     """

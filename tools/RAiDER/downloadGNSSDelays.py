@@ -13,7 +13,7 @@ import pandas as pd
 from textwrap import dedent
 
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
-# from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.logger import logger, logging
 from RAiDER.getStationDelays import get_station_data
 from RAiDER.utilFcns import requests_retry_session

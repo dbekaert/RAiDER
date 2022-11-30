@@ -6,7 +6,7 @@ import pandas as pd
 
 from test import GEOM_DIR, TEST_DIR
 
-from RAiDER.cli.raiderDelay import create_parser
+from RAiDER.cli.raider import create_parser
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (

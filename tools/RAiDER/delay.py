@@ -35,7 +35,7 @@ from RAiDER.utilFcns import (
 
 def tropo_delay_cube(dt, wf, args, model_file=None):
     """
-    raiderDelay cube generation function.
+    raider cube generation function.
 
     Same as tropo_delay() above.
     """
@@ -557,7 +557,7 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
 ###############################################################################
 def main(dt, wetFilename, hydroFilename, args):
     """
-    raiderDelay main function.
+    raider main function for calculating delays.
 
     Parameterss
     ----------
