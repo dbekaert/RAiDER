@@ -172,7 +172,7 @@ class WeatherModel(ABC):
             ex_buffer_lon_max = self._lon_res
         elif self._Name == 'HRRR':
             Nextra = 6 # have a bigger buffer
-            
+
 
         # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
         S, N, W, E = ll_bounds
@@ -396,15 +396,19 @@ class WeatherModel(ABC):
                 raise ValueError('Need to save weather model as netcdf')
             weather_model_path = self.files[0]
             with xarray.load_dataset(weather_model_path) as ds:
-                    xmin = ds.x.min()
-                    xmax = ds.x.max()
-                    ymin = ds.y.min()
-                    ymax = ds.y.max()
-            wm_proj = self._proj
+                try:
+                    xmin, xmax = ds.x.min(), ds.x.max()
+                    ymin, ymax = ds.y.min(), ds.y.max()
+                except:
+                    xmin, xmax = ds.longitude.min(), ds.longitude.max()
+                    ymin, ymax = ds.latitude.min(), ds.latitude.max()
+
+            wm_proj    = self._proj
             lons, lats = transform_coords(wm_proj, CRS(4326), [xmin, xmax], [ymin, ymax])
             self._bbox = [lons[0], lats[0], lons[1], lats[1]]
 
         return self._bbox
+
 
     def checkContainment(self: weatherModel,
                          ll_bounds: np.ndarray,
