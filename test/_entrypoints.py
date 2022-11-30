@@ -15,7 +15,7 @@ def test_raider__main__4(script_runner):
 
 
 def test_raider__main__5(script_runner):
-    ret = script_runner.run('raiderDelay.py', '-h')
+    ret = script_runner.run('raider.py', '-h')
     assert ret.success
 
 

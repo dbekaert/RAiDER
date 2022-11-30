@@ -23,6 +23,9 @@ from RAiDER.constants import (
 from RAiDER.logger import logger
 
 
+pbar = None
+
+
 def projectDelays(delay, inc):
     '''Project zenith delays to LOS'''
     return delay / cosd(inc)
@@ -156,7 +159,7 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
             data = src.read().squeeze()
             if data.ndim > 2:
                 for bnd in range(data.shape[0]):
-                    val = data[band, ...]
+                    val = data[bnd, ...]
                     nodataToNan(val, [userNDV, nodata[bnd]])
             else:
                 nodataToNan(data, list(nodata) + [userNDV])
@@ -428,8 +431,8 @@ def round_time(dt, roundTo=60):
     return dt + timedelta(0, rounding - seconds, -dt.microsecond)
 
 
-def writeDelays(aoi, wetDelay, hydroDelay, 
-                wetFilename, hydroFilename=None, 
+def writeDelays(aoi, wetDelay, hydroDelay,
+                wetFilename, hydroFilename=None,
                 outformat=None, proj=None, gt=None, ndv=0.):
     '''
     Write the delay numpy arrays to files in the format specified
@@ -955,9 +958,6 @@ def read_EarthData_loginInfo(filepath=None):
     return urs_usr, urs_pwd
 
 
-pbar = None
-
-
 def show_progress(block_num, block_size, total_size):
     global pbar
     if pbar is None:
@@ -1064,8 +1064,6 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         z_h += TRd * dlogP
 
     return geopotential, pressurelvs, geoheight
-
-
 
 
 def transform_coords(proj1, proj2, x, y):

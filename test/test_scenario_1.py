@@ -7,7 +7,7 @@ import numpy as np
 from test import TEST_DIR, pushd
 
 from RAiDER.losreader import Zenith
-from RAiDER.delay import tropo_delay
+from RAiDER.delay import main
 from RAiDER.utilFcns import rio_open
 from RAiDER.checkArgs import makeDelayFileNames
 from RAiDER.cli.validators import modelName2Module
@@ -119,7 +119,7 @@ def core_test_tropo_delay(tmp_path, modelName):
         args['hydroFilenames'] = hydro_file
         args['verbose'] = True
 
-        (_, _) = tropo_delay(args)
+        (_, _) = main(args)
 
         # get the results
         wet = rio_open(wet_file)
