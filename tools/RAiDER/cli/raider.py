@@ -13,24 +13,13 @@ from RAiDER.cli.validators import (enforce_time, enforce_bbox, parse_dates,
 
 from RAiDER.checkArgs import checkArgs
 from RAiDER.delay import main as main_delay
-from RAiDER.gnss.downloadGNSSDelays import main as main_gnss
-
-STEP_LIST = [
-    'calculate_delays',
-    'download_gnss',
-]
-
-STEP_HELP = f"""Command line options for steps processing with names are chosen from the following list:
-{STEP_LIST[0:]}."""
 
 
 HELP_MESSAGE = """
 Command line options for RAiDER processing. Default options can be found by running
-raider.py --generate_config.
+raider.py --generate_config
 
-Possible steps:
-1) Download GNSS tropospheric delays ("download_gnss")
-2) Calculate tropospheric delays from a weather model ("calculate_delays")
+Download a weather model and calculate tropospheric delays
 """
 
 SHORT_MESSAGE = """
@@ -105,14 +94,6 @@ def create_parser():
         help='generate default template (if it does not exist) and exit.'
     )
 
-    step = p.add_argument_group('steps processing (start/end/dostep)', STEP_HELP)
-    step.add_argument('--start', dest='startStep', metavar='STEP', default=STEP_LIST[0],
-                      help='start processing at the named step (default: %(default)s).')
-    step.add_argument('--end','--stop', dest='endStep', metavar='STEP',  default=STEP_LIST[0],
-                      help='end processing at the named step (default: %(default)s)')
-    step.add_argument('--dostep', dest='doStep', metavar='STEP',
-                      help='run processing at the named step only')
-
     return p
 
 
@@ -153,7 +134,7 @@ def parseCMD(iargs=None):
         msg = "No template file found! It requires that either:"
         msg += "\n  a custom template file, OR the default template "
         msg += "\n  file 'raider.yaml' exists in current directory."
-        raise SystemExit('ERROR: {}'.format(msg))
+        raise SystemExit(f'ERROR: {msg}')
 
     if  args.customTemplateFile:
         # check the existence
@@ -162,43 +143,7 @@ def parseCMD(iargs=None):
 
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
-    # check which steps to run
-    args.runSteps = read_inps2run_steps(args, step_list=STEP_LIST)
-
     return args
-
-
-def read_inps2run_steps(inps, step_list):
-    """read/get run_steps from input arguments."""
-    # check: if start/end/do step input is valid
-    for key in ['startStep', 'endStep', 'doStep']:
-        value = vars(inps)[key]
-        if value and value not in step_list:
-            msg = 'Input step not found: {}'.format(value)
-            msg += '\nAvailable steps: {}'.format(step_list)
-            raise ValueError(msg)
-
-    # currently forcing two delay steps if dostep is NOT specified
-        # check: ignore --start/end input if --dostep is specified; re-implement
-    if inps.doStep:
-        run_steps    = [inps.doStep]
-
-    else:
-        # get list of steps to run
-        idx0 = step_list.index(inps.startStep)
-        idx1 = step_list.index(inps.endStep)
-        if idx0 > idx1:
-            msg = 'start step "{}" CAN NOT be after the end step "{}"'.format(inps.startStep, inps.endStep)
-            raise ValueError(msg)
-
-        run_steps = step_list[idx0:idx1+1] # add 1 so that last step is taken
-
-    # print mssage - processing steps
-    print('Run routine processing with {} on steps: {}'.format(os.path.basename(__file__), run_steps))
-    # print('Remaining steps: {}'.format(step_list[idx0+1:]))
-    print('-'*50)
-
-    return run_steps
 
 
 def read_template_file(fname):
@@ -290,33 +235,19 @@ def main(iargs=None):
     # Argument checking
     params = checkArgs(params)
 
+    params['download_only'] = inps.download_only
+
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
-    # run
-    step_list       = inps.runSteps
-    params.runSteps = step_list
 
-
-    if 'download_gnss' in step_list:
-        params['gps_repo'] = 'UNR' # only UNR supported; used to be exposed
-        params['out']      = f'{params["gps_repo"]}_products' # output directory
-        params['download'] = False
-        params['cpus']     = 4
-        params['bounding_box'] = params['aoi'].bounds()
-
-        main_gnss(AttributeDict(params))
-
-
-    #TODO: separate out the weather model calculation as a separate step
-    if 'calculate_delays' in step_list:
-        for t, w, f in zip(
-            params['date_list'],
-            params['wetFilenames'],
-            params['hydroFilenames']
-        ):
-            try:
-                (_, _) = main_delay(t, w, f, params)
-            except RuntimeError:
-                logger.exception("Date %s failed", t)
-                continue
+    for t, w, f in zip(
+        params['date_list'],
+        params['wetFilenames'],
+        params['hydroFilenames']
+    ):
+        try:
+            (_, _) = main_delay(t, w, f, params)
+        except RuntimeError:
+            logger.exception("Date %s failed", t)
+            continue

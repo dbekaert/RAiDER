@@ -43,7 +43,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     weather_model = args['weather_model']
     wmLoc = args['weather_model_directory']
     zref = args['zref']
-    download_only = False
+    download_only = args['download_only']
     verbose = args['verbose']
     aoi = args['aoi']
     cube_spacing = args["cube_spacing_in_m"]
@@ -589,9 +589,7 @@ def main(dt, wetFilename, hydroFilename, args):
     verbose = args['verbose']
     aoi   = args['aoi']
 
-    steps = args['runSteps']
-    download_only = True if len(steps) == 1 and \
-                        steps[0] == 'load_weather_model' else False
+    download_only = args['download_only']
 
     if los.ray_trace():
         ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
