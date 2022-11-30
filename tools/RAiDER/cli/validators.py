@@ -8,7 +8,7 @@ import re
 import pandas as pd
 import numpy as np
 
-from datetime import time, timedelta, datetime
+from datetime import time, timedelta, datetime, date
 from textwrap import dedent
 from time import strptime
 
@@ -176,6 +176,7 @@ def parse_dates(arg_dict):
     '''
 
     if 'date_list' in arg_dict.keys():
+        l = arg_dict['date_list']
         if isinstance(l, str):
             l = re.findall('[0-9]+', l)
         L = [enforce_valid_dates(d) for d in l]
@@ -372,7 +373,7 @@ def date_type(arg):
         'Unable to coerce {} to a date. Try %Y-%m-%d'.format(arg)
     )
 
-    
+
 class MappingType(object):
     """
     A type that maps arguments to constants.
@@ -513,5 +514,54 @@ class DateListAction(Action):
 
             values = [start + timedelta(days=k)
                       for k in range(0, (end - start).days + 1, stepsize)]
+
+        setattr(namespace, self.dest, values)
+
+
+class BBoxAction(Action):
+    """An Action that parses and stores a valid bounding box"""
+
+    def __init__(
+        self,
+        option_strings,
+        dest,
+        nargs=None,
+        const=None,
+        default=None,
+        type=None,
+        choices=None,
+        required=False,
+        help=None,
+        metavar=None
+    ):
+        if nargs != 4:
+            raise ValueError("nargs must be 4!")
+
+        super().__init__(
+            option_strings=option_strings,
+            dest=dest,
+            nargs=nargs,
+            const=const,
+            default=default,
+            type=type,
+            choices=choices,
+            required=required,
+            help=help,
+            metavar=metavar
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        S, N, W, E = values
+
+        if N <= S or E <= W:
+            raise ArgumentError(self, 'Bounding box has no size; make sure you use "S N W E"')
+
+        for sn in (S, N):
+            if sn < -90 or sn > 90:
+                raise ArgumentError(self, 'Lats are out of S/N bounds (-90 to 90).')
+
+        for we in (W, E):
+            if we < -180 or we > 180:
+                raise ArgumentError(self, 'Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.')
 
         setattr(namespace, self.dest, values)

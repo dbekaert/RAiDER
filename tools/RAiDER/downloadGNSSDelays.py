@@ -156,7 +156,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
             lon = fix_lons(lon)
             stations.append({'ID': statID, 'Lat': lat, 'Lon': lon, 'Hgt_m': height})
 
-    logger.info('%d stations were found', len(stations))
+    logger.info('%d stations were found in %s', len(stations), llhBox)
     stations = pd.DataFrame(stations)
     # Report stations from user's list that do not cover bbox
     if userstatList:
@@ -286,17 +286,23 @@ def get_ID(line):
     return stat_id, float(lat), float(lon), float(height)
 
 
-def main(iargs=None):
+def main(params):
     """
     Main workflow for querying supported GPS repositories for zenith delay information.
     """
-    inps = cmd_line_parse(iargs)
+    if params:
+        inps = params
+        dateList     = inps.date_list
+        returnTime   = inps.time
+    else:
+        inps = cmd_line_parse(iargs)
+        dateList     = inps.dateList
+        returnTime   = inps.returnTime
+
     station_file = inps.station_file
     bounding_box = inps.bounding_box
     gps_repo     = inps.gps_repo
     out          = inps.out
-    dateList     = inps.date_list
-    returnTime   = inps.time
     download     = inps.download
     cpus         = inps.cpus
     verbose      = inps.verbose

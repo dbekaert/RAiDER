@@ -305,7 +305,7 @@ def main(iargs=None):
         params['cpus']     = 4
         params['bounding_box'] = params['aoi'].bounds()
 
-        main_gnss(params)
+        main_gnss(AttributeDict(params))
 
 
     #TODO: separate out the weather model calculation as a separate step
