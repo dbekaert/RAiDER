@@ -3,19 +3,25 @@ import os
 import shutil
 import sys
 import yaml
+import re, glob
 
 import RAiDER
 from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.logger import logger, logging
-from RAiDER.cli.validators import enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
+from RAiDER.cli.validators import (enforce_time, enforce_bbox, parse_dates,
+                            get_query_region, get_heights, get_los, enforce_wm)
+
+from RAiDER.checkArgs import checkArgs
+from RAiDER.delay import main as main_delay
+from RAiDER.downloadGNSSDelays import main as main_gnss
 
 STEP_LIST = [
     'calculate_delays',
     'download_gnss',
 ]
 
-STEP_HELP = """Command line options for steps processing with names are chosen from the following list:
-{}.""".format(STEP_LIST[0:])
+STEP_HELP = f"""Command line options for steps processing with names are chosen from the following list:
+{STEP_LIST[0:]}."""
 
 
 HELP_MESSAGE = """
@@ -35,7 +41,6 @@ EXAMPLES = """
 Usage examples:
 raiderDelay.py -g
 raiderDelay.py customTemplatefile.cfg
-raiderDelay.py --dostep=load_weather_model
 """
 
 class AttributeDict(dict):
@@ -127,10 +132,10 @@ def parseCMD(iargs=None):
         os.path.dirname(
             RAiDER.__file__
         ),
-        'cli', 'raiderDelay.yaml'
+        'cli', 'raider.yaml'
     )
     if '-g' in args.argv:
-        dst = os.path.join(os.getcwd(), 'raiderDelay.yaml')
+        dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(
                 template_file,
                 dst,
@@ -148,7 +153,7 @@ def parseCMD(iargs=None):
 
         msg = "No template file found! It requires that either:"
         msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raiderDelay.yaml' exists in current directory."
+        msg += "\n  file 'raider.yaml' exists in current directory."
         raise SystemExit('ERROR: {}'.format(msg))
 
     if  args.customTemplateFile:
@@ -273,3 +278,46 @@ def drop_nans(d):
                 if d[key][k] is None:
                     del d[key][k]
     return d
+
+
+##########################################################################
+def main(iargs=None):
+    # parse
+    inps = parseCMD(iargs)
+
+    # Read the template file
+    params = read_template_file(inps.customTemplateFile)
+
+    # Argument checking
+    params = checkArgs(params)
+
+    if not params.verbose:
+        logger.setLevel(logging.INFO)
+
+    # run
+    step_list       = inps.runSteps
+    params.runSteps = step_list
+
+
+    if 'download_gnss' in step_list:
+        params['gps_repo'] = 'UNR' # only UNR supported; used to be exposed
+        params['out']      = f'{params["gps_repo"]}_products' # output directory
+        params['download'] = False
+        params['cpus']     = 4
+        params['bounding_box'] = params['aoi'].bounds()
+
+        main_gnss(params)
+
+
+    #TODO: separate out the weather model calculation as a separate step
+    if 'calculate_delays' in step_list:
+        for t, w, f in zip(
+            params['date_list'],
+            params['wetFilenames'],
+            params['hydroFilenames']
+        ):
+            try:
+                (_, _) = main_delay(t, w, f, params)
+            except RuntimeError:
+                logger.exception("Date %s failed", t)
+                continue

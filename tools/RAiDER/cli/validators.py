@@ -1,6 +1,7 @@
 import importlib
 import itertools
 import os
+import re
 
 import pandas as pd
 import numpy as np
@@ -95,7 +96,8 @@ def get_heights(args, out, station_file, bounding_box=None):
         out['height_file_rdr'] = args.height_file_rdr
 
     elif 'height_levels' in args.keys():
-        out['height_levels'] = [float(l) for l in args.height_levels.strip().split()]
+        l = re.findall('[0-9]+', args.height_levels)
+        out['height_levels'] = [float(ll) for ll in l]
 
     else:
         # download the DEM if needed
@@ -172,7 +174,8 @@ def parse_dates(arg_dict):
     '''
 
     if 'date_list' in arg_dict.keys():
-        l = arg_dict['date_list']
+        if isinstance(l, str):
+            l = re.findall('[0-9]+', l)
         L = [enforce_valid_dates(d) for d in l]
 
     else:
