@@ -91,7 +91,6 @@ TODO
 * Jeremy Maurer
 * Raymond Hogenson
 * Piyush Agram _(Descartes Labs)_
-* Heresh Fattahi
 * Yang Lei
 * Rohan Weeden
 * Simran Sangha
