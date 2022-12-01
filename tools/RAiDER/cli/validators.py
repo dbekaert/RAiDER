@@ -34,6 +34,8 @@ def enforce_wm(value):
 
 def get_los(args, time=None):
     if ('orbit_file' in args.keys()) and (args['orbit_file'] is not None):
+        if not os.path.exists(args['orbit_file']):
+            raise ValueError('Orbit file does not exist')
         if args.ray_trace:
             los = Raytracing(args.orbit_file, time=time)
         else:
