@@ -184,7 +184,7 @@ class Raytracing(LOS):
         try:
             # if an ISCE-style los file is provided, use GDAL
             LOS_enu = inc_hd_to_enu(*rio_open(self._file))
-            self._lookvecs = enu2ecef(
+            self._look_vecs = enu2ecef(
                 LOS_enu[..., 0],
                 LOS_enu[..., 1],
                 LOS_enu[..., 2],
@@ -205,7 +205,7 @@ class Raytracing(LOS):
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1
             )
-            self._lookvecs, self._xyz = state_to_los(
+            self._look_vecs, self._xyz = state_to_los(
                 svs, [self._lats, self._lons, self._heights],
                 out="ecef"
             )
@@ -216,7 +216,7 @@ class Raytracing(LOS):
         level
         """
         # We just leverage the same code as finding top of atmosphere here
-        return getTopOfAtmosphere(self._xyz, self._lookvecs, height)
+        return getTopOfAtmosphere(self._xyz, self._look_vecs, height)
 
     def getIntersectionWithLevels(self, levels):
         """
@@ -641,7 +641,7 @@ def get_radar_pos(llh, orb, out="lookangle"):
         raise NotImplementedError("Unexpected logic in get_radar_pos")
 
 
-def getTopOfAtmosphere(xyz, lookvecs, toaheight, factor=None):
+def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
     """
     Get ray intersection at given height.
 
@@ -662,11 +662,11 @@ def getTopOfAtmosphere(xyz, lookvecs, toaheight, factor=None):
         factor = 1.
 
     # Guess top point
-    pos = xyz + toaheight * lookvecs
+    pos = xyz + toaheight * look_vecs
 
     for niter in range(10):
         pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
-        pos = pos + lookvecs * ((toaheight - pos_llh[2])/factor)[..., None]
+        pos = pos + look_vecs * ((toaheight - pos_llh[2])/factor)[..., None]
 
     # This is for debugging the approach
     # print("Stats for TOA computation: ", toaheight,
