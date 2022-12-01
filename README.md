@@ -3,7 +3,6 @@ Raytracing Atmospheric Delay Estimation for RADAR
 
 [![Language](https://img.shields.io/badge/python-3.7%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://github.com/dbekaert/RAiDER/blob/dev/LICENSE)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/3a787083f97646e1856efefab69374a8)](https://www.codacy.com/manual/bekaertdavid/RAiDER?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=dbekaert/RAiDER&amp;utm_campaign=Badge_Grade)
 [![CircleCI](https://circleci.com/gh/dbekaert/RAiDER.svg?style=svg)](https://circleci.com/gh/dbekaert/RAiDER)
 [![Coverage Status](https://coveralls.io/repos/github/dbekaert/RAiDER/badge.svg?branch=dev)](https://coveralls.io/github/dbekaert/RAiDER?branch=dev)
 
@@ -14,15 +13,14 @@ Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rig
 THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS. USE AT YOUR OWN RISK.
 
 ## Contents
-- [RAiDER](#raider)
-  - [Contents](#contents)
-  - [1. Installing RAiDER](#3-installing-raider)
-    - [With Conda](#with-conda)
-    - [From Source](#3-installing-raider)
-  - [2. Setup of third-party weather model access](#4-setup-of-third-party-weather-model-access)
-  - [3. Running RAiDER and Documentation](#5-running-raider-and-documentation)
-  - [4. Citing](#6-citation)
-  - [5. Contributors](#7-contributors)
+- [1. Getting Started](#1-getting-started)
+  - [Installing With Conda](#installing-with-conda)
+  - [Using the Docker Image](#using-the-docker-image)
+  - [Installing from Source](#installing-from-source)
+- [2. Setup of third party weather model access](#2-setup-of-third-party-weather-model-access)
+- [3. Running RAiDER and Documentation](#3-running-raider-and-documentation)
+- [4. Citing](#4-citation)
+- [5. Contributors](#5-contributors)
 ------
 ## 1. Getting Started
 
@@ -92,7 +90,6 @@ TODO
 * Jeremy Maurer
 * Raymond Hogenson
 * Piyush Agram _(Descartes Labs)_
-* Heresh Fattahi
 * Yang Lei
 * Rohan Weeden
 * Simran Sangha
