@@ -44,6 +44,10 @@ RAiDER provides a [docker container image](https://docs.docker.com/get-started/)
 ```
 docker pull ghcr.io/dbekaert/raider:latest
 ```
+a specific release version (>=v0.2.0 only):
+```
+docker pull ghcr.io/dbekaert/raider:0.2.0
+```
 or the current development version:
 ```
 docker pull ghcr.io/dbekaert/raider:test
