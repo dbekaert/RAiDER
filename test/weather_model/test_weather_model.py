@@ -218,7 +218,7 @@ def test_llhs(setup_fake_raytracing, model):
 
     assert len(llhs) == 20
 
-
+@pytest.mark.skip
 def test_build_cube_ray(setup_fake_raytracing, model):
     orb, look_dir, elp, _ = setup_fake_raytracing
     m = model
@@ -239,11 +239,8 @@ def test_build_cube_ray(setup_fake_raytracing, model):
     svs = np.hstack([ts, orb.position, orb.velocity])
 
     #TODO: Check that the look vectors are not nans
-    breakpoint()
     lv, xyz = state_to_los(svs, np.stack([_Y.ravel(), _X.ravel(), _Z.ravel()], axis=-1),out="ecef")
-    
     out = build_cube_ray(xs, ys, zs, orb, look_dir, CRS(4326), CRS(4326), [m.interpWet(), m.interpHydro()], elp=elp)
-
     assert out.shape == out_true.shape
 
 

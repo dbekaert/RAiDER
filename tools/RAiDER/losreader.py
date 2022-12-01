@@ -106,22 +106,25 @@ class Conventional(LOS):
 
         try:
             # if an ISCE-style los file is passed open it with GDAL
-            self._lookvecs = inc_hd_to_enu(*rio_open(self._file))
+            self._look_vecs = inc_hd_to_enu(*rio_open(self._file))
         except OSError:
             # Otherwise, treat it as an orbit / statevector file
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1)
-            self._lookvecs = state_to_los(
+            self._look_vecs = state_to_los(
                 svs,
                 [self._lats, self._lons, self._heights],
                 out="lookangle"
             )
 
     def __call__(self, delays):
-        if delays.shape == self._lookvecs.shape:
-            return delays / self._lookvecs
+        if self._look_vecs is None:
+            raise RuntimeError('Look vectors have not been defined')
+        
+        if delays.shape == self._look_vecs.shape:
+            return delays / self._look_vecs
         else:
-            return delays / self._lookvecs[..., -1]
+            return delays / self._look_vecs[..., -1]
 
 
 class Raytracing(LOS):
@@ -185,7 +188,7 @@ class Raytracing(LOS):
         try:
             # if an ISCE-style los file is provided, use GDAL
             LOS_enu = inc_hd_to_enu(*rio_open(self._file))
-            self._lookvecs = enu2ecef(
+            self._look_vecs = enu2ecef(
                 LOS_enu[..., 0],
                 LOS_enu[..., 1],
                 LOS_enu[..., 2],
@@ -206,7 +209,7 @@ class Raytracing(LOS):
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1
             )
-            self._lookvecs, self._xyz, self._orbit = state_to_los(
+            self._look_vecs, self._xyz, self._orbit = state_to_los(
                 svs, [self._lats, self._lons, self._heights],
                 out="ecef"
             )
@@ -219,7 +222,7 @@ class Raytracing(LOS):
         level
         """
         # We just leverage the same code as finding top of atmosphere here
-        return getTopOfAtmosphere(self._xyz, self._lookvecs, height)
+        return getTopOfAtmosphere(self._xyz, self._look_vecs, height)
 
     def getIntersectionWithLevels(self, levels):
         """
