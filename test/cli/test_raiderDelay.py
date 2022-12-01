@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime, time
 
-from RAiDER.cli.raiderDelay import drop_nans
+from RAiDER.cli.raider import drop_nans
 
 def test_drop_nans():
     test_d = {

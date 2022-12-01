@@ -9,7 +9,7 @@ import pandas as pd
 from test import TEST_DIR, pushd
 
 # import RAiDER.runProgram
-from RAiDER.cli.raiderDelay import (
+from RAiDER.cli.raider import (
     parseCMD, read_template_file, create_parser, read_template_file,
 )
 from RAiDER.checkArgs import checkArgs, makeDelayFileNames

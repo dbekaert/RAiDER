@@ -156,7 +156,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
             lon = fix_lons(lon)
             stations.append({'ID': statID, 'Lat': lat, 'Lon': lon, 'Hgt_m': height})
 
-    logger.info('%d stations were found', len(stations))
+    logger.info('%d stations were found in %s', len(stations), llhBox)
     stations = pd.DataFrame(stations)
     # Report stations from user's list that do not cover bbox
     if userstatList:
@@ -286,20 +286,27 @@ def get_ID(line):
     return stat_id, float(lat), float(lon), float(height)
 
 
-def query_repos(
-    station_file,
-    bounding_box,
-    gps_repo,
-    out,
-    dateList,
-    returnTime,
-    download,
-    cpus,
-    verbose
-):
+def main(params=None):
     """
     Main workflow for querying supported GPS repositories for zenith delay information.
     """
+    if params is not None:
+        inps = params
+        dateList     = inps.date_list
+        returnTime   = inps.time
+    else:
+        inps = cmd_line_parse()
+        dateList     = inps.dateList
+        returnTime   = inps.returnTime
+
+    station_file = inps.station_file
+    bounding_box = inps.bounding_box
+    gps_repo     = inps.gps_repo
+    out          = inps.out
+    download     = inps.download
+    cpus         = inps.cpus
+    verbose      = inps.verbose
+
     if verbose:
         logger.setLevel(logging.DEBUG)
 
@@ -309,21 +316,27 @@ def query_repos(
 
     # Setup bounding box
     if bounding_box:
-        if not os.path.isfile(bounding_box):
+        if isinstance(bounding_box, str) and not os.path.isfile(bounding_box):
             try:
                 bbox = [float(val) for val in bounding_box.split()]
             except ValueError:
                 raise Exception(
                     'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
-            if bbox[2] * bbox[3] < 0:
-                long_cross_zero = 1
-            else:
-                long_cross_zero = 0
-            # if necessary, convert negative longitudes to positive
-            if bbox[2] < 0:
-                bbox[2] += 360
-            if bbox[3] < 0:
-                bbox[3] += 360
+        elif isinstance(bounding_box, list):
+            bbox = bounding_box
+
+        else:
+            raise Exception('Passing a file with a bounding box not yet supported.')
+
+        long_cross_zero = 1 if bbox[2] * bbox[3] < 0 else 0
+
+        # if necessary, convert negative longitudes to positive
+        if bbox[2] < 0:
+            bbox[2] += 360
+
+        if bbox[3] < 0:
+            bbox[3] += 360
+
     # If bbox not specified, query stations across the entire globe
     else:
         bbox = [-90, 90, 0, 360]
@@ -378,33 +391,3 @@ def query_repos(
     )
 
     logger.debug('Completed processing')
-
-def main():
-    inps = cmd_line_parse()
-
-    query_repos(
-        inps.station_file,
-        inps.bounding_box,
-        inps.gps_repo,
-        inps.out,
-        inps.dateList,
-        inps.returnTime,
-        inps.download,
-        inps.cpus,
-        inps.verbose
-    )
-
-def main():
-    inps = cmd_line_parse()
-
-    query_repos(
-        inps.station_file,
-        inps.bounding_box,
-        inps.gps_repo,
-        inps.out,
-        inps.dateList,
-        inps.returnTime,
-        inps.download,
-        inps.cpus,
-        inps.verbose
-    )

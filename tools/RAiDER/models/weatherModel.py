@@ -5,6 +5,9 @@ from abc import ABC, abstractmethod
 import numpy as np
 import netCDF4
 import rasterio
+import xarray
+
+from pyproj import CRS
 from shapely.geometry import box
 from shapely.affinity import translate
 from shapely.ops import unary_union
@@ -16,7 +19,7 @@ from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
 from RAiDER.utilFcns import (
-    robmax, robmin, write2NETCDF4core, calcgeoh,
+    robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords
 )
 
 
@@ -163,19 +166,22 @@ class WeatherModel(ABC):
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
         '''
+        ex_buffer_lon_max = 0.0
+
         if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
-        else:
-            ex_buffer_lon_max = 0.0
+        elif self._Name == 'HRRR':
+            Nextra = 6 # have a bigger buffer
+
 
         # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
         S, N, W, E = ll_bounds
 
         # Adjust bounds if they get near the poles or IDL
-        S = np.max([S, -90.0 + Nextra * self._lat_res])
-        N = np.min([N, 90.0 - Nextra * self._lat_res])
-        W = np.max([W, -180.0 + Nextra * self._lon_res])
-        E = np.min([E, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
+        S = np.max([S - Nextra * self._lat_res, -90.0 + Nextra * self._lat_res])
+        N = np.min([N + Nextra * self._lat_res, 90.0 - Nextra * self._lat_res])
+        W = np.max([W - Nextra * self._lon_res, -180.0 + Nextra * self._lon_res])
+        E = np.min([E + Nextra * self._lon_res + ex_buffer_lon_max, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
 
         self._ll_bounds = np.array([S, N, W, E])
 
@@ -192,9 +198,9 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        self.set_latlon_bounds(ll_bounds)
+        self.set_latlon_bounds(ll_bounds, Nextra=0)
 
-        # If the weather file has already been processed, do nothing        
+        # If the weather file has already been processed, do nothing
         self._out_name = self.out_file(outLoc)
         if os.path.exists(self._out_name):
             return self._out_name
@@ -390,29 +396,20 @@ class WeatherModel(ABC):
             if self.files is None:
                 raise ValueError('Need to save weather model as netcdf')
             weather_model_path = self.files[0]
-            with rasterio.open(f'netcdf:{weather_model_path}') as ds:
-                datasets = ds.subdatasets
+            with xarray.load_dataset(weather_model_path) as ds:
+                try:
+                    xmin, xmax = ds.x.min(), ds.x.max()
+                    ymin, ymax = ds.y.min(), ds.y.max()
+                except:
+                    xmin, xmax = ds.longitude.min(), ds.longitude.max()
+                    ymin, ymax = ds.latitude.min(), ds.latitude.max()
 
-            if len(datasets) == 0:
-                raise ValueError('No subdatasets found in the weather model. The file may be corrupt.\nWeather model path: {}'.format(weather_model_path))
-
-            # First dataset can end up being a coord. 
-            # So search for temperature here - maybe there is a better way to
-            # do this
-            temp_dataset = None
-            for ds in datasets:
-                if ds.endswith((":t", ":T", ":temperature")):
-                    temp_dataset = ds
-                    break
-
-            logger.debug(f"Using {temp_dataset} for bounds estimation")
-            with rasterio.open(temp_dataset) as ds:
-                bounds = ds.bounds
-
-            xmin, ymin, xmax, ymax = tuple(bounds)
-            self._bbox = [xmin, ymin, xmax, ymax]
+            wm_proj    = self._proj
+            lons, lats = transform_coords(wm_proj, CRS(4326), [xmin, xmax], [ymin, ymax])
+            self._bbox = [lons[0], lats[0], lons[1], lats[1]]
 
         return self._bbox
+
 
     def checkContainment(self: weatherModel,
                          ll_bounds: np.ndarray,
@@ -440,9 +437,11 @@ class WeatherModel(ABC):
            and False otherwise.
         """
         ymin_input, ymax_input, xmin_input, xmax_input = ll_bounds
-        input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
+        input_box   = box(xmin_input, ymin_input, xmax_input, ymax_input)
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
+
+        world_box  = box(-180, -90, 180, 90)
 
         # Logger
         input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
@@ -459,7 +458,6 @@ class WeatherModel(ABC):
 
         # If the bounding box goes beyond the normal world extents
         # Look at two x-translates, buffer them, and take their union.
-        world_box = box(-180, -90, 180, 90)
         if not world_box.contains(weather_model_box):
             logger.info('Considering x-translates of weather model +/-360 '
                         'as bounding box outside of -180, -90, 180, 90')
@@ -647,7 +645,6 @@ class WeatherModel(ABC):
         nc_outfile.setncattr('title', title)
 
         tran = [self._xs[0], self._xs[1] - self._xs[0], 0.0, self._ys[0], 0.0, self._ys[1] - self._ys[0]]
-
         dimension_dict = {
             'x': {'varname': 'x',
                   'datatype': np.dtype('float64'),
@@ -866,4 +863,3 @@ def get_mapping(proj):
         return 'WGS84'
     else:
         return proj.to_wkt()
-    

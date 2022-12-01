@@ -3,30 +3,24 @@ import os
 import shutil
 import sys
 import yaml
+import re, glob
 
 import RAiDER
 from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.cli.validators import (
-    enforce_time, parse_dates, get_query_region, get_heights, get_los, enforce_wm
+    (enforce_time, parse_dates,
+                            get_query_region, get_heights, get_los, enforce_wm)
 )
 
-STEP_LIST = [
-    'load_weather_model',
-    'calculate_delays',
-]
-
-STEP_HELP = """Command line options for steps processing with names are chosen from the following list:
-{}
-In order to use either --start or --dostep, it is necessary that a
-previous run was done using one of the steps options to process at least
-through the step immediately preceding the starting step of the current run.
-""".format(STEP_LIST[0:])
+from RAiDER.checkArgs import checkArgs
+from RAiDER.delay import main as main_delay
 
 
 HELP_MESSAGE = """
-Command line options for RAiDER processing to calculate tropospheric
-delay from a weather model. Default options can be found by running
-raiderDelay.py --generate_config.
+Command line options for RAiDER processing. Default options can be found by running
+raider.py --generate_config
+
+Download a weather model and calculate tropospheric delays
 """
 
 SHORT_MESSAGE = """
@@ -35,9 +29,8 @@ Program to calculate troposphere total delays using a weather model
 
 EXAMPLES = """
 Usage examples:
-raiderDelay.py -g
-raiderDelay.py customTemplatefile.cfg
-raiderDelay.py --dostep=load_weather_model
+raider.py -g
+raider.py customTemplatefile.cfg
 """
 
 class AttributeDict(dict):
@@ -102,21 +95,19 @@ def create_parser():
         help='generate default template (if it does not exist) and exit.'
     )
 
-    step = p.add_argument_group('steps processing (start/end/dostep)', STEP_HELP)
-    step.add_argument('--start', dest='startStep', metavar='STEP', default=STEP_LIST[0],
-                      help='start processing at the named step (default: %(default)s).')
-    step.add_argument('--end','--stop', dest='endStep', metavar='STEP',  default=STEP_LIST[-1],
-                      help='end processing at the named step (default: %(default)s)')
-    step.add_argument('--dostep', dest='doStep', metavar='STEP',
-                      help='run processing at the named step only')
+    
+    p.add_argument(
+        '--download-only',
+        action='store_true',
+        help='only download a weather model.'
+    )
 
     return p
 
 
 def parseCMD(iargs=None):
     """
-    Parse command-line arguments and pass to tropo_delay
-    We'll parse arguments and call delay.py.
+    Parse command-line arguments and pass to delay.py
     """
 
     p = create_parser()
@@ -129,13 +120,16 @@ def parseCMD(iargs=None):
         os.path.dirname(
             RAiDER.__file__
         ),
-        'cli', 'raiderDelay.yaml'
+        'cli', 'raider.yaml'
     )
     if '-g' in args.argv:
+        dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(
                 template_file,
-                os.path.join(os.getcwd(), 'raiderDelay.yaml'),
+                dst,
             )
+
+        logger.info('Wrote %s', dst)
         sys.exit(0)
 
     # check: existence of input template files
@@ -147,8 +141,8 @@ def parseCMD(iargs=None):
 
         msg = "No template file found! It requires that either:"
         msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raiderDelay.yaml' exists in current directory."
-        raise SystemExit('ERROR: {}'.format(msg))
+        msg += "\n  file 'raider.yaml' exists in current directory."
+        raise SystemExit(f'ERROR: {msg}')
 
     if  args.customTemplateFile:
         # check the existence
@@ -157,46 +151,7 @@ def parseCMD(iargs=None):
 
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
-    # check which steps to run
-    args.runSteps = read_inps2run_steps(args, step_list=STEP_LIST)
-
     return args
-
-
-def read_inps2run_steps(inps, step_list):
-    """read/get run_steps from input arguments."""
-    # check: if start/end/do step input is valid
-    for key in ['startStep', 'endStep', 'doStep']:
-        value = vars(inps)[key]
-        if value and value not in step_list:
-            msg = 'Input step not found: {}'.format(value)
-            msg += '\nAvailable steps: {}'.format(step_list)
-            raise ValueError(msg)
-
-    # check: ignore --start/end input if --dostep is specified
-    if inps.doStep:
-        inps.startStep = inps.doStep
-        inps.endStep = inps.doStep
-
-    # get list of steps to run
-    idx0 = step_list.index(inps.startStep)
-    idx1 = step_list.index(inps.endStep)
-    if idx0 > idx1:
-        msg = 'start step "{}" CAN NOT be after the end step "{}"'.format(inps.startStep, inps.endStep)
-        raise ValueError(msg)
-    run_steps = step_list[idx0:idx1+1]
-
-    # empty the step list if:
-    # a) -g OR
-    if inps.generate_template:
-        run_steps = []
-
-    # print mssage - processing steps
-    print('Run routine processing with {} on steps: {}'.format(os.path.basename(__file__), run_steps))
-    print('Remaining steps: {}'.format(step_list[idx0+1:]))
-    print('-'*50)
-
-    return run_steps
 
 
 def read_template_file(fname):
@@ -206,7 +161,7 @@ def read_template_file(fname):
                 delimiter  - str, string to separate the key and value
                 skip_chars - list of str, skip certain charaters in values
     Returns:    template   - dict, file content
-    Examples:   template = read_template('raiderDelay.yaml')
+    Examples:   template = read_template('raider.yaml')
 
     Modified from MintPy's 'read_template'
     """
@@ -216,7 +171,7 @@ def read_template_file(fname):
         except yaml.YAMLError as exc:
             print(exc)
             raise ValueError('Something is wrong with the yaml file {}'.format(fname))
-    
+
     # Drop any values not specified
     params = drop_nans(params)
 
@@ -240,7 +195,13 @@ def read_template_file(fname):
         if key == 'date_group':
             template['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
-            template['aoi'] = get_query_region(AttributeDict(value))
+            ## in case a DEM is passed and should be used
+            dct_temp = {**AttributeDict(value),
+                        **AttributeDict(params['height_group'])}
+            template['aoi'] = get_query_region(AttributeDict(dct_temp))
+
+        if key == 'los_group':
+            template['los'] = get_los(AttributeDict(value))
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
@@ -272,3 +233,31 @@ def drop_nans(d):
                     del d[key][k]
     return d
 
+
+##########################################################################
+def main(iargs=None):
+    # parse
+    inps = parseCMD(iargs)
+
+    # Read the template file
+    params = read_template_file(inps.customTemplateFile)
+
+    # Argument checking
+    params = checkArgs(params)
+
+    params['download_only'] = inps.download_only
+
+    if not params.verbose:
+        logger.setLevel(logging.INFO)
+
+
+    for t, w, f in zip(
+        params['date_list'],
+        params['wetFilenames'],
+        params['hydroFilenames']
+    ):
+        try:
+            (_, _) = main_delay(t, w, f, params)
+        except RuntimeError:
+            logger.exception("Date %s failed", t)
+            continue

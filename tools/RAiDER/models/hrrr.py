@@ -12,8 +12,8 @@ from pathlib import Path
 from pyproj import CRS, Transformer
 
 from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_profile
-from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.utilFcns import rio_profile, rio_extents
+from RAiDER.models.weatherModel import WeatherModel, transform_coords
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -88,9 +88,8 @@ class HRRR(WeatherModel):
             filename = self.files
 
         # read data from grib file
-        pl = self._getPresLevels()
-        pl = np.array([self._convertmb2Pa(p) for p in pl['Values']])
         ds = xarray.open_dataset(filename)
+        pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
         xArr = ds['x'].values
         yArr = ds['y'].values
         lats = ds['lats'].values
@@ -136,7 +135,7 @@ class HRRR(WeatherModel):
 
         # Get profile information from gdal
         prof = rio_profile(str(filename))
-
+        
         # Now get bounds
         S, N, W, E = self._ll_bounds
 
@@ -151,6 +150,9 @@ class HRRR(WeatherModel):
         lons[lons > 180.0] -= 360.
         m1 = (S <= lats) & (N >= lats) &\
                 (W <= lons) & (E >= lons)
+
+        if np.sum(m1) == 0:
+            raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
 
         # Y extent
         m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
@@ -231,7 +233,7 @@ class HRRR(WeatherModel):
                 lons=(["y", "x"], lons),
             ),
             coords=dict(
-                level=(["level"], levels,
+                levels=(["level"], levels,
                        {"units": "millibars",
                         "long_name":  "pressure_level",
                         "axis": "Z"}),
@@ -256,13 +258,6 @@ class HRRR(WeatherModel):
             ds_new.proj.attrs[k] = v
 
         ds_new.to_netcdf(out)
-
-
-    def _getPresLevels(self, low=50, high=1013.2, inc=25):
-        presList = [float(v) for v in range(int(low // 1), int(high // 1), int(inc // 1))]
-        presList.append(high)
-        outDict = {'Values': presList, 'units': 'mb', 'Name': 'Pressure_levels'}
-        return outDict
 
     def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''

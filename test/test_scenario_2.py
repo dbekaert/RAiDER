@@ -7,7 +7,7 @@ import pytest
 from shutil import copyfile
 from test import TEST_DIR, pushd
 
-from RAiDER.delay import tropo_delay
+from RAiDER.delay import main
 from RAiDER.losreader import Zenith
 from RAiDER.cli.validators import modelName2Module
 
@@ -58,7 +58,7 @@ def test_computeDelay(tmp_path):
         args['hydroFilenames'] = hydroFile
         args['verbose'] = True
 
-        (_, _) = tropo_delay(args)
+        (_, _) = main(args)
 
     # get the results
     est_delay = pd.read_csv(wetFile).drop_duplicates(subset=["Lat", "Lon"])
