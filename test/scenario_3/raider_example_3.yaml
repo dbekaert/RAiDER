@@ -8,9 +8,11 @@ time_group:
 weather_model: HRRR
 aoi_group:
   bounding_box: 36.8 36.85 -76.15 -76.05
+height_group:
+  height_levels: 0 100 500 1000
 los_group:
   ray_trace: True  # Use projected slant delay by default
   orbit_file: test/scenario_3/S1A_OPER_AUX_POEORB_OPOD_20181203T120749_V20181112T225942_20181114T005942.EOF
 runtime_group:
   output_projection:  4326
-  cube_spacing_in_m: 250.0
+  cube_spacing_in_m: 5000.0
