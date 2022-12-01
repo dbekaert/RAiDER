@@ -10,9 +10,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 RAiDER package was refactored to use a configure file (yaml) to parse parameters. In addition, ocker container images
 are provided with all the necessary dependencies pre-installed. Various models were tested for consistency
-(others were disabled for the time being) with propagation delays computation support for zenith, slant through zenith
-projection using orbit file, and slant through ray-tracing using orbit file. Modules were restructured for computational
-performance improvement. 
+(others were disabled for the time being) with propagation delays computation support for zenith, and slant through 
+ray-tracing using orbit file. Modules were restructured for computational performance improvement. 
 
 This release is the initial release to the NISAR ADT for supporting the generation of the stratospheric ancillary
 correction using HRES model. 
@@ -25,9 +24,8 @@ correction using HRES model.
      incorrect loading of the pressure.
    - NCMR: not tested
    - Other models are currently disabled (MERRA-2, WRF, ERA-I)
-+ Three flavors for computing propagation delays
++ Two flavors for computing propagation delays
    - Zenith delays
-   - Slant delays through projection from Zenith (supported through orbit file)
    - Slant delays through ray-tracing (supported through orbit file)
 + Refactoring and computational improvements for delay computation
    - Better organized for individual function calls
@@ -47,6 +45,7 @@ correction using HRES model.
 + Custom DEMs 
 + Pypi (`pip install` capability)
 + Slant delays without an orbit file (e.g. own 2D or 3D LOS files) 
++ Conventional slant delays with projection from zenith (e.g. orbit, 2D or 3D LOS files) 
 + GUNW product input/output
 + Complete unit test coverage
 + Detailed API documentation
