@@ -32,7 +32,7 @@ def enforce_wm(value):
     return model_obj()
 
 
-def get_los(args):
+def get_los(args, time=None):
     if ('orbit_file' in args.keys()) and (args['orbit_file'] is not None):
         if args.ray_trace:
             los = Raytracing(args.orbit_file, time=time)

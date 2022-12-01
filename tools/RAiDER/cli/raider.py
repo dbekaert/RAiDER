@@ -8,10 +8,9 @@ import re, glob
 import RAiDER
 from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.cli.validators import enforce_time, parse_dates, get_query_region, get_heights, get_los, enforce_wm
-
 from RAiDER.checkArgs import checkArgs
 from RAiDER.delay import main as main_delay
-
+from RAiDER.logger import logger, logging
 
 HELP_MESSAGE = """
 Command line options for RAiDER processing. Default options can be found by running
@@ -197,8 +196,6 @@ def read_template_file(fname):
                         **AttributeDict(params['height_group'])}
             template['aoi'] = get_query_region(AttributeDict(dct_temp))
 
-        if key == 'los_group':
-            template['los'] = get_los(AttributeDict(value))
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
