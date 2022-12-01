@@ -1,0 +1,12 @@
+# vim: set filetype=yaml:
+  look_dir: right
+  date_group: 
+    date_start: 20200101
+  time_group:
+    time: "00:00:00" 
+  weather_model: HRRR 
+  aoi_group: 
+    station_file: test/scenario_2/stations.csv
+
+  
+  

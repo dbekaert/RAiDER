@@ -295,9 +295,9 @@ def test_Conventional():
 
     c = Conventional()
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         c(np.ones(4))
 
     c.setPoints(lats, lons, hgts)
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         c(np.ones(4))

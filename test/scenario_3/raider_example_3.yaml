@@ -1,0 +1,16 @@
+# vim: set filetype=yaml:
+look_dir: right
+date_group:
+  date_list:  [20181113]
+time_group:
+  time: "23:00:00"
+  end_time: 
+weather_model: HRRR
+aoi_group:
+  bounding_box: 36.8 36.85 -76.15 -76.05
+los_group:
+  ray_trace: True  # Use projected slant delay by default
+  orbit_file: test/scenario_3/S1A_OPER_AUX_POEORB_OPOD_20181203T120749_V20181112T225942_20181114T005942.EOF
+runtime_group:
+  output_projection:  4326
+  cube_spacing_in_m: 250.0
