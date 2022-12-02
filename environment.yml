@@ -19,7 +19,6 @@ dependencies:
  - dask
  - dem_stitcher>=2.3.0
  - ecmwf-api-client
- - gdal<3.6
  - h5py
  - herbie-data
  - h5netcdf
