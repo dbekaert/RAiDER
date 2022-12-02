@@ -2,32 +2,24 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: cimg/python:3.10.6
+      - image: cimg/base:current
         user: root
-    environment:
-      PYTHON_VERSION: 3.10.6
     steps:
       - checkout
       - run:
-          name: Setup Miniconda
+          name: Setup micromamba
           command: |
             apt update --yes && apt-get upgrade --yes
             apt install -y --no-install-recommends wget ca-certificates git
             cd $HOME
-            wget "https://repo.anaconda.com/miniconda/Miniconda3-py39_4.12.0-Linux-x86_64.sh" -O miniconda.sh
-            printf '%s' "78f39f9bae971ec1ae7969f0516017f2413f17796670f7040725dd83fcff5689  miniconda.sh" | sha256sum -c
-            bash miniconda.sh -b -p $HOME/miniconda
+            curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+
       - run:
-          name: Setup environment and run tests
+          name: Setup environment
           command: |
-            export PATH="$HOME/miniconda/bin:$PATH"
-            conda install mamba -n base -c conda-forge --yes
-            mamba update -y conda
-            mamba update -y mamba
-            mamba create -n myenv python=$PYTHON_VERSION -c conda-forge
-            source activate myenv
-            mamba env create -f environment.yml
-            conda activate RAiDER
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            micromamba create -f environment.yml
+            micromamba activate RAiDER
             pip install coveralls
             echo url: https://cds.climate.copernicus.eu/api/v2 > $HOME/.cdsapirc
             echo key: $cdsak >> $HOME/.cdsapirc
@@ -48,26 +40,24 @@ jobs:
       - run:
           name: Install RAiDER and test the install
           command: |
-            export PATH="$HOME/miniconda/bin:$PATH"
-            source activate myenv
-            conda activate RAiDER
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            micromamba activate RAiDER
             python -m pip install .
             python -c "import RAiDER; from RAiDER.delay import main"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis"
       - run:
           name: Run unit tests
+          shell: /bin/bash -l
           command: |
-            export PATH="$HOME/miniconda/bin:$PATH"
-            source activate myenv
-            conda activate RAiDER
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            micromamba activate RAiDER
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
             pytest -m "not long" test/ $COV_OPTIONS --cov-report=
       - run:
           name: Report coverage
           command: |
-            export PATH="$HOME/miniconda/bin:$PATH"
-            source activate myenv
-            conda activate RAiDER
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            micromamba activate RAiDER
             python .circleci/fix_coverage_paths.py .coverage $(pwd)/tools/RAiDER/
             coverage report -mi
             coveralls
