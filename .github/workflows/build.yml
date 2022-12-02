@@ -15,6 +15,7 @@ jobs:
     uses: ASFHyP3/actions/.github/workflows/reusable-version-info.yml@v0.6.0
     with:
       conda_env_name: RAiDER
+      python_version: '3.10'
 
   call-docker-ghcr-workflow:
     needs: call-version-info-workflow
