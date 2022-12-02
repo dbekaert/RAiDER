@@ -8,7 +8,6 @@ import numpy as np
 import xarray as xr
 
 
-@pytest.mark.long
 def test_scenario_1():
     SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
     test_path = os.path.join(SCENARIO_DIR, 'raider_example_1.yaml')
@@ -39,7 +38,6 @@ def test_scenario_1():
 #     subprocess.run(['rm', '-rf', './weather_files'])
 
 
-@pytest.mark.long
 def test_scenario_3():
     SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
 
