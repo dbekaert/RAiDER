@@ -11,7 +11,6 @@ from RAiDER.models.era5t import ERA5T
 from RAiDER.models.erai import ERAI
 
 
-@pytest.mark.long
 def test_era5():
     wm = ERA5()
     wm.fetch(
@@ -21,7 +20,6 @@ def test_era5():
     )
 
 
-@pytest.mark.long
 def test_era5t():
     wm = ERA5T()
     wm.fetch(
@@ -31,7 +29,6 @@ def test_era5t():
     )
 
 
-@pytest.mark.long
 def test_erai():
     wm = ERAI()
     wm.fetch(
