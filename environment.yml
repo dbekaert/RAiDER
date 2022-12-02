@@ -22,7 +22,7 @@ dependencies:
  - h5py
  - herbie-data
  - h5netcdf
- - isce3==0.8.0=py310hc48c5ce_2
+ - isce3==0.8.0=*_2
  - lxml
  - matplotlib
  - netcdf4
