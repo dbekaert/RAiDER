@@ -13,12 +13,11 @@ jobs:
             apt install -y --no-install-recommends wget ca-certificates git
             cd $HOME
             curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
-            eval "$(./bin/micromamba shell hook -s posix)"
-            ./bin/micromamba shell init -s bash -p $HOME/micromamba
 
       - run:
-          name: Setup environment and run tests
+          name: Setup environment
           command: |
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
             micromamba create -f environment.yml
             micromamba activate RAiDER
             pip install coveralls
@@ -41,19 +40,23 @@ jobs:
       - run:
           name: Install RAiDER and test the install
           command: |
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
             python -m pip install .
             python -c "import RAiDER; from RAiDER.delay import main"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis"
       - run:
           name: Run unit tests
+          shell: /bin/bash -l
           command: |
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
             pytest -m "not long" test/ $COV_OPTIONS --cov-report=
       - run:
           name: Report coverage
           command: |
+            eval "$($HOME/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
             python .circleci/fix_coverage_paths.py .coverage $(pwd)/tools/RAiDER/
             coverage report -mi
