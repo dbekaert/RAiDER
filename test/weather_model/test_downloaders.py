@@ -10,7 +10,7 @@ from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
 from RAiDER.models.erai import ERAI
 
-
+@pytest.mark.skip
 def test_era5():
     wm = ERA5()
     wm.fetch(
@@ -19,7 +19,7 @@ def test_era5():
         datetime(2020, 1, 1, 0, 0, 0)
     )
 
-
+@pytest.mark.skip
 def test_era5t():
     wm = ERA5T()
     wm.fetch(
