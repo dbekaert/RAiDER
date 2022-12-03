@@ -1,537 +1,709 @@
-"""Compute the delay from a point to the transmitter.
-
-Dry and hydrostatic delays are calculated in separate functions.
-Currently we take samples every _STEP meters, which causes either
-inaccuracies or inefficiencies, and we no longer can integrate to
-infinity.
-"""
-
-
-from osgeo import gdal
-gdal.UseExceptions()
-
-# standard imports
-import itertools
-import numpy as np
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Author: Jeremy Maurer, Raymond Hogenson, David Bekaert & Yang Lei
+# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged.
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-import pyproj
-#import queue
-import threading
-import sys
 
-
-# local imports
-import utils.constants as const
-import utils.demdownload as dld
-import utils.losreader as losreader
-import utils.util as util
-from utils.constants import Zenith
-from utils.downloadWM import downloadWMFile as dwf
+import datetime
 import h5py
+import numpy as np
+import xarray
+from netCDF4 import Dataset
+from pyproj import CRS, Transformer
+from pyproj.exceptions import CRSError
 
-# Step in meters to use when integrating
-_STEP = const._STEP
-# Top of the troposphere
-_ZREF = const._ZMAX
-
-
-def _get_lengths(look_vecs):
-    '''
-    Returns the lengths of a vector or set of vectors
-    '''
-    if look_vecs is Zenith:
-        return _ZREF
-
-    lengths = np.linalg.norm(look_vecs, axis=-1)
-    lengths[~np.isfinite(lengths)] = 0
-    return lengths
-
-
-def _getZenithLookVecs(lats, lons, heights, zref = _ZREF):
-
-    '''
-    Returns look vectors when Zenith is used
-    '''
-    return (np.array((util.cosd(lats)*util.cosd(lons),
-                              util.cosd(lats)*util.sind(lons),
-                              util.sind(lats))).T
-                    * (zref - heights)[..., np.newaxis])
+import isce3.ext.isce3 as isce
+from RAiDER.constants import _STEP
+from RAiDER.delayFcns import (
+    getInterpolators,
+    calculate_start_points,
+    get_delays,
+)
+from RAiDER.dem import getHeights
+from RAiDER.logger import logger
+from RAiDER.llreader import BoundingBox
+from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
+from RAiDER.processWM import prepareWeatherModel
+from RAiDER.utilFcns import (
+    writeDelays, projectDelays, writePnts2HDF5,
+    lla2ecef, transform_bbox, clip_bbox, rio_profile,
+)
 
 
-def _compute_ray(L, S, V, stepSize):
-    '''
-    Compute and return points along a ray, given a total length, 
-    start position (in x,y,z) and a unit look vector.
-    '''
-    # Have to handle the case where there are invalid data
+def tropo_delay_cube(dt, wf, args, model_file=None):
+    """
+    raider cube generation function.
+
+    Same as tropo_delay() above.
+    """
+    los = args['los']
+    weather_model = args['weather_model']
+    wmLoc = args['weather_model_directory']
+    zref = args['zref']
+    download_only = args['download_only']
+    verbose = args['verbose']
+    aoi = args['aoi']
+    cube_spacing = args["cube_spacing_in_m"]
+    ll_bounds = aoi.bounds()
+
     try:
-        thisspace = np.arange(0, L, stepSize)
-    except ValueError:
-        thisspace = np.array([])
-    ray = S + thisspace[..., np.newaxis]*V
-    return ray
+        crs  = CRS(args['output_projection'])
+    except CRSError:
+        raise ValueError('output_projection argument is not a valid CRS specifier')
 
+    # For testing multiprocessing
+    # TODO - move this to configuration
+    nproc = 1
 
-def _helper(tup):
-    return _compute_ray(tup[0], tup[1], tup[2], tup[3])
-    #return _compute_ray(L, S, V, stepSize)
+    # logging
+    logger.debug('Starting to run the weather model cube calculation')
+    logger.debug(f'Time: {dt}')
+    logger.debug(f'Max integration height is {zref:1.1f} m')
+    logger.debug(f'Output cube projection is {crs.to_wkt()}')
+    logger.debug(f'Output cube spacing is {cube_spacing} m')
 
-def _get_rays_p(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 4):
-    import multiprocessing as mp
+    # We are using zenith model only for now
+    logger.debug('Beginning weather model pre-processing')
 
-    # setup for multiprocessing
-    data = zip(lengths, start_positions, scaled_look_vecs, [stepSize]*len(lengths))
-
-    pool = mp.Pool(Nproc)
-    positions_l = pool.map(helper, data)
-    return positions_l
-
-
-def _get_rays_d(lengths, stepSize, start_positions, scaled_look_vecs, Nproc = 2):
-   import dask.bag as db
-   L = db.from_sequence(lengths)
-   S = db.from_sequence(start_positions)
-   Sv = db.from_sequence(scaled_look_vecs)
-   Ss = db.from_sequence([stepSize]*len(lengths))
-
-   # setup for multiprocessing
-   data = db.zip(L, S, Sv, Ss)
-
-   positions_l = db.map(helper, data)
-   return positions_l.compute()
-
-
-def _get_rays(lengths, stepSize, start_positions, scaled_look_vecs):
-    '''
-    Create the integration points for each ray path. 
-    ''' 
-    positions_l= []
-    rayData = zip(lengths, start_positions, scaled_look_vecs)
-    for L, S, V in rayData:
-        positions_l.append(_compute_ray(L, S, V, stepSize))
-
-    return positions_l
-
-
-def _transform(ray, oldProj, newProj):
-    '''
-    Transform a ray from one coordinate system to another
-    '''
-    newRay = np.stack(
-                pyproj.transform(
-                      oldProj, newProj, ray[:,0], ray[:,1], ray[:,2])
-                      ,axis = -1)
-    return newRay
-
-
-def _re_project(tup): 
-    newPnt = _transform(tup[0],tup[1], tup[2])
-    return newPnt
-def f(x):
-    ecef = pyproj.Proj(proj='geocent')
-    return _transform(x, ecef, newProj)
-
-def getIntFcn(weatherObj, itype = 'wet', interpType = 'scipy'):
-    '''
-    Function to create and return an Interpolator object
-    '''
-    import interpolator as intprn
-
-    ifFun = intprn.Interpolator()
-    ifFun.setPoints(*weatherObj.getPoints())
-    ifFun.setProjection(weatherObj.getProjection())
-
-    if itype == 'wet':
-        ifFun.getInterpFcns(weatherObj.getWetRefractivity(), interpType = interpType)
-    elif itype == 'hydro':
-        ifFun.getInterpFcns(weatherObj.getHydroRefractivity(), interpType = interpType)
-    return ifFun
- 
-
-def _common_delay(weatherObj, lats, lons, heights, 
-                  look_vecs, zref = None,
-                  stepSize = _STEP, interpType = 'rgi',
-                  verbose = False, nproc = 8, useDask = False):
-    """
-    This function calculates the line-of-sight vectors, estimates the point-wise refractivity
-    index for each one, and then integrates to get the total delay in meters. The point-wise
-    delay is calculated by interpolating the weatherObj, which contains a weather model with
-    wet and hydrostatic refractivity at each weather model grid node, to the points along 
-    the ray. The refractivity is integrated along the ray to get the final delay. 
-
-    Inputs: 
-     weatherObj - a weather model object
-     lats       - Grid of latitudes for each ground point
-     lons       - Grid of longitudes for each ground point
-     heights    - Grid of heights for each ground point
-     look_vecs  - Grid of look vectors (should be full-length) for each ground point
-     raytrace   - If True, will use the raytracing method, if False, will use the Zenith 
-                  + projection method
-     stepSize   - Integration step size in meters 
-     intpType   - Can be one of 'scipy': LinearNDInterpolator, or 'sane': _sane_interpolate. 
-                  Any other string will use the RegularGridInterpolate method
-     nproc      - Number of parallel processes to use if useDask is True
-     useDask    - use Dask to parallelize ray calculation
-
-    Outputs: 
-     delays     - A list containing the wet and hydrostatic delays for each ground point in 
-                  meters. 
-    """
-    parThresh = 1e4
-
-    # If the number of points to interpolate are low, don't parallelize
-    if np.prod(lats.shape) < parThresh:
-       useDask = False
-       nproc = 1
-
-    # Determine if/what type of parallization to use
-    if useDask:
-       import dask.bag as db
-    elif nproc > 1:
-       import multiprocessing as mp
+    # If weather model file is not provided
+    if model_file is None:
+        weather_model_file = prepareWeatherModel(
+            weather_model,
+            dt,
+            wmLoc=wmLoc,
+            ll_bounds=ll_bounds,
+            zref=zref,
+            download_only=download_only,
+            makePlots=verbose
+        )
     else:
-       pass
+        weather_model_file = model_file
 
-    if zref is None:
-       zref = _ZREF
+    # Determine the output grid extent here
+    wesn = ll_bounds[2:] + ll_bounds[:2]
+    out_snwe = transform_bbox(
+        wesn, src_crs=4326, dest_crs=crs
+    )
 
-    # If weather model nodes only are desired, the calculation is very quick
-    if look_vecs is Zenith:
-        _,_,zs = weatherObj.getPoints()
-        look_vecs = _getZenithLookVecs(lats, lons, heights, zref = zref)
-        wet_pw  = weatherObj.getWetRefractivity()
-        hydro_pw= weatherObj.getHydroRefractivity()
-        wet_delays = _integrateZenith(zs, wet_pw)
-        hydro_delays = _integrateZenith(zs, hydro_pw)
-        return wet_delays,hydro_delays
-
-    if verbose:
-        import time
-        print('_common_delay: Starting look vector calculation')
-        print('_common_delay: The integration stepsize is {} m'.format(stepSize))
-        st = time.time()
-
-    # Otherwise, set off on the interpolation road
-    mask = np.isnan(heights)
-
-    # Get the integration points along the look vectors
-    # First get the length of each look vector, get integration steps along 
-    # each, then get the unit vector pointing in the same direction
-    lengths = _get_lengths(look_vecs)
-    lengths[mask] = np.nan
-    start_positions = np.array(util.lla2ecef(lats, lons, heights)).T
-    scaled_look_vecs = look_vecs / lengths[..., np.newaxis]
-    positions_l= _get_rays(lengths, stepSize, start_positions, scaled_look_vecs)
-
-    if verbose:
-        print('_common_delay: Finished _get_rays')
-        ft = time.time()
-        print('Ray initialization took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Starting _re_project')
-        st = time.time()
-
-    ecef = pyproj.Proj(proj='geocent')
-    newProj = weatherObj.getProjection()
-    if useDask:
-        if verbose:
-            print('Beginning re-projection using Dask')
-        Npart = min(len(positions_l)//100 + 1, 1000)
-        bag = [(pos, ecef, newProj) for pos in positions_l]
-        PntBag = db.from_sequence(bag, npartitions=Npart)
-        newPts = PntBag.map(_re_project).compute()
+    # Clip output grid to multiples of spacing
+    # If output is desired in degrees
+    if crs.axis_info[0].unit_name == "degree":
+        out_spacing = cube_spacing / 1.0e5  # Scale by 100km
+        out_snwe = clip_bbox(out_snwe, out_spacing)
     else:
-        if verbose:
-            print('Beginning re-projection without Dask')
-        newPts = list(map(f, positions_l))
+        out_spacing = cube_spacing
+        out_snwe = clip_bbox(out_snwe, out_spacing)
 
-    newPts = [np.vstack([p[:,1], p[:,0], p[:,2]]).T for p in newPts]
+    logger.debug(f"Output SNWE: {out_snwe}")
+    logger.debug(f"Output cube spacing: {out_spacing}")
 
-    if verbose:
-        print('_common_delay: Finished re-projecting')
-        print('_common_delay: The size of look_vecs is {}'.format(np.shape(look_vecs)))
-        ft = time.time()
-        print('Re-projecting took {:4.2f} secs'.format(ft-st))
-        print('_common_delay: Starting Interpolation')
-        st = time.time()
-
-    # Define the interpolator objects
-    ifWet = getIntFcn(weatherObj,interpType =interpType)
-    ifHydro = getIntFcn(weatherObj,itype = 'hydro', interpType = interpType)
-
-    # Depending on parallelization, do the interpolation
-    if useDask:
-        if verbose:
-            print('Beginning interpolation using Dask')
-        Npart = min(len(newPts)//100 + 1, 1000)
-        PntBag = db.from_sequence(newPts, npartitions=Npart)
-        wet_pw = PntBag.map(interpRay).compute()
-        hydro_pw = PntBag.map(interpRay).compute()
-    elif nproc > 1:
-        if verbose:
-            print('Beginning interpolation without Dask')
-        import multiprocessing as mp
-        pool = mp.Pool(12)
-        inp1 = zip([ifWet]*len(newPts), newPts)
-        inp2 = zip([ifHydro]*len(newPts), newPts)
-
-        wet_pw = pool.map(interpRay,inp1)
-        hydro_pw = pool.map(interpRay, inp2)
-    else:
-        wet_pw, hydro_pw = [], []
-        count = 0
-        for pnt in newPts:
-            wet_pw.append(interpRay((ifWet, pnt)))
-            hydro_pw.append(interpRay((ifHydro, pnt)))
-            count = count+1
-       
-  
-    if verbose:
-        print('_common_delay: Finished interpolation')
-        ft = time.time()
-        print('Interpolation took {:4.2f} secs'.format(ft-st))
-        print('Average of {:1.6f} secs/ray'.format(.5*(ft-st)/len(newPts)))
-        print('_common_delay: finished point-wise delay calculations')
-
-    # intergrate the point-wise delays to get total slant delay
-    delays = _integrateLOS(stepSize, wet_pw, hydro_pw)
-
-    return delays
-
-
-# call the interpolator on each ray
-def interpRay(tup):
-    fcn, ray = tup
-    return fcn(ray)[0]
-
-
-def _integrateLOS(stepSize, wet_pw, hydro_pw):
-    delays = [] 
-    for d in (wet_pw, hydro_pw):
-        delays.append(_integrate_delays(stepSize, d))
-    return delays
-
-
-def _integrateZenith(zs, pw):
-    return 1e-6*np.trapz(pw, zs, axis = 2)
-
-
-def _integrate_delays(stepSize, refr):
-    '''
-    This function gets the actual delays by integrating the refractivity in 
-    each node. Refractivity is given in the 'refr' variable. 
-    '''
-    delays = []
-    for ray in refr:
-        delays.append(int_fcn(ray, stepSize))
-    return delays
-
-
-# integrate the delays to get overall delay
-def int_fcn(y, dx):
-    return 1e-6*dx*np.nansum(y)
-
-
-#TODO: the following three fcns are unclear if/how they are needed. 
-# likely need to see how they work with tropo_delay
-def delay_over_area(weather, 
-                    lat_min, lat_max, lat_res, 
-                    lon_min, lon_max, lon_res, 
-                    ht_min, ht_max, ht_res, 
-                    los=Zenith, 
-                    parallel = True, verbose = False):
-    """Calculate (in parallel) the delays over an area."""
-    lats = np.arange(lat_min, lat_max, lat_res)
-    lons = np.arange(lon_min, lon_max, lon_res)
-    hts = np.arange(ht_min, ht_max, ht_res)
-
-    if verbose:
-        print('delay_over_area: Size of lats: {}'.format(np.shape(lats)))
-        print('delay_over_area: Size of lons: {}'.format(np.shape(lons)))
-        print('delay_over_area: Size of hts: {}'.format(np.shape(hts)))
-
-    # It's the cartesian product (thanks StackOverflow)
-    llas = np.array(np.meshgrid(lats, lons, hts)).T.reshape(-1, 3)
-    if verbose:
-        print('delay_over_area: Size of llas: {}'.format(np.shape(llas)))
-
-    if verbose:
-        print('delay_over_area: running delay_from_grid')
-
-    return delay_from_grid(weather, llas, los, parallel=parallel, verbose = verbose)
-
-
-def delay_from_files(weather, lat, lon, ht, zref = None, parallel=False, los=Zenith,
-                     raytrace=True, verbose = False):
-    """
-    Read location information from files and calculate delay.
-    """
-    if zref is None:
-       zref = _ZREF
-
-    lats = util.gdal_open(lat)
-    lons = util.gdal_open(lon)
-    hts = util.gdal_open(ht)
-
-    if los is not Zenith:
-        incidence, heading = util.gdal_open(los)
-        if raytrace:
-            los = losreader.los_to_lv(
-                incidence, heading, lats, lons, hts, zref).reshape(-1, 3)
+    # Load downloaded weather model file to get projection info
+    with xarray.load_dataset(weather_model_file) as ds:
+        # Output grid points - North up grid
+        if args['height_levels'] is not None:
+            heights = args['height_levels']
         else:
-            los = incidence.flatten()
+            heights = ds.z.values
 
-    # We need the three to be the same shape so that we know what to
-    # reshape hydro and wet to. Plus, them being different sizes
-    # indicates a definite user error.
-    if not lats.shape == lons.shape == hts.shape:
-        raise ValueError('lat, lon, and ht should have the same shape, but ' + 
-                         'instead lat had shape {}, lon had shape '.format(lats.shape) + 
-                         '{}, and ht had shape {}'.format(lons.shape,hts.shape))
+    logger.debug(f'Output height range is {min(heights)} to {max(heights)}')
 
-    llas = np.stack((lats.flatten(), lons.flatten(), hts.flatten()), axis=1)
-    hydro, wet = delay_from_grid(weather, llas, los,
-                                 parallel=parallel, raytrace=raytrace, verbose = verbose)
-    hydro, wet = np.stack((hydro, wet)).reshape((2,) + lats.shape)
-    return hydro, wet
+    # Load CRS from weather model file
+    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
+    if wm_proj is None:
+       print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+       wm_proj = CRS.from_epsg(4326)
+    else:
+        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
+
+    # Build the output grid
+    zpts = np.array(heights)
+    xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+    ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+
+    # If no orbit is provided
+    # Build zenith delay cube
+    if los.is_Zenith():
+        out_type = "zenith"
+        out_filename = wf.replace("wet", "tropo")
+
+        # Get ZTD interpolators
+        ifWet, ifHydro = getInterpolators(weather_model_file, "total")
+
+        # Build cube
+        wetDelay, hydroDelay = build_cube(
+            xpts, ypts, zpts,
+            wm_proj, crs,
+            [ifWet, ifHydro])
+
+    else:
+        out_type = "slant range"
+        if not los.ray_trace():
+            out_filename = wf.replace("_ztd", "_std").replace("wet", "tropo")
+        else:
+            out_filename = wf.replace("_ztd", "_ray").replace("wet", "tropo")
+
+        if args["look_dir"].lower() not in ["right", "left"]:
+            raise ValueError(
+                f'Unknown look direction: {args["look_dir"]}'
+            )
+
+        # Get pointwise interpolators
+        ifWet, ifHydro = getInterpolators(
+            weather_model_file,
+            kind="pointwise",
+            shared=(nproc > 1),
+        )
+
+        if los.ray_trace():
+            # Build cube
+            if nproc == 1:
+                wetDelay, hydroDelay = build_cube_ray(
+                    xpts, ypts, zpts,
+                    dt, args["los"]._file, args["look_dir"],
+                    wm_proj, crs,
+                    [ifWet, ifHydro])
+
+            ### Use multi-processing here
+            else:
+                # Pre-build output arrays
+
+                # Create worker pool
+
+                # Loop over heights
+                raise NotImplementedError
+        else:
+            raise NotImplementedError('Conventional STD is not yet implemented on the cube')
+
+    # Write output file
+    # Modify this as needed for NISAR / other projects
+    ds = xarray.Dataset(
+        data_vars=dict(
+            wet=(["z", "y", "x"],
+                 wetDelay,
+                 {"units" : "m",
+                  "description": f"wet {out_type} delay",
+                  "grid_mapping": "cube_projection",
+                 }),
+            hydro=(["z", "y", "x"],
+                   hydroDelay,
+                   {"units": "m",
+                    "description": f"hydrostatic {out_type} delay",
+                    "grid_mapping": "cube_projection",
+                   }),
+        ),
+        coords=dict(
+            x=(["x"], xpts),
+            y=(["y"], ypts),
+            z=(["z"], zpts),
+        ),
+        attrs=dict(
+            Conventions="CF-1.7",
+            title="RAiDER geo cube",
+            source=os.path.basename(weather_model_file),
+            history=str(datetime.datetime.utcnow()) + " RAiDER",
+            description=f"RAiDER geo cube - {out_type}",
+            reference_time=str(args["time"]),
+        ),
+    )
+
+    # Write projection system mapping
+    ds["cube_projection"] = int()
+    for k, v in crs.to_cf().items():
+        ds.cube_projection.attrs[k] = v
+
+    # Write z-axis information
+    ds.z.attrs["axis"] = "Z"
+    ds.z.attrs["units"] = "m"
+    ds.z.attrs["description"] = "height above ellipsoid"
+
+    # If in degrees
+    if crs.axis_info[0].unit_name == "degree":
+        ds.y.attrs["units"] = "degrees_north"
+        ds.y.attrs["standard_name"] = "latitude"
+        ds.y.attrs["long_name"] = "latitude"
+
+        ds.x.attrs["units"] = "degrees_east"
+        ds.x.attrs["standard_name"] = "longitude"
+        ds.x.attrs["long_name"] = "longitude"
+
+    else:
+        ds.y.attrs["axis"] = "Y"
+        ds.y.attrs["standard_name"] = "projection_y_coordinate"
+        ds.y.attrs["long_name"] = "y-coordinate in projected coordinate system"
+        ds.y.attrs["units"] = "m"
+
+        ds.x.attrs["axis"] = "X"
+        ds.x.attrs["standard_name"] = "projection_x_coordinate"
+        ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
+        ds.x.attrs["units"] = "m"
 
 
-def get_weather_and_nodes(model, filename, zmin=None):
-    """Look up weather information from a model and file.
+    ext = os.path.splitext(out_filename)
+    if ext not in '.nc .h5'.split():
+        out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
+        logger.debug('Invalid extension %s for cube. Defaulting to .nc', ext)
 
-    We use the module.load method to load the weather model file, but
-    we'll also create a weather model object for it.
+    if out_filename.endswith(".nc"):
+        ds.to_netcdf(out_filename, mode="w")
+    elif out_filename.endswith(".h5"):
+        ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
+
+    logger.info('Finished writing data to: %s', out_filename)
+    return
+
+
+def checkQueryPntsFile(pnts_file, query_shape):
+    '''
+    Check whether the query points file exists, and if it
+    does, check that the shapes are all consistent
+    '''
+    write_flag = True
+    if os.path.exists(pnts_file):
+        # Check whether the number of points is consistent with the new inputs
+        with h5py.File(pnts_file, 'r') as f:
+            if query_shape == tuple(f['lon'].attrs['Shape']):
+                write_flag = False
+
+    return write_flag
+
+
+def transformPoints(lats, lons, hgts, old_proj, new_proj):
+    '''
+    Transform lat/lon/hgt data to an array of points in a new
+    projection
+
+    Parameters
+    ----------
+    lats - WGS-84 latitude (EPSG: 4326)
+    lons - ditto for longitude
+    hgts - Ellipsoidal height in meters
+    old_proj - the original projection of the points
+    new_proj - the new projection in which to return the points
+
+    Returns
+    -------
+    the array of query points in the weather model coordinate system (YX)
+    '''
+    t = Transformer.from_crs(old_proj, new_proj)
+
+    # Flags for flipping inputs or outputs
+    in_flip = old_proj.axis_info[0].direction == "east"
+    out_flip = new_proj.axis_info[0].direction == "east"
+
+    if in_flip:
+        res = t.transform(lons, lats, hgts)
+    else:
+        res = t.transform(lats, lons, hgts)
+
+    if out_flip:
+        return np.stack((res[1], res[0], res[2]), axis=-1).T
+    else:
+        return np.stack(res, axis=-1).T
+
+
+def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     """
-    # TODO: Need to check how this fcn will fit into the new framework
-    xs, ys, proj, t, q, z, lnsp = model.load(filename)
-    return (reader.read_model_level(module, xs, ys, proj, t, q, z, lnsp, zmin),
-            xs, ys, proj)
-
-def tropo_delay(time, los = None, lats = None, lons = None, heights = None, 
-                weather = None, zref = 15000, out = None, 
-                parallel=True,verbose = False, download_only = False):
-    """Calculate troposphere delay from command-line arguments.
-
-    We do a little bit of preprocessing, then call
-    _common_delay. 
+    Iterate over interpolators and build a cube
     """
-    from models.allowed import checkIfImplemented
-    from datetime import datetime as dt
-    from utils.llreader import getHeights
+    # Create a regular 2D grid
+    xx, yy = np.meshgrid(xpts, ypts)
 
-    if verbose:
-        print('type of time: {}'.format(type(time)))
-        print('Download-only is {}'.format(download_only))
+    # Output arrays
+    outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
+                  for mm in range(len(interpolators))]
 
-    # ensuring consistent file extensions
-    outformat = output_format(outformat)
+    # Assume all interpolators to be on same grid
+    zmin = min(interpolators[0].grid[2])
+    zmax = max(interpolators[0].grid[2])
 
-    # the output folder where data is downloaded and delays are stored, default is same location
-    if out is None:
-        out = os.getcwd()
+    # print("Output grid: ")
+    # print("crs: ", pts_crs)
+    # print("X: ", xpts[0], xpts[-1])
+    # print("Y: ", ypts[0], ypts[-1])
 
-    # Make weather
-    weather_model, weather_files, weather_model_name = \
-               weather['type'],weather['files'],weather['name']
-    checkIfImplemented(weather_model_name)
+    # ii = interpolators[0]
+    # print("Model grid: ")
+    # print("crs: ", model_crs)
+    # print("X: ", ii.grid[1][0], ii.grid[1][-1])
+    # print("Y: ", ii.grid[0][0], ii.grid[0][-1])
 
-    # check whether weather model files are supplied
-    if weather_files is None:
-       download_flag, f = dwf(weather_model.Model(), time, out, verbose)
+    # Loop over heights and compute delays
+    for ii, ht in enumerate(zpts):
 
-    # if no weather model files supplied, check the standard location
-    if download_flag:
+        # Uncomment this line to clip heights for interpolator
+        # ht = max(zmin, min(ht, zmax))
+
+        # pts is in weather model system
+        if model_crs != pts_crs:
+            pts = np.transpose(
+                transformPoints(
+                    yy, xx, np.full(yy.shape, ht),
+                    pts_crs, model_crs,
+                ), (2, 1, 0))
+        else:
+            pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
+
+        for mm, intp in enumerate(interpolators):
+            outputArrs[mm][ii,...] = intp(pts)
+
+    return outputArrs
+
+
+def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
+                   pts_crs, interpolators, outputArrs=None):
+    """
+    Iterate over interpolators and build a cube
+    """
+
+    # Some constants for this module
+    # TODO - Read this from constants or configuration
+    MAX_SEGMENT_LENGTH = 1000.
+    MAX_TROPO_HEIGHT = 50000.
+
+
+    # First load the state vectors into an isce orbit
+    orb = isce.core.Orbit([
+        isce.core.StateVector(
+            isce.core.DateTime(row[0]),
+            row[1:4], row[4:7]
+        ) for row in np.stack(
+            get_sv(orbit_file, ref_time, pad=600), axis=-1
+        )
+    ])
+
+    # ISCE3 data structures
+    elp = isce.core.Ellipsoid()
+    dop = isce.core.LUT2d()
+    if look_dir.lower() == "right":
+        look = isce.core.LookSide.Right
+    elif look_dir.lower() == "left":
+        look = isce.core.LookSide.Left
+    else:
+        raise RuntimeError(f"Unknown look direction: {look_dir}")
+    logger.debug(f"Look direction: {look_dir}")
+
+    # Get model heights in an array
+    # Assumption: All interpolators here are on the same grid
+    model_zs = interpolators[0].grid[2]
+
+    # Create a regular 2D grid
+    xx, yy = np.meshgrid(xpts, ypts)
+
+    # Output arrays
+    output_created_here = False
+    if outputArrs is None:
+        output_created_here = True
+        outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
+                      for mm in range(len(interpolators))]
+
+    # Various transformers needed here
+    epsg4326 = CRS.from_epsg(4326)
+    cube_to_llh = Transformer.from_crs(pts_crs, epsg4326,
+                                       always_xy=True)
+    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs)
+    # For calling the interpolators
+    flip_xy = model_crs.axis_info[0].direction == "east"
+
+    # Loop over heights of output cube and compute delays
+    for hh, ht in enumerate(zpts):
+        logger.info(f"Processing slice {hh+1} / {len(zpts)}: {ht}")
+        # Slices to fill on output
+        outSubs = [x[hh, ...] for x in outputArrs]
+
+        # Step 1:  transform points to llh and xyz
+        if pts_crs != epsg4326:
+            llh = list(cube_to_llh.transform(xx, yy, np.full(yy.shape, ht)))
+        else:
+            llh = [xx, yy, np.full(yy.shape, ht)]
+
+        xyz = np.stack(
+            lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)),
+            axis=-1)
+
+        llh[0] = np.deg2rad(llh[0])
+        llh[1] = np.deg2rad(llh[1])
+
+        # Step 2 - get LOS vectors for targets
+        # TODO - Modify when isce3 vectorization is available
+        los = np.full(xyz.shape, np.nan)
+        for ii in range(yy.shape[0]):
+            for jj in range(yy.shape[1]):
+                inp = np.array([
+                    llh[0][ii, jj],
+                    llh[1][ii, jj],
+                    ht])
+                inp_xyz = xyz[ii, jj, :]
+
+                if any(np.isnan(inp)) or any(np.isnan(inp_xyz)):
+                    continue
+
+                # Local normal vector
+                nv = elp.n_vector(inp[0], inp[1])
+
+                # Wavelength does not matter for
+                try:
+                    aztime, slant_range = isce.geometry.geo2rdr(
+                        inp, elp, orb, dop, 0.06, look,
+                        threshold=1.0e-7,
+                        maxiter=30,
+                        delta_range=10.0)
+                    sat_xyz, _ = orb.interpolate(aztime)
+                    los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
+                except Exception as e:
+                    los[ii, jj, :] = np.nan
+
+        # Free memory here
+        llh = None
+
+        # Step 3 - Determine delays between each model height per ray
+        # Assumption: zpts (output cube) and model_zs (model) are assumed to be
+        # sorted in height
+        # We start integrating bottom up
+        low_xyz = None
+        high_xyz = None
+        cos_factor = None
+        for zz in range(model_zs.size-1):
+            # Low and High for model interval
+            low_ht = model_zs[zz]
+            high_ht = model_zs[zz + 1]
+
+            # If high_ht < height of point - no contribution to integral
+            # If low_ht > max_tropo_height - no contribution to integral
+            if (high_ht <= ht) or (low_ht >= MAX_TROPO_HEIGHT):
+                continue
+
+            # If low_ht < height of point - integral only up to height of point
+            if low_ht < ht:
+                low_ht = ht
+
+            # If high_ht > max_tropo_height - integral only up to max tropo
+            # height
+            if high_ht > MAX_TROPO_HEIGHT:
+                high_ht = MAX_TROPO_HEIGHT
+
+            # Continue only if needed - 1m troposphere does nothing
+            if np.abs(high_ht - low_ht) < 1.0:
+                continue
+
+            # If high_xyz was defined, make new low_xyz - save computation
+            if high_xyz is not None:
+                low_xyz = high_xyz
+            else:
+                low_xyz = getTopOfAtmosphere(xyz, los, low_ht, factor=cos_factor)
+
+            # Compute high_xyz
+            high_xyz = getTopOfAtmosphere(xyz, los, high_ht, factor=cos_factor)
+
+            # Compute ray length
+            ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)
+
+            # Compute cos_factor for first iteration
+            if cos_factor is None:
+                cos_factor = (high_ht - low_ht) / ray_length
+
+            # Determine number of parts to break ray into
+            try:
+                nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
+            except ValueError:
+                raise ValueError(
+                    "geo2rdr did not converge. Check orbit coverage"
+                )
+
+            if (nParts == 1):
+                raise RuntimeError(
+                    "Ray with one segment encountered"
+                )
+
+            # fractions
+            fracs = np.linspace(0., 1., num=nParts)
+
+            # Integrate over the ray
+            for findex, ff in enumerate(fracs):
+                # Ray point in ECEF coordinates
+                pts_xyz = low_xyz + ff * (high_xyz - low_xyz)
+
+                # Ray point in model coordinates
+                pts = ecef_to_model.transform(
+                    pts_xyz[..., 0],
+                    pts_xyz[..., 1],
+                    pts_xyz[..., 2]
+                )
+
+                # Order for the interpolator
+                if flip_xy:
+                    pts = np.stack((pts[1], pts[0], pts[2]), axis=-1)
+                else:
+                    pts = np.stack(pts, axis=-1)
+
+                # Trapezoidal integration with scaling
+                wt = 0.5 if findex in [0, fracs.size-1] else 1.0
+                wt *= ray_length *1.0e-6 / (nParts - 1.0)
+
+                # For each interpolator, integrate between levels
+                for mm, out in enumerate(outSubs):
+                    val =  interpolators[mm](pts)
+
+                    # TODO - This should not occur if there is enough padding in model
+                    val[np.isnan(val)] = 0.0
+                    out += wt * val
+
+    if output_created_here:
+        return outputArrs
+
+
+###############################################################################
+def main(dt, wetFilename, hydroFilename, args):
+    """
+    raider main function for calculating delays.
+
+    Parameterss
+    ----------
+    args: dict  Parameters and inputs needed for processing,
+                containing the following key-value pairs:
+
+        los     - tuple, Zenith class object, ('los', 2-band los file), or ('sv', orbit_file)
+        lats    - ndarray or str
+        lons    - ndarray or str
+        heights - see checkArgs for format
+        weather_model   - type of weather model to use
+        wmLoc   - Directory containing weather model files
+        zref    - max integration height
+        outformat       - File format to use for raster outputs
+        time    - list of datetimes to calculate delays
+        download_only   - Only download the raw weather model data and exit
+        wetFilename     -
+        hydroFilename   -
+        pnts_file       - Input a points file from previous run
+        verbose - verbose printing
+    """
+    # unpacking the dictionairy
+    los = args['los']
+    heights = args['dem']
+    weather_model = args['weather_model']
+    wmLoc = args['weather_model_directory']
+    zref = args['zref']
+    outformat = args['raster_format']
+    verbose = args['verbose']
+    aoi   = args['aoi']
+
+    download_only = args['download_only']
+
+    if los.ray_trace():
+        ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
+    else:
+        ll_bounds = aoi.bounds()
+
+    # logging
+    logger.debug('Starting to run the weather model calculation')
+    logger.debug('Time type: {}'.format(type(dt)))
+    logger.debug('Time: {}'.format(dt.strftime('%Y%m%d')))
+    logger.debug('Max integration height is {:1.1f} m'.format(zref))
+
+    ###########################################################
+    # weather model calculation
+    logger.debug('Beginning weather model pre-processing')
+
+    weather_model_file = prepareWeatherModel(
+        weather_model,
+        dt,
+        wmLoc=wmLoc,
+        ll_bounds=ll_bounds, # SNWE
+        zref=zref,
+        download_only=download_only,
+        makePlots=verbose,
+    )
+
+    if download_only:
+        logger.debug('Weather model has downloaded. Finished.')
+        return None, None
+
+
+    if aoi.type() == 'bounding_box' or \
+                (args['height_levels'] and aoi.type() != 'station_file'):
+        # This branch is specifically for cube generation
         try:
-           weather_model.fetch(lats, lons, time, f)
+            tropo_delay_cube(
+                dt, wetFilename, args,
+                model_file=weather_model_file,
+            )
         except Exception as e:
-           print('ERROR: Unable to download weather data')
-           print('Exception encountered: {}'.format(e))
-           sys.exit(0)
- 
-        # exit on download if download_only requested
-        if download_only:
-            print('WARNING: download_only flag selected. I will only '\
-                  'download the weather model, '\
-                  ' without doing any further processing.')
-            return None, None
+            logger.error(e)
+            raise RuntimeError('Something went wrong in calculating delays on the cube')
+        return None, None
 
-
-    # Load the weather model data
-    if weather_files is not None:
-       weather_model.load(*weather_files)
-       download_flag = False
-    elif weather_model_name == 'pickle':
-        weather_model = util.pickle_load(weather_files)
+    ###########################################################
+    # Load the downloaded model file for CRS information
+    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
+    if wm_proj is None:
+        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+        wm_proj = CRS.from_epsg(4326)
     else:
-        # output file for storing the weather model
-        #weather_model.load(f)
-        weather_model.load(f, lats = lats, lons = lons) # <-- this will trim the weather model to the lat/lon extents
-    if verbose:
-        print('Weather Model Name: {}'.format(wmName))
-        #p = weather.plot(p)
+        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
+    ####################################################################
 
-    # Pull the lat/lon data if using the weather model 
-    if lats is None or len(lats)==2:
-       lats,lons = weather_model.getLL() 
-       lla = weather_model.getProjection()
-       util.writeLL(time, lats, lons,lla, weather_model_name, out)
-    
-    # check for compatilibility of the weather model locations and the input
-    if util.isOutside(util.getExtent(lats, lons), util.getExtent(*weather_model.getLL())):
-       print('WARNING: some of the requested points are outside of the existing \
-             weather model; these will end up as NaNs')
- 
-    # Pull the DEM
-    if verbose: 
-       print('Beginning DEM calculation')
-    demLoc = os.path.join(out, 'geom')
-    lats, lons, hgts = getHeights(lats, lons,heights, demLoc)
+    ####################################################################
+    # Calculate delays
+    if isinstance(los, (Zenith, Conventional)):
+        # Start actual processing here
+        logger.debug("Beginning DEM calculation")
+        # Lats, Lons will be translated from file to array here if needed
 
-    # LOS check and load
-    if verbose: 
-       print('Beginning LOS calculation')
-    if los is None:
-        los = Zenith
-    elif los is Zenith:
-        pass
+        # read lats/lons
+        lats, lons = aoi.readLL()
+        hgts = aoi.readZ()
+
+        los.setPoints(lats, lons, hgts)
+
+        # Transform query points if needed
+        pnt_proj = CRS.from_epsg(4326)
+        if wm_proj != pnt_proj:
+            pnts = transformPoints(
+                lats,
+                lons,
+                hgts,
+                pnt_proj,
+                wm_proj,
+            ).T
+        else:
+            # interpolators require y, x, z
+            pnts = np.stack([lats, lons, hgts], axis=-1)
+
+        # either way I'll need the ZTD
+        ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
+        wetDelay = ifWet(pnts)
+        hydroDelay = ifHydro(pnts)
+
+        # return the delays (ZTD or STD)
+        wetDelay = los(wetDelay)
+        hydroDelay = los(hydroDelay)
+
+    elif isinstance(los, Raytracing):
+        raise NotImplementedError
     else:
-        import utils.losreader as losr
-        los = losr.infer_los(los, lats, lons, hgts, zref)
+        raise ValueError("Unknown operation type")
 
-    if los is Zenith:
-       raytrace = True
-    else:
-       raytrace = True
-       
-    util.checkShapes(los, lats, lons, hgts)
-    util.checkLOS(los, raytrace, np.prod(lats.shape))
+    ###########################################################
+    # Write the delays to file
+    # Different options depending on the inputs
 
-    # Save the shape so we can restore later, but flatten to make it
-    # easier to think about
-    llas = np.stack((lats, lons, hgts), axis=-1)
-    real_shape = llas.shape[:-1]
-    llas = llas.reshape(-1, 3)
-    lats, lons, hgts = np.moveaxis(llas, -1, 0)
+    if not isinstance(wetFilename, str):
+        wetFilename   = wetFilename[0]
+        hydroFilename = hydroFilename[0]
 
-    if verbose: 
-       print('Beginning delay calculation')
-    # Call _common_delay to compute the hydrostatic and wet delays
-    if parallel:
-       useDask = True
-       nproc = 16
-    else:
-       useDask = False
-       nproc = 1
-    wet, hydro = _common_delay(weather_model, lats, lons, hgts, los, zref = zref,\
-                  nproc = nproc, useDask = useDask, verbose = verbose)
-    if verbose: 
-       print('Finished delay calculation')
+    if aoi.type() == 'station_file':
+        wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'
 
-    # Restore shape
-    try:
-        hydro, wet = np.stack((hydro, wet)).reshape((2,) + real_shape)
-    except:
-        pass
+    writeDelays(
+        aoi,
+        wetDelay,
+        hydroDelay,
+        wetFilename,
+        hydroFilename,
+        outformat=outformat,
+    )
+    logger.info('Finished writing data to file')
 
-    return wet, hydro
-
-    
+    return wetDelay, hydroDelay

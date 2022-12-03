@@ -5,21 +5,47 @@
 # exit   environment : conda deactivate
 name: RAiDER
 channels:
- - defaults
  - conda-forge
- - anaconda
+ - nodefaults
 dependencies:
- - python=3
- - cartopy
+ - python>=3.8
+ - pip
+ # For running
  - cdsapi
+ - cfgrib
  - cmake
+ - cxx-compiler
+ - cython
  - dask
- - gcc
+ - dem_stitcher>=2.3.0
+ - ecmwf-api-client
  - h5py
- - krb5
+ - herbie-data
+ - h5netcdf
+ - isce3==0.8.0=*_2
+ - lxml
  - matplotlib
+ - netcdf4
  - numpy
- - gdal>=3.0
- - pyproj
- - pygrib
+ - pandas
+ - progressbar
+ - pydap>3.2.2
+ - pyproj>=2.2.0
+ - rasterio>=1.3.0
+ - s3fs
  - scipy
+ - shapely
+ - sysroot_linux-64
+ - xarray
+ # For packaging and testing
+ - autopep8
+ - pytest
+ - pytest-cov
+ - pytest-timeout
+ - pytest-console-scripts
+ - setuptools_scm >=6.2
+
+ # For RAiDER-docs
+ - jupyterlab
+ - jupyter_contrib_nbextensions
+ - wand

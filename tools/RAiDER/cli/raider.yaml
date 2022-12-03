@@ -1,0 +1,127 @@
+# vim: set filetype=yaml:
+##------------------------ raiderDelay.yaml ------------------------##
+##
+##  There are three basic options for calculating tropospheric delays:
+##  1. Calculate Zenith delays (ZTD; Default option if nothing else is passed)
+##  2. Calculate slant delays (STD) by projecting ZTD using the incidence angle:
+##     STD = ZTD / cos(incidence_angle)
+##  3. Calculate slant delays (STD) using raytracing:
+##     STD = 1e-6 * \int_H^{Top} N(l(x,y,z)) dl
+##     where H is the ground pixel elevation, "Top" is the top of the troposphere,
+##     N is the refractivity (point-wise delay), and l is a ray which is traced
+##     from the ground pixel to the top of the troposphere.
+##
+##  In addition, RAiDER supports a number of options for specifying query points,
+## heights, and different weather models. Full options are listed below.
+
+########## PARAMETERS
+## Satellite look direction:
+## Sentinel-1: right
+## NISAR: left
+look_dir: right
+
+
+########## 1. Weather model
+## REQUIRED: TRUE
+## FORMATS: string, Select name from list below
+##
+## Currently implemented weather models include:
+## ERA-5, ERA-5T, HRES, ERA-I, NCMR, HRRR, GMAO, MERRA-2
+## See https://github.com/dbekaert/RAiDER/blob/10686ee3f3533a33ca0788d866003c363f58fd5e/WeatherModels.md
+## for more details and information on licensing
+weather_model:
+
+
+########## 2. Date
+## REQUIRED: TRUE
+## FORMATS: YYYYMMDD
+##
+## Dates can be a single date, two dates that define a set of dates every day, or two dates with an interval
+## These will be ignored in the case that date_list is specified
+date_group:
+  date_start:
+  date_end:
+  date_step:   # date interval to download. Default is 1, i.e. every day between date_start and date_end
+
+  ## Alternatively, you can also directly specify a comma-delimited list.
+  date_list:   # e.g. [20200101, 20200201, 20200301]
+
+
+########## 3. Time in UTC
+## REQUIRED: TRUE
+## FORMATS: HH:MM:SS; HH:MM
+##
+## Time is in UTC time and should be specified as HH:MM:SS or HH:MM
+## The specified time should be the start time of the acquisition to within a minute
+## end_time will be the end time of the acquition, if not supplied it will be assumed to be 30 seconds post start time
+## For downloading weather models, RAiDER currently rounds to the nearest hour rather than interpolating
+time_group:
+  time:
+  end_time:
+
+
+########## 4. Area of Interest
+## REQUIRED: FALSE
+## FORMATS: string or list of floats
+##
+## There are several options for specifying query points
+## 1. A bounding box in lat/lon specified as a space-separated list: South North West East
+## 2. Specify a geocoded file, e.g. ARIA GUNW product, from which the AOI will be determined
+## 3/4. lat/lon raster files (such as those produced by the ISCE software)
+## 5. A comma-delimited file (station_file) containing at least the columns Lat and Lon, and optionally Hgt_m
+aoi_group:
+  bounding_box:
+  geocoded_file:
+  lat_file:
+  lon_file:
+  station_file:
+
+
+########## 5. Height info
+## REQUIRED: FALSE
+## FORMATS: None, string, list of floats
+##
+##  Height information is used from one of the following possible sources:
+##  1. (Default for bounding box) Weather model height levels (model-specific)
+##  2. (Default for lat/lon points) Copernicus 30m DEM (GLO-30), downloaded on the fly
+##  3. Georeferenced DEM
+##    NOTE: If "use_dem_latlon" is set to true, then delays will be calculated at the DEM pixels.
+##  4. Height file in radar coordinates matching lat/lon input files (Query points Option 1)
+##  5. List of height levels, which will be used for all input query points
+height_group:
+  dem:
+  use_dem_latlon: False
+  height_file_rdr:
+  height_levels:
+
+
+########## 6. Line-of-sight or zenith calculations
+## REQUIRED: FALSE
+## FORMATS: string
+##
+## ZTD calculation: No additional inputs required
+## STD calculation:
+los_group:
+  ray_trace: False  # Use projected slant delay by default
+  zref: # Integration height. Only used in raytracing.
+
+  # raster file in radar or geocoordinates
+  los_file:
+  los_convention: isce  # can be "isce" or "hyp3", see *** for details
+
+  # NETCDF (HDF5?) file containing look vectors, see *** for details
+  los_cube:
+
+  # File containing orbit statevectors, see *** for details
+  orbit_file:
+
+
+########## 7. Run-time parameters
+## REQUIRED: FALSE
+##
+runtime_group:
+  verbose: True
+  raster_format: GTiff # Can be any rasterio-compatible format
+  output_directory: . # uses the runtime directory by default
+  weather_model_directory: # Defaults to <output directory>/weather_files/
+  output_projection:  # Specify the PROJ-compatible projection of the output delays as an EPSG code
