@@ -1,154 +1,99 @@
-import numpy as np
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
+# Copyright 2019, by the California Institute of Technology. ALL RIGHTS
+# RESERVED. United States Government Sponsorship acknowledged.
+#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-from utils.util import gdal_trans
 
-def checkArgs(args, p):
+import pandas as pd
+
+from datetime import datetime
+
+from RAiDER.losreader import Zenith
+from RAiDER.llreader import BoundingBox
+
+
+def checkArgs(args):
     '''
-    Helper fcn for checking argument compatibility and returns the 
+    Helper fcn for checking argument compatibility and returns the
     correct variables
     '''
-    import models
 
-    if args.heightlvs is not None and args.outformat != 'hdf5':
-       raise ValueError('HDF5 must be used with height levels')
-    if args.area is None and args.bounding_box is None and args.wmnetcdf is None and args.station_file is None:
-       raise ValueError('You must specify one of the following: \n \
-             (1) lat/lon files, (2) bounding box, (3) weather model files, or\n \
-             (4) station file containing Lat and Lon columns')
+    #########################################################################################################################
+    # Directories
+    if not os.path.exists(args.weather_model_directory):
+        os.mkdir(args.weather_model_directory)
 
-    # Line of sight
-    if args.lineofsight is not None:
-        los = ('los', args.lineofsight)
-    elif args.statevectors is not None:
-        los = ('sv', args.statevectors)
-    else:
-        from utils.constants import Zenith
-        los = Zenith
+    #########################################################################################################################
+    # Date and Time parsing
+    args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
 
-    # Area
-    if args.area is not None:
-        lat, lon = args.area
-        lonFileName = '{}_Lon_{}.dat'.format(weather_model_name, 
-                          dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-        latFileName = '{}_Lat_{}.dat'.format(weather_model_name, 
-                          dt.strftime(time, '%Y_%m_%d_T%H_%M_%S'))
-        gdal_trans(lat, os.path.join(args.out, 'geom', latFileName), 'VRT')
-        gdal_trans(lon, os.path.join(args.out, 'geom', lonFileName), 'VRT')
+    #########################################################################################################################
+    # filenames
+    wetNames, hydroNames = [], []
+    for d in args.date_list:
+        if not args.aoi is not BoundingBox:
+            if args.station_file is not None:
+                wetFilename = os.path.join(
+                    args.output_directory,
+                    '{}_Delay_{}.csv'
+                    .format(
+                        args.weather_model,
+                        args.time.strftime('%Y%m%dT%H%M%S'),
+                    )
+                )
+                hydroFilename = wetFilename
 
-    elif args.bounding_box is not None:
-        N,W,S,E = args.bounding_box
-        lat = np.array([float(N), float(S)])
-        lon = np.array([float(E), float(W)])
+                # copy the input file to the output location for editing
+                indf = pd.read_csv(args.query_area).drop_duplicates(subset=["Lat", "Lon"])
+                indf.to_csv(wetFilename, index=False)
 
-        if (lat[0] == lat[1]) | (lon[0]==lon[1]):
-           raise RuntimeError('You have passed a zero-size bounding box: {}'.format(args.bounding_box))
-
-    elif args.station_file is not None:
-        lat, lon = readLLFromStationFile(args.station_file)
-
-    else:
-        lat = lon = None
-
-    # DEM
-    if args.dem is not None:
-        heights = ('dem', args.dem)
-    elif args.heightlvs is not None:
-        heights = ('lvs', args.heightlvs)
-    else:
-        heights = ('download', None)
-
-    # Weather
-    if args.model == 'WRF':
-        if args.wmnetcdf is not None:
-            p.error('Argument --wmnetcdf invalid with --model WRF')
-        if args.wrfmodelfiles is not None:
-            weathers = {'type': 'wrf', 'files': args.wrfmodelfiles,
-                        'name': 'wrf'}
+            else:
+                wetNames.append(None)
+                hydroNames.append(None)
         else:
-            p.error('Argument --wrfmodelfiles required with --model WRF')
-    elif args.model=='ERA5' or args.model == 'ERA-5':
-        from models.era5 import ERA5
-        weathers = {'type': ERA5(), 'files':None, 'name':'ERA-5'}
-    elif args.model=='pickle':
-        import pickle
-        weathers = {'type':'pickle', 'files': args.pickleFile, 'name': 'pickle'}
-    else:
-        model_module_name = mangle_model_to_module(args.model)
-        try:
-            import importlib
-            model_module = importlib.import_module(model_module_name)
-        except ImportError:
-            p.error("Couldn't find a module named {}, ".format(repr(model_module_name))+
-                    "needed to load weather model {}".format(repr(args.model)))
-        if args.wmnetcdf is not None:
-            weathers = {'type': model_module.Model(), 'files': args.wmnetcdf,
-                        'name': args.model}
-        elif args.time is None:
-            p.error('Must specify one of --wmnetcdf or --time (so I can '
-                    'figure out what to download)')
-        elif lat is None:
-            p.error('Must specify one of --wmnetcdf or --area (so I can '
-                    'figure out what to download)')
-        else:
-            weathers = {'type': model_module.Model(), 'files': None,
-                        'name': args.model}
-    # zref
-    zref = args.zref
-    
-    # output file format
-    if args.heightlvs is not None: 
-       if args.outformat.lower() != 'hdf5':
-          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
-       outformat = 'hdf5'
-    elif args.station_file is not None:
-       if args.outformat.lower() != 'netcdf':
-          print("WARNING: input arguments require HDF5 output file type; changing outformat to HDF5")
-       outformat = 'netcdf'
-    else:
-       if args.outformat.lower() == 'hdf5':
-          print("WARNING: output require raster output file; changing outformat to ENVI")
-          outformat = 'ENVI'
-       else:
-          outformat = args.outformat.lower()
+            wetFilename, hydroFilename = makeDelayFileNames(
+                d,
+                args.los,
+                args.raster_format,
+                args.weather_model._dataset.upper(),
+                args.output_directory,
+            )
 
-    # parallelization
-    parallel = True if not args.no_parallel else False
+            wetNames.append(wetFilename)
+            hydroNames.append(hydroFilename)
 
-    # other
-    time = args.time
-    out = args.out
-    download_only = args.download_only
-    verbose = args.verbose
+    args.wetFilenames = wetNames
+    args.hydroFilenames = hydroNames
 
-    if args.area is not None:
-       flag = 'files'
-    elif args.bounding_box is not None:
-       flag = 'bounding_box'
-    elif args.station_file is not None:
-       flag = 'station_file'
-    else: 
-       flag = None
-
-    return los, lat, lon, heights, flag, weathers, zref, outformat, time, out, download_only, parallel, verbose
+    return args
 
 
-def output_format(outformat):
-    """
-        Reduce the outformat strings users can specifiy to a select consistent set that can be used for filename extensions.
-    """
-    # convert the outformat to lower letters
-    outformat = outformat.lower()
+def makeDelayFileNames(time, los, outformat, weather_model_name, out):
+    '''
+    return names for the wet and hydrostatic delays.
 
-    # capture few specific cases:
-    outformat_dict = {}
-    outformat_dict['hdf5'] = 'h5'
-    outformat_dict['hdf'] = 'h5'
-    outformat_dict['h5'] = 'h5'
-    outformat_dict['envi'] = 'envi'
+    # Examples:
+    >>> makeDelayFileNames(datetime(2020, 1, 1, 0, 0, 0), None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
+    >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
+    ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
+    '''
+    format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
+        model_name=weather_model_name,
+        time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",
+        los="ztd" if (isinstance(los, Zenith) or los is None) else "std",
+        ext=outformat
+    )
+    hydroname, wetname = (
+        format_string.format(dtyp) for dtyp in ('hydro', 'wet')
+    )
 
-    try:
-        outformat = outformat_dict[outformat]
-    except:
-        raise NotImplemented
-    return outformat
+    hydro_file_name = os.path.join(out, hydroname)
+    wet_file_name = os.path.join(out, wetname)
+    return wet_file_name, hydro_file_name
+
+
 

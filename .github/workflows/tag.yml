@@ -1,0 +1,15 @@
+name: Tag version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  call-bump-version-workflow:
+    uses: ASFHyP3/actions/.github/workflows/reusable-bump-version.yml@v0.6.0
+    with:
+      user: dbekaert
+      email: bekaertdavid@gmail.com
+    secrets:
+      USER_TOKEN: ${{ secrets.RELEASE_ACCESS_TOKEN }}

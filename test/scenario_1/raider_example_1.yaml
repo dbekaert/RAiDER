@@ -1,0 +1,14 @@
+# vim: set filetype=yaml:
+  look_dir: right
+  date_group: # Groups mean that there are several different possible options, see documentation for details
+    date_start: 20200101 
+  time_group:
+    time: "12:00:00" # UTC time as a string
+  weather_model: HRRR # RAiDER supports several models, including ECMWF, HRRR, GMAO, and MERRA-2
+  aoi_group: 
+    bounding_box: 36 37 -92 -91 # bounding box uses the weather model grid nodes
+  height_group:
+    height_levels: 0 50 100 500 1000 # Return only these specific height levels
+  los_group: # absent other options ZTD is calculated
+  
+  

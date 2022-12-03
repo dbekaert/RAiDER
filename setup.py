@@ -1,42 +1,47 @@
-#!/usr/bin/env python3
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
-# Author: David Bekaert & Piyush Agram
+# Author: David Bekaert, Jeremy Maurer, and Piyush Agram
 # Copyright 2019, by the California Institute of Technology. ALL RIGHTS
 # RESERVED. United States Government Sponsorship acknowledged.
 #
-#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import re
+from pathlib import Path
 
-from distutils.core import setup, Extension
-import os
+import numpy as np
+from pybind11.setup_helpers import Pybind11Extension, build_ext
+from setuptools import Extension, setup
 
+# Cythonize should be imported after setuptools. See:
+# https://cython.readthedocs.io/en/latest/src/userguide/source_files_and_compilation.html#configuring-the-c-build
+from Cython.Build import cythonize  # isort:skip
 
-# Path where relax third party is download to
-# Note Min-Cost-Flow-Class has its own liscence agreement, users to ensure proper use of third party license agreements.
-relaxPath='tools/thirdParty/Min-Cost-Flow-Class'
+# Parameter defs
+UTIL_DIR = Path('tools') / 'bindings' / 'utils'
 
-# If third party package is found compile as well
-if os.path.isdir(relaxPath):
-    print('Installing ARIA-tools with support for RelaxIV')
-    module1 = Extension('ARIAtools.demo', sources = ['tools/bindings/relaxIVdriver.cpp',
-                                                     'tools/bindings/unwcompmodule.cpp',
-                                                     os.path.join(relaxPath,'RelaxIV/RelaxIV.C')], include_dirs=['tools/include' ,os.path.join(relaxPath,'MCFClass'),os.path.join(relaxPath,'OPTUtils'),os.path.join(relaxPath,'RelaxIV')])
+pybind_extensions = [
+    Pybind11Extension(
+        'RAiDER.interpolate',
+        [
+            'tools/bindings/interpolate/src/module.cpp',
+            'tools/bindings/interpolate/src/interpolate.cpp'
+        ],
+    ),
+]
 
-    setup (name = 'ARIAtools',
-           version = '1.0',
-           description = 'This is the ARIA tools package with RelaxIV support',
-           ext_modules = [module1],
-           packages=['ARIAtools'],
-           package_dir={'ARIAtools': 'tools/ARIAtools'},
-           scripts=['tools/bin/ariaPlot.py','tools/bin/ariaDownload.py','tools/bin/ariaExtract.py','tools/bin/ariaTSsetup.py'])
-else:
-    # Third party package RelaxIV not found
-    print('Installing ARIA-tools without support for RelaxIV')
+cython_extensions = cythonize(
+    [
+        Extension(
+            name="RAiDER.makePoints",
+            sources=[str(f) for f in UTIL_DIR.glob("*.pyx")],
+            include_dirs=[np.get_include()]
+        ),
+    ],
+    quiet=True,
+    compiler_directives={'language_level': 3}
+)
 
-    setup (name = 'ARIAtools',
-           version = '1.0',
-           description = 'This is the ARIA tools package without RelaxIV support',
-           packages=['ARIAtools'],
-           package_dir={'ARIAtools': 'tools/ARIAtools'},
-           scripts=['tools/bin/ariaPlot.py','tools/bin/ariaDownload.py','tools/bin/ariaExtract.py','tools/bin/ariaTSsetup.py'])
-
+setup(
+    ext_modules=cython_extensions + pybind_extensions,
+    cmdclass={"build_ext": build_ext},
+)

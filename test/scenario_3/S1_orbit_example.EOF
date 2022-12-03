@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<Earth_Explorer_File>
+  <Earth_Explorer_Header>
+    <Fixed_Header>
+      <File_Name>S1A_OPER_AUX_POEORB_OPOD_20181203T120749_V20181112T225942_20181114T005942</File_Name>
+      <File_Description>Precise Orbit Ephemerides (POE) Orbit File</File_Description>
+      <Notes></Notes>
+      <Mission>Sentinel-1A</Mission>
+      <File_Class>OPER</File_Class>
+      <File_Type>AUX_POEORB</File_Type>
+      <Validity_Period>
+        <Validity_Start>UTC=2018-11-12T22:59:42</Validity_Start>
+        <Validity_Stop>UTC=2018-11-14T00:59:42</Validity_Stop>
+      </Validity_Period>
+      <File_Version>0001</File_Version>
+      <Source>
+        <System>OPOD</System>
+        <Creator>OPOD</Creator>
+        <Creator_Version>1.5.3</Creator_Version>
+        <Creation_Date>UTC=2018-12-03T12:07:49</Creation_Date>
+      </Source>
+    </Fixed_Header>
+    <Variable_Header>
+      <Ref_Frame>EARTH_FIXED</Ref_Frame>
+      <Time_Reference>UTC</Time_Reference>
+    </Variable_Header>
+  </Earth_Explorer_Header>
+<Data_Block type="xml">
+  <List_of_OSVs count="8">
+    <OSV>
+      <TAI>TAI=2018-11-12T23:00:39.000000</TAI>
+      <UTC>UTC=2018-11-12T23:00:02.000000</UTC>
+      <UT1>UT1=2018-11-12T23:00:02.007459</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-2064965.285362</X>
+      <Y unit="m">6434865.494987</Y>
+      <Z unit="m">2090670.967443</Z>
+      <VX unit="m/s">860.239634</VX>
+      <VY unit="m/s">2590.964968</VY>
+      <VZ unit="m/s">-7090.378144</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+    <OSV>
+      <TAI>TAI=2018-11-12T23:00:49.000000</TAI>
+      <UTC>UTC=2018-11-12T23:00:12.000000</UTC>
+      <UT1>UT1=2018-11-12T23:00:12.007459</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-2056228.553736</X>
+      <Y unit="m">6460407.492520</Y>
+      <Z unit="m">2019650.417312</Z>
+      <VX unit="m/s">887.072466</VX>
+      <VY unit="m/s">2517.380329</VY>
+      <VZ unit="m/s">-7113.598127</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+    <OSV>
+      <TAI>TAI=2018-11-12T23:00:59.000000</TAI>
+      <UTC>UTC=2018-11-12T23:00:22.000000</UTC>
+      <UT1>UT1=2018-11-12T23:00:22.007459</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-2047224.526705</X>
+      <Y unit="m">6485212.031660</Y>
+      <Z unit="m">1948401.684024</Z>
+      <VX unit="m/s">913.698134</VX>
+      <VY unit="m/s">2443.474728</VY>
+      <VZ unit="m/s">-7136.014344</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+    <OSV>
+      <TAI>TAI=2018-11-12T23:01:09.000000</TAI>
+      <UTC>UTC=2018-11-12T23:00:32.000000</UTC>
+      <UT1>UT1=2018-11-12T23:00:32.007459</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-2037955.293282</X>
+      <Y unit="m">6509275.946120</Y>
+      <Z unit="m">1876932.818066</Z>
+      <VX unit="m/s">940.113169</VX>
+      <VY unit="m/s">2369.256838</VY>
+      <VZ unit="m/s">-7157.624244</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+    <OSV>
+      <TAI>TAI=2018-11-12T23:01:19.000000</TAI>
+      <UTC>UTC=2018-11-12T23:00:42.000000</UTC>
+      <UT1>UT1=2018-11-12T23:00:42.007459</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-2028422.977002</X>
+      <Y unit="m">6532596.156540</Y>
+      <Z unit="m">1805251.894958</Z>
+      <VX unit="m/s">966.314136</VX>
+      <VY unit="m/s">2294.735374</VY>
+      <VZ unit="m/s">-7178.425371</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+    <OSV>
+      <TAI>TAI=2018-11-12T23:01:29.000000</TAI>
+      <UTC>UTC=2018-11-12T23:00:52.000000</UTC>
+      <UT1>UT1=2018-11-12T23:00:52.007459</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-2018629.735564</X>
+      <Y unit="m">6555169.670917</Y>
+      <Z unit="m">1733367.014327</Z>
+      <VX unit="m/s">992.297636</VX>
+      <VY unit="m/s">2219.919093</VY>
+      <VZ unit="m/s">-7198.415359</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+    <OSV>
+      <TAI>TAI=2018-11-12T23:01:39.000000</TAI>
+      <UTC>UTC=2018-11-12T23:01:02.000000</UTC>
+      <UT1>UT1=2018-11-12T23:01:02.007459</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-2008577.760461</X>
+      <Y unit="m">6576993.585012</Y>
+      <Z unit="m">1661286.298987</Z>
+      <VX unit="m/s">1018.060311</VX>
+      <VY unit="m/s">2144.816789</VY>
+      <VZ unit="m/s">-7217.591940</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+    <OSV>
+      <TAI>TAI=2018-11-12T23:01:49.000000</TAI>
+      <UTC>UTC=2018-11-12T23:01:12.000000</UTC>
+      <UT1>UT1=2018-11-12T23:01:12.007458</UT1>
+      <Absolute_Orbit>+24561</Absolute_Orbit>
+      <X unit="m">-1998269.276601</X>
+      <Y unit="m">6598065.082739</Y>
+      <Z unit="m">1589017.893976</Z>
+      <VX unit="m/s">1043.598837</VX>
+      <VY unit="m/s">2069.437298</VY>
+      <VZ unit="m/s">-7235.952940</VZ>
+      <Quality>NOMINAL</Quality>
+    </OSV>
+  </List_of_OSVs>
+</Data_Block>
+</Earth_Explorer_File>

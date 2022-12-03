@@ -1,0 +1,16 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  call-release-workflow:
+    uses: ASFHyP3/actions/.github/workflows/reusable-release.yml@v0.6.0
+    with:
+      release_prefix: RAiDER
+      develop_branch: dev
+      sync_pr_label: bot
+    secrets:
+      USER_TOKEN: ${{ secrets.RELEASE_ACCESS_TOKEN }}
