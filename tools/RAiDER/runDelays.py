@@ -15,22 +15,6 @@ from RAiDER.checkArgs import checkArgs
 from RAiDER.delay import main as main_delay
 
 
-HELP_MESSAGE = """
-Command line options for RAiDER processing. Default options can be found by running
-raider.py --generate_config
-
-Download a weather model and calculate tropospheric delays
-"""
-
-SHORT_MESSAGE = """
-Program to calculate troposphere total delays using a weather model
-"""
-
-EXAMPLES = """
-Usage examples:
-raider.py -g
-raider.py customTemplatefile.cfg
-"""
 
 class AttributeDict(dict):
     __getattr__ = dict.__getitem__
@@ -71,87 +55,6 @@ DEFAULT_DICT = dict(
         ),
         output_projection='EPSG:4236',
     )
-
-
-def create_parser():
-    """Parse command line arguments using argparse."""
-    p = argparse.ArgumentParser(
-        formatter_class = argparse.RawDescriptionHelpFormatter,
-        description = HELP_MESSAGE,
-        epilog = EXAMPLES,
-    )
-
-    p.add_argument(
-        'customTemplateFile', nargs='?',
-        help='custom template with option settings.\n' +
-        "ignored if the default smallbaselineApp.cfg is input."
-    )
-
-    p.add_argument(
-        '-g', '--generate_template',
-        dest='generate_template',
-        action='store_true',
-        help='generate default template (if it does not exist) and exit.'
-    )
-
-    
-    p.add_argument(
-        '--download-only',
-        action='store_true',
-        help='only download a weather model.'
-    )
-
-    return p
-
-
-def parseCMD(iargs=None):
-    """
-    Parse command-line arguments and pass to delay.py
-    """
-
-    p = create_parser()
-    args = p.parse_args(args=iargs)
-
-    args.argv = iargs if iargs else sys.argv[1:]
-
-    # default input file
-    template_file = os.path.join(
-        os.path.dirname(
-            RAiDER.__file__
-        ),
-        'cli', 'raider.yaml'
-    )
-    if '-g' in args.argv:
-        dst = os.path.join(os.getcwd(), 'raider.yaml')
-        shutil.copyfile(
-                template_file,
-                dst,
-            )
-
-        logger.info('Wrote %s', dst)
-        sys.exit(0)
-
-    # check: existence of input template files
-    if (not args.customTemplateFile
-            and not os.path.isfile(os.path.basename(template_file))
-            and not args.generate_template):
-        p.print_usage()
-        print(EXAMPLES)
-
-        msg = "No template file found! It requires that either:"
-        msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raider.yaml' exists in current directory."
-        raise SystemExit(f'ERROR: {msg}')
-
-    if  args.customTemplateFile:
-        # check the existence
-        if not os.path.isfile(args.customTemplateFile):
-            raise FileNotFoundError(args.customTemplateFile)
-
-        args.customTemplateFile = os.path.abspath(args.customTemplateFile)
-
-    return args
-
 
 def read_template_file(fname):
     """
@@ -232,10 +135,7 @@ def drop_nans(d):
 
 
 ##########################################################################
-def main(iargs=None):
-    # parse
-    inps = parseCMD(iargs)
-
+def main(inps):
     # Read the template file
     params = read_template_file(inps.customTemplateFile)
 

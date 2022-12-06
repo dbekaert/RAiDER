@@ -41,10 +41,11 @@ repository = "https://github.com/dbekaert/RAiDER"
 
 [project.scripts]
 "generateGACOSVRT.py" = "RAiDER.models.generateGACOSVRT:main"
-"raiderDownloadGNSS.py" = "RAiDER.gnss.downloadGNSSDelays:main"
-"raider.py" = "RAiDER.cli.raider:main"
-"prepFromAria.py" = "RAiDER.cli.prepFromAria:main"
+"raiderDownloadGNSS.py" = "RAiDER.cli.__main__:downloadGNSS"
+"runDelays.py" = "RAiDER.cli.__main__:calcDelays"
+"prepFromAria.py" = "RAiDER.cli.__main__:prepFromAria"
 "raiderStats.py"  = "RAiDER.cli.statsPlot:main"
+"raider.py" = "RAiDER.cli.__main__:main"
 
 [tool.setuptools]
 zip-safe = false
