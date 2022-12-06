@@ -268,7 +268,7 @@ def main(iargs=None):
         ###########################################################
         # weather model calculation
         logger.debug('Starting to run the weather model calculation')
-        logger.debug('Time: {}'.format(dt.strftime('%Y%m%d')))
+        logger.debug('Time: {}'.format(t.strftime('%Y%m%d')))
         logger.debug('Beginning weather model pre-processing')
         try:
             weather_model_file = prepareWeatherModel(
