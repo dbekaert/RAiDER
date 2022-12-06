@@ -6,7 +6,6 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-import glob
 import numpy as np
 import xarray as xr
 import rasterio
@@ -146,9 +145,7 @@ def update_yaml(dct_cfg, dst='GUNW.yaml'):
     logger.info (f'Wrote new cfg file: %s', dst)
     return dst
 
-## ---------------------------------------------------- Create Delays
 
-## ---------------------------------------------------- Calculate Inteferometric Phase
 def main(args):
     '''
     A command-line utility to convert ARIA standard product outputs from ARIA-tools to
@@ -165,7 +162,7 @@ def main(args):
         time     = parse_time_GUNW(f)
         lookdir  = parse_look_dir(f)
 
-        makeLOSFile(f, args.los)
+        makeLOSFile(f, args.los_file)
         makeLatLonGrid(f)
 
         cfg  = {

@@ -4,7 +4,7 @@ Write it to disk
 """
 
 
-def main():
+def main(cfg_file):
     pass
 
 

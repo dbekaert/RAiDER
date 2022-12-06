@@ -1,6 +1,8 @@
 import os
 import argparse
 from importlib.metadata import entry_points
+import glob
+import yaml
 from textwrap import dedent
 from RAiDER.cli import AttributeDict, DEFAULT_DICT
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
@@ -37,6 +39,8 @@ def read_template_file(fname):
 
     Modified from MintPy's 'read_template'
     """
+    from RAiDER.cli.validators import (enforce_time, enforce_bbox, parse_dates,
+                            get_query_region, get_heights, get_los, enforce_wm)
     with open(fname, 'r') as f:
         try:
             params = yaml.safe_load(f)
@@ -106,7 +110,9 @@ def drop_nans(d):
 
 def calcDelays(iargs=None):
     """Parse command line arguments using argparse."""
+    import RAiDER
     from RAiDER.delay import main as main_delay
+    from RAiDER.checkArgs import checkArgs
     p = argparse.ArgumentParser(
         formatter_class = argparse.RawDescriptionHelpFormatter,
         description = HELP_MESSAGE,
@@ -137,12 +143,9 @@ def calcDelays(iargs=None):
     args.argv = iargs if iargs else os.sys.argv[1:]
 
     # default input file
-    template_file = os.path.join(
-        os.path.dirname(
-            RAiDER.__file__
-        ),
-        'cli', 'raider.yaml'
-    )
+    template_file = os.path.join(os.path.dirname(RAiDER.__file__),
+                                                        'cli', 'raider.yaml')
+
     if '-g' in args.argv:
         dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(
@@ -173,16 +176,15 @@ def calcDelays(iargs=None):
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
 
     # Read the template file
-    params = read_template_file(inps.customTemplateFile)
+    params = read_template_file(args.customTemplateFile)
 
     # Argument checking
     params = checkArgs(params)
 
-    params['download_only'] = inps.download_only
+    params['download_only'] = args.download_only
 
     if not params.verbose:
         logger.setLevel(logging.INFO)
-
 
     for t, w, f in zip(
         params['date_list'],
@@ -195,7 +197,7 @@ def calcDelays(iargs=None):
             logger.exception("Date %s failed", t)
             continue
 
-    return p
+    return
 
 
 ## ------------------------------------------------------ downloadGNSSDelays.py
@@ -288,7 +290,7 @@ def downloadGNSS():
 ## ------------------------------------------------------------ prepFromARIA.py
 def calcDelaysARIA(iargs=None):
     from RAiDER.aria.prepFromARIA import main as ARIA_prep
-    from RAiDER.aria.calcARIA    import main as ARIA_delay
+    from RAiDER.aria.calcARIA    import main as ARIA_calc
 
     p = argparse.ArgumentParser(
         description='Prepare files from ARIA-tools output to use with RAiDER')
