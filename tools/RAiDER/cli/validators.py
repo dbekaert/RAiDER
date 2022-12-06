@@ -33,17 +33,18 @@ def enforce_wm(value):
 
 
 def get_los(args):
-    if ('orbit_file' in args.keys()) and (args['orbit_file'] is not None):
+    if args.get('orbit_file'):
         if args.ray_trace:
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
-    elif ('los_file' in args.keys()) and (args['los_file'] is not None):
+    elif args.get('los_file'):
         if args.ray_trace:
             los = Raytracing(args.los_file, args.los_convention)
         else:
             los = Conventional(args.los_file, args.los_convention)
-    elif ('los_cube' in args.keys()) and (args['los_cube'] is not None):
+
+    elif args.get('los_cube'):
         raise NotImplementedError('LOS_cube is not yet implemented')
 #        if args.ray_trace:
 #            los = Raytracing(args.los_cube)
@@ -114,7 +115,7 @@ def get_query_region(args):
     '''
     # Get bounds from the inputs
     # make sure this is first
-    if ('use_dem_latlon' in args.keys()) and args['use_dem_latlon']:
+    if 'use_dem_latlon' in args.keys():
         query = GeocodedFile(args.dem, is_dem=True)
 
     elif 'lat_file' in args.keys():
@@ -130,7 +131,7 @@ def get_query_region(args):
             raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched? Should be SNWE')
         query = BoundingBox(bbox)
 
-    elif 'geocoded_file' in args.keys():
+    elif'geocoded_file' in args.keys():
         query = GeocodedFile(args.geocoded_file, is_dem=False)
 
     ## untested
@@ -149,7 +150,7 @@ def enforce_bbox(bbox):
     """
     Enforce a valid bounding box
     """
-    bbox = [float(d) for d in bbox.strip().split()]
+    bbox = [float(d) for d in bbox.strip().split()] if isinstance(bbox, str) else bbox
 
     # Check the bbox
     if len(bbox) != 4:

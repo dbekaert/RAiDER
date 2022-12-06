@@ -30,6 +30,7 @@ look_dir: right
 ## See https://github.com/dbekaert/RAiDER/blob/10686ee3f3533a33ca0788d866003c363f58fd5e/WeatherModels.md
 ## for more details and information on licensing
 weather_model:
+download_only: False # Download the weather model and do nothing further.
 
 
 ########## 2. Date

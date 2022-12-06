@@ -15,7 +15,7 @@ from RAiDER.losreader import Zenith
 from RAiDER.llreader import BoundingBox
 
 
-def checkArgs(args):
+def checkArgs(args, download_only=False):
     '''
     Helper fcn for checking argument compatibility and returns the
     correct variables
@@ -65,6 +65,14 @@ def checkArgs(args):
             wetNames.append(wetFilename)
             hydroNames.append(hydroFilename)
 
+
+    ## enables both download only flag in config yaml and command line
+    # command line yes will overwrite config file
+    if not download_only:
+        args.download_only = args.get('download_only', False)
+    else:
+        args.download_only = True
+
     args.wetFilenames = wetNames
     args.hydroFilenames = hydroNames
 
@@ -94,6 +102,3 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     hydro_file_name = os.path.join(out, hydroname)
     wet_file_name = os.path.join(out, wetname)
     return wet_file_name, hydro_file_name
-
-
-

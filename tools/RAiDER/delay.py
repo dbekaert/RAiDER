@@ -16,7 +16,7 @@ from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
 
 import isce3.ext.isce3 as isce
-from RAiDER.constants import _STEP
+from RAiDER.constants import _STEP, _ZREF
 from RAiDER.delayFcns import (
     getInterpolators,
     calculate_start_points,
@@ -26,6 +26,8 @@ from RAiDER.dem import getHeights
 from RAiDER.logger import logger
 from RAiDER.llreader import BoundingBox
 from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
+from RAiDER.cli.validators import (get_query_region, get_los, enforce_wm)
+
 from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
     writeDelays, projectDelays, writePnts2HDF5,
@@ -33,24 +35,23 @@ from RAiDER.utilFcns import (
 )
 
 
-def tropo_delay_cube(dt, wf, args, model_file=None):
+class AttributeDict(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+
+def tropo_delay_cube(dt, wf, los, weather_model, wmLoc, zref, height_levels, download_only, aoi,
+                    cube_spacing, look_dir='right', crs=None, verbose=False, model_file=None):
     """
     raider cube generation function.
 
     Same as tropo_delay() above.
     """
-    los = args['los']
-    weather_model = args['weather_model']
-    wmLoc = args['weather_model_directory']
-    zref = args['zref']
-    download_only = args['download_only']
-    verbose = args['verbose']
-    aoi = args['aoi']
-    cube_spacing = args["cube_spacing_in_m"]
     ll_bounds = aoi.bounds()
 
     try:
-        crs  = CRS(args['output_projection'])
+        crs  = CRS(crs)
     except CRSError:
         raise ValueError('output_projection argument is not a valid CRS specifier')
 
@@ -103,10 +104,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
     # Load downloaded weather model file to get projection info
     with xarray.load_dataset(weather_model_file) as ds:
         # Output grid points - North up grid
-        if args['height_levels'] is not None:
-            heights = args['height_levels']
-        else:
-            heights = ds.z.values
+        heights = height_levels if height_levels is not None else ds.z.values
 
     logger.debug(f'Output height range is {min(heights)} to {max(heights)}')
 
@@ -145,9 +143,9 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
         else:
             out_filename = wf.replace("_ztd", "_ray").replace("wet", "tropo")
 
-        if args["look_dir"].lower() not in ["right", "left"]:
+        if look_dir.lower() not in ["right", "left"]:
             raise ValueError(
-                f'Unknown look direction: {args["look_dir"]}'
+                f'Unknown look direction: {look_dir}'
             )
 
         # Get pointwise interpolators
@@ -162,7 +160,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             if nproc == 1:
                 wetDelay, hydroDelay = build_cube_ray(
                     xpts, ypts, zpts,
-                    dt, args["los"]._file, args["look_dir"],
+                    dt, los._file, look_dir,
                     wm_proj, crs,
                     [ifWet, ifHydro])
 
@@ -205,7 +203,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             source=os.path.basename(weather_model_file),
             history=str(datetime.datetime.utcnow()) + " RAiDER",
             description=f"RAiDER geo cube - {out_type}",
-            reference_time=str(args["time"]),
+            # reference_time=str(args["time"]),
         ),
     )
 
@@ -555,7 +553,14 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
 
 
 ###############################################################################
-def main(dt, wetFilename, hydroFilename, args):
+# def main(dt, wetFilename, hydroFilename, args, library=True):
+def main(dt, wetFilename, hydroFilename,
+            los=None, aoi=None, ray_trace=False, zref=_ZREF, los_cube=None,
+            height_levels=None, dem_file=None, use_dem_latlon=False,
+            bounding_box=None, lat_file=None, lon_file=None, hgt_file_rdr=None,
+            station_file=None, geocoded_file=None,
+            wmLoc='.', weather_model=None, cube_spacing=2000, download_only=False,
+            outformat='Gtiff', crs='EPSG:4326', look_dir='right', verbose=False):
     """
     raider main function for calculating delays.
 
@@ -579,17 +584,45 @@ def main(dt, wetFilename, hydroFilename, args):
         pnts_file       - Input a points file from previous run
         verbose - verbose printing
     """
-    # unpacking the dictionairy
-    los = args['los']
-    heights = args['dem']
-    weather_model = args['weather_model']
-    wmLoc = args['weather_model_directory']
-    zref = args['zref']
-    outformat = args['raster_format']
-    verbose = args['verbose']
-    aoi   = args['aoi']
 
-    download_only = args['download_only']
+    ####### extra unpacking for library
+    if isinstance(weather_model, str):
+        weather_model = enforce_wm(weather_model)
+        
+    los_args   = {}
+    if los is None: # will calculate zenith
+        los = get_los(los_args)
+
+    elif isinstance(los, str) and os.path.isfile(los):
+        if 'ORB' in los_file:
+            los_args['orbit_file'] = True
+        else:
+            los_args['los_file'] = True
+        los_args['ray_trace'] = ray_trace
+
+    elif isinstance(los_cube, str) and os.path.isfile(los_cube):
+        los_args['los_cube'] = los_cube
+        los_args['ray_trace'] = ray_trace
+        los = get_los(AttributeDict(los_args))
+
+    ####### [possibly] unpack the AOI
+    if aoi is None:
+        aoi_args_all = {'use_dem_latlon': dem_file,
+                        'dem': dem_file,
+                        'lat_file': lat_file,
+                        'station_file': station_file,
+                        'bounding_box': bounding_box,
+                        'geocoded_file': geocoded_file,
+                        'los_cube':los_cube,
+                        }
+        # drop empty keys
+        aoi_args = {k:v for k, v in aoi_args_all.items() if v}
+
+        if lat_file in aoi_args_all.keys():
+            aoi_args['lon_file'] = lon_file
+            aoi_args['hgt_file_rdr'] = hgt_file_rdr
+        aoi = get_query_region(AttributeDict(aoi_args))
+
 
     if los.ray_trace():
         ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
@@ -598,9 +631,9 @@ def main(dt, wetFilename, hydroFilename, args):
 
     # logging
     logger.debug('Starting to run the weather model calculation')
-    logger.debug('Time type: {}'.format(type(dt)))
-    logger.debug('Time: {}'.format(dt.strftime('%Y%m%d')))
-    logger.debug('Max integration height is {:1.1f} m'.format(zref))
+    logger.debug('Time type: %s', type(dt))
+    logger.debug('Time: %s', dt.strftime('%Y%m%d'))
+    logger.debug(f'Max integration height is {zref:1.1f} m')
 
     ###########################################################
     # weather model calculation
@@ -622,13 +655,12 @@ def main(dt, wetFilename, hydroFilename, args):
 
 
     if aoi.type() == 'bounding_box' or \
-                (args['height_levels'] and aoi.type() != 'station_file'):
+                (hgtLevels and aoi.type() != 'station_file'):
         # This branch is specifically for cube generation
         try:
-            tropo_delay_cube(
-                dt, wetFilename, args,
-                model_file=weather_model_file,
-            )
+            tropo_delay_cube(dt, wetFilename, los, weather_model, wmLoc, zref,
+                    height_levels, download_only, aoi,
+                    cube_spacing, look_dir, crs, verbose, weather_model_file)
         except Exception as e:
             logger.error(e)
             raise RuntimeError('Something went wrong in calculating delays on the cube')

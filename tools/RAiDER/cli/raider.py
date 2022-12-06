@@ -69,6 +69,7 @@ DEFAULT_DICT = dict(
             os.getcwd(),
             'weather_files'
         ),
+        download_only=False,
         output_projection='EPSG:4236',
     )
 
@@ -94,7 +95,7 @@ def create_parser():
         help='generate default template (if it does not exist) and exit.'
     )
 
-    
+
     p.add_argument(
         '--download-only',
         action='store_true',
@@ -189,6 +190,8 @@ def read_template_file(fname):
                     template[k] = v
         if key == 'weather_model':
             template[key]= enforce_wm(value)
+        if key == 'download_only':
+            template[key] = bool(value)
         if key == 'time_group':
             template.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
@@ -240,13 +243,10 @@ def main(iargs=None):
     params = read_template_file(inps.customTemplateFile)
 
     # Argument checking
-    params = checkArgs(params)
-
-    params['download_only'] = inps.download_only
+    params = checkArgs(params, inps.download_only)
 
     if not params.verbose:
         logger.setLevel(logging.INFO)
-
 
     for t, w, f in zip(
         params['date_list'],
@@ -254,7 +254,30 @@ def main(iargs=None):
         params['hydroFilenames']
     ):
         try:
-            (_, _) = main_delay(t, w, f, params)
+            (_, _) = main_delay(t, w, f, params['los'], params['aoi'], params['ray_trace'],
+                                params['zref'], params['los_file'],
+                                params['height_levels'], params['dem'],
+                                params['use_dem_latlon'], params['bounding_box'],
+                                params['lat_file'], params['lon_file'],
+                                params['height_file_rdr'], params['station_file'],
+                                params['geocoded_file'], params['weather_model_directory'],
+                                params['weather_model'], params['cube_spacing_in_m'],
+                                params['download_only'],
+                                params['raster_format'], params['output_projection'],
+                                params['look_dir'], params['verbose'])
+
+
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
+
+
+    # <RAiDER.losreader.Zenith object at 0x1a1354dc0>
+    # heights = None
+    # weather_model = <RAiDER.models.gmao.GMAO object at 0x1a0a239d0>
+    # wmLoc = /Users/buzzanga/Software_InSAR/RAiDER-docs_git/notebooks/RAiDER_tutorial/weather_files
+    # zref = 15000
+    # outformat=GTiff
+    # verboase = True
+    # aoi = <RAiDER.llreader.BoundingBox object at 0x1a0a239a0>
+    # download_only=False
