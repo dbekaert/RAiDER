@@ -6,13 +6,14 @@ import yaml
 import re, glob
 
 import RAiDER
-from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
-from RAiDER.logger import logger, logging
-from RAiDER.cli.validators import (enforce_time, enforce_bbox, parse_dates,
-                            get_query_region, get_heights, get_los, enforce_wm)
-
 from RAiDER.checkArgs import checkArgs
-from RAiDER.delay import main as main_delay
+from RAiDER.cli.validators import (
+    enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
+)
+from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
+from RAiDER.delay import tropo_delay
+from RAiDER.logger import logger, logging
+from RAiDER.processWM import prepareWeatherModel
 
 
 HELP_MESSAGE = """
@@ -231,6 +232,7 @@ def drop_nans(d):
     return d
 
 
+
 ##########################################################################
 def main(iargs=None):
     # parse
@@ -253,8 +255,38 @@ def main(iargs=None):
         params['wetFilenames'],
         params['hydroFilenames']
     ):
+
+        los = params['los']
+        aoi = params['aoi']
+        model = params['weather_model']
+
+        if los.ray_trace():
+            ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
+        else:
+            ll_bounds = aoi.bounds()
+
+        ###########################################################
+        # weather model calculation
+        logger.debug('Starting to run the weather model calculation')
+        logger.debug('Time: {}'.format(dt.strftime('%Y%m%d')))
+        logger.debug('Beginning weather model pre-processing')
         try:
-            (_, _) = main_delay(t, w, f, params)
+            weather_model_file = prepareWeatherModel(
+                model, t,
+                ll_bounds=ll_bounds, # SNWE
+                wmLoc=params['weather_model_directory'],
+                zref=params['zref'],
+                makePlots=params['verbose'],
+            )
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
+    
+        # Now process the delays
+        try:
+            tropo_delay(t, w, f, weather_model_file, aoi, los, params)
+        except RuntimeError:
+            logger.exception("Date %s failed", t)
+            continue
+    
+

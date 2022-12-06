@@ -16,21 +16,128 @@ from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
 
 import isce3.ext.isce3 as isce
+
 from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators,
-    calculate_start_points,
-    get_delays,
 )
-from RAiDER.dem import getHeights
-from RAiDER.logger import logger
-from RAiDER.llreader import BoundingBox
+from RAiDER.logger import logger, logging
 from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
-from RAiDER.processWM import prepareWeatherModel
 from RAiDER.utilFcns import (
-    writeDelays, projectDelays, writePnts2HDF5,
-    lla2ecef, transform_bbox, clip_bbox, rio_profile,
+    writeDelays, lla2ecef, transform_bbox, clip_bbox, rio_profile,
 )
+
+
+###############################################################################
+def tropo_delay(dt, wetFilename, hydroFilename, weather_model_file, aoi, los, params):
+    """
+    raider main function for calculating delays.
+
+    Parameterss
+    ----------
+    args: dict  Parameters and inputs needed for processing,
+                containing the following key-value pairs:
+
+        los     - LOS-class object
+        aoi     - AOI-class object
+        heights - see checkArgs for format
+        weather_model_file   - file containing pre-processed weather model data
+        params  - runtime parameters 
+    """
+    # unpacking the dictionairy
+    zref = params['zref']
+    outformat = params['raster_format']
+
+    logger.debug('Max integration height is {:1.1f} m'.format(zref))
+
+    if aoi.type() == 'bounding_box' or \
+                (params['height_levels'] and aoi.type() != 'station_file'):
+        # This branch is specifically for cube generation
+        try:
+            #TODO: expose this as library function
+            tropo_delay_cube(
+                dt, wetFilename, params,
+                model_file=weather_model_file,
+            )
+        except Exception as e:
+            logger.error(e)
+            raise RuntimeError('Something went wrong in calculating delays on the cube')
+        return None, None
+
+    ###########################################################
+    # Load the downloaded model file for CRS information
+    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
+    if wm_proj is None:
+        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+        wm_proj = CRS.from_epsg(4326)
+    else:
+        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
+    ####################################################################
+
+    ####################################################################
+    # Calculate delays
+    if isinstance(los, (Zenith, Conventional)):
+        # Start actual processing here
+        logger.debug("Beginning DEM calculation")
+        # Lats, Lons will be translated from file to array here if needed
+
+        # read lats/lons
+        lats, lons = aoi.readLL()
+        hgts = aoi.readZ()
+
+        los.setPoints(lats, lons, hgts)
+
+        # Transform query points if needed
+        pnt_proj = CRS.from_epsg(4326)
+        if wm_proj != pnt_proj:
+            pnts = transformPoints(
+                lats,
+                lons,
+                hgts,
+                pnt_proj,
+                wm_proj,
+            ).T
+        else:
+            # interpolators require y, x, z
+            pnts = np.stack([lats, lons, hgts], axis=-1)
+
+        # either way I'll need the ZTD
+        ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
+        wetDelay = ifWet(pnts)
+        hydroDelay = ifHydro(pnts)
+
+        # return the delays (ZTD or STD)
+        wetDelay = los(wetDelay)
+        hydroDelay = los(hydroDelay)
+
+    elif isinstance(los, Raytracing):
+        raise NotImplementedError
+    else:
+        raise ValueError("Unknown operation type")
+
+    ###########################################################
+    # Write the delays to file
+    # Different options depending on the inputs
+
+    if not isinstance(wetFilename, str):
+        wetFilename   = wetFilename[0]
+        hydroFilename = hydroFilename[0]
+
+    if aoi.type() == 'station_file':
+        wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'
+
+    writeDelays(
+        aoi,
+        wetDelay,
+        hydroDelay,
+        wetFilename,
+        hydroFilename,
+        outformat=outformat,
+    )
+    logger.info('Finished writing data to file')
+
+    return wetDelay, hydroDelay
+
 
 
 def tropo_delay_cube(dt, wf, args, model_file=None):
@@ -554,156 +661,3 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
         return outputArrs
 
 
-###############################################################################
-def main(dt, wetFilename, hydroFilename, args):
-    """
-    raider main function for calculating delays.
-
-    Parameterss
-    ----------
-    args: dict  Parameters and inputs needed for processing,
-                containing the following key-value pairs:
-
-        los     - tuple, Zenith class object, ('los', 2-band los file), or ('sv', orbit_file)
-        lats    - ndarray or str
-        lons    - ndarray or str
-        heights - see checkArgs for format
-        weather_model   - type of weather model to use
-        wmLoc   - Directory containing weather model files
-        zref    - max integration height
-        outformat       - File format to use for raster outputs
-        time    - list of datetimes to calculate delays
-        download_only   - Only download the raw weather model data and exit
-        wetFilename     -
-        hydroFilename   -
-        pnts_file       - Input a points file from previous run
-        verbose - verbose printing
-    """
-    # unpacking the dictionairy
-    los = args['los']
-    heights = args['dem']
-    weather_model = args['weather_model']
-    wmLoc = args['weather_model_directory']
-    zref = args['zref']
-    outformat = args['raster_format']
-    verbose = args['verbose']
-    aoi   = args['aoi']
-
-    download_only = args['download_only']
-
-    if los.ray_trace():
-        ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
-    else:
-        ll_bounds = aoi.bounds()
-
-    # logging
-    logger.debug('Starting to run the weather model calculation')
-    logger.debug('Time type: {}'.format(type(dt)))
-    logger.debug('Time: {}'.format(dt.strftime('%Y%m%d')))
-    logger.debug('Max integration height is {:1.1f} m'.format(zref))
-
-    ###########################################################
-    # weather model calculation
-    logger.debug('Beginning weather model pre-processing')
-
-    weather_model_file = prepareWeatherModel(
-        weather_model,
-        dt,
-        wmLoc=wmLoc,
-        ll_bounds=ll_bounds, # SNWE
-        zref=zref,
-        download_only=download_only,
-        makePlots=verbose,
-    )
-
-    if download_only:
-        logger.debug('Weather model has downloaded. Finished.')
-        return None, None
-
-
-    if aoi.type() == 'bounding_box' or \
-                (args['height_levels'] and aoi.type() != 'station_file'):
-        # This branch is specifically for cube generation
-        try:
-            tropo_delay_cube(
-                dt, wetFilename, args,
-                model_file=weather_model_file,
-            )
-        except Exception as e:
-            logger.error(e)
-            raise RuntimeError('Something went wrong in calculating delays on the cube')
-        return None, None
-
-    ###########################################################
-    # Load the downloaded model file for CRS information
-    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
-    if wm_proj is None:
-        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
-        wm_proj = CRS.from_epsg(4326)
-    else:
-        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
-    ####################################################################
-
-    ####################################################################
-    # Calculate delays
-    if isinstance(los, (Zenith, Conventional)):
-        # Start actual processing here
-        logger.debug("Beginning DEM calculation")
-        # Lats, Lons will be translated from file to array here if needed
-
-        # read lats/lons
-        lats, lons = aoi.readLL()
-        hgts = aoi.readZ()
-
-        los.setPoints(lats, lons, hgts)
-
-        # Transform query points if needed
-        pnt_proj = CRS.from_epsg(4326)
-        if wm_proj != pnt_proj:
-            pnts = transformPoints(
-                lats,
-                lons,
-                hgts,
-                pnt_proj,
-                wm_proj,
-            ).T
-        else:
-            # interpolators require y, x, z
-            pnts = np.stack([lats, lons, hgts], axis=-1)
-
-        # either way I'll need the ZTD
-        ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
-        wetDelay = ifWet(pnts)
-        hydroDelay = ifHydro(pnts)
-
-        # return the delays (ZTD or STD)
-        wetDelay = los(wetDelay)
-        hydroDelay = los(hydroDelay)
-
-    elif isinstance(los, Raytracing):
-        raise NotImplementedError
-    else:
-        raise ValueError("Unknown operation type")
-
-    ###########################################################
-    # Write the delays to file
-    # Different options depending on the inputs
-
-    if not isinstance(wetFilename, str):
-        wetFilename   = wetFilename[0]
-        hydroFilename = hydroFilename[0]
-
-    if aoi.type() == 'station_file':
-        wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'
-
-    writeDelays(
-        aoi,
-        wetDelay,
-        hydroDelay,
-        wetFilename,
-        hydroFilename,
-        outformat=outformat,
-    )
-    logger.info('Finished writing data to file')
-
-    return wetDelay, hydroDelay
