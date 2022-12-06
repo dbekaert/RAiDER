@@ -286,16 +286,68 @@ def downloadGNSS():
 
 
 ## ------------------------------------------------------------ prepFromARIA.py
-def prepFromARIA():
-    print ('hi')
-    pass
+def calcDelaysARIA(iargs=None):
+    from RAiDER.aria.prepFromARIA import main as ARIA_prep
+    from RAiDER.aria.calcARIA    import main as ARIA_delay
+
+    p = argparse.ArgumentParser(
+        description='Prepare files from ARIA-tools output to use with RAiDER')
+
+    p.add_argument(
+        'files', type=str,
+        help='ARIA GUNW netcdf files (accepts single file and wildcard matching)\n'
+    )
+
+    p.add_argument(
+        '-m', '--model', default='GMAO', type=str,
+        help='Weather model (default=HRRR)')
+
+    p.add_argument(
+        '-s', '--slant',  choices=('projection', 'ray'),
+        type=str, default='projection',
+        help='Delay calculation projecting the zenith to slant or along rays ')
+
+    p.add_argument(
+        '-w', '--write', default=True,
+        help=('Optionally write the delays into the GUNW products'))
+
+    p.add_argument(
+        '--los_convention', '-lc', choices=('isce', 'hyp3'), default='isce',
+                type=str, help='LOS convention')
+
+    p.add_argument(
+        '--los_file', default='los.geo', type=str,
+        help='Output line-of-sight filename')
+
+    # Line of sight
+    # p.add_argument(
+    #     '--incFile', type=str,
+    #     help='GDAL-readable raster image file of inclination (optional)')
+    #
+    # p.add_argument(
+    #     '--azFile', type=str,
+    #     help='GDAL-readable raster image file of azimuth (optional)')
+
+    # p.add_argument(
+    #     '--format', '-t', default='.tif', type=str, dest='fmt',
+    #     help='Output file format (default=tif)')
+
+    args       = p.parse_args(args=iargs)
+    args.argv  = iargs if iargs else os.sys.argv[1:]
+    args.files = glob.glob(args.files)
+
+    ## do the calcs
+    path_cfg   = ARIA_prep(args)
+    ARIA_calc(path_cfg)
+
+    return
 
 
 def main():
     parser = argparse.ArgumentParser(prefix_chars='+',
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '++process', choices=['calcDelays', 'downloadGNSS', 'prepFromARIA'],
+        '++process', choices=['calcDelays', 'downloadGNSS', 'calcDelaysARIA'],
                      default='calcDelays',
                      help='Select the HyP3 entrypoint to use'
     )
@@ -306,6 +358,7 @@ def main():
                                        name=f'{args.process}.py')[0]
 
     ret_code = os.sys.exit(process_entry_point.load()())
+
 
 if __name__ == '__main__':
     main()
