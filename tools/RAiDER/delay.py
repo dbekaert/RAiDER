@@ -16,7 +16,6 @@ from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
 
 import isce3.ext.isce3 as isce
-from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators,
     calculate_start_points,

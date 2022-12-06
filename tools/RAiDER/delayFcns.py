@@ -14,7 +14,6 @@ import numpy as np
 from pyproj import CRS, Transformer
 from scipy.interpolate import RegularGridInterpolator
 
-from RAiDER.constants import _STEP
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
 
