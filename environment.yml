@@ -17,7 +17,7 @@ dependencies:
  - cxx-compiler
  - cython
  - dask
- - dem_stitcher>=2.3.0
+ - dem_stitcher>=2.3.1
  - ecmwf-api-client
  - h5py
  - herbie-data
