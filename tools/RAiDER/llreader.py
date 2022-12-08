@@ -25,7 +25,9 @@ class AOI(object):
     def __init__(self):
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
-
+    
+    def type(self):
+        return self._type
 
     def bounds(self):
         return self._bounding_box
@@ -57,16 +59,11 @@ class StationFile(AOI):
         AOI.__init__(self)
         self._filename = station_file
         self._bounding_box = bounds_from_csv(station_file)
-
-
-    def type(self):
-        return 'station_file'
-
+        self._type = 'station_file'
 
     def readLL(self):
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         return df['Lat'].values, df['Lon'].values
-
 
     def readZ(self):
         df = pd.read_csv(self._filename)
@@ -85,6 +82,7 @@ class StationFile(AOI):
 class RasterRDR(AOI):
     def __init__(self, lat_file, lon_file=None, hgt_file=None, convention='isce'):
         AOI.__init__(self)
+        self._type = 'radar_rasters'
         # allow for 2-band lat/lon raster
         if (lon_file is None):
             self._file = lat_file
@@ -96,11 +94,6 @@ class RasterRDR(AOI):
         # keep track of the height file
         self._hgtfile = hgt_file
         self._convention = convention
-
-
-    def type(self):
-        return 'radar_rasters'
-
 
     def readLL(self):
         if self._latfile is not None:
@@ -130,10 +123,7 @@ class BoundingBox(AOI):
     def __init__(self, bbox):
         AOI.__init__(self)
         self._bounding_box = bbox
-
-    def type(self):
-        return 'bounding_box'
-
+        self._type = 'bounding_box'
 
 class GeocodedFile(AOI):
     '''Parse a Geocoded file for coordinates'''
@@ -144,10 +134,7 @@ class GeocodedFile(AOI):
         self._bounding_box = rio_extents(self.p)
         self._is_dem       = is_dem
         _, self._proj, self._gt = rio_stats(filename)
-
-
-    def type(self):
-        return 'geocoded_file'
+        self._type = 'geocoded_file'
 
 
     def readLL(self):
@@ -181,13 +168,11 @@ class Geocube(AOI):
     '''Parse a georeferenced data cube'''
     def __init__(self):
         AOI.__init__(self)
+        self._type = 'geocube'
         raise NotImplementedError
-
-    def type(self):
-        return 'geocube'
 
     def readLL(self):
-        raise NotImplementedError
+        return None
 
 
 def bounds_from_latlon_rasters(latfile, lonfile):
