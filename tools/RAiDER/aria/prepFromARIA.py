@@ -6,6 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+from datetime import datetime
 import numpy as np
 import xarray as xr
 import rasterio
@@ -14,7 +15,7 @@ import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 
-
+""" Should be refactored into a class that takes filename as input """
 ## ---------------------------------------------------- Prepare Input from GUNW
 def makeLatLonGrid(f:str):
     '''
@@ -36,11 +37,8 @@ def makeLatLonGrid(f:str):
     ySize = len(lats)
     xSize = len(lons)
 
-    ## I think this is wrong. LATS come out ordered largest at top to smallest at bottom, regardless of ascending/descending
-    ## ISCE lats for HR come out smallest at top (ascending)
-    ## need to check ISCE lats for descending ifg (use LA)
-
-    LATS  = np.tile(lats, (xSize, 1)).T
+    # ISCE lats are ordered from smallest to biggest
+    LATS  = np.flipud(np.tile(lats, (xSize, 1)).T)
     LONS  = np.tile(lons, (ySize, 1))
 
     dst_lat = 'lat.geo'
@@ -50,7 +48,13 @@ def makeLatLonGrid(f:str):
 
     logger.debug('Wrote: %s', dst_lat)
     logger.debug('Wrote: %s', dst_lon)
-    return
+    return LATS, LONS
+
+
+def getHeights(f:str):
+    ds =  xr.open_dataset(f, group='science/grids/imagingGeometry')
+    hgts = ds.heightsMeta.data.tolist()
+    return hgts
 
 
 def makeLOSFile(f:str, filename:str):
@@ -86,14 +90,34 @@ def makeLOSFile(f:str, filename:str):
     ds = xr.merge([da_head, da_inc]).assign_attrs(
                         crs=str(az_prof['crs']), geo_transform=az_prof['transform'])
 
+
     dst = f'{filename}.nc'
     ds.to_netcdf(dst)
     logger.debug('Wrote: %s', dst)
     return dst
 
 
+def getOrbitFile(f:str, orbit_dir='./orbits'):
+    from eof.download import download_eofs
+    os.makedirs(orbit_dir, exist_ok=True)
+    # import s1reader
+    group ='science/radarMetaData/inputSLC'
+    sats  = []
+    for key in 'reference secondary'.split():
+        ds  = xr.open_dataset(f, group=f'{group}/{key}')
+        slc = ds['L1InputGranules'].item()
+        sats.append(slc.split('_')[0])
+        # orbit_path = s1reader.get_orbit_file_from_dir(slc, orbit_dir, auto_download=True)
+
+    dates = parse_dates_GUNW(f)
+    time  = parse_time_GUNW(f)
+    dts   = [datetime.strptime(f'{dt}T{time}', '%Y%m%dT%H:%M:%S') for dt in dates]
+    paths = download_eofs(dts, sats, save_dir=orbit_dir)
+    return paths
+
+
 ## only this one opens the product; need to get lats/lons actually
-def get_bbox_GUNW(f:str, buff:float=1e5):
+def get_bbox_GUNW(f:str, buff:float=1e-5):
     """ Get the bounding box (SNWE) from an ARIA GUNW product """
     import shapely.wkt
     ds       = xr.open_dataset(f)
@@ -151,28 +175,35 @@ def main(args):
     A command-line utility to convert ARIA standard product outputs from ARIA-tools to
     RAiDER-compatible format
     '''
-    # args      = parseCMD()
-    ray_trace = True if args.slant == 'ray' else False
 
     for f in args.files:
         # version  = xr.open_dataset(f).attrs['version'] # not used yet
         # SNWE     = get_bbox_GUNW(f)
-        wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
+
+        # wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
         dates    = parse_dates_GUNW(f)
         time     = parse_time_GUNW(f)
+        heights  = getHeights(f)
         lookdir  = parse_look_dir(f)
 
-        makeLOSFile(f, args.los_file)
-        makeLatLonGrid(f)
+        # makeLOSFile(f, args.los_file)
+        lats, lons = makeLatLonGrid(f)
+        # orbits     = getOrbitFile(f)
 
         cfg  = {
                'look_dir':  lookdir,
                'weather_model': args.model,
                'aoi_group' : {'lat_file': 'lat.geo', 'lon_file': 'lon.geo'},
+                'aoi_group': {'bounding_box': '37.129123314154995 37.9307480710763 -118.44814585278701 -115.494195892019'},
                'date_group': {'date_list': str(dates)},
                'time_group': {'time': time},
-               'los_group' : {'ray_trace': ray_trace},
-               'height_group': {'height_levels': str([100, 500, 1000])}
+               'los_group' : {'ray_trace': False},
+                              # 'los_convention': args.los_convention,
+                              # 'los_cube': args.los_file},
+                              # 'orbit_file': orbits},
+               'height_group': {'height_levels': str(heights)},
+               'runtime_group': {'raster_format': 'nc'}
         }
-
-        update_yaml(cfg, f'GUNW_{dates[0]}-{dates[1]}.yaml')
+        path_cfg = f'GUNW_{dates[0]}-{dates[1]}.yaml'
+        update_yaml(cfg, path_cfg)
+        return path_cfg

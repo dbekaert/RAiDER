@@ -1,12 +1,14 @@
 import os
 import argparse
 from importlib.metadata import entry_points
+import shutil
 import glob
 import yaml
 from textwrap import dedent
 from RAiDER.cli import AttributeDict, DEFAULT_DICT
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.logger import logger
 
 
 HELP_MESSAGE = """
@@ -109,7 +111,7 @@ def drop_nans(d):
 
 
 def calcDelays(iargs=None):
-    """Parse command line arguments using argparse."""
+    """ Parse command line arguments using argparse. """
     import RAiDER
     from RAiDER.delay import main as main_delay
     from RAiDER.checkArgs import checkArgs
@@ -126,35 +128,28 @@ def calcDelays(iargs=None):
     )
 
     p.add_argument(
-        '-g', '--generate_template',
-        dest='generate_template',
-        action='store_true',
+        '-g', '--generate_template', action='store_true',
         help='generate default template (if it does not exist) and exit.'
     )
 
     p.add_argument(
-        '--download-only',
-        action='store_true',
+        '--download_only', action='store_true',
         help='only download a weather model.'
     )
 
-    args = p.parse_args(args=iargs)
-
-    args.argv = iargs if iargs else os.sys.argv[1:]
+    ## if not None, will replace first argument (customTemplateFile)
+    args = p.parse_args([iargs])
 
     # default input file
     template_file = os.path.join(os.path.dirname(RAiDER.__file__),
                                                         'cli', 'raider.yaml')
 
-    if '-g' in args.argv:
+    if args.generate_template:
         dst = os.path.join(os.getcwd(), 'raider.yaml')
-        shutil.copyfile(
-                template_file,
-                dst,
-            )
-
+        shutil.copyfile(template_file, dst)
         logger.info('Wrote %s', dst)
-        os.sys.exit(0)
+        # os.sys.exit(0)
+
 
     # check: existence of input template files
     if (not args.customTemplateFile
@@ -186,18 +181,20 @@ def calcDelays(iargs=None):
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
+    delays = []
     for t, w, f in zip(
         params['date_list'],
         params['wetFilenames'],
         params['hydroFilenames']
     ):
         try:
-            (_, _) = main_delay(t, w, f, params)
+            (wetDelay, _) = main_delay(t, w, f, params)
+            delays.append(wetDelay.replace('wet', 'tropo'))
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
 
-    return
+    return delays
 
 
 ## ------------------------------------------------------ downloadGNSSDelays.py
@@ -304,22 +301,28 @@ def calcDelaysARIA(iargs=None):
         '-m', '--model', default='GMAO', type=str,
         help='Weather model (default=HRRR)')
 
-    p.add_argument(
-        '-s', '--slant',  choices=('projection', 'ray'),
-        type=str, default='projection',
-        help='Delay calculation projecting the zenith to slant or along rays ')
 
     p.add_argument(
         '-w', '--write', default=True,
         help=('Optionally write the delays into the GUNW products'))
 
-    p.add_argument(
-        '--los_convention', '-lc', choices=('isce', 'hyp3'), default='isce',
-                type=str, help='LOS convention')
+    ## always doing ray
+    # p.add_argument(
+    #     '-s', '--slant',  choices=('projection', 'ray'),
+    #     type=str, default='projection',
+    #     help='Delay calculation projecting the zenith to slant or along rays ')
 
-    p.add_argument(
-        '--los_file', default='los.geo', type=str,
-        help='Output line-of-sight filename')
+    # p.add_argument(
+    #     '-o', '--orbit_directory', default='./orbits', type=str,
+    #     help='Path where orbits will be downloaded')
+
+    # p.add_argument(
+    #     '--los_convention', '-lc', choices=('isce', 'hyp3'), default='isce',
+    #             type=str, help='LOS convention')
+
+    # p.add_argument(
+    #     '--los_file', default='los.geo', type=str,
+    #     help='Output line-of-sight filename')
 
     # Line of sight
     # p.add_argument(
@@ -338,9 +341,16 @@ def calcDelaysARIA(iargs=None):
     args.argv  = iargs if iargs else os.sys.argv[1:]
     args.files = glob.glob(args.files)
 
-    ## do the calcs
+    ## prep the files needed for delay calcs
     path_cfg   = ARIA_prep(args)
-    ARIA_calc(path_cfg)
+    ## do the delay calcs
+    # call(['raider.py', path_cfg])
+
+    tropoDelayFile = calcDelays(path_cfg)
+
+
+    ## calculate the interferometric phase and write it out
+    ARIA_calc(tropoDelayFile, args.write)
 
     return
 
