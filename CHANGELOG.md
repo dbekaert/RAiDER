@@ -8,7 +8,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.2.1]
 
-* Update dem-stitcher to use version with new urls for GLO-30.
+* Upgrade dem-stitcher to [`>=2.3.1`](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/blob/dev/CHANGELOG.md#231) so that the updated urls for the GLO-30 DEM are used.
 
 ## [0.2.0]
 
