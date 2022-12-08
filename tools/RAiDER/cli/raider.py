@@ -300,10 +300,14 @@ def main(iargs=None):
         # Write the delays to file
         # Different options depending on the inputs
 
-        if not los.ray_trace() and not los.is_Zenith():
+        if los.is_Projected():
             out_filename = w.replace("_ztd", "_std")
-        else:
+            f = f.replace("_ztd", "_std")
+        elif los.ray_trace():
             out_filename = w.replace("_ztd", "_ray")
+            f = f.replace("_ztd", "_ray")
+        else:
+            out_filename = w
         
         if hydro_delay is None:
             # means that a dataset was returned
@@ -321,9 +325,9 @@ def main(iargs=None):
 
         else:
             if aoi.type() == 'station_file':
-                w = f'{os.path.splitext(w)[0]}.csv'
+                w = f'{os.path.splitext(out_filename)[0]}.csv'
 
             if aoi.type() in ['station_file', 'radar_rasters']:
-                writeDelays(aoi, wet_delay, hydro_delay, w, f, outformat=params['raster_format'])
+                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
     
 

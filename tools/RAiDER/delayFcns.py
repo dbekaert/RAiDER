@@ -98,14 +98,14 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
             ys_wm = np.array(ds.variables['y'][:])
             zs_wm = np.array(ds.variables['z'][:])
             wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
-            hydro = ds.variables['hydro_total' if kind=='total' else 'wet'][:]
+            hydro = ds.variables['hydro_total' if kind=='total' else 'hydro'][:]
     else:
         ds = wm_file
         xs_wm = np.array(ds.variables['x'][:])
         ys_wm = np.array(ds.variables['y'][:])
         zs_wm = np.array(ds.variables['z'][:])
         wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
-        hydro = ds.variables['hydro_total' if kind=='total' else 'wet'][:]
+        hydro = ds.variables['hydro_total' if kind=='total' else 'hydro'][:]
 
     wet = np.array(wet).transpose(1, 2, 0)
     hydro = np.array(hydro).transpose(1, 2, 0)

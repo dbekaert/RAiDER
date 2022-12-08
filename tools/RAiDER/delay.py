@@ -45,6 +45,10 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
     out_proj: int,str           - (optional) EPSG code for output projection
     look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
     cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
+
+    Returns
+    -------
+    xarray Dataset
     """
     # get heights
     if height_levels is None:
@@ -96,10 +100,11 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
     # If output is desired in degrees
     use_weather_model_cube = False
 
-    if (cube_spacing_m is not None) or (crs != CRS(4326)):
+    if (cube_spacing_m is None) and (crs == CRS(4326)):
 
         use_weather_model_cube = True
-
+    
+    else:
         #TODO handle this better
         if cube_spacing_m is None:
             cube_spacing_m = 5000
@@ -111,8 +116,9 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
             out_spacing = cube_spacing_m
             out_snwe = clip_bbox(out_snwe, out_spacing)
 
-    logger.debug(f"Output SNWE: {out_snwe}")
-    logger.debug(f"Output cube spacing: {out_spacing}")
+        logger.debug(f"Output SNWE: {out_snwe}")
+        logger.debug(f"Output cube spacing: {out_spacing}")
+
 
     # Load CRS from weather model file
     wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
@@ -124,7 +130,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
 
     # Build the output grid
     zpts = np.array(heights)
-    if use_weather_model_cube:
+    if not use_weather_model_cube:
         xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
         ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
     else:
@@ -134,7 +140,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
 
     # If no orbit is provided
     # Build zenith delay cube
-    if los.is_Zenith() or los.is_Projected:
+    if los.is_Zenith() or los.is_Projected():
         out_type = ["zenith" if los.is_Zenith() else 'slant - projected'][0]
 
         # Get ZTD interpolators

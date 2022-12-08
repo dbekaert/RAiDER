@@ -160,9 +160,7 @@ class Raytracing(LOS):
     --------
     >>> from RAiDER.losreader import Raytracing
     >>> import numpy as np
-
->>> #TODO
-    >>> # 
+    >>> TODO
     """
 
     def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
