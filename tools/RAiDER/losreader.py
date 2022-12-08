@@ -50,13 +50,13 @@ class LOS(ABC):
             self._lats = lats
             self._lons = lons
             self._heights = heights
-    
+
     def setTime(self, dt):
         self._time = dt
-    
+
     def is_Zenith(self):
         return self._is_zenith
-    
+
     def ray_trace(self):
         return self._ray_trace
 
@@ -157,7 +157,7 @@ class Raytracing(LOS):
     >>> import numpy as np
 
 >>> #TODO
-    >>> # 
+    >>> #
     """
 
     def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
@@ -320,9 +320,8 @@ def inc_hd_to_enu(incidence, heading):
 
     Parameters
     ----------
-    incidence: ndarray	       - incidence angle in deg from vertical
-    heading: ndarray 	       - heading angle in deg clockwise from north
-    lats/lons/heights: ndarray - WGS84 ellipsoidal target (ground pixel) locations
+    incidence: ndarray         - incidence angle in deg from vertical
+    heading: ndarray           - heading angle in deg clockwise from north
 
     Returns
     -------
@@ -504,12 +503,19 @@ def state_to_los(svs, llh_targets, out="lookangle"):
         )
 
     # Convert svs to isce3 orbit
-    orb = isce.core.Orbit([
-        isce.core.StateVector(
-            isce.core.DateTime(row[0]),
-            row[1:4], row[4:7]
-        ) for row in svs
-    ])
+    vecs  = []
+    for row in svs:
+        vec = isce.core.StateVector(
+                        isce.core.DateTime(row[0]), row[1:4], row[4:7])
+        vecs.append(vec)
+    orb = isce.core.Orbit(vecs)
+    ## above is just cleaner
+    # orb = isce.core.Orbit([
+    #     isce.core.StateVector(
+    #         isce.core.DateTime(row[0]),
+    #         row[1:4], row[4:7]
+    #     ) for row in svs
+    # ])
 
     # Flatten the input array for convenience
     in_shape = llh_targets[0].shape

@@ -40,7 +40,7 @@ class AOI(object):
         Check whether an extra lat/lon buffer is needed for raytracing
         '''
         # if raytracing, add a 1-degree buffer all around
-        ll_bounds = self._bounding_box.copy()
+        ll_bounds    = list(self._bounding_box).copy()
         ll_bounds[0] = np.max([ll_bounds[0] - buffer, -90])
         ll_bounds[1] = np.min([ll_bounds[1] + buffer,  90])
         ll_bounds[2] = np.max([ll_bounds[2] - buffer,-180])

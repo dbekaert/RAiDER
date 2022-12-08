@@ -240,7 +240,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
         ds.x.attrs["units"] = "m"
 
 
-    ext = os.path.splitext(out_filename)
+    ext = os.path.splitext(out_filename)[1]
     if ext not in '.nc .h5'.split():
         out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
         logger.debug('Invalid extension %s for cube. Defaulting to .nc', ext)
@@ -451,6 +451,11 @@ def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
                         delta_range=10.0)
                     sat_xyz, _ = orb.interpolate(aztime)
                     los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
+
+                    ## from piyush
+                    # LOS_enu = inc_hd_to_enu(*rio_open(self._file))
+
+
                 except Exception as e:
                     los[ii, jj, :] = np.nan
 
@@ -631,7 +636,7 @@ def main(dt, wetFilename, hydroFilename, args):
         except Exception as e:
             logger.error(e)
             raise RuntimeError('Something went wrong in calculating delays on the cube')
-        return None, None
+        return wetFilename, None
 
     ###########################################################
     # Load the downloaded model file for CRS information
