@@ -14,6 +14,7 @@ from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.delay import tropo_delay
 from RAiDER.logger import logger, logging
 from RAiDER.processWM import prepareWeatherModel
+from RAiDER.utilFcns import writeDelays
 
 
 HELP_MESSAGE = """
@@ -284,9 +285,45 @@ def main(iargs=None):
     
         # Now process the delays
         try:
-            tropo_delay(t, w, f, weather_model_file, aoi, los, params)
+            wet_delay, hydro_delay = tropo_delay(
+                t, weather_model_file, aoi, los, 
+                params['height_levels'], 
+                params['output_projection'],
+                params['look_dir'],
+                params['cube_spacing_in_m']
+            )
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
+        
+        ###########################################################
+        # Write the delays to file
+        # Different options depending on the inputs
+
+        if not los.ray_trace() and not los.is_Zenith():
+            out_filename = w.replace("_ztd", "_std")
+        else:
+            out_filename = w.replace("_ztd", "_ray")
+        
+        if hydro_delay is None:
+            # means that a dataset was returned
+            ds = wet_delay
+            ext = os.path.splitext(out_filename)
+            if ext not in ['.nc', '.h5']:
+                out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
+            
+            out_filename = out_filename.replace("wet", "tropo")
+
+            if out_filename.endswith(".nc"):
+                ds.to_netcdf(out_filename, mode="w")
+            elif out_filename.endswith(".h5"):
+                ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
+
+        else:
+            if aoi.type() == 'station_file':
+                w = f'{os.path.splitext(w)[0]}.csv'
+
+            if aoi.type() in ['station_file', 'radar_rasters']:
+                writeDelays(aoi, wet_delay, hydro_delay, w, f, outformat=params['raster_format'])
     
 

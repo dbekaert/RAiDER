@@ -92,18 +92,23 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     an interpolator
     '''
     # Get the weather model data
-    with Dataset(wm_file, mode='r') as f:
-        xs_wm = np.array(f.variables['x'][:])
-        ys_wm = np.array(f.variables['y'][:])
-        zs_wm = np.array(f.variables['z'][:])
+    if isinstance(wm_file, str):
+        with Dataset(wm_file, mode='r') as ds:
+            xs_wm = np.array(ds.variables['x'][:])
+            ys_wm = np.array(ds.variables['y'][:])
+            zs_wm = np.array(ds.variables['z'][:])
+            wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
+            hydro = ds.variables['hydro_total' if kind=='total' else 'wet'][:]
+    else:
+        ds = wm_file
+        xs_wm = np.array(ds.variables['x'][:])
+        ys_wm = np.array(ds.variables['y'][:])
+        zs_wm = np.array(ds.variables['z'][:])
+        wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
+        hydro = ds.variables['hydro_total' if kind=='total' else 'wet'][:]
 
-        # Can get the point-wise or total delays, depending on what is requested
-        if kind == 'pointwise':
-            wet = np.array(f.variables['wet'][:]).transpose(1, 2, 0)
-            hydro = np.array(f.variables['hydro'][:]).transpose(1, 2, 0)
-        elif kind == 'total':
-            wet = np.array(f.variables['wet_total'][:]).transpose(1, 2, 0)
-            hydro = np.array(f.variables['hydro_total'][:]).transpose(1, 2, 0)
+    wet = np.array(wet).transpose(1, 2, 0)
+    hydro = np.array(hydro).transpose(1, 2, 0)
 
     # If shared interpolators are requested
     # The arrays are not modified - so turning off lock for performance

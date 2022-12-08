@@ -11,9 +11,11 @@ import datetime
 import h5py
 import numpy as np
 import xarray
+
 from netCDF4 import Dataset
 from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
+from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 import isce3.ext.isce3 as isce
 
@@ -24,170 +26,65 @@ from RAiDER.delayFcns import (
 from RAiDER.logger import logger, logging
 from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
 from RAiDER.utilFcns import (
-    writeDelays, lla2ecef, transform_bbox, clip_bbox, rio_profile,
+    lla2ecef, transform_bbox, clip_bbox, rio_profile,
 )
 
 
 ###############################################################################
-def tropo_delay(dt, wetFilename, hydroFilename, weather_model_file, aoi, los, params):
+def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4326, look_dir='right', cube_spacing_m=None):
     """
     raider main function for calculating delays.
 
     Parameterss
     ----------
-    args: dict  Parameters and inputs needed for processing,
-                containing the following key-value pairs:
-
-        los     - LOS-class object
-        aoi     - AOI-class object
-        heights - see checkArgs for format
-        weather_model_file   - file containing pre-processed weather model data
-        params  - runtime parameters 
+    dt: Datetime                - Datetime object for determining when to calculate delays
+    weather_model_File: string  - Name of the NETCDF file containing a pre-processed weather model
+    aoi: AOI object             - AOI object
+    los: LOS object             - LOS object
+    height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation. 
+    out_proj: int,str           - (optional) EPSG code for output projection
+    look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
+    cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
     """
-    # unpacking the dictionairy
-    zref = params['zref']
-    outformat = params['raster_format']
+    # get heights
+    if height_levels is None:
+        with xarray.load_dataset(weather_model_file) as ds:
+            height_levels = ds.z.values
 
-    logger.debug('Max integration height is {:1.1f} m'.format(zref))
+    #TODO: expose this as library function
+    ds = tropo_delay_cube(dt, weather_model_file, aoi.bounds(), height_levels, los, out_proj = out_proj, cube_spacing_m = cube_spacing_m, look_dir = look_dir)
 
-    if aoi.type() == 'bounding_box' or \
-                (params['height_levels'] and aoi.type() != 'station_file'):
-        # This branch is specifically for cube generation
-        try:
-            #TODO: expose this as library function
-            tropo_delay_cube(
-                dt, wetFilename, params,
-                model_file=weather_model_file,
-            )
-        except Exception as e:
-            logger.error(e)
-            raise RuntimeError('Something went wrong in calculating delays on the cube')
-        return None, None
+    if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
+        return ds, None
 
-    ###########################################################
-    # Load the downloaded model file for CRS information
-    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
-    if wm_proj is None:
-        print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
-        wm_proj = CRS.from_epsg(4326)
     else:
-        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
-    ####################################################################
-
-    ####################################################################
-    # Calculate delays
-    if isinstance(los, (Zenith, Conventional)):
-        # Start actual processing here
-        logger.debug("Beginning DEM calculation")
-        # Lats, Lons will be translated from file to array here if needed
-
-        # read lats/lons
+        with xarray.load_dataset(weather_model_file) as ds2:
+            wm_proj = CRS.from_wkt(ds2.CRS.attrs['crs_wkt'])
+        pnt_proj = CRS.from_epsg(4326)
         lats, lons = aoi.readLL()
         hgts = aoi.readZ()
-
-        los.setPoints(lats, lons, hgts)
-
-        # Transform query points if needed
-        pnt_proj = CRS.from_epsg(4326)
-        if wm_proj != pnt_proj:
-            pnts = transformPoints(
-                lats,
-                lons,
-                hgts,
-                pnt_proj,
-                wm_proj,
-            ).T
-        else:
-            # interpolators require y, x, z
-            pnts = np.stack([lats, lons, hgts], axis=-1)
-
-        # either way I'll need the ZTD
-        ifWet, ifHydro = getInterpolators(weather_model_file, 'total')
+        pnts = transformPoints(lats, lons, hgts, pnt_proj, wm_proj).T
+        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
         # return the delays (ZTD or STD)
-        wetDelay = los(wetDelay)
-        hydroDelay = los(hydroDelay)
-
-    elif isinstance(los, Raytracing):
-        raise NotImplementedError
-    else:
-        raise ValueError("Unknown operation type")
-
-    ###########################################################
-    # Write the delays to file
-    # Different options depending on the inputs
-
-    if not isinstance(wetFilename, str):
-        wetFilename   = wetFilename[0]
-        hydroFilename = hydroFilename[0]
-
-    if aoi.type() == 'station_file':
-        wetFilename = f'{os.path.splitext(wetFilename)[0]}.csv'
-
-    writeDelays(
-        aoi,
-        wetDelay,
-        hydroDelay,
-        wetFilename,
-        hydroFilename,
-        outformat=outformat,
-    )
-    logger.info('Finished writing data to file')
+        if los.is_Projected():
+            los.setPoints(lats, lons, hgts)
+            wetDelay = los(wetDelay)
+            hydroDelay = los(hydroDelay)
 
     return wetDelay, hydroDelay
 
 
 
-def tropo_delay_cube(dt, wf, args, model_file=None):
+def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4326, cube_spacing_m=None, look_dir='right', nproc=1):
     """
     raider cube generation function.
-
-    Same as tropo_delay() above.
     """
-    los = args['los']
-    weather_model = args['weather_model']
-    wmLoc = args['weather_model_directory']
-    zref = args['zref']
-    download_only = args['download_only']
-    verbose = args['verbose']
-    aoi = args['aoi']
-    cube_spacing = args["cube_spacing_in_m"]
-    ll_bounds = aoi.bounds()
-
-    try:
-        crs  = CRS(args['output_projection'])
-    except CRSError:
-        raise ValueError('output_projection argument is not a valid CRS specifier')
-
     # For testing multiprocessing
     # TODO - move this to configuration
-    nproc = 1
-
-    # logging
-    logger.debug('Starting to run the weather model cube calculation')
-    logger.debug(f'Time: {dt}')
-    logger.debug(f'Max integration height is {zref:1.1f} m')
-    logger.debug(f'Output cube projection is {crs.to_wkt()}')
-    logger.debug(f'Output cube spacing is {cube_spacing} m')
-
-    # We are using zenith model only for now
-    logger.debug('Beginning weather model pre-processing')
-
-    # If weather model file is not provided
-    if model_file is None:
-        weather_model_file = prepareWeatherModel(
-            weather_model,
-            dt,
-            wmLoc=wmLoc,
-            ll_bounds=ll_bounds,
-            zref=zref,
-            download_only=download_only,
-            makePlots=verbose
-        )
-    else:
-        weather_model_file = model_file
+    crs = CRS(out_proj)
 
     # Determine the output grid extent here
     wesn = ll_bounds[2:] + ll_bounds[:2]
@@ -197,25 +94,25 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
 
     # Clip output grid to multiples of spacing
     # If output is desired in degrees
-    if crs.axis_info[0].unit_name == "degree":
-        out_spacing = cube_spacing / 1.0e5  # Scale by 100km
-        out_snwe = clip_bbox(out_snwe, out_spacing)
-    else:
-        out_spacing = cube_spacing
-        out_snwe = clip_bbox(out_snwe, out_spacing)
+    use_weather_model_cube = False
+
+    if (cube_spacing_m is not None) or (crs != CRS(4326)):
+
+        use_weather_model_cube = True
+
+        #TODO handle this better
+        if cube_spacing_m is None:
+            cube_spacing_m = 5000
+
+        if crs.axis_info[0].unit_name == "degree":
+            out_spacing = cube_spacing_m / 1.0e5  # Scale by 100km
+            out_snwe = clip_bbox(out_snwe, out_spacing)
+        else:
+            out_spacing = cube_spacing_m
+            out_snwe = clip_bbox(out_snwe, out_spacing)
 
     logger.debug(f"Output SNWE: {out_snwe}")
     logger.debug(f"Output cube spacing: {out_spacing}")
-
-    # Load downloaded weather model file to get projection info
-    with xarray.load_dataset(weather_model_file) as ds:
-        # Output grid points - North up grid
-        if args['height_levels'] is not None:
-            heights = args['height_levels']
-        else:
-            heights = ds.z.values
-
-    logger.debug(f'Output height range is {min(heights)} to {max(heights)}')
 
     # Load CRS from weather model file
     wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
@@ -227,14 +124,18 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
 
     # Build the output grid
     zpts = np.array(heights)
-    xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
-    ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+    if use_weather_model_cube:
+        xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+        ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+    else:
+        with xarray.load_dataset(weather_model_file) as ds:
+            xpts = ds.x.values
+            ypts = ds.y.values
 
     # If no orbit is provided
     # Build zenith delay cube
-    if los.is_Zenith():
-        out_type = "zenith"
-        out_filename = wf.replace("wet", "tropo")
+    if los.is_Zenith() or los.is_Projected:
+        out_type = ["zenith" if los.is_Zenith() else 'slant - projected'][0]
 
         # Get ZTD interpolators
         ifWet, ifHydro = getInterpolators(weather_model_file, "total")
@@ -246,16 +147,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             [ifWet, ifHydro])
 
     else:
-        out_type = "slant range"
-        if not los.ray_trace():
-            out_filename = wf.replace("_ztd", "_std").replace("wet", "tropo")
-        else:
-            out_filename = wf.replace("_ztd", "_ray").replace("wet", "tropo")
-
-        if args["look_dir"].lower() not in ["right", "left"]:
-            raise ValueError(
-                f'Unknown look direction: {args["look_dir"]}'
-            )
+        out_type = "slant - raytracing"
 
         # Get pointwise interpolators
         ifWet, ifHydro = getInterpolators(
@@ -264,25 +156,22 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             shared=(nproc > 1),
         )
 
-        if los.ray_trace():
-            # Build cube
-            if nproc == 1:
-                wetDelay, hydroDelay = build_cube_ray(
-                    xpts, ypts, zpts,
-                    dt, args["los"]._file, args["look_dir"],
-                    wm_proj, crs,
-                    [ifWet, ifHydro])
+        # Build cube
+        if nproc == 1:
+            wetDelay, hydroDelay = build_cube_ray(
+                xpts, ypts, zpts,
+                dt, los._file, look_dir,
+                wm_proj, crs,
+                [ifWet, ifHydro])
 
-            ### Use multi-processing here
-            else:
-                # Pre-build output arrays
-
-                # Create worker pool
-
-                # Loop over heights
-                raise NotImplementedError
+        ### Use multi-processing here
         else:
-            raise NotImplementedError('Conventional STD is not yet implemented on the cube')
+            # Pre-build output arrays
+
+            # Create worker pool
+
+            # Loop over heights
+            raise NotImplementedError
 
     # Write output file
     # Modify this as needed for NISAR / other projects
@@ -312,7 +201,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
             source=os.path.basename(weather_model_file),
             history=str(datetime.datetime.utcnow()) + " RAiDER",
             description=f"RAiDER geo cube - {out_type}",
-            reference_time=str(args["time"]),
+            reference_time=str(dt),
         ),
     )
 
@@ -347,19 +236,7 @@ def tropo_delay_cube(dt, wf, args, model_file=None):
         ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
         ds.x.attrs["units"] = "m"
 
-
-    ext = os.path.splitext(out_filename)
-    if ext not in '.nc .h5'.split():
-        out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
-        logger.debug('Invalid extension %s for cube. Defaulting to .nc', ext)
-
-    if out_filename.endswith(".nc"):
-        ds.to_netcdf(out_filename, mode="w")
-    elif out_filename.endswith(".h5"):
-        ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
-
-    logger.info('Finished writing data to: %s', out_filename)
-    return
+    return ds
 
 
 def checkQueryPntsFile(pnts_file, query_shape):
@@ -459,8 +336,10 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     return outputArrs
 
 
-def build_cube_ray(xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
-                   pts_crs, interpolators, outputArrs=None):
+def build_cube_ray(
+    xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
+    pts_crs, interpolators, outputArrs=None
+):
     """
     Iterate over interpolators and build a cube
     """

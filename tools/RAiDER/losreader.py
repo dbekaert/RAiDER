@@ -30,6 +30,7 @@ class LOS(ABC):
         self._look_vecs = None
         self._ray_trace = False
         self._is_zenith = False
+        self._is_projected = False
 
     def setPoints(self, lats, lons=None, heights=None):
         '''Set the pixel locations'''
@@ -56,6 +57,9 @@ class LOS(ABC):
     
     def is_Zenith(self):
         return self._is_zenith
+    
+    def is_Projected(self):
+        return self._is_projected
     
     def ray_trace(self):
         return self._ray_trace
@@ -90,6 +94,7 @@ class Conventional(LOS):
         self._file = filename
         self._time = time
         self._pad = pad
+        self._is_projected = True
         self._convention = los_convention
         if self._convention == 'hyp3':
             raise NotImplementedError()
