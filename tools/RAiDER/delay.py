@@ -22,7 +22,7 @@ import isce3.ext.isce3 as isce
 
 from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
-    getInterpolators,
+    getInterpolators, getInterpolators2
 )
 from RAiDER.logger import logger, logging
 from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
@@ -75,7 +75,7 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
         lons, lats = aoi.readLL()
         hgts = aoi.readZ()
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj).T
-        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro'
+        ifWet, ifHydro = getInterpolators2(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro'
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
