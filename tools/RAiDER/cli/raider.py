@@ -304,8 +304,8 @@ def main(iargs=None):
             out_filename = w.replace("_ztd", "_std")
             f = f.replace("_ztd", "_std")
         elif los.ray_trace():
-            out_filename = w.replace("_ztd", "_ray")
-            f = f.replace("_ztd", "_ray")
+            out_filename = w.replace("_std", "_ray")
+            f = f.replace("_std", "_ray")
         else:
             out_filename = w
         
