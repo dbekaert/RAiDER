@@ -267,6 +267,8 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
                        dtype=dtype, crs=proj, nodata=noDataValue,
                        driver=fmt, transform=trans) as dst:
         dst.write(array, 1)
+    logger.info('Wrote: %s', filename)
+    return
 
 
 def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):

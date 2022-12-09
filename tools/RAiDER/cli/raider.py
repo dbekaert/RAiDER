@@ -96,7 +96,7 @@ def create_parser():
         help='generate default template (if it does not exist) and exit.'
     )
 
-    
+
     p.add_argument(
         '--download-only',
         action='store_true',
@@ -282,12 +282,12 @@ def main(iargs=None):
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
-    
+
         # Now process the delays
         try:
             wet_delay, hydro_delay = tropo_delay(
-                t, weather_model_file, aoi, los, 
-                params['height_levels'], 
+                t, weather_model_file, aoi, los,
+                params['height_levels'],
                 params['output_projection'],
                 params['look_dir'],
                 params['cube_spacing_in_m']
@@ -295,7 +295,7 @@ def main(iargs=None):
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
-        
+
         ###########################################################
         # Write the delays to file
         # Different options depending on the inputs
@@ -308,14 +308,14 @@ def main(iargs=None):
             f = f.replace("_std", "_ray")
         else:
             out_filename = w
-        
+
         if hydro_delay is None:
             # means that a dataset was returned
             ds = wet_delay
-            ext = os.path.splitext(out_filename)
+            ext = os.path.splitext(out_filename)[1]
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
-            
+
             out_filename = out_filename.replace("wet", "tropo")
 
             if out_filename.endswith(".nc"):
@@ -323,11 +323,11 @@ def main(iargs=None):
             elif out_filename.endswith(".h5"):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
 
+            logger.info('Wrote delays to: %s', out_filename)
+
         else:
             if aoi.type() == 'station_file':
                 w = f'{os.path.splitext(out_filename)[0]}.csv'
 
-            if aoi.type() in ['station_file', 'radar_rasters']:
+            if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
                 writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
-    
-

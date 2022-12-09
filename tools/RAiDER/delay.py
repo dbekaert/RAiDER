@@ -42,7 +42,7 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
     weather_model_File: string  - Name of the NETCDF file containing a pre-processed weather model
     aoi: AOI object             - AOI object
     los: LOS object             - LOS object
-    height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation. 
+    height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
     out_proj: int,str           - (optional) EPSG code for output projection
     look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
     cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
@@ -109,7 +109,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
     if (cube_spacing_m is None) and (crs == CRS(4326)):
 
         use_weather_model_cube = True
-    
+
     else:
         #TODO handle this better
         if cube_spacing_m is None:
@@ -286,15 +286,20 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
     t = Transformer.from_crs(old_proj, new_proj)
 
     # Flags for flipping inputs or outputs
-    in_flip = old_proj.axis_info[0].direction == "east"
-    out_flip = new_proj.axis_info[0].direction == "east"
+    if not isinstance(new_proj, pyproj.CRS):
+        new_proj = CRS.from_epsg(new_proj.lstrip('EPSG:'))
+    if not isinstance(old_proj, pyproj.CRS):
+        old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
 
-    if in_flip:
+    in_flip = old_proj.axis_info[0].direction
+    out_flip = new_proj.axis_info[0].direction
+
+    if in_flip == 'east':
         res = t.transform(lons, lats, hgts)
     else:
         res = t.transform(lats, lons, hgts)
 
-    if out_flip:
+    if out_flip == 'east':
         return np.stack((res[1], res[0], res[2]), axis=-1).T
     else:
         return np.stack(res, axis=-1).T
@@ -550,5 +555,3 @@ def build_cube_ray(
 
     if output_created_here:
         return outputArrs
-
-
