@@ -34,7 +34,7 @@ from RAiDER.utilFcns import (
 ###############################################################################
 def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4326, look_dir='right', cube_spacing_m=None):
     """
-    raider main function for calculating delays.
+    Calculate integrated delays on query points.
 
     Parameterss
     ----------
@@ -49,7 +49,8 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
 
     Returns
     -------
-    xarray Dataset
+    xarray Dataset or wet and hydrostatic delays at the query points. The dataset will contain fields
+    'wet' and 'hydro' which are the total (integrated) wet and hydrostatic delays
     """
     # get heights
     if height_levels is None:

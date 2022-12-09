@@ -12,7 +12,7 @@ and `tropo_delay` functions, as well as anciliarry functions needed for defining
 
 ### New/Updated Features
 + Python library access to main functions for accessing weather model data and calculating delays
-+ Slant delay calculation through projection should be supported for all workflows
++ Slant delay calculation through projection is supported for cubes with orbit files
 
 ## [0.2.1]
 
