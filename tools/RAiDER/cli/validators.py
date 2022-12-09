@@ -33,18 +33,18 @@ def enforce_wm(value):
 
 
 def get_los(args):
-    if ('orbit_file' in args.keys()) and (args['orbit_file'] is not None):
+    if arg.get('orbit_file'):
         if args.ray_trace:
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
-    elif ('los_file' in args.keys()) and (args['los_file'] is not None):
+    elif args.get('los_file'):
         if args.ray_trace:
             los = Raytracing(args.los_file, args.los_convention)
         else:
             los = Conventional(args.los_file, args.los_convention)
-    elif ('los_cube' in args.keys()) and (args['los_cube'] is not None):
 
+    elif args.get('los_cube'):
         raise NotImplementedError('LOS_cube is not yet implemented')
 #        if args.ray_trace:
 #            los = Raytracing(args.los_cube)
@@ -132,7 +132,14 @@ def get_query_region(args):
         query = BoundingBox(bbox)
 
     elif 'geocoded_file' in args.keys():
-        query = GeocodedFile(args.geocoded_file, is_dem=False)
+        gfile  = os.path.basename(args.geocoded_file).upper()
+        if (gfile.startswith('SRTM') or gfile.startswith('GLO')):
+            logger.debug('Using user DEM: %s', gfile)
+            is_dem = True
+        else:
+            is_dem = False
+
+        query  = GeocodedFile(args.geocoded_file, is_dem=is_dem)
 
     ## untested
     elif 'los_cube' in args.keys():
