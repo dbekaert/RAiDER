@@ -44,6 +44,7 @@ def get_los(args):
         else:
             los = Conventional(args.los_file, args.los_convention)
     elif ('los_cube' in args.keys()) and (args['los_cube'] is not None):
+
         raise NotImplementedError('LOS_cube is not yet implemented')
 #        if args.ray_trace:
 #            los = Raytracing(args.los_cube)
@@ -149,7 +150,10 @@ def enforce_bbox(bbox):
     """
     Enforce a valid bounding box
     """
-    bbox = [float(d) for d in bbox.strip().split()]
+    if isinstance(bbox, str):
+        bbox = [float(d) for d in bbox.strip().split()]
+    else:
+        bbox = [float(d) for d in bbox]
 
     # Check the bbox
     if len(bbox) != 4:
