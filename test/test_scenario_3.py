@@ -16,8 +16,8 @@ def test_scenario_3():
     process = subprocess.run(['raider.py', test_path],stdout=subprocess.PIPE, universal_newlines=True)
     assert process.returncode == 0
 
-    new_data = xr.load_dataset('HRRR_tropo_20181113T230000_std.nc')
-    golden_data = xr.load_dataset(os.path.join(SCENARIO_DIR, 'HRRR_tropo_20181113T230000_std.nc'))
+    new_data = xr.load_dataset('HRRR_tropo_20181113T230000_ray.nc')
+    golden_data = xr.load_dataset(os.path.join(SCENARIO_DIR, 'HRRR_tropo_20181113T230000_ray.nc'))
 
     assert np.allclose(golden_data['wet'], new_data['wet'])
     assert np.allclose(golden_data['hydro'], new_data['hydro'])
