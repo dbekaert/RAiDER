@@ -15,6 +15,7 @@ from time import strptime
 from RAiDER.llreader import BoundingBox, Geocube, RasterRDR, StationFile, GeocodedFile, Geocube
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.utilFcns import rio_extents, rio_profile
+from RAiDER.logger import logger
 
 _BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees
 
