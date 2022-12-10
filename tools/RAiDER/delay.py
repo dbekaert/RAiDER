@@ -22,7 +22,7 @@ import isce3.ext.isce3 as isce
 
 from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
-    getInterpolators, getInterpolators2
+    getInterpolators
 )
 from RAiDER.logger import logger, logging
 from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
