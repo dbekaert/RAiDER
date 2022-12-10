@@ -120,7 +120,7 @@ def get_query_region(args):
         query = GeocodedFile(args.dem, is_dem=True)
 
     elif 'lat_file' in args.keys():
-        hgt_file = args.get('hgt_file_rdr') # only get it if exists
+        hgt_file = args.get('height_file_rdr') # only get it if exists
         dem_file = args.get('dem')
         query    = RasterRDR(args.lat_file, args.lon_file, hgt_file, dem_file)
 
