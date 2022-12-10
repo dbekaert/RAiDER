@@ -116,12 +116,13 @@ def get_query_region(args):
     '''
     # Get bounds from the inputs
     # make sure this is first
-    if ('use_dem_latlon' in args.keys()) and args['use_dem_latlon']:
+    if args.get('use_dem_latlon'):
         query = GeocodedFile(args.dem, is_dem=True)
 
     elif 'lat_file' in args.keys():
-        hgt_file = args.get('hgt_file_rdr', None) # only get it if exists
-        query    = RasterRDR(args.lat_file, args.lon_file, hgt_file)
+        hgt_file = args.get('hgt_file_rdr') # only get it if exists
+        dem_file = args.get('dem')
+        query    = RasterRDR(args.lat_file, args.lon_file, hgt_file, dem_file)
 
     elif 'station_file' in args.keys():
         query = StationFile(args.station_file)

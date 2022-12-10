@@ -41,11 +41,8 @@ def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):
 
     elif (dem_type == 'download') or (dem_type == 'dem'):
         if ~os.path.exists(dem_file):
-            download_dem(
-                ll_bounds,
-                writeDEM = True,
-                outName=dem_file,
-            )
+            download_dem(ll_bounds, writeDEM=True, outName=dem_file)
+            
         #TODO: interpolate heights to query lats/lons
         # Interpolate to the query points
         hts = interpolateDEM(
@@ -59,7 +56,6 @@ def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):
 
 def download_dem(
     ll_bounds,
-    save_flag='new',
     writeDEM=False,
     outName='warpedDEM',
     buf=0.02,
@@ -67,6 +63,7 @@ def download_dem(
 ):
     """  Download a DEM if one is not already present. """
     if os.path.exists(outName) and not overwrite:
+        logger.info('Using existing DEM: %s', outName)
         zvals, metadata = rio_open(outName, returnProj=True)
 
     else:
@@ -87,5 +84,6 @@ def download_dem(
             with rasterio.open(outName, 'w', **metadata) as ds:
                 ds.write(zvals, 1)
                 ds.update_tags(AREA_OR_POINT='Point')
+            logger.info('Wrote DEM: %s', outName)
 
     return zvals, metadata
