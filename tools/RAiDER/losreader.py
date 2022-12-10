@@ -89,11 +89,11 @@ class Conventional(LOS):
     be projected using the standard cos(inc) scaling.
     """
 
-    def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
+    def __init__(self, filename=None, los_convention='isce', time=None, pad=600):
         super().__init__()
         self._file = filename
         self._time = time
-        self._pad  = 600
+        self._pad  = pad
         self._is_projected = True
         self._convention   = los_convention
         if self._convention.lower() != 'isce':
