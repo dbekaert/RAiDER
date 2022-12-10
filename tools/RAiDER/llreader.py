@@ -177,7 +177,7 @@ class Geocube(AOI):
 
 
     def readLL(self):
-        return None
+        return None, None
 
 
 def bounds_from_latlon_rasters(latfile, lonfile):
