@@ -122,8 +122,8 @@ def getInterpolators2(ds,  kind='pointwise', shared=False):
     xs_wm = np.array(ds.variables['x'][:])
     ys_wm = np.array(ds.variables['y'][:])
     zs_wm = np.array(ds.variables['z'][:])
-    wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
-    hydro = ds.variables['hydro_total' if kind=='total' else 'hydro'][:]
+    wet = np.array(ds.variables['wet_total' if kind=='total' else 'wet'][:])
+    hydro = np.array(ds.variables['hydro_total' if kind=='total' else 'hydro'][:])
     
     # If shared interpolators are requested
     # The arrays are not modified - so turning off lock for performance
