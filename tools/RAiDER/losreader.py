@@ -51,16 +51,16 @@ class LOS(ABC):
             self._lats = lats
             self._lons = lons
             self._heights = heights
-    
+
     def setTime(self, dt):
         self._time = dt
-    
+
     def is_Zenith(self):
         return self._is_zenith
-    
+
     def is_Projected(self):
         return self._is_projected
-    
+
     def ray_trace(self):
         return self._ray_trace
 
@@ -90,13 +90,13 @@ class Conventional(LOS):
     """
 
     def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
-        LOS.__init__(self)
+        super().__init__()
         self._file = filename
         self._time = time
-        self._pad = pad
+        self._pad  = 600
         self._is_projected = True
-        self._convention = los_convention
-        if self._convention == 'hyp3':
+        self._convention   = los_convention
+        if self._convention.lower() != 'isce':
             raise NotImplementedError()
 
     def __call__(self, delays):
@@ -109,8 +109,11 @@ class Conventional(LOS):
         try:
             # if an ISCE-style los file is passed open it with GDAL
             LOS_enu = inc_hd_to_enu(*rio_open(self._file))
+
         except OSError:
             # Otherwise, treat it as an orbit / statevector file
+            self._pad = 600
+            self._time = datetime.datetime(2018, 11, 13, 23, 0)
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1
             )
@@ -163,16 +166,15 @@ class Raytracing(LOS):
     >>> TODO
     """
 
-    def __init__(self, filename=None, los_convention='isce', time=None, pad=None):
+    def __init__(self, filename=None, los_convention='isce', time=None, pad=600):
         '''read in and parse a statevector file'''
         LOS.__init__(self)
         self._ray_trace = True
         self._file = filename
         self._time = time
-        self._pad = pad
+        self._pad  = pad
         self._convention = los_convention
-        self._pad = 600
-        if self._convention == 'hyp3':
+        if self._convention.lower() != 'isce':
             raise NotImplementedError()
 
     def getLookVectors(self, time, pad=3 * 60):
@@ -213,6 +215,7 @@ class Raytracing(LOS):
                 out="ecef"
             )
 
+
     def getIntersectionWithHeight(self, height):
         """
         This function computes the intersection point of a ray at a height
@@ -220,6 +223,7 @@ class Raytracing(LOS):
         """
         # We just leverage the same code as finding top of atmosphere here
         return getTopOfAtmosphere(self._xyz, self._look_vecs, height)
+
 
     def getIntersectionWithLevels(self, levels):
         """
@@ -245,6 +249,7 @@ class Raytracing(LOS):
             value[self._heights > z, :] = np.nan
 
         return rays
+
 
     def calculateDelays(self, delays):
         '''
@@ -580,7 +585,7 @@ def get_radar_pos(llh, orb, out="lookangle"):
 
     # Get xyz positions of targets here
     targ_xyz = np.stack(
-        lla2ecef(llh[:, 0], llh[:, 1], llh[:, 2]), axis=-1
+        lla2ecef(llh[:, 1], llh[:, 0], llh[:, 2]), axis=-1
     )
 
     # Get some isce3 constants for this inversion

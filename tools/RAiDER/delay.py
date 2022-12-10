@@ -58,7 +58,8 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
             height_levels = ds.z.values
 
     #TODO: expose this as library function
-    ds = tropo_delay_cube(dt, weather_model_file, aoi.bounds(), height_levels, los, out_proj = out_proj, cube_spacing_m = cube_spacing_m, look_dir = look_dir)
+    ds = tropo_delay_cube(dt, weather_model_file, aoi.bounds(), height_levels,
+            los, out_proj=out_proj, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -80,8 +81,9 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
 
         # return the delays (ZTD or STD)
         if los.is_Projected():
+            los.setTime(dt)
             los.setPoints(lats, lons, hgts)
-            wetDelay = los(wetDelay)
+            wetDelay   = los(wetDelay)
             hydroDelay = los(hydroDelay)
 
     return wetDelay, hydroDelay
