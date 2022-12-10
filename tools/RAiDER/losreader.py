@@ -112,8 +112,6 @@ class Conventional(LOS):
 
         except OSError:
             # Otherwise, treat it as an orbit / statevector file
-            self._pad = 600
-            self._time = datetime.datetime(2018, 11, 13, 23, 0)
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1
             )
