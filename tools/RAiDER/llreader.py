@@ -111,12 +111,12 @@ class RasterRDR(AOI):
 
 
     def readZ(self):
-        demFile = 'GLO30_fullres_dem.tif' if self._demfile is None else self._demfile
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             return rio_open(self._hgtfile)
 
         else:
+            demFile = 'GLO30_fullres_dem.tif' if self._demfile is None else self._demfile
             zvals, metadata = download_dem(
                 self._bounding_box,
                 writeDEM=True,

@@ -195,12 +195,6 @@ def read_template_file(fname):
             template.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
             template['date_list'] = parse_dates(AttributeDict(value))
-        if key == 'aoi_group':
-            ## in case a DEM is passed and should be used
-            dct_temp = {**AttributeDict(value),
-                        **AttributeDict(params['height_group'])}
-            template['aoi'] = get_query_region(AttributeDict(dct_temp))
-
         if key == 'los_group':
             template['los'] = get_los(AttributeDict(value))
         if key == 'look_dir':
@@ -219,7 +213,12 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
-    return AttributeDict(template)
+    
+    template.update(params['aoi_group'])
+    template = AttributeDict(template)
+    template['aoi'] = get_query_region(template)
+    
+    return template
 
 
 def drop_nans(d):
@@ -244,9 +243,7 @@ def main(iargs=None):
 
     # Argument checking
     params = checkArgs(params)
-
-    params['download_only'] = inps.download_only
-
+    
     if not params.verbose:
         logger.setLevel(logging.INFO)
 

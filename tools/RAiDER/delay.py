@@ -59,7 +59,6 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
 
     #TODO: expose this as library function
     ds = tropo_delay_cube(dt, weather_model_file, aoi.bounds(), height_levels, los, out_proj = out_proj, cube_spacing_m = cube_spacing_m, look_dir = look_dir)
-    ds = ds.rename({'x': 'y', 'y': 'x'})
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -72,10 +71,10 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
             out_proj = out_proj
 
         pnt_proj = CRS.from_epsg(4326)
-        lons, lats = aoi.readLL()
+        lats, lons = aoi.readLL()
         hgts = aoi.readZ()
-        pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj).T
-        ifWet, ifHydro = getInterpolators2(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro'
+        pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj).transpose(1,2,0)
+        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro'
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 

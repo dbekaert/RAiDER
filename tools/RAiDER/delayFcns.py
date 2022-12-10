@@ -91,13 +91,16 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     an interpolator
     '''
     # Get the weather model data
+    try:
+        ds = xarray.load_dataset(wm_file)
+    except:
+        ds = wm_file
 
-    with Dataset(wm_file, mode='r') as ds:
-        xs_wm = np.array(ds.variables['x'][:])
-        ys_wm = np.array(ds.variables['y'][:])
-        zs_wm = np.array(ds.variables['z'][:])
-        wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
-        hydro = ds.variables['hydro_total' if kind=='total' else 'hydro'][:]
+    xs_wm = np.array(ds.variables['x'][:])
+    ys_wm = np.array(ds.variables['y'][:])
+    zs_wm = np.array(ds.variables['z'][:])
+    wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
+    hydro = ds.variables['hydro_total' if kind=='total' else 'hydro'][:]
 
     wet = np.array(wet).transpose(1, 2, 0)
     hydro = np.array(hydro).transpose(1, 2, 0)
@@ -115,30 +118,6 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan, bounds_error = False)
 
     return ifWet, ifHydro
-
-
-def getInterpolators2(ds,  kind='pointwise', shared=False):
-    '''This replicates getInterpolators for handling the output from tropo_delay_cube'''
-    xs_wm = np.array(ds.variables['x'][:])
-    ys_wm = np.array(ds.variables['y'][:])
-    zs_wm = np.array(ds.variables['z'][:])
-    wet = np.array(ds.variables['wet_total' if kind=='total' else 'wet'][:])
-    hydro = np.array(ds.variables['hydro_total' if kind=='total' else 'hydro'][:])
-    
-    # If shared interpolators are requested
-    # The arrays are not modified - so turning off lock for performance
-    if shared:
-        xs_wm = make_shared_raw(xs_wm)
-        ys_wm = make_shared_raw(ys_wm)
-        zs_wm = make_shared_raw(zs_wm)
-        wet = make_shared_raw(wet)
-        hydro = make_shared_raw(hydro)
-    
-    ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet.transpose(1,0,2), fill_value=np.nan, bounds_error = False)
-    ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro.transpose(1,0,2), fill_value=np.nan, bounds_error = False)
-
-    return ifWet, ifHydro
-
 
 
 def make_shared_raw(inarr):

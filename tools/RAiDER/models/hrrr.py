@@ -88,7 +88,8 @@ class HRRR(WeatherModel):
             filename = self.files
 
         # read data from grib file
-        ds = xarray.open_dataset(filename)
+        ds = xarray.open_dataset(filename, engine='cfgrib')
+
         pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
         xArr = ds['x'].values
         yArr = ds['y'].values
