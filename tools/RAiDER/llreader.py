@@ -10,6 +10,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import rasterio
 
 from pyproj import CRS
 
@@ -88,13 +89,15 @@ class RasterRDR(AOI):
     def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce'):
         AOI.__init__(self)
         self._type = 'radar_rasters'
-        # allow for 2-band lat/lon raster
-        if (lon_file is None):
-            self._file = lat_file
-        else:
-            self._latfile = lat_file
-            self._lonfile = lon_file
+        self._latfile = lat_file
+        self._lonfile = lon_file
+        if (self._latfile is None) and (self._lonfile is None):
+            raise ValueError('You need to specify a 2-band file or two single-band files')
+        
+        try:
             self._proj, self._bounding_box, _ = bounds_from_latlon_rasters(lat_file, lon_file)
+        except rasterio.errors.RasterioIOError:
+            raise ValueError('Could not open {}, does it exist?'.format(self._latfile))
 
         # keep track of the height file, dem and convention
         self._hgtfile = hgt_file
@@ -102,12 +105,11 @@ class RasterRDR(AOI):
         self._convention = convention
 
     def readLL(self):
-        if self._latfile is not None:
-            return rio_open(self._latfile), rio_open(self._lonfile)
-        elif self._file is not None:
-            return rio_open(self._file)
+        # allow for 2-band lat/lon raster
+        if self._lonfile is None:
+            return rio_open(self._latfile)
         else:
-            raise ValueError('lat/lon files are not defined')
+            return rio_open(self._latfile), rio_open(self._lonfile)
 
 
     def readZ(self):
