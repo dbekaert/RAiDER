@@ -119,21 +119,21 @@ def get_query_region(args):
     if args.get('use_dem_latlon'):
         query = GeocodedFile(args.dem, is_dem=True)
 
-    elif 'lat_file' in args.keys():
+    elif args.get('lat_file'):
         hgt_file = args.get('height_file_rdr') # only get it if exists
         dem_file = args.get('dem')
         query    = RasterRDR(args.lat_file, args.lon_file, hgt_file, dem_file)
 
-    elif 'station_file' in args.keys():
+    elif args.get('station_file'):
         query = StationFile(args.station_file)
 
-    elif 'bounding_box' in args.keys():
+    elif args.get('bounding_box'):
         bbox = enforce_bbox(args.bounding_box)
         if (np.min(bbox[0]) < -90) | (np.max(bbox[1]) > 90):
             raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched? Should be SNWE')
         query = BoundingBox(bbox)
 
-    elif 'geocoded_file' in args.keys():
+    elif args.get('geocoded_file'):
         gfile  = os.path.basename(args.geocoded_file).upper()
         if (gfile.startswith('SRTM') or gfile.startswith('GLO')):
             logger.debug('Using user DEM: %s', gfile)
