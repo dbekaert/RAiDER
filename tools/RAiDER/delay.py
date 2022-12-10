@@ -93,7 +93,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
     raider cube generation function.
     """
     # For testing multiprocessing
-    # TODO - move this to configura0ion
+    # TODO - move this to configuration
     crs = CRS(out_proj)
 
     # Determine the output grid extent here
@@ -103,7 +103,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
     )
 
     # Clip output grid to multiples of spacing
-    # If output is desired in degreezMs
+    # If output is desired in degrees
     use_weather_model_cube = False
 
     if (cube_spacing_m is None) and (crs == CRS(4326)):
