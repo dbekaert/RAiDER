@@ -97,36 +97,6 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
     # TODO - move this to configuration
     crs = CRS(out_proj)
 
-    # Determine the output grid extent here
-    wesn = ll_bounds[2:] + ll_bounds[:2]
-    out_snwe = transform_bbox(
-        wesn, src_crs=4326, dest_crs=crs
-    )
-
-    # Clip output grid to multiples of spacing
-    # If output is desired in degrees
-    use_weather_model_cube = False
-
-    if (cube_spacing_m is None) and (crs == CRS(4326)):
-
-        use_weather_model_cube = True
-
-    else:
-        #TODO handle this better
-        if cube_spacing_m is None:
-            cube_spacing_m = 5000
-
-        if crs.axis_info[0].unit_name == "degree":
-            out_spacing = cube_spacing_m / 1.0e5  # Scale by 100km
-            out_snwe = clip_bbox(out_snwe, out_spacing)
-        else:
-            out_spacing = cube_spacing_m
-            out_snwe = clip_bbox(out_snwe, out_spacing)
-
-        logger.debug(f"Output SNWE: {out_snwe}")
-        logger.debug(f"Output cube spacing: {out_spacing}")
-
-
     # Load CRS from weather model file
     wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
     if wm_proj is None:
@@ -134,16 +104,36 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
        wm_proj = CRS.from_epsg(4326)
     else:
         wm_proj = CRS.from_wkt(wm_proj.to_wkt())
+    
+    # Determine the output grid extent here
+    wesn = ll_bounds[2:] + ll_bounds[:2]
+    out_snwe = transform_bbox(
+        wesn, src_crs=4326, dest_crs=crs
+    )
 
-    # Build the output grid
-    zpts = np.array(heights)
-    if not use_weather_model_cube:
-        xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
-        ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
-    else:
+    # Clip output grid to multiples of spacing
+    if cube_spacing_m is None:
         with xarray.load_dataset(weather_model_file) as ds:
             xpts = ds.x.values
             ypts = ds.y.values
+        cube_spacing_m = np.nanmean([np.nanmean(np.diff(xpts)), np.nanmean(np.diff(ypts))])
+        if wm_proj.axis_info[0].unit_name == "degree":
+            cube_spacing_m = cube_spacing_m * 1.0e5  # Scale by 100km
+    
+    if crs.axis_info[0].unit_name == "degree":
+        out_spacing = cube_spacing_m / 1.0e5  # Scale by 100km
+    else:
+        out_spacing = cube_spacing_m
+    out_snwe = clip_bbox(out_snwe, out_spacing)
+
+    logger.debug(f"Output SNWE: {out_snwe}")
+    logger.debug(f"Output cube spacing: {out_spacing}")
+
+    # Build the output grid
+    zpts = np.array(heights)
+    xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+    ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+
 
     # If no orbit is provided
     # Build zenith delay cube
