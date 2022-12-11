@@ -10,12 +10,14 @@ import os
 
 import numpy as np
 import pandas as pd
+import rasterio
 
 from pyproj import CRS
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band
+from RAiDER.logger import logger
 
 
 class AOI(object):
@@ -25,6 +27,10 @@ class AOI(object):
     def __init__(self):
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
+
+
+    def type(self):
+        return self._type
 
 
     def bounds(self):
@@ -40,7 +46,10 @@ class AOI(object):
         Check whether an extra lat/lon buffer is needed for raytracing
         '''
         # if raytracing, add a 1-degree buffer all around
-        ll_bounds = self._bounding_box.copy()
+        try:
+            ll_bounds = self._bounding_box.copy()
+        except AttributeError:
+            ll_bounds = list(self._bounding_box)
         ll_bounds[0] = np.max([ll_bounds[0] - buffer, -90])
         ll_bounds[1] = np.min([ll_bounds[1] + buffer,  90])
         ll_bounds[2] = np.max([ll_bounds[2] - buffer,-180])
@@ -54,10 +63,7 @@ class StationFile(AOI):
         AOI.__init__(self)
         self._filename = station_file
         self._bounding_box = bounds_from_csv(station_file)
-
-
-    def type(self):
-        return 'station_file'
+        self._type = 'station_file'
 
 
     def readLL(self):
@@ -80,42 +86,43 @@ class StationFile(AOI):
 
 
 class RasterRDR(AOI):
-    def __init__(self, lat_file, lon_file=None, hgt_file=None, convention='isce'):
+    def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce'):
         AOI.__init__(self)
-        # allow for 2-band lat/lon raster
-        if (lon_file is None):
-            self._file = lat_file
-        else:
-            self._latfile = lat_file
-            self._lonfile = lon_file
+        self._type = 'radar_rasters'
+        self._latfile = lat_file
+        self._lonfile = lon_file
+        if (self._latfile is None) and (self._lonfile is None):
+            raise ValueError('You need to specify a 2-band file or two single-band files')
+        
+        try:
             self._proj, self._bounding_box, _ = bounds_from_latlon_rasters(lat_file, lon_file)
+        except rasterio.errors.RasterioIOError:
+            raise ValueError('Could not open {}, does it exist?'.format(self._latfile))
 
-        # keep track of the height file
+        # keep track of the height file, dem and convention
         self._hgtfile = hgt_file
+        self._demfile = dem_file
         self._convention = convention
 
-
-    def type(self):
-        return 'radar_rasters'
-
-
     def readLL(self):
-        if self._latfile is not None:
-            return rio_open(self._latfile), rio_open(self._lonfile)
-        elif self._file is not None:
-            return rio_open(self._file)
+        # allow for 2-band lat/lon raster
+        if self._lonfile is None:
+            return rio_open(self._latfile)
         else:
-            raise ValueError('lat/lon files are not defined')
+            return rio_open(self._latfile), rio_open(self._lonfile)
 
 
     def readZ(self):
-        if self._hgtfile is not None:
+        if self._hgtfile is not None and os.path.exists(self._hgtfile):
+            logger.info('Using existing heights at: %s', self._hgtfile)
             return rio_open(self._hgtfile)
+
         else:
+            demFile = 'GLO30_fullres_dem.tif' if self._demfile is None else self._demfile
             zvals, metadata = download_dem(
                 self._bounding_box,
-                writeDEM = True,
-                outName = os.path.join('GLO30_fullres_dem.tif'),
+                writeDEM=True,
+                outName=os.path.join(demFile),
             )
             z_bounds = get_bbox(metadata)
             z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
@@ -127,9 +134,7 @@ class BoundingBox(AOI):
     def __init__(self, bbox):
         AOI.__init__(self)
         self._bounding_box = bbox
-
-    def type(self):
-        return 'bounding_box'
+        self._type = 'bounding_box'
 
 
 class GeocodedFile(AOI):
@@ -141,10 +146,7 @@ class GeocodedFile(AOI):
         self._bounding_box = rio_extents(self.p)
         self._is_dem       = is_dem
         _, self._proj, self._gt = rio_stats(filename)
-
-
-    def type(self):
-        return 'geocoded_file'
+        self._type = 'geocoded_file'
 
 
     def readLL(self):
@@ -160,31 +162,24 @@ class GeocodedFile(AOI):
 
 
     def readZ(self):
-        if self._is_dem:
-            return rio_open(self._filename)
-
-        else:
-            zvals, metadata = download_dem(
-                self._bounding_box,
-                writeDEM = True,
-                outName = os.path.join('GLO30_fullres_dem.tif'),
-            )
-            z_bounds = get_bbox(metadata)
-            z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
-            return z_out
+        demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
+        bbox    = self._bounding_box
+        zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
+        z_bounds = get_bbox(metadata)
+        z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+        return z_out
 
 
 class Geocube(AOI):
     '''Parse a georeferenced data cube'''
     def __init__(self):
         AOI.__init__(self)
+        self._type = 'geocube'
         raise NotImplementedError
 
-    def type(self):
-        return 'geocube'
 
     def readLL(self):
-        raise NotImplementedError
+        return None, None
 
 
 def bounds_from_latlon_rasters(latfile, lonfile):

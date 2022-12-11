@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/) 
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0]
+RAiDER package was refactored to expose the main functionality as a Python library, including the `prepareWeatherModel` 
+and `tropo_delay` functions, as well as anciliarry functions needed for defining AOIs, look vectors, etc.
+
+### New/Updated Features
++ Python library access to main functions for accessing weather model data and calculating delays
++ Slant delay calculation through projection is supported for cubes with orbit files
+
 ## [0.2.1]
 
 * Upgrade dem-stitcher to [`>=2.3.1`](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/blob/dev/CHANGELOG.md#231) so that the updated urls for the GLO-30 DEM are used.

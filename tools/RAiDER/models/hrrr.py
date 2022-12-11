@@ -88,7 +88,11 @@ class HRRR(WeatherModel):
             filename = self.files
 
         # read data from grib file
-        ds = xarray.open_dataset(filename)
+        try:
+            ds = xarray.open_dataset(filename, engine='cfgrib')
+        except EOFError:
+            ds = xarray.open_dataset(filename, engine='netcdf4')
+
         pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
         xArr = ds['x'].values
         yArr = ds['y'].values
@@ -175,15 +179,6 @@ class HRRR(WeatherModel):
         lats = lats[y_min:y_max, x_min:x_max]
         lons = lons[y_min:y_max, x_min:x_max]
 
-        # TODO: Remove this block once we know we handle
-        # different flavors of HRRR correctly
-        # self._proj currently used but these are available
-        # as attrs of ds["t"] for example
-        # llhtolcc = Transformer.from_crs(4326, self._proj)
-        # res = llhtolcc.transform(lats, lons)
-        # print("ERROR in X: ", np.abs(res[0] - xArr[None, :]).max())
-        # print("ERROR in Y: ", np.abs(res[1] - yArr[:, None]).max())
-
         # Data variables
         t = ds['t'][:, y_min:y_max, x_min:x_max].to_numpy()
         z = ds['gh'][:, y_min:y_max, x_min:x_max].to_numpy()
@@ -257,7 +252,7 @@ class HRRR(WeatherModel):
         for k, v in self._proj.to_cf().items():
             ds_new.proj.attrs[k] = v
 
-        ds_new.to_netcdf(out)
+        ds_new.to_netcdf(out, engine='netcdf4')
 
     def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''

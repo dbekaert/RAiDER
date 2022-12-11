@@ -6,13 +6,15 @@ import yaml
 import re, glob
 
 import RAiDER
-from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
-from RAiDER.logger import logger, logging
-from RAiDER.cli.validators import (enforce_time, enforce_bbox, parse_dates,
-                            get_query_region, get_heights, get_los, enforce_wm)
-
 from RAiDER.checkArgs import checkArgs
-from RAiDER.delay import main as main_delay
+from RAiDER.cli.validators import (
+    enforce_time, parse_dates, get_query_region, get_heights, get_los, enforce_wm
+)
+from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
+from RAiDER.delay import tropo_delay
+from RAiDER.logger import logger, logging
+from RAiDER.processWM import prepareWeatherModel
+from RAiDER.utilFcns import writeDelays
 
 
 HELP_MESSAGE = """
@@ -94,7 +96,7 @@ def create_parser():
         help='generate default template (if it does not exist) and exit.'
     )
 
-    
+
     p.add_argument(
         '--download-only',
         action='store_true',
@@ -193,12 +195,6 @@ def read_template_file(fname):
             template.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
             template['date_list'] = parse_dates(AttributeDict(value))
-        if key == 'aoi_group':
-            ## in case a DEM is passed and should be used
-            dct_temp = {**AttributeDict(value),
-                        **AttributeDict(params['height_group'])}
-            template['aoi'] = get_query_region(AttributeDict(dct_temp))
-
         if key == 'los_group':
             template['los'] = get_los(AttributeDict(value))
         if key == 'look_dir':
@@ -217,7 +213,12 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
-    return AttributeDict(template)
+    
+    template.update(params['aoi_group'])
+    template = AttributeDict(template)
+    template['aoi'] = get_query_region(template)
+    
+    return template
 
 
 def drop_nans(d):
@@ -231,6 +232,7 @@ def drop_nans(d):
     return d
 
 
+
 ##########################################################################
 def main(iargs=None):
     # parse
@@ -241,9 +243,7 @@ def main(iargs=None):
 
     # Argument checking
     params = checkArgs(params)
-
-    params['download_only'] = inps.download_only
-
+    
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
@@ -253,8 +253,78 @@ def main(iargs=None):
         params['wetFilenames'],
         params['hydroFilenames']
     ):
+
+        los = params['los']
+        aoi = params['aoi']
+        model = params['weather_model']
+
+        if los.ray_trace():
+            ll_bounds = aoi.add_buffer(buffer=1) # add a buffer for raytracing
+        else:
+            ll_bounds = aoi.bounds()
+
+        ###########################################################
+        # weather model calculation
+        logger.debug('Starting to run the weather model calculation')
+        logger.debug('Time: {}'.format(t.strftime('%Y%m%d')))
+        logger.debug('Beginning weather model pre-processing')
         try:
-            (_, _) = main_delay(t, w, f, params)
+            weather_model_file = prepareWeatherModel(
+                model, t,
+                ll_bounds=ll_bounds, # SNWE
+                wmLoc=params['weather_model_directory'],
+                zref=params['zref'],
+                makePlots=params['verbose'],
+            )
         except RuntimeError:
             logger.exception("Date %s failed", t)
             continue
+
+        # Now process the delays
+        try:
+            wet_delay, hydro_delay = tropo_delay(
+                t, weather_model_file, aoi, los,
+                params['height_levels'],
+                params['output_projection'],
+                params['look_dir'],
+                params['cube_spacing_in_m']
+            )
+        except RuntimeError:
+            logger.exception("Date %s failed", t)
+            continue
+
+        ###########################################################
+        # Write the delays to file
+        # Different options depending on the inputs
+
+        if los.is_Projected():
+            out_filename = w.replace("_ztd", "_std")
+            f = f.replace("_ztd", "_std")
+        elif los.ray_trace():
+            out_filename = w.replace("_std", "_ray")
+            f = f.replace("_std", "_ray")
+        else:
+            out_filename = w
+
+        if hydro_delay is None:
+            # means that a dataset was returned
+            ds = wet_delay
+            ext = os.path.splitext(out_filename)[1]
+            if ext not in ['.nc', '.h5']:
+                out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
+
+            out_filename = out_filename.replace("wet", "tropo")
+
+            if out_filename.endswith(".nc"):
+                ds.to_netcdf(out_filename, mode="w")
+            elif out_filename.endswith(".h5"):
+                ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
+
+            logger.info('Wrote delays to: %s', out_filename)
+
+        else:
+            if aoi.type() == 'station_file':
+                w = f'{os.path.splitext(out_filename)[0]}.csv'
+
+            if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
+                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])

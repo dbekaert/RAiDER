@@ -198,7 +198,7 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        self.set_latlon_bounds(ll_bounds, Nextra=0)
+        self.set_latlon_bounds(ll_bounds)
 
         # If the weather file has already been processed, do nothing
         self._out_name = self.out_file(outLoc)

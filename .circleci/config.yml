@@ -43,7 +43,7 @@ jobs:
             eval "$($HOME/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
             python -m pip install .
-            python -c "import RAiDER; from RAiDER.delay import main"
+            python -c "import RAiDER; from RAiDER.delay import tropo_delay"
             python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis"
       - run:
           name: Run unit tests

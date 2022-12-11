@@ -33,6 +33,14 @@ def llfiles():
     return os.path.join(SCENARIO1_DIR, 'lat.dat'), os.path.join(SCENARIO1_DIR, 'lon.dat')
 
 
+def test_latlon_reader_2():
+    with pytest.raises(ValueError):
+        query = RasterRDR(lat_file=None, lon_file=None)
+
+    with pytest.raises(ValueError):
+        query = RasterRDR(lat_file='doesnotexist.rdr', lon_file='doesnotexist.rdr')
+
+
 def test_latlon_reader():
     latfile = os.path.join(GEOM_DIR, 'lat.rdr')
     lonfile = os.path.join(GEOM_DIR, 'lon.rdr')
@@ -88,3 +96,9 @@ def test_bounds_from_csv(station_file):
     bounds_true = [33.746, 36.795, -118.312, -114.892]
     snwe = bounds_from_csv(station_file)
     assert all([np.allclose(b, t) for b, t in zip(snwe, bounds_true)])
+
+
+def test_readZ_sf(station_file):
+    aoi = StationFile(station_file)
+    assert np.allclose(aoi.readZ(), .1)
+
