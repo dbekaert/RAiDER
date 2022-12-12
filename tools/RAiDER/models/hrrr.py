@@ -68,7 +68,7 @@ class HRRR(WeatherModel):
         earth_radius = 6371229
         p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
                  f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
-                 '+b={earth_radius} +units=m +no_defs')
+                 f'+b={earth_radius} +units=m +no_defs')
         self._proj = p1
 
 
@@ -257,7 +257,7 @@ class HRRR(WeatherModel):
 
         ds_new.to_netcdf(out, engine='netcdf4')
 
-    
+
     def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''
         Download a HRRR model
