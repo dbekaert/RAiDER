@@ -359,7 +359,7 @@ def calcDelaysARIA(iargs=None):
         )
 
     p.add_argument(
-        '-m', '--model', default='GMAO', type=str,
+        '-m', '--model', default='ERA5', type=str,
         help='Weather model (default=HRRR)'
         )
 

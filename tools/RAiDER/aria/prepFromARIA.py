@@ -17,7 +17,7 @@ from RAiDER.logger import logger
 
 """ Should be refactored into a class that takes filename as input """
 ## ---------------------------------------------------- Prepare Input from GUNW
-def makeLatLonGrid(f:str):
+def makeLatLonGrid(f:str, out_dir:str):
 # def makeLatLonGrid(f:str, reg, out_dir):
     ds0  = xr.open_dataset(f, group='science/grids/data')
 
@@ -28,8 +28,8 @@ def makeLatLonGrid(f:str):
     # dst_lat = op.join(out_dir, f'lat_{reg}.geo')
     # dst_lon = op.join(out_dir, f'lon_{reg}.geo')
 
-    dst_lat = f'lat.geo'
-    dst_lon = f'lon.geo'
+    dst_lat = os.path.join(out_dir, 'lat.geo')
+    dst_lon = os.path.join(out_dir, 'lon.geo')
     da_lat.to_netcdf(dst_lat)
     da_lon.to_netcdf(dst_lon)
     logger.debug('Wrote: %s', dst_lat)
@@ -84,15 +84,22 @@ def makeLOSFile(f:str, filename:str):
 
 
 ## make not get correct S1A vs S1B
-def getOrbitFile(f:str, orbit_dir='./orbits'):
+def getOrbitFile(f:str, out_dir):
     from eof.download import download_eofs
+    orbit_dir = os.path.join(out_dir, 'orbits')
     os.makedirs(orbit_dir, exist_ok=True)
     # import s1reader
     group ='science/radarMetaData/inputSLC'
     sats  = []
     for key in 'reference secondary'.split():
-        ds  = xr.open_dataset(f, group=f'{group}/{key}')
-        slc = ds['L1InputGranules'].item()
+        ds   = xr.open_dataset(f, group=f'{group}/{key}')
+        slcs = ds['L1InputGranules']
+        ## sometimes there are more than one, but the second is blank
+        ## sometimes there are more than one, but the second is same except version
+        ## error out if its not blank;
+        # assert np.count_nonzero(slcs.data) == 1, 'Cannot handle more than 1 SLC/GUNW'
+        # slc = list(filter(None, slcs))[0].item()
+        slc = slcs.data[0] # temporary hack; not going to use this anyway
         sats.append(slc.split('_')[0])
         # orbit_path = s1reader.get_orbit_file_from_dir(slc, orbit_dir, auto_download=True)
 
@@ -167,30 +174,39 @@ def main(args):
         # version  = xr.open_dataset(f).attrs['version'] # not used yet
         # SNWE     = get_bbox_GUNW(f)
 
+        work_dir = args.output_directory
         # wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
-        dates    = parse_dates_GUNW(f)
+        dates0   = parse_dates_GUNW(f)
         time     = parse_time_GUNW(f)
         heights  = getHeights(f)
         lookdir  = parse_look_dir(f)
 
         # makeLOSFile(f, args.los_file)
-        f_lats, f_lons = makeLatLonGrid(f)
-        # orbits     = getOrbitFile(f)
+        f_lats, f_lons = makeLatLonGrid(f, work_dir)
+        orbits     = getOrbitFile(f, work_dir)
+        # bbox_la = '37.129123314154995 37.9307480710763 -118.44814585278701 -115.494195892019'
+
+        # temp
+        dates = dates0[1]
+        orbits = orbits[0]
 
         cfg  = {
                'look_dir':  lookdir,
                'weather_model': args.model,
                'aoi_group' : {'lat_file': f_lats, 'lon_file': f_lons},
-                'aoi_group': {'bounding_box': '37.129123314154995 37.9307480710763 -118.44814585278701 -115.494195892019'},
                'date_group': {'date_list': str(dates)},
+               'height_group': {'dem': args.dem},
                'time_group': {'time': time},
-               'los_group' : {'ray_trace': False},
-                              # 'los_convention': args.los_convention,
-                              # 'los_cube': args.los_file},
-                              # 'orbit_file': orbits},
-               'height_group': {'height_levels': str(heights)},
-               'runtime_group': {'raster_format': 'nc'}
+               'los_group' : {'ray_trace': True,
+                              'orbit_file': orbits,
+                              'los_convention': 'isce',
+                              },
+               'runtime_group': {'raster_format': 'nc',
+                                 'output_directory': work_dir,
+                                 # 'los_convention': args.los_convention,
+                                 }
         }
-        path_cfg = f'GUNW_{dates[0]}-{dates[1]}.yaml'
+
+        path_cfg = f'GUNW_{dates0[0]}-{dates0[1]}.yaml'
         update_yaml(cfg, path_cfg)
         return path_cfg
