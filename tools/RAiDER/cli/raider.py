@@ -213,11 +213,11 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
-    
+
     template.update(params['aoi_group'])
     template = AttributeDict(template)
     template['aoi'] = get_query_region(template)
-    
+
     return template
 
 
@@ -243,7 +243,7 @@ def main(iargs=None):
 
     # Argument checking
     params = checkArgs(params)
-    
+
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
