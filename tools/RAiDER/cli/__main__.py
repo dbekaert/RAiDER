@@ -100,6 +100,7 @@ def calcDelays(iargs=None):
     from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
     from RAiDER.processWM import prepareWeatherModel
+    from RAiDER.utilFcns import writeDelays
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
         '\n\t raider.py -g'
@@ -109,7 +110,6 @@ def calcDelays(iargs=None):
             'Command line interface for RAiDER processing with a configure file.'
             'Default options can be found by running: raider.py --generate_config',
         epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
-
 
     p.add_argument(
         'customTemplateFile', nargs='?',
@@ -356,16 +356,27 @@ def calcDelaysARIA(iargs=None):
     p.add_argument(
         'files', type=str,
         help='ARIA GUNW netcdf files (accepts single file and wildcard matching)\n'
-    )
+        )
 
     p.add_argument(
         '-m', '--model', default='GMAO', type=str,
-        help='Weather model (default=HRRR)')
+        help='Weather model (default=HRRR)'
+        )
 
+    p.add_argument(
+        '-d', '--dem', default='', type=str,
+        help='Custom DEM. Default: Copernicus GLO30 (downloaded on fly)'
+        )
+
+    p.add_argument(
+        '-o', '--output_directory', default=os.getcwd(), type=str,
+        help='Directory to store results. Default: ./'
+        )
 
     p.add_argument(
         '-w', '--write', default=True,
-        help=('Optionally write the delays into the GUNW products'))
+        help='Optionally write the delays into the GUNW products'
+        )
 
     ## always doing ray
     # p.add_argument(
