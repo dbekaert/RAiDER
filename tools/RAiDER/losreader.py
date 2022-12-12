@@ -24,13 +24,13 @@ from RAiDER.constants import _ZREF
 
 class LOS(ABC):
     '''LOS Class definition for handling look vectors'''
-
     def __init__(self):
         self._lats, self._lons, self._heights = None, None, None
         self._look_vecs = None
         self._ray_trace = False
         self._is_zenith = False
         self._is_projected = False
+
 
     def setPoints(self, lats, lons=None, heights=None):
         '''Set the pixel locations'''
@@ -52,14 +52,18 @@ class LOS(ABC):
             self._lons = lons
             self._heights = heights
 
+
     def setTime(self, dt):
         self._time = dt
+
 
     def is_Zenith(self):
         return self._is_zenith
 
+
     def is_Projected(self):
         return self._is_projected
+
 
     def ray_trace(self):
         return self._ray_trace
@@ -68,8 +72,9 @@ class LOS(ABC):
 class Zenith(LOS):
     """Special value indicating a look vector of "zenith"."""
     def __init__(self):
-        LOS.__init__(self)
+        super().__init__()
         self._is_zenith = True
+
 
     def setLookVectors(self):
         '''Set point locations and calculate Zenith look vectors'''
@@ -77,6 +82,7 @@ class Zenith(LOS):
             raise ValueError('Target points not set')
         if self._look_vecs is None:
             self._look_vecs = getZenithLookVecs(self._lats, self._lons, self._heights)
+
 
     def __call__(self, delays):
         '''Placeholder method for consistency with the other classes'''
@@ -88,7 +94,6 @@ class Conventional(LOS):
     Special value indicating that the zenith delay will
     be projected using the standard cos(inc) scaling.
     """
-
     def __init__(self, filename=None, los_convention='isce', time=None, pad=600):
         super().__init__()
         self._file = filename
@@ -98,6 +103,7 @@ class Conventional(LOS):
         self._convention   = los_convention
         if self._convention.lower() != 'isce':
             raise NotImplementedError()
+
 
     def __call__(self, delays):
         '''Read the LOS file and convert it to look vectors'''
@@ -166,7 +172,7 @@ class Raytracing(LOS):
 
     def __init__(self, filename=None, los_convention='isce', time=None, pad=600):
         '''read in and parse a statevector file'''
-        LOS.__init__(self)
+        super().__init__()
         self._ray_trace = True
         self._file = filename
         self._time = time
@@ -174,6 +180,7 @@ class Raytracing(LOS):
         self._convention = los_convention
         if self._convention.lower() != 'isce':
             raise NotImplementedError()
+
 
     def getLookVectors(self, time, pad=3 * 60):
         '''

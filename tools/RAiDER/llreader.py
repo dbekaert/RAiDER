@@ -60,7 +60,7 @@ class AOI(object):
 class StationFile(AOI):
     '''Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns'''
     def __init__(self, station_file):
-        AOI.__init__(self)
+        super().__init__()
         self._filename = station_file
         self._bounding_box = bounds_from_csv(station_file)
         self._type = 'station_file'
@@ -87,13 +87,13 @@ class StationFile(AOI):
 
 class RasterRDR(AOI):
     def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce'):
-        AOI.__init__(self)
+        super().__init__()
         self._type = 'radar_rasters'
         self._latfile = lat_file
         self._lonfile = lon_file
         if (self._latfile is None) and (self._lonfile is None):
             raise ValueError('You need to specify a 2-band file or two single-band files')
-        
+
         try:
             self._proj, self._bounding_box, _ = bounds_from_latlon_rasters(lat_file, lon_file)
         except rasterio.errors.RasterioIOError:
@@ -140,7 +140,7 @@ class BoundingBox(AOI):
 class GeocodedFile(AOI):
     '''Parse a Geocoded file for coordinates'''
     def __init__(self, filename, is_dem=False):
-        AOI.__init__(self)
+        super().__init__()
         self._filename     = filename
         self.p             = rio_profile(filename)
         self._bounding_box = rio_extents(self.p)
@@ -173,7 +173,7 @@ class GeocodedFile(AOI):
 class Geocube(AOI):
     '''Parse a georeferenced data cube'''
     def __init__(self):
-        AOI.__init__(self)
+        super().__init__()
         self._type = 'geocube'
         raise NotImplementedError
 
