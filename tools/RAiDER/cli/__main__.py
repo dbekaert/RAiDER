@@ -350,13 +350,13 @@ def downloadGNSS():
     return
 
 
-## ------------------------------------------------------------ prepFromGUNW.py
-def calcDelaysGUNW(iargs=None):
-    from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-    from RAiDER.aria.calcGUNW    import main as GUNW_calc
+## ------------------------------------------------------------ prepFromARIA.py
+def calcDelaysARIA(iargs=None):
+    from RAiDER.aria.prepFromARIA import main as ARIA_prep
+    from RAiDER.aria.calcARIA    import main as ARIA_calc
 
     p = argparse.ArgumentParser(
-        description='Calculate a cube of interferometic delays for GUNW files')
+        description='Prepare files from ARIA-tools output to use with RAiDER')
 
     p.add_argument(
         'file', type=str,
@@ -368,6 +368,10 @@ def calcDelaysGUNW(iargs=None):
         help='Weather model (default=HRRR)'
         )
 
+    p.add_argument(
+        '-d', '--dem', default='', type=str,
+        help='Custom DEM. Default: Copernicus GLO30 (downloaded on fly)'
+        )
 
     p.add_argument(
         '-o', '--output_directory', default=os.getcwd(), type=str,
@@ -379,21 +383,52 @@ def calcDelaysGUNW(iargs=None):
         help='Optionally write the delays into the GUNW products'
         )
 
+    ## always doing ray
+    # p.add_argument(
+    #     '-s', '--slant',  choices=('projection', 'ray'),
+    #     type=str, default='projection',
+    #     help='Delay calculation projecting the zenith to slant or along rays ')
+
+    # p.add_argument(
+    #     '-o', '--orbit_directory', default='./orbits', type=str,
+    #     help='Path where orbits will be downloaded')
+
+    # p.add_argument(
+    #     '--los_convention', '-lc', choices=('isce', 'hyp3'), default='isce',
+    #             type=str, help='LOS convention')
+
+    # p.add_argument(
+    #     '--los_file', default='los.geo', type=str,
+    #     help='Output line-of-sight filename')
+
+    # Line of sight
+    # p.add_argument(
+    #     '--incFile', type=str,
+    #     help='GDAL-readable raster image file of inclination (optional)')
+    #
+    # p.add_argument(
+    #     '--azFile', type=str,
+    #     help='GDAL-readable raster image file of azimuth (optional)')
+
+    # p.add_argument(
+    #     '--format', '-t', default='.tif', type=str, dest='fmt',
+    #     help='Output file format (default=tif)')
 
     args       = p.parse_args(args=iargs)
     args.argv  = iargs if iargs else os.sys.argv[1:]
-    # args.files = glob.glob(args.files) # eventually support multiple files
+    # args.files = glob.glob(args.files)
+    args.file  = args.file
 
-    ## below are placeholders and not yet implemented
-    ## prep the config needed for delay calcs
-    # path_cfg, wavelength   = GUNW_prep(args)
+    ## prep the files needed for delay calcs
+    path_cfg   = ARIA_prep(args)
+    ## do the delay calcs
+    # call(['raider.py', path_cfg])
 
-    ## write the delays to disk using config and return dictionary of:
-        # date: wet/hydro filename
-    # dct_delays = calcDelays([path_cfg])
+    tropoDelayFile = calcDelays([path_cfg])
+
 
     ## calculate the interferometric phase and write it out
-    # GUNW_calc(tropoDelayFile, args.file, wavelength, args.output_directory, args.write)
+    # ARIA_calc(tropoDelayFile, args.write)
 
     return
 
@@ -402,9 +437,9 @@ def main():
     parser = argparse.ArgumentParser(prefix_chars='+',
                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
-        '++process', choices=['calcDelays', 'downloadGNSS', 'calcDelaysGUNW'],
+        '++process', choices=['calcDelays', 'downloadGNSS', 'calcDelaysARIA'],
                      default='calcDelays',
-                     help='Select the entrypoint to use'
+                     help='Select the HyP3 entrypoint to use'
     )
     args, unknowns = parser.parse_known_args()
     os.sys.argv = [args.process, *unknowns]
