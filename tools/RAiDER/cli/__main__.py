@@ -364,19 +364,19 @@ def calcDelaysGUNW(iargs=None):
         )
 
     p.add_argument(
-        '-m', '--model', default='ERA5', type=str,
-        help='Weather model (default=HRRR)'
+        '-m', '--model', default='HRRR', type=str,
+        help='Weather model (Default=HRRR).'
         )
 
 
     p.add_argument(
         '-o', '--output_directory', default=os.getcwd(), type=str,
-        help='Directory to store results. Default: ./'
+        help='Directory to store results (Default=./).'
         )
 
     p.add_argument(
         '-w', '--write', default=True,
-        help='Optionally write the delays into the GUNW products'
+        help='Optionally write the delays into the given GUNW product (Default=True).'
         )
 
 
