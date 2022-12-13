@@ -390,7 +390,7 @@ def calcDelaysGUNW(iargs=None):
 
     ## below are placeholders and not yet implemented
     ## prep the config needed for delay calcs
-    # path_cfg, wavelength   = GUNW_prep(args)
+    path_cfg, wavelength   = GUNW_prep(args)
 
     ## write the delays to disk using config and return dictionary of:
         # date: wet/hydro filename
