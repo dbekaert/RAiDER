@@ -170,43 +170,46 @@ def main(args):
     RAiDER-compatible format
     '''
 
-    for f in args.files:
-        # version  = xr.open_dataset(f).attrs['version'] # not used yet
-        # SNWE     = get_bbox_GUNW(f)
+    f = args.file
+    # version  = xr.open_dataset(f).attrs['version'] # not used yet
+    # SNWE     = get_bbox_GUNW(f)
 
-        work_dir = args.output_directory
-        # wavelen  = xr.open_dataset(f, group='science/radarMetaData')['wavelength'].item()
-        dates0   = parse_dates_GUNW(f)
-        time     = parse_time_GUNW(f)
-        heights  = getHeights(f)
-        lookdir  = parse_look_dir(f)
+    work_dir = args.output_directory
+    with xr.open_dataset(f, group='science/radarMetaData') as ds:
+        wavelength = ds['wavelength'].item()
+    dates    = parse_dates_GUNW(f)
+    time     = parse_time_GUNW(f)
+    heights  = getHeights(f)
+    print (heights)
+    lookdir  = parse_look_dir(f)
 
-        # makeLOSFile(f, args.los_file)
-        f_lats, f_lons = makeLatLonGrid(f, work_dir)
-        orbits     = getOrbitFile(f, work_dir)
-        # bbox_la = '37.129123314154995 37.9307480710763 -118.44814585278701 -115.494195892019'
+    # makeLOSFile(f, args.los_file)
+    f_lats, f_lons = makeLatLonGrid(f, work_dir)
+    orbits     = getOrbitFile(f, work_dir)
+    # bbox_la = '37.129123314154995 37.9307480710763 -118.44814585278701 -115.494195892019'
 
-        # temp
-        dates = dates0[1]
-        orbits = orbits[0]
+    # dates = dates0[1]
+    # orbits = orbits[0]
 
-        cfg  = {
-               'look_dir':  lookdir,
-               'weather_model': args.model,
-               'aoi_group' : {'lat_file': f_lats, 'lon_file': f_lons},
-               'date_group': {'date_list': str(dates)},
-               'height_group': {'dem': args.dem},
-               'time_group': {'time': time},
-               'los_group' : {'ray_trace': True,
-                              'orbit_file': orbits,
-                              'los_convention': 'isce',
-                              },
-               'runtime_group': {'raster_format': 'nc',
-                                 'output_directory': work_dir,
-                                 # 'los_convention': args.los_convention,
-                                 }
-        }
+    cfg  = {
+           'look_dir':  lookdir,
+           'weather_model': args.model,
+           'aoi_group' : {'lat_file': f_lats, 'lon_file': f_lons},
+           'date_group': {'date_list': str(dates)},
+           'height_group': {'dem': args.dem,
+                            'height_levels': heights},
+           'time_group': {'time': time},
+           'los_group' : {'ray_trace': True,
+                          'orbit_file': orbits,
+                          'los_convention': 'isce',
+                          'wavelength': wavelength,
+                          },
+           'runtime_group': {'raster_format': 'nc',
+                             'output_directory': work_dir,
+                             # 'los_convention': args.los_convention,
+                             }
+    }
 
-        path_cfg = f'GUNW_{dates0[0]}-{dates0[1]}.yaml'
-        update_yaml(cfg, path_cfg)
-        return path_cfg
+    path_cfg = f'GUNW_{dates[0]}-{dates[1]}.yaml'
+    update_yaml(cfg, path_cfg)
+    return path_cfg, wavelength
