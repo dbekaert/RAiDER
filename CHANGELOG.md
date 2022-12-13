@@ -10,6 +10,7 @@ RAiDER package was refactored to use a __main__ file to allow calls to different
 The default is `calcDelays` which maintains the original functionality of calling `raider.py`.
 `raider.py ++process downloadGNSS ...` can now perform the functionality of `raiderDownloadGNSS.py ...`
 `raider.py ++calcDelaysARIA GUNW` is enabled but not fully functional
+Fix bugs to ensure working RAiDER_tutorial notebook
 
 ## [0.3.0]
 RAiDER package was refactored to expose the main functionality as a Python library, including the `prepareWeatherModel` 

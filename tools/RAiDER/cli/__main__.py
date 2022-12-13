@@ -246,14 +246,16 @@ def calcDelays(iargs=None):
             elif out_filename.endswith(".h5"):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
 
-            logger.info('Wrote delays to: %s', out_filename)
-
         else:
             if aoi.type() == 'station_file':
                 out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
 
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
                 writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
+
+            logger.info('Wrote hydro delays to: %s', f)
+
+        logger.info('Wrote wet delays to: %s', out_filename)
 
         # delay_dct[t] = wet_delay, hydro_delay
         delay_dct[t] = out_filename, f
