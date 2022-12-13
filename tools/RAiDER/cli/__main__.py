@@ -138,6 +138,7 @@ def calcDelays(iargs=None):
         dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(template_file, dst)
         logger.info('Wrote %s', dst)
+        os.sys.exit()
 
 
     # check: existence of input template files
@@ -158,6 +159,8 @@ def calcDelays(iargs=None):
             raise FileNotFoundError(args.customTemplateFile)
 
         args.customTemplateFile = os.path.abspath(args.customTemplateFile)
+    else:
+        args.customTemplateFile = template_file
 
     # Read the template file
     params = read_template_file(args.customTemplateFile)
