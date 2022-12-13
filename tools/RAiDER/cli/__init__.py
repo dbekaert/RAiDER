@@ -32,6 +32,7 @@ DEFAULT_DICT = dict(
         orbit_file=None,
         verbose=True,
         raster_format='GTiff',
+        download_only=False,
         output_directory=os.getcwd(),
         weather_model_directory=os.path.join(
             os.getcwd(),

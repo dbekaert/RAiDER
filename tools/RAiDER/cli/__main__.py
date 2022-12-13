@@ -166,9 +166,8 @@ def calcDelays(iargs=None):
     params = read_template_file(args.customTemplateFile)
 
     # Argument checking
-    params = checkArgs(params)
-
-    params['download_only'] = args.download_only # backward compatability?
+    params  = checkArgs(params)
+    dl_only = True if params['download_only'] or args.download_only else False
 
     if not params.verbose:
         logger.setLevel(logging.INFO)
@@ -200,6 +199,7 @@ def calcDelays(iargs=None):
                 ll_bounds=ll_bounds, # SNWE
                 wmLoc=params['weather_model_directory'],
                 zref=params['zref'],
+                download_only=dl_only,
                 makePlots=params['verbose'],
             )
         except RuntimeError:

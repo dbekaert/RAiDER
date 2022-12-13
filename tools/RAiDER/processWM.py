@@ -67,6 +67,7 @@ def prepareWeatherModel(
         logger.warning(
             'download_only flag selected. No further processing will happen.'
         )
+        os.sys.exit()
         return None
 
     # Otherwise, load the weather model data
