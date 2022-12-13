@@ -359,8 +359,8 @@ def calcDelaysARIA(iargs=None):
         description='Prepare files from ARIA-tools output to use with RAiDER')
 
     p.add_argument(
-        'files', type=str,
-        help='ARIA GUNW netcdf files (accepts single file and wildcard matching)\n'
+        'file', type=str,
+        help='1 ARIA GUNW netcdf file'
         )
 
     p.add_argument(
@@ -416,7 +416,8 @@ def calcDelaysARIA(iargs=None):
 
     args       = p.parse_args(args=iargs)
     args.argv  = iargs if iargs else os.sys.argv[1:]
-    args.files = glob.glob(args.files)
+    # args.files = glob.glob(args.files)
+    args.file  = args.file
 
     ## prep the files needed for delay calcs
     path_cfg   = ARIA_prep(args)
