@@ -47,6 +47,7 @@ dependencies:
  - pytest-timeout
  - pytest-console-scripts
  - setuptools_scm >=6.2
+ - sentineleof
 
  # For RAiDER-docs
  - jupyterlab
