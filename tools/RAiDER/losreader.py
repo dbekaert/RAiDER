@@ -6,6 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+import os
 import datetime
 import shelve
 
@@ -309,9 +310,13 @@ def get_sv(los_file, ref_time, pad=3 * 60):
     """
     try:
         svs = read_txt_file(los_file)
-    except ValueError:
+    except (ValueError, TypeError):
         try:
+            if isinstance(los_file, list):
+                los_file = pick_ESA_orbit_file(los_file, ref_time)
+
             svs = read_ESA_Orbit_file(los_file)
+
         except BaseException:
             try:
                 svs = read_shelve(los_file)
@@ -474,6 +479,22 @@ def read_ESA_Orbit_file(filename):
         vz[i] = float(st[9].text)
     t = np.array(t)
     return [t, x, y, z, vx, vy, vz]
+
+
+def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
+    """ From list of .EOF orbit files, pick the one that contains 'ref_time' """
+    orb_file = None
+    for path in list_files:
+        f  = os.path.basename(path)
+        t0 = datetime.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
+        t1 = datetime.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
+        if t0 < ref_time < t1:
+            orb_file = path
+            break
+
+    assert orb_file, 'Given orbit files did not match given date/time'
+
+    return path
 
 
 ############################
