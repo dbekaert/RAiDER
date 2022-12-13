@@ -180,16 +180,12 @@ def main(args):
     dates    = parse_dates_GUNW(f)
     time     = parse_time_GUNW(f)
     heights  = getHeights(f)
-    print (heights)
     lookdir  = parse_look_dir(f)
 
     # makeLOSFile(f, args.los_file)
     f_lats, f_lons = makeLatLonGrid(f, work_dir)
     orbits     = getOrbitFile(f, work_dir)
-    # bbox_la = '37.129123314154995 37.9307480710763 -118.44814585278701 -115.494195892019'
 
-    # dates = dates0[1]
-    # orbits = orbits[0]
 
     cfg  = {
            'look_dir':  lookdir,

@@ -359,8 +359,8 @@ def calcDelaysARIA(iargs=None):
         description='Prepare files from ARIA-tools output to use with RAiDER')
 
     p.add_argument(
-        'files', type=str,
-        help='ARIA GUNW netcdf files (accepts single file and wildcard matching)\n'
+        'file', type=str,
+        help='1 ARIA GUNW netcdf file'
         )
 
     p.add_argument(
@@ -416,10 +416,10 @@ def calcDelaysARIA(iargs=None):
 
     args       = p.parse_args(args=iargs)
     args.argv  = iargs if iargs else os.sys.argv[1:]
-    args.files = glob.glob(args.files)
+    # args.files = glob.glob(args.files)
 
     ## prep the files needed for delay calcs
-    path_cfg   = ARIA_prep(args)
+    path_cfg, wavelength   = ARIA_prep(args)
     ## do the delay calcs
     # call(['raider.py', path_cfg])
 
@@ -427,7 +427,7 @@ def calcDelaysARIA(iargs=None):
 
 
     ## calculate the interferometric phase and write it out
-    # ARIA_calc(tropoDelayFile, args.write)
+    ARIA_calc(tropoDelayFile, args.file, wavelength, args.output_directory, args.write)
 
     return
 
