@@ -8,6 +8,13 @@ import numpy as np
 from RAiDER.utilFcns import rio_open
 from RAiDER.logger import logger
 
+# capture method (proj slant zenith) in metadata
+# capture model
+# capture description of variable
+# capture units # radians
+# short name, long name
+# projection
+
 
 def main(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag):
     """ Calculate interferometric phase delay
@@ -30,12 +37,12 @@ def main(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag):
         arr_hydro = rio_open(lst_paths[1])
         wet_delays.append(arr_wet)
         hyd_delays.append(arr_hydro)
-        tot_delays.append(arr_wet + arr_hydro)
+        # tot_delays.append(arr_wet + arr_hydro)
 
     scale    = wavelength / (4 * np.pi)
     wetDelay = (wet_delays[0] - wet_delays[1]) * scale
     hydDelay = (hyd_delays[0] - hyd_delays[1]) * scale
-    totDelay = (tot_delays[0] - tot_delays[1]) * scale
+    # totDelay = (tot_delays[0] - tot_delays[1]) * scale
 
     ## write to disk
     with xr.open_dataset(path_gunw, group='science/grids/data') as ds:

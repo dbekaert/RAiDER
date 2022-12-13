@@ -355,6 +355,7 @@ def downloadGNSS():
 
 
 ## ------------------------------------------------------------ prepFromGUNW.py
+# make clear which group is getting overwritten
 def calcDelaysGUNW(iargs=None):
     from RAiDER.aria.prepFromGUNW import main as GUNW_prep
     from RAiDER.aria.calcGUNW    import main as GUNW_calc
@@ -394,10 +395,10 @@ def calcDelaysGUNW(iargs=None):
 
     ## write the delays to disk using config and return dictionary of:
         # date: wet/hydro filename
-    # dct_delays = calcDelays([path_cfg])
+    dct_delays = calcDelays([path_cfg])
 
     ## calculate the interferometric phase and write it out
-    # GUNW_calc(tropoDelayFile, args.file, wavelength, args.output_directory, args.write)
+    GUNW_calc(dct_delays, args.file, wavelength, args.output_directory, args.write)
 
     return
 
