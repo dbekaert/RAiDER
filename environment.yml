@@ -54,6 +54,7 @@ dependencies:
  - mkdocs-macros-plugin
  - mkdocs-material
  - mkdocs-material-extensions
+ - sentinel-eof
  # For RAiDER-docs
  - jupyterlab
  - jupyter_contrib_nbextensions
