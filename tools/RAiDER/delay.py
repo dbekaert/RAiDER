@@ -74,7 +74,11 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
         pnt_proj = CRS.from_epsg(4326)
         lats, lons = aoi.readLL()
         hgts = aoi.readZ()
-        pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj).transpose(1,2,0)
+        pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
+        if pnts.ndim == 3:
+            pnts = pnts.transpose(1,2,0)
+        elif pnts.ndim == 2:
+            pnts = pnts.T
         ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro'
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
@@ -104,7 +108,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
        wm_proj = CRS.from_epsg(4326)
     else:
         wm_proj = CRS.from_wkt(wm_proj.to_wkt())
-    
+
     # Determine the output grid extent here
     wesn = ll_bounds[2:] + ll_bounds[:2]
     out_snwe = transform_bbox(
@@ -119,7 +123,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
         cube_spacing_m = np.nanmean([np.nanmean(np.diff(xpts)), np.nanmean(np.diff(ypts))])
         if wm_proj.axis_info[0].unit_name == "degree":
             cube_spacing_m = cube_spacing_m * 1.0e5  # Scale by 100km
-    
+
     if crs.axis_info[0].unit_name == "degree":
         out_spacing = cube_spacing_m / 1.0e5  # Scale by 100km
     else:

@@ -250,7 +250,7 @@ def calcDelays(iargs=None):
 
         else:
             if aoi.type() == 'station_file':
-                w = f'{os.path.splitext(out_filename)[0]}.csv'
+                out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
 
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
                 writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
