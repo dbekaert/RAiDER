@@ -206,6 +206,10 @@ def calcDelays(iargs=None):
             logger.exception("Date %s failed", t)
             continue
 
+        # dont process the delays for download only
+        if dl_only:
+            continue
+
         # Now process the delays
         try:
             wet_delay, hydro_delay = tropo_delay(
