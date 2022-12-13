@@ -70,7 +70,7 @@ def get_heights(args, out, station_file, bounding_box=None):
             'height_levels': None,
         }
 
-    if 'dem' in args.keys():
+    if args.get('dem'):
         if (station_file is not None):
             if 'Hgt_m' not in pd.read_csv(station_file):
                 out['dem'] = os.path.join(dem_path, 'GLO30.dem')
@@ -96,11 +96,15 @@ def get_heights(args, out, station_file, bounding_box=None):
         else:
             pass # will download the dem later
 
-    elif 'height_file_rdr' in args.keys():
+    elif args.get('height_file_rdr'):
         out['height_file_rdr'] = args.height_file_rdr
 
-    elif 'height_levels' in args.keys():
-        l = re.findall('[0-9]+', args.height_levels)
+    elif args.get('height_levels'):
+        if not isinstance(args.height_levels, list):
+            l = re.findall('[0-9]+', args.height_levels)
+        else:
+            l = args.height_levels
+
         out['height_levels'] = [float(ll) for ll in l]
 
     else:
