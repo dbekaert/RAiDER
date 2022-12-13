@@ -15,8 +15,8 @@ import shapely.wkt
 import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
+from eof.download import download_eofs
 
-""" Should be refactored into a class that takes filename as input """
 
 class PrepGUNW(object):
     def __init__(self, f:str, out_dir:str):
@@ -28,6 +28,7 @@ class PrepGUNW(object):
         self.ref_time  = self.get_time()
         self.look_dir  = self.get_look_dir()
         self.wavelength = self.get_wavelength()
+        self.OrbitFiles = self.get_orbit_files()
         self.lat_file, self.lon_file = self.makeLatLonGrid()
 
 
@@ -103,33 +104,39 @@ class PrepGUNW(object):
             version = ds.attrs['version']
         return version
 
+    def get_orbit_files(self):
+        orbit_dir = os.path.join(self.out_dir, 'orbits')
+        os.makedirs(orbit_dir, exist_ok=True)
+
+        group = 'science/radarMetaData/inputSLC'
+        paths = []
+        for i, key in enumerate('reference secondary'.split()):
+            ds   = xr.open_dataset(self.path_gunw, group=f'{group}/{key}')
+            slcs = ds['L1InputGranules']
+            nslcs = slcs.count().item()
+            # single slc
+            if nslcs == 1:
+                slc = slcs.item()
+                assert slc, f'Missing {key} SLC  metadata in GUNW: {self.f}'
+            else:
+                found = False
+                for j in range(nslcs):
+                    slc = slcs.data[j]
+                    if slc:
+                        found = True
+                        break
+                assert found, f'Missing {key} SLC metadata in GUNW: {self.f}'
+
+            sat     = slc.split('_')[0]
+            aq_date = self.dates[i]
+            dt = datetime.strptime(f'{aq_date}T{self.ref_time}', '%Y%m%dT%H:%M:%S')
+            ## prefer to do each individually to make sure order stays same
+            path_orb = download_eofs([dt], [sat], save_dir=orbit_dir)
+            paths.append(path_orb[0])
+
+        return paths
 
 
-## make not get correct S1A vs S1B
-def getOrbitFile(f:str, out_dir):
-    from eof.download import download_eofs
-    orbit_dir = os.path.join(out_dir, 'orbits')
-    os.makedirs(orbit_dir, exist_ok=True)
-    # import s1reader
-    group ='science/radarMetaData/inputSLC'
-    sats  = []
-    for key in 'reference secondary'.split():
-        ds   = xr.open_dataset(f, group=f'{group}/{key}')
-        slcs = ds['L1InputGranules']
-        ## sometimes there are more than one, but the second is blank
-        ## sometimes there are more than one, but the second is same except version
-        ## error out if its not blank;
-        # assert np.count_nonzero(slcs.data) == 1, 'Cannot handle more than 1 SLC/GUNW'
-        # slc = list(filter(None, slcs))[0].item()
-        slc = slcs.data[0] # temporary hack; not going to use this anyway
-        sats.append(slc.split('_')[0])
-        # orbit_path = s1reader.get_orbit_file_from_dir(slc, orbit_dir, auto_download=True)
-
-    dates = get_dates_GUNW(f)
-    time  = parse_time_GUNW(f)
-    dts   = [datetime.strptime(f'{dt}T{time}', '%Y%m%dT%H:%M:%S') for dt in dates]
-    paths = download_eofs(dts, sats, save_dir=orbit_dir)
-    return paths
 
 
 def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
@@ -159,10 +166,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 
 
 def main(args):
-    '''
-    A command-line utility to convert ARIA standard product outputs from ARIA-tools to
-    RAiDER-compatible format
-    '''
+    """ Read parameters needed for RAiDER from ARIA Standard Products (GUNW) """
 
     GUNWObj = PrepGUNW(args.file, args.output_directory)
 
@@ -175,7 +179,7 @@ def main(args):
            'height_group': {'height_levels': GUNWObj.heights},
            'time_group': {'time': GUNWObj.ref_time},
            'los_group' : {'ray_trace': True,
-                          # 'orbit_file': GUNWObj.orbit_files,
+                          'orbit_file': GUNWObj.OrbitFiles,
                           'wavelength': GUNWObj.wavelength,
                           },
 
