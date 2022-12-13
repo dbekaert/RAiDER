@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/) 
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1]
+RAiDER package was refactored to use a __main__ file to allow calls to different functionality.
+The default is `calcDelays` which maintains the original functionality of calling `raider.py`.
+`raider.py ++process downloadGNSS ...` can now perform the functionality of `raiderDownloadGNSS.py ...`
+`raider.py ++calcDelaysGUNW GUNWFILE` is enabled as a placeholder only.
+Fix bugs to ensure working RAiDER_tutorial notebook
+Upgraded ISCE3 to `>=v0.9.0` to fix a conda build issue as described in [#425](https://github.com/dbekaert/RAiDER/issues/425)
+Allow user to specify --download_only or download_only=True in the configure file
+
 ## [0.3.0]
 RAiDER package was refactored to expose the main functionality as a Python library, including the `prepareWeatherModel` 
 and `tropo_delay` functions, as well as anciliarry functions needed for defining AOIs, look vectors, etc.

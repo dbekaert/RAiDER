@@ -22,7 +22,7 @@ from RAiDER.models.model_levels import (
 class HRRR(WeatherModel):
     def __init__(self):
         # initialize a weather model
-        WeatherModel.__init__(self)
+        super().__init__()
 
         self._humidityType = 'q'
         self._model_level_type = 'pl'  # Default, pressure levels are 'pl'
@@ -66,8 +66,11 @@ class HRRR(WeatherModel):
         x0 = 0
         y0 = 0
         earth_radius = 6371229
-        p1 = CRS('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={a} +b={a} +units=m +no_defs'.format(lat1=lat1, lat2=lat2, lat0=lat0, lon0=lon0, x0=x0, y0=y0, a=earth_radius))
+        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
+                 f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
+                 f'+b={earth_radius} +units=m +no_defs')
         self._proj = p1
+
 
     def _fetch(self,  out):
         '''
@@ -139,7 +142,7 @@ class HRRR(WeatherModel):
 
         # Get profile information from gdal
         prof = rio_profile(str(filename))
-        
+
         # Now get bounds
         S, N, W, E = self._ll_bounds
 
@@ -253,6 +256,7 @@ class HRRR(WeatherModel):
             ds_new.proj.attrs[k] = v
 
         ds_new.to_netcdf(out, engine='netcdf4')
+
 
     def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''

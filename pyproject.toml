@@ -15,7 +15,8 @@ authors = [
     {name="David Bekaert", email="david.bekaert@jpl.nasa.gov"},
     {name="Jeremy Maurer", email="maurer.jeremy@gmail.com"},
     {name="Piyush Agram", email="piyush@descarteslabs.com"},
-    {name="Simran Sangha", email="simran.s.sangha@jpl.nasa.gov"}    
+   {name="Simran Sangha", email="simran.s.sangha@jpl.nasa.gov"},
+   {name="Brett Buzzanga", email="buzzanga@jpl.nasa.gov"},
 ]
 description = "Raytracing Atmospheric Delay Estimation for RADAR"
 readme = "README.md"
@@ -40,11 +41,13 @@ repository = "https://github.com/dbekaert/RAiDER"
 "Bug Tracker" = "https://github.com/dbekaert/RAiDER/issues"
 
 [project.scripts]
-"generateGACOSVRT.py" = "RAiDER.models.generateGACOSVRT:main"
-"raiderDownloadGNSS.py" = "RAiDER.gnss.downloadGNSSDelays:main"
-"raider.py" = "RAiDER.cli.raider:main"
-"prepFromAria.py" = "RAiDER.cli.prepFromAria:main"
+"raider.py"       = "RAiDER.cli.__main__:main"
+"calcDelays.py"   = "RAiDER.cli.__main__:calcDelays"
+"calcDelaysGUNW.py"     = "RAiDER.cli.__main__:calcDelaysGUNW"
+"raiderDownloadGNSS.py" = "RAiDER.cli.__main__:downloadGNSS"
+"downloadGNSS.py" = "RAiDER.cli.__main__:downloadGNSS"
 "raiderStats.py"  = "RAiDER.cli.statsPlot:main"
+"generateGACOSVRT.py"   = "RAiDER.models.generateGACOSVRT:main"
 
 [tool.setuptools]
 zip-safe = false

@@ -6,7 +6,7 @@ import pandas as pd
 
 from test import GEOM_DIR, TEST_DIR
 
-from RAiDER.cli.raider import create_parser
+from RAiDER.cli.__main__ import calcDelays
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
@@ -20,7 +20,7 @@ SCENARIO1_DIR = os.path.join(TEST_DIR, "scenario_1", "geom")
 
 @pytest.fixture
 def parser():
-    return create_parser()
+    return calcDelays()
 
 
 @pytest.fixture

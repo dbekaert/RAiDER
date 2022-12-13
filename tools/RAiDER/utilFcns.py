@@ -262,10 +262,12 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     if gt is not None:
         trans = rasterio.Affine.from_gdal(*gt)
 
+    ## cant write netcdfs with rasterio in a simple way
+    driver = fmt if not fmt == 'nc' else 'GTiff'
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,
-                       driver=fmt, transform=trans) as dst:
+                       driver=driver, transform=trans) as dst:
         dst.write(array, 1)
     logger.info('Wrote: %s', filename)
     return
