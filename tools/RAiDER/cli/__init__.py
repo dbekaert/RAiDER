@@ -19,6 +19,7 @@ DEFAULT_DICT = dict(
         station_file=None,
         bounding_box=None,
         geocoded_file=None,
+        geo_cube=None,
         dem=None,
         use_dem_latlon=False,
         height_levels=None,

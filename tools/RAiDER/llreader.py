@@ -10,6 +10,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import xarray
 import rasterio
 
 from pyproj import CRS
@@ -171,15 +172,32 @@ class GeocodedFile(AOI):
 
 
 class Geocube(AOI):
-    '''Parse a georeferenced data cube'''
-    def __init__(self):
+    """ Pull lat/lon/height from a georeferenced data cube """
+    def __init__(self, path_cube):
         super().__init__()
-        self._type = 'geocube'
-        raise NotImplementedError
+        self.path  = path_cube
+        self._type = 'Geocube'
+        self._bounding_box = self.get_extent()
+
+    def get_extent(self):
+        with xarray.open_dataset(self.path) as ds:
+            S, N = ds.latitude.min().item(), ds.latitude.max().item()
+            W, E = ds.longitude.min().item(), ds.longitude.max().item()
+        return [S, N, W, E]
 
 
+    ## untested
     def readLL(self):
-        return None, None
+        with xarray.open_dataset(self.path) as ds:
+            lats = ds.latitutde.data()
+            lons = ds.longitude.data()
+        Lats, Lons = np.meshgrid(lats, lons)
+        return Lats, Lons
+
+    def readZ(self):
+        with xarray.open_dataset(self.path) as ds:
+            heights = ds.heights.data
+        return heights
 
 
 def bounds_from_latlon_rasters(latfile, lonfile):

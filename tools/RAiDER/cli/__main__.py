@@ -64,10 +64,14 @@ def read_template_file(fname):
 
         if key == 'los_group':
             template['los'] = get_los(AttributeDict(value))
+
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
             template['look_dir'] = value.lower()
+
+        if key == 'cube_spacing_in_m':
+            template[key] = value
 
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
@@ -249,6 +253,7 @@ def calcDelays(iargs=None):
                 ds.to_netcdf(out_filename, mode="w")
             elif out_filename.endswith(".h5"):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
+            logger.info('Wrote delays to: %s', out_filename)
 
         else:
             if aoi.type() == 'station_file':
@@ -257,9 +262,9 @@ def calcDelays(iargs=None):
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
                 writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
 
+            logger.info('Wrote wet delays to: %s', out_filename)
             logger.info('Wrote hydro delays to: %s', f)
 
-        logger.info('Wrote wet delays to: %s', out_filename)
 
         # delay_dct[t] = wet_delay, hydro_delay
         delay_dct[t] = out_filename, f
@@ -369,10 +374,9 @@ def calcDelaysGUNW(iargs=None):
         )
 
     p.add_argument(
-        '-m', '--model', default='HRRR', type=str,
+        '-m', '--model', default='ERA5', type=str,
         help='Weather model (Default=HRRR).'
         )
-
 
     p.add_argument(
         '-o', '--output_directory', default=os.getcwd(), type=str,
