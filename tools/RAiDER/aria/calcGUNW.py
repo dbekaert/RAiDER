@@ -20,17 +20,8 @@ from RAiDER.logger import logger
         # projection
 
 
-def tropo_gunw_inf(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
-    """ Calculate interferometric phase delay
-
-    Requires:
-        dictionary of date: path to cube of delays in netcdf format
-        path to the gunw file
-        wavelength (units: m)
-        output directory (where to store the delays)
-        update_flag (to write into the GUNW or not)
-    """
-
+def compute_delays(dct_delays:dict, wavelength):
+    """ Difference the delays and convert to radians """
     sec, ref = sorted(dct_delays.keys())
 
     wet_delays = []
@@ -47,10 +38,29 @@ def tropo_gunw_inf(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, upda
     scale    = wavelength / (4 * np.pi)
     wetDelay = (wet_delays[0] - wet_delays[1]) * scale
     hydDelay = (hyd_delays[0] - hyd_delays[1]) * scale
+    return wetDelay, hydDelay
+
+
+
+
+def tropo_gunw_inf(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
+    """ Calculate interferometric phase delay
+
+    Requires:
+        dictionary of date: path to cube of delays in netcdf format
+        path to the gunw file
+        wavelength (units: m)
+        output directory (where to store the delays)
+        update_flag (to write into the GUNW or not)
+    """
+    da_wet, da_hyd = compute_delays(dct_delays, wavelength)
 
     ds_ifg  = xr.open_dataset(path).copy()
-    ds_ifg['wet']   = wetDelay
-    ds_ifg['hydro'] = hydDelay
+    ds_ifg['wet']   = da_wet
+    ds_ifg['hydro'] = da_hyd
+
+    # breakpoint()
+
     model = os.path.basename(path).split('_')[0]
     dates = f"{ref.date().strftime('%Y%m%d')}_{sec.date().strftime('%Y%m%d')}"
     dst   = os.path.join(out_dir, f'{model}_interferometric_{dates}.nc')
