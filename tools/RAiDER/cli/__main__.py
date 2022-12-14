@@ -374,7 +374,7 @@ def calcDelaysGUNW(iargs=None):
         )
 
     p.add_argument(
-        '-m', '--model', default='ERA5', type=str,
+        '-m', '--model', default='HRRR', type=str,
         help='Weather model (Default=HRRR).'
         )
 
