@@ -24,7 +24,7 @@ from eof.download import download_eofs
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.01, 'HRES': 0.05, 'GMAO': 0.1, 'ERA5': 0.1}
 
-
+## these 2 are not used ---------
 def my_ceil(a, precision=0):
     ## round down to nearest 'precision'
     return np.true_divide(np.ceil(a * 10**precision), 10**precision)
@@ -33,6 +33,7 @@ def my_ceil(a, precision=0):
 def my_floor(a, precision=0):
     ## round down to nearest 'precision'
     return np.true_divide(np.floor(a * 10**precision), 10**precision)
+## ------------------------------
 
 
 class GUNW(object):
@@ -77,19 +78,19 @@ class GUNW(object):
 
     def get_dates(self):
         """ Get the ref/sec date from the filename """
-        ref, sec = self.path_gunw.split('-')[6].split('_')
+        ref, sec = os.path.basename(self.path_gunw).split('-')[6].split('_')
 
         return int(ref), int(sec)
 
 
     def get_time(self):
         """ Get the center time of the secondary date from the filename """
-        tt = self.path_gunw.split('-')[7]
+        tt = os.path.basename(self.path_gunw).split('-')[7]
         return f'{tt[:2]}:{tt[2:4]}:{tt[4:]}'
 
 
     def get_look_dir(self):
-        look_dir = self.path_gunw.split('-')[3].lower()
+        look_dir = os.path.basename(self.path_gunw).split('-')[3].lower()
         return 'right' if look_dir == 'r' else 'left'
 
 
@@ -135,7 +136,6 @@ class GUNW(object):
 
     ## ------ below are not used
     def get_version(self):
-        # not used
         with xr.open_dataset(self.path_gunw) as ds:
             version = ds.attrs['version']
         return version
