@@ -20,13 +20,13 @@ from RAiDER.logger import logger
         # projection
 
 
-def main(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag):
+def tropo_gunw_inf(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
     """ Calculate interferometric phase delay
 
     Requires:
         dictionary of date: path to cube of delays in netcdf format
         path to the gunw file
-        wavelength
+        wavelength (units: m)
         output directory (where to store the delays)
         update_flag (to write into the GUNW or not)
     """
