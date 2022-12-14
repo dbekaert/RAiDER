@@ -246,7 +246,8 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 def main(args):
     """ Read parameters needed for RAiDER from ARIA Standard Products (GUNW) """
 
-    GUNWObj = PrepGUNW(args.file, args.model, args.output_directory)()
+    GUNWObj = GUNW(args.file, args.model, args.output_directory)
+    GUNWObj()
 
     raider_cfg  = {
            'weather_model': args.model,

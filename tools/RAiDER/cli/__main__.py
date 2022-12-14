@@ -363,7 +363,7 @@ def downloadGNSS():
 # make clear which group is getting overwritten
 def calcDelaysGUNW(iargs=None):
     from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-    from RAiDER.aria.calcGUNW    import main as GUNW_calc
+    from RAiDER.aria.calcGUNW import tropo_gunw_inf as GUNW_calc
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files')
