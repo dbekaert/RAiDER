@@ -9,9 +9,11 @@ import pandas as pd
 from test import TEST_DIR, pushd
 
 # import RAiDER.runProgram
+from RAiDER.cli import AttributeDict, DEFAULT_DICT
 from RAiDER.cli.raider import (
-    parseCMD, read_template_file, create_parser, read_template_file,
+    parseCMD, read_template_file, create_parser, read_template_file, DEFAULT_DICT,
 )
+
 from RAiDER.checkArgs import checkArgs, makeDelayFileNames
 from RAiDER.constants import _ZREF
 from RAiDER.losreader import Zenith, Conventional, Raytracing
@@ -30,27 +32,12 @@ def isWriteable(dirpath):
     except IOError:
         return False
 
-
-@pytest.fixture
-def parsed_args(tmp_path):
-    parser = create_parser()
-    args = parser.parse_args([
-        '--date', '20200103',
-        '--time', '23:00:00',
-        # '--latlon', 'latfile.dat', 'lonfile.dat',
-        '--bbox', '-1', '1', '-1', '1',
-        '--model', 'ERA5',
-        '--outformat', 'hdf5'
-    ])
-    return args, parser
-
-
-def test_checkArgs_outfmt_1(parsed_args):
+def test_checkArgs_outfmt_1():
     '''Test that passing height levels with hdf5 outformat works'''
-    args, p = parsed_args
-    args.outformat = 'hdf5'
-    args.heightlvs = [10, 100, 1000]
-    checkArgs(args, p)
+    args = 
+    args['outformat'] = 'hdf5'
+    args['heightlvs'] = [10, 100, 1000]
+    checkArgs(args)
     assert True
 
 
