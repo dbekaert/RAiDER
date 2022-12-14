@@ -35,12 +35,15 @@ def my_floor(a, precision=0):
     return np.true_divide(np.floor(a * 10**precision), 10**precision)
 
 
-class PrepGUNW(object):
+class GUNW(object):
     def __init__(self, f:str, wm:str, out_dir:str):
         self.path_gunw = f
         self.wmodel    = wm
         self.out_dir   = out_dir
         self.spacing_m = int(DCT_POSTING[self.wmodel] * 1e5)
+
+
+    def __call__(self):
         self.SNWE      = self.get_bbox()
         self.heights   = np.arange(-500, 9500, 500).tolist()
         self.dates     = self.get_dates()
@@ -214,7 +217,6 @@ class PrepGUNW(object):
         return dst_cube
 
 
-
 def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
     """ Write a new yaml file from a dictionary.
 
@@ -244,9 +246,9 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 def main(args):
     """ Read parameters needed for RAiDER from ARIA Standard Products (GUNW) """
 
-    GUNWObj = PrepGUNW(args.file, args.model, args.output_directory)
+    GUNWObj = PrepGUNW(args.file, args.model, args.output_directory)()
 
-    cfg  = {
+    raider_cfg  = {
            'weather_model': args.model,
            'look_dir':  GUNWObj.look_dir,
            'cube_spacing_in_m': GUNWObj.spacing_m,
@@ -265,5 +267,5 @@ def main(args):
     }
 
     path_cfg = f'GUNW_{GUNWObj.name}.yaml'
-    update_yaml(cfg, path_cfg)
+    update_yaml(raider_cfg, path_cfg)
     return path_cfg, GUNWObj.wavelength
