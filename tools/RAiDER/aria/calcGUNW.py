@@ -7,21 +7,19 @@ import xarray as xr
 import numpy as np
 from RAiDER.utilFcns import rio_open
 from RAiDER.logger import logger
+from datetime import datetime
+import h5py
+from netCDF4 import Dataset
 
 ## ToDo:
-    # Write back to GUNW
     # Check difference direction
-    # Capture Metadata
-        # capture method (proj slant zenith) in metadata
-        # capture model
-        # capture description of variable
-        # capture units # radians
-        # short name, long name
-        # projection
+
+TROPO_GROUP = 'science/grids/corrections/external/troposphere'
+TROPO_NAMES = ['troposphereWet', 'troposphereHydrostatic']
 
 
 def compute_delays(dct_delays:dict, wavelength):
-    """ Difference the delays and convert to radians """
+    """ Difference the delays and convert to radians. Return xr dataset. """
     sec, ref = sorted(dct_delays.keys())
 
     wet_delays = []
@@ -35,10 +33,27 @@ def compute_delays(dct_delays:dict, wavelength):
             wet_delays.append(da_wet)
             hyd_delays.append(da_hydro)
 
-    scale    = wavelength / (4 * np.pi)
+    scale    = float(wavelength) / (4 * np.pi)
     wetDelay = (wet_delays[0] - wet_delays[1]) * scale
     hydDelay = (hyd_delays[0] - hyd_delays[1]) * scale
-    return wetDelay, hydDelay
+
+    ds_ifg   = xr.open_dataset(path).copy()
+    del ds_ifg['wet'], ds_ifg['hydro']
+
+    ds_ifg[TROPO_NAMES[0]]   = wetDelay
+    ds_ifg[TROPO_NAMES[1]] = hydDelay
+
+    model = os.path.basename(path).split('_')[0]
+    ref   = f"{ref.date().strftime('%Y%m%d')}"
+    sec   = f"{sec.date().strftime('%Y%m%d')}"
+
+    attrs = {'model': model, 'title': 'RAiDER interferometic geo cube',
+             'history': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+             'method': 'ray tracing', 'units': 'radians',
+             'reference_date': ref, 'secondary_date': sec}
+
+
+    return ds_ifg.assign_attrs(attrs)
 
 
 
@@ -53,29 +68,37 @@ def tropo_gunw_inf(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, upda
         output directory (where to store the delays)
         update_flag (to write into the GUNW or not)
     """
-    da_wet, da_hyd = compute_delays(dct_delays, wavelength)
+    ds_ifg = compute_delays(dct_delays, wavelength)
+    model, ref, sec  = ds_ifg.model, ds_ifg.reference_date, ds_ifg.secondary_date
 
-    ds_ifg  = xr.open_dataset(path).copy()
-    ds_ifg['wet']   = da_wet
-    ds_ifg['hydro'] = da_hyd
-
-    # breakpoint()
-
-    model = os.path.basename(path).split('_')[0]
-    dates = f"{ref.date().strftime('%Y%m%d')}_{sec.date().strftime('%Y%m%d')}"
-    dst   = os.path.join(out_dir, f'{model}_interferometric_{dates}.nc')
-    ds.to_netcdf(dst)
+    dst   = os.path.join(out_dir, f'{model}_interferometric_{ref}_{sec}.nc')
+    ds_ifg.to_netcdf(dst)
     logger.info ('Wrote interferometric delays to: %s', dst)
 
     ## optionally update netcdf
     if update_flag:
-        # names   = 'troposphereWet troposphereHydrostatic'.split()
-        # lst_das = []
-        # for name, delays in zip(names, [wetDelay, hydDelay, totDelay]):
-        #     da = xr.DataArray(delays, name=name, dims='latitude longitude'.split(),
-        #             coords={'latitude': lats, 'longitude': lons})
-        # ds  = xr.merge(lst_ds)
-        pass
+        ## first need to delete the variable; only can seem to with h5
+        with h5py.File(path_gunw, 'a') as h5:
+            for k in TROPO_GROUP.split():
+                h5 = h5[k]
+            del h5[TROPO_NAMES[0]]
+            del h5[TROPO_NAMES[1]]
+
+        with Dataset(path_gunw, mode='a') as ds:
+            ds_grp = ds[TROPO_GROUP]
+
+            for dim in 'z y x'.split():
+                ## dimension may already exist if updating
+                try:
+                    ds_grp.createDimension(dim, len(ds_ifg.coords[dim]))
+                except:
+                    pass
+
+            for name in TROPO_NAMES:
+                ds_grp.createVariable(name, float, 'z y x'.split())
+                ds_grp[name][:] = ds_ifg[name].data
+
+        logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
 
 
 if __name__ == '__main__':
