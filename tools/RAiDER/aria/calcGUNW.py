@@ -56,8 +56,6 @@ def compute_delays(dct_delays:dict, wavelength):
     return ds_ifg.assign_attrs(attrs)
 
 
-
-
 def tropo_gunw_inf(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
     """ Calculate interferometric phase delay
 
