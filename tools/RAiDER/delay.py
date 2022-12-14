@@ -63,8 +63,12 @@ def tropo_delay(
     """
     # get heights
     if height_levels is None:
-        with xarray.load_dataset(weather_model_file) as ds:
-            height_levels = ds.z.values
+        if aoi.type() == 'Geocube':
+            height_levels = aoi.readZ()
+
+        else:
+            with xarray.load_dataset(weather_model_file) as ds:
+                height_levels = ds.z.values
 
     #TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, aoi.bounds(), height_levels,
