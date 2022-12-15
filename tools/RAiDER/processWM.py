@@ -17,13 +17,24 @@ def prepareWeatherModel(
     time=None,
     wmLoc=None,
     ll_bounds=None,
-    zref=None,
     download_only=False,
     makePlots=False,
     force_download=False,
 ):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
+
+    Args: 
+        weather_model (WeatherModel): instantiated weather model object
+        time (datetime): Python datetime to request. Will be rounded to nearest available time
+        wmLoc (str): file path to which to write weather model file(s)
+        ll_bounds (list of float): bounding box to download in [S, N, W, E] format
+        download_only (bool): False if preprocessing weather model data
+        makePlots (bool): whether to write debug plots
+        force_download (bool): True if you want to download even when the weather model exists
+    
+    Returns:
+        filename of the netcdf file to which the weather model has been written 
     '''
     # Ensure the file output location exists
     if wmLoc is None:
@@ -73,7 +84,6 @@ def prepareWeatherModel(
     f = weather_model.load(
         wmLoc,
         ll_bounds = ll_bounds,
-        zref=zref,
     )
     if f is not None:
         logger.warning(
@@ -138,17 +148,16 @@ def checkBounds(weather_model, outLats, outLons):
 
 
 def weather_model_debug(
-    los,
-    lats,
-    lons,
-    ll_bounds,
-    weather_model,
-    wmLoc,
-    zref,
-    time,
-    out,
-    download_only
-):
+        los,
+        lats,
+        lons,
+        ll_bounds,
+        weather_model,
+        wmLoc,
+        time,
+        out,
+        download_only
+    ):
     """
     raiderWeatherModelDebug main function.
     """
@@ -180,7 +189,6 @@ def weather_model_debug(
             lats=lats,
             lons=lons,
             ll_bounds=ll_bounds,
-            zref=zref,
             download_only=download_only,
             makePlots=True
         )

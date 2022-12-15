@@ -20,10 +20,10 @@ from RAiDER.makePoints import makePoints1D
 
 def calculate_start_points(x, y, z, ds):
     '''
-    Parameters
+    Args:
     ----------
     wm_file: str   - A file containing a regularized weather model.
-    Returns
+    Returns:
     -------
     SP: ndarray    - a * x 3 array containing the XYZ locations of the pixels in ECEF coordinates.
                      Note the ordering of the array is [Y X Z]

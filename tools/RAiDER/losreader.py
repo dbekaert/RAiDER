@@ -23,7 +23,9 @@ from RAiDER.constants import _ZREF
 
 
 class LOS(ABC):
-    '''LOS Class definition for handling look vectors'''
+    '''
+    LOS Class definition for handling look vectors
+    '''
     def __init__(self):
         self._lats, self._lons, self._heights = None, None, None
         self._look_vecs = None
@@ -70,7 +72,9 @@ class LOS(ABC):
 
 
 class Zenith(LOS):
-    """Special value indicating a look vector of "zenith"."""
+    """
+    Class definition for a "Zenith" object. 
+    """
     def __init__(self):
         super().__init__()
         self._is_zenith = True
@@ -106,7 +110,9 @@ class Conventional(LOS):
 
 
     def __call__(self, delays):
-        '''Read the LOS file and convert it to look vectors'''
+        '''
+        Read the LOS file and convert it to look vectors
+        '''
         if self._lats is None:
             raise ValueError('Target points not set')
         if self._file is None:
@@ -145,7 +151,7 @@ class Raytracing(LOS):
     because they are in an ECEF reference frame instead of a local ENU. This is done
     because the construction of rays is done in ECEF rather than the local ENU.
 
-    Parameters
+    Args:
     ----------
     time: python datetime                  - user-requested query time. Must be
                                              compatible with the orbit file passed.
@@ -154,14 +160,14 @@ class Raytracing(LOS):
                                              the user-specified time; default 3 hours
                                              Only required for a statevector file.
 
-    Returns
+    Returns:
     -------
-    look_vecs: ndarray  - an <in_shape> x 3 array of unit look vectors, defined in
-                          an Earth-centered, earth-fixed reference frame (ECEF).
-                          Convention is vectors point from the target pixel to the
-                          sensor.
-    lengths: ndarray    - array of <in_shape> of the distnce from the surface to
-                          the top of the troposphere (denoted by zref)
+    ndarray - an <in_shape> x 3 array of unit look vectors, defined in
+            an Earth-centered, earth-fixed reference frame (ECEF).
+            Convention is vectors point from the target pixel to the
+            sensor.
+    ndarray - array of <in_shape> of the distnce from the surface to
+            the top of the troposphere (denoted by zref)
 
     Example:
     --------
@@ -272,13 +278,11 @@ def getZenithLookVecs(lats, lons, heights):
     '''
     Returns look vectors when Zenith is used.
 
-    Parameters
-    ----------
-    lats/lons/heights: ndarray  - Numpy arrays containing WGS-84 target locations
+    Args:
+        lats/lons/heights (ndarray):  - Numpy arrays containing WGS-84 target locations
 
-    Returns
-    -------
-    zenLookVecs: ndarray         - (in_shape) x 3 unit look vectors in an ECEF reference frame
+    Returns:
+        zenLookVecs (ndarray):        - (in_shape) x 3 unit look vectors in an ECEF reference frame
     '''
     x = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
     y = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
@@ -291,20 +295,17 @@ def get_sv(los_file, ref_time, pad=3 * 60):
     """
     Read an LOS file and return orbital state vectors
 
-    Parameters
-    ----------
-    los_file: str             - user-passed file containing either look
-                                vectors or statevectors for the sensor
-    ref_time: python datetime - User-requested datetime; if not encompassed
-                                by the orbit times will raise a ValueError
-    pad: int                  - number of seconds to keep around the
-                                requested time
+    Args:
+        los_file (str):     - user-passed file containing either look
+                              vectors or statevectors for the sensor
+        ref_time (datetime):- User-requested datetime; if not encompassed
+                              by the orbit times will raise a ValueError
+        pad (int):          - number of seconds to keep around the
+                              requested time
 
-    Returns
-    -------
-    svs: 7 x 1 list of Nt x 1 ndarrays - the times, x/y/z positions and
-                                         velocities of the sensor for the given
-                                         window around the reference time
+    Returns:
+        svs (list of ndarrays): - the times, x/y/z positions and velocities 
+        of the sensor for the given window around the reference time
     """
     try:
         svs = read_txt_file(los_file)
@@ -331,15 +332,13 @@ def inc_hd_to_enu(incidence, heading):
     Convert incidence and heading to line-of-sight vectors from the ground to the top of
     the troposphere.
 
-    Parameters
-    ----------
-    incidence: ndarray	       - incidence angle in deg from vertical
-    heading: ndarray 	       - heading angle in deg clockwise from north
-    lats/lons/heights: ndarray - WGS84 ellipsoidal target (ground pixel) locations
+    Args:
+        incidence: ndarray	       - incidence angle in deg from vertical
+        heading: ndarray 	       - heading angle in deg clockwise from north
+        lats/lons/heights: ndarray - WGS84 ellipsoidal target (ground pixel) locations
 
-    Returns
-    -------
-    LOS: ndarray  - (input_shape) x 3 array of unit look vectors in local ENU
+    Returns:
+        LOS: ndarray  - (input_shape) x 3 array of unit look vectors in local ENU
 
     Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
     '''
@@ -389,16 +388,15 @@ def read_txt_file(filename):
     should be denoted as integer time in seconds since the reference
     epoch (user-requested time).
 
-    Parameters
-    ----------
-    filename: str  - user-supplied space-delimited text file with no header
-                     containing orbital statevectors as 7 columns:
-                     - time in seconds since the user-supplied epoch
-                     - x / y / z locations in ECEF cartesian coordinates
-                     - vx / vy / vz velocities in m/s in ECEF coordinates
-    Returns
-    svs: list      - a length-7 list of numpy vectors containing the above
-                     variables
+    Args:
+        filename (str): - user-supplied space-delimited text file with no header
+                        containing orbital statevectors as 7 columns:
+                        - time in seconds since the user-supplied epoch
+                        - x / y / z locations in ECEF cartesian coordinates
+                        - vx / vy / vz velocities in m/s in ECEF coordinates
+    Returns:
+        svs (list):     - a length-7 list of numpy vectors containing the above
+                        variables
     '''
     t = list()
     x = list()
@@ -436,11 +434,11 @@ def read_ESA_Orbit_file(filename):
     '''
     Read orbit data from an orbit file supplied by ESA
 
-    Parameters
+    Args:
     ----------
     filename: str             - string of the orbit filename
 
-    Returns
+    Returns:
     -------
     t: Nt x 1 ndarray   - a numpy vector with Nt elements containing time
                           in python datetime
@@ -484,12 +482,12 @@ def state_to_los(svs, llh_targets, out="lookangle"):
     Converts information from a state vector for a satellite orbit, given in terms of
     position and velocity, to line-of-sight information at each (lon,lat, height)
     coordinate requested by the user.
-    Parameters
+    Args:
     ----------
     svs            - t, x, y, z, vx, vy, vz - time, position, and velocity in ECEF of the sensor
     llh_targets    - lats, lons, heights - Ellipsoidal (WGS84) positions of target ground pixels
 
-    Returns
+    Returns:
     -------
     LOS 			- * x 3 matrix of LOS unit vectors in ECEF (*not* ENU)
     Example:
@@ -546,12 +544,12 @@ def cut_times(times, ref_time, pad=3600 * 3):
     Slice the orbit file around the reference aquisition time. This is done
     by default using a three-hour window, which for Sentinel-1 empirically
     works out to be roughly the largest window allowed by the orbit time.
-    Parameters
+    Args:
     ----------
     times: Nt x 1 ndarray     - Vector of orbit times as datetime
     ref_time: datetime        - Reference time
     pad: int                  - integer time in seconds to use as padding
-    Returns
+    Returns:
     -------
     idx: Nt x 1 logical ndarray - a mask of times within the padded request time.
     """
@@ -565,13 +563,13 @@ def get_radar_pos(llh, orb, out="lookangle"):
     '''
     Calculate the coordinate of the sensor in ECEF at the time corresponding to ***.
 
-    Parameters
+    Args:
     ----------
     orb: isce3.core.Orbit   - Nt x 7 matrix of statevectors: [t x y z vx vy vz]
     llh: ndarray   - position of the target in LLH
     out: str    - either lookangle or ecef for vector
 
-    Returns
+    Returns:
     -------
     if out == "lookangle"
         los: ndarray  - Satellite incidence angle
