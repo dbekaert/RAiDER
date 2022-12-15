@@ -241,7 +241,7 @@ def calcDelays(iargs=None):
             out_filename = w
 
         if hydro_delay is None:
-            # means that a dataset was returned
+            # means that a dataset cube was returned
             ds = wet_delay
             ext = os.path.splitext(out_filename)[1]
             if ext not in ['.nc', '.h5']:
@@ -260,7 +260,8 @@ def calcDelays(iargs=None):
                 out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
 
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
-                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
+                fmt = params['raster_format'] if not params['raster_format'] == 'nc' else 'GTiff'
+                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=fmt)
 
             logger.info('Wrote wet delays to: %s', out_filename)
             logger.info('Wrote hydro delays to: %s', f)

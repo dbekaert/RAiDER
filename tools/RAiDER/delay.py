@@ -16,7 +16,6 @@ import xarray
 from netCDF4 import Dataset
 from pyproj import CRS, Transformer
 from pyproj.exceptions import CRSError
-from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 import isce3.ext.isce3 as isce
 
