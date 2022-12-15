@@ -5,34 +5,52 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    """RAiDER tropospheric delay calculation 
+
+    This module provides the main RAiDER functionality for calculating 
+    tropospheric wet and hydrostatic delays from a weather model. Weather 
+    models are accessed as NETCDF files and should have "wet" "hydro" 
+    "wet_total" and "hydro_total" fields specified. 
+
+    Returns:
+        xarray Dataset: If delays are requested for a cube
+        *or*
+        length-2 tuple of ndarray: if delays are requested at query points (e.g. lat/lon files)
+    """
 import os
 
 import datetime
 import h5py
-import numpy as np
 import pyproj
 import xarray
 
-from netCDF4 import Dataset
 from pyproj import CRS, Transformer
-from pyproj.exceptions import CRSError
-from scipy.interpolate import RegularGridInterpolator as Interpolator
+from typing import List
 
 import isce3.ext.isce3 as isce
+import numpy as np
 
-from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators
 )
 from RAiDER.logger import logger, logging
-from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
+from RAiDER.losreader import get_sv, getTopOfAtmosphere
 from RAiDER.utilFcns import (
     lla2ecef, transform_bbox, clip_bbox, rio_profile,
 )
 
 
 ###############################################################################
-def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4326, look_dir='right', cube_spacing_m=None):
+def tropo_delay(
+        dt, 
+        weather_model_file: str, 
+        aoi, 
+        los, 
+        height_levels: List[float]=None, 
+        out_proj: int | str=4326, 
+        look_dir: str='right', 
+        cube_spacing_m: int=None
+    ):
     """
     Calculate integrated delays on query points.
 

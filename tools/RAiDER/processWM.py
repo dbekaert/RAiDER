@@ -6,21 +6,25 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
+
+from typing import List
+
 from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
-import matplotlib.pyplot as plt
 
 
 def prepareWeatherModel(
-    weather_model,
-    time=None,
-    wmLoc=None,
-    ll_bounds=None,
-    download_only=False,
-    makePlots=False,
-    force_download=False,
-):
+        weather_model,
+        time=None,
+        wmLoc: str=None,
+        ll_bounds: List[float]=None,
+        download_only: bool=False,
+        makePlots: bool=False,
+        force_download: bool=False,
+    ):
     '''
     Parse inputs to download and prepare a weather model grid for interpolation
 
