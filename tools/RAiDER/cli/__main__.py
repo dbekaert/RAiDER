@@ -2,6 +2,8 @@ import argparse
 import os
 from importlib.metadata import entry_points
 
+from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
+
 def main():
     parser = argparse.ArgumentParser(
         prefix_chars='+',

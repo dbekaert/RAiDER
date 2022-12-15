@@ -196,7 +196,6 @@ def calcDelays(iargs=None):
                 model, t,
                 ll_bounds=ll_bounds, # SNWE
                 wmLoc=params['weather_model_directory'],
-                zref=params['zref'],
                 download_only=dl_only,
                 makePlots=params['verbose'],
             )

@@ -84,7 +84,6 @@ def prepareWeatherModel(
     f = weather_model.load(
         wmLoc,
         ll_bounds = ll_bounds,
-        zref=zref,
     )
     if f is not None:
         logger.warning(
@@ -149,17 +148,16 @@ def checkBounds(weather_model, outLats, outLons):
 
 
 def weather_model_debug(
-    los,
-    lats,
-    lons,
-    ll_bounds,
-    weather_model,
-    wmLoc,
-    zref,
-    time,
-    out,
-    download_only
-):
+        los,
+        lats,
+        lons,
+        ll_bounds,
+        weather_model,
+        wmLoc,
+        time,
+        out,
+        download_only
+    ):
     """
     raiderWeatherModelDebug main function.
     """
@@ -191,7 +189,6 @@ def weather_model_debug(
             lats=lats,
             lons=lons,
             ll_bounds=ll_bounds,
-            zref=zref,
             download_only=download_only,
             makePlots=True
         )
