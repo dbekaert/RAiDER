@@ -5,12 +5,12 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-"""RAiDER tropospheric delay calculation 
+"""RAiDER tropospheric delay calculation
 
-This module provides the main RAiDER functionality for calculating 
-tropospheric wet and hydrostatic delays from a weather model. Weather 
-models are accessed as NETCDF files and should have "wet" "hydro" 
-"wet_total" and "hydro_total" fields specified. 
+This module provides the main RAiDER functionality for calculating
+tropospheric wet and hydrostatic delays from a weather model. Weather
+models are accessed as NETCDF files and should have "wet" "hydro"
+"wet_total" and "hydro_total" fields specified.
 """
 import os
 
@@ -36,14 +36,14 @@ from RAiDER.utilFcns import (
 
 ###############################################################################
 def tropo_delay(
-        dt, 
-        weather_model_file: str, 
-        aoi, 
-        los, 
-        height_levels: List[float]=None, 
-        out_proj: Union[int, str] =4326, 
+        dt,
+        weather_model_file: str,
+        aoi,
+        los,
+        height_levels: List[float]=None,
+        out_proj: Union[int, str] =4326,
         cube_spacing_m: int=None,
-        look_dir: str='right', 
+        look_dir: str='right',
     ):
     """
     Calculate integrated delays on query points.
