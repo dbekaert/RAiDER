@@ -33,7 +33,7 @@ def test_GUNW():
     # proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     # assert np.isclose(proc.returncode, 0)
 
-    cmd  = f'raider.py ++process calcDelaysGUNW {GUNW}'
+    cmd  = f'raider.py ++process calcDelaysGUNW {GUNW} -m ERA5'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert np.isclose(proc.returncode, 0)
 
