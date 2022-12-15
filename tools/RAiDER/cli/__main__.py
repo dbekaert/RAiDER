@@ -260,12 +260,7 @@ def calcDelays(iargs=None):
                 out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
 
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
-                fmt = params['raster_format'] if not params['raster_format'] == 'nc' else 'GTiff'
-                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=fmt)
-
-            logger.info('Wrote wet delays to: %s', out_filename)
-            logger.info('Wrote hydro delays to: %s', f)
-
+                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
 
         # delay_dct[t] = wet_delay, hydro_delay
         delay_dct[t] = out_filename, f
