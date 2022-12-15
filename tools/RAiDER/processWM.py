@@ -25,21 +25,21 @@ def prepareWeatherModel(
         makePlots: bool=False,
         force_download: bool=False,
     ):
-    '''
+    """
     Parse inputs to download and prepare a weather model grid for interpolation
 
-    Args: 
-        weather_model (WeatherModel): instantiated weather model object
-        time (datetime): Python datetime to request. Will be rounded to nearest available time
-        wmLoc (str): file path to which to write weather model file(s)
-        ll_bounds (list of float): bounding box to download in [S, N, W, E] format
-        download_only (bool): False if preprocessing weather model data
-        makePlots (bool): whether to write debug plots
-        force_download (bool): True if you want to download even when the weather model exists
+    Args:
+        weather_model: WeatherModel   - instantiated weather model object
+        time: datetime                - Python datetime to request. Will be rounded to nearest available time
+        wmLoc: str                    - file path to which to write weather model file(s)
+        ll_bounds: list of float      - bounding box to download in [S, N, W, E] format
+        download_only: bool           - False if preprocessing weather model data
+        makePlots: bool               - whether to write debug plots
+        force_download: bool          - True if you want to download even when the weather model exists
     
     Returns:
-        filename of the netcdf file to which the weather model has been written 
-    '''
+        str: filename of the netcdf file to which the weather model has been written 
+    """
     # Ensure the file output location exists
     if wmLoc is None:
         wmLoc = os.path.join(os.getcwd(), 'weather_files')

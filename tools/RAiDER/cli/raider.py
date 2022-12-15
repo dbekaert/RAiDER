@@ -12,8 +12,6 @@ from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.validators import (
     enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
 )
-from RAiDER.checkArgs import checkArgs
-from RAiDER.delay import main as main_delay
 
 
 HELP_MESSAGE = """

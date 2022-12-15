@@ -5,18 +5,18 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    """RAiDER tropospheric delay calculation 
+"""RAiDER tropospheric delay calculation 
 
-    This module provides the main RAiDER functionality for calculating 
-    tropospheric wet and hydrostatic delays from a weather model. Weather 
-    models are accessed as NETCDF files and should have "wet" "hydro" 
-    "wet_total" and "hydro_total" fields specified. 
+This module provides the main RAiDER functionality for calculating 
+tropospheric wet and hydrostatic delays from a weather model. Weather 
+models are accessed as NETCDF files and should have "wet" "hydro" 
+"wet_total" and "hydro_total" fields specified. 
 
-    Returns:
-        xarray Dataset: If delays are requested for a cube
-        *or*
-        length-2 tuple of ndarray: if delays are requested at query points (e.g. lat/lon files)
-    """
+Returns:
+    xarray Dataset: If delays are requested for a cube
+    *or*
+    length-2 tuple of ndarray: if delays are requested at query points (e.g. lat/lon files)
+"""
 import os
 
 import datetime
@@ -65,7 +65,7 @@ def tropo_delay(
         cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
 
     Returns:
-        xarray Dataset *or* ndarrays: wet and hydrostatic delays at the grid nodes / query points.
+        xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
     """
     # get heights
     if height_levels is None:
