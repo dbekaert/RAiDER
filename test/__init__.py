@@ -1,10 +1,3 @@
-# RAiDER/__init__.py
-
-"""Raytracing Atmospheric Delay Estimation for RADAR
-
-Code to calculate tropospheric delays for use with SAR/InSAR.
-ZTD, STD - projection and STD - raytracing are all supported. 
-"""
 import os
 
 from contextlib import contextmanager
