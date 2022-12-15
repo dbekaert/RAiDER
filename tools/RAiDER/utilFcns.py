@@ -263,7 +263,10 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         trans = rasterio.Affine.from_gdal(*gt)
 
     ## cant write netcdfs with rasterio in a simple way
-    driver = fmt if not fmt == 'nc' else 'GTiff'
+    if fmt == 'nc':
+        driver   = 'GTiff'
+        filename = filename.replace('.nc', '.GTiff')
+
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,
@@ -457,6 +460,7 @@ def writeDelays(aoi, wetDelay, hydroDelay,
         df['hydroDelay'] = hydroDelay
         df['totalDelay'] = wetDelay + hydroDelay
         df.to_csv(wetFilename, index=False)
+        logger.info('Wrote delays to: %s', wetFilename)
 
     else:
         writeArrayToRaster(
