@@ -36,21 +36,18 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
     """
     Calculate integrated delays on query points.
 
-    Parameterss
-    ----------
-    dt: Datetime                - Datetime object for determining when to calculate delays
-    weather_model_File: string  - Name of the NETCDF file containing a pre-processed weather model
-    aoi: AOI object             - AOI object
-    los: LOS object             - LOS object
-    height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
-    out_proj: int,str           - (optional) EPSG code for output projection
-    look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
-    cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
+    Args:
+        dt: Datetime                - Datetime object for determining when to calculate delays
+        weather_model_File: string  - Name of the NETCDF file containing a pre-processed weather model
+        aoi: AOI object             - AOI object
+        los: LOS object             - LOS object
+        height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
+        out_proj: int,str           - (optional) EPSG code for output projection
+        look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
+        cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
 
-    Returns
-    -------
-    xarray Dataset or wet and hydrostatic delays at the query points. The dataset will contain fields
-    'wet' and 'hydro' which are the total (integrated) wet and hydrostatic delays
+    Returns:
+        xarray Dataset *or* ndarrays: wet and hydrostatic delays at the grid nodes / query points.
     """
     # get heights
     if height_levels is None:
@@ -266,7 +263,7 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
     Transform lat/lon/hgt data to an array of points in a new
     projection
 
-    Parameters
+    Args:
     ----------
     lats - WGS-84 latitude (EPSG: 4326)
     lons - ditto for longitude
@@ -274,7 +271,7 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
     old_proj - the original projection of the points
     new_proj - the new projection in which to return the points
 
-    Returns
+    Returns:
     -------
     the array of query points in the weather model coordinate system (YX)
     '''
