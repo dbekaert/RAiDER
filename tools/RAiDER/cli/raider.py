@@ -265,7 +265,6 @@ def calcDelays(iargs=None):
 
     # Argument checking
     params  = checkArgs(params)
-    dl_only = True if params['download_only'] or args.download_only else False
 
     if not params.verbose:
         logger.setLevel(logging.INFO)
@@ -296,15 +295,10 @@ def calcDelays(iargs=None):
                 model, t,
                 ll_bounds=ll_bounds, # SNWE
                 wmLoc=params['weather_model_directory'],
-                download_only=dl_only,
                 makePlots=params['verbose'],
             )
         except RuntimeError:
             logger.exception("Date %s failed", t)
-            continue
-
-        # dont process the delays for download only
-        if dl_only:
             continue
 
         # Now process the delays
