@@ -264,13 +264,13 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
 
     ## cant write netcdfs with rasterio in a simple way
     if fmt == 'nc':
-        driver   = 'GTiff'
+        fmt = 'GTiff'
         filename = filename.replace('.nc', '.GTiff')
 
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,
-                       driver=driver, transform=trans) as dst:
+                       driver=fmt, transform=trans) as dst:
         dst.write(array, 1)
     logger.info('Wrote: %s', filename)
     return
