@@ -46,7 +46,7 @@ class GUNW(object):
 
     def __call__(self):
         self.SNWE      = self.get_bbox()
-        self.heights   = np.arange(-500, 9500, 500).tolist()
+        self.heights   = np.arange(-500, 9500, 5000).tolist()
         self.dates     = self.get_dates()
         self.ref_time  = self.get_time()
         self.look_dir  = self.get_look_dir()

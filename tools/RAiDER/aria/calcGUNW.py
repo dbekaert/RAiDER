@@ -46,7 +46,7 @@ def compute_delays(cube_filenames:list, wavelength):
     ds_ifg   = xr.open_dataset(path).copy()
     del ds_ifg['wet'], ds_ifg['hydro']
 
-    ds_ifg[TROPO_NAMES[0]]   = wetDelay
+    ds_ifg[TROPO_NAMES[0]] = wetDelay
     ds_ifg[TROPO_NAMES[1]] = hydDelay
 
     model = os.path.basename(path).split('_')[0]
@@ -58,8 +58,12 @@ def compute_delays(cube_filenames:list, wavelength):
              'method': 'ray tracing', 'units': 'radians',
              'reference_date': ref, 'secondary_date': sec}
 
+    names = {TROPO_NAMES[0]: 'tropoWet', TROPO_NAMES[1]: 'tropoHyd'}
+    for k, v in names.items():
+        ds_ifg[k] = ds_ifg[k].assign_attrs(attrs)
+        ds_ifg[k] = ds_ifg[k].assign_attrs(long_name=k, short_name=v)
 
-    return ds_ifg.assign_attrs(attrs)
+    return ds_ifg
 
 
 def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
@@ -73,7 +77,8 @@ def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, 
         update_flag (to write into the GUNW or not)
     """
     ds_ifg = compute_delays(cube_filenames, wavelength)
-    model, ref, sec  = ds_ifg.model, ds_ifg.reference_date, ds_ifg.secondary_date
+    da     = ds_ifg[TROPO_NAMES[0]] # for metadata
+    model, ref, sec  = da.model, da.reference_date, da.secondary_date
 
     dst   = os.path.join(out_dir, f'{model}_interferometric_{ref}_{sec}.nc')
     ds_ifg.to_netcdf(dst)
@@ -99,8 +104,10 @@ def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, 
                     pass
 
             for name in TROPO_NAMES:
-                ds_grp.createVariable(name, float, 'z y x'.split())
-                ds_grp[name][:] = ds_ifg[name].data
+                v  = ds_grp.createVariable(name, float, 'z y x'.split())
+                da = ds_ifg[name]
+                v[:] = da.data
+                v.setncatts(da.attrs)
 
         logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
 
