@@ -18,14 +18,20 @@ TROPO_GROUP = 'science/grids/corrections/external/troposphere'
 TROPO_NAMES = ['troposphereWet', 'troposphereHydrostatic']
 
 
-def compute_delays(dct_delays:dict, wavelength):
+def compute_delays(cube_filenames:list, wavelength):
     """ Difference the delays and convert to radians. Return xr dataset. """
+    # parse date from filename
+    dct_delays = {}
+    for f in cube_filenames:
+        date = datetime.strptime(os.path.basename(f).split('_')[2], '%Y%m%dT%H%M%S')
+        dct_delays[date] = f
+
     sec, ref = sorted(dct_delays.keys())
 
     wet_delays = []
     hyd_delays = []
     for dt in [ref, sec]:
-        path = dct_delays[dt][0] # both the same for cube (tropo)
+        path = dct_delays[dt]
         with xr.open_dataset(path) as ds:
             da_wet   = ds['wet']
             da_hydro = ds['hydro']
@@ -56,17 +62,17 @@ def compute_delays(dct_delays:dict, wavelength):
     return ds_ifg.assign_attrs(attrs)
 
 
-def tropo_gunw_inf(dct_delays:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
+def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
     """ Calculate interferometric phase delay
 
     Requires:
-        dictionary of date: path to cube of delays in netcdf format
+        list with filename of delay cube for ref and sec date (netcdf)
         path to the gunw file
         wavelength (units: m)
         output directory (where to store the delays)
         update_flag (to write into the GUNW or not)
     """
-    ds_ifg = compute_delays(dct_delays, wavelength)
+    ds_ifg = compute_delays(cube_filenames, wavelength)
     model, ref, sec  = ds_ifg.model, ds_ifg.reference_date, ds_ifg.secondary_date
 
     dst   = os.path.join(out_dir, f'{model}_interferometric_{ref}_{sec}.nc')

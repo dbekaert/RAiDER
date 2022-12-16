@@ -176,7 +176,7 @@ def calcDelays(iargs=None):
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
-    delay_dct = {}
+    wet_filenames = []
     for t, w, f in zip(
         params['date_list'],
         params['wetFilenames'],
@@ -262,10 +262,9 @@ def calcDelays(iargs=None):
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
                 writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
 
-        # delay_dct[t] = wet_delay, hydro_delay
-        delay_dct[t] = out_filename, f
+        wet_filenames.append(out_filename)
 
-    return delay_dct
+    return wet_filenames
 
 
 ## ------------------------------------------------------ downloadGNSSDelays.py
@@ -393,12 +392,12 @@ def calcDelaysGUNW(iargs=None):
     ## prep the config needed for delay calcs
     path_cfg, wavelength   = GUNW_prep(args)
 
-    ## write the delays to disk using config and return dictionary of:
+    ## write the delays to disk using config and return the cube filename for each date
         # date: wet/hydro filename
-    dct_delays = calcDelays([path_cfg])
+    cube_filenames = calcDelays([path_cfg])
 
     ## calculate the interferometric phase and write it out
-    GUNW_calc(dct_delays, args.file, wavelength, args.output_directory, args.write)
+    GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.write)
 
     return
 
