@@ -53,10 +53,10 @@ def compute_delays(cube_filenames:list, wavelength):
     ref   = f"{ref.date().strftime('%Y%m%d')}"
     sec   = f"{sec.date().strftime('%Y%m%d')}"
 
-    attrs = {'model': model, 'title': 'RAiDER interferometic geo cube',
+    attrs = {'model': model,
              'history': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
              'method': 'ray tracing', 'units': 'radians',
-             'reference_date': ref, 'secondary_date': sec}
+             }
 
     names = {TROPO_NAMES[0]: 'tropoWet', TROPO_NAMES[1]: 'tropoHyd'}
     for k, v in names.items():
@@ -78,13 +78,15 @@ def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, 
     """
     ds_ifg = compute_delays(cube_filenames, wavelength)
     da     = ds_ifg[TROPO_NAMES[0]] # for metadata
-    model, ref, sec  = da.model, da.reference_date, da.secondary_date
 
-    dst   = os.path.join(out_dir, f'{model}_interferometric_{ref}_{sec}.nc')
+    # write the interferometric delay to disk
+    ref, sec = os.path.basename(path_gunw).split('-')[6].split('_')
+    model    = da.model
+    dst      = os.path.join(out_dir, f'{model}_interferometric_{ref}_{sec}.nc')
     ds_ifg.to_netcdf(dst)
     logger.info ('Wrote interferometric delays to: %s', dst)
 
-    ## optionally update netcdf
+    ## optionally update netcdf with the interferometric delay
     if update_flag:
         ## first need to delete the variable; only can seem to with h5
         with h5py.File(path_gunw, 'a') as h5:
