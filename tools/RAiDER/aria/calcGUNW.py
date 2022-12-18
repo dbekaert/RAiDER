@@ -39,6 +39,9 @@ def compute_delays(cube_filenames:list, wavelength):
             wet_delays.append(da_wet)
             hyd_delays.append(da_hydro)
 
+            crs = da_wet.rio.crs
+            gt  = da_wet.rio.transform()
+
     scale    = float(wavelength) / (4 * np.pi)
     wetDelay = (wet_delays[0] - wet_delays[1]) * scale
     hydDelay = (hyd_delays[0] - hyd_delays[1]) * scale
@@ -53,17 +56,62 @@ def compute_delays(cube_filenames:list, wavelength):
     ref   = f"{ref.date().strftime('%Y%m%d')}"
     sec   = f"{sec.date().strftime('%Y%m%d')}"
 
-    attrs = {'model': model,
-             'history': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-             'method': 'ray tracing', 'units': 'radians',
+    attrs = {
+             'model': model,
+             'crs': crs.to_wkt(),
+             'method': 'ray tracing',
+             'units': 'radians',
+             'grid_mapping': 'cube_projection',
              }
 
     names = {TROPO_NAMES[0]: 'tropoWet', TROPO_NAMES[1]: 'tropoHyd'}
     for k, v in names.items():
         ds_ifg[k] = ds_ifg[k].assign_attrs(attrs)
-        ds_ifg[k] = ds_ifg[k].assign_attrs(long_name=k, short_name=v)
+        ds_ifg[k] = ds_ifg[k].assign_attrs(long_name=k, standard_name=k, short_name=v)
+
 
     return ds_ifg
+
+
+def update_gunw(path_gunw:str, ds_ifg):
+    """ Update the path_gunw file using the interferometric delays in ds_ifg """
+    ## first need to delete the variable; only can seem to with h5
+    with h5py.File(path_gunw, 'a') as h5:
+        for k in TROPO_GROUP.split():
+            h5 = h5[k]
+        del h5[TROPO_NAMES[0]]
+        del h5[TROPO_NAMES[1]]
+        if 'cube_projection' in h5.keys():
+            del h5['cube_projection']
+
+
+    with Dataset(path_gunw, mode='a') as ds:
+        ds_grp = ds[TROPO_GROUP]
+
+        for dim in 'z y x'.split():
+            ## dimension may already exist if updating
+            try:
+                ds_grp.createDimension(dim, len(ds_ifg.coords[dim]))
+            except:
+                pass
+            ## necessary for transform
+            v  = ds_grp.createVariable(dim, float, dim)
+            v[:] = ds_ifg[dim]
+            v.setncatts(ds_ifg[dim].attrs)
+
+
+        for name in TROPO_NAMES:
+            v  = ds_grp.createVariable(name, float, 'z y x'.split())
+            da = ds_ifg[name]
+            v[:] = da.data
+            v.setncatts(da.attrs)
+
+        ## add the projection
+        v_proj = ds_grp.createVariable('cube_projection', float)
+        v_proj.setncatts(ds_ifg["cube_projection"].attrs)
+
+    logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
+    return
 
 
 def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
@@ -88,30 +136,7 @@ def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, 
 
     ## optionally update netcdf with the interferometric delay
     if update_flag:
-        ## first need to delete the variable; only can seem to with h5
-        with h5py.File(path_gunw, 'a') as h5:
-            for k in TROPO_GROUP.split():
-                h5 = h5[k]
-            del h5[TROPO_NAMES[0]]
-            del h5[TROPO_NAMES[1]]
-
-        with Dataset(path_gunw, mode='a') as ds:
-            ds_grp = ds[TROPO_GROUP]
-
-            for dim in 'z y x'.split():
-                ## dimension may already exist if updating
-                try:
-                    ds_grp.createDimension(dim, len(ds_ifg.coords[dim]))
-                except:
-                    pass
-
-            for name in TROPO_NAMES:
-                v  = ds_grp.createVariable(name, float, 'z y x'.split())
-                da = ds_ifg[name]
-                v[:] = da.data
-                v.setncatts(da.attrs)
-
-        logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
+        update_gunw(path_gunw, ds_ifg)
 
 
 if __name__ == '__main__':

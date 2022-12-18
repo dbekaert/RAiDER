@@ -244,10 +244,9 @@ def calcDelays(iargs=None):
             # means that a dataset cube was returned
             ds = wet_delay
             ext = os.path.splitext(out_filename)[1]
+            out_filename = out_filename.replace('wet', 'tropo')
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
-
-            out_filename = out_filename.replace("wet", "tropo")
 
             if out_filename.endswith(".nc"):
                 ds.to_netcdf(out_filename, mode="w")
@@ -388,12 +387,11 @@ def calcDelaysGUNW(iargs=None):
     args.argv  = iargs if iargs else os.sys.argv[1:]
     # args.files = glob.glob(args.files) # eventually support multiple files
 
-    ## below are placeholders and not yet implemented
     ## prep the config needed for delay calcs
     path_cfg, wavelength   = GUNW_prep(args)
 
-    ## write the delays to disk using config and return the cube filename for each date
-        # date: wet/hydro filename
+    ## write delay cube (nc) to disk using config
+        ## return a list with the path to cube for each date
     cube_filenames = calcDelays([path_cfg])
 
     ## calculate the interferometric phase and write it out
