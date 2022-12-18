@@ -33,6 +33,7 @@ dependencies:
  - pyproj>=2.2.0
  - pyyaml
  - rasterio>=1.3.0
+ - rioxarray
  - requests
  - s3fs
  - scipy

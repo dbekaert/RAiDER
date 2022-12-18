@@ -387,12 +387,15 @@ def calcDelaysGUNW(iargs=None):
     args.argv  = iargs if iargs else os.sys.argv[1:]
     # args.files = glob.glob(args.files) # eventually support multiple files
 
+    ## below are placeholders and not yet implemented
     ## prep the config needed for delay calcs
-    path_cfg, wavelength   = GUNW_prep(args)
+    # path_cfg, wavelength   = GUNW_prep(args)
 
     ## write delay cube (nc) to disk using config
-        ## return a list with the path to cube for each date
-    cube_filenames = calcDelays([path_cfg])
+    ## return a list with the path to cube for each date
+    # cube_filenames = calcDelays([path_cfg])
+    cube_filenames = 'ERA5_tropo_20200130T135156_ray.nc ERA5_tropo_20200124T135156_ray.nc'.split()
+    wavelength = 0.055465761572122574
 
     ## calculate the interferometric phase and write it out
     GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.write)
