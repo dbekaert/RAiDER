@@ -64,11 +64,10 @@ def compute_delays(cube_filenames:list, wavelength):
              'grid_mapping': 'cube_projection',
              }
 
-    names = {TROPO_NAMES[0]: 'tropoWet', TROPO_NAMES[1]: 'tropoHyd'}
-    for k, v in names.items():
-        ds_ifg[k] = ds_ifg[k].assign_attrs(attrs)
-        ds_ifg[k] = ds_ifg[k].assign_attrs(long_name=k, standard_name=k, short_name=v)
-
+    for name in TROPO_NAMES:
+        da_attrs     = {**attrs,  'description':f'{name} delay',
+                        'long_name':name, 'standard_name':name}
+        ds_ifg[name] = ds_ifg[name].assign_attrs(da_attrs)
 
     return ds_ifg
 
@@ -92,12 +91,12 @@ def update_gunw(path_gunw:str, ds_ifg):
             ## dimension may already exist if updating
             try:
                 ds_grp.createDimension(dim, len(ds_ifg.coords[dim]))
+                ## necessary for transform
+                v  = ds_grp.createVariable(dim, float, dim)
+                v[:] = ds_ifg[dim]
+                v.setncatts(ds_ifg[dim].attrs)
             except:
                 pass
-            ## necessary for transform
-            v  = ds_grp.createVariable(dim, float, dim)
-            v[:] = ds_ifg[dim]
-            v.setncatts(ds_ifg[dim].attrs)
 
 
         for name in TROPO_NAMES:
@@ -111,6 +110,13 @@ def update_gunw(path_gunw:str, ds_ifg):
         v_proj.setncatts(ds_ifg["cube_projection"].attrs)
 
     logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
+    return
+
+
+def update_gunw_version(path_gunw):
+    """ temporary hack for updating version to test aria-tools """
+    with Dataset(path_gunw, mode='a') as ds:
+        ds.version = '1c'
     return
 
 
@@ -137,6 +143,9 @@ def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, 
     ## optionally update netcdf with the interferometric delay
     if update_flag:
         update_gunw(path_gunw, ds_ifg)
+
+        ## temp
+        update_gunw_version(path_gunw)
 
 
 if __name__ == '__main__':
