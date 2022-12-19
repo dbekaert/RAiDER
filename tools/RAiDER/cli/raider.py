@@ -305,10 +305,10 @@ def calcDelays(iargs=None):
         try:
             wet_delay, hydro_delay = tropo_delay(
                 t, weather_model_file, aoi, los,
-                params['height_levels'],
-                params['output_projection'],
-                params['look_dir'],
-                params['cube_spacing_in_m']
+                height_levels = params['height_levels'],
+                out_proj = params['output_projection'],
+                look_dir = params['look_dir'],
+                cube_spacing_m = params['cube_spacing_in_m'],
             )
         except RuntimeError:
             logger.exception("Date %s failed", t)

@@ -11,16 +11,10 @@ This module provides the main RAiDER functionality for calculating
 tropospheric wet and hydrostatic delays from a weather model. Weather 
 models are accessed as NETCDF files and should have "wet" "hydro" 
 "wet_total" and "hydro_total" fields specified. 
-
-Returns:
-    xarray Dataset: If delays are requested for a cube
-    *or*
-    length-2 tuple of ndarray: if delays are requested at query points (e.g. lat/lon files)
 """
 import os
 
 import datetime
-import h5py
 import pyproj
 import xarray
 
@@ -48,8 +42,8 @@ def tropo_delay(
         los, 
         height_levels: List[float]=None, 
         out_proj: int | str=4326, 
+        cube_spacing_m: int=None,
         look_dir: str='right', 
-        cube_spacing_m: int=None
     ):
     """
     Calculate integrated delays on query points.
@@ -73,7 +67,7 @@ def tropo_delay(
             height_levels = ds.z.values
 
     #TODO: expose this as library function
-    ds = tropo_delay_cube(dt, weather_model_file, aoi.bounds(), height_levels,
+    ds = _get_delays_on_cube(dt, weather_model_file, aoi.bounds(), height_levels,
             los, out_proj=out_proj, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
@@ -94,7 +88,7 @@ def tropo_delay(
             pnts = pnts.transpose(1,2,0)
         elif pnts.ndim == 2:
             pnts = pnts.T
-        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro'
+        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from get_delays_on_cube calls the total delays 'wet' and 'hydro'
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
@@ -108,7 +102,7 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
-def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4326, cube_spacing_m=None, look_dir='right', nproc=1):
+def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4326, cube_spacing_m=None, look_dir='right', nproc=1):
     """
     raider cube generation function.
     """
@@ -163,7 +157,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
         ifWet, ifHydro = getInterpolators(weather_model_file, "total")
 
         # Build cube
-        wetDelay, hydroDelay = build_cube(
+        wetDelay, hydroDelay = _build_cube(
             xpts, ypts, zpts,
             wm_proj, crs,
             [ifWet, ifHydro])
@@ -180,7 +174,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
 
         # Build cube
         if nproc == 1:
-            wetDelay, hydroDelay = build_cube_ray(
+            wetDelay, hydroDelay = _build_cube_ray(
                 xpts, ypts, zpts,
                 dt, los._file, look_dir,
                 wm_proj, crs,
@@ -261,37 +255,20 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
     return ds
 
 
-def checkQueryPntsFile(pnts_file, query_shape):
-    '''
-    Check whether the query points file exists, and if it
-    does, check that the shapes are all consistent
-    '''
-    write_flag = True
-    if os.path.exists(pnts_file):
-        # Check whether the number of points is consistent with the new inputs
-        with h5py.File(pnts_file, 'r') as f:
-            if query_shape == tuple(f['lon'].attrs['Shape']):
-                write_flag = False
-
-    return write_flag
-
-
-def transformPoints(lats, lons, hgts, old_proj, new_proj):
+def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
     '''
     Transform lat/lon/hgt data to an array of points in a new
     projection
 
     Args:
-    ----------
-    lats - WGS-84 latitude (EPSG: 4326)
-    lons - ditto for longitude
-    hgts - Ellipsoidal height in meters
-    old_proj - the original projection of the points
-    new_proj - the new projection in which to return the points
+        lats: ndarray   - WGS-84 latitude (EPSG: 4326)
+        lons: ndarray   - ditto for longitude
+        hgts: ndarray   - Ellipsoidal height in meters
+        old_proj: CRS   - the original projection of the points
+        new_proj: CRS   - the new projection in which to return the points
 
     Returns:
-    -------
-    the array of query points in the weather model coordinate system (YX)
+        ndarray: the array of query points in the weather model coordinate system (YX)
     '''
     t = Transformer.from_crs(old_proj, new_proj)
 
@@ -315,9 +292,9 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
         return np.stack(res, axis=-1).T
 
 
-def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
+def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     """
-    Iterate over interpolators and build a cube
+    Iterate over interpolators and build a cube using Zenith
     """
     # Create a regular 2D grid
     xx, yy = np.meshgrid(xpts, ypts)
@@ -363,12 +340,12 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     return outputArrs
 
 
-def build_cube_ray(
+def _build_cube_ray(
     xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
     pts_crs, interpolators, outputArrs=None
 ):
     """
-    Iterate over interpolators and build a cube
+    Iterate over interpolators and build a cube using raytracing
     """
 
     # Some constants for this module

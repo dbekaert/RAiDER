@@ -24,9 +24,8 @@ def prepareWeatherModel(
         download_only: bool=False,
         makePlots: bool=False,
         force_download: bool=False,
-    ):
-    """
-    Parse inputs to download and prepare a weather model grid for interpolation
+    ) -> str:
+    """Parse inputs to download and prepare a weather model grid for interpolation
 
     Args:
         weather_model: WeatherModel   - instantiated weather model object
@@ -136,22 +135,7 @@ def prepareWeatherModel(
         del weather_model
 
 
-def checkBounds(weather_model, outLats, outLons):
-    '''Check the bounds of a weather model'''
-    ds = xr.load_dataset(weather_model.files[0])  # TODO: xr is undefined
-    coords = ds.coords  # coords is dict-like
-    keys = [k for k in coords.keys()]
-    xc = coords[keys[0]]
-    yc = coords[keys[1]]
-    lat_bounds = [yc.min(), yc.max()]
-    lon_bounds = [xc.min(), xc.max()]
-    self_extent = lat_bounds + lon_bounds
-    in_extent = weather_model._getExtent(outLats, outLons)
-
-    return in_extent, self_extent
-
-
-def weather_model_debug(
+def _weather_model_debug(
         los,
         lats,
         lons,

@@ -1,3 +1,2 @@
-***`prepareWeatherModel`***
 
-::: RAiDER.processWM.prepareWeatherModel
+::: RAiDER.processWM

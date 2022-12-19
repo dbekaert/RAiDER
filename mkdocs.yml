@@ -11,7 +11,7 @@ nav:
     
 
 theme: 
-  name: readthedocs
+  name: material
 
 plugins:
   - mkdocstrings
