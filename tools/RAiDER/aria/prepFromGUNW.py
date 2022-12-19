@@ -17,12 +17,8 @@ from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 from eof.download import download_eofs
 
-## ToDo:
-    # Heights
-    # Capture metadata
-
 ## cube spacing in degrees for each model
-DCT_POSTING = {'HRRR': 0.01, 'HRES': 0.05, 'GMAO': 0.1, 'ERA5': 0.1}
+DCT_POSTING = {'HRRR': 0.02, 'HRES': 0.05, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
 
 ## these 2 are not used ---------
 def my_ceil(a, precision=0):
@@ -46,7 +42,7 @@ class GUNW(object):
 
     def __call__(self):
         self.SNWE      = self.get_bbox()
-        self.heights   = np.arange(-500, 9500, 5000).tolist()
+        self.heights   = np.arange(-500, 9500, 500).tolist()
         self.dates     = self.get_dates()
         self.ref_time  = self.get_time()
         self.look_dir  = self.get_look_dir()

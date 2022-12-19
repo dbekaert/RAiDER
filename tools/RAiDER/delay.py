@@ -201,16 +201,16 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
                  wetDelay,
                  {"units" : "m",
                   "description": f"wet {out_type} delay",
-                  'crs': crs.to_epsg(),
-                  "grid_mapping": "cube_projection",
+                  # 'crs': crs.to_epsg(),
+                  "grid_mapping": "crs",
 
                  }),
             hydro=(["z", "y", "x"],
                    hydroDelay,
                    {"units": "m",
-                    'crs': crs.to_epsg(),
+                    # 'crs': crs.to_epsg(),
                     "description": f"hydrostatic {out_type} delay",
-                    "grid_mapping": "cube_projection",
+                    "grid_mapping": "crs",
                    }),
         ),
         coords=dict(
@@ -229,9 +229,9 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
     )
 
     # Write projection system mapping
-    ds["cube_projection"] = int()
+    ds["crs"] = int(-2147483647) # dummy placeholder, match GUNW
     for k, v in crs.to_cf().items():
-        ds.cube_projection.attrs[k] = v
+        ds.crs.attrs[k] = v
 
     # Write z-axis information
     ds.z.attrs["axis"] = "Z"
