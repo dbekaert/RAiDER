@@ -5,6 +5,7 @@ Write it to disk
 import os
 import xarray as xr
 import numpy as np
+import RAiDER
 from RAiDER.utilFcns import rio_open
 from RAiDER.logger import logger
 from datetime import datetime
@@ -46,7 +47,13 @@ def compute_delays(cube_filenames:list, wavelength):
     wetDelay = (wet_delays[0] - wet_delays[1]) * scale
     hydDelay = (hyd_delays[0] - hyd_delays[1]) * scale
 
+    chunk_sizes = wetDelay.shape[0], wetDelay.shape[1]/3, wetDelay.shape[2]/3
+
     ds_ifg   = xr.open_dataset(path).copy()
+    encoding = ds_ifg['wet'].encoding # chunksizes and fill value
+    encoding['contiguous'] = False
+    encoding['_FillValue'] = 0.
+    encoding['chunksizes'] = tuple([np.floor(cs) for cs in chunk_sizes])
     del ds_ifg['wet'], ds_ifg['hydro']
 
     ds_ifg[TROPO_NAMES[0]] = wetDelay
@@ -58,16 +65,21 @@ def compute_delays(cube_filenames:list, wavelength):
 
     attrs = {
              'model': model,
-             'crs': crs.to_wkt(),
              'method': 'ray tracing',
              'units': 'radians',
-             'grid_mapping': 'cube_projection',
+             'grid_mapping': 'crs',
              }
 
+    ## no data (fill value?) chunk size?
     for name in TROPO_NAMES:
-        da_attrs     = {**attrs,  'description':f'{name} delay',
-                        'long_name':name, 'standard_name':name}
+        descrip  = f"Delay due to {name.strip('troposphere')} component of troposphere"
+        da_attrs = {**attrs,  'description':descrip,
+                    'long_name':name, 'standard_name':name,
+                    'RAiDER version': RAiDER.__version__,
+                    }
         ds_ifg[name] = ds_ifg[name].assign_attrs(da_attrs)
+        ds_ifg[name].encoding = encoding
+
 
     return ds_ifg
 
@@ -80,8 +92,8 @@ def update_gunw(path_gunw:str, ds_ifg):
             h5 = h5[k]
         del h5[TROPO_NAMES[0]]
         del h5[TROPO_NAMES[1]]
-        if 'cube_projection' in h5.keys():
-            del h5['cube_projection']
+        if 'crs' in h5.keys():
+            del h5['crs']
 
 
     with Dataset(path_gunw, mode='a') as ds:
@@ -100,14 +112,18 @@ def update_gunw(path_gunw:str, ds_ifg):
 
 
         for name in TROPO_NAMES:
-            v  = ds_grp.createVariable(name, float, 'z y x'.split())
-            da = ds_ifg[name]
+            da        = ds_ifg[name]
+            nodata    = da.encoding['_FillValue']
+            chunksize = da.encoding['chunksizes']
+
+            v    = ds_grp.createVariable(name, float, 'z y x'.split(),
+                                chunksizes=chunksize, fill_value=nodata)
             v[:] = da.data
             v.setncatts(da.attrs)
 
         ## add the projection
-        v_proj = ds_grp.createVariable('cube_projection', float)
-        v_proj.setncatts(ds_ifg["cube_projection"].attrs)
+        v_proj = ds_grp.createVariable('crs', 'i')
+        v_proj.setncatts(ds_ifg["crs"].attrs)
 
     logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
     return
