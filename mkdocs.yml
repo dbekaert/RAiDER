@@ -1,17 +1,21 @@
 site_name: RAiDER API Documentation
+site_description:
 repo_url: https://github.com/dbekaert/RAiDER
-
+repo_name: RAiDER
 
 nav:
   - Home page: index.md
   - Tutorials: tutorials.md
-  - API Reference: reference.md
   - Weather Model Access: reference_pwm.md
   - Delay Calculation: reference_td.md
-    
+  - API Reference: reference.md
+
 
 theme: 
   name: material
 
 plugins:
-  - mkdocstrings
+  - mkdocstrings:
+      handlers:
+        python:
+          inherited_members: true
