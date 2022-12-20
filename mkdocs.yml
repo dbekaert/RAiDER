@@ -8,6 +8,7 @@ nav:
   - Tutorials:
     - Overview: tutorials.md
     - RAiDER tutorial: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/RAiDER_tutorial/RAiDER_tutorial.ipynb" target="_blank
+    - RAiDER Python tutorial: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/RAiDER_tutorial/RAiDER_Python_access.ipynb" target="_blank
     - raiderStats tutorial: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderStats/raiderStats_tutorial.ipynb" target="_blank
     - Downloading GNSS tropospheric delays: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderDownloadGNSS/raiderDownloadGNSS_tutorial.ipynb"  target="_blank
     - GNSS delay manipulation with Pandas: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/Pandas_tutorial/Pandas_tutorial.ipynb"  target="_blank
