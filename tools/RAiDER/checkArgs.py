@@ -8,11 +8,14 @@
 import os
 
 import pandas as pd
+import rasterio.drivers as rd
 
 from datetime import datetime
 
+
 from RAiDER.losreader import Zenith
 from RAiDER.llreader import BoundingBox
+from RAiDER.logger import logger
 
 
 def checkArgs(args):
@@ -34,41 +37,73 @@ def checkArgs(args):
     # filenames
     wetNames, hydroNames = [], []
     for d in args.date_list:
-        if not args.aoi is not BoundingBox:
-            if args.station_file is not None:
+        if (args.aoi.type() != 'bounding_box'):
+
+            # Handle the GNSS station file
+            if (args.aoi.type()=='station_file'):
                 wetFilename = os.path.join(
                     args.output_directory,
                     '{}_Delay_{}.csv'
                     .format(
-                        args.weather_model,
-                        args.time.strftime('%Y%m%dT%H%M%S'),
+                        args.weather_model.Model(),
+                        d.strftime('%Y%m%dT%H%M%S'),
                     )
                 )
-                hydroFilename = wetFilename
+                hydroFilename = None # only the 'wetFilename' is used for the station_file
 
-                # copy the input file to the output location for editing
-                indf = pd.read_csv(args.query_area).drop_duplicates(subset=["Lat", "Lon"])
+                # copy the input station file to the output location for editing
+                indf = pd.read_csv(args.aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
                 indf.to_csv(wetFilename, index=False)
 
             else:
-                wetNames.append(None)
-                hydroNames.append(None)
+                # This implies rasters
+                fmt = get_raster_ext(args.file_format)
+                wetFilename, hydroFilename = makeDelayFileNames(
+                    d,
+                    args.los,
+                    fmt,
+                    args.weather_model._dataset.upper(),
+                    args.output_directory,
+                )
+
+
         else:
+            # In this case a cube file format is needed
+            if args.file_format not in '.nc .h5 h5 hdf5 .hdf5 nc'.split():
+                fmt = 'nc'
+                logger.debug('Invalid extension %s for cube. Defaulting to .nc', args.file_format)
+            else:
+                fmt = args.file_format.strip('.').replace('df', '')
+
             wetFilename, hydroFilename = makeDelayFileNames(
                 d,
                 args.los,
-                args.raster_format,
+                fmt,
                 args.weather_model._dataset.upper(),
                 args.output_directory,
             )
-
-            wetNames.append(wetFilename)
-            hydroNames.append(hydroFilename)
+    
+        wetNames.append(wetFilename)
+        hydroNames.append(hydroFilename)
 
     args.wetFilenames = wetNames
     args.hydroFilenames = hydroNames
 
     return args
+
+
+def get_raster_ext(fmt):
+    drivers = rd.raster_driver_extensions()
+    extensions = {value.upper():key for key, value in drivers.items()}
+
+    # add in ENVI/ISCE formats with generic extension
+    extensions['ENVI'] = '.dat'
+    extensions['ISCE'] = '.dat'
+
+    try:
+        return extensions[fmt.upper()]
+    except KeyError:
+        raise ValueError('{} is not a valid gdal/rasterio file format for rasters'.format(fmt))
 
 
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):

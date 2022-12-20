@@ -5,52 +5,61 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+"""RAiDER tropospheric delay calculation 
+
+This module provides the main RAiDER functionality for calculating 
+tropospheric wet and hydrostatic delays from a weather model. Weather 
+models are accessed as NETCDF files and should have "wet" "hydro" 
+"wet_total" and "hydro_total" fields specified. 
+"""
 import os
 
 import datetime
-import h5py
-import numpy as np
 import pyproj
 import xarray
 
-from netCDF4 import Dataset
 from pyproj import CRS, Transformer
-from pyproj.exceptions import CRSError
-from scipy.interpolate import RegularGridInterpolator as Interpolator
+from typing import List
 
 import isce3.ext.isce3 as isce
+import numpy as np
 
-from RAiDER.constants import _STEP
 from RAiDER.delayFcns import (
     getInterpolators
 )
 from RAiDER.logger import logger, logging
-from RAiDER.losreader import Zenith, Conventional, Raytracing, get_sv, getTopOfAtmosphere
+from RAiDER.losreader import get_sv, getTopOfAtmosphere
 from RAiDER.utilFcns import (
     lla2ecef, transform_bbox, clip_bbox, rio_profile,
 )
 
 
 ###############################################################################
-def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4326, look_dir='right', cube_spacing_m=None):
+def tropo_delay(
+        dt, 
+        weather_model_file: str, 
+        aoi, 
+        los, 
+        height_levels: List[float]=None, 
+        out_proj: int | str=4326, 
+        cube_spacing_m: int=None,
+        look_dir: str='right', 
+    ):
     """
     Calculate integrated delays on query points.
 
-    Parameterss
-    ----------
-    dt: Datetime                - Datetime object for determining when to calculate delays
-    weather_model_File: string  - Name of the NETCDF file containing a pre-processed weather model
-    aoi: AOI object             - AOI object
-    los: LOS object             - LOS object
-    height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
-    out_proj: int,str           - (optional) EPSG code for output projection
-    look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
-    cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
+    Args:
+        dt: Datetime                - Datetime object for determining when to calculate delays
+        weather_model_File: string  - Name of the NETCDF file containing a pre-processed weather model
+        aoi: AOI object             - AOI object
+        los: LOS object             - LOS object
+        height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
+        out_proj: int,str           - (optional) EPSG code for output projection
+        look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
+        cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
 
-    Returns
-    -------
-    xarray Dataset or wet and hydrostatic delays at the query points. The dataset will contain fields
-    'wet' and 'hydro' which are the total (integrated) wet and hydrostatic delays
+    Returns:
+        xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
     """
     # get heights
     if height_levels is None:
@@ -58,7 +67,7 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
             height_levels = ds.z.values
 
     #TODO: expose this as library function
-    ds = tropo_delay_cube(dt, weather_model_file, aoi.bounds(), height_levels,
+    ds = _get_delays_on_cube(dt, weather_model_file, aoi.bounds(), height_levels,
             los, out_proj=out_proj, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
@@ -79,7 +88,7 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
             pnts = pnts.transpose(1,2,0)
         elif pnts.ndim == 2:
             pnts = pnts.T
-        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from tropo_delay_cube calls the total delays 'wet' and 'hydro'
+        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from get_delays_on_cube calls the total delays 'wet' and 'hydro'
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
@@ -93,7 +102,7 @@ def tropo_delay(dt, weather_model_file, aoi, los, height_levels=None, out_proj=4
     return wetDelay, hydroDelay
 
 
-def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4326, cube_spacing_m=None, look_dir='right', nproc=1):
+def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4326, cube_spacing_m=None, look_dir='right', nproc=1):
     """
     raider cube generation function.
     """
@@ -148,7 +157,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
         ifWet, ifHydro = getInterpolators(weather_model_file, "total")
 
         # Build cube
-        wetDelay, hydroDelay = build_cube(
+        wetDelay, hydroDelay = _build_cube(
             xpts, ypts, zpts,
             wm_proj, crs,
             [ifWet, ifHydro])
@@ -165,7 +174,7 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
 
         # Build cube
         if nproc == 1:
-            wetDelay, hydroDelay = build_cube_ray(
+            wetDelay, hydroDelay = _build_cube_ray(
                 xpts, ypts, zpts,
                 dt, los._file, look_dir,
                 wm_proj, crs,
@@ -246,37 +255,20 @@ def tropo_delay_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4
     return ds
 
 
-def checkQueryPntsFile(pnts_file, query_shape):
-    '''
-    Check whether the query points file exists, and if it
-    does, check that the shapes are all consistent
-    '''
-    write_flag = True
-    if os.path.exists(pnts_file):
-        # Check whether the number of points is consistent with the new inputs
-        with h5py.File(pnts_file, 'r') as f:
-            if query_shape == tuple(f['lon'].attrs['Shape']):
-                write_flag = False
-
-    return write_flag
-
-
-def transformPoints(lats, lons, hgts, old_proj, new_proj):
+def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
     '''
     Transform lat/lon/hgt data to an array of points in a new
     projection
 
-    Parameters
-    ----------
-    lats - WGS-84 latitude (EPSG: 4326)
-    lons - ditto for longitude
-    hgts - Ellipsoidal height in meters
-    old_proj - the original projection of the points
-    new_proj - the new projection in which to return the points
+    Args:
+        lats: ndarray   - WGS-84 latitude (EPSG: 4326)
+        lons: ndarray   - ditto for longitude
+        hgts: ndarray   - Ellipsoidal height in meters
+        old_proj: CRS   - the original projection of the points
+        new_proj: CRS   - the new projection in which to return the points
 
-    Returns
-    -------
-    the array of query points in the weather model coordinate system (YX)
+    Returns:
+        ndarray: the array of query points in the weather model coordinate system (YX)
     '''
     t = Transformer.from_crs(old_proj, new_proj)
 
@@ -300,9 +292,9 @@ def transformPoints(lats, lons, hgts, old_proj, new_proj):
         return np.stack(res, axis=-1).T
 
 
-def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
+def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     """
-    Iterate over interpolators and build a cube
+    Iterate over interpolators and build a cube using Zenith
     """
     # Create a regular 2D grid
     xx, yy = np.meshgrid(xpts, ypts)
@@ -348,12 +340,12 @@ def build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     return outputArrs
 
 
-def build_cube_ray(
+def _build_cube_ray(
     xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
     pts_crs, interpolators, outputArrs=None
 ):
     """
-    Iterate over interpolators and build a cube
+    Iterate over interpolators and build a cube using raytracing
     """
 
     # Some constants for this module

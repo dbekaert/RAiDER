@@ -6,7 +6,7 @@ import pandas as pd
 
 from test import GEOM_DIR, TEST_DIR
 
-from RAiDER.cli.__main__ import calcDelays
+from RAiDER.cli.raider import calcDelays
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
@@ -35,10 +35,10 @@ def llfiles():
 
 def test_latlon_reader_2():
     with pytest.raises(ValueError):
-        query = RasterRDR(lat_file=None, lon_file=None)
+        RasterRDR(lat_file=None, lon_file=None)
 
     with pytest.raises(ValueError):
-        query = RasterRDR(lat_file='doesnotexist.rdr', lon_file='doesnotexist.rdr')
+        RasterRDR(lat_file='doesnotexist.rdr', lon_file='doesnotexist.rdr')
 
 
 def test_latlon_reader():

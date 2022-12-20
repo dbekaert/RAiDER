@@ -67,7 +67,7 @@ def enu2ecef(
     h0: ndarray,
 ):
     """
-    Parameters
+    Args:
     ----------
     e1 : float
         target east ENU coordinate (meters)
@@ -345,7 +345,7 @@ def _get_g_ll(lats):
 
 def _get_Re(lats):
     '''
-    Returns the ellipsoid as a fcn of latitude
+    Returns: the ellipsoid as a fcn of latitude
     '''
     # TODO: verify constants, add to base class constants?
     return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
@@ -675,7 +675,7 @@ def UTM_to_WGS84(z, l, x, y):
 def transform_bbox(wesn, dest_crs=4326, src_crs=4326, margin=100.):
     """
     Transform bbox to lat/lon or another CRS for use with rest of workflow
-    Returns SNWE
+    Returns: SNWE
     """
     # TODO - Handle dateline crossing
     if isinstance(src_crs, int):
@@ -995,7 +995,7 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
     Calculate pressure, geopotential, and geopotential height
     from the surface pressure and model levels provided by a weather model.
     The model levels are numbered from the highest eleveation to the lowest.
-    Parameters
+    Args:
     ----------
         lnsp: ndarray         - [y, x] array of log surface pressure
         t: ndarray            - [z, y, x] cube of temperatures
@@ -1004,7 +1004,7 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         a: ndarray            - [z] vector of a values
         b: ndarray            - [z] vector of b values
         num_levels: int       - integer number of model levels
-    Returns
+    Returns:
     -------
         geopotential - The geopotential in units of height times acceleration
         pressurelvs  - The pressure at each of the model levels for each of

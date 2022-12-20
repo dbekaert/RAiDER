@@ -121,7 +121,7 @@ los_group:
 ##
 runtime_group:
   verbose: True
-  raster_format: GTiff # Can be any rasterio-compatible format
+  file_format: GTiff # Can be any rasterio-compatible format
   output_directory: . # uses the runtime directory by default
   weather_model_directory: # Defaults to <output directory>/weather_files/
   output_projection:  # Specify the PROJ-compatible projection of the output delays as an EPSG code

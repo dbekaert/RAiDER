@@ -11,7 +11,7 @@ _ZMIN = np.float64(-100)   # minimum required height
 _ZREF = np.float64(15000)  # maximum requierd height
 _STEP = np.float64(15.0)     # integration step size in meters
 
-_CUBE_SPACING_IN_M = np.float(2000)  # Horizontal spacing of cube
+_CUBE_SPACING_IN_M = float(2000)  # Horizontal spacing of cube
 
 _g0 = np.float64(9.80665)
 _RE = np.float64(6371008.7714)

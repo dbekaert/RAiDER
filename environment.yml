@@ -47,7 +47,13 @@ dependencies:
  - pytest-timeout
  - pytest-console-scripts
  - setuptools_scm >=6.2
-
+ # For docs website
+ - mkdocs
+ - mkdocstrings
+ - mkdocstrings-python
+ - mkdocs-macros-plugin
+ - mkdocs-material
+ - mkdocs-material-extensions
  # For RAiDER-docs
  - jupyterlab
  - jupyter_contrib_nbextensions
