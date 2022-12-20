@@ -10,9 +10,10 @@ import RAiDER
 from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
-from RAiDER.cli.parser import add_out
+from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import (
-    enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm
+    enforce_time, enforce_bbox, parse_dates, get_query_region, get_heights, get_los, enforce_wm,
+    DateListAction, date_type,
 )
 
 
