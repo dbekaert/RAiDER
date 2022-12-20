@@ -11,7 +11,7 @@ nav:
     - raiderStats tutorial: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderStats/raiderStats_tutorial.ipynb" target="_blank
     - Downloading GNSS tropospheric delays: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderDownloadGNSS/raiderDownloadGNSS_tutorial.ipynb"  target="_blank
     - GNSS delay manipulation with Pandas: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/Pandas_tutorial/Pandas_tutorial.ipynb"  target="_blank
-  - Weather Model Access: reference_pwm.md
+  - Weather Model Access: WeatherModels.md
   - Delay Calculation: reference_td.md
   - API Reference: reference.md
 
