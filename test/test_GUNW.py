@@ -36,7 +36,7 @@ def test_GUNW():
     # proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     # assert np.isclose(proc.returncode, 0)
 
-    cmd  = f'raider.py ++process calcDelaysGUNW {updated_GUNW} -m GMAO'
+    cmd  = f'raider.py ++process calcDelaysGUNW {updated_GUNW} -m GMAO -o {SCENARIO_DIR}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert np.isclose(proc.returncode, 0)
 
@@ -44,17 +44,18 @@ def test_GUNW():
     epsg      = 4326
     transform =(0.1, 0.0, -119.35, 0, -0.1, 35.05)
     group = 'science/grids/corrections/external/troposphere'
-    with xr.open_dataset(updated_GUNW, group=group) as ds:
-        for v in 'troposphereWet troposphereHydrostatic'.split():
-            da = ds[v]
-            assert np.isclose(da.rio.crs.to_epsg(), epsg), 'CRS incorrect'
-            assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
-
     for v in 'troposphereWet troposphereHydrostatic'.split():
         with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
             assert np.isclose(ds.crs.to_epsg(), epsg), 'CRS incorrect'
             assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
 
+    with xr.open_dataset(updated_GUNW, group=group) as ds:
+        for v in 'troposphereWet troposphereHydrostatic'.split():
+            da = ds[v]
+            assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
+
     # Clean up files
-    # shutil.rmtree(SCENARIO_DIR)
-    return 0
+    shutil.rmtree(SCENARIO_DIR)
+    shutil.rmtree('./weather_files')
+    os.remove('GUNW_20200130-20200124.yaml')
+    return 
