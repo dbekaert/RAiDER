@@ -19,7 +19,7 @@ import pyproj
 import xarray
 
 from pyproj import CRS, Transformer
-from typing import List
+from typing import List, Union
 
 import isce3.ext.isce3 as isce
 import numpy as np
@@ -41,7 +41,7 @@ def tropo_delay(
         aoi, 
         los, 
         height_levels: List[float]=None, 
-        out_proj: int | str=4326, 
+        out_proj: Union[int, str] =4326, 
         cube_spacing_m: int=None,
         look_dir: str='right', 
     ):
