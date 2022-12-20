@@ -15,6 +15,7 @@ from time import strptime
 from RAiDER.llreader import BoundingBox, Geocube, RasterRDR, StationFile, GeocodedFile, Geocube
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.utilFcns import rio_extents, rio_profile
+from RAiDER.logger import logger
 
 _BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees
 
@@ -33,17 +34,18 @@ def enforce_wm(value):
 
 
 def get_los(args):
-    if ('orbit_file' in args.keys()) and (args['orbit_file'] is not None):
-        if args.ray_trace:
+    if args.get('orbit_file'):
+        if args.get('ray_trace'):
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
-    elif ('los_file' in args.keys()) and (args['los_file'] is not None):
+    elif args.get('los_file'):
         if args.ray_trace:
             los = Raytracing(args.los_file, args.los_convention)
         else:
             los = Conventional(args.los_file, args.los_convention)
-    elif ('los_cube' in args.keys()) and (args['los_cube'] is not None):
+
+    elif args.get('los_cube'):
         raise NotImplementedError('LOS_cube is not yet implemented')
 #        if args.ray_trace:
 #            los = Raytracing(args.los_cube)
@@ -114,24 +116,32 @@ def get_query_region(args):
     '''
     # Get bounds from the inputs
     # make sure this is first
-    if ('use_dem_latlon' in args.keys()) and args['use_dem_latlon']:
+    if args.get('use_dem_latlon'):
         query = GeocodedFile(args.dem, is_dem=True)
 
-    elif 'lat_file' in args.keys():
-        hgt_file = args.get('hgt_file_rdr', None) # only get it if exists
-        query    = RasterRDR(args.lat_file, args.lon_file, hgt_file)
+    elif args.get('lat_file'):
+        hgt_file = args.get('height_file_rdr') # only get it if exists
+        dem_file = args.get('dem')
+        query    = RasterRDR(args.lat_file, args.lon_file, hgt_file, dem_file)
 
-    elif 'station_file' in args.keys():
+    elif args.get('station_file'):
         query = StationFile(args.station_file)
 
-    elif 'bounding_box' in args.keys():
+    elif args.get('bounding_box'):
         bbox = enforce_bbox(args.bounding_box)
         if (np.min(bbox[0]) < -90) | (np.max(bbox[1]) > 90):
             raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched? Should be SNWE')
         query = BoundingBox(bbox)
 
-    elif 'geocoded_file' in args.keys():
-        query = GeocodedFile(args.geocoded_file, is_dem=False)
+    elif args.get('geocoded_file'):
+        gfile  = os.path.basename(args.geocoded_file).upper()
+        if (gfile.startswith('SRTM') or gfile.startswith('GLO')):
+            logger.debug('Using user DEM: %s', gfile)
+            is_dem = True
+        else:
+            is_dem = False
+
+        query  = GeocodedFile(args.geocoded_file, is_dem=is_dem)
 
     ## untested
     elif 'los_cube' in args.keys():
@@ -149,7 +159,10 @@ def enforce_bbox(bbox):
     """
     Enforce a valid bounding box
     """
-    bbox = [float(d) for d in bbox.strip().split()]
+    if isinstance(bbox, str):
+        bbox = [float(d) for d in bbox.strip().split()]
+    else:
+        bbox = [float(d) for d in bbox]
 
     # Check the bbox
     if len(bbox) != 4:

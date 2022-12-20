@@ -6,7 +6,7 @@ import pandas as pd
 
 from test import GEOM_DIR, TEST_DIR
 
-from RAiDER.cli.raider import create_parser
+from RAiDER.cli.raider import calcDelays
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
@@ -20,7 +20,7 @@ SCENARIO1_DIR = os.path.join(TEST_DIR, "scenario_1", "geom")
 
 @pytest.fixture
 def parser():
-    return create_parser()
+    return calcDelays()
 
 
 @pytest.fixture
@@ -31,6 +31,14 @@ def station_file():
 @pytest.fixture
 def llfiles():
     return os.path.join(SCENARIO1_DIR, 'lat.dat'), os.path.join(SCENARIO1_DIR, 'lon.dat')
+
+
+def test_latlon_reader_2():
+    with pytest.raises(ValueError):
+        RasterRDR(lat_file=None, lon_file=None)
+
+    with pytest.raises(ValueError):
+        RasterRDR(lat_file='doesnotexist.rdr', lon_file='doesnotexist.rdr')
 
 
 def test_latlon_reader():
@@ -88,3 +96,9 @@ def test_bounds_from_csv(station_file):
     bounds_true = [33.746, 36.795, -118.312, -114.892]
     snwe = bounds_from_csv(station_file)
     assert all([np.allclose(b, t) for b, t in zip(snwe, bounds_true)])
+
+
+def test_readZ_sf(station_file):
+    aoi = StationFile(station_file)
+    assert np.allclose(aoi.readZ(), .1)
+

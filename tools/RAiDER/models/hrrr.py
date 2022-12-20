@@ -22,7 +22,7 @@ from RAiDER.models.model_levels import (
 class HRRR(WeatherModel):
     def __init__(self):
         # initialize a weather model
-        WeatherModel.__init__(self)
+        super().__init__()
 
         self._humidityType = 'q'
         self._model_level_type = 'pl'  # Default, pressure levels are 'pl'
@@ -66,8 +66,11 @@ class HRRR(WeatherModel):
         x0 = 0
         y0 = 0
         earth_radius = 6371229
-        p1 = CRS('+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={a} +b={a} +units=m +no_defs'.format(lat1=lat1, lat2=lat2, lat0=lat0, lon0=lon0, x0=x0, y0=y0, a=earth_radius))
+        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
+                 f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
+                 f'+b={earth_radius} +units=m +no_defs')
         self._proj = p1
+
 
     def _fetch(self,  out):
         '''
@@ -88,7 +91,11 @@ class HRRR(WeatherModel):
             filename = self.files
 
         # read data from grib file
-        ds = xarray.open_dataset(filename)
+        try:
+            ds = xarray.open_dataset(filename, engine='cfgrib')
+        except EOFError:
+            ds = xarray.open_dataset(filename, engine='netcdf4')
+
         pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
         xArr = ds['x'].values
         yArr = ds['y'].values
@@ -135,7 +142,7 @@ class HRRR(WeatherModel):
 
         # Get profile information from gdal
         prof = rio_profile(str(filename))
-        
+
         # Now get bounds
         S, N, W, E = self._ll_bounds
 
@@ -174,15 +181,6 @@ class HRRR(WeatherModel):
         yArr = trans[3] + (prof["height"] * trans[5]) - (np.arange(y_min, y_max) + 0.5) * trans[5]
         lats = lats[y_min:y_max, x_min:x_max]
         lons = lons[y_min:y_max, x_min:x_max]
-
-        # TODO: Remove this block once we know we handle
-        # different flavors of HRRR correctly
-        # self._proj currently used but these are available
-        # as attrs of ds["t"] for example
-        # llhtolcc = Transformer.from_crs(4326, self._proj)
-        # res = llhtolcc.transform(lats, lons)
-        # print("ERROR in X: ", np.abs(res[0] - xArr[None, :]).max())
-        # print("ERROR in Y: ", np.abs(res[1] - yArr[:, None]).max())
 
         # Data variables
         t = ds['t'][:, y_min:y_max, x_min:x_max].to_numpy()
@@ -257,7 +255,8 @@ class HRRR(WeatherModel):
         for k, v in self._proj.to_cf().items():
             ds_new.proj.attrs[k] = v
 
-        ds_new.to_netcdf(out)
+        ds_new.to_netcdf(out, engine='netcdf4')
+
 
     def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''

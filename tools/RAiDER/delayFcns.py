@@ -12,19 +12,18 @@ import xarray
 from netCDF4 import Dataset
 import numpy as np
 from pyproj import CRS, Transformer
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 from RAiDER.constants import _STEP
-from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from RAiDER.makePoints import makePoints1D
 
 
 def calculate_start_points(x, y, z, ds):
     '''
-    Parameters
+    Args:
     ----------
     wm_file: str   - A file containing a regularized weather model.
-    Returns
+    Returns:
     -------
     SP: ndarray    - a * x 3 array containing the XYZ locations of the pixels in ECEF coordinates.
                      Note the ordering of the array is [Y X Z]
@@ -92,18 +91,19 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     an interpolator
     '''
     # Get the weather model data
-    with Dataset(wm_file, mode='r') as f:
-        xs_wm = np.array(f.variables['x'][:])
-        ys_wm = np.array(f.variables['y'][:])
-        zs_wm = np.array(f.variables['z'][:])
+    try:
+        ds = xarray.load_dataset(wm_file)
+    except:
+        ds = wm_file
 
-        # Can get the point-wise or total delays, depending on what is requested
-        if kind == 'pointwise':
-            wet = np.array(f.variables['wet'][:]).transpose(1, 2, 0)
-            hydro = np.array(f.variables['hydro'][:]).transpose(1, 2, 0)
-        elif kind == 'total':
-            wet = np.array(f.variables['wet_total'][:]).transpose(1, 2, 0)
-            hydro = np.array(f.variables['hydro_total'][:]).transpose(1, 2, 0)
+    xs_wm = np.array(ds.variables['x'][:])
+    ys_wm = np.array(ds.variables['y'][:])
+    zs_wm = np.array(ds.variables['z'][:])
+    wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
+    hydro = ds.variables['hydro_total' if kind=='total' else 'hydro'][:]
+
+    wet = np.array(wet).transpose(1, 2, 0)
+    hydro = np.array(hydro).transpose(1, 2, 0)
 
     # If shared interpolators are requested
     # The arrays are not modified - so turning off lock for performance
@@ -114,9 +114,8 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
         wet = make_shared_raw(wet)
         hydro = make_shared_raw(hydro)
 
-
-    ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan)
-    ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan)
+    ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan, bounds_error = False)
+    ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan, bounds_error = False)
 
     return ifWet, ifHydro
 

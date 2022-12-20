@@ -127,7 +127,7 @@ class WeatherModel(ABC):
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
 
-        Parameters
+        Args:
         ----------
         out -
         ll_bounds - 4 x 1 array, SNWE
@@ -198,7 +198,7 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        self.set_latlon_bounds(ll_bounds, Nextra=0)
+        self.set_latlon_bounds(ll_bounds)
 
         # If the weather file has already been processed, do nothing
         self._out_name = self.out_file(outLoc)
@@ -381,7 +381,7 @@ class WeatherModel(ABC):
         """
         Obtains the bounding box of the weather model in lat/lon CRS.
 
-        Returns
+        Returns:
         -------
         list
             xmin, ymin, xmax, ymax
@@ -417,7 +417,7 @@ class WeatherModel(ABC):
         Checks containment of weather model bbox of outLats and outLons
         provided.
 
-        Parameters
+        Args:
         ----------
         weather_model : weatherModel
         outLats : np.ndarray
@@ -429,7 +429,7 @@ class WeatherModel(ABC):
             this ensures that translates have some overlap. The default is 1e-5
             or ~11.1 meters.
 
-        Returns
+        Returns:
         -------
         bool
            True if weather model contains bounding box of OutLats and outLons
@@ -538,7 +538,7 @@ class WeatherModel(ABC):
 
     def getProjection(self):
         '''
-        Returns the native weather projection, which should be a pyproj object
+        Returns: the native weather projection, which should be a pyproj object
         '''
         return self._proj
 

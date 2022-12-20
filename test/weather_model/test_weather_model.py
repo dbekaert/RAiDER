@@ -13,7 +13,7 @@ from scipy.interpolate import RegularGridInterpolator as rgi
 from pyproj import CRS
 
 from RAiDER.constants import _ZMIN, _ZREF
-from RAiDER.delay import build_cube_ray
+from RAiDER.delay import _build_cube_ray
 from RAiDER.losreader import state_to_los
 from RAiDER.models.weatherModel import (
     WeatherModel,
@@ -240,7 +240,7 @@ def test_build_cube_ray(setup_fake_raytracing, model):
 
     #TODO: Check that the look vectors are not nans
     lv, xyz = state_to_los(svs, np.stack([_Y.ravel(), _X.ravel(), _Z.ravel()], axis=-1),out="ecef")
-    out = build_cube_ray(xs, ys, zs, orb, look_dir, CRS(4326), CRS(4326), [m.interpWet(), m.interpHydro()], elp=elp)
+    out = _build_cube_ray(xs, ys, zs, orb, look_dir, CRS(4326), CRS(4326), [m.interpWet(), m.interpHydro()], elp=elp)
     assert out.shape == out_true.shape
 
 
