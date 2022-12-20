@@ -6,20 +6,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/) 
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.2]
-Added documentation for the Python library interface. 
-Added some unit tests. 
-Fixed some bugs and tweaked the CLI.
-
-## [0.3.1]
-RAiDER package was refactored to use a __main__ file to allow calls to different functionality.
-The default is `calcDelays` which maintains the original functionality of calling `raider.py`.
-`raider.py ++process downloadGNSS ...` can now perform the functionality of `raiderDownloadGNSS.py ...`
-`raider.py ++calcDelaysGUNW GUNWFILE` is enabled as a placeholder only.
-Fix bugs to ensure working RAiDER_tutorial notebook
-Upgraded ISCE3 to `>=v0.9.0` to fix a conda build issue as described in [#425](https://github.com/dbekaert/RAiDER/issues/425)
-Allow user to specify --download_only or download_only=True in the configure file
-
 ## [0.3.0]
 RAiDER package was refactored to expose the main functionality as a Python library, including the `prepareWeatherModel` 
 and `tropo_delay` functions, as well as anciliarry functions needed for defining AOIs, look vectors, etc.
@@ -27,10 +13,17 @@ and `tropo_delay` functions, as well as anciliarry functions needed for defining
 ### New/Updated Features
 + Python library access to main functions for accessing weather model data and calculating delays
 + Slant delay calculation through projection is supported for cubes with orbit files
++ Upgrade dem-stitcher to [`>=2.3.1`](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/blob/dev/CHANGELOG.md#231) so that the updated urls for the GLO-30 DEM are used.
++ `raider.py ++calcDelaysGUNW GUNWFILE` is enabled as a placeholder only.
++ Upgraded ISCE3 to `>=v0.9.0` to fix a conda build issue as described in [#425](https://github.com/dbekaert/RAiDER/issues/425)
++ Allow user to specify --download_only or download_only=True in the configure file
++ Added documentation for the Python library interface. 
++ Added some unit tests. 
++ Fixed some bugs and tweaked the CLI.
++ Added unit tests, docstrings, initial API reference
++ __main__ file to allow calls to different functionality. `raider.py ++process downloadGNSS ...` can now perform the functionality of `raiderDownloadGNSS.py ...
 
-## [0.2.1]
 
-* Upgrade dem-stitcher to [`>=2.3.1`](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/blob/dev/CHANGELOG.md#231) so that the updated urls for the GLO-30 DEM are used.
 
 ## [0.2.0]
 
