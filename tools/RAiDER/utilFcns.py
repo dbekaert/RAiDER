@@ -440,10 +440,8 @@ def round_time(dt, roundTo=60):
 
 def writeDelays(aoi, wetDelay, hydroDelay,
                 wetFilename, hydroFilename=None,
-                outformat=None, proj=None, gt=None, ndv=0.):
-    '''
-    Write the delay numpy arrays to files in the format specified
-    '''
+                outformat=None, ndv=0.):
+    """ Write the delay numpy arrays to files in the format specified """
 
     # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
@@ -463,6 +461,8 @@ def writeDelays(aoi, wetDelay, hydroDelay,
         logger.info('Wrote delays to: %s', wetFilename)
 
     else:
+        proj = aoi.projection()
+        gt   = aoi.geotransform()
         writeArrayToRaster(
             wetDelay,
             wetFilename,

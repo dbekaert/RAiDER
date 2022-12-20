@@ -28,6 +28,7 @@ class AOI(object):
     def __init__(self):
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
+        self._geotransform = None
 
 
     def type(self):
@@ -36,6 +37,10 @@ class AOI(object):
 
     def bounds(self):
         return self._bounding_box
+
+
+    def geotransform(self):
+        return self._geotransform
 
 
     def projection(self):
@@ -95,10 +100,13 @@ class RasterRDR(AOI):
         if (self._latfile is None) and (self._lonfile is None):
             raise ValueError('You need to specify a 2-band file or two single-band files')
 
+        assert os.path.exists(self._latfile), f'{self._latfile} cannot be found'
+
         try:
-            self._proj, self._bounding_box, _ = bounds_from_latlon_rasters(lat_file, lon_file)
+            bpg = bounds_from_latlon_rasters(lat_file, lon_file)
+            self._bounding_box, self._proj, self._geotransform = bpg
         except rasterio.errors.RasterioIOError:
-            raise ValueError('Could not open {}, does it exist?'.format(self._latfile))
+            raise ValueError(f'Could not open {self._latfile}')
 
         # keep track of the height file, dem and convention
         self._hgtfile = hgt_file
@@ -146,7 +154,7 @@ class GeocodedFile(AOI):
         self.p             = rio_profile(filename)
         self._bounding_box = rio_extents(self.p)
         self._is_dem       = is_dem
-        _, self._proj, self._gt = rio_stats(filename)
+        _, self._proj, self._geotransform = rio_stats(filename)
         self._type = 'geocoded_file'
 
 
@@ -178,6 +186,7 @@ class Geocube(AOI):
         self.path  = path_cube
         self._type = 'Geocube'
         self._bounding_box = self.get_extent()
+        _, self._proj, self._geotransform = rio_stats(filename)
 
     def get_extent(self):
         with xarray.open_dataset(self.path) as ds:
@@ -207,19 +216,24 @@ def bounds_from_latlon_rasters(latfile, lonfile):
     '''
     latinfo = get_file_and_band(latfile)
     loninfo = get_file_and_band(lonfile)
-    lat_stats, lat_proj, _ = rio_stats(latinfo[0], band=latinfo[1])
-    lon_stats, lon_proj, _ = rio_stats(loninfo[0], band=loninfo[1])
+    lat_stats, lat_proj, lat_gt = rio_stats(latinfo[0], band=latinfo[1])
+    lon_stats, lon_proj, lon_gt = rio_stats(loninfo[0], band=loninfo[1])
 
     if lat_proj != lon_proj:
         raise ValueError('Projection information for Latitude and Longitude files does not match')
+
+    if lat_gt != lon_gt:
+        raise ValueError('Affine transform for Latitude and Longitude files does not match')
 
     # TODO - handle dateline crossing here
     snwe = (lat_stats.min, lat_stats.max,
             lon_stats.min, lon_stats.max)
 
-    fname = os.path.basename(latfile).split('.')[0]
+    if lat_proj is None:
+        logger.debug('Assuming lat/lon files are in EPSG:4326')
+        lat_proj = CRS.from_epsg(4326)
 
-    return lat_proj, snwe, fname
+    return snwe, lat_proj, lat_gt
 
 
 def bounds_from_csv(station_file):
