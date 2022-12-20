@@ -181,7 +181,7 @@ def convert_SI(val, unit_in, unit_out):
         # adjust if input isn't datetime, and assume it to be part of workflow
         # e.g. sigZTD filter, already extracted datetime object
         try:
-            return eval('val.apply(pd.to_datetime).dt.{}.astype(np.float).astype("Int32")'.format(unit_out))
+            return eval('val.apply(pd.to_datetime).dt.{}.astype(float).astype("Int32")'.format(unit_out))
         except BaseException:  # TODO: Which error(s)?
             return val
 
@@ -987,8 +987,7 @@ class RaiderStats(object):
 
         # estimate central longitude lines if '--time_lines' specified
         if self.time_lines and 'Datetime' in self.df.keys():
-            self.df['Date_hr'] = self.df['Datetime'].dt.hour.astype(
-                np.float).astype("Int32")
+            self.df['Date_hr'] = self.df['Datetime'].dt.hour.astype(float).astype("Int32")
             # get list of unique times
             all_hrs = sorted(set(self.df['Date_hr']))
 
