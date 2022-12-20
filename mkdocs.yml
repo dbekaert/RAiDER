@@ -5,7 +5,12 @@ repo_name: RAiDER
 
 nav:
   - Home page: index.md
-  - Tutorials: tutorials.md
+  - Tutorials:
+    - Overview: tutorials.md
+    - RAiDER tutorial: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/RAiDER_tutorial/RAiDER_tutorial.ipynb" target="_blank
+    - raiderStats tutorial: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderStats/raiderStats_tutorial.ipynb" target="_blank
+    - Downloading GNSS tropospheric delays: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderDownloadGNSS/raiderDownloadGNSS_tutorial.ipynb"  target="_blank
+    - GNSS delay manipulation with Pandas: https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/Pandas_tutorial/Pandas_tutorial.ipynb"  target="_blank
   - Weather Model Access: reference_pwm.md
   - Delay Calculation: reference_td.md
   - API Reference: reference.md
@@ -15,6 +20,7 @@ theme:
   name: material
 
 plugins:
+  - search
   - macros:
       module_name: docs/macros
   - mkdocstrings:
