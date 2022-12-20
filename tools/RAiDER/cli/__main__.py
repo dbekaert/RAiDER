@@ -1,8 +1,9 @@
 import argparse
-import os
+import sys
 from importlib.metadata import entry_points
 
 from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -15,9 +16,16 @@ def main():
                      help='Select the entrypoint to use'
     )
     args, unknowns = parser.parse_known_args()
-    os.sys.argv = [args.process, *unknowns]
+    sys.argv = [args.process, *unknowns]
 
-    process_entry_point = entry_points(group='console_scripts', name=f'{args.process}.py')[0]
+    try:
+        # python >=3.10 interface
+        process_entry_point = entry_points(group='console_scripts', name=f'{args.process}.py')[0]
+    except TypeError:
+        # python 3.8 and 3.9 interface
+        scripts = entry_points()['console_scripts']
+        process_entry_point = [ep for ep in scripts if ep.name == f'{args.process}.py'][0]
+
     process_entry_point.load()()
 
 
