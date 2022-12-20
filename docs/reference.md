@@ -1,4 +1,4 @@
-# RAiDER API Reference
+# RAiDER *v{{ raider_version() }}* API Reference
 
 ::: RAiDER
     options:

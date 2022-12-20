@@ -15,6 +15,8 @@ theme:
   name: material
 
 plugins:
+  - macros:
+      module_name: docs/macros
   - mkdocstrings:
       handlers:
         python:

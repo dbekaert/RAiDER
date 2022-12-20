@@ -51,6 +51,7 @@ dependencies:
  - mkdocs
  - mkdocstrings
  - mkdocstrings-python
+ - mkdocs-macros-plugin
  - mkdocs-material
  - mkdocs-material-extensions
  # For RAiDER-docs
