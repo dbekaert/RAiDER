@@ -104,7 +104,7 @@ def update_gunw(path_gunw:str, ds_ifg):
             try:
                 ds_grp.createDimension(dim, len(ds_ifg.coords[dim]))
                 ## necessary for transform
-                v  = ds_grp.createVariable(dim, float, dim)
+                v  = ds_grp.createVariable(dim, np.float32, dim)
                 v[:] = ds_ifg[dim]
                 v.setncatts(ds_ifg[dim].attrs)
             except:
@@ -116,7 +116,7 @@ def update_gunw(path_gunw:str, ds_ifg):
             nodata    = da.encoding['_FillValue']
             chunksize = da.encoding['chunksizes']
 
-            v    = ds_grp.createVariable(name, float, 'z y x'.split(),
+            v    = ds_grp.createVariable(name, np.float32, 'z y x'.split(),
                                 chunksizes=chunksize, fill_value=nodata)
             v[:] = da.data
             v.setncatts(da.attrs)
