@@ -615,6 +615,7 @@ class WeatherModel(ABC):
         )
 
         self.files = [f]
+        return f
 
     def write(
             self,
