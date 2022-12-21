@@ -37,10 +37,7 @@ DEFAULT_DICT = AttributeDict(
             file_format='GTiff',
             download_only=False,
             output_directory=os.getcwd(),
-            weather_model_directory=os.path.join(
-                os.getcwd(),
-                'weather_files'
-            ),
+            weather_model_directory=None,
             output_projection='EPSG:4326',
         )
     )
