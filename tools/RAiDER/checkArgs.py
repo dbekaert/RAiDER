@@ -26,6 +26,9 @@ def checkArgs(args):
 
     #########################################################################################################################
     # Directories
+    if args.weather_model_directory is None:
+        args.weather_model_directory = os.path.join(args.output_directory, 'weather_files')
+        
     if not os.path.exists(args.weather_model_directory):
         os.mkdir(args.weather_model_directory)
 
@@ -129,6 +132,3 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     hydro_file_name = os.path.join(out, hydroname)
     wet_file_name = os.path.join(out, wetname)
     return wet_file_name, hydro_file_name
-
-
-
