@@ -100,8 +100,8 @@ def get_heights(args, out, station_file, bounding_box=None):
         out['height_file_rdr'] = args.height_file_rdr
 
     elif args.get('height_levels'):
-        if not isinstance(args.height_levels, list):
-            l = re.findall('[0-9]+', args.height_levels)
+        if isinstance(args.height_levels, str):
+            l = re.findall('[-0-9]+', args.height_levels)
         else:
             l = args.height_levels
 
