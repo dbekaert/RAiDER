@@ -3,7 +3,7 @@
 # remove environment : conda env remove -n RAiDER
 # enter  environment : conda activate RAiDER
 # exit   environment : conda deactivate
-name: RAiDER-new
+name: RAiDER
 channels:
  - conda-forge
  - nodefaults
