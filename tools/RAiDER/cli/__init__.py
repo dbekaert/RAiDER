@@ -40,6 +40,6 @@ DEFAULT_DICT = AttributeDict(
                 os.getcwd(),
                 'weather_files'
             ),
-            output_projection='EPSG:4236',
+            output_projection='EPSG:4326',
         )
     )
