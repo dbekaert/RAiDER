@@ -18,7 +18,7 @@ from RAiDER.utilFcns import getTimeFromFile
 
 def prepareWeatherModel(
         weather_model,
-        time=None,
+        time,
         wmLoc: str=None,
         ll_bounds: List[float]=None,
         download_only: bool=False,
@@ -35,9 +35,9 @@ def prepareWeatherModel(
         download_only: bool           - False if preprocessing weather model data
         makePlots: bool               - whether to write debug plots
         force_download: bool          - True if you want to download even when the weather model exists
-    
+
     Returns:
-        str: filename of the netcdf file to which the weather model has been written 
+        str: filename of the netcdf file to which the weather model has been written
     """
     # Ensure the file output location exists
     if wmLoc is None:
@@ -45,22 +45,16 @@ def prepareWeatherModel(
     os.makedirs(wmLoc, exist_ok=True)
 
     # check whether weather model files are supplied or should be downloaded
+    f = weather_model.filename(time, wmLoc)
+
     download_flag = True
-    if weather_model.files is None:
-        if time is None:
-            raise RuntimeError(
-                'prepareWeatherModel: Either a file or a time must be specified'
-            )
-        weather_model.filename(time, wmLoc)
-        if os.path.exists(weather_model.files[0]):
-            if not force_download:
-                logger.warning(
-                    'Weather model already exists, please remove it ("%s") if you want '
-                    'to download a new one.', weather_model.files
-                )
-                download_flag = False
-    else:
+    if os.path.exists(f) and not force_download:
+        logger.warning(
+            'Weather model already exists, please remove it ("%s") if you want '
+            'to download a new one.', weather_model.files
+        )
         download_flag = False
+
 
     # if no weather model files supplied, check the standard location
     if download_flag:

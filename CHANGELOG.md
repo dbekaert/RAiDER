@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/) 
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Corrects bug in weather filename that resulted in incorrect delay calculation
+Implements a quick test to check whether a weather model is downloaded for each date in a list
+Write the diagnostic weather model files to the 'output_directory' rather than PWD
+
 ## [0.3.1]
 Fixes some missing imports and typing statements
 
