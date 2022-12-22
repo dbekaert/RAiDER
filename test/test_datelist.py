@@ -8,7 +8,7 @@ import numpy as np
 from test import TEST_DIR
 
 
-def datelist():
+def test_datelist():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'datelist')
     os.makedirs(SCENARIO_DIR, exist_ok=True)
     dates = ['20200124', '20200130']
