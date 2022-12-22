@@ -3,7 +3,7 @@
 # remove environment : conda env remove -n RAiDER
 # enter  environment : conda activate RAiDER
 # exit   environment : conda deactivate
-name: RAiDER
+name: RAiDER-new
 channels:
  - conda-forge
  - nodefaults
@@ -55,7 +55,7 @@ dependencies:
  - mkdocs-macros-plugin
  - mkdocs-material
  - mkdocs-material-extensions
- - sentinel-eof
+ - sentineleof
  # For RAiDER-docs
  - jupyterlab
  - jupyter_contrib_nbextensions
