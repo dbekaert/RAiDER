@@ -17,7 +17,7 @@ from netCDF4 import Dataset
 
 TROPO_GROUP = 'science/grids/corrections/external/troposphere'
 TROPO_NAMES = ['troposphereWet', 'troposphereHydrostatic']
-DIM_NAME_MAP = {'z': 'heightsMeta', 'y': 'longitudeMeta', 'x': 'latitudeMeta'}
+DIM_NAMES   = ['heightsMeta', 'latitudeMeta', 'longitudeMeta']
 
 
 def compute_delays(cube_filenames:list, wavelength):
@@ -44,7 +44,7 @@ def compute_delays(cube_filenames:list, wavelength):
             crs = da_wet.rio.crs
             gt  = da_wet.rio.transform()
 
-    scale    = float(wavelength) / (4 * np.pi)
+    scale    = (-4 * np.pi) / float(wavelength)
     wetDelay = (wet_delays[0] - wet_delays[1]) * scale
     hydDelay = (hyd_delays[0] - hyd_delays[1]) * scale
 
@@ -82,7 +82,7 @@ def compute_delays(cube_filenames:list, wavelength):
         ds_ifg[name].encoding = encoding
 
 
-    return ds_ifg
+    return ds_ifg.rename(z=DIM_NAMES[0], y=DIM_NAMES[1], x=DIM_NAMES[2])
 
 
 def update_gunw(path_gunw:str, ds_ifg):
@@ -102,14 +102,14 @@ def update_gunw(path_gunw:str, ds_ifg):
     with Dataset(path_gunw, mode='a') as ds:
         ds_grp = ds[TROPO_GROUP]
 
-        for dim_raid, dim_gunw in DIM_NAME_MAP.items():
+        for dim in DIM_NAMES:
             ## dimension may already exist if updating
             try:
-                ds_grp.createDimension(dim_gunw, len(ds_ifg.coords[dim_raid]))
+                ds_grp.createDimension(dim, len(ds_ifg.coords[dim]))
                 ## necessary for transform
-                v  = ds_grp.createVariable(dim_gunw, np.float32, dim)
-                v[:] = ds_ifg[dim_raid]
-                v.setncatts(ds_ifg[dim_raid].attrs)
+                v  = ds_grp.createVariable(dim, np.float32, dim)
+                v[:] = ds_ifg[dim]
+                v.setncatts(ds_ifg[dim].attrs)
             except:
                 pass
 
@@ -118,9 +118,8 @@ def update_gunw(path_gunw:str, ds_ifg):
             da        = ds_ifg[name]
             nodata    = da.encoding['_FillValue']
             chunksize = da.encoding['chunksizes']
-            dims      = [DIM_NAME_MAP[c] for c in 'z y x'.split()]
 
-            v    = ds_grp.createVariable(name, np.float32, dims,
+            v    = ds_grp.createVariable(name, np.float32, DIM_NAMES,
                                 chunksizes=chunksize, fill_value=nodata)
             v[:] = da.data
             v.setncatts(da.attrs)

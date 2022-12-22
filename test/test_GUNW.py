@@ -42,7 +42,7 @@ def test_GUNW():
 
     ## check the CRS and affine are written correctly
     epsg      = 4326
-    transform =(0.1, 0.0, -119.35, 0, -0.1, 35.05)
+    transform = (0.1, 0.0, -119.35, 0, -0.1, 35.05)
     group = 'science/grids/corrections/external/troposphere'
     for v in 'troposphereWet troposphereHydrostatic'.split():
         with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
@@ -54,8 +54,11 @@ def test_GUNW():
             da = ds[v]
             assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
 
+        crs = rio.crs.CRS.from_wkt(ds['crs'].crs_wkt)
+        assert np.isclose(crs.to_epsg(), epsg), 'CRS incorrect'
+        
+
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
-    shutil.rmtree('./weather_files')
     os.remove('GUNW_20200130-20200124.yaml')
     return 
