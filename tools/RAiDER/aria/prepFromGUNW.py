@@ -18,7 +18,7 @@ from RAiDER.logger import logger
 from eof.download import download_eofs
 
 ## cube spacing in degrees for each model
-DCT_POSTING = {'HRRR': 0.02, 'HRES': 0.05, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
+DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
 
 ## these 2 are not used ---------
 def my_ceil(a, precision=0):

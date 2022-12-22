@@ -17,6 +17,7 @@ from netCDF4 import Dataset
 
 TROPO_GROUP = 'science/grids/corrections/external/troposphere'
 TROPO_NAMES = ['troposphereWet', 'troposphereHydrostatic']
+DIM_NAME_MAP = {'z': 'heightsMeta', 'y': 'longitudeMeta', 'x': 'latitudeMeta'}
 
 
 def compute_delays(cube_filenames:list, wavelength):
@@ -72,7 +73,7 @@ def compute_delays(cube_filenames:list, wavelength):
 
     ## no data (fill value?) chunk size?
     for name in TROPO_NAMES:
-        descrip  = f"Delay due to {name.strip('troposphere')} component of troposphere"
+        descrip  = f"Delay due to {name.lstrip('troposphere')} component of troposphere"
         da_attrs = {**attrs,  'description':descrip,
                     'long_name':name, 'standard_name':name,
                     'RAiDER version': RAiDER.__version__,
@@ -92,21 +93,23 @@ def update_gunw(path_gunw:str, ds_ifg):
             h5 = h5[k]
         del h5[TROPO_NAMES[0]]
         del h5[TROPO_NAMES[1]]
-        if 'crs' in h5.keys():
-            del h5['crs']
+
+        for k in 'crs'.split():
+            if k in h5.keys():
+                del h5[k]
 
 
     with Dataset(path_gunw, mode='a') as ds:
         ds_grp = ds[TROPO_GROUP]
 
-        for dim in 'z y x'.split():
+        for dim_raid, dim_gunw in DIM_NAME_MAP.items():
             ## dimension may already exist if updating
             try:
-                ds_grp.createDimension(dim, len(ds_ifg.coords[dim]))
+                ds_grp.createDimension(dim_gunw, len(ds_ifg.coords[dim_raid]))
                 ## necessary for transform
-                v  = ds_grp.createVariable(dim, np.float32, dim)
-                v[:] = ds_ifg[dim]
-                v.setncatts(ds_ifg[dim].attrs)
+                v  = ds_grp.createVariable(dim_gunw, np.float32, dim)
+                v[:] = ds_ifg[dim_raid]
+                v.setncatts(ds_ifg[dim_raid].attrs)
             except:
                 pass
 
@@ -115,8 +118,9 @@ def update_gunw(path_gunw:str, ds_ifg):
             da        = ds_ifg[name]
             nodata    = da.encoding['_FillValue']
             chunksize = da.encoding['chunksizes']
+            dims      = [DIM_NAME_MAP[c] for c in 'z y x'.split()]
 
-            v    = ds_grp.createVariable(name, np.float32, 'z y x'.split(),
+            v    = ds_grp.createVariable(name, np.float32, dims,
                                 chunksizes=chunksize, fill_value=nodata)
             v[:] = da.data
             v.setncatts(da.attrs)
@@ -124,6 +128,7 @@ def update_gunw(path_gunw:str, ds_ifg):
         ## add the projection
         v_proj = ds_grp.createVariable('crs', 'i')
         v_proj.setncatts(ds_ifg["crs"].attrs)
+
 
     logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
     return
@@ -136,7 +141,8 @@ def update_gunw_version(path_gunw):
     return
 
 
-def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
+### ------------------------------------------------------------- main function
+def tropo_gunw_inf(cube_filenames:list, path_gunw:str, wavelength, out_dir:str, update_flag:bool):
     """ Calculate interferometric phase delay
 
     Requires:
@@ -146,6 +152,7 @@ def tropo_gunw_inf(cube_filenames:dict, path_gunw:str, wavelength, out_dir:str, 
         output directory (where to store the delays)
         update_flag (to write into the GUNW or not)
     """
+    os.makedirs(out_dir, exist_ok=True)
     ds_ifg = compute_delays(cube_filenames, wavelength)
     da     = ds_ifg[TROPO_NAMES[0]] # for metadata
 
