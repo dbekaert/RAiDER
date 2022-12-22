@@ -34,95 +34,16 @@ raider.py -g
 raider.py customTemplatefile.cfg
 """
 
-def create_parser():
-    """Parse command line arguments using argparse."""
-    p = argparse.ArgumentParser(
-        formatter_class = argparse.RawDescriptionHelpFormatter,
-        description = HELP_MESSAGE,
-        epilog = EXAMPLES,
-    )
-
-    p.add_argument(
-        'customTemplateFile', nargs='?',
-        help='custom template with option settings.\n' +
-        "ignored if the default smallbaselineApp.cfg is input."
-    )
-
-    p.add_argument(
-        '-g', '--generate_template',
-        dest='generate_template',
-        action='store_true',
-        help='generate default template (if it does not exist) and exit.'
-    )
-
-    
-    p.add_argument(
-        '--download-only',
-        action='store_true',
-        help='only download a weather model.'
-    )
-
-    return p
-
-
-def parseCMD(iargs=None):
-    """
-    Parse command-line arguments and pass to delay.py
-    """
-
-    p = create_parser()
-    args = p.parse_args(args=iargs)
-
-    args.argv = iargs if iargs else sys.argv[1:]
-
-    # default input file
-    template_file = os.path.join(
-        os.path.dirname(
-            RAiDER.__file__
-        ),
-        'cli', 'raider.yaml'
-    )
-    if '-g' in args.argv:
-        dst = os.path.join(os.getcwd(), 'raider.yaml')
-        shutil.copyfile(
-                template_file,
-                dst,
-            )
-
-        logger.info('Wrote %s', dst)
-        sys.exit(0)
-
-    # check: existence of input template files
-    if (not args.customTemplateFile
-            and not os.path.isfile(os.path.basename(template_file))
-            and not args.generate_template):
-        p.print_usage()
-        print(EXAMPLES)
-
-        msg = "No template file found! It requires that either:"
-        msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raider.yaml' exists in current directory."
-        raise SystemExit(f'ERROR: {msg}')
-
-    if  args.customTemplateFile:
-        # check the existence
-        if not os.path.isfile(args.customTemplateFile):
-            raise FileNotFoundError(args.customTemplateFile)
-
-        args.customTemplateFile = os.path.abspath(args.customTemplateFile)
-
-    return args
-
 
 def read_template_file(fname):
     """
     Read the template file into a dictionary structure.
-    Args: 
+    Args:
         fname (str): full path to the template file
     Returns:
         dict: arguments to pass to RAiDER functions
 
-    Examples:   
+    Examples:
     >>> template = read_template_file('raider.yaml')
 
     """
@@ -169,6 +90,10 @@ def read_template_file(fname):
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
             template['look_dir'] = value.lower()
+        if key == 'cube_spacing_in_m':
+            template[key] = float(value)
+        if key == 'download_only':
+            template[key] = bool(value)
 
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
@@ -268,11 +193,12 @@ def calcDelays(iargs=None):
 
     # Argument checking
     params  = checkArgs(params)
+    dl_only = True if params['download_only'] or args.download_only else False
 
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
-    delay_dct = {}
+    wet_filenames = []
     for t, w, f in zip(
         params['date_list'],
         params['wetFilenames'],
@@ -291,7 +217,7 @@ def calcDelays(iargs=None):
         ###########################################################
         # weather model calculation
         logger.debug('Starting to run the weather model calculation')
-        logger.debug('Time: {}'.format(t.strftime('%Y%m%d')))
+        logger.debug(f'Date: {t.strftime("%Y%m%d")}')
         logger.debug('Beginning weather model pre-processing')
         try:
             weather_model_file = prepareWeatherModel(
@@ -302,6 +228,10 @@ def calcDelays(iargs=None):
             )
         except RuntimeError:
             logger.exception("Date %s failed", t)
+            continue
+
+        # dont process the delays for download only
+        if dl_only:
             continue
 
         # Now process the delays
@@ -334,15 +264,17 @@ def calcDelays(iargs=None):
             # means that a dataset was returned
             ds = wet_delay
             ext = os.path.splitext(out_filename)[1]
+            out_filename = out_filename.replace('wet', 'tropo')
+
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
 
-            out_filename = out_filename.replace("wet", "tropo")
 
             if out_filename.endswith(".nc"):
                 ds.to_netcdf(out_filename, mode="w")
             elif out_filename.endswith(".h5"):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
+            logger.info('Wrote delays to: %s', out_filename)
 
         else:
             if aoi.type() == 'station_file':
@@ -351,14 +283,9 @@ def calcDelays(iargs=None):
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
                 writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
 
-            logger.info('Wrote hydro delays to: %s', f)
+        wet_filenames.append(out_filename)
 
-        logger.info('Wrote wet delays to: %s', out_filename)
-
-        # delay_dct[t] = wet_delay, hydro_delay
-        delay_dct[t] = out_filename, f
-
-    return delay_dct
+    return wet_filenames
 
 
 ## ------------------------------------------------------ downloadGNSSDelays.py
@@ -451,7 +378,7 @@ def downloadGNSS():
 ## ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW(iargs=None):
     from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-    from RAiDER.aria.calcGUNW    import main as GUNW_calc
+    from RAiDER.aria.calcGUNW import tropo_gunw_inf as GUNW_calc
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files')
@@ -466,15 +393,14 @@ def calcDelaysGUNW(iargs=None):
         help='Weather model (Default=HRRR).'
         )
 
-
     p.add_argument(
         '-o', '--output_directory', default=os.getcwd(), type=str,
         help='Directory to store results (Default=./).'
         )
 
     p.add_argument(
-        '-w', '--write', default=True,
-        help='Optionally write the delays into the given GUNW product (Default=True).'
+        '-u', '--update_GUNW', default=True,
+        help='Optionally update the GUNW by writing the delays into the troposphere group (Default=True).'
         )
 
 
@@ -482,16 +408,12 @@ def calcDelaysGUNW(iargs=None):
     args.argv  = iargs if iargs else os.sys.argv[1:]
     # args.files = glob.glob(args.files) # eventually support multiple files
 
-    ## below are placeholders and not yet implemented
-    ## prep the config needed for delay calcs
-    # path_cfg, wavelength   = GUNW_prep(args)
+    # prep the config needed for delay calcs
+    path_cfg, wavelength   = GUNW_prep(args)
 
-    ## write the delays to disk using config and return dictionary of:
-        # date: wet/hydro filename
-    # dct_delays = calcDelays([path_cfg])
+    ## write delay cube (nc) to disk using config
+    ## return a list with the path to cube for each date
+    cube_filenames = calcDelays([path_cfg])
 
     ## calculate the interferometric phase and write it out
-    # GUNW_calc(tropoDelayFile, args.file, wavelength, args.output_directory, args.write)
-
-    return
-
+    GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
