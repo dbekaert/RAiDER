@@ -97,10 +97,12 @@ class RasterRDR(AOI):
         self._type = 'radar_rasters'
         self._latfile = lat_file
         self._lonfile = lon_file
+        
         if (self._latfile is None) and (self._lonfile is None):
             raise ValueError('You need to specify a 2-band file or two single-band files')
 
-        assert os.path.exists(self._latfile), f'{self._latfile} cannot be found'
+        if not os.path.exists(self._latfile):
+            raise ValueError(f'{self._latfile} cannot be found!')
 
         try:
             bpg = bounds_from_latlon_rasters(lat_file, lon_file)

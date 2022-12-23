@@ -86,7 +86,7 @@ def test_read_station_file(station_file):
 def test_bounds_from_latlon_rasters():
     latfile = os.path.join(GEOM_DIR, 'lat.rdr')
     lonfile = os.path.join(GEOM_DIR, 'lon.rdr')
-    _, snwe, _ = bounds_from_latlon_rasters(latfile, lonfile)
+    snwe, _, _ = bounds_from_latlon_rasters(latfile, lonfile)
 
     bounds_true =[15.7637, 21.4936, -101.6384, -98.2418]
     assert all([np.allclose(b, t, rtol=1e-4) for b, t in zip(snwe, bounds_true)])
