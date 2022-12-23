@@ -5,12 +5,12 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-"""RAiDER tropospheric delay calculation 
+"""RAiDER tropospheric delay calculation
 
-This module provides the main RAiDER functionality for calculating 
-tropospheric wet and hydrostatic delays from a weather model. Weather 
-models are accessed as NETCDF files and should have "wet" "hydro" 
-"wet_total" and "hydro_total" fields specified. 
+This module provides the main RAiDER functionality for calculating
+tropospheric wet and hydrostatic delays from a weather model. Weather
+models are accessed as NETCDF files and should have "wet" "hydro"
+"wet_total" and "hydro_total" fields specified.
 """
 import os
 
@@ -36,14 +36,14 @@ from RAiDER.utilFcns import (
 
 ###############################################################################
 def tropo_delay(
-        dt, 
-        weather_model_file: str, 
-        aoi, 
-        los, 
-        height_levels: List[float]=None, 
-        out_proj: Union[int, str] =4326, 
+        dt,
+        weather_model_file: str,
+        aoi,
+        los,
+        height_levels: List[float]=None,
+        out_proj: Union[int, str] =4326,
         cube_spacing_m: int=None,
-        look_dir: str='right', 
+        look_dir: str='right',
     ):
     """
     Calculate integrated delays on query points.
@@ -63,8 +63,12 @@ def tropo_delay(
     """
     # get heights
     if height_levels is None:
-        with xarray.load_dataset(weather_model_file) as ds:
-            height_levels = ds.z.values
+        if aoi.type() == 'Geocube':
+            height_levels = aoi.readZ()
+
+        else:
+            with xarray.load_dataset(weather_model_file) as ds:
+                height_levels = ds.z.values
 
     #TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, aoi.bounds(), height_levels,
@@ -197,13 +201,16 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
                  wetDelay,
                  {"units" : "m",
                   "description": f"wet {out_type} delay",
-                  "grid_mapping": "cube_projection",
+                  # 'crs': crs.to_epsg(),
+                  "grid_mapping": "crs",
+
                  }),
             hydro=(["z", "y", "x"],
                    hydroDelay,
                    {"units": "m",
+                    # 'crs': crs.to_epsg(),
                     "description": f"hydrostatic {out_type} delay",
-                    "grid_mapping": "cube_projection",
+                    "grid_mapping": "crs",
                    }),
         ),
         coords=dict(
@@ -222,9 +229,9 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
     )
 
     # Write projection system mapping
-    ds["cube_projection"] = int()
+    ds["crs"] = int(-2147483647) # dummy placeholder, match GUNW
     for k, v in crs.to_cf().items():
-        ds.cube_projection.attrs[k] = v
+        ds.crs.attrs[k] = v
 
     # Write z-axis information
     ds.z.attrs["axis"] = "Z"

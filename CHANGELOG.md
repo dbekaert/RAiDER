@@ -3,18 +3,46 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/) 
+and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Corrects bug in weather filename that resulted in incorrect delay calculation
-Implements a quick test to check whether a weather model is downloaded for each date in a list
-Write the diagnostic weather model files to the 'output_directory' rather than PWD
+## [0.4.0]
+
+Adding of new GUNW support to RAiDER. This is an interface delivery allowing for subsequent integration into HYP3 (input/output parsing is not expected to change; computed data is not yet verified). 
+
+### New/Updated Features
++ Working GUNW entry point in workflow for raider.py
++ Ability to parse a GUNW to workflows from which all required RAiDER information is extracted (e.g. dates, UTC, orbit, bbox, look direction, wavelength) with an option to specify weather model (those already supported by RAiDER) and ability to squeeze in the derived output into the original GUNW product.
++ Delays for GUNW are calculated in RAiDER using the ray-tracing option specifying bbox (GUNW driven), a hardcoded lateral posting (0.05º for HRRR and 0.1º for others),  fixed vertical height levels, using an different orbit file for  secondary and master. 
+     - The hard-coded heights and posting will be refined per model and to ensure stitching abilities in ARIA-tools.
+     - The orbit should be refined to not change between secondary and reference to avoid issues. See https://github.com/dbekaert/RAiDER/discussions/435#discussioncomment-4392665 
++ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).  
++ Add unit test for date input argument checking (single day, two dates, two dates with samples)
++ Write the diagnostic weather model files to the 'output_directory' rather than PWD
++ Fix for incorrectly written hard-cored projection embedded in the computed output data
++ Allow for multiple orbits files/dates to be used for slant:projection
++ correctly pass llh to lla_to_ecef function for slant:projection 
+    ++ verified this doesnt change anything
++ removed deprecated ray projection functionality
++ added 1º buffer for zenith and projected (already done for ray tracing)
++ differential delay is rounded to model-dependent nearest hour
++ version 1c hardcoded into the updated GUNW 
+
+### Added dependencies for:
++ sentinelof: used to fetch the orbit for GUNW 
++ rioxarray: used for reading rasters with xarray
+
+### Not implemented / supported in this release### Not implemented / supported in this release
++ no temporal interpolation 
++ no refined model specific hardcoded spacing and heights
++ no ability for single orbit Interferometric calculation 
++ no verification of results
 
 ## [0.3.1]
 Fixes some missing imports and typing statements
 
 ## [0.3.0]
-RAiDER package was refactored to expose the main functionality as a Python library, including the `prepareWeatherModel` 
+RAiDER package was refactored to expose the main functionality as a Python library, including the `prepareWeatherModel`
 and `tropo_delay` functions, as well as anciliarry functions needed for defining AOIs, look vectors, etc.
 
 ### New/Updated Features
@@ -24,8 +52,8 @@ and `tropo_delay` functions, as well as anciliarry functions needed for defining
 + `raider.py ++calcDelaysGUNW GUNWFILE` is enabled as a placeholder only.
 + Upgraded ISCE3 to `>=v0.9.0` to fix a conda build issue as described in [#425](https://github.com/dbekaert/RAiDER/issues/425)
 + Allow user to specify --download_only or download_only=True in the configure file
-+ Added documentation for the Python library interface. 
-+ Added some unit tests. 
++ Added documentation for the Python library interface.
++ Added some unit tests.
 + Fixed some bugs and tweaked the CLI.
 + Added unit tests, docstrings, initial API reference
 + __main__ file to allow calls to different functionality. `raider.py ++process downloadGNSS ...` can now perform the functionality of `raiderDownloadGNSS.py ...
@@ -36,17 +64,17 @@ and `tropo_delay` functions, as well as anciliarry functions needed for defining
 
 RAiDER package was refactored to use a configure file (yaml) to parse parameters. In addition, ocker container images
 are provided with all the necessary dependencies pre-installed. Various models were tested for consistency
-(others were disabled for the time being) with propagation delays computation support for zenith, and slant through 
-ray-tracing using orbit file. Modules were restructured for computational performance improvement. 
+(others were disabled for the time being) with propagation delays computation support for zenith, and slant through
+ray-tracing using orbit file. Modules were restructured for computational performance improvement.
 
 This release is the initial release to the NISAR ADT for supporting the generation of the stratospheric ancillary
-correction using HRES model. 
+correction using HRES model.
 
 ### New/Updated Features
 + Supported for models (verified)
    - ECWMF: HRES, ERA5, and ERA5T access verified and tested
    - NASA GSFC: GMAO access fix for PYDAP changes
-   - NOAA: HRRR access through AWS S3 bucket (using [Herbie](https://github.com/blaylockbk/Herbie)) and correction on 
+   - NOAA: HRRR access through AWS S3 bucket (using [Herbie](https://github.com/blaylockbk/Herbie)) and correction on
      incorrect loading of the pressure.
    - NCMR: not tested
    - Other models are currently disabled (MERRA-2, WRF, ERA-I)
@@ -56,22 +84,22 @@ correction using HRES model.
 + Refactoring and computational improvements for delay computation
    - Better organized for individual function calls
 + When using a pre-existing weather model file, raise a warning instead of an error when the existing weather model
-  doesn't cover the entire AOI. 
+  doesn't cover the entire AOI.
 + Support for delay outputs at
    - 2D coordinate list (x,y) for a user-defined height or at topographic height
    - 2D grid at user-specified output sampling (x,y) and coordinate projection for a user-defined height or by default
-     at topographic height 
-   - 3D cube at weather model grid notes or at user-specified output sampling (x,y,z) and coordinate projection 
+     at topographic height
+   - 3D cube at weather model grid notes or at user-specified output sampling (x,y,z) and coordinate projection
 +  Docker container images are provided with all the necessary dependencies pre-installed. See: <https://github.com/dbekaert/RAiDER/#using-the-docker-image>
-+ CLI has changed from `raiderDelay.py` to `raider.py` with options provided through configure file (yaml format). 
++ CLI has changed from `raiderDelay.py` to `raider.py` with options provided through configure file (yaml format).
 + Unit testing for slant ray-tracing
 + RAiDER-Docs documentation updated for changes in RAiDER package
 
 ### Not implemented / supported in this release
-+ Custom DEMs 
++ Custom DEMs
 + Pypi (`pip install` capability)
-+ Slant delays without an orbit file (e.g. own 2D or 3D LOS files) 
-+ Conventional slant delays with projection from zenith (e.g. orbit, 2D or 3D LOS files) 
++ Slant delays without an orbit file (e.g. own 2D or 3D LOS files)
++ Conventional slant delays with projection from zenith (e.g. orbit, 2D or 3D LOS files)
 + GUNW product input/output
 + Complete unit test coverage
 + Detailed API documentation
@@ -108,7 +136,7 @@ Nate Kean
 ### RAiDER pre-release in support of NISAR troposphere working group
 This release includes features in support of the NISAR tropospheric working group recommendations in June 2021. Salient
 features include full capabilities for statistical analysis of GNSS ZTD and comparison with weather model ZTD, addition
-of the NCMR weather model from ISRO, and unit test suite update. 
+of the NCMR weather model from ISRO, and unit test suite update.
 
 ### Pre-release
 - GMAO, MERRA-2, ECMWF - ERA-5, ERA-5T, HRES, HRRR, and NCMR all working models
@@ -130,7 +158,7 @@ Brett Buzzanga
 ### RAiDER pre-release in support of AGU work
 This release includes the features in support of the team's 2020 AGU presentation. Salient features include model
 download, GNSS ZTD download, ZTD delay calculation at GNSS locations, statistical analysis of the GNSS and model ZTD.
-Slant delay and large scale processing in ongoing development. 
+Slant delay and large scale processing in ongoing development.
 
 ### Pre-release
 - Concurrent download option (tested for GMAO, HRES, ERA5)
@@ -153,7 +181,7 @@ Brett Buzzanga
 
 ### First RAiDER pre-release
 Predominant to be used for model download in support of upcoming statistical analysis for NISAR tropospheric noise working group.
-Delay calculation and stats class in ongoing development. 
+Delay calculation and stats class in ongoing development.
 
 ### Pre-release
 - Download support for HRRR, GMAO, HRES, ERA5, ERAT, MERRA2
