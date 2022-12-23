@@ -20,6 +20,7 @@ Adding of new GUNW support to RAiDER. This is an interface delivery allowing for
 + Add unit test for date input argument checking (single day, two dates, two dates with samples)
 + Write the diagnostic weather model files to the 'output_directory' rather than PWD
 + Fix for incorrectly written hard-cored projection embedded in the computed output data
++ Allow for multiple orbits files/dates to be used for slant:projection
 + differential delay is rounded to model-dependent nearest hour
 + version 1c hardcoded into the updated GUNW 
 
