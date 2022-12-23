@@ -88,8 +88,8 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
                         wspace=0.3)
 
     if savefig:
-        wd = os.path.dirname(os.path.dirname(weatherObj.files[0]))
-        f  = f'{weatherObj._Name}_weather_hgt{z1}_and_{z2}m.pdf'
+        wd   = os.path.dirname(os.path.dirname(weatherObj._out_name))
+        f    = f'{weatherObj._Name}_weather_hgt{z1}_and_{z2}m.pdf'
         plt.savefig(os.path.join(wd, f))
     return f
 
