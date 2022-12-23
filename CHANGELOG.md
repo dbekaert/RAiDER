@@ -7,14 +7,31 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.0]
-Functionality to read a GUNW, write a config, calc delays, write interferometric delays
-Fixed lat/lons at 0.05º (HRRR), 0.1º (all others)
-Metadata match GUNW
 
-Corrects bug in weather filename that resulted in incorrect delay calculation
-Implements a quick test to check whether a weather model is downloaded for each date in a list
-Write the diagnostic weather model files to the 'output_directory' rather than PWD
+Adding of new GUNW support to RAiDER. This is an interface delivery allowing for subsequent integration into HYP3 (input/output parsing is not expected to change; computed data is not yet verified). 
 
+### New/Updated Features
++ Working GUNW entry point in workflow for raider.py
++ Ability to parse a GUNW to workflows from which all required RAiDER information is extracted (e.g. dates, UTC, orbit, bbox, look direction, wavelength) with an option to specify weather model (those already supported by RAiDER) and ability to squeeze in the derived output into the original GUNW product.
++ Delays for GUNW are calculated in RAiDER using the ray-tracing option specifying bbox (GUNW driven), a hardcoded lateral posting (0.05º for HRRR and 0.1º for others),  fixed vertical height levels, using an different orbit file for  secondary and master. 
+     - The hard-coded heights and posting will be refined per model and to ensure stitching abilities in ARIA-tools.
+     - The orbit should be refined to not change between secondary and reference to avoid issues. See https://github.com/dbekaert/RAiDER/discussions/435#discussioncomment-4392665 
++ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).  
++ Add unit test for date input argument checking (single day, two dates, two dates with samples)
++ Write the diagnostic weather model files to the 'output_directory' rather than PWD
++ Fix for incorrectly written hard-cored projection embedded in the computed output data
++ differential delay is rounded to model-dependent nearest hour
++ version 1c hardcoded into the updated GUNW 
+
+### Added dependencies for:
++ sentinelof: used to fetch the orbit for GUNW 
++ rioxarray: used for reading rasters with xarray
+
+### Not implemented / supported in this release### Not implemented / supported in this release
++ no temporal interpolation 
++ no refined model specific hardcoded spacing and heights
++ no ability for single orbit Interferometric calculation 
++ no verification of results
 
 ## [0.3.1]
 Fixes some missing imports and typing statements
