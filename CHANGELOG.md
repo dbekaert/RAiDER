@@ -21,6 +21,10 @@ Adding of new GUNW support to RAiDER. This is an interface delivery allowing for
 + Write the diagnostic weather model files to the 'output_directory' rather than PWD
 + Fix for incorrectly written hard-cored projection embedded in the computed output data
 + Allow for multiple orbits files/dates to be used for slant:projection
++ correctly pass llh to lla_to_ecef function for slant:projection 
+    ++ verified this doesnt change anything
++ removed deprecated ray projection functionality
++ added 1º buffer for zenith and projected (already done for ray tracing)
 + differential delay is rounded to model-dependent nearest hour
 + version 1c hardcoded into the updated GUNW 
 

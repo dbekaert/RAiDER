@@ -130,7 +130,7 @@ class Conventional(LOS):
             )
             LOS_enu = state_to_los(svs,
                                    [self._lats, self._lons, self._heights],
-                                   out="lookangle")
+                                   )
 
         if delays.shape == LOS_enu.shape:
             return delays / LOS_enu
@@ -189,43 +189,11 @@ class Raytracing(LOS):
             raise NotImplementedError()
 
 
-    def getLookVectors(self, time, pad=3 * 60):
+    def getLookVectors(self, time, pad=3*60):
         '''
         Calculate look vectors for raytracing
         '''
-        if self._lats is None:
-            raise ValueError('Target points not set')
-        if self._file is None:
-            raise ValueError('LOS file not set')
-
-        try:
-            # if an ISCE-style los file is provided, use GDAL
-            LOS_enu = inc_hd_to_enu(*rio_open(self._file))
-            self._look_vecs = enu2ecef(
-                LOS_enu[..., 0],
-                LOS_enu[..., 1],
-                LOS_enu[..., 2],
-                self._lats,
-                self._lons,
-                self._heights
-            )
-            self._xyz = np.stack(
-                lla2ecef([
-                    self._lats,
-                    self._lons,
-                    self._heights
-                ]), axis=-1
-            )
-
-        except OSError:
-            # Otherwise treat it as a state vector file
-            svs = np.stack(
-                get_sv(self._file, self._time, self._pad), axis=-1
-            )
-            self._look_vecs, self._xyz = state_to_los(
-                svs, [self._lats, self._lons, self._heights],
-                out="ecef"
-            )
+        raise NotImplementedError
 
 
     def getIntersectionWithHeight(self, height):
@@ -498,7 +466,7 @@ def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
 
 
 ############################
-def state_to_los(svs, llh_targets, out="lookangle"):
+def state_to_los(svs, llh_targets):
     '''
     Converts information from a state vector for a satellite orbit, given in terms of
     position and velocity, to line-of-sight information at each (lon,lat, height)
@@ -523,11 +491,6 @@ def state_to_los(svs, llh_targets, out="lookangle"):
     >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file)
     >>> LOS = losr.state_to_los(*svs, [lats, lons, heights], xyz)
     '''
-    if out not in ["lookangle", "ecef"]:
-        raise ValueError(
-            f"Output type can be lookangle or ecef - not {out}"
-        )
-
     # check the inputs
     if np.min(svs.shape) < 4:
         raise RuntimeError(
@@ -544,20 +507,14 @@ def state_to_los(svs, llh_targets, out="lookangle"):
     ])
 
     # Flatten the input array for convenience
-    in_shape = llh_targets[0].shape
+    in_shape   = llh_targets[0].shape
     target_llh = np.stack([x.flatten() for x in llh_targets], axis=-1)
-    Npts = len(target_llh)
+    Npts       = len(target_llh)
 
     # Iterate through targets and compute LOS
-    if out == "lookangle":
-        los_ang, slant_range = get_radar_pos(target_llh, orb, out="lookangle")
-        los_factor = np.cos(np.deg2rad(los_ang)).reshape(in_shape)
-        return los_factor
-    elif out == "ecef":
-        los_xyz, targ_xyz = get_radar_pos(target_llh, orb, out="ecef")
-        return los_xyz, targ_xyz
-    else:
-        raise NotImplementedError("Unexpected logic in state_to_los")
+    los_ang, slant_range = get_radar_pos(target_llh, orb)
+    los_factor = np.cos(np.deg2rad(los_ang)).reshape(in_shape)
+    return los_factor
 
 
 def cut_times(times, ref_time, pad=3600 * 3):
@@ -580,7 +537,7 @@ def cut_times(times, ref_time, pad=3600 * 3):
     return np.abs(diff) < pad
 
 
-def get_radar_pos(llh, orb, out="lookangle"):
+def get_radar_pos(llh, orb):
     '''
     Calculate the coordinate of the sensor in ECEF at the time corresponding to ***.
 
@@ -592,17 +549,9 @@ def get_radar_pos(llh, orb, out="lookangle"):
 
     Returns:
     -------
-    if out == "lookangle"
-        los: ndarray  - Satellite incidence angle
-        sr:  ndarray  - Slant range in meters
-    if out == "ecef"
-        los_xyz: ndarray - Satellite LOS in ECEF from target to satellite
-        targ_xyz: ndarray - Target XYZ positions in ECEF
+    los: ndarray  - Satellite incidence angle
+    sr:  ndarray  - Slant range in meters
     '''
-    if out not in ["lookangle", "ecef"]:
-        raise ValueError(
-            f"out kwarg must be lookangle or ecef - not {out}"
-        )
 
     num_iteration = 30
     residual_threshold = 1.0e-7
@@ -621,10 +570,8 @@ def get_radar_pos(llh, orb, out="lookangle"):
     # Iterate for each point
     # TODO - vectorize / parallelize
     sr = np.empty((llh.shape[0],), dtype=np.float64)
-    if out == "lookangle":
-        output = np.empty((llh.shape[0],), dtype=np.float64)
-    else:
-        output = np.empty((llh.shape[0], 3), dtype=np.float64)
+    output = np.empty((llh.shape[0],), dtype=np.float64)
+
     for ind, pt in enumerate(llh):
         if not any(np.isnan(pt)):
             # ISCE3 always uses xy convention
@@ -646,36 +593,23 @@ def get_radar_pos(llh, orb, out="lookangle"):
 
 
                 delta = sat_xyz - targ_xyz[ind, :]
-                if out == "lookangle":
-                    # TODO - if we only ever need cos(lookang),
-                    # skip the arccos here and cos above
-                    delta = delta / np.linalg.norm(delta)
-                    output[ind] = np.rad2deg(
-                        np.arccos(np.dot(delta, nv))
-                    )
-                else:
-                    output[ind, :] = (sat_xyz - targ_xyz) / slant_range
+
+                # TODO - if we only ever need cos(lookang),
+                # skip the arccos here and cos above
+                delta = delta / np.linalg.norm(delta)
+                output[ind] = np.rad2deg(
+                    np.arccos(np.dot(delta, nv))
+                )
+
             except Exception as e:
                 raise e
-                sat_xyz[ind, :] = np.nan
-                sr[ind] = np.nan
-                output[ind, ...] = np.nan
         else:
             # in case first pixel has nan
-            try:
-                sat_xyz[ind, :] = np.nan
-            except:
-                pass
+            sat_xyz[ind, :] = np.nan
             sr[ind] = np.nan
             output[ind, ...] = np.nan
 
-    # If lookangle is requested
-    if out == "lookangle":
-        return output, sr
-    elif out == "ecef":
-        return output, targ_xyz
-    else:
-        raise NotImplementedError("Unexpected logic in get_radar_pos")
+    return output, sr
 
 
 def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):

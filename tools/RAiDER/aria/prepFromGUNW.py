@@ -20,17 +20,6 @@ from eof.download import download_eofs
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
 
-## these 2 are not used ---------
-def my_ceil(a, precision=0):
-    ## round down to nearest 'precision'
-    return np.true_divide(np.ceil(a * 10**precision), 10**precision)
-
-
-def my_floor(a, precision=0):
-    ## round down to nearest 'precision'
-    return np.true_divide(np.floor(a * 10**precision), 10**precision)
-## ------------------------------
-
 
 class GUNW(object):
     def __init__(self, f:str, wm:str, out_dir:str):
