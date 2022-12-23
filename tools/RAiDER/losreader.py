@@ -74,7 +74,7 @@ class LOS(ABC):
 
 class Zenith(LOS):
     """
-    Class definition for a "Zenith" object. 
+    Class definition for a "Zenith" object.
     """
     def __init__(self):
         super().__init__()
@@ -123,7 +123,7 @@ class Conventional(LOS):
             # if an ISCE-style los file is passed open it with GDAL
             LOS_enu = inc_hd_to_enu(*rio_open(self._file))
 
-        except OSError:
+        except (OSError, TypeError):
             # Otherwise, treat it as an orbit / statevector file
             svs = np.stack(
                 get_sv(self._file, self._time, self._pad), axis=-1
@@ -305,7 +305,7 @@ def get_sv(los_file, ref_time, pad=3 * 60):
                               requested time
 
     Returns:
-        svs (list of ndarrays): - the times, x/y/z positions and velocities 
+        svs (list of ndarrays): - the times, x/y/z positions and velocities
         of the sensor for the given window around the reference time
     """
     try:
@@ -607,9 +607,9 @@ def get_radar_pos(llh, orb, out="lookangle"):
     num_iteration = 30
     residual_threshold = 1.0e-7
 
-    # Get xyz positions of targets here
+    # Get xyz positions of targets here from lat/lon/height
     targ_xyz = np.stack(
-        lla2ecef(llh[:, 1], llh[:, 0], llh[:, 2]), axis=-1
+        lla2ecef(llh[:, 0], llh[:, 1], llh[:, 2]), axis=-1
     )
 
     # Get some isce3 constants for this inversion
@@ -644,6 +644,7 @@ def get_radar_pos(llh, orb, out="lookangle"):
                 sat_xyz, _ = orb.interpolate(aztime)
                 sr[ind] = slant_range
 
+
                 delta = sat_xyz - targ_xyz[ind, :]
                 if out == "lookangle":
                     # TODO - if we only ever need cos(lookang),
@@ -660,7 +661,11 @@ def get_radar_pos(llh, orb, out="lookangle"):
                 sr[ind] = np.nan
                 output[ind, ...] = np.nan
         else:
-            sat_xyz[ind, :] = np.nan
+            # in case first pixel has nan
+            try:
+                sat_xyz[ind, :] = np.nan
+            except:
+                pass
             sr[ind] = np.nan
             output[ind, ...] = np.nan
 
