@@ -1,21 +1,27 @@
-from argparse import ArgumentParser, ArgumentTypeError
+from argparse import ArgumentParser
 from datetime import datetime, time
 
+import os
 import pytest
 
 import numpy as np
 
+from test import TEST_DIR, pushd
+SCENARIO = os.path.join(TEST_DIR, "scenario_4")
+
+from RAiDER.cli import AttributeDict
+
+
 from RAiDER.cli.validators import (
     modelName2Module, getBufferedExtent, isOutside, isInside, 
     enforce_valid_dates as date_type, convert_time as time_type,
-    enforce_bbox, parse_dates
+    enforce_bbox, parse_dates, enforce_wm, get_los
 )
 
 
 @pytest.fixture
 def parser():
     return ArgumentParser()
-
 
 
 @pytest.fixture
@@ -45,6 +51,25 @@ def llarray():
     lons = np.arange(-74, -71.9, 0.2)
     return lats, lons
 
+
+@pytest.fixture
+def args1():
+    test_file = os.path.join(SCENARIO, 'los.rdr')
+    args = AttributeDict({'los_file': test_file, 'los_convention': 'isce','ray_trace': False})
+    return args
+
+
+
+def test_enforce_wm():
+    with pytest.raises(ModuleNotFoundError):
+        enforce_wm('notamodel')
+    
+
+def test_get_los_ray(args1):
+    args = args1
+    los = get_los(args)
+    assert not los.ray_trace()
+    assert los.is_Projected()
 
 
 def test_date_type():
