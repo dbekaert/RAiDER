@@ -1,6 +1,8 @@
 import os
 import pytest
 import subprocess
+import shutil
+import glob
 
 from test import TEST_DIR
 
@@ -16,12 +18,13 @@ def test_scenario_3():
     process = subprocess.run(['raider.py', test_path],stdout=subprocess.PIPE, universal_newlines=True)
     assert process.returncode == 0
 
-    new_data = xr.load_dataset('HRRR_tropo_20181113T230000_ray.nc')
-    golden_data = xr.load_dataset(os.path.join(SCENARIO_DIR, 'HRRR_tropo_20181113T230000_ray.nc'))
+    new_data = xr.load_dataset(os.path.join(SCENARIO_DIR, 'HRRR_tropo_20181113T230000_ray.nc'))
+    golden_data = xr.load_dataset(os.path.join(SCENARIO_DIR, 'golden_data', 'HRRR_tropo_20181113T230000_ray.nc'))
 
     assert np.allclose(golden_data['wet'], new_data['wet'])
     assert np.allclose(golden_data['hydro'], new_data['hydro'])
 
     # Clean up files
-    subprocess.run(['rm', '-f', './HRRR*'])
-    subprocess.run(['rm', '-rf', './weather_files'])
+    for f in glob.glob(os.path.join(SCENARIO_DIR, 'HRRR*')):
+        os.remove(f)
+    shutil.rmtree(os.path.join(SCENARIO_DIR, 'weather_files'))
