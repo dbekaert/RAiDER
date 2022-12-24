@@ -263,11 +263,14 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         trans = rasterio.Affine.from_gdal(*gt)
 
     ## cant write netcdfs with rasterio in a simple way
-    driver = fmt if not fmt == 'nc' else 'GTiff'
+    if fmt == 'nc':
+        fmt = 'GTiff'
+        filename = filename.replace('.nc', '.GTiff')
+
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
                        dtype=dtype, crs=proj, nodata=noDataValue,
-                       driver=driver, transform=trans) as dst:
+                       driver=fmt, transform=trans) as dst:
         dst.write(array, 1)
     logger.info('Wrote: %s', filename)
     return
@@ -437,10 +440,8 @@ def round_time(dt, roundTo=60):
 
 def writeDelays(aoi, wetDelay, hydroDelay,
                 wetFilename, hydroFilename=None,
-                outformat=None, proj=None, gt=None, ndv=0.):
-    '''
-    Write the delay numpy arrays to files in the format specified
-    '''
+                outformat=None, ndv=0.):
+    """ Write the delay numpy arrays to files in the format specified """
 
     # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
@@ -457,8 +458,11 @@ def writeDelays(aoi, wetDelay, hydroDelay,
         df['hydroDelay'] = hydroDelay
         df['totalDelay'] = wetDelay + hydroDelay
         df.to_csv(wetFilename, index=False)
+        logger.info('Wrote delays to: %s', wetFilename)
 
     else:
+        proj = aoi.projection()
+        gt   = aoi.geotransform()
         writeArrayToRaster(
             wetDelay,
             wetFilename,

@@ -16,3 +16,4 @@ los_group:
 runtime_group:
   output_projection:  4326
   cube_spacing_in_m: 5000.0
+  output_directory: test/scenario_3

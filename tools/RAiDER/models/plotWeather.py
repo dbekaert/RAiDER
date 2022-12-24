@@ -4,6 +4,7 @@ class objects. It is not designed to be used on its own apart
 from this class.
 """
 
+import os
 from RAiDER.interpolator import RegularGridInterpolator as Interpolator
 from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
 import numpy as np
@@ -87,7 +88,9 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
                         wspace=0.3)
 
     if savefig:
-        plt.savefig('{}_weather_hgt{}_and_{}m.pdf'.format(weatherObj._Name, z1, z2))
+        wd   = os.path.dirname(os.path.dirname(weatherObj._out_name))
+        f    = f'{weatherObj._Name}_weather_hgt{z1}_and_{z2}m.pdf'
+        plt.savefig(os.path.join(wd, f))
     return f
 
 

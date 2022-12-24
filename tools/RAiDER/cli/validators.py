@@ -70,7 +70,7 @@ def get_heights(args, out, station_file, bounding_box=None):
             'height_levels': None,
         }
 
-    if 'dem' in args.keys():
+    if args.get('dem'):
         if (station_file is not None):
             if 'Hgt_m' not in pd.read_csv(station_file):
                 out['dem'] = os.path.join(dem_path, 'GLO30.dem')
@@ -96,11 +96,15 @@ def get_heights(args, out, station_file, bounding_box=None):
         else:
             pass # will download the dem later
 
-    elif 'height_file_rdr' in args.keys():
+    elif args.get('height_file_rdr'):
         out['height_file_rdr'] = args.height_file_rdr
 
-    elif 'height_levels' in args.keys():
-        l = re.findall('[0-9]+', args.height_levels)
+    elif args.get('height_levels'):
+        if isinstance(args.height_levels, str):
+            l = re.findall('[-0-9]+', args.height_levels)
+        else:
+            l = args.height_levels
+
         out['height_levels'] = [float(ll) for ll in l]
 
     else:
@@ -144,8 +148,8 @@ def get_query_region(args):
         query  = GeocodedFile(args.geocoded_file, is_dem=is_dem)
 
     ## untested
-    elif 'los_cube' in args.keys():
-        query = Geocube(args.los_cube)
+    elif arg.get('geo_cube'):
+        query = Geocube(args.geo_cube)
 
     else:
         # TODO: Need to incorporate the cube
@@ -188,7 +192,7 @@ def parse_dates(arg_dict):
     Determine the requested dates from the input parameters
     '''
 
-    if 'date_list' in arg_dict.keys():
+    if arg_dict.get('date_list'):
         l = arg_dict['date_list']
         if isinstance(l, str):
             l = re.findall('[0-9]+', l)
@@ -201,13 +205,13 @@ def parse_dates(arg_dict):
             raise ValueError('Inputs must include either date_list or date_start')
         start = enforce_valid_dates(start)
 
-        if 'date_end' in arg_dict.keys():
+        if arg_dict.get('date_end'):
             end = arg_dict['date_end']
             end = enforce_valid_dates(end)
         else:
            end = start
 
-        if 'date_step' in arg_dict.keys():
+        if arg_dict.get('date_step'):
             step = int(arg_dict['date_step'])
         else:
             step = 1
