@@ -591,7 +591,6 @@ def get_radar_pos(llh, orb):
                 sat_xyz, _ = orb.interpolate(aztime)
                 sr[ind] = slant_range
 
-
                 delta = sat_xyz - targ_xyz[ind, :]
 
                 # TODO - if we only ever need cos(lookang),
@@ -605,7 +604,10 @@ def get_radar_pos(llh, orb):
                 raise e
         else:
             # in case first pixel has nan
-            sat_xyz[ind, :] = np.nan
+            try:
+                sat_xyz[ind, :] = np.nan
+            except:
+                pass
             sr[ind] = np.nan
             output[ind, ...] = np.nan
 
