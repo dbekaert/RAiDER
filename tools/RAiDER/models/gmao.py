@@ -125,7 +125,7 @@ class GMAO(WeatherModel):
                 logger.warning('Weather model already exists, skipping download')
 
             with h5py.File(f, 'r') as ds:
-                q = ds['QV'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                qv  = ds['QV'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
                 p = ds['PL'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
                 t = ds['T'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
                 h = ds['H'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
