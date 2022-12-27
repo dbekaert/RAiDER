@@ -209,11 +209,14 @@ def calcDelays(iargs=None):
         aoi = params['aoi']
         model = params['weather_model']
 
-        # add a buffer for raytracing
+        # add a buffer
         if los.ray_trace():
-            ll_bounds = aoi.add_buffer(buffer=1)
+            aoi.set_buffer(1)
+            ll_bounds = aoi.add_buffer()
         else:
-            ll_bounds = aoi.add_buffer(buffer=1)
+            aoi.set_buffer(1)
+            ll_bounds = aoi.add_buffer()
+
 
         ###########################################################
         # weather model calculation

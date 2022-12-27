@@ -74,6 +74,7 @@ def tropo_delay(
     ds = _get_delays_on_cube(dt, weather_model_file, aoi.bounds(), height_levels,
             los, out_proj=out_proj, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
 
+
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
 
@@ -87,7 +88,12 @@ def tropo_delay(
         pnt_proj = CRS.from_epsg(4326)
         lats, lons = aoi.readLL()
         hgts = aoi.readZ()
+
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
+
+        # if np.isnan(pnts).any():
+        #     raise ValueError('Nans in delay cube. Check lat/lon buffering and orbit files.')
+
         if pnts.ndim == 3:
             pnts = pnts.transpose(1,2,0)
         elif pnts.ndim == 2:

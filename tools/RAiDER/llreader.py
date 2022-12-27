@@ -29,6 +29,7 @@ class AOI(object):
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
         self._geotransform = None
+        self._buffer = 0
 
 
     def type(self):
@@ -47,7 +48,12 @@ class AOI(object):
         return self._proj
 
 
-    def add_buffer(self, buffer):
+    def set_buffer(self, buffer):
+        self._buffer = buffer
+        return
+
+
+    def add_buffer(self):
         '''
         Check whether an extra lat/lon buffer is needed for raytracing
         '''
@@ -56,10 +62,10 @@ class AOI(object):
             ll_bounds = self._bounding_box.copy()
         except AttributeError:
             ll_bounds = list(self._bounding_box)
-        ll_bounds[0] = np.max([ll_bounds[0] - buffer, -90])
-        ll_bounds[1] = np.min([ll_bounds[1] + buffer,  90])
-        ll_bounds[2] = np.max([ll_bounds[2] - buffer,-180])
-        ll_bounds[3] = np.min([ll_bounds[3] + buffer, 180])
+        ll_bounds[0] = np.max([ll_bounds[0] - self._buffer, -90])
+        ll_bounds[1] = np.min([ll_bounds[1] + self._buffer,  90])
+        ll_bounds[2] = np.max([ll_bounds[2] - self._buffer,-180])
+        ll_bounds[3] = np.min([ll_bounds[3] + self._buffer, 180])
         return ll_bounds
 
 
@@ -97,7 +103,7 @@ class RasterRDR(AOI):
         self._type = 'radar_rasters'
         self._latfile = lat_file
         self._lonfile = lon_file
-        
+
         if (self._latfile is None) and (self._lonfile is None):
             raise ValueError('You need to specify a 2-band file or two single-band files')
 
@@ -130,11 +136,8 @@ class RasterRDR(AOI):
 
         else:
             demFile = 'GLO30_fullres_dem.tif' if self._demfile is None else self._demfile
-            zvals, metadata = download_dem(
-                self._bounding_box,
-                writeDEM=True,
-                outName=os.path.join(demFile),
-            )
+            bbox    = self.add_buffer()
+            zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
             z_bounds = get_bbox(metadata)
             z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
             return z_out
@@ -174,7 +177,7 @@ class GeocodedFile(AOI):
 
     def readZ(self):
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
-        bbox    = self._bounding_box
+        bbox    = self.add_buffer()
         zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
         z_bounds = get_bbox(metadata)
         z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
