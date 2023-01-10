@@ -22,11 +22,17 @@ from RAiDER.logger import logger
 
 class AOI(object):
     '''
-    This instantiates a generic AOI class object
+    This instantiates a generic AOI class object. 
+
+    Attributes:
+       _bounding_box    - S N W E bounding box
+       _proj            - pyproj-compatible CRS 
+       _type            - Type of AOI 
     '''
     def __init__(self):
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
+        self._type = None
 
 
     def type(self):
@@ -72,7 +78,7 @@ class StationFile(AOI):
 
 
     def readZ(self):
-        df = pd.read_csv(self._filename)
+        df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         if 'Hgt_m' in df.columns:
             return df['Hgt_m'].values
         else:
