@@ -74,7 +74,7 @@ def get_heights(args, out, station_file, bounding_box=None):
             if 'Hgt_m' not in pd.read_csv(station_file):
                 out['dem'] = os.path.join(dem_path, 'GLO30.dem')
         elif os.path.exists(args.dem):
-            out['dem'] = os.path.join(out, 'GLO30.dem')
+            out['dem'] = args.dem
             if bounding_box is not None:
                 dem_bounds = rio_extents(rio_profile(args.dem))
                 lats = dem_bounds[:2]
