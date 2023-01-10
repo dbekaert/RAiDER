@@ -107,18 +107,27 @@ def fillna3D(array, axis=-1):
     return np.moveaxis(out, -1, axis)
 
 
-def interpolateDEM(demRaster, extent, outLL, method='linear'):
+def interpolateDEM(demRaster, transform, outLL, method='linear'):
     ''' Interpolate a DEM raster to a set of lat/lon query points '''
-    minlat, maxlat, minlon, maxlon = extent
-    nPixLat = demRaster.shape[0]
-    nPixLon = demRaster.shape[1]
-    xlats = np.linspace(minlat, maxlat, nPixLat)
-    xlons = np.linspace(minlon, maxlon, nPixLon)
+    import rasterio as rio
+    rows   = np.arange(demRaster.shape[0])
+    cols   = np.arange(demRaster.shape[1])
+
+    xlats = rio.transform.xy(transform, rows, 0, offset='center')[1]
+    xlons = rio.transform.xy(transform, 0, cols, offset='center')[0]
+    flip  = True if xlats[0] > xlats[-1] else False
+
+    ## sort the target points for speed up
+    if flip:
+        if outLL[0][0, 0] > outLL[0][-1, 0]:
+            outLL[0] = np.flipud(outLL[0])
+
     interpolator = rgi(
         points=(xlats, xlons),
         values=demRaster,
         method=method,
         bounds_error=False
     )
-    outInterp = interpolator(outLL)
+    ## flip N/S if needed
+    outInterp = np.flipud(outInterp) if flip else outInterp
     return outInterp

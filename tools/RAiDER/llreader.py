@@ -83,8 +83,7 @@ class StationFile(AOI):
             return df['Hgt_m'].values
         else:
             zvals, metadata = download_dem(self._bounding_box)
-            z_bounds = get_bbox(metadata)
-            z_out = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            z_out       = interpolateDEM(zvals, metadata['transform'], self.readLL(), method='nearest')
             df['Hgt_m'] = z_out
             df.to_csv(self._filename, index=False)
             self.__init__(self._filename)
@@ -97,7 +96,7 @@ class RasterRDR(AOI):
         self._type = 'radar_rasters'
         self._latfile = lat_file
         self._lonfile = lon_file
-        
+
         if (self._latfile is None) and (self._lonfile is None):
             raise ValueError('You need to specify a 2-band file or two single-band files')
 
@@ -117,10 +116,12 @@ class RasterRDR(AOI):
 
     def readLL(self):
         # allow for 2-band lat/lon raster
+        lats = rio_open(self._latfile)
+        lats = np.sort(lats, 0) # force S->N
         if self._lonfile is None:
-            return rio_open(self._latfile)
+            return lats
         else:
-            return rio_open(self._latfile), rio_open(self._lonfile)
+            return lats, rio_open(self._lonfile)
 
 
     def readZ(self):
@@ -135,8 +136,7 @@ class RasterRDR(AOI):
                 writeDEM=True,
                 outName=os.path.join(demFile),
             )
-            z_bounds = get_bbox(metadata)
-            z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            z_out    = interpolateDEM(zvals, metadata['transform'], self.readLL(), method='nearest')
             return z_out
 
 
@@ -176,8 +176,7 @@ class GeocodedFile(AOI):
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox    = self._bounding_box
         zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
-        z_bounds = get_bbox(metadata)
-        z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+        z_out    = interpolateDEM(zvals, metadata['transform'], self.readLL(), method='nearest')
         return z_out
 
 

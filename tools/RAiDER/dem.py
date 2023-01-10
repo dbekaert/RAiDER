@@ -40,16 +40,12 @@ def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):
         hts = None
 
     elif (dem_type == 'download') or (dem_type == 'dem'):
-        if ~os.path.exists(dem_file):
-            download_dem(ll_bounds, writeDEM=True, outName=dem_file)
-            
-        #TODO: interpolate heights to query lats/lons
+        zvals, metadata = download_dem(ll_bounds, writeDEM=True, outName=dem_file)
+
+        #TODO: check this
+        lons, lats = np.meshgrid(lons, lats)
         # Interpolate to the query points
-        hts = interpolateDEM(
-            dem_file,
-            lats,
-            lons,
-        )
+        hts = interpolateDEM(zvals, metadata['transform'], (lats, lons), method='nearest')
 
     return hts
 
