@@ -128,6 +128,7 @@ def interpolateDEM(demRaster, transform, outLL, method='linear'):
         method=method,
         bounds_error=False
     )
+    outInterp = interpolator(outLL)
     ## flip N/S if needed
     outInterp = np.flipud(outInterp) if flip else outInterp
     return outInterp
