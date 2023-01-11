@@ -149,7 +149,7 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
     # Build the output grid
     zpts = np.array(heights)
     xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
-    ypts = np.arange(out_snwe[0], out_snwe[1] + out_spacing, out_spacing)
+    ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
 
 
     # If no orbit is provided
