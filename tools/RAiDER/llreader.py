@@ -17,7 +17,7 @@ from pyproj import CRS
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
-from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band
+from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band, writeArrayToRaster
 from RAiDER.logger import logger
 
 
@@ -136,7 +136,10 @@ class RasterRDR(AOI):
                 outName=os.path.join(demFile),
             )
             z_bounds = get_bbox(metadata)
-            z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            z_out    = interpolateDEM(np.flipud(zvals), z_bounds, self.readLL(), method='nearest')
+
+            writeArrayToRaster(z_out, 'hgt.rdr')
+
             return z_out
 
 
@@ -256,5 +259,5 @@ def get_bbox(p):
     pix_lon = p['transform'][0]
     pix_lat = p['transform'][4]
     lon_e = lon_w + p['width'] * pix_lon
-    lat_s = lat_n + p['width'] * pix_lat
+    lat_s = lat_n + p['height'] * pix_lat
     return lat_s, lat_n, lon_w, lon_e
