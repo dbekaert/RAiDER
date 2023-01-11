@@ -1,0 +1,8 @@
+include LICENSE
+include LICENSE2.md
+include README.md
+include CHANGELOG.md
+
+graft tools
+
+global-exclude *.py[cod] __pycache__ *.so
