@@ -88,6 +88,10 @@ def tropo_delay(
         lats, lons = aoi.readLL()
         hgts = aoi.readZ()
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
+        if pnts.ndim == 3:
+            pnts = pnts.transpose(1,2,0)
+        elif pnts.ndim == 2:
+            pnts = pnts.T
         ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from get_delays_on_cube calls the total delays 'wet' and 'hydro'
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
@@ -290,9 +294,9 @@ def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_pr
         res = t.transform(lats, lons, hgts)
 
     if out_flip == 'east':
-        return np.stack((res[1], res[0], res[2]), axis=-1)
+        return np.stack((res[1], res[0], res[2]), axis=-1).T
     else:
-        return np.stack(res, axis=-1)
+        return np.stack(res, axis=-1).T
 
 
 def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
