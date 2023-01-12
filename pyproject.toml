@@ -50,6 +50,7 @@ repository = "https://github.com/dbekaert/RAiDER"
 "generateGACOSVRT.py"   = "RAiDER.models.generateGACOSVRT:main"
 
 [tool.setuptools]
+include-package-data = true
 zip-safe = false
 
 [tool.setuptools.packages.find]
