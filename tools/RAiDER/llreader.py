@@ -83,7 +83,7 @@ class StationFile(AOI):
             return df['Hgt_m'].values
         else:
             zvals, metadata = download_dem(self._bounding_box)
-            z_out       = interpolateDEM(zvals, metadata['transform'], self.readLL(), method='nearest')
+            z_out = interpolateDEM(demFile, self.readLL())
             df['Hgt_m'] = z_out
             df.to_csv(self._filename, index=False)
             self.__init__(self._filename)
@@ -136,7 +136,9 @@ class RasterRDR(AOI):
                 writeDEM=True,
                 outName=os.path.join(demFile),
             )
-            z_out    = interpolateDEM(zvals, metadata['transform'], self.readLL(), method='nearest')
+            z_out = interpolateDEM(demFile, self.readLL())
+
+
             return z_out
 
 
@@ -176,7 +178,9 @@ class GeocodedFile(AOI):
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox    = self._bounding_box
         zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
-        z_out    = interpolateDEM(zvals, metadata['transform'], self.readLL(), method='nearest')
+        z_out = interpolateDEM(demFile, self.readLL())
+
+
         return z_out
 
 
@@ -247,13 +251,3 @@ def bounds_from_csv(station_file):
         use_csv_heights = True
     snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
     return snwe
-
-
-def get_bbox(p):
-    lon_w = p['transform'][2]
-    lat_n = p['transform'][5]
-    pix_lon = p['transform'][0]
-    pix_lat = p['transform'][4]
-    lon_e = lon_w + p['width'] * pix_lon
-    lat_s = lat_n + p['width'] * pix_lat
-    return lat_s, lat_n, lon_w, lon_e
