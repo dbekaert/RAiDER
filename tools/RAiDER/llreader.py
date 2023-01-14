@@ -117,7 +117,7 @@ class RasterRDR(AOI):
     def readLL(self):
         # allow for 2-band lat/lon raster
         lats = rio_open(self._latfile)
-        lats = np.sort(lats, 0) # force S->N
+
         if self._lonfile is None:
             return lats
         else:
@@ -137,7 +137,6 @@ class RasterRDR(AOI):
                 outName=os.path.join(demFile),
             )
             z_out = interpolateDEM(demFile, self.readLL())
-
 
             return z_out
 

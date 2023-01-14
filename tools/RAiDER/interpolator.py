@@ -108,9 +108,15 @@ def fillna3D(array, axis=-1):
 
 
 def interpolateDEM(demFile, outLL, method='nearest'):
-    ''' Interpolate a DEM raster to a set of lat/lon query points '''
+    """ Interpolate a DEM raster to a set of lat/lon query points using rioxarray
+
+    outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
+        For now will only use first row/col of 2D
+    """
     import rioxarray as xrr
     da_dem     = xrr.open_rasterio(demFile, band_as_variable=True)['band_1']
-    lats, lons = self.readLL()
-    z_out      = da_dem.interp(y=np.sort(lats[:, 0])[::-1], x=lons[0, :]).data
-    return outInterp
+    lats, lons = outLL
+    lats  = lats[:, 0] if lats.ndim==2 else lats
+    lons  = lons[0, :] if lons.ndim==2 else lons
+    z_out = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
+    return z_out
