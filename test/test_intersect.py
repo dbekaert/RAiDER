@@ -1,19 +1,15 @@
 import pytest
 import os
 import numpy as np
+import pandas as pd
 import shutil
 import subprocess
 import xarray as xr
 import rioxarray as xrr
 import RAiDER
 import yaml
-# from test import TEST_DIR
+from test import TEST_DIR
 
-TEST_DIR = '/Users/buzzanga/Software_InSAR/RAiDER_git/test'
-
-
-SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
-os.makedirs(SCENARIO_DIR, exist_ok=True)
 
 def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
     """ Make lat lons at a specified spacing """
@@ -63,6 +59,8 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
 
 def test_cube_intersect():
     """ Test the intersection of lat/lon files with the DEM (model height levels?) """
+    SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
+    os.makedirs(SCENARIO_DIR, exist_ok=True)
     os.chdir(SCENARIO_DIR)
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
@@ -99,6 +97,8 @@ def test_cube_intersect():
 
 
 def test_gnss_intersect():
+    SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
+    os.makedirs(SCENARIO_DIR, exist_ok=True)
     os.chdir(SCENARIO_DIR)
     gnss_file = os.path.join(TEST_DIR, 'scenario_2', 'stations.csv')
     model      = 'GMAO'
