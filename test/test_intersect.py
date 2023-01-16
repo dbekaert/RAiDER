@@ -8,6 +8,7 @@ import xarray as xr
 import rioxarray as xrr
 import RAiDER
 import yaml
+import glob
 from test import TEST_DIR
 
 
@@ -93,6 +94,8 @@ def test_cube_intersect():
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
+    [os.remove(f) for f in glob.glob(f'{model}*')]
+
     return
 
 
@@ -123,8 +126,10 @@ def test_gnss_intersect():
 
     gold = 2.3768069344762495
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{model}_Delay_{date}T{time.replace(":", "")}.csv'))
-    # df = pd.read_csv(f'{model}_Delay_{date}T{time.replace(":", "")}.csv')
     td = df[df.ID=='CAPE']['totalDelay'].item()
+    assert np.allclose(gold, td)
 
     shutil.rmtree(SCENARIO_DIR)
-    assert np.allclose(gold, td)
+    [os.remove(f) for f in glob.glob(f'{model}*')]
+
+    return

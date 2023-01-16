@@ -26,6 +26,7 @@ class AOI(object):
     This instantiates a generic AOI class object
     '''
     def __init__(self):
+        self._output_directory = os.getcwd()
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
         self._geotransform = None
@@ -63,11 +64,18 @@ class AOI(object):
         return ll_bounds
 
 
+    def set_output_directory(self, output_directory):
+        self._output_directory = output_directory
+        return
+
+
+
 class StationFile(AOI):
     '''Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns'''
-    def __init__(self, station_file):
+    def __init__(self, station_file, demFile=None):
         super().__init__()
         self._filename = station_file
+        self._demfile  = demFile
         self._bounding_box = bounds_from_csv(station_file)
         self._type = 'station_file'
 
@@ -82,8 +90,22 @@ class StationFile(AOI):
         if 'Hgt_m' in df.columns:
             return df['Hgt_m'].values
         else:
-            zvals, metadata = download_dem(self._bounding_box)
-            z_out = interpolateDEM(demFile, self.readLL())
+            demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
+                            if self._demfile is None else self._demfile
+
+            zvals, metadata = download_dem(
+                self._bounding_box,
+                writeDEM=True,
+                outName=demFile,
+            )
+            ## select instead
+            z_out0 = interpolateDEM(demFile, self.readLL())
+            if np.isnan(z_out0).all():
+                raise Exception('DEM interpolation failed. Check DEM bounds and station coords.')
+
+
+            # the diagonal is the actual stations coordinates
+            z_out = np.diag(z_out0)
             df['Hgt_m'] = z_out
             df.to_csv(self._filename, index=False)
             self.__init__(self._filename)
@@ -130,11 +152,13 @@ class RasterRDR(AOI):
             return rio_open(self._hgtfile)
 
         else:
-            demFile = 'GLO30_fullres_dem.tif' if self._demfile is None else self._demfile
+            demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
+                            if self._demfile is None else self._demfile
+
             zvals, metadata = download_dem(
                 self._bounding_box,
                 writeDEM=True,
-                outName=os.path.join(demFile),
+                outName=demFile,
             )
             z_out = interpolateDEM(demFile, self.readLL())
 
