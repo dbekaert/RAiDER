@@ -46,7 +46,7 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {example_yaml}')
+            raise ValueError(f'Something is wrong with the yaml file {template_file}')
 
     params = {**params, **dct_cfg}
 
@@ -59,9 +59,9 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
 
 def test_cube_intersect():
     """ Test the intersection of lat/lon files with the DEM (model height levels?) """
+    TEST_DIR = '/Users/buzzanga/Software_InSAR/RAiDER_git/test'
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
-    os.chdir(SCENARIO_DIR)
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
     model      = 'GMAO'
@@ -75,7 +75,7 @@ def test_cube_intersect():
             'time_group': {'time': time},
             'weather_model': model,
             'aoi_group': {'lat_file': f_lat, 'lon_file': f_lon},
-            'output_directory': SCENARIO_DIR,
+            'runtime_group': {'output_directory': SCENARIO_DIR},
         }
 
     ## generate the default template file and overwrite it with new parms
@@ -99,7 +99,6 @@ def test_cube_intersect():
 def test_gnss_intersect():
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
-    os.chdir(SCENARIO_DIR)
     gnss_file = os.path.join(TEST_DIR, 'scenario_2', 'stations.csv')
     model      = 'GMAO'
     date       = 20200130
@@ -111,7 +110,7 @@ def test_gnss_intersect():
             'time_group': {'time': time},
             'weather_model': model,
             'aoi_group': {'station_file': gnss_file},
-            'output_directory': SCENARIO_DIR,
+            'runtime_group': {'output_directory': SCENARIO_DIR},
         }
 
     ## generate the default template file and overwrite it with new parms
@@ -124,6 +123,7 @@ def test_gnss_intersect():
 
     gold = 2.3768069344762495
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{model}_Delay_{date}T{time.replace(":", "")}.csv'))
+    # df = pd.read_csv(f'{model}_Delay_{date}T{time.replace(":", "")}.csv')
     td = df[df.ID=='CAPE']['totalDelay'].item()
 
     shutil.rmtree(SCENARIO_DIR)
