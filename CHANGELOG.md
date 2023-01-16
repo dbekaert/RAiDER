@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2]
++ Reorder target points for intersection
++ Use exact coordinates of DEM to interpolate heights to target lat/lons
++ Support DEM interpolation to station file
++ Implement end to end test for intersection of cube with lat/lon files
++ Implement end to end test for calculation at stations delay
++ Update AOI to store the output directory so DEM is written to right place
+
 ## [0.4.1]
 ### Fixed
 + Package data is more explicitly handled so that it is included in the conda-forge build; see [#467](https://github.com/dbekaert/RAiDER/pull/467)
