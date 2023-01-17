@@ -47,7 +47,7 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
 
     # setup the plot
     f = plt.figure(figsize=(18, 14))
-    f.suptitle('{} Pressure/Humidity/Temperature at height {}m and {}m (values should drop as elevation increases)'.format(weatherObj._Name, z1, z2))
+    f.suptitle(f'{weatherObj._Name} Pressure/Humidity/Temperature at height {z1}m and {z1}m (values should drop as elevation increases)')
 
     xind = int(np.floor(weatherObj._xs.shape[0] / 2))
     yind = int(np.floor(weatherObj._ys.shape[0] / 2))
@@ -129,12 +129,13 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
 
     # setup the plot
     f = plt.figure(figsize=(14, 10))
-    f.suptitle('{} Wet and Hydrostatic refractivity at height {}m and {}m'.format(weatherObj._Name, z1, z2))
+    f.suptitle(f'{weatherObj._Name} Wet and Hydrostatic refractivity at height {z1}m and {z1}m')
 
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(2, 2, ind + 1)
-        im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis', extent=[np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)], origin='lower')
+        im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis',
+                       extent=[np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)], origin='lower')
         divider = mal(sp)
         cax = divider.append_axes("right", size="4%", pad=0.05)
         plt.colorbar(im, cax=cax)
@@ -145,5 +146,7 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
             sp.set_ylabel('{} m\n'.format(z2))
 
     if savefig:
-        plt.savefig('{}_refractivity_hgt{}_and_{}m.pdf'.format(weatherObj._Name, z1, z2))
+        wd   = os.path.dirname(os.path.dirname(weatherObj._out_name))
+        f    = f'{weatherObj._Name}_refractivity_hgt{z1}_and_{z2}m.pdf'
+        plt.savefig(os.path.join(wd, f))
     return f
