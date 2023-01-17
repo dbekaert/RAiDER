@@ -8,8 +8,9 @@ import subprocess
 import xarray as xr
 import rasterio as rio
 
-from test import TEST_DIR, WM
+from test import TEST_DIR
 
+WM = 'GMAO'
 
 def test_GUNW():
     ## eventually to be implemented
@@ -46,7 +47,9 @@ def test_GUNW():
     transform = (0.1, 0.0, -119.35, 0, -0.1, 35.05)
     group = 'science/grids/corrections/external/troposphere'
     for v in 'troposphereWet troposphereHydrostatic'.split():
+        ds = rio.open(f'netcdf:{updated_GUNW}:{group}/{v}')
         with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
+            ds.crs.to_epsg()
             assert np.isclose(ds.crs.to_epsg(), epsg), 'CRS incorrect'
             assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
 

@@ -88,7 +88,7 @@ def test_cube_intersect():
     ## hard code what it should be and check it matches
     wm_file = os.path.join(SCENARIO_DIR, f'{WM}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
     da      = xr.open_dataset(wm_file)['band_data']
-    gold    = {'GMAO': 2.045914, 'ERA5': 2.061974}
+    gold    = {'GMAO': 2.045914, 'ERA5': 2.061974, 'HRRR': 3.0972726}
     assert np.isclose(da.mean().round(6), gold[WM])
 
     # Clean up files
@@ -123,7 +123,7 @@ def test_gnss_intersect():
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert np.isclose(proc.returncode, 0)
 
-    gold = {'GMAO': 2.376807, 'ERA5': 2.395992}
+    gold = {'GMAO': 2.365131, 'ERA5': 2.395992, 'HRRR': 3.435141}
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{WM}_Delay_{date}T{time.replace(":", "")}.csv'))
     td = df['totalDelay'].mean().round(6)
     assert np.allclose(gold[WM], td)
