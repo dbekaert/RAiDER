@@ -5,7 +5,7 @@ import subprocess
 import shutil
 import yaml
 import numpy as np
-from test import TEST_DIR
+from test import TEST_DIR, WM
 
 
 def test_datelist():
@@ -17,7 +17,7 @@ def test_datelist():
        'aoi_group': {'bounding_box': [28, 39, -123, -112]},
        'date_group': {'date_list': dates},
        'time_group': {'time': '00:00:00'},
-       'weather_model': 'GMAO',
+       'weather_model': WM,
        'runtime_group': {
             'output_directory': SCENARIO_DIR,
             'weather_model_directory': os.path.join(SCENARIO_DIR, 'weather_files')
@@ -57,7 +57,7 @@ def test_datestep():
        'aoi_group': {'bounding_box': [28, 39, -123, -112]},
        'date_group': {'date_start': st, 'date_end': en, 'date_step': step},
        'time_group': {'time': '00:00:00'},
-       'weather_model': 'GMAO',
+       'weather_model': WM,
        'runtime_group': {
             'output_directory': SCENARIO_DIR,
             'weather_model_directory': os.path.join(SCENARIO_DIR, 'weather_files')

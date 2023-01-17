@@ -26,7 +26,7 @@ def args():
     d['aoi'] = BoundingBox([38, 39, -92, -91])
     d['los'] = Zenith()
     d['weather_model'] = GMAO()
-    
+
     return d
 
 
@@ -68,7 +68,7 @@ def test_checkArgs_outfmt_4(args):
     '''Test that passing a raster format with height levels throws an error'''
     args = args
     args.aoi = RasterRDR(
-        lat_file = os.path.join(SCENARIO_1, 'geom', 'lat.dat'), 
+        lat_file = os.path.join(SCENARIO_1, 'geom', 'lat.dat'),
         lon_file = os.path.join(SCENARIO_1, 'geom', 'lon.dat'),
     )
     argDict = checkArgs(args)
@@ -145,6 +145,7 @@ def test_filenames_1(args):
 def test_filenames_2(args):
     '''tests that the correct filenames are generated'''
     args = args
+    args['output_directory'] = SCENARIO_2
     args.aoi = StationFile(os.path.join(SCENARIO_2, 'stations.csv'))
     argDict = checkArgs(args)
     assert '20180101' in argDict['wetFilenames'][0]

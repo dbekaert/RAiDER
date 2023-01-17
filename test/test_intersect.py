@@ -9,8 +9,8 @@ import rioxarray as xrr
 import RAiDER
 import yaml
 import glob
-from test import TEST_DIR
-
+from test import TEST_DIR, WM
+wm = 'ERA-5' if WM == 'ERA5' else WM
 
 def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
     """ Make lat lons at a specified spacing """
@@ -57,7 +57,6 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
     return dst
 
 
-
 def test_cube_intersect():
     """ Test the intersection of lat/lon files with the DEM (model height levels?) """
     TEST_DIR = '/Users/buzzanga/Software_InSAR/RAiDER_git/test'
@@ -65,7 +64,6 @@ def test_cube_intersect():
     os.makedirs(SCENARIO_DIR, exist_ok=True)
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
-    model      = 'GMAO'
     date       = 20200130
     time       ='12:00:00'
     f_lat, f_lon = makeLatLonGrid([S, N, W, E], 'LA', SCENARIO_DIR, 0.1)
@@ -74,7 +72,7 @@ def test_cube_intersect():
     grp = {
             'date_group': {'date_start': date},
             'time_group': {'time': time},
-            'weather_model': model,
+            'weather_model': WM,
             'aoi_group': {'lat_file': f_lat, 'lon_file': f_lon},
             'runtime_group': {'output_directory': SCENARIO_DIR},
         }
@@ -88,13 +86,15 @@ def test_cube_intersect():
     assert np.isclose(proc.returncode, 0)
 
     ## hard code what it should be and check it matches
-    wm_file = os.path.join(SCENARIO_DIR, f'{model}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
+    wm_file = os.path.join(SCENARIO_DIR, f'{WM}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
     da      = xr.open_dataset(wm_file)['band_data']
-    assert np.isclose(da.mean().item(), 2.0459139347076416)
+    gold    = {'GMAO': 2.045914, 'ERA5': 2.061974}
+    assert np.isclose(da.mean().round(6), gold[WM])
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{model}*')]
+    [os.remove(f) for f in glob.glob(f'{wm}*')]
+    os.remove('temp.yaml')
 
     return
 
@@ -103,7 +103,6 @@ def test_gnss_intersect():
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
     gnss_file = os.path.join(TEST_DIR, 'scenario_2', 'stations.csv')
-    model      = 'GMAO'
     date       = 20200130
     time       ='12:00:00'
 
@@ -111,7 +110,7 @@ def test_gnss_intersect():
     grp = {
             'date_group': {'date_start': date},
             'time_group': {'time': time},
-            'weather_model': model,
+            'weather_model': WM,
             'aoi_group': {'station_file': gnss_file},
             'runtime_group': {'output_directory': SCENARIO_DIR},
         }
@@ -124,12 +123,13 @@ def test_gnss_intersect():
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert np.isclose(proc.returncode, 0)
 
-    gold = 2.3768069344762495
-    df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{model}_Delay_{date}T{time.replace(":", "")}.csv'))
-    td = df[df.ID=='CAPE']['totalDelay'].item()
-    assert np.allclose(gold, td)
+    gold = {'GMAO': 2.376807, 'ERA5': 2.395992}
+    df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{WM}_Delay_{date}T{time.replace(":", "")}.csv'))
+    td = df['totalDelay'].mean().round(6)
+    assert np.allclose(gold[WM], td)
 
     shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{model}*')]
+    [os.remove(f) for f in glob.glob(f'{wm}*')]
+    os.remove('temp.yaml')
 
     return
