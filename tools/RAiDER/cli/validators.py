@@ -148,7 +148,7 @@ def get_query_region(args):
         query  = GeocodedFile(args.geocoded_file, is_dem=is_dem)
 
     ## untested
-    elif arg.get('geo_cube'):
+    elif args.get('geo_cube'):
         query = Geocube(args.geo_cube)
 
     else:
