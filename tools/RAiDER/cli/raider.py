@@ -7,6 +7,7 @@ import yaml
 from textwrap import dedent
 
 import RAiDER
+from RAiDER import aws
 from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
@@ -374,37 +375,51 @@ def downloadGNSS():
 
 
 ## ------------------------------------------------------------ prepFromGUNW.py
-def calcDelaysGUNW(iargs=None):
+def calcDelaysGUNW():
     from RAiDER.aria.prepFromGUNW import main as GUNW_prep
     from RAiDER.aria.calcGUNW import tropo_gunw_inf as GUNW_calc
 
     p = argparse.ArgumentParser(
-        description='Calculate a cube of interferometic delays for GUNW files')
+        description='Calculate a cube of interferometic delays for GUNW files',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    p.add_argument('--bucket',
+                   help='S3 bucket containing ARIA GUNW NetCDF file. Will be ignored if the --file argument is provided.'
+                   )
+
+    p.add_argument('--bucket-prefix', default='',
+                   help='S3 bucket containing ARIA GUNW NetCDF file. Will be ignored if the --file argument is provided.'
+                   )
 
     p.add_argument(
-        'file', type=str,
+        '--file', type=str,
         help='1 ARIA GUNW netcdf file'
         )
 
     p.add_argument(
         '-m', '--model', default='HRRR', type=str,
-        help='Weather model (Default=HRRR).'
+        help='Weather model.'
         )
 
     p.add_argument(
         '-o', '--output_directory', default=os.getcwd(), type=str,
-        help='Directory to store results (Default=./).'
+        help='Directory to store results.'
         )
 
     p.add_argument(
         '-u', '--update_GUNW', default=True,
-        help='Optionally update the GUNW by writing the delays into the troposphere group (Default=True).'
+        help='Optionally update the GUNW by writing the delays into the troposphere group.'
         )
 
 
-    args       = p.parse_args(args=iargs)
-    args.argv  = iargs if iargs else os.sys.argv[1:]
+    args       = p.parse_args()
     # args.files = glob.glob(args.files) # eventually support multiple files
+    if args.file:
+        pass
+    elif args.bucket:
+        args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
+    else:
+        raise ValueError('Either argument --file or --bucket must be provided')
 
     # prep the config needed for delay calcs
     path_cfg, wavelength   = GUNW_prep(args)
@@ -415,3 +430,7 @@ def calcDelaysGUNW(iargs=None):
 
     ## calculate the interferometric phase and write it out
     GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
+
+    ## upload to s3
+    if args.bucket:
+        aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
