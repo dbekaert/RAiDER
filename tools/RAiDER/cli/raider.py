@@ -6,9 +6,7 @@ import yaml
 
 from textwrap import dedent
 
-import RAiDER
 from RAiDER import aws
-from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
@@ -45,8 +43,9 @@ def read_template_file(fname):
     >>> template = read_template_file('raider.yaml')
 
     """
-    from RAiDER.cli.validators import (enforce_time, enforce_bbox, parse_dates,
-                            get_query_region, get_heights, get_los, enforce_wm)
+    from RAiDER.cli.validators import (
+        enforce_time, parse_dates, get_query_region, get_heights, get_los, enforce_wm
+    )
     with open(fname, 'r') as f:
         try:
             params = yaml.safe_load(f)
@@ -162,7 +161,7 @@ def calcDelays(iargs=None):
         dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(template_file, dst)
         logger.info('Wrote %s', dst)
-        os.sys.exit()
+        sys.exit()
 
 
     # check: existence of input template files
@@ -383,35 +382,37 @@ def calcDelaysGUNW():
         description='Calculate a cube of interferometic delays for GUNW files',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    p.add_argument('--bucket',
-                   help='S3 bucket containing ARIA GUNW NetCDF file. Will be ignored if the --file argument is provided.'
-                   )
+    p.add_argument(
+        '--bucket',
+        help='S3 bucket containing ARIA GUNW NetCDF file. Will be ignored if the --file argument is provided.'
+    )
 
-    p.add_argument('--bucket-prefix', default='',
-                   help='S3 bucket containing ARIA GUNW NetCDF file. Will be ignored if the --file argument is provided.'
-                   )
+    p.add_argument(
+        '--bucket-prefix', default='',
+        help='S3 bucket prefix containing ARIA GUNW NetCDF file. Will be ignored if the --file argument is provided.'
+    )
 
     p.add_argument(
         '--file', type=str,
         help='1 ARIA GUNW netcdf file'
-        )
+    )
 
     p.add_argument(
         '-m', '--weather_model', default='HRRR', type=str,
         choices=['None', 'HRRR', 'HRES', 'GMAO'], help='Weather model.'
-        )
+    )
 
     p.add_argument(
         '-o', '--output_directory', default=os.getcwd(), type=str,
         help='Directory to store results.'
-        )
+    )
 
     p.add_argument(
         '-u', '--update_GUNW', default=True,
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
-        )
+    )
     
-    args       = p.parse_args()
+    args = p.parse_args()
 
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
@@ -430,15 +431,15 @@ def calcDelaysGUNW():
         raise ValueError('Either argument --file or --bucket must be provided')
 
     # prep the config needed for delay calcs
-    path_cfg, wavelength   = GUNW_prep(args)
+    path_cfg, wavelength = GUNW_prep(args)
 
-    ## write delay cube (nc) to disk using config
-    ## return a list with the path to cube for each date
+    # write delay cube (nc) to disk using config
+    # return a list with the path to cube for each date
     cube_filenames = calcDelays([path_cfg])
 
-    ## calculate the interferometric phase and write it out
+    # calculate the interferometric phase and write it out
     GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
 
-    ## upload to s3
+    # upload to s3
     if args.bucket:
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
