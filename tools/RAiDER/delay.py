@@ -92,7 +92,10 @@ def tropo_delay(
             pnts = pnts.transpose(2,1,0)
         elif pnts.ndim == 2:
             pnts = pnts.T
-        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from get_delays_on_cube calls the total delays 'wet' and 'hydro'
+        try:
+            ifWet, ifHydro = getInterpolators(weather_model_file, "pointwise")
+        except RuntimeError:
+            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
@@ -158,7 +161,11 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
         out_type = ["zenith" if los.is_Zenith() else 'slant - projected'][0]
 
         # Get ZTD interpolators
-        ifWet, ifHydro = getInterpolators(weather_model_file, "total")
+        try:
+            ifWet, ifHydro = getInterpolators(weather_model_file, "total")
+        except RuntimeError:
+            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
+
 
         # Build cube
         wetDelay, hydroDelay = _build_cube(
@@ -170,11 +177,14 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
         out_type = "slant - raytracing"
 
         # Get pointwise interpolators
-        ifWet, ifHydro = getInterpolators(
-            weather_model_file,
-            kind="pointwise",
-            shared=(nproc > 1),
-        )
+        try:
+            ifWet, ifHydro = getInterpolators(
+                weather_model_file,
+                kind="pointwise",
+                shared=(nproc > 1),
+            )
+        except RuntimeError:
+            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
 
         # Build cube
         if nproc == 1:

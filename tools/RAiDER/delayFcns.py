@@ -93,7 +93,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     # Get the weather model data
     try:
         ds = xarray.load_dataset(wm_file)
-    except:
+    except ValueError:
         ds = wm_file
 
     xs_wm = np.array(ds.variables['x'][:])
@@ -104,6 +104,9 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
 
     wet = np.array(wet).transpose(1, 2, 0)
     hydro = np.array(hydro).transpose(1, 2, 0)
+
+    if np.any(np.isnan(wet)) or np.any(np.isnan(hydro)):
+        raise RuntimeError('Weather model {} contains NaNs'.format(wm_file))
 
     # If shared interpolators are requested
     # The arrays are not modified - so turning off lock for performance
