@@ -12,6 +12,7 @@ import glob
 from test import TEST_DIR, WM
 wm = 'ERA-5' if WM == 'ERA5' else WM
 
+
 def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
     """ Make lat lons at a specified spacing """
     S, N, W, E = bbox
@@ -30,7 +31,6 @@ def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
     da_lon.to_netcdf(dst_lon)
 
     return dst_lat, dst_lon
-
 
 def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
     """ Write a new yaml file from a dictionary.
@@ -56,10 +56,8 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
 
     return dst
 
-
 def test_cube_intersect():
     """ Test the intersection of lat/lon files with the DEM (model height levels?) """
-    TEST_DIR = '/Users/buzzanga/Software_InSAR/RAiDER_git/test'
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
     ## make the lat lon grid
@@ -97,7 +95,6 @@ def test_cube_intersect():
     os.remove('temp.yaml')
 
     return
-
 
 def test_gnss_intersect():
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
