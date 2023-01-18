@@ -398,17 +398,17 @@ def calcDelaysGUNW():
     )
 
     p.add_argument(
-        '-m', '--weather_model', default='HRRR', type=str,
+        '-m', '--weather-model', default='HRRR', type=str,
         choices=['None', 'HRRR', 'HRES', 'GMAO'], help='Weather model.'
     )
 
     p.add_argument(
-        '-o', '--output_directory', default=os.getcwd(), type=str,
+        '-o', '--output-directory', default=os.getcwd(), type=str,
         help='Directory to store results.'
     )
 
     p.add_argument(
-        '-u', '--update_GUNW', default=True,
+        '-u', '--update-GUNW', default=True,
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
     )
     
