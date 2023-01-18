@@ -44,5 +44,5 @@ RUN echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.profile && \
 
 RUN python -m pip install --no-cache-dir /RAiDER/
 
-ENTRYPOINT ["/usr/bin/bash"]
-CMD ["-l"]
+ENTRYPOINT ["/RAiDER/tools/RAiDER/etc/entrypoint.sh"]
+CMD ["--help"]
