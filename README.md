@@ -103,7 +103,7 @@ For development, we recommend installing directly from source.
 ```
 git clone https://github.com/dbekaert/RAiDER.git
 cd RAiDER
-conda create -f environment.yml
+conda env create -f environment.yml
 conda activate RAiDER
 python -m pip install -e .
 ```
