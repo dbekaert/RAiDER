@@ -398,7 +398,7 @@ def calcDelaysGUNW():
 
     p.add_argument(
         '-m', '--weather_model', default='HRRR', type=str,
-        help='Weather model.'
+        choices=['None', 'HRRR', 'HRES', 'GMAO'], help='Weather model.'
         )
 
     p.add_argument(
@@ -410,7 +410,10 @@ def calcDelaysGUNW():
         '-u', '--update_GUNW', default=True,
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
         )
-
+    
+    if args.weather_model == 'None':
+        print('Nothing to do!')
+        return
 
     args       = p.parse_args()
     # args.files = glob.glob(args.files) # eventually support multiple files
