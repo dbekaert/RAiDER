@@ -411,11 +411,12 @@ def calcDelaysGUNW():
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
         )
     
+    args       = p.parse_args()
+
     if args.weather_model == 'None':
         print('Nothing to do!')
         return
 
-    args       = p.parse_args()
     # args.files = glob.glob(args.files) # eventually support multiple files
     if args.file:
         pass
