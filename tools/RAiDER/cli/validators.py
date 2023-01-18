@@ -61,11 +61,10 @@ def get_heights(args, out, station_file, bounding_box=None):
     '''
     Parse the Height info and download a DEM if needed
     '''
-    dem_path = os.path.join(out, 'geom')
-    if not os.path.exists(dem_path):
-        os.mkdir(dem_path)
+    dem_path = out
+
     out = {
-            'dem': None,
+            'dem': args.get('dem'),
             'height_file_rdr': None,
             'height_levels': None,
         }
@@ -75,7 +74,8 @@ def get_heights(args, out, station_file, bounding_box=None):
             if 'Hgt_m' not in pd.read_csv(station_file):
                 out['dem'] = os.path.join(dem_path, 'GLO30.dem')
         elif os.path.exists(args.dem):
-            out['dem'] = args['dem']
+            out['dem'] = args.dem
+            # crop the DEM
             if bounding_box is not None:
                 dem_bounds = rio_extents(rio_profile(args.dem))
                 lats = dem_bounds[:2]
@@ -99,17 +99,17 @@ def get_heights(args, out, station_file, bounding_box=None):
     elif args.get('height_file_rdr'):
         out['height_file_rdr'] = args.height_file_rdr
 
-    elif args.get('height_levels'):
+    else:
+        # download the DEM if needed
+        out['dem'] = os.path.join(dem_path, 'GLO30.dem')
+
+    if args.get('height_levels'):
         if isinstance(args.height_levels, str):
             l = re.findall('[-0-9]+', args.height_levels)
         else:
             l = args.height_levels
 
         out['height_levels'] = [float(ll) for ll in l]
-
-    else:
-        # download the DEM if needed
-        out['dem'] = os.path.join(dem_path, 'GLO30.dem')
 
     return out
 
@@ -148,7 +148,7 @@ def get_query_region(args):
         query  = GeocodedFile(args.geocoded_file, is_dem=is_dem)
 
     ## untested
-    elif arg.get('geo_cube'):
+    elif args.get('geo_cube'):
         query = Geocube(args.geo_cube)
 
     else:

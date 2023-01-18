@@ -89,7 +89,7 @@ def tropo_delay(
         hgts = aoi.readZ()
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
         if pnts.ndim == 3:
-            pnts = pnts.transpose(1,2,0)
+            pnts = pnts.transpose(2,1,0)
         elif pnts.ndim == 2:
             pnts = pnts.T
         ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from get_delays_on_cube calls the total delays 'wet' and 'hydro'

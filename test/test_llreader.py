@@ -10,8 +10,8 @@ from RAiDER.cli.raider import calcDelays
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
-    StationFile, RasterRDR, BoundingBox, GeocodedFile, Geocube, 
-    bounds_from_latlon_rasters, bounds_from_csv, get_bbox
+    StationFile, RasterRDR, BoundingBox, GeocodedFile, Geocube,
+    bounds_from_latlon_rasters, bounds_from_csv
 )
 
 SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
@@ -75,7 +75,7 @@ def test_read_station_file(station_file):
 
     assert np.allclose(lats, stats['Lat'].values)
     assert np.allclose(lons, stats['Lon'].values)
-    
+
     assert query.projection() == 'EPSG:4326'
 
     # Hard code the lat/lon bounds to test against changing the files

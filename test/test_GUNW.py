@@ -1,5 +1,6 @@
 import os
 import shutil
+import glob
 import numpy as np
 import pytest
 import shutil
@@ -9,21 +10,22 @@ import rasterio as rio
 
 from test import TEST_DIR
 
+WM = 'GMAO'
 
 def test_GUNW():
     ## eventually to be implemented
     # home = os.path.expanduser('~')
     # netrc = os.path.join(home, '.netrc')
-# 
+#
     # ## make netrc
     # if not os.path.exists(netrc):
         # name, passw = os.getenv('URSname'), os.getenv('URSpass')
         # cmd = f'echo "machine urs.earthdata.nasa.gov login {name} password {passw}" > ~/.netrc'
         # subprocess.run(cmd.split())
-# 
+#
         # cmd = f'chmod 600 {netrc}'
         # subprocess.run(cmd.split())
-# 
+#
     SCENARIO_DIR = os.path.join(TEST_DIR, "GUNW")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
     GUNW = 'S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc'
@@ -36,7 +38,7 @@ def test_GUNW():
     # proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     # assert np.isclose(proc.returncode, 0)
 
-    cmd  = f'raider.py ++process calcDelaysGUNW {updated_GUNW} -m GMAO -o {SCENARIO_DIR}'
+    cmd  = f'raider.py ++process calcDelaysGUNW {updated_GUNW} -m {WM} -o {SCENARIO_DIR}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert np.isclose(proc.returncode, 0)
 
@@ -45,7 +47,9 @@ def test_GUNW():
     transform = (0.1, 0.0, -119.35, 0, -0.1, 35.05)
     group = 'science/grids/corrections/external/troposphere'
     for v in 'troposphereWet troposphereHydrostatic'.split():
+        ds = rio.open(f'netcdf:{updated_GUNW}:{group}/{v}')
         with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
+            ds.crs.to_epsg()
             assert np.isclose(ds.crs.to_epsg(), epsg), 'CRS incorrect'
             assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
 
@@ -56,9 +60,10 @@ def test_GUNW():
 
         crs = rio.crs.CRS.from_wkt(ds['crs'].crs_wkt)
         assert np.isclose(crs.to_epsg(), epsg), 'CRS incorrect'
-        
+
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
     os.remove('GUNW_20200130-20200124.yaml')
-    return 
+    [os.remove(f) for f in glob.glob(f'{WM}*')]
+    return

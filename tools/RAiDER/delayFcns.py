@@ -88,7 +88,7 @@ def get_delays(
 def getInterpolators(wm_file, kind='pointwise', shared=False):
     '''
     Read 3D gridded data from a processed weather model file and wrap it with
-    an interpolator
+    the scipy RegularGridInterpolator
     '''
     # Get the weather model data
     try:
