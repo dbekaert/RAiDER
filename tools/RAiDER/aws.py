@@ -30,9 +30,6 @@ def get_content_type(file_location: Union[Path, str]) -> str:
 
 def upload_file_to_s3(path_to_file: Union[str, Path], bucket: str, prefix: str = ''):
     path_to_file = Path(path_to_file)
-    if not path_to_file.suffix == '.nc':
-        raise ValueError(f'Expected ARIA GUNW NetCDF file. Got {path_to_file.suffix}. Exiting.')
-
     key = str(Path(prefix) / path_to_file)
     extra_args = {'ContentType': guess_type(key)}
 
