@@ -414,6 +414,10 @@ def calcDelaysGUNW():
     args       = p.parse_args()
 
     if args.weather_model == 'None':
+        # NOTE: HyP3's current step function implementation does not have a good way of conditionally
+        #       running processing steps. This allows HyP3 to always run this step but exit immediately
+        #       and do nothing if tropospheric correction via RAiDER is not selected. This should not cause
+        #       any appreciable cost increase to GUNW product generation.
         print('Nothing to do!')
         return
 
