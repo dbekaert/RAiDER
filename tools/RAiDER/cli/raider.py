@@ -423,11 +423,9 @@ def calcDelaysGUNW():
         return
 
     # args.files = glob.glob(args.files) # eventually support multiple files
-    if args.file:
-        pass
-    elif args.bucket:
+    if not args.file and args.bucket:
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
-    else:
+    elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
 
     # prep the config needed for delay calcs
