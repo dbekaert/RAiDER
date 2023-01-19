@@ -59,7 +59,7 @@ or the current development version:
 docker pull ghcr.io/dbekaert/raider:test
 ```
 
-To run the container and jump into a bash shell inside:
+To run `raider.py` inside the container:
 ```
 docker run -it --rm ghcr.io/dbekaert/raider:latest
 ```
@@ -68,6 +68,11 @@ To mount your current directory inside the container so that files will be writt
 docker run -it -v ${PWD}:/home/raider/work --rm ghcr.io/dbekaert/raider:latest
 cd work
 ```
+To jump into a `bash` shell inside the container:
+```
+docker run -it --rm --entrypoint /bin/bash ghcr.io/dbekaert/raider:latest -l
+```
+
 For more docker run options, see: <https://docs.docker.com/engine/reference/run/>.
 
 

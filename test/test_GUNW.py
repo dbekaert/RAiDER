@@ -1,12 +1,11 @@
+import glob
 import os
 import shutil
-import glob
-import numpy as np
-import pytest
-import shutil
 import subprocess
-import xarray as xr
+
+import numpy as np
 import rasterio as rio
+import xarray as xr
 
 from test import TEST_DIR
 
@@ -38,7 +37,7 @@ def test_GUNW():
     # proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     # assert np.isclose(proc.returncode, 0)
 
-    cmd  = f'raider.py ++process calcDelaysGUNW {updated_GUNW} -m {WM} -o {SCENARIO_DIR}'
+    cmd  = f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {WM} -o {SCENARIO_DIR}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert np.isclose(proc.returncode, 0)
 
