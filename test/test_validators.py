@@ -61,7 +61,7 @@ def args1():
 
 
 def test_enforce_wm():
-    with pytest.raises(ModuleNotFoundError):
+    with pytest.raises(NotImplementedError):
         enforce_wm('notamodel')
     
 

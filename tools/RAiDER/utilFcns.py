@@ -503,10 +503,11 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
     # Do different things, depending on the type of input
     if aoi.type() == 'station_file':
+        #TODO: why is this a try/except?
         try:
-            df = pd.read_csv(aoi._filename)
+            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
         except ValueError:
-            df = pd.read_csv(aoi._filename)
+            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
 
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
