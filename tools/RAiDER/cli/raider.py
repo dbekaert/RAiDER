@@ -393,7 +393,7 @@ def calcDelaysGUNW():
     )
 
     p.add_argument(
-        '--file', type=str,
+        '-f', '--file', type=str,
         help='1 ARIA GUNW netcdf file'
     )
 
