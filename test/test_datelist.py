@@ -10,7 +10,7 @@ from test import TEST_DIR, WM
 
 def test_datelist():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'datelist')
-    os.makedirs(SCENARIO_DIR, exist_ok=True)
+    os.makedirs(SCENARIO_DIR, exist_ok=False)
     dates = ['20200124', '20200130']
 
     dct_group = {
@@ -49,7 +49,7 @@ def test_datelist():
 
 def test_datestep():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'datelist')
-    os.makedirs(SCENARIO_DIR, exist_ok=True)
+    os.makedirs(SCENARIO_DIR, exist_ok=False)
     st, en, step = '20200124', '20200130', 3
     n_dates      = 3
 

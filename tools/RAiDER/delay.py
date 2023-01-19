@@ -107,7 +107,7 @@ def tropo_delay(
         elif pnts.ndim == 2:
             pnts = pnts.T
         try:
-            ifWet, ifHydro = getInterpolators(weather_model_file, "pointwise")
+            ifWet, ifHydro = getInterpolators(ds, "ztd")
         except RuntimeError:
             logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
         wetDelay = ifWet(pnts)
