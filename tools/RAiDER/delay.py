@@ -47,7 +47,10 @@ def tropo_delay(
         look_dir: str='right',
     ):
     """
-    Calculate integrated delays on query points.
+    Calculate integrated delays on query points. Options are: 
+    1. Zenith delays (ZTD)
+    2. Zenith delays projected to the line-of-sight (STD-projected)
+    3. Slant delays integrated along the raypath (STD-raytracing)
 
     Args:
         dt: Datetime                - Datetime object for determining when to calculate delays
@@ -125,16 +128,11 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los
     raider cube generation function.
     """
 
-    # Determine the output grid extent here
-    wesn = ll_bounds[2:] + ll_bounds[:2]
-    out_snwe = transform_bbox(
-        wesn, src_crs=4326, dest_crs=crs
-    )
-
-    # Clip output grid to multiples of spacing
+    # Determine the output grid extent here and clip output grid to multiples of spacing
+    snwe = transform_bbox(ll_bounds, src_crs=4326, dest_crs=crs)
     out_spacing = get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, crs)
-    out_snwe = clip_bbox(out_snwe, out_spacing)
-
+    out_snwe = clip_bbox(snwe, out_spacing)
+    
     logger.debug(f"Output SNWE: {out_snwe}")
     logger.debug(f"Output cube spacing: {out_spacing}")
 

@@ -730,7 +730,7 @@ def UTM_to_WGS84(z, l, x, y):
     return np.reshape(lon, shp), np.reshape(lat, shp)
 
 
-def transform_bbox(wesn, dest_crs=4326, src_crs=4326, margin=100.):
+def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
     """
     Transform bbox to lat/lon or another CRS for use with rest of workflow
     Returns: SNWE
@@ -752,12 +752,11 @@ def transform_bbox(wesn, dest_crs=4326, src_crs=4326, margin=100.):
 
     # If dest_crs is same as src_crs
     if dest_crs == src_crs:
-        snwe = [wesn[2], wesn[3], wesn[0], wesn[1]]
-        return snwe
+        return snwe_in
 
     T = Transformer.from_crs(src_crs, dest_crs, always_xy=True)
-    xs = np.linspace(wesn[0]-margin, wesn[1]+margin, num=11)
-    ys = np.linspace(wesn[2]-margin, wesn[3]+margin, num=11)
+    xs = np.linspace(snwe_in[2]-margin, snwe_in[3]+margin, num=11)
+    ys = np.linspace(snwe_in[0]-margin, snwe_in[1]+margin, num=11)
     X, Y = np.meshgrid(xs, ys)
 
     # Transform to lat/lon
