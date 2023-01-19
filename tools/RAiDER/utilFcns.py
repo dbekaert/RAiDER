@@ -255,7 +255,7 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
             Conventions="CF-1.7",
             title="RAiDER geo cube",
             source=os.path.basename(weather_model_file),
-            history=str(datetime.datetime.utcnow()) + " RAiDER",
+            history=str(datetime.utcnow()) + " RAiDER",
             description=f"RAiDER geo cube - {out_type}",
             reference_time=str(dt),
         ),

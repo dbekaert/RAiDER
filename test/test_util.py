@@ -11,7 +11,7 @@ from test import TEST_DIR
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, rio_open, sind,
-    writeArrayToRaster, writeResultsToHDF5, rio_profile,
+    writeArrayToRaster, rio_profile,
     rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
     transform_bbox, clip_bbox
 )
@@ -122,22 +122,6 @@ def test_rio_open():
     out = rio_open(os.path.join(TEST_DIR, "test_geom", "lat.rdr"), False)
 
     assert np.allclose(out.shape, (45, 226))
-
-
-def test_writeResultsToHDF5(tmp_path):
-    lats = np.array([15.0, 15.5, 16.0, 16.5, 17.5, -40, 60, 90])
-    lons = np.array([-100.0, -100.4, -91.2, 45.0, 0., -100, -100, -100])
-    hgts = np.array([0., 1000., 10000., 0., 0., 0., 0., 0.])
-    wet = np.zeros(lats.shape)
-    hydro = np.ones(lats.shape)
-    filename = str(tmp_path / 'dummy.hdf5')
-
-    writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename)
-
-    with h5py.File(filename, 'r') as f:
-        assert np.allclose(np.array(f['lat']), lats)
-        assert np.allclose(np.array(f['hydroDelay']), hydro)
-        assert f.attrs['DelayType'] == 'Zenith'
 
 
 def test_writeArrayToRaster(tmp_path):
@@ -458,18 +442,23 @@ def test_transform_bbox_1():
     wesn = [-77.0, -76.0, 34.0, 35.0]
     snwe = wesn[2:] + wesn[:2]
 
-    assert transform_bbox(wesn, src_crs=4326, dest_crs=4326) == snwe
+    assert transform_bbox(snwe, src_crs=4326, dest_crs=4326) == snwe
 
 
 def test_transform_bbox_2():
-    wesn = [-77.0, -76.0, 34.0, 35.0]
+    snwe_in = [34.0, 35.0, -77.0, -76.0]
 
     expected_snwe = [3762606.6598762725,
                      3874870.6347308,
                      315290.16886786406,
                      408746.7471660769]
 
-    snwe = transform_bbox(wesn, src_crs=4326, dest_crs=32618, margin=0.)
+    snwe = transform_bbox(snwe_in, src_crs=4326, dest_crs=32618, margin=0.)
     assert np.allclose(snwe, expected_snwe)
 
+def test_clip_bbox():
+    wesn = [-77.0, -76.0, 34.0, 35.0]
+    snwe = [34.0, 35.01, -77.0, -76.0]
+    snwe_in = [34.005, 35.0006, -76.999, -76.0]
     assert clip_bbox(wesn, 0.01) == wesn
+    assert clip_bbox(snwe_in, 0.01) == snwe
