@@ -5,7 +5,7 @@ import numpy as np
 import xarray as xr
 
 
-from test import GEOM_DIR, TEST_DIR
+from test import TEST_DIR
 
 from RAiDER.delayFcns import getInterpolators
 
