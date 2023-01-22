@@ -1,15 +1,18 @@
-import pytest
+import glob
 import os
-import numpy as np
-import pandas as pd
+import pytest
 import shutil
 import subprocess
-import xarray as xr
-import rioxarray as xrr
-import RAiDER
 import yaml
-import glob
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+
 from test import TEST_DIR, WM
+
+import RAiDER
+
 wm = 'ERA-5' if WM == 'ERA5' else WM
 
 

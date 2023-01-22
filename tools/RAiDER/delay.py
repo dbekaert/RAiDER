@@ -25,12 +25,13 @@ import isce3.ext.isce3 as isce
 import numpy as np
 
 from RAiDER.delayFcns import (
-    getInterpolators
+    getInterpolators, get_output_spacing,
 )
 from RAiDER.logger import logger, logging
 from RAiDER.losreader import get_sv, getTopOfAtmosphere
 from RAiDER.utilFcns import (
-    lla2ecef, transform_bbox, clip_bbox, rio_profile,
+    lla2ecef, transform_bbox, clip_bbox, writeResultsToXarray,
+    rio_profile,
 )
 
 
@@ -46,7 +47,10 @@ def tropo_delay(
         look_dir: str='right',
     ):
     """
-    Calculate integrated delays on query points.
+    Calculate integrated delays on query points. Options are: 
+    1. Zenith delays (ZTD)
+    2. Zenith delays projected to the line-of-sight (STD-projected)
+    3. Slant delays integrated along the raypath (STD-raytracing)
 
     Args:
         dt: Datetime                - Datetime object for determining when to calculate delays
@@ -61,6 +65,16 @@ def tropo_delay(
     Returns:
         xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
     """
+    crs = CRS(out_proj)
+
+    # Load CRS from weather model file
+    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
+    if wm_proj is None:
+       logger.warning("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+       wm_proj = CRS.from_epsg(4326)
+    else:
+        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
+    
     # get heights
     if height_levels is None:
         if aoi.type() == 'Geocube':
@@ -71,8 +85,8 @@ def tropo_delay(
                 height_levels = ds.z.values
 
     #TODO: expose this as library function
-    ds = _get_delays_on_cube(dt, weather_model_file, aoi.bounds(), height_levels,
-            los, out_proj=out_proj, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
+    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi.bounds(), height_levels,
+            los, crs=crs, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -92,7 +106,10 @@ def tropo_delay(
             pnts = pnts.transpose(2,1,0)
         elif pnts.ndim == 2:
             pnts = pnts.T
-        ifWet, ifHydro = getInterpolators(ds, 'ztd') # the cube from get_delays_on_cube calls the total delays 'wet' and 'hydro'
+        try:
+            ifWet, ifHydro = getInterpolators(ds, "ztd")
+        except RuntimeError:
+            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
@@ -106,43 +123,16 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
-def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_proj=4326, cube_spacing_m=None, look_dir='right', nproc=1):
+def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los, crs, cube_spacing_m=None, look_dir='right', nproc=1):
     """
     raider cube generation function.
     """
-    # For testing multiprocessing
-    # TODO - move this to configuration
-    crs = CRS(out_proj)
 
-    # Load CRS from weather model file
-    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
-    if wm_proj is None:
-       print("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
-       wm_proj = CRS.from_epsg(4326)
-    else:
-        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
-
-    # Determine the output grid extent here
-    wesn = ll_bounds[2:] + ll_bounds[:2]
-    out_snwe = transform_bbox(
-        wesn, src_crs=4326, dest_crs=crs
-    )
-
-    # Clip output grid to multiples of spacing
-    if cube_spacing_m is None:
-        with xarray.load_dataset(weather_model_file) as ds:
-            xpts = ds.x.values
-            ypts = ds.y.values
-        cube_spacing_m = np.nanmean([np.nanmean(np.diff(xpts)), np.nanmean(np.diff(ypts))])
-        if wm_proj.axis_info[0].unit_name == "degree":
-            cube_spacing_m = cube_spacing_m * 1.0e5  # Scale by 100km
-
-    if crs.axis_info[0].unit_name == "degree":
-        out_spacing = cube_spacing_m / 1.0e5  # Scale by 100km
-    else:
-        out_spacing = cube_spacing_m
-    out_snwe = clip_bbox(out_snwe, out_spacing)
-
+    # Determine the output grid extent here and clip output grid to multiples of spacing
+    snwe = transform_bbox(ll_bounds, src_crs=4326, dest_crs=crs)
+    out_spacing = get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, crs)
+    out_snwe = clip_bbox(snwe, out_spacing)
+    
     logger.debug(f"Output SNWE: {out_snwe}")
     logger.debug(f"Output cube spacing: {out_spacing}")
 
@@ -151,14 +141,17 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
     xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
     ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
 
-
     # If no orbit is provided
     # Build zenith delay cube
     if los.is_Zenith() or los.is_Projected():
         out_type = ["zenith" if los.is_Zenith() else 'slant - projected'][0]
 
         # Get ZTD interpolators
-        ifWet, ifHydro = getInterpolators(weather_model_file, "total")
+        try:
+            ifWet, ifHydro = getInterpolators(weather_model_file, "total")
+        except RuntimeError:
+            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
+
 
         # Build cube
         wetDelay, hydroDelay = _build_cube(
@@ -170,11 +163,14 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
         out_type = "slant - raytracing"
 
         # Get pointwise interpolators
-        ifWet, ifHydro = getInterpolators(
-            weather_model_file,
-            kind="pointwise",
-            shared=(nproc > 1),
-        )
+        try:
+            ifWet, ifHydro = getInterpolators(
+                weather_model_file,
+                kind="pointwise",
+                shared=(nproc > 1),
+            )
+        except RuntimeError:
+            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
 
         # Build cube
         if nproc == 1:
@@ -194,70 +190,7 @@ def _get_delays_on_cube(dt, weather_model_file, ll_bounds, heights, los, out_pro
             raise NotImplementedError
 
     # Write output file
-    # Modify this as needed for NISAR / other projects
-    ds = xarray.Dataset(
-        data_vars=dict(
-            wet=(["z", "y", "x"],
-                 wetDelay,
-                 {"units" : "m",
-                  "description": f"wet {out_type} delay",
-                  # 'crs': crs.to_epsg(),
-                  "grid_mapping": "crs",
-
-                 }),
-            hydro=(["z", "y", "x"],
-                   hydroDelay,
-                   {"units": "m",
-                    # 'crs': crs.to_epsg(),
-                    "description": f"hydrostatic {out_type} delay",
-                    "grid_mapping": "crs",
-                   }),
-        ),
-        coords=dict(
-            x=(["x"], xpts),
-            y=(["y"], ypts),
-            z=(["z"], zpts),
-        ),
-        attrs=dict(
-            Conventions="CF-1.7",
-            title="RAiDER geo cube",
-            source=os.path.basename(weather_model_file),
-            history=str(datetime.datetime.utcnow()) + " RAiDER",
-            description=f"RAiDER geo cube - {out_type}",
-            reference_time=str(dt),
-        ),
-    )
-
-    # Write projection system mapping
-    ds["crs"] = int(-2147483647) # dummy placeholder, match GUNW
-    for k, v in crs.to_cf().items():
-        ds.crs.attrs[k] = v
-
-    # Write z-axis information
-    ds.z.attrs["axis"] = "Z"
-    ds.z.attrs["units"] = "m"
-    ds.z.attrs["description"] = "height above ellipsoid"
-
-    # If in degrees
-    if crs.axis_info[0].unit_name == "degree":
-        ds.y.attrs["units"] = "degrees_north"
-        ds.y.attrs["standard_name"] = "latitude"
-        ds.y.attrs["long_name"] = "latitude"
-
-        ds.x.attrs["units"] = "degrees_east"
-        ds.x.attrs["standard_name"] = "longitude"
-        ds.x.attrs["long_name"] = "longitude"
-
-    else:
-        ds.y.attrs["axis"] = "Y"
-        ds.y.attrs["standard_name"] = "projection_y_coordinate"
-        ds.y.attrs["long_name"] = "y-coordinate in projected coordinate system"
-        ds.y.attrs["units"] = "m"
-
-        ds.x.attrs["axis"] = "X"
-        ds.x.attrs["standard_name"] = "projection_x_coordinate"
-        ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
-        ds.x.attrs["units"] = "m"
+    ds = writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type)
 
     return ds
 

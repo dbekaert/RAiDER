@@ -2,6 +2,7 @@
 import multiprocessing as mp
 import os
 import re
+import xarray
 
 from datetime import datetime, timedelta
 
@@ -222,23 +223,76 @@ def get_file_and_band(filestr):
         )
 
 
-def writeResultsToHDF5(lats, lons, hgts, wet, hydro, filename, delayType=None):
+def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type):
     '''
     write a 1-D array to a NETCDF5 file
     '''
-    if delayType is None:
-        delayType = "Zenith"
+       # Modify this as needed for NISAR / other projects
+    ds = xarray.Dataset(
+        data_vars=dict(
+            wet=(["z", "y", "x"],
+                 wetDelay,
+                 {"units" : "m",
+                  "description": f"wet {out_type} delay",
+                  # 'crs': crs.to_epsg(),
+                  "grid_mapping": "crs",
 
-    with h5py.File(filename, 'w') as f:
-        f['lat'] = lats
-        f['lon'] = lons
-        f['hgts'] = hgts
-        f['wetDelay'] = wet
-        f['hydroDelay'] = hydro
-        f['wetDelayUnit'] = "m"
-        f['hydroDelayUnit'] = "m"
-        f['hgtsUnit'] = "m"
-        f.attrs['DelayType'] = delayType
+                 }),
+            hydro=(["z", "y", "x"],
+                   hydroDelay,
+                   {"units": "m",
+                    # 'crs': crs.to_epsg(),
+                    "description": f"hydrostatic {out_type} delay",
+                    "grid_mapping": "crs",
+                   }),
+        ),
+        coords=dict(
+            x=(["x"], xpts),
+            y=(["y"], ypts),
+            z=(["z"], zpts),
+        ),
+        attrs=dict(
+            Conventions="CF-1.7",
+            title="RAiDER geo cube",
+            source=os.path.basename(weather_model_file),
+            history=str(datetime.utcnow()) + " RAiDER",
+            description=f"RAiDER geo cube - {out_type}",
+            reference_time=str(dt),
+        ),
+    )
+
+    # Write projection system mapping
+    ds["crs"] = int(-2147483647) # dummy placeholder
+    for k, v in crs.to_cf().items():
+        ds.crs.attrs[k] = v
+
+    # Write z-axis information
+    ds.z.attrs["axis"] = "Z"
+    ds.z.attrs["units"] = "m"
+    ds.z.attrs["description"] = "height above ellipsoid"
+
+    # If in degrees
+    if crs.axis_info[0].unit_name == "degree":
+        ds.y.attrs["units"] = "degrees_north"
+        ds.y.attrs["standard_name"] = "latitude"
+        ds.y.attrs["long_name"] = "latitude"
+
+        ds.x.attrs["units"] = "degrees_east"
+        ds.x.attrs["standard_name"] = "longitude"
+        ds.x.attrs["long_name"] = "longitude"
+
+    else:
+        ds.y.attrs["axis"] = "Y"
+        ds.y.attrs["standard_name"] = "projection_y_coordinate"
+        ds.y.attrs["long_name"] = "y-coordinate in projected coordinate system"
+        ds.y.attrs["units"] = "m"
+
+        ds.x.attrs["axis"] = "X"
+        ds.x.attrs["standard_name"] = "projection_x_coordinate"
+        ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
+        ds.x.attrs["units"] = "m"
+    
+    return ds
 
 
 def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
@@ -449,10 +503,11 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
     # Do different things, depending on the type of input
     if aoi.type() == 'station_file':
+        #TODO: why is this a try/except?
         try:
-            df = pd.read_csv(aoi._filename)
+            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
         except ValueError:
-            df = pd.read_csv(aoi._filename)
+            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
 
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
@@ -676,7 +731,7 @@ def UTM_to_WGS84(z, l, x, y):
     return np.reshape(lon, shp), np.reshape(lat, shp)
 
 
-def transform_bbox(wesn, dest_crs=4326, src_crs=4326, margin=100.):
+def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
     """
     Transform bbox to lat/lon or another CRS for use with rest of workflow
     Returns: SNWE
@@ -698,12 +753,11 @@ def transform_bbox(wesn, dest_crs=4326, src_crs=4326, margin=100.):
 
     # If dest_crs is same as src_crs
     if dest_crs == src_crs:
-        snwe = [wesn[2], wesn[3], wesn[0], wesn[1]]
-        return snwe
+        return snwe_in
 
     T = Transformer.from_crs(src_crs, dest_crs, always_xy=True)
-    xs = np.linspace(wesn[0]-margin, wesn[1]+margin, num=11)
-    ys = np.linspace(wesn[2]-margin, wesn[3]+margin, num=11)
+    xs = np.linspace(snwe_in[2]-margin, snwe_in[3]+margin, num=11)
+    ys = np.linspace(snwe_in[0]-margin, snwe_in[1]+margin, num=11)
     X, Y = np.meshgrid(xs, ys)
 
     # Transform to lat/lon

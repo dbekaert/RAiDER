@@ -109,7 +109,11 @@ def get_heights(args, out, station_file, bounding_box=None):
         else:
             l = args.height_levels
 
-        out['height_levels'] = [float(ll) for ll in l]
+        out['height_levels'] = np.array([float(ll) for ll in l])
+        if np.any(out['height_levels'] < 0):
+            logger.warning('Weather model only extends to the surface topography; '
+            'height levels below the topography will be interpolated from the surface'
+            'and may be inaccurate.')
 
     return out
 
