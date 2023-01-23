@@ -23,9 +23,15 @@ from RAiDER.logger import logger
 
 class AOI(object):
     '''
-    This instantiates a generic AOI class object
+    This instantiates a generic AOI class object. 
+
+    Attributes:
+       _bounding_box    - S N W E bounding box
+       _proj            - pyproj-compatible CRS 
+       _type            - Type of AOI 
     '''
     def __init__(self):
+        self._output_directory = os.getcwd()
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
         self._geotransform = None
@@ -63,11 +69,18 @@ class AOI(object):
         return ll_bounds
 
 
+    def set_output_directory(self, output_directory):
+        self._output_directory = output_directory
+        return
+
+
+
 class StationFile(AOI):
     '''Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns'''
-    def __init__(self, station_file):
+    def __init__(self, station_file, demFile=None):
         super().__init__()
         self._filename = station_file
+        self._demfile  = demFile
         self._bounding_box = bounds_from_csv(station_file)
         self._type = 'station_file'
 
@@ -78,13 +91,26 @@ class StationFile(AOI):
 
 
     def readZ(self):
-        df = pd.read_csv(self._filename)
+        df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         if 'Hgt_m' in df.columns:
             return df['Hgt_m'].values
         else:
-            zvals, metadata = download_dem(self._bounding_box)
-            z_bounds = get_bbox(metadata)
-            z_out = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
+                            if self._demfile is None else self._demfile
+
+            zvals, metadata = download_dem(
+                self._bounding_box,
+                writeDEM=True,
+                outName=demFile,
+            )
+            ## select instead
+            z_out0 = interpolateDEM(demFile, self.readLL())
+            if np.isnan(z_out0).all():
+                raise Exception('DEM interpolation failed. Check DEM bounds and station coords.')
+
+
+            # the diagonal is the actual stations coordinates
+            z_out = np.diag(z_out0)
             df['Hgt_m'] = z_out
             df.to_csv(self._filename, index=False)
             self.__init__(self._filename)
@@ -97,7 +123,7 @@ class RasterRDR(AOI):
         self._type = 'radar_rasters'
         self._latfile = lat_file
         self._lonfile = lon_file
-        
+
         if (self._latfile is None) and (self._lonfile is None):
             raise ValueError('You need to specify a 2-band file or two single-band files')
 
@@ -117,10 +143,12 @@ class RasterRDR(AOI):
 
     def readLL(self):
         # allow for 2-band lat/lon raster
+        lats = rio_open(self._latfile)
+
         if self._lonfile is None:
-            return rio_open(self._latfile)
+            return lats
         else:
-            return rio_open(self._latfile), rio_open(self._lonfile)
+            return lats, rio_open(self._lonfile)
 
 
     def readZ(self):
@@ -129,14 +157,16 @@ class RasterRDR(AOI):
             return rio_open(self._hgtfile)
 
         else:
-            demFile = 'GLO30_fullres_dem.tif' if self._demfile is None else self._demfile
+            demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
+                            if self._demfile is None else self._demfile
+
             zvals, metadata = download_dem(
                 self._bounding_box,
                 writeDEM=True,
-                outName=os.path.join(demFile),
+                outName=demFile,
             )
-            z_bounds = get_bbox(metadata)
-            z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+            z_out = interpolateDEM(demFile, self.readLL())
+
             return z_out
 
 
@@ -176,8 +206,9 @@ class GeocodedFile(AOI):
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox    = self._bounding_box
         zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
-        z_bounds = get_bbox(metadata)
-        z_out    = interpolateDEM(zvals, z_bounds, self.readLL(), method='nearest')
+        z_out = interpolateDEM(demFile, self.readLL())
+
+
         return z_out
 
 
@@ -248,13 +279,3 @@ def bounds_from_csv(station_file):
         use_csv_heights = True
     snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
     return snwe
-
-
-def get_bbox(p):
-    lon_w = p['transform'][2]
-    lat_n = p['transform'][5]
-    pix_lon = p['transform'][0]
-    pix_lat = p['transform'][4]
-    lon_e = lon_w + p['width'] * pix_lon
-    lat_s = lat_n + p['width'] * pix_lat
-    return lat_s, lat_n, lon_w, lon_e

@@ -14,12 +14,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: mamba-org/provision-with-micromamba@v14
         with:
-          mamba-version: "*"
-          python-version: '3.10'
-          activate-environment: RAiDER
-          environment-file: environment.yml
+          extra-specs: |
+            python=3.10
 
       - name: install RAiDER
         shell: bash -l {0}

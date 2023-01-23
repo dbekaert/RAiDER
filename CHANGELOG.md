@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.4.1]
+
+### New/Updated Features
++ Reorder target points for intersection
++ Use exact coordinates of DEM to interpolate heights to target lat/lons
++ Support DEM interpolation to station file
++ Implement end-to-end test for intersection of cube with lat/lon files
++ Implement end-to-end test for calculation at stations delay
++ Update AOI to store the output directory so DEM is written to right place
++ `calcDelaysGUNW` will optionally download a GUNW product from AWS S3, process it, and upload a new version of the GUNW product in-place with the tropospheric correction layers added so that RAiDER can be used in ARIA GUNW production via HyP3. **Importantly**, tropospheric correction of GUNW products is still being activitely developed; this workflow, as well as the correction itself, is subject to change.
+
+### Fixed
++ Package data is more explicitly handled so that it is included in the conda-forge build; see [#467](https://github.com/dbekaert/RAiDER/pull/467)
+
 ## [0.4.0]
 
 Adding of new GUNW support to RAiDER. This is an interface delivery allowing for subsequent integration into HYP3 (input/output parsing is not expected to change; computed data is not yet verified). 

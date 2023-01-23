@@ -50,10 +50,14 @@ repository = "https://github.com/dbekaert/RAiDER"
 "generateGACOSVRT.py"   = "RAiDER.models.generateGACOSVRT:main"
 
 [tool.setuptools]
+include-package-data = true
 zip-safe = false
 
 [tool.setuptools.packages.find]
 where = ["tools"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yml", "*.yaml"]
 
 [tool.isort]
 known_first_party = "RAiDER"

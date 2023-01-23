@@ -1,4 +1,6 @@
+import os
 import numpy as np
+import rasterio as rio
 import pytest
 from scipy.interpolate import RegularGridInterpolator
 
@@ -925,13 +927,29 @@ def test_interpolate_wrapper2():
     assert np.allclose(ans, ans_scipy, 1e-15, equal_nan=True)
     assert np.allclose(ans2, ans_scipy, 1e-15, equal_nan=True)
 
+
+def test_interpolateDEM():
+    s = 10
+    x = np.arange(s)
+    dem = np.outer(x, x)
+    metadata = {'driver': 'GTiff', 'dtype': 'float32',
+                'width': s, 'height': s, 'count': 1}
+
+    demFile  = './dem_tmp.tif'
+
+    with rio.open(demFile, 'w', **metadata) as ds:
+        ds.write(dem, 1)
+        ds.update_tags(AREA_OR_POINT='Point')
+
+    ## random points to interpolate to
+    lons =  np.array([4.5, 9.5])
+    lats = np.array([2.5, 9.5])
+    out  = interpolateDEM(demFile, (lats, lons))
+    gold = np.array([[36, 81], [8, 18]], dtype=float)
+    assert np.allclose(out, gold)
+    os.remove(demFile)
+
 # TODO: implement an interpolator test that is similar to test_scenario_1.
 # Currently the scipy and C++ interpolators differ on that case.
 
 
-def test_interpolateDEM():
-    x = np.arange(10)
-    dem = np.outer(x, x)
-    extent = [0, 9, 0, 9]
-    out = interpolateDEM(dem, extent, np.array([[4.5, 4.5], [0.5, 0.5], [10, 10]]))
-    assert np.allclose(out, np.array([20.25, 0.25, np.nan]), equal_nan=True)

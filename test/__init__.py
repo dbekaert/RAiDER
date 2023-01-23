@@ -20,3 +20,4 @@ def pushd(dir):
 TEST_DIR = test_dir.absolute()
 DATA_DIR = os.path.join(TEST_DIR, "data")
 GEOM_DIR = os.path.join(TEST_DIR, 'test_geom')
+WM = 'GMAO'

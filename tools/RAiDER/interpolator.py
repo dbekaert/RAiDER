@@ -107,18 +107,16 @@ def fillna3D(array, axis=-1):
     return np.moveaxis(out, -1, axis)
 
 
-def interpolateDEM(demRaster, extent, outLL, method='linear'):
-    ''' Interpolate a DEM raster to a set of lat/lon query points '''
-    minlat, maxlat, minlon, maxlon = extent
-    nPixLat = demRaster.shape[0]
-    nPixLon = demRaster.shape[1]
-    xlats = np.linspace(minlat, maxlat, nPixLat)
-    xlons = np.linspace(minlon, maxlon, nPixLon)
-    interpolator = rgi(
-        points=(xlats, xlons),
-        values=demRaster,
-        method=method,
-        bounds_error=False
-    )
-    outInterp = interpolator(outLL)
-    return outInterp
+def interpolateDEM(demFile, outLL, method='nearest'):
+    """ Interpolate a DEM raster to a set of lat/lon query points using rioxarray
+
+    outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
+        For now will only use first row/col of 2D
+    """
+    import rioxarray as xrr
+    da_dem     = xrr.open_rasterio(demFile, band_as_variable=True)['band_1']
+    lats, lons = outLL
+    lats  = lats[:, 0] if lats.ndim==2 else lats
+    lons  = lons[0, :] if lons.ndim==2 else lons
+    z_out = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
+    return z_out

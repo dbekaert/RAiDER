@@ -28,7 +28,7 @@ def checkArgs(args):
     # Directories
     if args.weather_model_directory is None:
         args.weather_model_directory = os.path.join(args.output_directory, 'weather_files')
-        
+
     if not os.path.exists(args.weather_model_directory):
         os.mkdir(args.weather_model_directory)
 
@@ -48,7 +48,7 @@ def checkArgs(args):
                     args.output_directory,
                     '{}_Delay_{}.csv'
                     .format(
-                        args.weather_model.Model(),
+                        args.weather_model._dataset.upper(),
                         d.strftime('%Y%m%dT%H%M%S'),
                     )
                 )
@@ -85,7 +85,7 @@ def checkArgs(args):
                 args.weather_model._dataset.upper(),
                 args.output_directory,
             )
-    
+
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)
 

@@ -603,9 +603,9 @@ def get_radar_pos(llh, orb):
 
             except Exception as e:
                 raise e
+            
+        # in case nans in hgt field
         else:
-            # in case first pixel has nan
-            sat_xyz[ind, :] = np.nan
             sr[ind] = np.nan
             output[ind, ...] = np.nan
 

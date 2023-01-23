@@ -1,5 +1,6 @@
 import datetime
 import os
+import shutil
 import pytest
 
 import multiprocessing as mp
@@ -14,11 +15,10 @@ from RAiDER.llreader import BoundingBox, StationFile, RasterRDR
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.models.gmao import GMAO
 
-
 SCENARIO_1 = os.path.join(TEST_DIR, "scenario_1")
 SCENARIO_2 = os.path.join(TEST_DIR, "scenario_2")
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def args():
     d = DEFAULT_DICT
     d['date_list'] = [datetime.datetime(2018, 1, 1)]
@@ -26,9 +26,10 @@ def args():
     d['aoi'] = BoundingBox([38, 39, -92, -91])
     d['los'] = Zenith()
     d['weather_model'] = GMAO()
-    
-    return d
 
+    for f in 'weather_files weather_dir'.split():
+        shutil.rmtree(f) if os.path.exists(f) else ''
+    return d
 
 def isWriteable(dirpath):
     '''Test whether a directory is writeable'''
@@ -38,6 +39,7 @@ def isWriteable(dirpath):
         return True
     except IOError:
         return False
+
 
 def test_checkArgs_outfmt_1(args):
     '''Test that passing height levels with hdf5 outformat works'''
@@ -68,7 +70,7 @@ def test_checkArgs_outfmt_4(args):
     '''Test that passing a raster format with height levels throws an error'''
     args = args
     args.aoi = RasterRDR(
-        lat_file = os.path.join(SCENARIO_1, 'geom', 'lat.dat'), 
+        lat_file = os.path.join(SCENARIO_1, 'geom', 'lat.dat'),
         lon_file = os.path.join(SCENARIO_1, 'geom', 'lon.dat'),
     )
     argDict = checkArgs(args)
@@ -145,6 +147,7 @@ def test_filenames_1(args):
 def test_filenames_2(args):
     '''tests that the correct filenames are generated'''
     args = args
+    args['output_directory'] = SCENARIO_2
     args.aoi = StationFile(os.path.join(SCENARIO_2, 'stations.csv'))
     argDict = checkArgs(args)
     assert '20180101' in argDict['wetFilenames'][0]

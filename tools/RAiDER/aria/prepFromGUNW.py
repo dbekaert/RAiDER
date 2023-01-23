@@ -231,11 +231,11 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 def main(args):
     """ Read parameters needed for RAiDER from ARIA Standard Products (GUNW) """
 
-    GUNWObj = GUNW(args.file, args.model, args.output_directory)
+    GUNWObj = GUNW(args.file, args.weather_model, args.output_directory)
     GUNWObj()
 
     raider_cfg  = {
-           'weather_model': args.model,
+           'weather_model': args.weather_model,
            'look_dir':  GUNWObj.look_dir,
            'cube_spacing_in_m': GUNWObj.spacing_m,
            'aoi_group' : {'bounding_box': GUNWObj.SNWE},
