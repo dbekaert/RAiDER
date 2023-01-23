@@ -16,7 +16,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Implement end-to-end test for intersection of cube with lat/lon files
 + Implement end-to-end test for calculation at stations delay
 + Update AOI to store the output directory so DEM is written to right place
-+ `calcDelaysGUNW` will optionally download a GUNW product from AWS S3, process it, and upload a new version of the GUNW product in-place with the tropospheric correction layers added so that RAiDER can be used in ARIA GUNW production via HyP3 
++ `calcDelaysGUNW` will optionally download a GUNW product from AWS S3, process it, and upload a new version of the GUNW product in-place with the tropospheric correction layers added so that RAiDER can be used in ARIA GUNW production via HyP3. **Importantly**, tropospheric correction of GUNW products is still being activitely developed; this workflow, as well as the correction itself, is subject to change.
 
 ### Fixed
 + Package data is more explicitly handled so that it is included in the conda-forge build; see [#467](https://github.com/dbekaert/RAiDER/pull/467)
