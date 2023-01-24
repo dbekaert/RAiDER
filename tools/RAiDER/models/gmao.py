@@ -37,7 +37,7 @@ class GMAO(WeatherModel):
         self._k2 = 0.233  # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-        self._time_res = 1
+        self._time_res = 3
 
         # horizontal grid spacing
         self._lat_res = 0.25
