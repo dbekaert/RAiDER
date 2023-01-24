@@ -11,7 +11,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        '++process', choices=['calcDelays', 'calcDelaysInterp' 'downloadGNSS', 'calcDelaysGUNW'],
+        '++process', choices=['calcDelays', 'calcDelaysInterp', 'downloadGNSS', 'calcDelaysGUNW'],
                      default='calcDelays',
                      help='Select the entrypoint to use'
     )
