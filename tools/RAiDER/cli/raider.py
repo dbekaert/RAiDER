@@ -120,10 +120,10 @@ def drop_nans(d):
 def calcDelays(iargs=None):
     """ Parse command line arguments using argparse. """
     import RAiDER
-    from RAiDER.delay import tropo_delay
+    from RAiDER.delay import tropo_delay, avg_delays
     from RAiDER.checkArgs import checkArgs
     from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays
+    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
         '\n\t raider.py -g'
@@ -219,171 +219,9 @@ def calcDelays(iargs=None):
         logger.debug('Beginning weather model pre-processing')
 
 
-        try:
-            weather_model_file = prepareWeatherModel(
-                model, t,
-                ll_bounds=ll_bounds, # SNWE
-                wmLoc=params['weather_model_directory'],
-                makePlots=params['verbose'],
-            )
-        except RuntimeError:
-            logger.exception("Date %s failed", t)
-            continue
-
-        # dont process the delays for download only
-        if dl_only:
-            continue
-
-        # Now process the delays
-        try:
-            wet_delay, hydro_delay = tropo_delay(
-                t, weather_model_file, aoi, los,
-                height_levels = params['height_levels'],
-                out_proj = params['output_projection'],
-                look_dir = params['look_dir'],
-                cube_spacing_m = params['cube_spacing_in_m'],
-            )
-        except RuntimeError:
-            logger.exception("Date %s failed", t)
-            continue
-
-        ###########################################################
-        # Write the delays to file
-        # Different options depending on the inputs
-
-        if los.is_Projected():
-            out_filename = w.replace("_ztd", "_std")
-            f = f.replace("_ztd", "_std")
-        elif los.ray_trace():
-            out_filename = w.replace("_std", "_ray")
-            f = f.replace("_std", "_ray")
-        else:
-            out_filename = w
-
-        if hydro_delay is None:
-            # means that a dataset was returned
-            ds = wet_delay
-            ext = os.path.splitext(out_filename)[1]
-            out_filename = out_filename.replace('wet', 'tropo')
-
-            if ext not in ['.nc', '.h5']:
-                out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
-
-
-            if out_filename.endswith(".nc"):
-                ds.to_netcdf(out_filename, mode="w")
-            elif out_filename.endswith(".h5"):
-                ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
-            logger.info('Wrote delays to: %s', out_filename)
-
-        else:
-            if aoi.type() == 'station_file':
-                out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
-
-            if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
-                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
-
-        wet_filenames.append(out_filename)
-
-    return wet_filenames
-
-
-def calcDelaysInterp(iargs=None):
-    """
-    Same as calcDelays, except will calculate at nearest weather model hour then interpolate
-    """
-    import RAiDER
-    from RAiDER.delay import tropo_delay, avg_delays
-    from RAiDER.checkArgs import checkArgs
-    from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
-    examples = 'Examples of use:' \
-        '\n\t raider.py ++process calcDelaysInterp customTemplatefile.cfg' \
-        '\n\t calcDelaysInterp.py customTemplateFile'
-
-    p = argparse.ArgumentParser(
-        description =
-            'Command line interface for RAiDER processing with a configure file.'
-            'Default options can be found by running: raider.py --generate_config',
-        epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
-
-    p.add_argument(
-        'customTemplateFile', nargs='?',
-        help='custom template with option settings.\n' +
-        "ignored if the default smallbaselineApp.cfg is input."
-    )
-
-    p.add_argument(
-        '--download_only', action='store_true',
-        help='only download a weather model.'
-    )
-
-    ## if not None, will replace first argument (customTemplateFile)
-    args = p.parse_args(args=iargs)
-
-    # default input file
-    template_file = os.path.join(os.path.dirname(RAiDER.__file__),
-                                                        'cli', 'raider.yaml')
-
-    # check: existence of input template files
-    if (not args.customTemplateFile
-            and not os.path.isfile(os.path.basename(template_file))
-            and not args.generate_template):
-        msg = "No template file found! It requires that either:"
-        msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raider.yaml' exists in current directory."
-
-        p.print_usage()
-        print(examples)
-        raise SystemExit(f'ERROR: {msg}')
-
-    if  args.customTemplateFile:
-        # check the existence
-        if not os.path.isfile(args.customTemplateFile):
-            raise FileNotFoundError(args.customTemplateFile)
-
-        args.customTemplateFile = os.path.abspath(args.customTemplateFile)
-    else:
-        args.customTemplateFile = template_file
-
-    # Read the template file
-    params = read_template_file(args.customTemplateFile)
-
-    # Argument checking
-    params  = checkArgs(params)
-    dl_only = True if params['download_only'] or args.download_only else False
-
-    if not params.verbose:
-        logger.setLevel(logging.INFO)
-
-    wet_filenames = []
-    for t, w, f in zip(
-        params['date_list'],
-        params['wetFilenames'],
-        params['hydroFilenames']
-    ):
-
-        los = params['los']
-        aoi = params['aoi']
-        model = params['weather_model']
-
-        # add a buffer for raytracing
-        if los.ray_trace():
-            ll_bounds = aoi.add_buffer(buffer=1)
-        else:
-            ll_bounds = aoi.add_buffer(buffer=1)
-
-        ###########################################################
-        # weather model calculation
-        logger.debug('Starting to run the weather model calculation')
-        logger.debug(f'Date: {t.strftime("%Y%m%d")}')
-        logger.debug('Beginning weather model pre-processing')
-
-
-
-        time1, time2 = get_nearest_wmtimes(t, model._Name)
+        times = get_nearest_wmtimes(t, model._Name) if params['interpolate_wmtimes'] else [t]
         wetDelays, hydroDelays = [], []
-        for tt in [time1, time2]:
+        for tt in times:
             try:
                 weather_model_file = prepareWeatherModel(
                     model, tt,
@@ -392,9 +230,8 @@ def calcDelaysInterp(iargs=None):
                     makePlots=params['verbose'],
                 )
             except RuntimeError:
-                logger.exception("Date %s failed", tt)
+                logger.exception("Date %s failed", t)
                 continue
-
 
             # dont process the delays for download only
             if dl_only:
@@ -413,14 +250,15 @@ def calcDelaysInterp(iargs=None):
                 logger.exception("Date %s failed", t)
                 continue
 
-            ###########################################################
             # store in memory
             wetDelays.append(wet_delay)
             hydroDelays.append(hydro_delay)
 
-        wet_delay, hydro_delay = avg_delays(wetDelays, hydroDelays, t, time1, time2)
-
+        ###########################################################
         # Write the delays to file
+        if params['interpolate_wmtimes']:
+            wet_delay, hydro_delay = avg_delays(wetDelays, hydroDelays, t, times[0], times[1])
+
         # Different options depending on the inputs
         if los.is_Projected():
             out_filename = w.replace("_ztd", "_std")
@@ -457,6 +295,7 @@ def calcDelaysInterp(iargs=None):
         wet_filenames.append(out_filename)
 
     return wet_filenames
+
 
 ## ------------------------------------------------------ downloadGNSSDelays.py
 def downloadGNSS():

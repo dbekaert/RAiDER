@@ -58,6 +58,7 @@ date_group:
 time_group:
   time:
   end_time:
+  interpolate_wmtimes: false # Interpolate between weather model times if true, else use nearest time
 
 
 ########## 4. Area of Interest

@@ -8,6 +8,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New/Updated Features
 + Support temporal interpolation when user requested time is not exactly on a weather model time
++ requires setting a new flag in the configuration file (interpolate_wmtimes)
 
 ## [0.4.1]
 
