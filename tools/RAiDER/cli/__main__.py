@@ -2,7 +2,7 @@ import argparse
 import sys
 from importlib.metadata import entry_points
 
-from RAiDER.cli.raider import calcDelays, calcDelaysInterp, downloadGNSS, calcDelaysGUNW
+from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
 
 
 def main():
@@ -11,7 +11,7 @@ def main():
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        '++process', choices=['calcDelays', 'calcDelaysInterp', 'downloadGNSS', 'calcDelaysGUNW'],
+        '++process', choices=['calcDelays', 'downloadGNSS', 'calcDelaysGUNW'],
                      default='calcDelays',
                      help='Select the entrypoint to use'
     )
