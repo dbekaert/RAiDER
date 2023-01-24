@@ -488,7 +488,8 @@ def avg_delays(wetDelays, hydroDelays, dtref, dt1, dt2):
     import xarray as xr
     if hydroDelays[0] is None:
         ## difference in seconds between the model dates and the reference date
-        wgts = xr.DataArray([(dtref-dt1).seconds, (dt2-dtref).seconds], dims=['time'], coords={'time': [1,2]})
+        dsecs = np.array([(dtref-dt1).seconds, (dt2-dtref).seconds])
+        wgts  = xr.DataArray(1/dsecs, dims=['time'], coords={'time': [1,2]})
         ds_out_wet = wetDelays[0].copy() # store the updated data in here
         for kind in 'hydro wet'.split():
             da1 = wetDelays[0][kind].assign_coords(time=1)
