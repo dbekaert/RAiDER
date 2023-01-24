@@ -164,8 +164,8 @@ class ECMWF(WeatherModel):
         server = ecmwfapi.ECMWFDataServer()
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
-        # if not time1 == time:
-        #     logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
+        if not corrected_date == time:
+            logger.warning('Rounded given hour from  %d to %d', time.hour, corrected_date.hour)
 
         server.retrieve({
             "class": self._classname,  # ERA-Interim
@@ -260,7 +260,7 @@ class ECMWF(WeatherModel):
         # round to the closest legal time
         corrected_date = util.round_date(time, datetime.timedelta(hours=self._time_res))
         if not corrected_date == time:
-            logger.warning('Rounded given datetime from  %s to %s', time, corrected_date)
+            logger.warning('Rounded given hour from  %d to %d', time.hour, corrected_date.hour)
 
         if self._model_level_type == 'ml':
             param = "129/130/133/152"
