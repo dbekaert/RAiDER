@@ -499,10 +499,11 @@ def avg_delays(wetDelays, hydroDelays, dtref, dt1, dt2):
 
         ds_out_wet.attrs['source'] = [wetDelays[i].attrs['source'] for i in range(2)]
         ds_out_hydro = None
-        ## may be useful for testing
-        # da_sec1 = da_sec1.isel(z=0, y=slice(0,1), x=slice(0, 2))
-        # da_sec2 = da_sec2.isel(z=0, y=slice(0,1), x=slice(0, 2))
-        # np.average(da_sec.data, weights=wgts_sec.data, axis=0) ## equals weighted xarray
+        ## useful for testing
+        # da1_crop = da1.isel(z=0, y=slice(0,1), x=slice(0, 2))
+        # da2_crop = da2.isel(z=0, y=slice(0,1), x=slice(0, 2))
+
+        # np.average(da_1_cr.data, weights=wgts_sec.data, axis=0) ## equals weighted xarray
         # dat = np.stack([da_sec1.data, da_sec2.data]).mean(0) ## equivalent to xr concat
 
     else:
