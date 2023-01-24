@@ -421,7 +421,6 @@ def calcDelaysInterp(iargs=None):
 
         wet_delay, hydro_delay = avg_delays(wetDelays, hydroDelays, t, time1, time2)
 
-
         # Write the delays to file
         # Different options depending on the inputs
         if los.is_Projected():

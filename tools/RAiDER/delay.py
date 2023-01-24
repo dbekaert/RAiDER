@@ -414,12 +414,29 @@ def _build_cube_ray(
         return outputArrs
 
 
-def avg_delays(wetDelays, hydroDelays, t0, t1, t2):
+def avg_delays(wetDelays, hydroDelays, dtref, dt1, dt2):
+    import xarray as xr
     if hydroDelays[0] is None:
-        # do something with wet
-        pass
-    else:
-        # do something with both
-        pass
+        ## difference in seconds between the model dates and the reference date
+        wgts = xr.DataArray([(dtref-dt1).seconds, (dt2-dtref).seconds], dims=['time'], coords={'time': [1,2]})
+        ds_out_wet = wetDelays[0].copy() # store the updated data in here
+        for kind in 'hydro wet'.split():
+            da1 = wetDelays[0][kind].assign_coords(time=1)
+            da2 = wetDelays[1][kind].assign_coords(time=2)
+            da  = xr.concat([da1, da2], 'time').weighted(wgts)
+            da_mu = da.mean('time')
+            ds_out_wet[kind] = da_mu
 
-    return wetDelays[0], hydroDelays[0]
+        ds_out_wet.attrs['source'] = [wetDelays[i].attrs['source'] for i in range(2)]
+        ds_out_hydro = None
+        ## may be useful for testing
+        # da_sec1 = da_sec1.isel(z=0, y=slice(0,1), x=slice(0, 2))
+        # da_sec2 = da_sec2.isel(z=0, y=slice(0,1), x=slice(0, 2))
+        # np.average(da_sec.data, weights=wgts_sec.data, axis=0) ## equals weighted xarray
+        # dat = np.stack([da_sec1.data, da_sec2.data]).mean(0) ## equivalent to xr concat
+
+    else:
+        for kind in 'hydro wet'.split():
+            raise Exception('Not supported yet.')
+
+    return ds_out_wet, ds_out_hydro
