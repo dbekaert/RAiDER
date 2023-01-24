@@ -18,7 +18,6 @@ from RAiDER.llreader import BoundingBox
 from RAiDER.logger import logger
 
 
-## put it in here
 def checkArgs(args):
     '''
     Helper fcn for checking argument compatibility and returns the
