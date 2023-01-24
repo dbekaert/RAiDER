@@ -14,9 +14,6 @@ from test import TEST_DIR, WM
 import RAiDER
 from RAiDER.logger import logger
 
-WM = 'GMAO'
-
-
 def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
     """ Make lat lons at a specified spacing """
     S, N, W, E = bbox
@@ -69,7 +66,8 @@ def test_cube_timemean():
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
     date       = 20200130
-    hr1, hr2   = 12, 15
+    dct_hrs    = {'GMAO': [12, 15, '13:30:00'], 'ERA5': [13, 14, '13:30:00']}
+    hr1, hr2, ti = dct_hrs[WM]
 
     grp = {
             'date_group': {'date_start': date},
@@ -91,7 +89,7 @@ def test_cube_timemean():
         assert np.isclose(proc.returncode, 0)
 
     ## run interpolation in the middle of the two
-    grp['time_group'] =  {'time': f'13:30:00'}
+    grp['time_group'] =  {'time': ti}
     cfg  = update_yaml(grp)
 
     cmd  = f'raider.py ++process calcDelaysInterp {cfg}'
@@ -105,7 +103,7 @@ def test_cube_timemean():
     with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{hr2}0000_ztd.nc')) as ds:
         da2_tot = ds['wet'] + ds['hydro']
 
-    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T133000_ztd.nc')) as ds:
+    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{ti.replace(":", "")}_ztd.nc')) as ds:
         da_interp_tot = ds['wet'] + ds['hydro']
 
     da_mu = (da1_tot + da2_tot) / 2
@@ -127,8 +125,8 @@ def test_cube_weighting():
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
     date       = 20200130
-    hr1, hr2   = 12, 15
-    t_ref      = '12:05:00'
+    dct_hrs    = {'GMAO': [12, 15, '12:05:00'], 'ERA5': [13, 14, '13:05:00']}
+    hr1, hr2, t_ref = dct_hrs[WM]
 
     grp = {
             'date_group': {'date_start': date},
@@ -173,7 +171,7 @@ def test_cube_weighting():
 
     wgts  = np.array([(dt_ref-dt1).seconds, (dt2-dt_ref).seconds])
     logger.info ('Weights: %s', wgts)
-    logger.info ('Tstart: %s, Tend: %s, Tref: %s', dt1, dt1, dt_ref)
+    logger.info ('Tstart: %s, Tend: %s, Tref: %s', dt1, dt2, dt_ref)
     da1_crop = da1_tot.isel(z=0, y=slice(0,1), x=slice(0, 2))
     da2_crop = da2_tot.isel(z=0, y=slice(0,1), x=slice(0, 2))
     da_out_crop = da_interp_tot.isel(z=0, y=slice(0,1), x=slice(0,2))

@@ -1143,7 +1143,7 @@ def get_nearest_wmtimes(dt0, wm):
     from dateutil.relativedelta import relativedelta
     from datetime import time as dtime
     ## hourly time step availability - not sure about ECMWF / HRRR
-    wm_hour  = {'GMAO': 3, 'ERA5':1, 'ERA5T': 1, 'HRES':1, 'HRRR': 1, 'NCMR': '?'}
+    wm_hour  = {'GMAO': 3, 'ERA5':1, 'ERA-5': 1, 'ERA5T': 1, 'HRES':6, 'HRRR': 1, 'NCMR': '?'}
     wm_hours = np.arange(0, 24, wm_hour[wm])
 
     dates = []

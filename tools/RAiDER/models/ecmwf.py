@@ -164,6 +164,8 @@ class ECMWF(WeatherModel):
         server = ecmwfapi.ECMWFDataServer()
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        # if not time1 == time:
+        #     logger.warning('Rounded given hour from  %d to %d', time1.hour, time.hour)
 
         server.retrieve({
             "class": self._classname,  # ERA-Interim
@@ -204,6 +206,7 @@ class ECMWF(WeatherModel):
         acqTime,
         outname
     ):
+        """ Used for ERA5 """
         import cdsapi
         c = cdsapi.Client(verify=0)
 
@@ -219,7 +222,7 @@ class ECMWF(WeatherModel):
         # round to the closest legal time
         corrected_date = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
         if not corrected_date == acqTime:
-            logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_date)
+            logger.warning('Rounded given hour from  %d to %d', acqTime.hour, corrected_date.hour)
 
         # I referenced https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
         dataDict = {
@@ -247,7 +250,9 @@ class ECMWF(WeatherModel):
             logger.exception(e)
             raise Exception
 
+
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
+        """ Used for HRES """
         from ecmwfapi import ECMWFService
 
         server = ECMWFService("mars")
