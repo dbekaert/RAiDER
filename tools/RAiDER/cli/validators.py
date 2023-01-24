@@ -200,6 +200,8 @@ def parse_dates(arg_dict):
         l = arg_dict['date_list']
         if isinstance(l, str):
             l = re.findall('[0-9]+', l)
+        elif isinstance(l, int):
+            l = [l]
         L = [enforce_valid_dates(d) for d in l]
 
     else:

@@ -291,7 +291,7 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
         ds.x.attrs["standard_name"] = "projection_x_coordinate"
         ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
         ds.x.attrs["units"] = "m"
-    
+
     return ds
 
 
@@ -1135,3 +1135,41 @@ def transform_coords(proj1, proj2, x, y):
     """
     transformer = Transformer.from_crs(proj1, proj2, always_xy=True)
     return transformer.transform(x, y)
+
+
+def get_nearest_wmtimes(dt0, wm):
+    """" Get the nearest model times"""
+    import pandas as pd
+    from dateutil.relativedelta import relativedelta
+    from datetime import time as dtime
+    ## hourly time step availability - not sure about ECMWF / HRRR
+    wm_hour  = {'GMAO': 3, 'ERA5':1, 'ERA5T': 1, 'HRES':1, 'HRRR': 1, 'NCMR': '?'}
+    wm_hours = np.arange(0, 24, wm_hour[wm])
+
+    dates = []
+    times = []
+
+    ref_time  = dt0
+    ## sort the model and GUNW times
+    # date = dt0.date()
+    mod_times = [datetime.strptime(f'{str(dt0.date())}-{dt}', '%Y-%m-%d-%H') for dt in wm_hours] + [str(dt0)]
+    ser    = pd.Series(mod_times, name='datetimes', dtype='datetime64[ns]')
+    ix_mod = ser.index[-1] # to get the nearest times
+    df     = ser.sort_values().reset_index()
+    ix_mod_s = df[df['index']==ix_mod].index.item()
+
+    ## case 1: index is not at the end
+    if ix_mod_s < df.index[-1]:
+        dt1, dt2 = df.loc[ix_mod_s-1, 'datetimes'], df.loc[ix_mod_s+1, 'datetimes']
+        dt2 = dt2.to_pydatetime()
+
+    ## case 2: close to midnight next day; add one to the date and start at midnight
+    else:
+        dt1 = df.loc[ix_mod_s-1, 'datetimes']
+
+        # handle leap years
+        days = 2 if (dt1.year % 4 == 0 and dt1.month == 2 and dt1.day == 28) else 1
+        dt2 = datetime.combine(dt1 + relativedelta(days=days), dtime())
+
+    return dt1.to_pydatetime(), dt2
+
