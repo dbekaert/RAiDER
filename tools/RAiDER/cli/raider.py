@@ -11,6 +11,7 @@ from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.models.allowed import ALLOWED_MODELS
 
 
 HELP_MESSAGE = """
