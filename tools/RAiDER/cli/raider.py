@@ -411,7 +411,7 @@ def calcDelaysGUNW():
         '-u', '--update-GUNW', default=True,
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
     )
-    
+
     args = p.parse_args()
 
     if args.weather_model == 'None':
@@ -434,6 +434,8 @@ def calcDelaysGUNW():
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
     cube_filenames = calcDelays([path_cfg])
+
+    assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
     GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
