@@ -15,6 +15,7 @@ import shapely.wkt
 import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
+from RAiDER.models import credentials
 from eof.download import download_eofs
 
 ## cube spacing in degrees for each model
@@ -230,6 +231,10 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 
 def main(args):
     """ Read parameters needed for RAiDER from ARIA Standard Products (GUNW) """
+
+    # Check if WEATHER MODEL API credentials exists, if not create them or raise ERROR
+    credentials.check_api(args.weather_model, args.api_uid, args.api_key,
+                          prompt_flag=False, update_flag=False)
 
     GUNWObj = GUNW(args.file, args.weather_model, args.output_directory)
     GUNWObj()
