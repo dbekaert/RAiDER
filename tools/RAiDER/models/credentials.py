@@ -87,4 +87,4 @@ def check_api(model: str,
             with open(api_filename_path, 'w') as f:
                 f.write(MODEL_API_DICT[api_filename]['api'].format(uid=UID,
                                                                     key=KEY))
-                    
+            os.system(f'chmod 0600 {api_filename_path}')
