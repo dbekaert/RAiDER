@@ -232,7 +232,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 def main(args):
     """ Read parameters needed for RAiDER from ARIA Standard Products (GUNW) """
 
-    # Check if WEATHER MODEL API credentials exists, if not create them or raise ERROR
+    # Check if WEATHER MODEL API credentials hidden file exists, if not create it or raise ERROR
     credentials.check_api(args.weather_model, args.api_uid, args.api_key,
                           prompt_flag=False, update_flag=False)
 

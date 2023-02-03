@@ -44,7 +44,7 @@ def check_api(model: str,
     # Weather model credential filename
     # typically stored in home dir as hidden file
     if model in ('ERA5', 'ERA5T'):
-        ap_filename = 'cdsapirc'
+        api_filename = 'cdsapirc'
     elif model in ('ERAI, HRES'):
         api_filename = 'ecmwfapirc'
     elif model in ('GMAO'):
