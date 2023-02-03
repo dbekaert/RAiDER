@@ -1,6 +1,6 @@
 '''
-dict that hold api information and help url for downloading weather model data
-   -  api information is stored in hidden file in home directory 
+dict that holds api information and help url for downloading weather model data
+   -  api information is stored in a hidden file in home directory 
 
         api filename      weather models          uid           key
         cdsapirc          ERA5, ERA5T             uid           key
