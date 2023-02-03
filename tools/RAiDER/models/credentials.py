@@ -1,14 +1,40 @@
 '''
-dict that holds api information and help url for downloading weather model data
-   -  api information is stored in a hidden file in home directory 
+API credential information and help url for downloading weather model data 
+    saved in a hidden file in home directory 
 
-        api filename      weather models          uid           key
-        cdsapirc          ERA5, ERA5T             uid           key
-        ecmwfapirc        ERAI, HRES              email         key
-        netrc             GMAO, MERRA2            username      password
-        <NAN>             HRRR [public access]    <NAN>         <NAN> 
+api filename      weather models          uid           key           host
+_________________________________________________________________________________
+cdsapirc          ERA5, ERA5T             uid           key         https://cds.climate.copernicus.eu/api/v2
+ecmwfapirc        ERAI, HRES              email         key         https://api.ecmwf.int/v1
+netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov 
+<NAN>             HRRR [public access]    <NAN>         <NAN> 
 '''
 
+import os
+
+# system environmental variables
+API_ENVIRONMENTS= {
+    'cdsapirc'   : {'uid' : 'CDS_UID',
+                    'key' : 'CDS_KEY'},
+
+    'ecmwfapirc' : {'uid' : 'ECMWF_EMAIL',
+                    'key' : 'ECMWF_KEY'},
+                    
+    'netrc'      : {'uid' : 'EARTHDATA_USERNAME',
+                    'key' : 'EARTHDATA_PASSWORD'}
+                    }
+
+# filename for the hidden file per model
+API_FILENAME = {'ERA5'  : 'cdsapirc',
+                'ERA5T' : 'cdsapirc',
+                'ERAI'  : 'ecmwfapirc',
+                'HRES'  : 'ecmwfapirc',
+                'GMAO'  : 'netrc',
+                'MERRA2': 'netrc',
+                'HRRR'  :  None
+               }
+
+# api credentials dict
 MODEL_API_DICT = {
         'cdsapirc' :   {'api' : """\
                                 url: https://cds.climate.copernicus.eu/api/v2\
@@ -33,6 +59,15 @@ MODEL_API_DICT = {
                        }
                 }
 
+# Check if enviroments exists
+def _check_envs(api):
+    try:
+        uid = os.getenv(API_ENVIRONMENTS[api]['uid'])
+        key = os.getenv(API_ENVIRONMENTS[api]['key']) 
+        return uid, key
+    except:
+        return None, None
+
 # Function to check and write MODEL API credential for downloading weather model data
 def check_api(model: str,
               UID: str = None,
@@ -43,15 +78,12 @@ def check_api(model: str,
 
     # Weather model credential filename
     # typically stored in home dir as hidden file
-    if model in ('ERA5', 'ERA5T'):
-        api_filename = 'cdsapirc'
-    elif model in ('ERAI, HRES'):
-        api_filename = 'ecmwfapirc'
-    elif model in ('GMAO'):
-        api_filename = 'netrc'
-    else:
-        api_filename = None #for HRRR
+    api_filename = API_FILENAME[model]
 
+    # Get API credential from os.env if they exist
+    UID, KEY = _check_envs(api_filename)
+
+    # skip below if model is HRRR as it does not need API
     if api_filename:    
         # Check if the credential api file exists
         api_filename_path = os.path.expanduser('~/.')+ f'{api_filename}'
