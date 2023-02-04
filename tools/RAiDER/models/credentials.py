@@ -12,19 +12,7 @@ netrc             GMAO, MERRA2            username      password    urs.earthdat
 
 import os
 
-# system environmental variables
-API_ENVIRONMENTS= {
-    'cdsapirc'   : {'uid' : 'CDS_UID',
-                    'key' : 'CDS_KEY'},
-
-    'ecmwfapirc' : {'uid' : 'ECMWF_EMAIL',
-                    'key' : 'ECMWF_KEY'},
-                    
-    'netrc'      : {'uid' : 'EARTHDATA_USERNAME',
-                    'key' : 'EARTHDATA_PASSWORD'}
-                    }
-
-# filename for the hidden file per model
+# Filename for the hidden file per model
 API_FILENAME = {'ERA5'  : 'cdsapirc',
                 'ERA5T' : 'cdsapirc',
                 'ERAI'  : 'ecmwfapirc',
@@ -32,61 +20,102 @@ API_FILENAME = {'ERA5'  : 'cdsapirc',
                 'GMAO'  : 'netrc',
                 'MERRA2': 'netrc',
                 'HRRR'  :  None
-               }
+                }
+
+# system environmental variables for API credentials
+'''
+cdsapi : already has as default set to look for CDSAPI_URL, CDSAPI_KEY
+         https://github.com/ecmwf/cdsapi/blob/master/cdsapi/api.py LINE:253, 254
+         however, if hidden file CDSAPI_RC exists, it overwrites CDSAPI_URL, CDSAPI_KEY
+
+         CDSAPI_KEY = UID:KEY
+
+ecmwfapir : same as above, looks for the envs however they are not selected as default input (default: anonymous)
+            https://github.com/ecmwf/ecmwf-api-client/blob/master/ecmwfapi/api.py
+'''
+
+API_ENVIRONMENTS= {
+    'cdsapirc'   : {'uid' : 'CDSAPI_KEY', #Not Needed
+                    'key' : 'CDSAPI_KEY',
+                    'host': 'CDSAPI_URL'},
+
+    'ecmwfapirc' : {'uid' : 'ECMWF_API_EMAIL',
+                    'key' : 'ECMWF_API_KEY',
+                    'host': 'ECMWF_API_URL'},
+                    
+    'netrc'      : {'uid' : 'EARTHDATA_USERNAME',
+                    'key' : 'EARTHDATA_PASSWORD',
+                    'host': 'EARTHDATA_URL'} #Added this one in case of url change
+                    }
+
+# API urls
+API_URLS = {'cdsapirc'   : 'https://cds.climate.copernicus.eu/api/v2',
+            'ecmwfapirc' : 'https://api.ecmwf.int/v1',
+            'netrc' : 'urs.earthdata.nasa.gov'}
 
 # api credentials dict
-MODEL_API_DICT = {
+API_CREDENTIALS_DICT = {
         'cdsapirc' :   {'api' : """\
-                                url: https://cds.climate.copernicus.eu/api/v2\
+                                url: {host}\
                                 \nkey: {uid}:{key}
                                 """,
-                        'url' : 'https://cds.climate.copernicus.eu/api-how-to'
+                        'help_url' : 'https://cds.climate.copernicus.eu/api-how-to'
                         },
         'ecmwfapirc' : {'api' : """{{\
-                                 \n"url"   : "https://api.ecmwf.int/v1",\
+                                 \n"url"   : "{host}",\
                                  \n"key"   : "{key}",\
                                  \n"email" : "{uid}"\
                                  \n}}
                                 """,
-                        'url' : 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key'
+                        'help_url' : 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key'
                         },
         'netrc' :       {'api' : """\
-                                \nmachine urs.earthdata.nasa.gov\
+                                \nmachine {host}\
                                 \n        login {uid}\
                                 \n        password {key}\
                                 """,
-                       'url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget'
+                       'help_url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget'
                        }
                 }
 
-# Check if enviroments exists
+# Check if API enviroments exists
 def _check_envs(api):
+    # First check if API host env exist, if not use the default ones
     try:
-        uid = os.getenv(API_ENVIRONMENTS[api]['uid'])
-        key = os.getenv(API_ENVIRONMENTS[api]['key']) 
-        return uid, key
-    except:
-        return None, None
+        host = os.getenv(API_ENVIRONMENTS[api]['host'])
+    except (RuntimeError):
+        print('Unable to get API url env!')
+    else:
+        host = API_URLS[api] 
 
-# Function to check and write MODEL API credential for downloading weather model data
+    # Second check for API env credentials
+    try:
+        if api == 'cdsapirc':
+            uid, key  = os.getenv(API_ENVIRONMENTS[api]['key']).split(':')
+        else:
+            uid  = os.getenv(API_ENVIRONMENTS[api]['uid'])
+            key = os.getenv(API_ENVIRONMENTS[api]['key']) 
+        return uid, key, host
+    except:
+        return None, None, host
+
+# Check and write MODEL API credential for downloading weather model data
 def check_api(model: str,
               UID: str = None,
               KEY: str = None,
-              prompt_flag: bool = True,
               update_flag: bool = False) -> None:
-    import os
 
     # Weather model credential filename
     # typically stored in home dir as hidden file
     api_filename = API_FILENAME[model]
 
     # Get API credential from os.env if they exist
-    UID, KEY = _check_envs(api_filename)
+    UID, KEY, URL = _check_envs(api_filename)
 
     # skip below if model is HRRR as it does not need API
     if api_filename:    
         # Check if the credential api file exists
-        api_filename_path = os.path.expanduser('~/.')+ f'{api_filename}'
+        api_filename_path = os.path.expanduser('~/.') + f'{api_filename}'
 
         # if update flag is on, delete existing file and update it
         if update_flag:
@@ -97,26 +126,18 @@ def check_api(model: str,
             # Credential API file does not exist, create it
             # Need api information
             if UID is None or KEY is None:
-                url = MODEL_API_DICT[api_filename]['url']
-
-                #if prompt flag selected, ask user to input the API uid & key
-                if prompt_flag:
-                    print(f'GET MODEL API credentials, link: {url}')
-                    UID = input('Please type your UID [uid, email, username]:')
-                    KEY = input('Please type your KEY [key, password]')
-                    if UID == '' or KEY == '':
-                        raise ValueError('ERROR : UID and/or KEY are empty, define them !!')
-
-                # Raise ERROR
-                else:
-                    msg = f'{api_filename_path} and weather model credential API UID and KEY,'
-                    msg += ' do not exist !!'
-                    msg += '\nGet API info from ' + '\033[1m' f'{url}' + '\033[0m, and added it!'
-                    raise ValueError(msg)
+                url = API_CREDENTIALS_DICT[api_filename]['help_url']
                 
-            # Create file with inputs, Needed only once
+                #Raise ERROR
+                msg = f'{api_filename_path}, API ENVIRONMENTALS and weather model'
+                msg += 'credentials API UID and KEY, do not exist !!'
+                msg += '\nGet API info from ' + '\033[1m' f'{url}' + '\033[0m, and add it!'
+                raise ValueError(msg)
+                
+            # Create file with inputs, do it only once
             print(f'Writing {api_filename_path} locally!')
             with open(api_filename_path, 'w') as f:
-                f.write(MODEL_API_DICT[api_filename]['api'].format(uid=UID,
-                                                                    key=KEY))
+                f.write(API_CREDENTIALS_DICT[api_filename]['api'].format(uid=UID,
+                                                                         key=KEY,
+                                                                         host=URL))
             os.system(f'chmod 0600 {api_filename_path}')
