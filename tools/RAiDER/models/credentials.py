@@ -99,7 +99,7 @@ def _check_envs(api):
     except:
         return None, None, host
 
-# Check and write MODEL API credential for downloading weather model data
+# Check and write MODEL API_RC_FILE for downloading weather model data
 def check_api(model: str,
               UID: str = None,
               KEY: str = None,
