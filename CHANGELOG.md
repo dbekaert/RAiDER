@@ -11,6 +11,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New/Updated Features
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
++ Added function to look for weather model API credentials [RAIDER/tools/models/credentials.py] RC hidden file, and creates it if it does not exists [#483] 
+Added api_key and api_uid to `calcDelaysGUNW` args, to allow passing API credentials 
 
 ## [0.4.1]
 
