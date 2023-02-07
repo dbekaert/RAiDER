@@ -11,6 +11,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New/Updated Features
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
++ Removed NCMR removed from supported model list till re-tested 
+
 
 ## [0.4.1]
 
