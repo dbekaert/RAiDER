@@ -1,12 +1,16 @@
 import os
+from platform import system
 from RAiDER.models import credentials
 
 # Test checking/creating ECMWF_RC CAPI file
 def test_ecmwfApi_createFile():
     import ecmwfapi
     
+    #Check extension for hidden files
+    hidden_ext = '_' if system()=="Windows" else '.'
+
     # Test creation of ~/.ecmwfapirc file
-    ecmwf_file = os.path.expanduser('./.') + credentials.API_FILENAME['ERAI']
+    ecmwf_file = os.path.expanduser('./') + hidden_ext + credentials.API_FILENAME['ERAI']
     credentials.check_api('ERAI', 'dummy', 'dummy', './', update_flag=True)
     assert os.path.exists(ecmwf_file) == True,f'{ecmwf_file} does not exist' 
 
@@ -32,9 +36,12 @@ def test_ecmwfApi_createFile():
 #   CDS_RC CAPI file 
 def test_cdsApi_createFile():
     import cdsapi
+
+    #Check extension for hidden files
+    hidden_ext = '_' if system()=="Windows" else '.'
     
     # Test creation of .cdsapirc file in current dir
-    cds_file = os.path.expanduser('./.') + credentials.API_FILENAME['ERA5']
+    cds_file = os.path.expanduser('./') + hidden_ext + credentials.API_FILENAME['ERA5']
     credentials.check_api('ERA5', 'dummy', 'dummy', './', update_flag=True)
     assert os.path.exists(cds_file) == True,f'{cds_file} does not exist' 
 
@@ -52,13 +59,16 @@ def test_cdsApi_createFile():
 def test_netrcApi_createFile():
     import netrc
     
+    #Check extension for hidden files
+    hidden_ext = '_' if system()=="Windows" else '.'
+
     # Test creation of ~/.cdsapirc file
-    netrc_file = os.path.expanduser('./.') + credentials.API_FILENAME['GMAO']
+    netrc_file = os.path.expanduser('./') + hidden_ext + credentials.API_FILENAME['GMAO']
     credentials.check_api('GMAO', 'dummy', 'dummy', './', update_flag=True)
     assert os.path.exists(netrc_file) == True,f'{netrc_file} does not exist' 
 
     # Check the content
-    host = credentials.API_URLS[credentials.API_FILENAME['GMAO']]
+    host = 'urs.earthdata.nasa.gov'
     netrc_credentials = netrc.netrc(netrc_file)
     uid, _, key = netrc_credentials.authenticators(host)
 
