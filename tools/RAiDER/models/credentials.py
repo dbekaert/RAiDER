@@ -77,11 +77,11 @@ def _check_envs(model):
             host = API_URLS['ecmwfapirc']
 
     elif model in ('GMAO'):
-        uid = os.getenv('EARTHDATA_USERNAME') # same as in Dockerized
+        uid = os.getenv('EARTHDATA_USERNAME') # same as in DockerizedTopsApp
         key = os.getenv('EARTHDATA_PASSWORD')
         host = API_URLS['netrc']
 
-    else:
+    else: # for HRRR
         uid, key, host = None, None, None
 
     return uid, key, host
