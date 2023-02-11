@@ -281,27 +281,20 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 
 
 def _build_cube_ray(
-    xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
-    pts_crs, interpolators, outputArrs=None
-):
+        xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
+        pts_crs, interpolators, outputArrs=None, MAX_SEGMENT_LENGTH = 1000.,
+        MAX_TROPO_HEIGHT = 50000.,
+    ):
     """
     Iterate over interpolators and build a cube using raytracing
     """
-
-    # Some constants for this module
-    # TODO - Read this from constants or configuration
-    MAX_SEGMENT_LENGTH = 1000.
-    MAX_TROPO_HEIGHT = 50000.
-
-
     # First load the state vectors into an isce orbit
+    svs = get_sv(orbit_file, ref_time, pad=600)
     orb = isce.core.Orbit([
         isce.core.StateVector(
             isce.core.DateTime(row[0]),
             row[1:4], row[4:7]
-        ) for row in np.stack(
-            get_sv(orbit_file, ref_time, pad=600), axis=-1
-        )
+        ) for row in np.stack(svs, axis=-1)
     ])
 
     # ISCE3 data structures
