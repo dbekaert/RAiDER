@@ -12,23 +12,19 @@ tropospheric wet and hydrostatic delays from a weather model. Weather
 models are accessed as NETCDF files and should have "wet" "hydro"
 "wet_total" and "hydro_total" fields specified.
 """
-import os
-
-import datetime
 import pyproj
 import xarray
 
 from pyproj import CRS, Transformer
 from typing import List, Union
 
-import isce3.ext.isce3 as isce
 import numpy as np
 
 from RAiDER.delayFcns import (
     getInterpolators, get_output_spacing,
 )
-from RAiDER.logger import logger, logging
-from RAiDER.losreader import get_sv, getTopOfAtmosphere
+from RAiDER.logger import logger
+from RAiDER.losreader import getTopOfAtmosphere
 from RAiDER.utilFcns import (
     lla2ecef, transform_bbox, clip_bbox, writeResultsToXarray,
     rio_profile,
@@ -175,8 +171,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los
         # Build cube
         if nproc == 1:
             wetDelay, hydroDelay = _build_cube_ray(
-                xpts, ypts, zpts,
-                dt, los._file, look_dir,
+                xpts, ypts, zpts, los,
                 wm_proj, crs,
                 [ifWet, ifHydro])
 
@@ -281,33 +276,13 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 
 
 def _build_cube_ray(
-        xpts, ypts, zpts, ref_time, orbit_file, look_dir, model_crs,
+        xpts, ypts, zpts, los, model_crs,
         pts_crs, interpolators, outputArrs=None, MAX_SEGMENT_LENGTH = 1000.,
         MAX_TROPO_HEIGHT = 50000.,
     ):
     """
     Iterate over interpolators and build a cube using raytracing
     """
-    # First load the state vectors into an isce orbit
-    svs = get_sv(orbit_file, ref_time, pad=600)
-    orb = isce.core.Orbit([
-        isce.core.StateVector(
-            isce.core.DateTime(row[0]),
-            row[1:4], row[4:7]
-        ) for row in np.stack(svs, axis=-1)
-    ])
-
-    # ISCE3 data structures
-    elp = isce.core.Ellipsoid()
-    dop = isce.core.LUT2d()
-    if look_dir.lower() == "right":
-        look = isce.core.LookSide.Right
-    elif look_dir.lower() == "left":
-        look = isce.core.LookSide.Left
-    else:
-        raise RuntimeError(f"Unknown look direction: {look_dir}")
-    logger.debug(f"Look direction: {look_dir}")
-
     # Get model heights in an array
     # Assumption: All interpolators here are on the same grid
     model_zs = interpolators[0].grid[2]
@@ -331,6 +306,7 @@ def _build_cube_ray(
     flip_xy = model_crs.axis_info[0].direction == "east"
 
     # Loop over heights of output cube and compute delays
+    LOS = np.full(xyz.shape, np.nan)
     for hh, ht in enumerate(zpts):
         logger.info(f"Processing slice {hh+1} / {len(zpts)}: {ht}")
         # Slices to fill on output
@@ -346,40 +322,8 @@ def _build_cube_ray(
             lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)),
             axis=-1)
 
-        llh[0] = np.deg2rad(llh[0])
-        llh[1] = np.deg2rad(llh[1])
-
         # Step 2 - get LOS vectors for targets
-        # TODO - Modify when isce3 vectorization is available
-        los = np.full(xyz.shape, np.nan)
-        for ii in range(yy.shape[0]):
-            for jj in range(yy.shape[1]):
-                inp = np.array([
-                    llh[0][ii, jj],
-                    llh[1][ii, jj],
-                    ht])
-                inp_xyz = xyz[ii, jj, :]
-
-                if any(np.isnan(inp)) or any(np.isnan(inp_xyz)):
-                    continue
-
-                # Local normal vector
-                nv = elp.n_vector(inp[0], inp[1])
-
-                # Wavelength does not matter for
-                try:
-                    aztime, slant_range = isce.geometry.geo2rdr(
-                        inp, elp, orb, dop, 0.06, look,
-                        threshold=1.0e-7,
-                        maxiter=30,
-                        delta_range=10.0)
-                    sat_xyz, _ = orb.interpolate(aztime)
-                    los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
-                except Exception as e:
-                    los[ii, jj, :] = np.nan
-
-        # Free memory here
-        llh = None
+        LOS[...,hh] = los.getLookVectors(ht, llh, xyz, yy)
 
         # Step 3 - Determine delays between each model height per ray
         # Assumption: zpts (output cube) and model_zs (model) are assumed to be
@@ -415,10 +359,10 @@ def _build_cube_ray(
             if high_xyz is not None:
                 low_xyz = high_xyz
             else:
-                low_xyz = getTopOfAtmosphere(xyz, los, low_ht, factor=cos_factor)
+                low_xyz = getTopOfAtmosphere(xyz, LOS, low_ht, factor=cos_factor)
 
             # Compute high_xyz
-            high_xyz = getTopOfAtmosphere(xyz, los, high_ht, factor=cos_factor)
+            high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
 
             # Compute ray length
             ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)
