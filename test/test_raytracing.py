@@ -1,10 +1,16 @@
+import datetime
 import pytest
 
 import numpy as np
+
 from pyproj import CRS
+from scipy.interpolate import RegularGridInterpolator as rgi
 
 from RAiDER.delay import _build_cube_ray
 from RAiDER.losreader import state_to_los
+from RAiDER.models.weatherModel import (
+    WeatherModel,
+)
 
 import isce3.ext.isce3 as isce
 from isce3.core import DateTime, TimeDelta
@@ -12,6 +18,58 @@ from isce3.core import DateTime, TimeDelta
 _LON0 = 0
 _LAT0 = 0
 _OMEGA = 0.1 / (180/np.pi)
+
+class MockWeatherModel(WeatherModel):
+    """Implement abstract methods for testing."""
+
+    def __init__(self):
+        super().__init__()
+
+        self._k1 = 1
+        self._k2 = 1
+        self._k3 = 1
+
+        self._Name = "MOCK"
+        self._valid_range = (datetime.datetime(1970, 1, 1), "Present")
+        self._lag_time = datetime.timedelta(days=15)
+
+    def _fetch(self, ll_bounds, time, out):
+        pass
+
+    def load_weather(self, *args, **kwargs):
+        _N_Z = 32
+        self._ys = np.arange(-2,3) + _LAT0
+        self._xs = np.arange(-3,4) + _LON0
+        self._zs = np.linspace(0, 1e5, _N_Z)
+        self._t = np.ones((len(self._ys), len(self._xs), _N_Z))
+        self._e = self._t.copy()
+        self._e[:,3:,:] = 2
+
+        _p = np.arange(31, -1, -1)
+        self._p = np.broadcast_to(_p, self._t.shape)
+
+        self._true_hydro_refr = np.broadcast_to(_p, (self._t.shape))
+        self._true_wet_ztd = 1e-6 * 2 * np.broadcast_to(np.flip(self._zs), (self._t.shape))
+        self._true_wet_ztd[:,3:] = 2 * self._true_wet_ztd[:,3:]
+
+        self._true_hydro_ztd = np.zeros(self._t.shape)
+        for layer in range(len(self._zs)):
+            self._true_hydro_ztd[:,:,layer] = 1e-6 * 0.5 * (self._zs[-1] - self._zs[layer]) * _p[layer]
+        
+        self._true_wet_refr = 2 * np.ones(self._t.shape)
+        self._true_wet_refr[:,3:] = 4
+    
+    def interpWet(self):
+        _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)
+        return _ifWet
+    def interpHydro(self):
+        _ifHydro = rgi((self._ys, self._xs, self._zs), self._true_hydro_refr)
+        return _ifHydro
+
+
+@pytest.fixture
+def model():
+    return MockWeatherModel()
 
 
 @pytest.fixture
