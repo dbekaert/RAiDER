@@ -306,7 +306,6 @@ def _build_cube_ray(
     flip_xy = model_crs.axis_info[0].direction == "east"
 
     # Loop over heights of output cube and compute delays
-    LOS = np.full(xyz.shape, np.nan)
     for hh, ht in enumerate(zpts):
         logger.info(f"Processing slice {hh+1} / {len(zpts)}: {ht}")
         # Slices to fill on output
@@ -318,12 +317,10 @@ def _build_cube_ray(
         else:
             llh = [xx, yy, np.full(yy.shape, ht)]
 
-        xyz = np.stack(
-            lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)),
-            axis=-1)
+        xyz = np.stack(lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)), axis=-1)
 
         # Step 2 - get LOS vectors for targets
-        LOS[...,hh] = los.getLookVectors(ht, llh, xyz, yy)
+        LOS = los.getLookVectors(ht, llh, xyz, yy)
 
         # Step 3 - Determine delays between each model height per ray
         # Assumption: zpts (output cube) and model_zs (model) are assumed to be
@@ -375,14 +372,10 @@ def _build_cube_ray(
             try:
                 nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
             except ValueError:
-                raise ValueError(
-                    "geo2rdr did not converge. Check orbit coverage"
-                )
+                raise ValueError("geo2rdr did not converge. Check orbit coverage")
 
             if (nParts == 1):
-                raise RuntimeError(
-                    "Ray with one segment encountered"
-                )
+                raise RuntimeError("Ray with one segment encountered")
 
             # fractions
             fracs = np.linspace(0., 1., num=nParts)

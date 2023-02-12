@@ -174,9 +174,7 @@ class Raytracing(LOS):
     --------
     >>> from RAiDER.losreader import Raytracing
     >>> import numpy as np
-    >>> TODO
     """
-
     def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600):
         '''read in and parse a statevector file'''
         super().__init__()
@@ -209,32 +207,26 @@ class Raytracing(LOS):
         Calculate look vectors for raytracing
         '''
         # TODO - Modify when isce3 vectorization is available
-        los = np.full(yy.shape, np.nan)
+        los = np.full(yy.shape + (3,), np.nan)
         llh[0] = np.deg2rad(llh[0])
         llh[1] = np.deg2rad(llh[1])
         
         for ii in range(yy.shape[0]):
             for jj in range(yy.shape[1]):
-                inp = np.array([
-                    llh[0][ii, jj],
-                    llh[1][ii, jj],
-                    ht])
+                inp = np.array([llh[0][ii, jj], llh[1][ii, jj], ht])
                 inp_xyz = xyz[ii, jj, :]
 
                 if any(np.isnan(inp)) or any(np.isnan(inp_xyz)):
                     continue
 
-                # Local normal vector
-                # nv = self._elp.n_vector(inp[0], inp[1])
-
                 # Wavelength does not matter for
                 try:
                     aztime, slant_range = isce.geometry.geo2rdr(
-                        inp, self._elp, self._orb, self._dop, 0.06, self._look_dir,
+                        inp, self._elp, self._orbit, self._dop, 0.06, self._look_dir,
                         threshold=1.0e-7,
                         maxiter=30,
                         delta_range=10.0)
-                    sat_xyz, _ = self._orb.interpolate(aztime)
+                    sat_xyz, _ = self._orbit.interpolate(aztime)
                     los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
                 except Exception as e:
                     los[ii, jj, :] = np.nan
