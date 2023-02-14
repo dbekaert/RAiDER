@@ -24,7 +24,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### New/Updated Features
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
 
-## [0.4.1]
 
 ### New/Updated Features
 + Reorder target points for intersection
