@@ -113,8 +113,8 @@ def check_api(model: str,
         api_filename_path = api_filename_path.expanduser()
 
         # if update flag is on, overwrite existing file 
-        if update_flag:
-            api_filename_path.unlink() if update_flag==True and api_filename_path.exists() else None
+        if update_flag is True:
+            api_filename_path.unlink(missing_ok=True)
         
         # Check if API_RC file already exists
         if not api_filename_path.exists() and UID and KEY:

@@ -15,7 +15,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Removed NCMR removed from supported model list till re-tested 
 
 
-## [0.4.1]
 
 ### New/Updated Features
 + Reorder target points for intersection
