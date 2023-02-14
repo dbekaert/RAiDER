@@ -15,8 +15,6 @@ import numpy as np
 from abc import ABC
 from scipy.interpolate import interp1d
 
-import isce3.ext.isce3 as isce
-
 from RAiDER.utilFcns import (
     cosd, sind, rio_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
 )
@@ -187,6 +185,7 @@ class Raytracing(LOS):
             raise NotImplementedError()
 
         # ISCE3 data structures
+        import isce3.ext.isce3 as isce
         if self._time is not None:
             self._orbit = get_orbit(self._filename, self._time)
         self._elp = isce.core.Ellipsoid()
@@ -210,7 +209,9 @@ class Raytracing(LOS):
         los = np.full(yy.shape + (3,), np.nan)
         llh[0] = np.deg2rad(llh[0])
         llh[1] = np.deg2rad(llh[1])
-        
+
+        import isce3.ext.isce3 as isce
+
         for ii in range(yy.shape[0]):
             for jj in range(yy.shape[1]):
                 inp = np.array([llh[0][ii, jj], llh[1][ii, jj], ht])
@@ -539,6 +540,7 @@ def state_to_los(svs, llh_targets):
         )
 
     # Convert svs to isce3 orbit
+    import isce3.ext.isce3 as isce
     orb = isce.core.Orbit([
         isce.core.StateVector(
             isce.core.DateTime(row[0]),
@@ -602,6 +604,7 @@ def get_radar_pos(llh, orb):
     )
 
     # Get some isce3 constants for this inversion
+    import isce3.ext.isce3 as isce
     # TODO - Assuming right-looking for now
     elp = isce.core.Ellipsoid()
     dop = isce.core.LUT2d()
@@ -687,6 +690,7 @@ def get_orbit(orbit_file, ref_time, pad=600):
     Returns state vectors from an orbit file
     '''
     # First load the state vectors into an isce orbit
+    import isce3.ext.isce3 as isce
     svs = get_sv(orbit_file, ref_time, pad)
     orb = isce.core.Orbit([
         isce.core.StateVector(

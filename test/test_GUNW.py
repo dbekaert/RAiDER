@@ -6,11 +6,13 @@ import subprocess
 import numpy as np
 import rasterio as rio
 import xarray as xr
+import pytest
 
 from test import TEST_DIR
 
 WM = 'GMAO'
 
+@pytest.mark.isce3
 def test_GUNW():
     ## eventually to be implemented
     # home = os.path.expanduser('~')

@@ -7,13 +7,9 @@ from pyproj import CRS
 from scipy.interpolate import RegularGridInterpolator as rgi
 
 from RAiDER.delay import _build_cube_ray
-from RAiDER.losreader import state_to_los
 from RAiDER.models.weatherModel import (
     WeatherModel,
 )
-
-import isce3.ext.isce3 as isce
-from isce3.core import DateTime, TimeDelta
 
 _LON0 = 0
 _LAT0 = 0
@@ -75,6 +71,10 @@ def model():
 @pytest.fixture
 def setup_fake_raytracing():
     '''This sets up a fake orbit for the weather model'''
+
+    import isce3.ext.isce3 as isce
+    from isce3.core import DateTime, TimeDelta
+
     lat0 = _LAT0 # degrees
     lon0 = _LON0
     hsat = 700000.
@@ -130,6 +130,7 @@ def solve(R, hsat, ellipsoid, side='left'):
     return x
 
 
+@pytest.mark.isce3
 def test_llhs(setup_fake_raytracing, model):
     orb, look_dir, elp, sat_hgt = setup_fake_raytracing
     llhs = []
@@ -150,7 +151,11 @@ def test_llhs(setup_fake_raytracing, model):
     assert len(llhs) == 20
 
 @pytest.mark.skip
+@pytest.mark.isce3
 def test_build_cube_ray(setup_fake_raytracing, model):
+    import isce3.ext.isce3 as isce
+    from RAiDER.losreader import state_to_los
+
     orb, look_dir, elp, _ = setup_fake_raytracing
     m = model
     m.load_weather()
