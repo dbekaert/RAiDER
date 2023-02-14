@@ -6,13 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
++ Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written 
 
 ##[0.4.2]
 
 ### New/Updated Features
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
-+ Added function to look for weather model API credentials [RAIDER/tools/models/credentials.py] RC hidden file, and creates it if it does not exists [#483] 
-Added api_key and api_uid to `calcDelaysGUNW` args, to allow passing API credentials 
++ Removed NCMR removed from supported model list till re-tested 
+
 
 ## [0.4.1]
 
