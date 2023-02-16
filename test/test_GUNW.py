@@ -10,7 +10,7 @@ import pytest
 
 from test import TEST_DIR
 
-WM = 'GMAO'
+WM = 'HRRR'
 
 @pytest.mark.isce3
 def test_GUNW():
