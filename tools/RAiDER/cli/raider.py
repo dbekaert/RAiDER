@@ -404,6 +404,16 @@ def calcDelaysGUNW():
     )
 
     p.add_argument(
+        '-uid', '--api_uid', default=None, type=str, 
+        help='Weather model API UID [uid, email, username], depending on model.'
+    )
+
+    p.add_argument(
+        '-key', '--api_key', default=None, type=str, 
+        help='Weather model API KEY [key, password], depending on model.'
+    )
+
+    p.add_argument(
         '-o', '--output-directory', default=os.getcwd(), type=str,
         help='Directory to store results.'
     )
@@ -428,7 +438,7 @@ def calcDelaysGUNW():
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
     elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
-
+    
     # prep the config needed for delay calcs
     path_cfg, wavelength = GUNW_prep(args)
 
