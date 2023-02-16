@@ -20,6 +20,9 @@ test/data
 *.cpp
 test/*/geom/*.dem
 test/*/geom/*.nc
+test/test_geom/*.nc
+test/scenario_2/GMAO_Delay_*.csv
+test/GUNW/
 .eggs/
 dist/
 tools/RAiDER.egg-info/
