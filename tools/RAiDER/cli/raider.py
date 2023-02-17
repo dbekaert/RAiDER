@@ -11,6 +11,7 @@ from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.models.allowed import ALLOWED_MODELS
 
 
 HELP_MESSAGE = """
@@ -399,7 +400,17 @@ def calcDelaysGUNW():
 
     p.add_argument(
         '-m', '--weather-model', default='HRRR', type=str,
-        choices=['None', 'HRRR', 'HRES', 'GMAO'], help='Weather model.'
+        choices=['None'] + ALLOWED_MODELS, help='Weather model.'
+    )
+
+    p.add_argument(
+        '-uid', '--api_uid', default=None, type=str, 
+        help='Weather model API UID [uid, email, username], depending on model.'
+    )
+
+    p.add_argument(
+        '-key', '--api_key', default=None, type=str, 
+        help='Weather model API KEY [key, password], depending on model.'
     )
 
     p.add_argument(
@@ -411,7 +422,7 @@ def calcDelaysGUNW():
         '-u', '--update-GUNW', default=True,
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
     )
-    
+
     args = p.parse_args()
 
     if args.weather_model == 'None':
@@ -427,13 +438,15 @@ def calcDelaysGUNW():
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
     elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
-
+    
     # prep the config needed for delay calcs
     path_cfg, wavelength = GUNW_prep(args)
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
     cube_filenames = calcDelays([path_cfg])
+
+    assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
     GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)

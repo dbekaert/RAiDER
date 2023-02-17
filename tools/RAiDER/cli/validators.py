@@ -13,7 +13,7 @@ from textwrap import dedent
 from time import strptime
 
 from RAiDER.llreader import BoundingBox, Geocube, RasterRDR, StationFile, GeocodedFile, Geocube
-from RAiDER.losreader import Zenith, Conventional, Raytracing
+from RAiDER.losreader import Zenith, Conventional
 from RAiDER.utilFcns import rio_extents, rio_profile
 from RAiDER.logger import logger
 
@@ -36,11 +36,13 @@ def enforce_wm(value):
 def get_los(args):
     if args.get('orbit_file'):
         if args.get('ray_trace'):
+            from RAiDER.losreader import Raytracing
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
     elif args.get('los_file'):
         if args.ray_trace:
+            from RAiDER.losreader import Raytracing
             los = Raytracing(args.los_file, args.los_convention)
         else:
             los = Conventional(args.los_file, args.los_convention)
