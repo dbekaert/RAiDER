@@ -15,8 +15,6 @@ import numpy as np
 from abc import ABC
 from scipy.interpolate import interp1d
 
-import isce3.ext.isce3 as isce
-
 from RAiDER.utilFcns import (
     cosd, sind, rio_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
 )
@@ -174,10 +172,8 @@ class Raytracing(LOS):
     --------
     >>> from RAiDER.losreader import Raytracing
     >>> import numpy as np
-    >>> TODO
     """
-
-    def __init__(self, filename=None, los_convention='isce', time=None, pad=600):
+    def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600):
         '''read in and parse a statevector file'''
         super().__init__()
         self._ray_trace = True
@@ -188,12 +184,54 @@ class Raytracing(LOS):
         if self._convention.lower() != 'isce':
             raise NotImplementedError()
 
+        # ISCE3 data structures
+        import isce3.ext.isce3 as isce
+        if self._time is not None:
+            self._orbit = get_orbit(self._filename, self._time)
+        self._elp = isce.core.Ellipsoid()
+        self._dop = isce.core.LUT2d()
+        if look_dir.lower() == "right":
+            self._look_dir = isce.core.LookSide.Right
+        elif look_dir.lower() == "left":
+            self._look_dir = isce.core.LookSide.Left
+        else:
+            raise RuntimeError(f"Unknown look direction: {look_dir}")
+        
+    def setTime(self, time):
+        self._time = time
+        self._orbit = get_orbit(self._file, self._time)
 
-    def getLookVectors(self, time, pad=3*60):
+    def getLookVectors(self, ht, llh, xyz, yy):
         '''
         Calculate look vectors for raytracing
         '''
-        raise NotImplementedError
+        # TODO - Modify when isce3 vectorization is available
+        los = np.full(yy.shape + (3,), np.nan)
+        llh[0] = np.deg2rad(llh[0])
+        llh[1] = np.deg2rad(llh[1])
+
+        import isce3.ext.isce3 as isce
+
+        for ii in range(yy.shape[0]):
+            for jj in range(yy.shape[1]):
+                inp = np.array([llh[0][ii, jj], llh[1][ii, jj], ht])
+                inp_xyz = xyz[ii, jj, :]
+
+                if any(np.isnan(inp)) or any(np.isnan(inp_xyz)):
+                    continue
+
+                # Wavelength does not matter for
+                try:
+                    aztime, slant_range = isce.geometry.geo2rdr(
+                        inp, self._elp, self._orbit, self._dop, 0.06, self._look_dir,
+                        threshold=1.0e-7,
+                        maxiter=30,
+                        delta_range=10.0)
+                    sat_xyz, _ = self._orbit.interpolate(aztime)
+                    los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
+                except Exception as e:
+                    los[ii, jj, :] = np.nan
+        return los
 
 
     def getIntersectionWithHeight(self, height):
@@ -258,6 +296,9 @@ def getZenithLookVecs(lats, lons, heights):
     z = np.sin(np.radians(lats))
 
     return np.stack([x, y, z], axis=-1)
+
+
+
 
 
 def get_sv(los_file, ref_time, pad=3 * 60):
@@ -499,6 +540,7 @@ def state_to_los(svs, llh_targets):
         )
 
     # Convert svs to isce3 orbit
+    import isce3.ext.isce3 as isce
     orb = isce.core.Orbit([
         isce.core.StateVector(
             isce.core.DateTime(row[0]),
@@ -512,7 +554,7 @@ def state_to_los(svs, llh_targets):
     Npts       = len(target_llh)
 
     # Iterate through targets and compute LOS
-    los_ang, slant_range = get_radar_pos(target_llh, orb)
+    los_ang, _ = get_radar_pos(target_llh, orb)
     los_factor = np.cos(np.deg2rad(los_ang)).reshape(in_shape)
     return los_factor
 
@@ -562,6 +604,7 @@ def get_radar_pos(llh, orb):
     )
 
     # Get some isce3 constants for this inversion
+    import isce3.ext.isce3 as isce
     # TODO - Assuming right-looking for now
     elp = isce.core.Ellipsoid()
     dop = isce.core.LUT2d()
@@ -635,15 +678,24 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
     # Guess top point
     pos = xyz + toaheight * look_vecs
 
-    for niter in range(10):
+    for _ in range(maxIter):
         pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
         pos = pos + look_vecs * ((toaheight - pos_llh[2])/factor)[..., None]
 
-    # This is for debugging the approach
-    # print("Stats for TOA computation: ", toaheight,
-    #       toaheight - np.nanmin(pos_llh[2]),
-    #       toaheight - np.nanmax(pos_llh[2]),
-    # )
-
-    # The converged solution represents top of the rays
     return pos
+
+
+def get_orbit(orbit_file, ref_time, pad=600): 
+    '''
+    Returns state vectors from an orbit file
+    '''
+    # First load the state vectors into an isce orbit
+    import isce3.ext.isce3 as isce
+    svs = get_sv(orbit_file, ref_time, pad)
+    orb = isce.core.Orbit([
+        isce.core.StateVector(
+            isce.core.DateTime(row[0]),
+            row[1:4], row[4:7]
+        ) for row in np.stack(svs, axis=-1)
+    ])
+    return orb
