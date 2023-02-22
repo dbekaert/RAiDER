@@ -117,16 +117,19 @@ def check_api(model: str,
             api_filename_path.unlink(missing_ok=True)
         
         # Check if API_RC file already exists
-        if not api_filename_path.exists() and UID and KEY:
+        if api_filename_path.exists():
+            return None
+        
+        # if it does not exist, put UID/KEY inserted, create it
+        elif not api_filename_path.exists() and UID and KEY:
             # Create file with inputs, do it only once
             print(f'Writing {api_filename_path} locally!')
             api_filename_path.write_text(API_CREDENTIALS_DICT[api_filename]['api'].format(uid=UID,
                                                                                           key=KEY,
                                                                                           host=URL))
             api_filename_path.chmod(0o000600)
-
+        # Raise ERROR message
         else:
-            # Raise ERROR message
             help_url = API_CREDENTIALS_DICT[api_filename]['help_url']
 
             # Raise ERROR in case only UID or KEY is inserted
