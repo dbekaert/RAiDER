@@ -126,19 +126,21 @@ def check_api(model: str,
             api_filename_path.chmod(0o000600)
 
         else:
-            # Raise ERROR message
-            help_url = API_CREDENTIALS_DICT[api_filename]['help_url']
+            #Skip warnings if file exists
+            if api_filename_path.exists():
+                # Raise ERROR message
+                help_url = API_CREDENTIALS_DICT[api_filename]['help_url']
 
-            # Raise ERROR in case only UID or KEY is inserted
-            if UID is not None and KEY is None:
-                raise ValueError(f'ERROR: API UID not inserted'
-                                    f' or does not exist in ENVIRONMENTALS!')
-            elif UID is None and KEY is not None:
-                raise ValueError(f'ERROR: API KEY not inserted'
-                                    f' or does not exist in ENVIRONMENTALS!')
-            else:
-                #Raise ERROR is both UID/KEY are none
-                raise ValueError(
-                        f'{api_filename_path}, API ENVIRONMENTALS'
-                        f' and API UID and KEY, do not exist !!'
-                        f'\nGet API info from ' + '\033[1m' f'{help_url}' + '\033[0m, and add it!')
+                # Raise ERROR in case only UID or KEY is inserted
+                if UID is not None and KEY is None:
+                    raise ValueError(f'ERROR: API UID not inserted'
+                                        f' or does not exist in ENVIRONMENTALS!')
+                elif UID is None and KEY is not None:
+                    raise ValueError(f'ERROR: API KEY not inserted'
+                                        f' or does not exist in ENVIRONMENTALS!')
+                else:
+                    #Raise ERROR is both UID/KEY are none
+                    raise ValueError(
+                            f'{api_filename_path}, API ENVIRONMENTALS'
+                            f' and API UID and KEY, do not exist !!'
+                            f'\nGet API info from ' + '\033[1m' f'{help_url}' + '\033[0m, and add it!')
