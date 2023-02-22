@@ -13,7 +13,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### New/Updated Features
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
 + Removed NCMR removed from supported model list till re-tested 
-+ `credentials` looks for weather model API credentials RC_file hidden file, and creates it if it does not exists
++ `credentials` looks for weather model API credentials RC_file hidden file, and creates it if it does not exists [#483]
 + Isolate ISCE3 imports to only those functions that need it.
 + Small bugfixes and updates to docstrings
 
