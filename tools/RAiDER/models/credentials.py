@@ -128,7 +128,7 @@ def check_api(model: str,
         else:
             #Skip warnings if file exists
             if api_filename_path.exists():
-            # Raise ERROR message
+                # Raise ERROR message
                 help_url = API_CREDENTIALS_DICT[api_filename]['help_url']
 
                 # Raise ERROR in case only UID or KEY is inserted
