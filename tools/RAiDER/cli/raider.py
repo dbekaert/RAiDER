@@ -377,7 +377,7 @@ def downloadGNSS():
 ## ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW():
     from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-    from RAiDER.aria.calcGUNW import tropo_gunw_inf as GUNW_calc
+    from RAiDER.aria.calcGUNW import tropo_gunw_slc as GUNW_calc
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
@@ -404,12 +404,12 @@ def calcDelaysGUNW():
     )
 
     p.add_argument(
-        '-uid', '--api_uid', default=None, type=str, 
+        '-uid', '--api_uid', default=None, type=str,
         help='Weather model API UID [uid, email, username], depending on model.'
     )
 
     p.add_argument(
-        '-key', '--api_key', default=None, type=str, 
+        '-key', '--api_key', default=None, type=str,
         help='Weather model API KEY [key, password], depending on model.'
     )
 
@@ -438,7 +438,7 @@ def calcDelaysGUNW():
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
     elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
-    
+
     # prep the config needed for delay calcs
     path_cfg, wavelength = GUNW_prep(args)
 
