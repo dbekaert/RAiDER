@@ -218,6 +218,8 @@ class ECMWF(WeatherModel):
 
         # round to the closest legal time
         corrected_date = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
+        if not corrected_date == acqTime:
+            logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_date)
 
         # I referenced https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
         dataDict = {
@@ -252,6 +254,8 @@ class ECMWF(WeatherModel):
 
         # round to the closest legal time
         corrected_date = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        if not corrected_date == time:
+            logger.warning('Rounded given datetime from  %s to %s', time, corrected_date)
 
         if self._model_level_type == 'ml':
             param = "129/130/133/152"
