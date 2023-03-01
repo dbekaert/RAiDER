@@ -16,6 +16,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + `credentials` looks for weather model API credentials RC_file hidden file, and creates it if it does not exists
 + Isolate ISCE3 imports to only those functions that need it.
 + Small bugfixes and updates to docstrings
++ Only orbit file is used (even if multiple specified) to minimize errors and ensure consistency over region
++ GUNW packaging is restructed to store SLC (ref and sec) wet and tropo delays rather than the differential
 
 ## [0.4.1]
 
