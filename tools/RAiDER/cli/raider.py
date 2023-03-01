@@ -221,44 +221,51 @@ def calcDelays(iargs=None):
 
 
         times = get_nearest_wmtimes(t, model._Name) if params['interpolate_wmtimes'] else [t]
-        wetDelays, hydroDelays = [], []
+        wfiles = []
         for tt in times:
             try:
-                weather_model_file = prepareWeatherModel(
-                    model, tt,
-                    ll_bounds=ll_bounds, # SNWE
-                    wmLoc=params['weather_model_directory'],
-                    makePlots=params['verbose'],
+                wfiles.append(
+                    prepareWeatherModel(
+                        model, tt,
+                        ll_bounds=ll_bounds, # SNWE
+                        wmLoc=params['weather_model_directory'],
+                        makePlots=params['verbose'],
+                    )
                 )
             except RuntimeError:
                 logger.exception("Date %s failed", t)
                 continue
 
-            # dont process the delays for download only
-            if dl_only:
-                continue
+        # dont process the delays for download only
+        if dl_only:
+            continue
 
-            # Now process the delays
-            try:
-                wet_delay, hydro_delay = tropo_delay(
-                    t, weather_model_file, aoi, los,
-                    height_levels = params['height_levels'],
-                    out_proj = params['output_projection'],
-                    look_dir = params['look_dir'],
-                    cube_spacing_m = params['cube_spacing_in_m'],
-                )
-            except RuntimeError:
-                logger.exception("Date %s failed", t)
-                continue
+        if len(wfiles)>1:
+            import xarray
+            ds1 = xarray.open_dataset(wfiles[0])
+            ds2 = xarray.open_dataset(wfiles[1])
+            ds = ds1
+            for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+                ds[var] = (ds1[var] + ds2[var]) * 0.5
+            ds.attrs['Date1'] = 0
+            ds.attrs['Date2'] = 0
+            weather_model_file = os.path.splitext(wfiles[0])[0] + '_interp.nc'
+            ds.to_netcdf(weather_model_file)
+        else:
+            weather_model_file = wfiles[0]
 
-            # store in memory
-            wetDelays.append(wet_delay)
-            hydroDelays.append(hydro_delay)
-
-        ###########################################################
-        # Write the delays to file
-        if params['interpolate_wmtimes']:
-            wet_delay, hydro_delay = avg_delays(wetDelays, hydroDelays, t, times[0], times[1])
+        # Now process the delays
+        try:
+            wet_delay, hydro_delay = tropo_delay(
+                t, weather_model_file, aoi, los,
+                height_levels = params['height_levels'],
+                out_proj = params['output_projection'],
+                look_dir = params['look_dir'],
+                cube_spacing_m = params['cube_spacing_in_m'],
+            )
+        except RuntimeError:
+            logger.exception("Date %s failed", t)
+            continue
 
         # Different options depending on the inputs
         if los.is_Projected():
