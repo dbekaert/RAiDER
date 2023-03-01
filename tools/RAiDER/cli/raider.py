@@ -1,8 +1,12 @@
 import argparse
+import datetime
 import os
 import shutil
 import sys
 import yaml
+
+import numpy as np
+import xarray as xr
 
 from textwrap import dedent
 
@@ -241,15 +245,29 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)>1:
-            import xarray
-            ds1 = xarray.open_dataset(wfiles[0])
-            ds2 = xarray.open_dataset(wfiles[1])
+            ds1 = xr.open_dataset(wfiles[0])
+            ds2 = xr.open_dataset(wfiles[1])
+            
+            # calculate relative weights of each dataset
+            date1 = datetime.datetime.strptime(ds1.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
+            date2 = datetime.datetime.strptime(ds2.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
+            wgts  = [np.abs((t - date1).seconds / (date2 - date1).seconds), np.abs((date2 - t).seconds / (date2 - date1).seconds)]
+            try:
+                assert np.sum(wgts)==1
+            except AssertionError:
+                logging.error('Time interpolation weights do not sum to one, something is off with the dates')
+                raise ValueError('Time interpolation weights do not sum to one, something is off with the dates')
+
+            # combine datasets
             ds = ds1
             for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
-                ds[var] = (ds1[var] + ds2[var]) * 0.5
+                ds[var] = (wgts[0] * ds1[var]) + (wgts[1] * ds2[var])
             ds.attrs['Date1'] = 0
             ds.attrs['Date2'] = 0
-            weather_model_file = os.path.splitext(wfiles[0])[0] + '_interp.nc'
+            weather_model_file = os.path.join(
+                os.path.dirname(wfiles[0]),
+                os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
+            )
             ds.to_netcdf(weather_model_file)
         else:
             weather_model_file = wfiles[0]
