@@ -692,15 +692,14 @@ def get_orbit(orbit_file, ref_time, pad):
     '''
     # First load the state vectors into an isce orbit
     import isce3.ext.isce3 as isce
-    # svs  = get_sv(orbit_file, ref_time, pad)
-    # rows = np.stack([[isce.core.StateVector(row[0]), row[1:4], row[4:7]] for row in svs], axis=-1)
-    # orb  = isce.core.Orbit(rows)
 
-    svs = get_sv(orbit_file, ref_time, pad)
-    orb = isce.core.Orbit([
-       isce.core.StateVector(
-           isce.core.DateTime(row[0]),
-           row[1:4], row[4:7]
-       ) for row in np.stack(svs, axis=-1)
-    ])
+    svs   = np.stack(get_sv(orbit_file, ref_time, pad), axis=-1)
+    svs_i = []
+    # format for ISCE
+    for sv in svs:
+       sv = isce.core.StateVector(isce.core.DateTime(sv[0]), sv[1:4], sv[4:7])
+       svs_i.append(sv)
+
+    orb = isce.core.Orbit(svs_i)
+
     return orb

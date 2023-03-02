@@ -92,7 +92,7 @@ def update_gunw_slc(path_gunw:str, ds_slc):
         try:
             del h5[TROPO_NAMES[0]]
             del h5[TROPO_NAMES[1]]
-        except:
+        except KeyError:
             pass
 
         for k in 'crs'.split():
@@ -114,9 +114,9 @@ def update_gunw_slc(path_gunw:str, ds_slc):
                 v  = ds_grp_wm.createVariable(dim, np.float32, dim)
                 v[:] = ds_slc[dim]
                 v.setncatts(ds_slc[dim].attrs)
-            except:
-                pass
 
+            except RuntimeError:
+                pass
 
         ## create and store new data e.g., corrections/troposphere/GMAO/reference/troposphereWet
         for name in TROPO_NAMES:
@@ -132,7 +132,7 @@ def update_gunw_slc(path_gunw:str, ds_slc):
                 try:
                     v    = ds_grp_rs.createVariable(name, np.float32, DIM_NAMES,
                                         chunksizes=chunksize, fill_value=nodata)
-                except:
+                except RuntimeError:
                     v    = ds_grp_rs[name]
 
                 v[:] = da.data
@@ -141,7 +141,7 @@ def update_gunw_slc(path_gunw:str, ds_slc):
         ## add the projection if it doesnt exist
         try:
             v_proj = ds_grp_wm.createVariable('crs', 'i')
-        except:
+        except RuntimeError:
             v_proj = ds_grp_wm['crs']
         v_proj.setncatts(ds_slc["crs"].attrs)
 

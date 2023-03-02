@@ -32,7 +32,8 @@ class GUNW:
 
     def __post_init__(self):
         self.SNWE      = self.get_bbox()
-        self.heights   = np.arange(-500, 9500, 500).tolist()
+        # self.heights   = np.arange(-500, 9500, 500).tolist()
+        self.heights   = [-500, 0]
         self.dates, self.mid_time = self.get_datetimes()
 
         self.look_dir   = self.get_look_dir()
@@ -103,6 +104,14 @@ class GUNW:
                         ## get the maximum range
                         st_tmp = datetime.strptime(slc.split('_')[5], '%Y%m%dT%H%M%S')
                         en_tmp = datetime.strptime(slc.split('_')[6], '%Y%m%dT%H%M%S')
+
+                        ## check the second SLC is within one day of the previous
+                        if st > datetime(1989, 3, 1):
+                            stdiff = np.abs((st_tmp - st).days)
+                            endiff = np.abs((en_tmp - en).days)
+                            assert stdiff < 2 and endiff < 2, 'SLCs granules are too far apart in time. Incorrect metadata'
+
+
                         st = st_tmp if st_tmp > st else st
                         en = en_tmp if en_tmp > en else en
 
