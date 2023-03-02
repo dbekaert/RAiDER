@@ -72,7 +72,7 @@ class GMAO(WeatherModel):
         time1 = time
         time = round_time(time, self._time_res * 60 * 60)
         if not time1 == time:
-            logger.warning('Rounded given hour from  %d to %d. May be incorrect near beginning/end of day.', time1.hour, time.hour)
+            logger.warning('Rounded given datetime from  %s to %s', time1, time)
 
         DT = time - T0
         time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
