@@ -88,8 +88,12 @@ def update_gunw_slc(path_gunw:str, ds_slc):
     with h5py.File(path_gunw, 'a') as h5:
         for k in TROPO_GROUP.split():
             h5 = h5[k]
-        del h5[TROPO_NAMES[0]]
-        del h5[TROPO_NAMES[1]]
+        # in case GUNW has already been updated once before
+        try:
+            del h5[TROPO_NAMES[0]]
+            del h5[TROPO_NAMES[1]]
+        except:
+            pass
 
         for k in 'crs'.split():
             if k in h5.keys():
@@ -124,13 +128,21 @@ def update_gunw_slc(path_gunw:str, ds_slc):
                 ds_grp_wm.createGroup(rs)
                 ds_grp_rs = ds_grp_wm[rs]
 
-                v    = ds_grp_rs.createVariable(name, np.float32, DIM_NAMES,
-                                    chunksizes=chunksize, fill_value=nodata)
+                ## in case updating
+                try:
+                    v    = ds_grp_rs.createVariable(name, np.float32, DIM_NAMES,
+                                        chunksizes=chunksize, fill_value=nodata)
+                except:
+                    v    = ds_grp_rs[name]
+
                 v[:] = da.data
                 v.setncatts(da.attrs)
 
-        ## add the projection
-        v_proj = ds_grp_wm.createVariable('crs', 'i')
+        ## add the projection if it doesnt exist
+        try:
+            v_proj = ds_grp_wm.createVariable('crs', 'i')
+        except:
+            v_proj = ds_grp_wm['crs']
         v_proj.setncatts(ds_slc["crs"].attrs)
 
 
