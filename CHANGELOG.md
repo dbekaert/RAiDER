@@ -15,6 +15,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.4.2]
 
 ### New/Updated Features
++ `prepFromGUNW` reads the date/time from the SLCs rather than the GUNW filename
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
 + Removed NCMR removed from supported model list till re-tested 
 + `credentials` looks for weather model API credentials RC_file hidden file, and creates it if it does not exists
