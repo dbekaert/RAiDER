@@ -23,6 +23,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Small bugfixes and updates to docstrings
 + Only orbit file is used (even if multiple specified) to minimize errors and ensure consistency over region
 + GUNW packaging is restructed to store SLC (ref and sec) wet and tropo delays rather than the differential
++ padding made consistent throughout and default arguments reduced (manually update in test_losreader)
 
 ## [0.4.1]
 
