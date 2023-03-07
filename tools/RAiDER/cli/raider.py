@@ -16,6 +16,7 @@ from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
+from RAiDER.utilFcns import get_dt
 
 
 HELP_MESSAGE = """
@@ -125,7 +126,7 @@ def drop_nans(d):
 def calcDelays(iargs=None):
     """ Parse command line arguments using argparse. """
     import RAiDER
-    from RAiDER.delay import tropo_delay, avg_delays
+    from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
     from RAiDER.processWM import prepareWeatherModel
     from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
@@ -223,8 +224,10 @@ def calcDelays(iargs=None):
         logger.debug(f'Date: {t.strftime("%Y%m%d")}')
         logger.debug('Beginning weather model pre-processing')
 
-
-        times = get_nearest_wmtimes(t, model._Name) if params['interpolate_wmtimes'] else [t]
+        # Grab the closest two times unless the user specifies 'nearest'
+        # If the model time_delta is not specified then use 6
+        # The two datetimes will be combined to a single file and processed
+        times = get_nearest_wmtimes(t, [model.dtime() if model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
         wfiles = []
         for tt in times:
             try:
@@ -251,7 +254,7 @@ def calcDelays(iargs=None):
             # calculate relative weights of each dataset
             date1 = datetime.datetime.strptime(ds1.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
             date2 = datetime.datetime.strptime(ds2.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
-            wgts  = [np.abs((t - date1).seconds / (date2 - date1).seconds), np.abs((date2 - t).seconds / (date2 - date1).seconds)]
+            wgts  = [ 1 - get_dt(t, date1) / get_dt(date2, date1), 1 - get_dt(date2, t) / get_dt(date2, date1)]
             try:
                 assert np.sum(wgts)==1
             except AssertionError:

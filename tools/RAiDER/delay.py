@@ -412,27 +412,3 @@ def _build_cube_ray(
 
     if output_created_here:
         return outputArrs
-
-
-def avg_delays(wetDelays, hydroDelays, dtref, dt1, dt2):
-    import xarray as xr
-    if hydroDelays[0] is None:
-        ## difference in seconds between the model dates and the reference date
-        dsecs = np.array([(dtref-dt1).seconds, (dt2-dtref).seconds])
-        wgts  = xr.DataArray(1/dsecs, dims=['time'], coords={'time': [1,2]})
-        ds_out_wet = wetDelays[0].copy() # store the updated data in here
-        for kind in 'hydro wet'.split():
-            da1 = wetDelays[0][kind].assign_coords(time=1)
-            da2 = wetDelays[1][kind].assign_coords(time=2)
-            da  = xr.concat([da1, da2], 'time').weighted(wgts)
-            da_mu = da.mean('time')
-            ds_out_wet[kind] = da_mu
-
-        ds_out_wet.attrs['source'] = [wetDelays[i].attrs['source'] for i in range(2)]
-        ds_out_hydro = None
-
-    else:
-        for kind in 'hydro wet'.split():
-            raise Exception('Not supported yet.')
-
-    return ds_out_wet, ds_out_hydro

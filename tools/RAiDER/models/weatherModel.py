@@ -121,6 +121,9 @@ class WeatherModel(ABC):
 
     def Model(self):
         return self._Name
+    
+    def dtime(self):
+        return self._time_res
 
     def fetch(self, out, ll_bounds, time):
         '''

@@ -20,6 +20,7 @@ from RAiDER.constants import (
     _g0 as g0,
     R_EARTH_MAX as Rmax,
     R_EARTH_MIN as Rmin,
+    _THRESHOLD_SECONDS,
 )
 from RAiDER.logger import logger
 
@@ -1137,39 +1138,57 @@ def transform_coords(proj1, proj2, x, y):
     return transformer.transform(x, y)
 
 
-def get_nearest_wmtimes(dt0, wm):
-    """" Get the nearest model times"""
-    import pandas as pd
-    from dateutil.relativedelta import relativedelta
-    from datetime import time as dtime
-    ## hourly time step availability - not sure about ECMWF / HRRR
-    wm_hour  = {'GMAO': 3, 'ERA5':1, 'ERA-5': 1, 'ERA5T': 1, 'HRES':6, 'HRRR': 1, 'NCMR': '?'}
-    wm_hours = np.arange(0, 24, wm_hour[wm])
+def get_nearest_wmtimes(t0, time_delta):
+    """"
+    Get the nearest two available times to the requested time given a time step
 
-    dates = []
-    times = []
+    Args:
+        t0         - user-requested Python datetime 
+        time_delta  - time interval of weather model
+    
+    Returns:
+        tuple: list of datetimes representing the one or two closest 
+        available times to the requested time
+    
+    Example: 
+    >>> import datetime
+    >>> from RAiDER.utilFcns import get_nearest_wmtimes
+    >>> t0 = datetime.datetime(2020,1,1,11,35,0)
+    >>> get_nearest_wmtimes(t0, 3)
+     (datetime.datetime(2020, 1, 1, 9, 0), datetime.datetime(2020, 1, 1, 12, 0))
+    """    
+    # get the closest time available
+    tclose = round_time(t0, roundTo = time_delta * 60 *60)
 
-    ref_time  = dt0
-    ## sort the model and GUNW times
-    # date = dt0.date()
-    mod_times = [datetime.strptime(f'{str(dt0.date())}-{dt}', '%Y-%m-%d-%H') for dt in wm_hours] + [str(dt0)]
-    ser    = pd.Series(mod_times, name='datetimes', dtype='datetime64[ns]')
-    ix_mod = ser.index[-1] # to get the nearest times
-    df     = ser.sort_values().reset_index()
-    ix_mod_s = df[df['index']==ix_mod].index.item()
+    # Just calculate both options and take the closest
+    t2_1 = tclose + timedelta(hours=time_delta)
+    t2_2 = tclose - timedelta(hours=time_delta)
+    t2 = [t2_1 if get_dt(t2_1, t0) < get_dt(t2_2, t0) else t2_2][0]
 
-    ## case 1: index is not at the end
-    if ix_mod_s < df.index[-1]:
-        dt1, dt2 = df.loc[ix_mod_s-1, 'datetimes'], df.loc[ix_mod_s+1, 'datetimes']
-        dt2 = dt2.to_pydatetime()
-
-    ## case 2: close to midnight next day; add one to the date and start at midnight
+    # If you're within 5 minutes just take the closest time
+    if get_dt(tclose, t0) < _THRESHOLD_SECONDS:
+        return [tclose]
     else:
-        dt1 = df.loc[ix_mod_s-1, 'datetimes']
+        if t2 > tclose:
+            return [tclose, t2]
+        else:
+            return [t2, tclose]
 
-        # handle leap years
-        days = 2 if (dt1.year % 4 == 0 and dt1.month == 2 and dt1.day == 28) else 1
-        dt2 = datetime.combine(dt1 + relativedelta(days=days), dtime())
+def get_dt(t1,t2):
+    '''
+    Helper function for getting the absolute difference in seconds between 
+    two python datetimes
 
-    return dt1.to_pydatetime(), dt2
-
+    Args: 
+        t1, t2  - Python datetimes
+    
+    Returns: 
+        Absolute difference in seconds between the two inputs
+    
+    Examples: 
+    >>> import datetime
+    >>> from RAiDER.utilFcns import get_dt
+    >>> get_dt(datetime.datetime(2020,1,1,5,0,0), datetime.datetime(2020,1,1,0,0,0))
+     18000.0
+    '''
+    return np.abs((t1 - t2).total_seconds())

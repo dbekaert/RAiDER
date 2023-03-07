@@ -39,6 +39,6 @@ DEFAULT_DICT = AttributeDict(
             output_directory='.',
             weather_model_directory=None,
             output_projection='EPSG:4326',
-            interpolate_wmtimes=False
+            interpolate_time=True,
         )
     )

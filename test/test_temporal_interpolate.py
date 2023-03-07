@@ -90,7 +90,7 @@ def test_cube_timemean():
         assert np.isclose(proc.returncode, 0)
 
     ## run interpolation in the middle of the two
-    grp['time_group'] =  {'time': ti, 'interpolate_wmtimes': True}
+    grp['time_group'] =  {'time': ti, 'interpolate_time': True}
     cfg  = update_yaml(grp)
 
     cmd  = f'raider.py {cfg}'
@@ -150,7 +150,7 @@ def test_cube_weighting():
         assert np.isclose(proc.returncode, 0)
 
     ## run interpolation very near the first
-    grp['time_group'] =  {'time': ti, 'interpolate_wmtimes': True}
+    grp['time_group'] =  {'time': ti, 'interpolate_time': True}
     cfg  = update_yaml(grp)
 
     cmd  = f'raider.py {cfg}'
