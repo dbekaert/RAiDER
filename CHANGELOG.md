@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3]
++ Temporal interpolation of delays if the requested datetime is more than _THRESHOLD_SECONDS away from the closest weather model available time and `interpolate_time = True` (default behavior)
 + Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written 
 
 ## [0.4.2]
@@ -19,11 +21,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Only orbit file is used (even if multiple specified) to minimize errors and ensure consistency over region
 + GUNW packaging is restructed to store SLC (ref and sec) wet and tropo delays rather than the differential
 
-##[0.4.2]
-
-### New/Updated Features
-+ `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
-
+##[0.4.1]
 
 ### New/Updated Features
 + Reorder target points for intersection
