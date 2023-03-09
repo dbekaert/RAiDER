@@ -13,7 +13,9 @@ from pyproj import CRS, Transformer
 
 from RAiDER.logger import logger
 from RAiDER.utilFcns import rio_profile, rio_extents
-from RAiDER.models.weatherModel import WeatherModel, transform_coords
+from RAiDER.models.weatherModel import (
+    WeatherModel, transform_coords, TIME_RES
+)
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -30,7 +32,7 @@ class HRRR(WeatherModel):
         self._classname = 'hrrr'
         self._dataset = 'hrrr'
 
-        self._time_res = 1
+        self._time_res = TIME_RES[self._dataset.upper()]
 
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(2016, 7, 15), "Present")

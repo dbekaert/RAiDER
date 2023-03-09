@@ -18,6 +18,7 @@ import rasterio
 
 from RAiDER.constants import (
     _g0 as g0,
+    _g1 as G1,
     R_EARTH_MAX as Rmax,
     R_EARTH_MIN as Rmin,
     _THRESHOLD_SECONDS,
@@ -397,30 +398,32 @@ def _get_g_ll(lats):
     '''
     Compute the variation in gravity constant with latitude
     '''
-    # TODO: verify these constants. In particular why is the reference g different from self._g0?
-    return 9.80616 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
+    return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
 
 
 def _get_Re(lats):
     '''
     Returns: the ellipsoid as a fcn of latitude
+    More precisely: Calculates the GEOID radius at a given latitude on WGS84 ellipsoid
     '''
-    # TODO: verify constants, add to base class constants?
     return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
 def _geo_to_ht(lats, hts):
-    """Convert geopotential height to altitude."""
-    # Convert geopotential to geometric height. This comes straight from
-    # TRAIN
-    # Map of g with latitude (I'm skeptical of this equation - Ray)
+    """  Returns geometric height above the reference ellipsoid
+
+    Note that this formula technically computes height above geoid
+    but the geoid is actually a perfect sphere;
+    Thus returned heights are above a reference ellipsoid == sphere
+
+    https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height
+
+    """
     g_ll = _get_g_ll(lats)
     Re = _get_Re(lats)
 
     # Calculate Geometric Height, h
     h = (hts * Re) / (g_ll / g0 * Re - hts)
-    # from metpy
-    # return (geopotential * Re) / (g0 * Re - geopotential)
 
     return h
 
@@ -1143,20 +1146,20 @@ def get_nearest_wmtimes(t0, time_delta):
     Get the nearest two available times to the requested time given a time step
 
     Args:
-        t0         - user-requested Python datetime 
+        t0         - user-requested Python datetime
         time_delta  - time interval of weather model
-    
+
     Returns:
-        tuple: list of datetimes representing the one or two closest 
+        tuple: list of datetimes representing the one or two closest
         available times to the requested time
-    
-    Example: 
+
+    Example:
     >>> import datetime
     >>> from RAiDER.utilFcns import get_nearest_wmtimes
     >>> t0 = datetime.datetime(2020,1,1,11,35,0)
     >>> get_nearest_wmtimes(t0, 3)
      (datetime.datetime(2020, 1, 1, 9, 0), datetime.datetime(2020, 1, 1, 12, 0))
-    """    
+    """
     # get the closest time available
     tclose = round_time(t0, roundTo = time_delta * 60 *60)
 
@@ -1176,16 +1179,16 @@ def get_nearest_wmtimes(t0, time_delta):
 
 def get_dt(t1,t2):
     '''
-    Helper function for getting the absolute difference in seconds between 
+    Helper function for getting the absolute difference in seconds between
     two python datetimes
 
-    Args: 
+    Args:
         t1, t2  - Python datetimes
-    
-    Returns: 
+
+    Returns:
         Absolute difference in seconds between the two inputs
-    
-    Examples: 
+
+    Examples:
     >>> import datetime
     >>> from RAiDER.utilFcns import get_dt
     >>> get_dt(datetime.datetime(2020,1,1,5,0,0), datetime.datetime(2020,1,1,0,0,0))
