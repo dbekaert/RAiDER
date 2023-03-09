@@ -9,7 +9,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4, round_time, requests_retry_session
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4, round_date, requests_retry_session
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -69,7 +69,7 @@ class GMAO(WeatherModel):
 
         T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
         # round time to nearest third hour
-        corrected_DT = round_time(acqTime, self._time_res * 60 * 60)
+        corrected_DT = round_date(acqTime, dt.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
 

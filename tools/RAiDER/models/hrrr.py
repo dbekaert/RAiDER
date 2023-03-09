@@ -12,7 +12,7 @@ from pathlib import Path
 from pyproj import CRS, Transformer
 
 from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_profile, rio_extents
+from RAiDER.utilFcns import rio_profile, rio_extents, round_date
 from RAiDER.models.weatherModel import (
     WeatherModel, transform_coords, TIME_RES
 )
@@ -264,8 +264,14 @@ class HRRR(WeatherModel):
         '''
         Download a HRRR model
         '''
+        ## TODO: Check how Herbie does temporal interpolation
+        # corrected_DT = round_date(DATE, datetime.timedelta(hours=self._time_res))
+        # if not corrected_DT == DATE:
+        #     logger.warning('Rounded given datetime from  %s to %s', DATE, corrected_DT)
+        corrected_DT = DATE
+
         H = Herbie(
-            DATE.strftime('%Y-%m-%d %H:%M'),
+            corrected_DT.strftime('%Y-%m-%d %H:%M'),
             model=model,
             product=product,
             overwrite=False,
