@@ -10,7 +10,7 @@ import numpy as np
 
 from pyproj import CRS
 
-from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.logger import logger
 from RAiDER.utilFcns import (
     writeWeatherVars2NETCDF4,
@@ -36,12 +36,12 @@ class NCMR(WeatherModel):
         self._classname = 'ncmr'                     # name of the custom weather model
         self._dataset = 'ncmr'                       # same name as above
         self._Name = 'NCMR'                          # name of the new weather model (in Capital)
+        self._time_res = TIME_RES[self._dataset.upper()]
 
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(2015, 12, 1), "Present")
         # Availability lag time in days/hours
         self._lag_time = datetime.timedelta(hours=6)
-        self._time_res = 1
 
         # model constants
         self._k1 = 0.776   # [K/Pa]
@@ -67,7 +67,7 @@ class NCMR(WeatherModel):
         Fetch weather model data from NCMR: note we only extract the lat/lon bounds for this weather model;
         fetching data is not needed here as we don't actually download data , data exist in same system
         '''
-        time = self._time 
+        time = self._time
 
         # Auxillary function:
         '''

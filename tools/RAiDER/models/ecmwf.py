@@ -14,8 +14,8 @@ from RAiDER.models.model_levels import (
     A_137_HRES,
     B_137_HRES,
 )
-from RAiDER.models.weatherModel import WeatherModel
 
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 
 class ECMWF(WeatherModel):
     '''
@@ -31,7 +31,7 @@ class ECMWF(WeatherModel):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-        self._time_res = 1
+        self._time_res = TIME_RES['ECMWF']
 
         self._lon_res = 0.2
         self._lat_res = 0.2
@@ -164,6 +164,8 @@ class ECMWF(WeatherModel):
         server = ecmwfapi.ECMWFDataServer()
 
         corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        if not corrected_date == time:
+            logger.warning('Rounded given datetime from  %s to %s', time, corrected_date)
 
         server.retrieve({
             "class": self._classname,  # ERA-Interim
@@ -204,6 +206,7 @@ class ECMWF(WeatherModel):
         acqTime,
         outname
     ):
+        """ Used for ERA5 """
         import cdsapi
         c = cdsapi.Client(verify=0)
 
@@ -247,7 +250,9 @@ class ECMWF(WeatherModel):
             logger.exception(e)
             raise Exception
 
+
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
+        """ Used for HRES """
         from ecmwfapi import ECMWFService
 
         server = ECMWFService("mars")
@@ -255,7 +260,7 @@ class ECMWF(WeatherModel):
         # round to the closest legal time
         corrected_date = util.round_date(time, datetime.timedelta(hours=self._time_res))
         if not corrected_date == time:
-            logger.warning('Rounded given datetime from  %s to %s', time, corrected_date)
+            logger.warning('Rounded given hour from  %d to %d', time.hour, corrected_date.hour)
 
         if self._model_level_type == 'ml':
             param = "129/130/133/152"

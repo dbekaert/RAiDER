@@ -13,7 +13,7 @@ from RAiDER.utilFcns import (
     _least_nonzero, cosd, rio_open, sind,
     writeArrayToRaster, rio_profile,
     rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
-    transform_bbox, clip_bbox
+    transform_bbox, clip_bbox, get_nearest_wmtimes,
 )
 
 
@@ -462,3 +462,27 @@ def test_clip_bbox():
     snwe_in = [34.005, 35.0006, -76.999, -76.0]
     assert clip_bbox(wesn, 0.01) == wesn
     assert clip_bbox(snwe_in, 0.01) == snwe
+
+def test_get_nearest_wmtimes():
+    t0 = datetime.datetime(2020,1,1,11,35,0)
+    test_out = get_nearest_wmtimes(t0, 3)
+    true_out = [datetime.datetime(2020, 1, 1, 9, 0), datetime.datetime(2020, 1, 1, 12, 0)]
+    assert [t == t0 for t, t0 in zip(test_out, true_out)]
+
+def test_get_nearest_wmtimes_2():
+    t0 = datetime.datetime(2020,1,1,11,3,0)
+    test_out = get_nearest_wmtimes(t0, 1)
+    true_out = [datetime.datetime(2020, 1, 1, 11, 0)]
+    assert [t == t0 for t, t0 in zip(test_out, true_out)]
+
+def test_get_nearest_wmtimes_3():
+    t0 = datetime.datetime(2020,1,1,11,57,0)
+    test_out = get_nearest_wmtimes(t0, 3)
+    true_out = [datetime.datetime(2020, 1, 1, 12, 0)]
+    assert [t == t0 for t, t0 in zip(test_out, true_out)]
+
+def test_get_nearest_wmtimes_4():
+    t0 = datetime.datetime(2020,1,1,11,25,0)
+    test_out = get_nearest_wmtimes(t0, 1)
+    true_out = [datetime.datetime(2020, 1, 1, 11, 0), datetime.datetime(2020, 1, 1, 12, 0)]
+    assert [t == t0 for t, t0 in zip(test_out, true_out)]

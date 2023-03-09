@@ -6,7 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3]
++ Temporal interpolation of delays if the requested datetime is more than _THRESHOLD_SECONDS away from the closest weather model available time and `interpolate_time = True` (default behavior)
 + Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written 
++ Verify some constants / equations and remove the comments questioning them
++ Relocate the time resolution of wmodels to one spot
 
 ## [0.4.2]
 

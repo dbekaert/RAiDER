@@ -5,7 +5,7 @@ import numpy as np
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.models.model_levels import (
     LEVELS_91_HEIGHTS,
     LEVELS_25_HEIGHTS,
@@ -28,7 +28,6 @@ class HRES(ECMWF):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-        self._time_res = 6
 
         # 9 km horizontal grid spacing. This is only used for extending the download-buffer, i.e. not in subsequent processing.
         self._lon_res = 9. / 111  # 0.08108115
@@ -44,6 +43,7 @@ class HRES(ECMWF):
         self._Name = 'HRES'
         self._proj = CRS.from_epsg(4326)
 
+        self._time_res = TIME_RES[self._dataset.upper()]
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(1983, 4, 20), "Present")
         # Availability lag time in days

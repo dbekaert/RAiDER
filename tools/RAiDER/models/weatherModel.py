@@ -22,6 +22,15 @@ from RAiDER.utilFcns import (
     robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords
 )
 
+TIME_RES = {'GMAO': 3,
+            'ECMWF': 1,
+            'HRES': 6,
+            'HRRR': 1,
+            'WRF': 1,
+            'NCMR': 1
+            }
+
+
 
 class WeatherModel(ABC):
     '''
@@ -121,6 +130,9 @@ class WeatherModel(ABC):
 
     def Model(self):
         return self._Name
+
+    def dtime(self):
+        return self._time_res
 
     def fetch(self, out, ll_bounds, time):
         '''
@@ -272,10 +284,10 @@ class WeatherModel(ABC):
 
     def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan):
         '''
-        Transform geo heights to actual heights
+        Transform geo heights to WGS84 ellipsoidal heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        self._zs = util._geo_to_ht(lats, geo_ht_fix)
+        self._zs = util.geo_to_ht(lats, geo_ht_fix)
 
     def _find_e(self):
         """Check the type of e-calculation needed"""

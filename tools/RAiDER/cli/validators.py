@@ -114,7 +114,7 @@ def get_heights(args, out, station_file, bounding_box=None):
         out['height_levels'] = np.array([float(ll) for ll in l])
         if np.any(out['height_levels'] < 0):
             logger.warning('Weather model only extends to the surface topography; '
-            'height levels below the topography will be interpolated from the surface'
+            'height levels below the topography will be interpolated from the surface '
             'and may be inaccurate.')
 
     return out
@@ -202,6 +202,8 @@ def parse_dates(arg_dict):
         l = arg_dict['date_list']
         if isinstance(l, str):
             l = re.findall('[0-9]+', l)
+        elif isinstance(l, int):
+            l = [l]
         L = [enforce_valid_dates(d) for d in l]
 
     else:
