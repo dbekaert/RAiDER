@@ -275,10 +275,10 @@ class WeatherModel(ABC):
 
     def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan):
         '''
-        Transform geo heights to actual heights
+        Transform geo heights to WGS84 ellipsoidal heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        self._zs = util._geo_to_ht(lats, geo_ht_fix)
+        self._zs = util.geo_to_ht(lats, geo_ht_fix)
 
     def _find_e(self):
         """Check the type of e-calculation needed"""
