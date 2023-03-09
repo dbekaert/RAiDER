@@ -32,8 +32,8 @@ class GUNW:
 
     def __post_init__(self):
         self.SNWE      = self.get_bbox()
-        # self.heights   = np.arange(-500, 9500, 500).tolist()
-        self.heights   = [-500, 0]
+        self.heights   = np.arange(-500, 9500, 500).tolist()
+        # self.heights   = [-500, 0]
         self.dates, self.mid_time = self.get_datetimes()
 
         self.look_dir   = self.get_look_dir()
@@ -286,7 +286,7 @@ def main(args):
            'aoi_group' : {'bounding_box': GUNWObj.SNWE},
            'height_group' : {'height_levels': GUNWObj.heights},
            'date_group': {'date_list': GUNWObj.dates},
-           'time_group': {'time': GUNWObj.mid_time, 'interpolate_time': True},
+           'time_group': {'time': GUNWObj.mid_time, 'interpolate_time': False},
            'los_group' : {'ray_trace': True,
                           'orbit_file': GUNWObj.OrbitFile,
                           'wavelength': GUNWObj.wavelength,

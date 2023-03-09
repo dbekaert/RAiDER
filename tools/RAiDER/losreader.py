@@ -187,8 +187,8 @@ class Raytracing(LOS):
         # ISCE3 data structures
         import isce3.ext.isce3 as isce
         if self._time is not None:
-            # Called in checkArgs; not sure this is used here ever
-            self._orbit = get_orbit(self._filename, self._time, pad=pad)
+            # __call__ called in checkArgs; keep for modularity
+            self._orbit = get_orbit(self._file, self._time, pad=pad)
         self._elp = isce.core.Ellipsoid()
         self._dop = isce.core.LUT2d()
         if look_dir.lower() == "right":
