@@ -22,6 +22,15 @@ from RAiDER.utilFcns import (
     robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords
 )
 
+TIME_RES = {'GMAO': 3,
+            'ECMWF': 1,
+            'HRES': 6,
+            'HRRR': 1,
+            'WRF': 1,
+            'NCMR': 1
+            }
+
+
 
 class WeatherModel(ABC):
     '''
@@ -121,7 +130,7 @@ class WeatherModel(ABC):
 
     def Model(self):
         return self._Name
-    
+
     def dtime(self):
         return self._time_res
 

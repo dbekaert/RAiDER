@@ -18,6 +18,7 @@ import rasterio
 
 from RAiDER.constants import (
     _g0 as g0,
+    _g1 as G1,
     R_EARTH_MAX_WGS84 as Rmax,
     R_EARTH_MIN_WGS84 as Rmin,
     _THRESHOLD_SECONDS,
@@ -397,17 +398,13 @@ def _get_g_ll(lats):
     '''
     Compute the variation in gravity constant with latitude
     '''
-    # TODO: verify these constants. In particular why is the reference g different from self._g0?
-    return 9.80616 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
+    return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
 
 
 def get_Re(lats):
     '''
-    Returns: the ellipsoid as a fcn of latitude. 
-
-    The equation is a standard expression for g, see e.g., 
-    https://arggit.usask.ca/ARGPackages/eratools/-/blob/b41e660c5392ede6b5ba93ffd1d61defe3ddcbc4/eratools/geopotential.py
-
+    Returns earth radius as a function of latitude for WGS84
+    
     Args: 
         lats    - ndarray of geodetic latitudes in degrees
     
@@ -435,7 +432,7 @@ def geo_to_ht(lats, hts):
     Thus returned heights are above a reference ellipsoid, which most assume to be 
     a sphere (e.g., ECMWF - see https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height#ERA5:computepressureandgeopotentialonmodellevels,geopotentialheightandgeometricheight-Geopotentialheight 
     - "Geometric Height" and also https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation#ERA5:datadocumentation-Earthmodel).
-    However, by calculating the ellipsoid here we can directly reference to WGS84. 
+    However, by calculating the ellipsoid here we directly reference to WGS84. 
 
     Compare to MetPy: 
     (https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geopotential_to_height.html)
@@ -1176,20 +1173,20 @@ def get_nearest_wmtimes(t0, time_delta):
     Get the nearest two available times to the requested time given a time step
 
     Args:
-        t0         - user-requested Python datetime 
+        t0         - user-requested Python datetime
         time_delta  - time interval of weather model
-    
+
     Returns:
-        tuple: list of datetimes representing the one or two closest 
+        tuple: list of datetimes representing the one or two closest
         available times to the requested time
-    
-    Example: 
+
+    Example:
     >>> import datetime
     >>> from RAiDER.utilFcns import get_nearest_wmtimes
     >>> t0 = datetime.datetime(2020,1,1,11,35,0)
     >>> get_nearest_wmtimes(t0, 3)
      (datetime.datetime(2020, 1, 1, 9, 0), datetime.datetime(2020, 1, 1, 12, 0))
-    """    
+    """
     # get the closest time available
     tclose = round_time(t0, roundTo = time_delta * 60 *60)
 
@@ -1209,16 +1206,16 @@ def get_nearest_wmtimes(t0, time_delta):
 
 def get_dt(t1,t2):
     '''
-    Helper function for getting the absolute difference in seconds between 
+    Helper function for getting the absolute difference in seconds between
     two python datetimes
 
-    Args: 
+    Args:
         t1, t2  - Python datetimes
-    
-    Returns: 
+
+    Returns:
         Absolute difference in seconds between the two inputs
-    
-    Examples: 
+
+    Examples:
     >>> import datetime
     >>> from RAiDER.utilFcns import get_dt
     >>> get_dt(datetime.datetime(2020,1,1,5,0,0), datetime.datetime(2020,1,1,0,0,0))

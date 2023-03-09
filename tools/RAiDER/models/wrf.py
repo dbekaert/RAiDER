@@ -2,7 +2,7 @@ import numpy as np
 import scipy.io.netcdf as netcdf
 from pyproj import CRS, Transformer
 
-from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 
 
 # Need to incorporate this snippet into this part of the code.
@@ -27,9 +27,11 @@ class WRF(WeatherModel):
         self._k2 = 0.233  # K/Pa
         self._k3 = 3.75e3  # K^2/Pa
 
+
         # Currently WRF is using RH instead of Q to get E
         self._humidityType = 'rh'
         self._Name = 'WRF'
+        self._time_res = TIME_RES[self._Name]
 
     def _fetch(self):
         pass

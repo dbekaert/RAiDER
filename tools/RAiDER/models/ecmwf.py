@@ -14,8 +14,8 @@ from RAiDER.models.model_levels import (
     A_137_HRES,
     B_137_HRES,
 )
-from RAiDER.models.weatherModel import WeatherModel
 
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 
 class ECMWF(WeatherModel):
     '''
@@ -31,7 +31,7 @@ class ECMWF(WeatherModel):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-        self._time_res = 1
+        self._time_res = TIME_RES['ECMWF']
 
         self._lon_res = 0.2
         self._lat_res = 0.2
