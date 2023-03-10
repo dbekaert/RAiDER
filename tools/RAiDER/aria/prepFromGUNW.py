@@ -286,7 +286,7 @@ def main(args):
            'aoi_group' : {'bounding_box': GUNWObj.SNWE},
            'height_group' : {'height_levels': GUNWObj.heights},
            'date_group': {'date_list': GUNWObj.dates},
-           'time_group': {'time': GUNWObj.mid_time, 'interpolate_time': False},
+           'time_group': {'time': GUNWObj.mid_time, 'interpolate_time': True},
            'los_group' : {'ray_trace': True,
                           'orbit_file': GUNWObj.OrbitFile,
                           'wavelength': GUNWObj.wavelength,

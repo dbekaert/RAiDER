@@ -221,9 +221,11 @@ class ECMWF(WeatherModel):
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
         # round to the closest legal time
+
         corrected_DT = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
+
 
         # I referenced https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
         dataDict = {

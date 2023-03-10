@@ -19,8 +19,8 @@ import rasterio
 from RAiDER.constants import (
     _g0 as g0,
     _g1 as G1,
-    R_EARTH_MAX as Rmax,
-    R_EARTH_MIN as Rmin,
+    R_EARTH_MAX_WGS84 as Rmax,
+    R_EARTH_MIN_WGS84 as Rmin,
     _THRESHOLD_SECONDS,
 )
 from RAiDER.logger import logger
@@ -401,26 +401,53 @@ def _get_g_ll(lats):
     return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
 
 
-def _get_Re(lats):
+def get_Re(lats):
     '''
-    Returns: the ellipsoid as a fcn of latitude
-    More precisely: Calculates the GEOID radius at a given latitude on WGS84 ellipsoid
+    Returns earth radius as a function of latitude for WGS84
+    
+    Args: 
+        lats    - ndarray of geodetic latitudes in degrees
+    
+    Returns:
+        ndarray of earth radius at each latitude
+    
+    Example: 
+    >>> import numpy as np
+    >>> from RAiDER.utilFcns import get_Re
+    >>> output = get_Re(np.array([0, 30, 45, 60, 90]))
+    >>> output
+     array([6378137., 6372770.5219805, 6367417.56705189, 6362078.07851428, 6356752.])
+    >>> assert output[0] == 6378137 # (Rmax)
+    >>> assert output[-1] == 6356752 # (Rmin)
     '''
     return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
-def _geo_to_ht(lats, hts):
-    """  Returns geometric height above the reference ellipsoid
-
-    Note that this formula technically computes height above geoid
-    but the geoid is actually a perfect sphere;
-    Thus returned heights are above a reference ellipsoid == sphere
-
-    https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height
-
+def geo_to_ht(lats, hts):
     """
-    g_ll = _get_g_ll(lats)
-    Re = _get_Re(lats)
+    Convert geopotential height to ellipsoidal heights referenced to WGS84.
+    
+    Note that this formula technically computes height above geoid (geometric height)
+    but the geoid is actually a perfect sphere;
+    Thus returned heights are above a reference ellipsoid, which most assume to be 
+    a sphere (e.g., ECMWF - see https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height#ERA5:computepressureandgeopotentialonmodellevels,geopotentialheightandgeometricheight-Geopotentialheight 
+    - "Geometric Height" and also https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation#ERA5:datadocumentation-Earthmodel).
+    However, by calculating the ellipsoid here we directly reference to WGS84. 
+
+    Compare to MetPy: 
+    (https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geopotential_to_height.html)
+    # h = (geopotential * Re) / (g0 * Re - geopotential)
+    # Assumes a sphere instead of an ellipsoid
+
+    Args: 
+        lats    - latitude of points of interest
+        hts     - geopotential height at points of interest
+    
+    Returns: 
+        ndarray: geometric heights. These are approximate ellipsoidal heights referenced to WGS84
+    """
+    g_ll = _get_g_ll(lats) # gravity function of latitude
+    Re = get_Re(lats) # Earth radius function of latitude
 
     # Calculate Geometric Height, h
     h = (hts * Re) / (g_ll / g0 * Re - hts)
