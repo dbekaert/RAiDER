@@ -11,6 +11,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written 
 + Verify some constants / equations and remove the comments questioning them
 + Relocate the time resolution of wmodels to one spot
++ Skip test_scenario_3 until a new golden dataset is created
 
 ## [0.4.2]
 
