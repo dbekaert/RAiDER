@@ -234,7 +234,6 @@ class Raytracing(LOS):
                     los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
                 except Exception as e:
                     los[ii, jj, :] = np.nan
-                    # print ('didnt get one')
         return los
 
 
