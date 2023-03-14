@@ -9,7 +9,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4, round_time, requests_retry_session
+from RAiDER.utilFcns import writeWeatherVars2NETCDF4, round_date, requests_retry_session
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -59,7 +59,7 @@ class GMAO(WeatherModel):
         '''
         Fetch weather model data from GMAO
         '''
-        time = self._time
+        acqTime = self._time
 
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._ll_bounds[0] - (-90.0)) / self._lat_res)
@@ -69,17 +69,16 @@ class GMAO(WeatherModel):
 
         T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
         # round time to nearest third hour
-        time1 = time
-        time = round_time(time, self._time_res * 60 * 60)
-        if not time1 == time:
-            logger.warning('Rounded given hour from  %d to %d. May be incorrect near beginning/end of day.', time1.hour, time.hour)
+        corrected_DT = round_date(acqTime, dt.timedelta(hours=self._time_res))
+        if not corrected_DT == acqTime:
+            logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
 
-        DT = time - T0
-        time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
+        DT = corrected_DT - T0
+        time_ind = int(DT.total_seconds() / 3600.0 / self._time_res)
 
         ml_min = 0
         ml_max = 71
-        if time >= T0:
+        if corrected_DT >= T0:
             # open the dataset and pull the data
             url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
             session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
@@ -112,14 +111,14 @@ class GMAO(WeatherModel):
 
         else:
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
-            base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{time.strftime("%Y%m%d")}_{time.hour:02}00.V01.nc4'
-            url = f'{root.format(time.year, time.month, time.day)}/{base}'
+            base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{corrected_DT.strftime("%Y%m%d")}_{corrected_DT.hour:02}00.V01.nc4'
+            url = f'{root.format(corrected_DT.year, corrected_DT.month, corrected_DT.day)}/{base}'
             f = '{}_raw{}'.format(*os.path.splitext(out))
             if not os.path.exists(f):
                 logger.info('Fetching URL: %s', url)
                 session = requests_retry_session()
                 resp = session.get(url, stream=True)
-                assert resp.ok, f'Could not access url for time: {time}'
+                assert resp.ok, f'Could not access url for datetime: {corrected_DT}'
                 with open(f, 'wb') as fh:
                     shutil.copyfileobj(resp.raw, fh)
             else:

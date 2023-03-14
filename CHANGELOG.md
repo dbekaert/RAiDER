@@ -11,10 +11,12 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written 
 + Verify some constants / equations and remove the comments questioning them
 + Relocate the time resolution of wmodels to one spot
++ Skip test_scenario_3 until a new golden dataset is created
 
 ## [0.4.2]
 
 ### New/Updated Features
++ `prepFromGUNW` reads the date/time from the SLCs rather than the GUNW filename
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
 + Removed NCMR removed from supported model list till re-tested 
 + `credentials` looks for weather model API credentials RC_file hidden file, and creates it if it does not exists
@@ -22,6 +24,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Small bugfixes and updates to docstrings
 + Only orbit file is used (even if multiple specified) to minimize errors and ensure consistency over region
 + GUNW packaging is restructed to store SLC (ref and sec) wet and tropo delays rather than the differential
++ padding made consistent throughout and default arguments reduced (manually update in test_losreader)
 
 ## [0.4.1]
 

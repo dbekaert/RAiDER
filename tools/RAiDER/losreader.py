@@ -156,7 +156,7 @@ class Raytracing(LOS):
                                              compatible with the orbit file passed.
                                              Only required for a statevector file.
     pad: int                               - integer number of seconds to pad around
-                                             the user-specified time; default 3 hours
+                                             the user-specified time; default 10 min
                                              Only required for a statevector file.
 
     Returns:
@@ -187,7 +187,8 @@ class Raytracing(LOS):
         # ISCE3 data structures
         import isce3.ext.isce3 as isce
         if self._time is not None:
-            self._orbit = get_orbit(self._filename, self._time)
+            # __call__ called in checkArgs; keep for modularity
+            self._orbit = get_orbit(self._file, self._time, pad=pad)
         self._elp = isce.core.Ellipsoid()
         self._dop = isce.core.LUT2d()
         if look_dir.lower() == "right":
@@ -196,10 +197,12 @@ class Raytracing(LOS):
             self._look_dir = isce.core.LookSide.Left
         else:
             raise RuntimeError(f"Unknown look direction: {look_dir}")
-        
-    def setTime(self, time):
+
+    # Called in checkArgs
+    def setTime(self, time, pad=600):
         self._time = time
-        self._orbit = get_orbit(self._file, self._time)
+        self._orbit = get_orbit(self._file, self._time, pad=pad)
+
 
     def getLookVectors(self, ht, llh, xyz, yy):
         '''
@@ -298,10 +301,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-
-
-
-def get_sv(los_file, ref_time, pad=3 * 60):
+def get_sv(los_file, ref_time, pad):
     """
     Read an LOS file and return orbital state vectors
 
@@ -311,7 +311,7 @@ def get_sv(los_file, ref_time, pad=3 * 60):
         ref_time (datetime):- User-requested datetime; if not encompassed
                               by the orbit times will raise a ValueError
         pad (int):          - number of seconds to keep around the
-                              requested time
+                              requested time (should be about 600 seconds)
 
     Returns:
         svs (list of ndarrays): - the times, x/y/z positions and velocities
@@ -559,7 +559,7 @@ def state_to_los(svs, llh_targets):
     return los_factor
 
 
-def cut_times(times, ref_time, pad=3600 * 3):
+def cut_times(times, ref_time, pad):
     """
     Slice the orbit file around the reference aquisition time. This is done
     by default using a three-hour window, which for Sentinel-1 empirically
@@ -646,7 +646,7 @@ def get_radar_pos(llh, orb):
 
             except Exception as e:
                 raise e
-            
+
         # in case nans in hgt field
         else:
             sr[ind] = np.nan
@@ -685,17 +685,25 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
     return pos
 
 
-def get_orbit(orbit_file, ref_time, pad=600): 
+def get_orbit(orbit_file, ref_time, pad):
     '''
     Returns state vectors from an orbit file
+    orbit file (str):   - user-passed file containing statevectors
+                          for the sensor (can download with sentineleof libray)
+    pad (int):          - number of seconds to keep around the
+                          requested time (should be about 600 seconds)
+
     '''
     # First load the state vectors into an isce orbit
     import isce3.ext.isce3 as isce
-    svs = get_sv(orbit_file, ref_time, pad)
-    orb = isce.core.Orbit([
-        isce.core.StateVector(
-            isce.core.DateTime(row[0]),
-            row[1:4], row[4:7]
-        ) for row in np.stack(svs, axis=-1)
-    ])
+
+    svs   = np.stack(get_sv(orbit_file, ref_time, pad), axis=-1)
+    svs_i = []
+    # format for ISCE
+    for sv in svs:
+       sv = isce.core.StateVector(isce.core.DateTime(sv[0]), sv[1:4], sv[4:7])
+       svs_i.append(sv)
+
+    orb = isce.core.Orbit(svs_i)
+
     return orb

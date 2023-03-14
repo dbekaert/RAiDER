@@ -23,12 +23,12 @@ from RAiDER.logger import logger
 
 class AOI(object):
     '''
-    This instantiates a generic AOI class object. 
+    This instantiates a generic AOI class object.
 
     Attributes:
        _bounding_box    - S N W E bounding box
-       _proj            - pyproj-compatible CRS 
-       _type            - Type of AOI 
+       _proj            - pyproj-compatible CRS
+       _type            - Type of AOI
     '''
     def __init__(self):
         self._output_directory = os.getcwd()
@@ -72,7 +72,6 @@ class AOI(object):
     def set_output_directory(self, output_directory):
         self._output_directory = output_directory
         return
-
 
 
 class StationFile(AOI):

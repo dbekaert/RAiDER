@@ -13,6 +13,8 @@ import rasterio
 import yaml
 import shapely.wkt
 import RAiDER
+from dataclasses import dataclass
+
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 from RAiDER.models import credentials
@@ -22,25 +24,25 @@ from eof.download import download_eofs
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
 
 
-class GUNW(object):
-    def __init__(self, f:str, wm:str, out_dir:str):
-        self.path_gunw = f
-        self.wmodel    = wm
-        self.out_dir   = out_dir
-        self.spacing_m = int(DCT_POSTING[self.wmodel] * 1e5)
+@dataclass
+class GUNW:
+    path_gunw: str
+    wm: str
+    out_dir: str
 
-
-    def __call__(self):
+    def __post_init__(self):
         self.SNWE      = self.get_bbox()
         self.heights   = np.arange(-500, 9500, 500).tolist()
-        self.dates     = self.get_dates()
-        self.ref_time  = self.get_time()
-        self.look_dir  = self.get_look_dir()
-        self.wavelength = self.get_wavelength()
-        self.name       = f'{self.dates[0]}-{self.dates[1]}'
-        self.OrbitFiles = self.get_orbit_files()
+        # self.heights   = [-500, 0]
+        self.dates, self.mid_time = self.get_datetimes()
 
-        ## note implemented
+        self.look_dir   = self.get_look_dir()
+        self.wavelength = self.get_wavelength()
+        self.name       = self.make_fname()
+        self.OrbitFile  = self.get_orbit_file()
+        self.spacing_m  = int(DCT_POSTING[self.wm] * 1e5)
+
+        ## not implemented
         # self.spacing_m = self.calc_spacing_UTM() # probably wrong/unnecessary
         # self.lat_file, self.lon_file = self.makeLatLonGrid_native()
         # self.path_cube  = self.make_cube() # not needed
@@ -62,17 +64,62 @@ class GUNW(object):
         return [S, N, W, E]
 
 
-    def get_dates(self):
-        """ Get the ref/sec date from the filename """
+    def make_fname(self):
+        """ Match the ref/sec filename (SLC dates may be different around edge cases) """
         ref, sec = os.path.basename(self.path_gunw).split('-')[6].split('_')
+        return f'{ref}-{sec}'
 
-        return int(ref), int(sec)
+
+    def get_datetimes(self):
+        """ Get the datetimes and set the satellite for orbit """
+        ref_sec  = self.get_slc_dt()
+        middates = []
+        for aq in ref_sec:
+            st, en   = aq
+            midpt    = st + (en-st)/2
+            middates.append(int(midpt.date().strftime('%Y%m%d')))
+            midtime = midpt.time().strftime('%H:%M:%S')
+        return middates, midtime
 
 
-    def get_time(self):
-        """ Get the center time of the secondary date from the filename """
-        tt = os.path.basename(self.path_gunw).split('-')[7]
-        return f'{tt[:2]}:{tt[2:4]}:{tt[4:]}'
+    def get_slc_dt(self):
+        """ Grab the SLC start date and time from the GUNW """
+        group    = 'science/radarMetaData/inputSLC'
+        lst_sten = []
+        for i, key in enumerate('reference secondary'.split()):
+            ds   = xr.open_dataset(self.path_gunw, group=f'{group}/{key}')
+            slcs = ds['L1InputGranules']
+            nslcs = slcs.count().item()
+            # single slc
+            if nslcs == 1:
+                slc    = slcs.item()
+                assert slc, f'Missing {key} SLC  metadata in GUNW: {self.f}'
+                st = datetime.strptime(slc.split('_')[5], '%Y%m%dT%H%M%S')
+                en = datetime.strptime(slc.split('_')[6], '%Y%m%dT%H%M%S')
+            else:
+                st, en = datetime(1989, 3, 1), datetime(1989, 3, 1)
+                for j in range(nslcs):
+                    slc = slcs.data[j]
+                    if slc:
+                        ## get the maximum range
+                        st_tmp = datetime.strptime(slc.split('_')[5], '%Y%m%dT%H%M%S')
+                        en_tmp = datetime.strptime(slc.split('_')[6], '%Y%m%dT%H%M%S')
+
+                        ## check the second SLC is within one day of the previous
+                        if st > datetime(1989, 3, 1):
+                            stdiff = np.abs((st_tmp - st).days)
+                            endiff = np.abs((en_tmp - en).days)
+                            assert stdiff < 2 and endiff < 2, 'SLCs granules are too far apart in time. Incorrect metadata'
+
+
+                        st = st_tmp if st_tmp > st else st
+                        en = en_tmp if en_tmp > en else en
+
+                assert st>datetime(1989, 3, 1), f'Missing {key} SLC metadata in GUNW: {self.f}'
+
+            lst_sten.append([st, en])
+
+        return lst_sten
 
 
     def get_look_dir(self):
@@ -87,40 +134,35 @@ class GUNW(object):
         return wavelength
 
 
-    def get_orbit_files(self):
+    def get_orbit_file(self):
+        """ Get orbit file for reference (GUNW: first & later date)"""
         orbit_dir = os.path.join(self.out_dir, 'orbits')
         os.makedirs(orbit_dir, exist_ok=True)
 
-        group = 'science/radarMetaData/inputSLC'
-        paths = []
-        for i, key in enumerate('reference secondary'.split()):
-            ds   = xr.open_dataset(self.path_gunw, group=f'{group}/{key}')
-            slcs = ds['L1InputGranules']
-            nslcs = slcs.count().item()
-            # single slc
-            if nslcs == 1:
-                slc = slcs.item()
-                assert slc, f'Missing {key} SLC  metadata in GUNW: {self.f}'
-            else:
-                found = False
-                for j in range(nslcs):
-                    slc = slcs.data[j]
-                    if slc:
-                        found = True
-                        break
-                assert found, f'Missing {key} SLC metadata in GUNW: {self.f}'
+        # just to get the correct satellite
+        group    = 'science/radarMetaData/inputSLC/reference'
 
-            sat     = slc.split('_')[0]
-            aq_date = self.dates[i]
-            dt = datetime.strptime(f'{aq_date}T{self.ref_time}', '%Y%m%dT%H:%M:%S')
-            ## prefer to do each individually to make sure order stays same
-            path_orb = download_eofs([dt], [sat], save_dir=orbit_dir)
-            paths.append(path_orb[0])
+        ds   = xr.open_dataset(self.path_gunw, group=f'{group}')
+        slcs = ds['L1InputGranules']
+        nslcs = slcs.count().item()
 
-        return paths
+        if nslcs == 1:
+            slc    = slcs.item()
+        else:
+            for j in range(nslcs):
+                slc = slcs.data[j]
+                if slc:
+                    break
+
+        sat = slc.split('_')[0]
+        dt  = datetime.strptime(f'{self.dates[0]}T{self.mid_time}', '%Y%m%dT%H:%M:%S')
+
+        path_orb = download_eofs([dt], [sat], save_dir=orbit_dir)
+
+        return path_orb
 
 
-    ## ------ below are not used
+    ## ------ methods below are not used
     def get_version(self):
         with xr.open_dataset(self.path_gunw) as ds:
             version = ds.attrs['version']
@@ -236,7 +278,6 @@ def main(args):
     credentials.check_api(args.weather_model, args.api_uid, args.api_key)
 
     GUNWObj = GUNW(args.file, args.weather_model, args.output_directory)
-    GUNWObj()
 
     raider_cfg  = {
            'weather_model': args.weather_model,
@@ -247,7 +288,7 @@ def main(args):
            'date_group': {'date_list': GUNWObj.dates},
            'time_group': {'time': GUNWObj.mid_time, 'interpolate_time': True},
            'los_group' : {'ray_trace': True,
-                          'orbit_file': GUNWObj.OrbitFiles,
+                          'orbit_file': GUNWObj.OrbitFile,
                           'wavelength': GUNWObj.wavelength,
                           },
 

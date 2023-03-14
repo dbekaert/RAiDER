@@ -17,6 +17,7 @@ from RAiDER.models.model_levels import (
 
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 
+
 class ECMWF(WeatherModel):
     '''
     Implement ECMWF models
@@ -163,9 +164,9 @@ class ECMWF(WeatherModel):
 
         server = ecmwfapi.ECMWFDataServer()
 
-        corrected_date = util.round_date(time, datetime.timedelta(hours=6))
-        if not corrected_date == time:
-            logger.warning('Rounded given datetime from  %s to %s', time, corrected_date)
+        corrected_DT = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        if not corrected_DT == time:
+            logger.warning('Rounded given datetime from  %s to %s', time, corrected_DT)
 
         server.retrieve({
             "class": self._classname,  # ERA-Interim
@@ -178,14 +179,14 @@ class ECMWF(WeatherModel):
             "stream": "oper",
             # date: Specify a single date as "2015-08-01" or a period as
             # "2015-08-01/to/2015-08-31".
-            "date": datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
+            "date": datetime.datetime.strftime(corrected_DT, "%Y-%m-%d"),
             # type: Use an (analysis) unless you have a particular reason to
             # use fc (forecast).
             "type": "an",
             # time: With type=an, time can be any of
             # "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can
             # be any of "00:00:00/12:00:00",
-            "time": datetime.time.strftime(corrected_date.time(), "%H:%M:%S"),
+            "time": datetime.time.strftime(corrected_DT.time(), "%H:%M:%S"),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -220,9 +221,11 @@ class ECMWF(WeatherModel):
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
         # round to the closest legal time
-        corrected_date = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
-        if not corrected_date == acqTime:
-            logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_date)
+
+        corrected_DT = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
+        if not corrected_DT == acqTime:
+            logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
+
 
         # I referenced https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
         dataDict = {
@@ -233,8 +236,8 @@ class ECMWF(WeatherModel):
             'param': var,
             "stream": "oper",
             "type": "an",
-            "date": "{}".format(corrected_date.strftime('%Y-%m-%d')),
-            "time": "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
+            "date": "{}".format(corrected_DT.strftime('%Y-%m-%d')),
+            "time": "{}".format(datetime.time.strftime(corrected_DT.time(), '%H:%M')),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -258,9 +261,9 @@ class ECMWF(WeatherModel):
         server = ECMWFService("mars")
 
         # round to the closest legal time
-        corrected_date = util.round_date(time, datetime.timedelta(hours=self._time_res))
-        if not corrected_date == time:
-            logger.warning('Rounded given hour from  %d to %d', time.hour, corrected_date.hour)
+        corrected_DT = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        if not corrected_DT == time:
+            logger.warning('Rounded given datetime from  %s to %s', time, corrected_DT)
 
         if self._model_level_type == 'ml':
             param = "129/130/133/152"
@@ -278,8 +281,8 @@ class ECMWF(WeatherModel):
                 'levelist': "all",
                 'levtype': "{}".format(self._model_level_type),
                 'param': param,
-                'date': datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
-                'time': "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
+                'date': datetime.datetime.strftime(corrected_DT, "%Y-%m-%d"),
+                'time': "{}".format(datetime.time.strftime(corrected_DT.time(), '%H:%M')),
                 'step': "0",
                 'grid': "{}/{}".format(lon_step, lat_step),
                 'area': "{}/{}/{}/{}".format(lat_max, util.floorish(lon_min, 0.1), util.floorish(lat_min, 0.1), lon_max),

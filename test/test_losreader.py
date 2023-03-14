@@ -119,7 +119,7 @@ def test_read_txt_file(svs):
 def test_get_sv_1(svs):
     true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'S1_orbit_example.EOF')
-    svs = get_sv(filename, true_svs[0][0])
+    svs = get_sv(filename, true_svs[0][0], pad=3*60)
     assert [np.allclose(
         [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
         np.zeros(len(svs[0]))
@@ -130,7 +130,7 @@ def test_get_sv_1(svs):
 def test_get_sv_2(svs):
     true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'S1_sv_file.txt')
-    svs = get_sv(filename, true_svs[0][0])
+    svs = get_sv(filename, true_svs[0][0], pad=3*60)
     assert [np.allclose(
         [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
         np.zeros(len(svs[0]))
@@ -142,19 +142,19 @@ def test_get_sv_3(svs):
     true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'incorrect_file.txt')
     with pytest.raises(ValueError):
-        get_sv(filename, true_svs[0][0])
+        get_sv(filename, true_svs[0][0], pad=3*60)
 
 
 def test_get_sv_4(svs):
     true_svs = svs
     filename = os.path.join(SCENARIO_DIR, 'no_exist.txt')
     with pytest.raises(FileNotFoundError):
-        get_sv(filename, true_svs[0][0])
+        get_sv(filename, true_svs[0][0], pad=3*60)
 
 
 def test_cut_times(svs):
     true_svs = svs
-    assert all(cut_times(true_svs[0], true_svs[0][0]))
+    assert all(cut_times(true_svs[0], true_svs[0][0], pad=3600*3))
 
 
 def test_cut_times_2(svs):
