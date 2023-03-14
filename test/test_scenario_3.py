@@ -12,7 +12,7 @@ import xarray as xr
 
 
 # @pytest.mark.isce3
-@pytest.mark.skip
+@pytest.mark.skip(reason='outdated golden data')
 def test_scenario_3():
     SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
 
