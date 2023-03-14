@@ -156,7 +156,7 @@ class Raytracing(LOS):
                                              compatible with the orbit file passed.
                                              Only required for a statevector file.
     pad: int                               - integer number of seconds to pad around
-                                             the user-specified time; default 3 hours
+                                             the user-specified time; default 10 min
                                              Only required for a statevector file.
 
     Returns:
@@ -311,7 +311,7 @@ def get_sv(los_file, ref_time, pad):
         ref_time (datetime):- User-requested datetime; if not encompassed
                               by the orbit times will raise a ValueError
         pad (int):          - number of seconds to keep around the
-                              requested time
+                              requested time (should be about 600 seconds)
 
     Returns:
         svs (list of ndarrays): - the times, x/y/z positions and velocities
@@ -688,6 +688,11 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
 def get_orbit(orbit_file, ref_time, pad):
     '''
     Returns state vectors from an orbit file
+    orbit file (str):   - user-passed file containing statevectors
+                          for the sensor (can download with sentineleof libray)
+    pad (int):          - number of seconds to keep around the
+                          requested time (should be about 600 seconds)
+
     '''
     # First load the state vectors into an isce orbit
     import isce3.ext.isce3 as isce
