@@ -14,4 +14,5 @@ class ERA5T(ERA5):
         self._Name = 'ERA-5T'
 
         self._valid_range = (datetime.datetime(1950, 1, 1), "Present")  # Tuple of min/max years where data is available.
-        self._lag_time = datetime.timedelta(days=5)  # Availability lag time in days
+        # Availability lag time in days; actually about 12 but unstable on ECMWF side
+        self._lag_time = datetime.timedelta(days=1)
