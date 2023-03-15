@@ -1,9 +1,11 @@
 import datetime
+from dateutil.relativedelta import relativedelta
 
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
 from RAiDER.logger import logger
+
 
 
 class ERA5(ECMWF):
@@ -20,9 +22,11 @@ class ERA5(ECMWF):
         self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
-        self._valid_range = (datetime.datetime(1950, 1, 1), "Present")
+        end_date = datetime.datetime.today() - relativedelta(months=3)
+        self._valid_range = (datetime.datetime(1950, 1, 1), end_date)
+
         # Availability lag time in days
-        self._lag_time = datetime.timedelta(days=30)
+        self._lag_time = relativedelta(months=3)
 
         # Default, need to change to ml
         self.setLevelType('pl')

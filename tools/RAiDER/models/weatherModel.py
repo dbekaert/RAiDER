@@ -262,19 +262,25 @@ class WeatherModel(ABC):
         '''
         Checks the time against the lag time and valid date range for the given model type
         '''
+        end_time = self._valid_range[1]
+        end_time = end_time if isinstance(end_time, str) else end_time.date()
+
         logger.info(
-            'Weather model %s is available from %s-%s',
-            self.Model(), self._valid_range[0], self._valid_range[1]
+            'Weather model %s is available from %s to %s',
+            self.Model(), self._valid_range[0].date(), end_time
         )
+
         if time < self._valid_range[0]:
-            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
+            raise RuntimeError(f"Weather model {self.Model()} is not available at {time}")
+
         if self._valid_range[1] is not None:
             if self._valid_range[1] == 'Present':
                 pass
             elif self._valid_range[1] < time:
-                raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
+                raise RuntimeError(f"Weather model {self.Model()} is not available at {time}")
+
         if time > datetime.datetime.utcnow() - self._lag_time:
-            raise RuntimeError("Weather model {} is not available at {}".format(self.Model(), time))
+            raise RuntimeError(f"Weather model {self.Model()} is not available at {time}")
 
     def _convertmb2Pa(self, pres):
         '''
