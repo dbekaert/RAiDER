@@ -227,7 +227,8 @@ def calcDelays(iargs=None):
         # Grab the closest two times unless the user specifies 'nearest'
         # If the model time_delta is not specified then use 6
         # The two datetimes will be combined to a single file and processed
-        times = get_nearest_wmtimes(t, [model.dtime() if model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
+        times = get_nearest_wmtimes(t, [model.dtime() if \
+                    model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
         wfiles = []
         for tt in times:
             try:
@@ -240,17 +241,21 @@ def calcDelays(iargs=None):
                     )
                 )
             except RuntimeError:
-                logger.exception("Date %s failed", t)
+                logger.exception("Datetime %s failed", t)
                 continue
 
         # dont process the delays for download only
         if dl_only:
             continue
 
+        if not wfiles:
+            logger.error('No weather model data available on %s', t.date())
+            continue
+
         if len(wfiles)>1:
             ds1 = xr.open_dataset(wfiles[0])
             ds2 = xr.open_dataset(wfiles[1])
-            
+
             # calculate relative weights of each dataset
             date1 = datetime.datetime.strptime(ds1.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
             date2 = datetime.datetime.strptime(ds2.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
@@ -312,7 +317,8 @@ def calcDelays(iargs=None):
                 ds.to_netcdf(out_filename, mode="w")
             elif out_filename.endswith(".h5"):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
-            logger.info('Wrote delays to: %s', out_filename)
+
+            logger.info('\nSuccessfully wrote delays to: %s\n', out_filename)
 
         else:
             if aoi.type() == 'station_file':

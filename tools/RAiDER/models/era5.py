@@ -22,11 +22,12 @@ class ERA5(ECMWF):
         self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
-        end_date = datetime.datetime.today() - relativedelta(months=3)
+        lag_time = 1 # month
+        end_date = datetime.datetime.today() - relativedelta(months=lag_time)
         self._valid_range = (datetime.datetime(1950, 1, 1), end_date)
 
         # Availability lag time in days
-        self._lag_time = relativedelta(months=3)
+        self._lag_time = relativedelta(months=lag_time)
 
         # Default, need to change to ml
         self.setLevelType('pl')
