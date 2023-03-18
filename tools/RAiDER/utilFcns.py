@@ -404,14 +404,14 @@ def _get_g_ll(lats):
 def get_Re(lats):
     '''
     Returns earth radius as a function of latitude for WGS84
-    
-    Args: 
+
+    Args:
         lats    - ndarray of geodetic latitudes in degrees
-    
+
     Returns:
         ndarray of earth radius at each latitude
-    
-    Example: 
+
+    Example:
     >>> import numpy as np
     >>> from RAiDER.utilFcns import get_Re
     >>> output = get_Re(np.array([0, 30, 45, 60, 90]))
@@ -426,24 +426,24 @@ def get_Re(lats):
 def geo_to_ht(lats, hts):
     """
     Convert geopotential height to ellipsoidal heights referenced to WGS84.
-    
+
     Note that this formula technically computes height above geoid (geometric height)
     but the geoid is actually a perfect sphere;
-    Thus returned heights are above a reference ellipsoid, which most assume to be 
-    a sphere (e.g., ECMWF - see https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height#ERA5:computepressureandgeopotentialonmodellevels,geopotentialheightandgeometricheight-Geopotentialheight 
+    Thus returned heights are above a reference ellipsoid, which most assume to be
+    a sphere (e.g., ECMWF - see https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height#ERA5:computepressureandgeopotentialonmodellevels,geopotentialheightandgeometricheight-Geopotentialheight
     - "Geometric Height" and also https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation#ERA5:datadocumentation-Earthmodel).
-    However, by calculating the ellipsoid here we directly reference to WGS84. 
+    However, by calculating the ellipsoid here we directly reference to WGS84.
 
-    Compare to MetPy: 
+    Compare to MetPy:
     (https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geopotential_to_height.html)
     # h = (geopotential * Re) / (g0 * Re - geopotential)
     # Assumes a sphere instead of an ellipsoid
 
-    Args: 
+    Args:
         lats    - latitude of points of interest
         hts     - geopotential height at points of interest
-    
-    Returns: 
+
+    Returns:
         ndarray: geometric heights. These are approximate ellipsoidal heights referenced to WGS84
     """
     g_ll = _get_g_ll(lats) # gravity function of latitude
@@ -1204,6 +1204,7 @@ def get_nearest_wmtimes(t0, time_delta):
         else:
             return [t2, tclose]
 
+
 def get_dt(t1,t2):
     '''
     Helper function for getting the absolute difference in seconds between
@@ -1222,3 +1223,36 @@ def get_dt(t1,t2):
      18000.0
     '''
     return np.abs((t1 - t2).total_seconds())
+
+
+def calc_buffer(model:str, lat:float, lon:float):
+    """ Calculate the buffer for ray tracing from the latitude and model
+
+    Quick and dirty estimate
+    """
+    from shapely.geometry import Point
+    from shapely.ops import transform
+    if -90 < lat < 90:
+        proj = False
+    else:
+        proj = True
+        lon, lat = transform_coords(4087, 4326, lon, lat)
+
+    # get the top of the model
+    dct_tom = {'HRES': 80301.65, 'HRRR': 80301.65, 'GMAO': 80301.65, 'ERA5': 80301.65}
+    tom     = dct_tom[model]
+    near_range = tom / np.sin(np.deg2rad(30))
+
+    # this is in meters tho
+    buffer   = near_range / np.cos(np.deg2rad(lat))
+
+    x, y = transform_coords(4326, 4087, lon, lat)
+    poly = Point(x, y).buffer(buffer)
+    project = pyproj.Transformer.from_crs(4087, 4326, always_xy=True).transform
+    ll_m, ur_m  = Point(poly.bounds[:2]), Point(poly.bounds[2:])
+    ll_g, ur_g  = [transform(project, pt) for pt in [ll_m, ur_m]]
+
+    # return units in whatever original projection was with a slight addition
+    ll = ll_m.y+1000 if proj else ll_g.y+0.01
+
+    return np.abs(lat - ll)
