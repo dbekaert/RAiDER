@@ -282,7 +282,7 @@ def calcDelays(iargs=None):
             try:
                 assert np.sum(wgts)==1
             except AssertionError:
-                logging.error('Time interpolation weights do not sum to one; something is off with query datetime: {t}')
+                logger.error('Time interpolation weights do not sum to one; something is off with query datetime: {t}')
                 continue
 
             # combine datasets
