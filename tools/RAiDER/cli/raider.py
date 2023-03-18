@@ -129,7 +129,7 @@ def calcDelays(iargs=None):
     from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
     from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
+    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes, calc_buffer
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
         '\n\t raider.py -g'
@@ -214,9 +214,13 @@ def calcDelays(iargs=None):
 
         # add a buffer for raytracing
         if los.ray_trace():
-            ll_bounds = aoi.add_buffer(buffer=1)
+            S,N,W,E = aoi.bounds()
+            maxlati = np.abs([S,N]).argmax()
+            buffer  = calc_buffer(model._Name, [S,N][maxlati], np.mean([W,E]))
+            ll_bounds = aoi.add_buffer(buffer=buffer)
+
         else:
-            ll_bounds = aoi.add_buffer(buffer=1)
+            ll_bounds = aoi.add_buffer(buffer=0.05)
 
         ###########################################################
         # weather model calculation
