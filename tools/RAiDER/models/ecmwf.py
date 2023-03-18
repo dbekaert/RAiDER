@@ -244,9 +244,6 @@ class ECMWF(WeatherModel):
         try:
             c.retrieve('reanalysis-era5-complete', dataDict, outname)
         except Exception as e:
-            logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
-            logger.warning('Query time: {}'.format(acqTime))
-            logger.exception(e)
             raise Exception
 
 
