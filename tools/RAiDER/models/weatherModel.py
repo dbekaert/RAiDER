@@ -98,6 +98,7 @@ class WeatherModel(ABC):
         self._wet_ztd = None
         self._hydrostatic_ztd = None
 
+
     def __str__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
@@ -130,11 +131,14 @@ class WeatherModel(ABC):
         string += '=====================================\n'
         return str(string)
 
+
     def Model(self):
         return self._Name
 
+
     def dtime(self):
         return self._time_res
+
 
     def fetch(self, out, ll_bounds, time):
         '''
@@ -151,18 +155,9 @@ class WeatherModel(ABC):
         self.set_latlon_bounds(ll_bounds)
         self.setTime(time)
 
-        try:
-            self._fetch(out)
+        self._fetch(out)
 
-        except Exception as e:
-            S, N, W, E = ll_bounds
-            logger.warning(f'Query point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
-            logger.warning('Query time: {self._time}')
-            msg = f'Invalid submission to the {self._Name} API.'
-            logger.error(msg)
-            raise RuntimeError(msg)
 
-        return
 
     @abstractmethod
     def _fetch(self, out):
@@ -170,6 +165,7 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
 
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
         ''' Set the time for a weather model '''
@@ -180,8 +176,10 @@ class WeatherModel(ABC):
         else:
             raise ValueError('"time" must be a string or a datetime object')
 
+
     def get_latlon_bounds(self):
         raise NotImplementedError
+
 
     def set_latlon_bounds(self, ll_bounds, Nextra=2):
         '''
@@ -210,6 +208,7 @@ class WeatherModel(ABC):
         E = np.min([E + Nextra * self._lon_res + ex_buffer_lon_max, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
 
         self._ll_bounds = np.array([S, N, W, E])
+
 
     def load(
         self,
@@ -246,6 +245,7 @@ class WeatherModel(ABC):
             self._getZTD(zref)
             return None
 
+
     @abstractmethod
     def load_weather(self, *args, **kwargs):
         '''
@@ -253,12 +253,14 @@ class WeatherModel(ABC):
         '''
         pass
 
+
     def _get_time(self, filename=None):
         if filename is None:
             filename = self.files[0]
         with netCDF4.Dataset(filename, mode='r') as f:
             time = f.attrs['datetime'].copy()
         self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
+
 
     def plot(self, plotType='pqt', savefig=True):
         '''
@@ -272,6 +274,7 @@ class WeatherModel(ABC):
             raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
         return plot
 
+
     def checkTime(self, time):
         '''
         Checks the time against the lag time and valid date range for the given model type
@@ -284,17 +287,23 @@ class WeatherModel(ABC):
             self.Model(), self._valid_range[0].date(), end_time
         )
 
+        msg = f"Weather model {self.Model()} is not available at: {time}"
+
         if time < self._valid_range[0]:
-            raise RuntimeError(f"Weather model {self.Model()} is not available at {time}")
+            logger.error(msg)
+            raise RuntimeError(msg)
 
         if self._valid_range[1] is not None:
             if self._valid_range[1] == 'Present':
                 pass
             elif self._valid_range[1] < time:
-                raise RuntimeError(f"Weather model {self.Model()} is not available at {time}")
+                logger.error(msg)
+                raise RuntimeError(msg)
 
         if time > datetime.datetime.utcnow() - self._lag_time:
-            raise RuntimeError(f"Weather model {self.Model()} is not available at {time}")
+            logger.error(msg)
+            raise RuntimeError(msg)
+
 
     def _convertmb2Pa(self, pres):
         '''
@@ -302,12 +311,14 @@ class WeatherModel(ABC):
         '''
         return 100 * pres
 
+
     def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan):
         '''
         Transform geo heights to WGS84 ellipsoidal heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
         self._zs = util.geo_to_ht(lats, geo_ht_fix)
+
 
     def _find_e(self):
         """Check the type of e-calculation needed"""
@@ -320,6 +331,7 @@ class WeatherModel(ABC):
         self._rh = None
         self._q = None
 
+
     def _find_e_from_q(self):
         """Calculate e, partial pressure of water vapor."""
         svp = find_svp(self._t)
@@ -327,10 +339,12 @@ class WeatherModel(ABC):
         w = self._q / (1 - self._q)
         self._e = w * self._R_v * (self._p - svp) / self._R_d
 
+
     def _find_e_from_rh(self):
         """Calculate partial pressure of water vapor."""
         svp = find_svp(self._t)
         self._e = self._rh / 100 * svp
+
 
     def _get_wet_refractivity(self):
         '''
@@ -338,17 +352,21 @@ class WeatherModel(ABC):
         '''
         self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
+
     def _get_hydro_refractivity(self):
         '''
         Calculate the hydrostatic delay from pressure and temperature
         '''
         self._hydrostatic_refractivity = self._k1 * self._p / self._t
 
+
     def getWetRefractivity(self):
         return self._wet_refractivity
 
+
     def getHydroRefractivity(self):
         return self._hydrostatic_refractivity
+
 
     def _adjust_grid(self, ll_bounds=None):
         '''
@@ -369,6 +387,7 @@ class WeatherModel(ABC):
             self._hydrostatic_refractivity = util.padLower(self._hydrostatic_refractivity)
             if ll_bounds is not None:
                 self._trimExtent(ll_bounds)
+
 
     def _getZTD(self, zref=None):
         '''
@@ -393,6 +412,7 @@ class WeatherModel(ABC):
         self._hydrostatic_ztd = hydro_total
         self._wet_ztd = wet_total
 
+
     def _getExtent(self, lats, lons):
         '''
         get the bounding box around a set of lats/lons
@@ -407,6 +427,7 @@ class WeatherModel(ABC):
             return [np.nanmin(lats), np.nanmax(lats), lons - self._lon_res, lons + self._lon_res]
         else:
             raise RuntimeError('Not a valid lat/lon shape')
+
 
     @property
     def bbox(self) -> list:
@@ -502,6 +523,7 @@ class WeatherModel(ABC):
 
         return weather_model_box.contains(input_box)
 
+
     def _isOutside(self, extent1, extent2):
         '''
         Determine whether any of extent1  lies outside extent2
@@ -514,6 +536,7 @@ class WeatherModel(ABC):
         if np.any([t1, t2, t3, t4]):
             return True
         return False
+
 
     def _trimExtent(self, extent):
         '''
@@ -550,6 +573,7 @@ class WeatherModel(ABC):
         self._wet_refractivity = self._wet_refractivity[index1:index2, index3:index4, ...]
         self._hydrostatic_refractivity = self._hydrostatic_refractivity[index1:index2, index3:index4, :]
 
+
     def _calculategeoh(self, z, lnsp):
         '''
         Function to calculate pressure, geopotential, and geopotential height
@@ -574,8 +598,10 @@ class WeatherModel(ABC):
         '''
         return self._proj
 
+
     def getPoints(self):
         return self._xs.copy(), self._ys.copy(), self._zs.copy()
+
 
     def _uniform_in_z(self, _zlevels=None):
         '''
@@ -612,6 +638,7 @@ class WeatherModel(ABC):
         self._xs = np.unique(self._xs)
         self._ys = np.unique(self._ys)
 
+
     def _checkForNans(self):
         '''
         Fill in NaN-values
@@ -620,6 +647,7 @@ class WeatherModel(ABC):
         self._t = fillna3D(self._t)
         self._e = fillna3D(self._e)
 
+
     def out_file(self, outLoc):
         f = make_weather_model_filename(
             self._Name,
@@ -627,6 +655,7 @@ class WeatherModel(ABC):
             self._ll_bounds,
         )
         return os.path.join(outLoc, f)
+
 
     def filename(self, time=None, outLoc='weather_files'):
         '''
@@ -648,6 +677,7 @@ class WeatherModel(ABC):
 
         self.files = [f]
         return f
+
 
     def write(
             self,

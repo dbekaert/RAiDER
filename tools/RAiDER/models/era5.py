@@ -22,7 +22,7 @@ class ERA5(ECMWF):
         self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
-        lag_time = 3 # month
+        lag_time = 3 # months
         end_date = datetime.datetime.today() - relativedelta(months=lag_time)
         self._valid_range = (datetime.datetime(1950, 1, 1), end_date)
 
