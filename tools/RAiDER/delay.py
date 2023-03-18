@@ -358,7 +358,7 @@ def _build_cube_ray(
             else:
                 low_xyz = getTopOfAtmosphere(xyz, LOS, low_ht, factor=cos_factor)
 
-            # Compute high_xyz
+            # Compute high_xyz (upper model level)
             high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
 
             # Compute ray length
@@ -368,7 +368,7 @@ def _build_cube_ray(
             if cos_factor is None:
                 cos_factor = (high_ht - low_ht) / ray_length
 
-            # Determine number of parts to break ray into
+            # Determine number of parts to break ray into (this is what gets integrated over)
             try:
                 nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
             except ValueError:

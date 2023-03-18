@@ -231,25 +231,17 @@ def calcDelays(iargs=None):
                     model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
         wfiles = []
         for tt in times:
-            try:
-                wfiles.append(
-                    prepareWeatherModel(
-                        model, tt,
-                        ll_bounds=ll_bounds, # SNWE
-                        wmLoc=params['weather_model_directory'],
-                        makePlots=params['verbose'],
+            wfile = prepareWeatherModel(
+                    model, tt,
+                    ll_bounds=ll_bounds, # SNWE
+                    wmLoc=params['weather_model_directory'],
+                    makePlots=params['verbose'],
                     )
-                )
-            except RuntimeError:
-                logger.exception("Datetime %s failed", t)
-                continue
+
+            wfiles.append(wfile)
 
         # dont process the delays for download only
         if dl_only:
-            continue
-
-        if not wfiles:
-            logger.error('No weather model data available on %s', t.date())
             continue
 
         if len(wfiles)>1:

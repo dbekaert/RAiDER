@@ -22,7 +22,7 @@ class ERA5(ECMWF):
         self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
-        lag_time = 1 # month
+        lag_time = 3 # month
         end_date = datetime.datetime.today() - relativedelta(months=lag_time)
         self._valid_range = (datetime.datetime(1950, 1, 1), end_date)
 
@@ -41,12 +41,8 @@ class ERA5(ECMWF):
         time = self._time
 
         # execute the search at ECMWF
-        try:
-            self._get_from_cds(
-                lat_min, lat_max, lon_min, lon_max, time, out)
-        except Exception as e:
-            logger.warning(e)
-            raise RuntimeError('Could not access or download from the CDS API')
+        self._get_from_cds(lat_min, lat_max, lon_min, lon_max, time, out)
+
 
     def load_weather(self, *args, **kwargs):
         '''Load either pressure or model level data'''

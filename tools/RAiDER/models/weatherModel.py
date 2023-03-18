@@ -58,6 +58,7 @@ class WeatherModel(ABC):
 
         self._classname = None
         self._dataset = None
+        self._name    = None
 
         self._model_level_type = 'ml'
 
@@ -149,7 +150,19 @@ class WeatherModel(ABC):
         self.checkTime(time)
         self.set_latlon_bounds(ll_bounds)
         self.setTime(time)
-        self._fetch(out)
+
+        try:
+            self._fetch(out)
+
+        except Exception as e:
+            S, N, W, E = ll_bounds
+            logger.warning(f'Query point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+            logger.warning('Query time: {self._time}')
+            msg = f'Invalid submission to the {self._Name} API.'
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+        return
 
     @abstractmethod
     def _fetch(self, out):
