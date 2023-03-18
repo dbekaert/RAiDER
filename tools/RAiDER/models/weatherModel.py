@@ -155,8 +155,11 @@ class WeatherModel(ABC):
         self.set_latlon_bounds(ll_bounds)
         self.setTime(time)
 
-        self._fetch(out)
-
+        # write the error raised by the weather model API to the log
+        try:
+            self._fetch(out)
+        except Exception as E:
+            logger.error(E)
 
 
     @abstractmethod
