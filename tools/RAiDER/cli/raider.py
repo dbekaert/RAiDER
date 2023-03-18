@@ -280,7 +280,7 @@ def calcDelays(iargs=None):
             date2 = datetime.datetime.strptime(ds2.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
             wgts  = [ 1 - get_dt(t, date1) / get_dt(date2, date1), 1 - get_dt(date2, t) / get_dt(date2, date1)]
             try:
-                assert np.sum(wgts)==1
+                assert np.isclose(np.sum(wgts), 1)
             except AssertionError:
                 logger.error('Time interpolation weights do not sum to one; something is off with query datetime: %s', t)
                 continue
