@@ -257,21 +257,21 @@ def calcDelays(iargs=None):
         if dl_only:
             continue
 
-        if len(wfiles) == 0:
+        if len(wfiles)==0:
              logger.error('No weather model data available on: %s', t.date())
              continue
 
         # nearest weather model time
-        elif len(wfiles) == 1 and not params['interpolate_time']:
+        elif len(wfiles)==1 and len(times)==1:
             weather_model_file = wfiles[0]
 
         # only one time in temporal interpolation worked
-        elif len(wfiles) == 1 and params['interpolate_time']:
+        elif len(wfiles)==1 and len(times)==2:
             logger.error('Time interpolation did not succeed. Skipping: %s', tt.date())
             continue
 
         # temporal interpolation
-        elif len(wfiles) == 2:
+        elif len(wfiles)==2:
             ds1 = xr.open_dataset(wfiles[0])
             ds2 = xr.open_dataset(wfiles[1])
 
