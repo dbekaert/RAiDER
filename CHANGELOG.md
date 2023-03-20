@@ -7,6 +7,8 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.3]
++ Clean up error messagse, skip date if temporal interpolation fails
++ Update valid range for ERA5 (current date - 3 months) & ERA5T
 + Temporal interpolation of delays if the requested datetime is more than _THRESHOLD_SECONDS away from the closest weather model available time and `interpolate_time = True` (default behavior)
 + Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written 
 + Verify some constants / equations and remove the comments questioning them

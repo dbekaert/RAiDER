@@ -141,21 +141,17 @@ class ECMWF(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
 
         # execute the search at ECMWF
-        try:
-            self._get_from_ecmwf(
-                lat_min,
-                lat_max,
-                self._lat_res,
-                lon_min,
-                lon_max,
-                self._lon_res,
-                self._time,
-                out
-            )
-        except Exception as e:
-            logger.warning('Query point bounds are {}/{}/{}/{}'.format(lat_min, lat_max, lon_min, lon_max))
-            logger.warning('Query time: {}'.format(self._time))
-            logger.exception(e)
+        self._get_from_ecmwf(
+            lat_min,
+            lat_max,
+            self._lat_res,
+            lon_min,
+            lon_max,
+            self._lon_res,
+            self._time,
+            out
+        )
+        return
 
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
@@ -248,9 +244,6 @@ class ECMWF(WeatherModel):
         try:
             c.retrieve('reanalysis-era5-complete', dataDict, outname)
         except Exception as e:
-            logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
-            logger.warning('Query time: {}'.format(acqTime))
-            logger.exception(e)
             raise Exception
 
 

@@ -1,9 +1,11 @@
 import datetime
+from dateutil.relativedelta import relativedelta
 
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
 from RAiDER.logger import logger
+
 
 
 class ERA5(ECMWF):
@@ -20,9 +22,12 @@ class ERA5(ECMWF):
         self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
-        self._valid_range = (datetime.datetime(1950, 1, 1), "Present")
+        lag_time = 3 # months
+        end_date = datetime.datetime.today() - relativedelta(months=lag_time)
+        self._valid_range = (datetime.datetime(1950, 1, 1), end_date)
+
         # Availability lag time in days
-        self._lag_time = datetime.timedelta(days=30)
+        self._lag_time = relativedelta(months=lag_time)
 
         # Default, need to change to ml
         self.setLevelType('pl')
@@ -36,12 +41,8 @@ class ERA5(ECMWF):
         time = self._time
 
         # execute the search at ECMWF
-        try:
-            self._get_from_cds(
-                lat_min, lat_max, lon_min, lon_max, time, out)
-        except Exception as e:
-            logger.warning(e)
-            raise RuntimeError('Could not access or download from the CDS API')
+        self._get_from_cds(lat_min, lat_max, lon_min, lon_max, time, out)
+
 
     def load_weather(self, *args, **kwargs):
         '''Load either pressure or model level data'''

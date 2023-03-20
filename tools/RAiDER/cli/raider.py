@@ -227,39 +227,63 @@ def calcDelays(iargs=None):
         # Grab the closest two times unless the user specifies 'nearest'
         # If the model time_delta is not specified then use 6
         # The two datetimes will be combined to a single file and processed
-        times = get_nearest_wmtimes(t, [model.dtime() if model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
+        times = get_nearest_wmtimes(t, [model.dtime() if \
+                    model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
         wfiles = []
         for tt in times:
             try:
-                wfiles.append(
-                    prepareWeatherModel(
+                wfile = prepareWeatherModel(
                         model, tt,
                         ll_bounds=ll_bounds, # SNWE
                         wmLoc=params['weather_model_directory'],
                         makePlots=params['verbose'],
-                    )
-                )
+                        )
+                wfiles.append(wfile)
+
+            # catch when requested datetime fails
             except RuntimeError:
-                logger.exception("Date %s failed", t)
                 continue
+
+            # catch when something else within weather model class fails
+            except:
+                S, N, W, E = ll_bounds
+                logger.info(f'Query point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+                logger.info(f'Query datetime: {tt}')
+                msg = f'Downloading and/or preparation of {model._Name} failed.'
+                logger.error(msg)
+
 
         # dont process the delays for download only
         if dl_only:
             continue
 
-        if len(wfiles)>1:
+        if len(wfiles)==0:
+             logger.error('No weather model data available on: %s', t.date())
+             continue
+
+        # nearest weather model time
+        elif len(wfiles)==1 and len(times)==1:
+            weather_model_file = wfiles[0]
+
+        # only one time in temporal interpolation worked
+        elif len(wfiles)==1 and len(times)==2:
+            logger.error('Time interpolation did not succeed. Skipping: %s', tt.date())
+            continue
+
+        # temporal interpolation
+        elif len(wfiles)==2:
             ds1 = xr.open_dataset(wfiles[0])
             ds2 = xr.open_dataset(wfiles[1])
-            
+
             # calculate relative weights of each dataset
             date1 = datetime.datetime.strptime(ds1.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
             date2 = datetime.datetime.strptime(ds2.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
             wgts  = [ 1 - get_dt(t, date1) / get_dt(date2, date1), 1 - get_dt(date2, t) / get_dt(date2, date1)]
             try:
-                assert np.sum(wgts)==1
+                assert np.isclose(np.sum(wgts), 1)
             except AssertionError:
-                logging.error('Time interpolation weights do not sum to one, something is off with the dates')
-                raise ValueError('Time interpolation weights do not sum to one, something is off with the dates')
+                logger.error('Time interpolation weights do not sum to one; something is off with query datetime: %s', t)
+                continue
 
             # combine datasets
             ds = ds1
@@ -272,8 +296,7 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
-        else:
-            weather_model_file = wfiles[0]
+
 
         # Now process the delays
         try:
@@ -285,7 +308,7 @@ def calcDelays(iargs=None):
                 cube_spacing_m = params['cube_spacing_in_m'],
             )
         except RuntimeError:
-            logger.exception("Date %s failed", t)
+            logger.exception("Datetime %s failed", t)
             continue
 
         # Different options depending on the inputs
@@ -312,7 +335,8 @@ def calcDelays(iargs=None):
                 ds.to_netcdf(out_filename, mode="w")
             elif out_filename.endswith(".h5"):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
-            logger.info('Wrote delays to: %s', out_filename)
+
+            logger.info('\nSuccessfully wrote delay cube to: %s\n', out_filename)
 
         else:
             if aoi.type() == 'station_file':
