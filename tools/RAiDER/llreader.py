@@ -13,7 +13,7 @@ import pandas as pd
 import xarray
 import rasterio
 
-from pyproj import CRS
+from pyproj import CRS, Transformer
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
@@ -53,20 +53,91 @@ class AOI(object):
         return self._proj
 
 
-    def add_buffer(self, buffer):
-        '''
-        Check whether an extra lat/lon buffer is needed for raytracing
-        '''
-        # if raytracing, add a 1-degree buffer all around
+    def calc_buffer(self, model:object):
+        """ Calculate the buffer for ray tracing from the model and region """
+        from shapely.geometry import Point, Polygon
+        from shapely.ops import transform
+
+        epsg4326 = CRS.from_epsg(4326)
+
+        # get top of model above WGS84 sphere (units=meters)
+            # https://github.com/dbekaert/RAiDER/discussions/501
+        tom     = model._zlevels.max()
+
+        # use a small look angle to calculate near range
+        # ToDo: make this sensor dependent
+        near    = tom / np.sin(np.deg2rad(30))
+
+        ## user aoi is in WGS84
+        if epsg4326 == self._proj:
+            S, N, W, E = self._bounding_box
+            region   = Polygon.from_bounds(W,S,E,N)
+
+            lat_max = np.max([np.abs(S), np.abs(N)])
+            # the buffer will be in meters. if too high the projections are nonsensical
+            assert lat_max <= 80.6, 'Cannot perform raytracing above 80.5º'
+            buffer  = near / np.cos(np.deg2rad(lat_max))
+
+            # units must be meters for calculating buffer
+                # project to World Equidistant Cylindrical if weather model is WGS84
+            proj        = CRS.from_epsg(4087) if model._proj == epsg4326 else model._proj
+            assert proj.axis_info[0].unit_name == 'metre', \
+                'Projected weather model must be in units of metre'
+            project     = Transformer.from_crs(epsg4326, proj, always_xy=True).transform
+            region_proj = transform(project, region).buffer(buffer)
+
+            ## convert back to model projection system
+            project     = Transformer.from_crs(proj, model._proj, always_xy=True).transform
+            region_buff = transform(project, region_proj)
+
+
+        ## user aoi not in epgs4326
+        else:
+            s, n, w, e  = self._bounding_box
+            region_proj  = Polygon.from_bounds(w, s, e, n)
+
+            project      = Transformer.from_crs(self._proj, epsg4326, always_xy=True).transform
+            region_wgs84 = transform(project, region_proj)
+
+            lat_max      = np.max([region_wgs84.bounds[1], region_wgs84.bounds[3]])
+            buffer       = near / np.cos(np.deg2rad(lat_max))
+            assert self._proj.axis_info[0].unit_name == 'metre', 'Projected AOI must be in units of metre'
+            region_proj_buff  = region_proj.buffer(buffer)
+
+            ## convert to model projection
+            project     = Transformer.from_crs(self._proj, model._proj, always_xy=True).transform
+            region_buff = transform(project, region_proj_buff)
+
+        W, S, E, N = region_buff.bounds
+        self._bounding_box = [S, N, W, E]
+
+        return
+
+
+    def add_buffer(self, crs, buffer):
+        """ Add buffer for slant projection """
         try:
             ll_bounds = self._bounding_box.copy()
         except AttributeError:
             ll_bounds = list(self._bounding_box)
-        ll_bounds[0] = np.max([ll_bounds[0] - buffer, -90])
-        ll_bounds[1] = np.min([ll_bounds[1] + buffer,  90])
-        ll_bounds[2] = np.max([ll_bounds[2] - buffer,-180])
-        ll_bounds[3] = np.min([ll_bounds[3] + buffer, 180])
-        return ll_bounds
+
+        S, N, W, E = ll_bounds
+
+        S, N = S - buffer, N + buffer
+        W, E = W - buffer, E + buffer
+
+        if crs == CRS.from_epsg(4326):
+            S = np.max([S, -90])
+            N = np.min([N,  90])
+            W = np.max([W, -180])
+            E = np.min([E,  180])
+
+        else:
+            if buffer < 1000:
+                logger.warning('Adding a rather small buffer to bounding box; check model CRS')
+
+        self._bounding_box = S, N, W, E
+        return
 
 
     def set_output_directory(self, output_directory):

@@ -129,7 +129,7 @@ def calcDelays(iargs=None):
     from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
     from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes, calc_buffer
+    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
         '\n\t raider.py -g'
@@ -214,13 +214,9 @@ def calcDelays(iargs=None):
 
         # add a buffer for raytracing
         if los.ray_trace():
-            S,N,W,E = aoi.bounds()
-            maxlati = np.abs([S,N]).argmax()
-            buffer  = calc_buffer(model._Name, [S,N][maxlati], np.mean([W,E]))
-            ll_bounds = aoi.add_buffer(buffer=buffer)
-
+            aoi.calc_buffer(model)
         else:
-            ll_bounds = aoi.add_buffer(buffer=0.05)
+            aoi.add_buffer(model._proj, buffer=0.01)
 
         ###########################################################
         # weather model calculation
@@ -238,7 +234,7 @@ def calcDelays(iargs=None):
             try:
                 wfile = prepareWeatherModel(
                         model, tt,
-                        ll_bounds=ll_bounds, # SNWE
+                        ll_bounds=aoi.bounds(), # SNWE
                         wmLoc=params['weather_model_directory'],
                         makePlots=params['verbose'],
                         )
@@ -250,7 +246,7 @@ def calcDelays(iargs=None):
 
             # catch when something else within weather model class fails
             except:
-                S, N, W, E = ll_bounds
+                S, N, W, E = aoi.bounds()
                 logger.info(f'Query point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
                 logger.info(f'Query datetime: {tt}')
                 msg = f'Downloading and/or preparation of {model._Name} failed.'

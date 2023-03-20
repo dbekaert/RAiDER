@@ -1224,35 +1224,3 @@ def get_dt(t1,t2):
     '''
     return np.abs((t1 - t2).total_seconds())
 
-
-def calc_buffer(model:str, lat:float, lon:float):
-    """ Calculate the buffer for ray tracing from the latitude and model
-
-    Quick and dirty estimate
-    """
-    from shapely.geometry import Point
-    from shapely.ops import transform
-    if -90 < lat < 90:
-        proj = False
-    else:
-        proj = True
-        lon, lat = transform_coords(4087, 4326, lon, lat)
-
-    # get the top of the model
-    dct_tom = {'HRES': 80301.65, 'HRRR': 80301.65, 'GMAO': 80301.65, 'ERA5': 80301.65}
-    tom     = dct_tom[model]
-    near_range = tom / np.sin(np.deg2rad(30))
-
-    # this is in meters tho
-    buffer   = near_range / np.cos(np.deg2rad(lat))
-
-    x, y = transform_coords(4326, 4087, lon, lat)
-    poly = Point(x, y).buffer(buffer)
-    project = pyproj.Transformer.from_crs(4087, 4326, always_xy=True).transform
-    ll_m, ur_m  = Point(poly.bounds[:2]), Point(poly.bounds[2:])
-    ll_g, ur_g  = [transform(project, pt) for pt in [ll_m, ur_m]]
-
-    # return units in whatever original projection was with a slight addition
-    ll = ll_m.y+1000 if proj else ll_g.y+0.01
-
-    return np.abs(lat - ll)
