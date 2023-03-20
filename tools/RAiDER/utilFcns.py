@@ -1223,4 +1223,3 @@ def get_dt(t1,t2):
      18000.0
     '''
     return np.abs((t1 - t2).total_seconds())
-
