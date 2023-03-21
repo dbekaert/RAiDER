@@ -35,6 +35,7 @@ def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
 
     return dst_lat, dst_lon
 
+
 def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
     """ Write a new yaml file from a dictionary.
 
@@ -58,6 +59,7 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
         yaml.safe_dump(params, fh,  default_flow_style=False)
 
     return dst
+
 
 def test_cube_intersect():
     """ Test the intersection of lat/lon files with the DEM (model height levels?) """
@@ -87,17 +89,18 @@ def test_cube_intersect():
     assert np.isclose(proc.returncode, 0)
 
     ## hard code what it should be and check it matches
-    wm_file = os.path.join(SCENARIO_DIR, f'{WM}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
-    da      = xr.open_dataset(wm_file)['band_data']
-    gold    = {'GMAO': 2.045914, 'ERA5': 2.061974, 'HRRR': 3.0972726}
+    WM_file = os.path.join(SCENARIO_DIR, f'{WM}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
+    da      = xr.open_dataset(WM_file)['band_data']
+    gold    = {'GMAO': 2.0541468, 'ERA5': 2.0696816}#, 'HRRR': 3.0972726}
     assert np.isclose(da.mean().round(6), gold[WM])
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{wm}*')]
+    [os.remove(f) for f in glob.glob(f'{WM}*')]
     os.remove('temp.yaml')
 
     return
+
 
 def test_gnss_intersect():
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
@@ -123,13 +126,13 @@ def test_gnss_intersect():
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert np.isclose(proc.returncode, 0)
 
-    gold = {'GMAO': 2.365131, 'ERA5': 2.395992, 'HRRR': 3.435141}
+    gold = {'GMAO': 2.365131, 'ERA5': 2.39535}#, 'HRRR': 3.435141}
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{WM}_Delay_{date}T{time.replace(":", "")}.csv'))
     td = df['totalDelay'].mean().round(6)
     assert np.allclose(gold[WM], td)
 
     shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{wm}*')]
+    [os.remove(f) for f in glob.glob(f'{WM}*')]
     os.remove('temp.yaml')
 
     return

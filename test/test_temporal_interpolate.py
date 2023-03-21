@@ -14,6 +14,7 @@ from test import TEST_DIR, WM
 import RAiDER
 from RAiDER.logger import logger
 
+wm = 'ERA5' if WM == 'ERA-5' else WM
 
 def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
     """ Make lat lons at a specified spacing """
@@ -68,7 +69,7 @@ def test_cube_timemean():
     S, N, W, E = 34, 35, -117, -116
     date       = 20200130
     dct_hrs    = {'GMAO': [12, 15, '13:30:00'], 'ERA5': [13, 14, '13:30:00']}
-    hr1, hr2, ti = dct_hrs[WM]
+    hr1, hr2, ti = dct_hrs[wm]
 
     grp = {
             'date_group': {'date_start': date},

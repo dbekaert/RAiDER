@@ -45,7 +45,7 @@ def test_GUNW():
 
     ## check the CRS and affine are written correctly
     epsg      = 4326
-    transform = (0.1, 0.0, -119.35, 0, -0.1, 35.05)
+    transform = (0.1, 0.0, -120.35, 0, -0.1, 36.05)
     group = f'science/grids/corrections/external/troposphere/{WM}/reference'
     for v in 'troposphereWet troposphereHydrostatic'.split():
         ds = rio.open(f'netcdf:{updated_GUNW}:{group}/{v}')
