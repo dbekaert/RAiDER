@@ -8,8 +8,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.3]
 + Add two stage buffer; one to user AOI and one based on lat for ray tracing only
-+ Update and convert user given AOI to weather model projection
-    + this breaks HRRR; 
++ Update and convert user given AOI to weather model projection (except for HRRR)
 + Clean up error messagse, skip date if temporal interpolation fails
 + Update valid range for ERA5 (current date - 3 months) & ERA5T
 + Temporal interpolation of delays if the requested datetime is more than _THRESHOLD_SECONDS away from the closest weather model available time and `interpolate_time = True` (default behavior)
