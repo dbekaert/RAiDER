@@ -60,11 +60,12 @@ class AOI(object):
 
         Ensures cube is slighly larger than
         """
-        wm_proj = model._proj
-        buffer  = 0.5 # degrees; should eventually be model specific
+        epsg4326 = CRS.from_epsg(4326)
+        ## temporary hack for HRRR
+        wm_proj  = model._proj if not model._Name == 'HRRR' else epsg4326
+        buffer   = 0.5 # degrees; should eventually be model specific
 
         S, N, W, E = self.bounds() # AOI
-        epsg4326   = CRS.from_epsg(4326)
 
         ## user aoi is in WGS84
         if epsg4326 == self._proj:
@@ -98,7 +99,9 @@ class AOI(object):
 
     def calc_buffer_ray(self, model:object):
         """ Calculate the buffer for ray tracing from the model and region """
-        wm_proj  = model._proj
+        epsg4326 = CRS.from_epsg(4326)
+        ## temporary hack for HRRR
+        wm_proj  = model._proj if not model._Name == 'HRRR' else epsg4326
         epsg4326 = CRS.from_epsg(4326)
 
         # get top of model above WGS84 sphere (units=meters)
