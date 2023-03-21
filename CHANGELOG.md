@@ -7,7 +7,11 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.3]
-+ Add two stage buffer; one to user AOI and one based on lat for ray tracing only
++ Add two stage buffer; 
+    + first pad user bounding box such that a 3D cube isgenerated that at min covers user area of interest.
+    + then, if ray tracing is used, buffer based on the 
+    + then if ray tracing us used, to pad the downloaded model that is used for computing the 3D cube. Assumes look angle is fixed increases with latitude.
+       
 + Update and convert user given AOI to weather model projection (except for HRRR)
 + Clean up error messagse, skip date if temporal interpolation fails
 + Update valid range for ERA5 (current date - 3 months) & ERA5T
