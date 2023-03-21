@@ -14,6 +14,8 @@ import xarray
 import rasterio
 
 from pyproj import CRS, Transformer
+from shapely.geometry import Point, Polygon
+from shapely.ops import transform
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
@@ -42,7 +44,7 @@ class AOI(object):
 
 
     def bounds(self):
-        return self._bounding_box
+        return list(self._bounding_box).copy()
 
 
     def geotransform(self):
@@ -53,11 +55,50 @@ class AOI(object):
         return self._proj
 
 
-    def calc_buffer(self, model:object):
-        """ Calculate the buffer for ray tracing from the model and region """
-        from shapely.geometry import Point, Polygon
-        from shapely.ops import transform
+    def add_buffer(self, model:object):
+        """ Add a fixed buffer to the AOI
 
+        Ensures cube is slighly larger than
+        """
+        wm_proj = model._proj
+        buffer  = 0.5 # degrees; should eventually be model specific
+
+        S, N, W, E = self.bounds() # AOI
+        epsg4326   = CRS.from_epsg(4326)
+
+        ## user aoi is in WGS84
+        if epsg4326 == self._proj:
+            ## project WGS84 aoi to weather model projection
+            region_wgs84 = Polygon.from_bounds(W,S,E,N).buffer(buffer)
+            project      = Transformer.from_crs(self._proj, wm_proj, always_xy=True).transform
+            region_buff  = transform(project, region_wgs84)
+
+            project      = Transformer.from_crs(wm_proj, self._proj, always_xy=True).transform
+
+        ## user aoi is NOT WGS84
+        else:
+            region_proj = Polygon.from_bounds(W,S,E,N)
+            ## convert aoi projection to wgs84 for consistent buffering
+            project      = Transformer.from_crs(self._proj, epsg4326, always_xy=True).transform
+            region_wgs84 = transform(project, region_proj).buffer(buffer)
+
+            ## convert buffered aoi projection from wgs84 to model projection
+            project     = Transformer.from_crs(epsg4326, wm_proj, always_xy=True).transform
+            region_buff = transform(region_wgs84, wm_proj)
+
+
+        ## the requested AOI is always in weather model projection so update
+        self._proj   = wm_proj
+
+        W, S, E, N = region_buff.bounds
+
+        self._bounding_box = S, N, W, E
+        return
+
+
+    def calc_buffer_ray(self, model:object):
+        """ Calculate the buffer for ray tracing from the model and region """
+        wm_proj  = model._proj
         epsg4326 = CRS.from_epsg(4326)
 
         # get top of model above WGS84 sphere (units=meters)
@@ -70,7 +111,7 @@ class AOI(object):
 
         ## user aoi is in WGS84
         if epsg4326 == self._proj:
-            S, N, W, E = self._bounding_box
+            S, N, W, E = self.bounds()
             region   = Polygon.from_bounds(W,S,E,N)
 
             lat_max = np.max([np.abs(S), np.abs(N)])
@@ -80,24 +121,25 @@ class AOI(object):
 
             # units must be meters for calculating buffer
                 # project to World Equidistant Cylindrical if weather model is WGS84
-            proj        = CRS.from_epsg(4087) if model._proj == epsg4326 else model._proj
+            proj        = CRS.from_epsg(4087) if wm_proj == epsg4326 else wm_proj
             assert proj.axis_info[0].unit_name == 'metre', \
                 'Projected weather model must be in units of metre'
             project     = Transformer.from_crs(epsg4326, proj, always_xy=True).transform
             region_proj = transform(project, region).buffer(buffer)
 
             ## convert back to model projection system
-            project     = Transformer.from_crs(proj, model._proj, always_xy=True).transform
+            project     = Transformer.from_crs(proj, wm_proj, always_xy=True).transform
             region_buff = transform(project, region_proj)
 
 
         ## user aoi not in epgs4326
         else:
-            s, n, w, e  = self._bounding_box
+            s, n, w, e  = self.bounds()
             region_proj  = Polygon.from_bounds(w, s, e, n)
 
             project      = Transformer.from_crs(self._proj, epsg4326, always_xy=True).transform
             region_wgs84 = transform(project, region_proj)
+
 
             lat_max      = np.max([region_wgs84.bounds[1], region_wgs84.bounds[3]])
             buffer       = near / np.cos(np.deg2rad(lat_max))
@@ -105,39 +147,15 @@ class AOI(object):
             region_proj_buff  = region_proj.buffer(buffer)
 
             ## convert to model projection
-            project     = Transformer.from_crs(self._proj, model._proj, always_xy=True).transform
+            project     = Transformer.from_crs(self._proj, wm_proj, always_xy=True).transform
             region_buff = transform(project, region_proj_buff)
 
+
+        ## the requested AOI is always in weather model projection so update
+        self._proj   = wm_proj
+
         W, S, E, N = region_buff.bounds
-        self._bounding_box = [S, N, W, E]
-
-        return
-
-
-    def add_buffer(self, crs, buffer):
-        """ Add buffer for slant projection """
-        try:
-            ll_bounds = self._bounding_box.copy()
-        except AttributeError:
-            ll_bounds = list(self._bounding_box)
-
-        S, N, W, E = ll_bounds
-
-        S, N = S - buffer, N + buffer
-        W, E = W - buffer, E + buffer
-
-        if crs == CRS.from_epsg(4326):
-            S = np.max([S, -90])
-            N = np.min([N,  90])
-            W = np.max([W, -180])
-            E = np.min([E,  180])
-
-        else:
-            if buffer < 1000:
-                logger.warning('Adding a rather small buffer to bounding box; check model CRS')
-
-        self._bounding_box = S, N, W, E
-        return
+        return [S, N, W, E]
 
 
     def set_output_directory(self, output_directory):
