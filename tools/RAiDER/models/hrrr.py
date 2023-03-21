@@ -56,29 +56,12 @@ class HRRR(WeatherModel):
         self._bounds = None
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
-        # Projection
-        # See https://github.com/blaylockbk/pyBKB_v2/blob/master/demos/HRRR_earthRelative_vs_gridRelative_winds.ipynb and code lower down
-        # '262.5:38.5:38.5:38.5 237.280472:1799:3000.00 21.138123:1059:3000.00'
-        # 'lov:latin1:latin2:latd lon1:nx:dx lat1:ny:dy'
-        # LCC parameters
-        lon0 = 262.5
-        lat0 = 38.5
-        lat1 = 38.5
-        lat2 = 38.5
-        x0 = 0
-        y0 = 0
-        earth_radius = 6371229
-        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
-                 f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
-                 f'+b={earth_radius} +units=m +no_defs')
-        self._proj = p1
-
 
     def _fetch(self,  out):
         '''
         Fetch weather model data from HRRR
         '''
-        self._download_hrrr_file(self._time, out)
+        self._download_hrrr_file(self._time, out, model='hrrr')
 
 
     def load_weather(self, *args, filename=None, **kwargs):
