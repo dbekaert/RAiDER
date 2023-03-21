@@ -178,7 +178,8 @@ def tropo_gunw_slc(cube_filenames:list, path_gunw:str, wavelength, out_dir:str, 
 
     # write the interferometric delay to disk
     ref, sec = os.path.basename(path_gunw).split('-')[6].split('_')
-    dst      = os.path.join(out_dir, f'{model}_interferometric_{ref}_{sec}.nc')
+    ref_time = os.path.basename(path_gunw).split('-')[7]
+    dst      = os.path.join(out_dir, f'{model}_interferometric_{ref}-{sec}_{ref_time}.nc')
     ds_slc.to_netcdf(dst)
     logger.info ('Wrote slc delays to: %s', dst)
 

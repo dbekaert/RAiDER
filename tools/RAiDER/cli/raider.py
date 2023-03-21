@@ -129,7 +129,7 @@ def calcDelays(iargs=None):
     from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
     from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes, calc_buffer
+    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
         '\n\t raider.py -g'
@@ -201,22 +201,24 @@ def calcDelays(iargs=None):
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
+    # Extract and buffer the AOI
+    los = params['los']
+    aoi = params['aoi']
+    model = params['weather_model']
+
+    # add a small buffer
+    aoi.add_buffer(model)
+
+    # add a buffer determined by latitude for ray tracing
+    wm_bounds = aoi.calc_buffer_ray(model) if los.ray_trace else aoi.bounds()
+
+
     wet_filenames = []
     for t, w, f in zip(
         params['date_list'],
         params['wetFilenames'],
         params['hydroFilenames']
     ):
-
-        los = params['los']
-        aoi = params['aoi']
-        model = params['weather_model']
-
-        # add a buffer for raytracing
-        if los.ray_trace():
-            aoi.calc_buffer(model)
-        else:
-            aoi.add_buffer(model._proj, buffer=0.01)
 
         ###########################################################
         # weather model calculation
@@ -234,7 +236,7 @@ def calcDelays(iargs=None):
             try:
                 wfile = prepareWeatherModel(
                         model, tt,
-                        ll_bounds=aoi.bounds(), # SNWE
+                        ll_bounds=wm_bounds, # SNWE
                         wmLoc=params['weather_model_directory'],
                         makePlots=params['verbose'],
                         )
@@ -246,8 +248,8 @@ def calcDelays(iargs=None):
 
             # catch when something else within weather model class fails
             except:
-                S, N, W, E = aoi.bounds()
-                logger.info(f'Query point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+                S, N, W, E = wm_bounds
+                logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
                 logger.info(f'Query datetime: {tt}')
                 msg = f'Downloading and/or preparation of {model._Name} failed.'
                 logger.error(msg)
