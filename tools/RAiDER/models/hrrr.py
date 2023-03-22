@@ -114,9 +114,20 @@ class HRRR(WeatherModel):
 
     def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
         '''
-        Download a HRRR model
+        Download a HRRR weather model using Herbie
+
+        Args: 
+            DATE (Python datetime)  - Datetime as a Python datetime. Herbie will automatically return the closest valid time,
+                                      which is currently hourly. 
+            out (string)            - output location as a string
+            model (string)          - model can be "hrrr" or "hrrrak"
+            product (string)        - 'prs' for pressure levels, 'nat' for native levels
+            fxx (int)               - forecast time in hours. Can be up to 48 for 00/06/12/18
+            verbose (bool)          - True for extra printout of information
+        
+        Returns: 
+            None, writes data to a netcdf file
         '''
-        ## TODO: Check how Herbie does temporal interpolation
         H = Herbie(
             DATE.strftime('%Y-%m-%d %H:%M'),
             model=model,
@@ -128,8 +139,7 @@ class HRRR(WeatherModel):
         )
 
         # Iterate through the list of datasets
-        #NOTE: this will need to be modified once HERBIE incorporates the
-        # xarray datatree: https://github.com/blaylockbk/Herbie/issues/146
+        #NOTE: https://github.com/blaylockbk/Herbie/issues/146
         ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
         ds_out = None
         for ds in ds_list:
