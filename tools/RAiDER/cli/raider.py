@@ -205,6 +205,8 @@ def calcDelays(iargs=None):
     los = params['los']
     aoi = params['aoi']
     model = params['weather_model']
+    # check projection
+    aoi.check_projection(model)
 
     # add a small buffer
     aoi.add_buffer(model)
