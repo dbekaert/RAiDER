@@ -79,6 +79,7 @@ class HRRR(WeatherModel):
         '''
         Fetch weather model data from HRRR
         '''
+        self._files = out
         self._download_hrrr_file(self._time, out, model='hrrr')
 
 
@@ -88,19 +89,16 @@ class HRRR(WeatherModel):
         filename is passed.
         '''
         if filename is None:
-            filename = self.files
+            filename = self.files if not isinstance(self.files, list) else self.files[0]
 
-        # read data from grib file
-        try:
-            ds = xarray.open_dataset(filename, engine='cfgrib')
-        except EOFError:
-            ds = xarray.open_dataset(filename, engine='netcdf4')
+        # read data from the netcdf file
+        ds = xarray.open_dataset(filename, engine='netcdf4')
 
         pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
         xArr = ds['x'].values
         yArr = ds['y'].values
-        lats = ds['lats'].values
-        lons = ds['lons'].values
+        lats = ds['latitude'].values
+        lons = ds['longitude'].values
         temps = ds['t'].values.transpose(1, 2, 0)
         qs = ds['q'].values.transpose(1, 2, 0)
         geo_hgt = ds['z'].values.transpose(1, 2, 0)
