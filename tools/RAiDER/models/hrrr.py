@@ -1,20 +1,15 @@
 import datetime
-import logging
 import os
-import shutil
-import requests
 import xarray
 
 import numpy as np
 
 from herbie import Herbie
 from pathlib import Path
-from pyproj import CRS, Transformer
+from pyproj import CRS
 
-from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_profile, rio_extents, round_date
 from RAiDER.models.weatherModel import (
-    WeatherModel, transform_coords, TIME_RES
+    WeatherModel, TIME_RES
 )
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -55,6 +50,29 @@ class HRRR(WeatherModel):
         self.files = None
         self._bounds = None
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
+
+        # Projection
+        # NOTE: The HRRR projection will get read directly from the downloaded weather model file; however, 
+        # we also define it here so that the projection can be used without downloading any data. This is 
+        # used for consistency with the other weather models and allows for some nice features, such as 
+        # buffering.
+        # 
+        # See https://github.com/blaylockbk/pyBKB_v2/blob/master/demos/HRRR_earthRelative_vs_gridRelative_winds.ipynb and code lower down
+        # '262.5:38.5:38.5:38.5 237.280472:1799:3000.00 21.138123:1059:3000.00'
+        # 'lov:latin1:latin2:latd lon1:nx:dx lat1:ny:dy'
+        # LCC parameters
+        lon0 = 262.5
+        lat0 = 38.5
+        lat1 = 38.5
+        lat2 = 38.5
+        x0 = 0
+        y0 = 0
+        earth_radius = 6371229
+        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
+                 f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
+                 f'+b={earth_radius} +units=m +no_defs')
+        self._proj = p1
+
 
 
     def _fetch(self,  out):
