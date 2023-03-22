@@ -1,3 +1,5 @@
+import datetime
+
 from RAiDER.models.hrrr import HRRR
 
 class HRRRAK(HRRR):
@@ -7,6 +9,7 @@ class HRRRAK(HRRR):
         self._classname = 'hrrrak'
         self._dataset = 'hrrrak'
         self._Name = "HRRR-AK"
+        self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
 
     def _fetch(self,  out):
         '''
