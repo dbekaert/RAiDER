@@ -205,15 +205,15 @@ def calcDelays(iargs=None):
     los = params['los']
     aoi = params['aoi']
     model = params['weather_model']
-    # check projection
-    aoi.check_projection(model)
 
     # add a small buffer
-    aoi.add_buffer(model)
+    aoi.add_buffer(buffer = 1.5 * model.getLLRes())
 
     # add a buffer determined by latitude for ray tracing
-    wm_bounds = aoi.calc_buffer_ray(model) if los.ray_trace else aoi.bounds()
-
+    if los.ray_trace():
+        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
+    else:
+        wm_bounds = aoi.bounds()
 
     wet_filenames = []
     for t, w, f in zip(
