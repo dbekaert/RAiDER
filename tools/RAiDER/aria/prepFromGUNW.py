@@ -62,7 +62,8 @@ class GUNW:
     def make_fname(self):
         """ Match the ref/sec filename (SLC dates may be different around edge cases) """
         ref, sec = os.path.basename(self.path_gunw).split('-')[6].split('_')
-        return f'{ref}-{sec}'
+        mid_time = os.path.basename(self.path_gunw).split('-')[7]
+        return f'{ref}-{sec}_{mid_time}'
 
 
     def get_datetimes(self):

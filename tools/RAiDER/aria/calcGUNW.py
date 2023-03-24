@@ -79,6 +79,10 @@ def compute_delays_slc(cube_filenames:list, wavelength):
 
     ds_slc = ds_slc.assign_attrs(model=model, method='ray tracing')
 
+    ## force these to float32 to prevent stitching errors
+    coords = {coord:ds_slc[coord].astype(np.float32) for coord in ds_slc.coords}
+    ds_slc = ds_slc.assign_coords(coords)
+
     return ds_slc.rename(z=DIM_NAMES[0], y=DIM_NAMES[1], x=DIM_NAMES[2])
 
 
@@ -171,15 +175,14 @@ def tropo_gunw_slc(cube_filenames:list, path_gunw:str, wavelength, out_dir:str, 
     """
     os.makedirs(out_dir, exist_ok=True)
 
-
     ds_slc = compute_delays_slc(cube_filenames, wavelength)
     da     = ds_slc[f'reference_{TROPO_NAMES[0]}'] # for metadata
-    model    = ds_slc.model
+    model  = ds_slc.model
 
     # write the interferometric delay to disk
     ref, sec = os.path.basename(path_gunw).split('-')[6].split('_')
-    ref_time = os.path.basename(path_gunw).split('-')[7]
-    dst      = os.path.join(out_dir, f'{model}_interferometric_{ref}-{sec}_{ref_time}.nc')
+    mid_time = os.path.basename(path_gunw).split('-')[7]
+    dst      = os.path.join(out_dir, f'{model}_interferometric_{ref}-{sec}_{mid_time}.nc')
     ds_slc.to_netcdf(dst)
     logger.info ('Wrote slc delays to: %s', dst)
 
