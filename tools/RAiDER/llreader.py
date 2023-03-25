@@ -55,89 +55,61 @@ class AOI(object):
         return self._proj
 
 
-    def check_projection(self, wm:object):
-        """ Ensure that the aoi projection matches the weather model
+    def add_buffer(self, buffer=0.5, digits=2):
+        """ 
+        Add a fixed buffer to the AOI. Ensures cube is slighly larger than requested area.
 
-        Update the AOI if not
+        Args: 
+            buffer (float)  - decimal degrees to be added to the bounding box
+            digits (int)    - number of decimal digits to include in the output
+        
+        Returns:
+            None. Updates self._bounding_box
+        
+        Example: 
+        >>> from RAiDER.models.hrrr import HRRR
+        >>> from RAiDER.llreader import BoundingBox
+        >>> wm = HRRR()
+        >>> aoi = BoundingBox([37, 38, -92, -91])
+        >>> aoi.add_buffer(buffer = 1.5 * wm.getLLRes())
+        >>> aoi.bounds()
+         [36.93, 38.07, -92.07, -90.93]
         """
-        # HRRR has a projected coordinate system attached to it but gets downloaded in wgs84
-        epsg4326 = CRS.from_epsg(4326)
-        wm_proj  = wm._proj if not wm._Name == 'HRRR' else epsg4326
-
-        if self._proj != wm_proj:
-            msg = 'Requested AOI projection does not match weather model.'
-            msg+= 'Updating AOI to match'
-            logger.warning(msg)
-
-            if self.type() == 'BoundingBox':
-                S, N, W, E = self.bounds()
-                aoi_orig = Polygon.from_bounds(W,S,E,N)
-                project  = Transformer.from_crs(self._proj, wm_proj, always_xy=True).transform
-                aoi_proj = transform(project, aoi_orig)
-            else:
-                raise Exception('Unsupported transformation of {self.type()} AOI.')
-
-            self._proj = wm_proj
-        return
-
-
-    def add_buffer(self, model:object):
-        """ Add a fixed buffer to the AOI. Assume weather model is in wgs84.
-
-        Ensures cube is slighly larger than requested area.
-        """
-        wm_proj  = CRS.from_epsg(4326)
-        buffer   = 0.5 # degrees; should eventually be model specific
         S, N, W, E = self.bounds()
 
         S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
-        W, E = np.max([W-buffer, -180]), np.min([E+buffer, 180])
+        W, E = W-buffer, E+buffer # will need to handle dateline crossings elsewhere
 
-        self._bounding_box = S, N, W, E
+        self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
         return
 
 
-    def calc_buffer_ray(self, model:object):
-        """ Calculate the buffer for ray tracing from the model and region
+    def calc_buffer_ray(self, direction, lookDir='right', incAngle=30, maxZ=80, digits=2):
+        """ 
+        Calculate the buffer for ray tracing. This only needs to be done in the east-west
+        direction due to satellite orbits, and only needs extended on the side closest to 
+        the sensor.
 
-        Assume model is in wgs84.
+        Args: 
+            lookDir (str)      - Sensor look direction, can be "right" or "left"
+            losAngle (float)   - Incidence angle in degrees
+            maxZ (float)       - maximum integration elevation in km
         """
-        epsg4326 = CRS.from_epsg(4326)
-        ## temporary hack for HRRR
-        wm_proj  = epsg4326
-
-        # get top of model above WGS84 sphere (units=meters)
-            # https://github.com/dbekaert/RAiDER/discussions/501
-        tom     = model._zlevels.max()
-
-        # use a small look angle to calculate near range
-        # ToDo: make this sensor dependent
-        near    = tom / np.sin(np.deg2rad(30))
-
-        # get AOI bounds
         S, N, W, E = self.bounds()
-        region     = Polygon.from_bounds(W,S,E,N)
-
+        
+        # use a small look angle to calculate near range
         lat_max = np.max([np.abs(S), np.abs(N)])
-        # the buffer will be in meters. if too high the projections are nonsensical
-        assert lat_max <= 80.6, 'Cannot perform raytracing above 80.5º'
-        buffer  = near / np.cos(np.deg2rad(lat_max))
+        near    = maxZ * np.tan(np.deg2rad(incAngle))
+        buffer  = near / (np.cos(np.deg2rad(lat_max)) * 100)
 
-        # units must be meters for calculating buffer
-            # project to World Equidistant Cylindrical if weather model is WGS84
-        proj        = CRS.from_epsg(4087)
-        assert proj.axis_info[0].unit_name == 'metre', \
-            'Projected weather model must be in units of metre'
-        project     = Transformer.from_crs(epsg4326, proj, always_xy=True).transform
-        region_proj = transform(project, region).buffer(buffer)
+        # buffer on the side nearest the sensor
+        if ((lookDir == 'right') and (direction == 'asc')) or ((lookDir == 'left') and (direction == 'desc')):
+            W = W - buffer
+        else:
+            E = E + buffer
 
-        ## convert back to model projection system (wgs84)
-        project     = Transformer.from_crs(proj, wm_proj, always_xy=True).transform
-        region_buff = transform(project, region_proj)
-
-
-        W, S, E, N = region_buff.bounds
-        return [S, N, W, E]
+        self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
+        return self._bounding_box
 
 
     def set_output_directory(self, output_directory):

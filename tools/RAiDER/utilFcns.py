@@ -482,26 +482,6 @@ def checkShapes(los, lats, lons, hts):
             'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
-def checkLOS(los, Npts):
-    '''
-    Check that los is either:
-       (1) Zenith,
-       (2) a set of scalar values of the same size as the number
-           of points, which represent the projection value), or
-       (3) a set of vectors, same number as the number of points.
-     '''
-    from RAiDER.losreader import Zenith
-
-    # los is a bunch of vectors or Zenith
-    if los is not Zenith:
-        los = los.reshape(-1, 3)
-
-    if los is not Zenith and los.shape[0] != Npts:
-        raise RuntimeError('Found {} line-of-sight values and only {} points'
-                           .format(los.shape[0], Npts))
-    return los
-
-
 def read_hgt_file(filename):
     '''
     Read height data from a comma-delimited file
@@ -578,98 +558,7 @@ def getTimeFromFile(filename):
         return datetime.strptime(out, fmt)
     except BaseException:  # TODO: Which error(s)?
         raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
-
-
-def writePnts2HDF5(lats, lons, hgts, los, lengths, outName='testx.h5', chunkSize=None, noDataValue=0., epsg=4326):
-    '''
-    Write query points to an HDF5 file for storage and access
-    '''
-    projname = 'projection'
-
-    # converts from WGS84 geodetic to WGS84 geocentric
-    t = Transformer.from_crs(epsg, 4978, always_xy=True)
-
-    checkLOS(los, np.prod(lats.shape))
-    in_shape = lats.shape
-
-    # create directory if needed
-    os.makedirs(os.path.abspath(os.path.dirname(outName)), exist_ok=True)
-
-    # Set up the chunking
-    if chunkSize is None:
-        chunkSize = getChunkSize(in_shape)
-
-    with h5py.File(outName, 'w') as f:
-        f.attrs['Conventions'] = np.string_("CF-1.8")
-
-        x = f.create_dataset('lon', data=lons, chunks=chunkSize, fillvalue=noDataValue)
-        y = f.create_dataset('lat', data=lats, chunks=chunkSize, fillvalue=noDataValue)
-        z = f.create_dataset('hgt', data=hgts, chunks=chunkSize, fillvalue=noDataValue)
-        los = f.create_dataset(
-            'LOS',
-            data=los,
-            chunks=chunkSize + (3,),
-            fillvalue=noDataValue
-        )
-        lengths = f.create_dataset(
-            'Rays_len',
-            data=lengths,
-            chunks=x.chunks,
-            fillvalue=noDataValue
-        )
-        sp_data = np.stack(t.transform(lons, lats, hgts), axis=-1).astype(np.float64)
-        sp = f.create_dataset(
-            'Rays_SP',
-            data=sp_data,
-            chunks=chunkSize + (3,),
-            fillvalue=noDataValue
-        )
-
-        x.attrs['Shape'] = in_shape
-        y.attrs['Shape'] = in_shape
-        z.attrs['Shape'] = in_shape
-        los.attrs['Shape'] = in_shape + (3,)
-        lengths.attrs['Shape'] = in_shape
-        lengths.attrs['Units'] = 'm'
-        sp.attrs['Shape'] = in_shape + (3,)
-        f.attrs['ChunkSize'] = chunkSize
-        f.attrs['NoDataValue'] = noDataValue
-
-        # CF 1.8 Convention stuff
-        crs = pyproj.CRS.from_epsg(epsg)
-        projds = f.create_dataset(projname, (), dtype='i')
-        projds[()] = epsg
-
-        # WGS84 ellipsoid
-        projds.attrs['semi_major_axis'] = 6378137.0
-        projds.attrs['inverse_flattening'] = 298.257223563
-        projds.attrs['ellipsoid'] = np.string_("WGS84")
-        projds.attrs['epsg_code'] = epsg
-        # TODO - Remove the wkt version after verification
-        projds.attrs['spatial_ref'] = np.string_(crs.to_wkt("WKT1_GDAL"))
-
-        # Geodetic latitude / longitude
-        if epsg == 4326:
-            # Set up grid mapping
-            projds.attrs['grid_mapping_name'] = np.string_('latitude_longitude')
-            projds.attrs['longitude_of_prime_meridian'] = 0.0
-
-            x.attrs['standard_name'] = np.string_("longitude")
-            x.attrs['units'] = np.string_("degrees_east")
-            y.attrs['standard_name'] = np.string_("latitude")
-            y.attrs['units'] = np.string_("degrees_north")
-            z.attrs['standard_name'] = np.string_("height")
-            z.attrs['units'] = np.string_("m")
-        else:
-            raise NotImplementedError
-
-        los.attrs['grid_mapping'] = np.string_(projname)
-        sp.attrs['grid_mapping'] = np.string_(projname)
-        lengths.attrs['grid_mapping'] = np.string_(projname)
-
-        f.attrs['NumRays'] = len(x)
-        f['Rays_len'].attrs['MaxLen'] = np.nanmax(lengths)
-
+    
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
 # Credits go to Tom Payne
