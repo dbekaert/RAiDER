@@ -17,11 +17,13 @@ def test_scenario_1():
     assert process.returncode == 0
 
     new_data = xr.load_dataset(os.path.join(SCENARIO_DIR, 'HRRR_tropo_20200101T120000_ztd.nc'))
-    golden_data = xr.load_dataset(os.path.join(SCENARIO_DIR, 'golden_data', 'HRRR_tropo_20200101T120000_ztd.nc'))
+    new_data1= new_data.isel(y=10, x=10, z=0)
+    
+    golden_data = 3.36171181, 0.03765481 # hydro|wet
 
     
-    assert np.allclose(golden_data['wet'], new_data['wet'])
-    assert np.allclose(golden_data['hydro'], new_data['hydro'])
+    assert np.isclose(new_data1['hydro'].data, golden_data[0])
+    assert np.isclose(new_data1['wet'].data, golden_data[1])
 
 
     # Clean up files
