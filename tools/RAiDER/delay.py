@@ -105,7 +105,7 @@ def tropo_delay(
         try:
             ifWet, ifHydro = getInterpolators(ds, "ztd")
         except RuntimeError:
-            logger.exception('Weather model %s failed, may contain NaNs', weater_model_file)
+            logger.exception('Weather model %s failed, may contain NaNs', weather_model_file)
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
