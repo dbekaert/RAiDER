@@ -30,14 +30,14 @@ def compute_delays_slc(cube_filenames:list, wavelength):
 
     sec, ref = sorted(dct_delays.keys())
 
-    wet_delays = []
-    hyd_delays = []
-    scale      = (-4 * np.pi) / float(wavelength)
+    wet_delays  = []
+    hyd_delays  = []
+    phase2range = (4 * np.pi) / float(wavelength)
     for dt in [ref, sec]:
         path = dct_delays[dt]
         with xr.open_dataset(path) as ds:
-            da_wet   = ds['wet'] * scale
-            da_hydro = ds['hydro'] * scale
+            da_wet   = ds['wet'] * phase2range
+            da_hydro = ds['hydro'] * phase2range
 
             wet_delays.append(da_wet)
             hyd_delays.append(da_hydro)
