@@ -32,7 +32,7 @@ def compute_delays_slc(cube_filenames:list, wavelength):
 
     wet_delays  = []
     hyd_delays  = []
-    phase2range = (4 * np.pi) / float(wavelength)
+    phase2range = (-4 * np.pi) / float(wavelength)
     for dt in [ref, sec]:
         path = dct_delays[dt]
         with xr.open_dataset(path) as ds:
