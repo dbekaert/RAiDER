@@ -66,6 +66,6 @@ def test_GUNW():
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
-    os.remove('GUNW_20200130-20200124.yaml')
+    os.remove('GUNW_20200130-20200124_135156.yaml')
     [os.remove(f) for f in glob.glob(f'{WM}*')]
     return
