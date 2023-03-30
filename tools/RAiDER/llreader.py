@@ -80,6 +80,9 @@ class AOI(object):
         S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
         W, E = W-buffer, E+buffer # will need to handle dateline crossings elsewhere
 
+        if np.max([np.abs(W), np.abs(E)]) > 180:
+            logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
+
         self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
         return
 
@@ -121,6 +124,8 @@ class AOI(object):
             E = E + buffer
 
         bounds = [np.round(a, digits) for a in (S, N, W, E)]
+        if np.max([np.abs(W), np.abs(E)]) > 180:
+            logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
         return bounds
 
 
