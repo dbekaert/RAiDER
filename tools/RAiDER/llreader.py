@@ -56,17 +56,17 @@ class AOI(object):
 
 
     def add_buffer(self, buffer=0.5, digits=2):
-        """ 
+        """
         Add a fixed buffer to the AOI. Ensures cube is slighly larger than requested area.
 
-        Args: 
+        Args:
             buffer (float)  - decimal degrees to be added to the bounding box
             digits (int)    - number of decimal digits to include in the output
-        
+
         Returns:
             None. Updates self._bounding_box
-        
-        Example: 
+
+        Example:
         >>> from RAiDER.models.hrrr import HRRR
         >>> from RAiDER.llreader import BoundingBox
         >>> wm = HRRR()
@@ -85,22 +85,23 @@ class AOI(object):
 
 
     def calc_buffer_ray(self, direction, lookDir='right', incAngle=30, maxZ=80, digits=2):
-        """ 
+        """
         Calculate the buffer for ray tracing. This only needs to be done in the east-west
-        direction due to satellite orbits, and only needs extended on the side closest to 
+        direction due to satellite orbits, and only needs extended on the side closest to
         the sensor.
 
-        Args: 
+        Args:
             lookDir (str)      - Sensor look direction, can be "right" or "left"
             losAngle (float)   - Incidence angle in degrees
             maxZ (float)       - maximum integration elevation in km
         """
         S, N, W, E = self.bounds()
-        
+
         # use a small look angle to calculate near range
         lat_max = np.max([np.abs(S), np.abs(N)])
         near    = maxZ * np.tan(np.deg2rad(incAngle))
         buffer  = near / (np.cos(np.deg2rad(lat_max)) * 100)
+        print ('Buffer in º:', buffer)
 
         # buffer on the side nearest the sensor
         if ((lookDir == 'right') and (direction == 'asc')) or ((lookDir == 'left') and (direction == 'desc')):
@@ -108,8 +109,8 @@ class AOI(object):
         else:
             E = E + buffer
 
-        self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
-        return self._bounding_box
+        bounds = [np.round(a, digits) for a in (S, N, W, E)]
+        return bounds
 
 
     def set_output_directory(self, output_directory):
