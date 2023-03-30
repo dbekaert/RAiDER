@@ -95,13 +95,24 @@ class AOI(object):
             losAngle (float)   - Incidence angle in degrees
             maxZ (float)       - maximum integration elevation in km
         """
+        direction = direction.lower()
+        # for isce object
+        try:
+            lookDir = lookDir.name.lower()
+        except AttributeError:
+            lookDir = lookDir.lower()
+
+        assert direction in 'asc desc'.split(), \
+            f'Incorrection orbital direction: {direction}. Choose asc or desc.'
+        assert lookDir in 'right light'.split(), \
+            f'Incorrection look direction: {lookDir}. Choose right or left.'
+
         S, N, W, E = self.bounds()
 
         # use a small look angle to calculate near range
         lat_max = np.max([np.abs(S), np.abs(N)])
         near    = maxZ * np.tan(np.deg2rad(incAngle))
         buffer  = near / (np.cos(np.deg2rad(lat_max)) * 100)
-        print ('Buffer in º:', buffer)
 
         # buffer on the side nearest the sensor
         if ((lookDir == 'right') and (direction == 'asc')) or ((lookDir == 'left') and (direction == 'desc')):
