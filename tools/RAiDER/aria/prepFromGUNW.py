@@ -12,9 +12,9 @@ import xarray as xr
 import rasterio
 import yaml
 import shapely.wkt
-import RAiDER
 from dataclasses import dataclass
 
+import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 from RAiDER.models import credentials
@@ -56,18 +56,14 @@ class GUNW:
         poly     = shapely.wkt.loads(poly_str)
         W, S, E, N = poly.bounds
 
-        # round to the nearest posting to make sure its captured?
-        # prec = DCT_POSTING[self.wmod]
-        # S, E = my_floor(S, prec), my_floor(E, prec)
-        # N, W = my_ceil(N, prec), my_ceil(W, prec)
-
         return [S, N, W, E]
 
 
     def make_fname(self):
         """ Match the ref/sec filename (SLC dates may be different around edge cases) """
         ref, sec = os.path.basename(self.path_gunw).split('-')[6].split('_')
-        return f'{ref}-{sec}'
+        mid_time = os.path.basename(self.path_gunw).split('-')[7]
+        return f'{ref}-{sec}_{mid_time}'
 
 
     def get_datetimes(self):

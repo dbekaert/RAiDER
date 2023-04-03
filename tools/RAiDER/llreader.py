@@ -13,7 +13,9 @@ import pandas as pd
 import xarray
 import rasterio
 
-from pyproj import CRS
+from pyproj import CRS, Transformer
+from shapely.geometry import Point, Polygon
+from shapely.ops import transform
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
@@ -42,7 +44,7 @@ class AOI(object):
 
 
     def bounds(self):
-        return self._bounding_box
+        return list(self._bounding_box).copy()
 
 
     def geotransform(self):
@@ -53,25 +55,84 @@ class AOI(object):
         return self._proj
 
 
-    def add_buffer(self, buffer):
-        '''
-        Check whether an extra lat/lon buffer is needed for raytracing
-        '''
-        # if raytracing, add a 1-degree buffer all around
+    def add_buffer(self, buffer=0.5, digits=2):
+        """
+        Add a fixed buffer to the AOI. Ensures cube is slighly larger than requested area.
+
+        Args:
+            buffer (float)  - decimal degrees to be added to the bounding box
+            digits (int)    - number of decimal digits to include in the output
+
+        Returns:
+            None. Updates self._bounding_box
+
+        Example:
+        >>> from RAiDER.models.hrrr import HRRR
+        >>> from RAiDER.llreader import BoundingBox
+        >>> wm = HRRR()
+        >>> aoi = BoundingBox([37, 38, -92, -91])
+        >>> aoi.add_buffer(buffer = 1.5 * wm.getLLRes())
+        >>> aoi.bounds()
+         [36.93, 38.07, -92.07, -90.93]
+        """
+        S, N, W, E = self.bounds()
+
+        S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
+        W, E = W-buffer, E+buffer # will need to handle dateline crossings elsewhere
+
+        if np.max([np.abs(W), np.abs(E)]) > 180:
+            logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
+
+        self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
+        return
+
+
+    def calc_buffer_ray(self, direction, lookDir='right', incAngle=30, maxZ=80, digits=2):
+        """
+        Calculate the buffer for ray tracing. This only needs to be done in the east-west
+        direction due to satellite orbits, and only needs extended on the side closest to
+        the sensor.
+
+        Args:
+            lookDir (str)      - Sensor look direction, can be "right" or "left"
+            losAngle (float)   - Incidence angle in degrees
+            maxZ (float)       - maximum integration elevation in km
+        """
+        direction = direction.lower()
+        # for isce object
         try:
-            ll_bounds = self._bounding_box.copy()
+            lookDir = lookDir.name.lower()
         except AttributeError:
-            ll_bounds = list(self._bounding_box)
-        ll_bounds[0] = np.max([ll_bounds[0] - buffer, -90])
-        ll_bounds[1] = np.min([ll_bounds[1] + buffer,  90])
-        ll_bounds[2] = np.max([ll_bounds[2] - buffer,-180])
-        ll_bounds[3] = np.min([ll_bounds[3] + buffer, 180])
-        return ll_bounds
+            lookDir = lookDir.lower()
+
+        assert direction in 'asc desc'.split(), \
+            f'Incorrection orbital direction: {direction}. Choose asc or desc.'
+        assert lookDir in 'right light'.split(), \
+            f'Incorrection look direction: {lookDir}. Choose right or left.'
+
+        S, N, W, E = self.bounds()
+
+        # use a small look angle to calculate near range
+        lat_max = np.max([np.abs(S), np.abs(N)])
+        near    = maxZ * np.tan(np.deg2rad(incAngle))
+        buffer  = near / (np.cos(np.deg2rad(lat_max)) * 100)
+
+        # buffer on the side nearest the sensor
+        if ((lookDir == 'right') and (direction == 'asc')) or ((lookDir == 'left') and (direction == 'desc')):
+            W = W - buffer
+        else:
+            E = E + buffer
+
+        bounds = [np.round(a, digits) for a in (S, N, W, E)]
+        if np.max([np.abs(W), np.abs(E)]) > 180:
+            logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
+        return bounds
 
 
     def set_output_directory(self, output_directory):
         self._output_directory = output_directory
         return
+
 
 
 class StationFile(AOI):
@@ -139,6 +200,7 @@ class RasterRDR(AOI):
         self._hgtfile = hgt_file
         self._demfile = dem_file
         self._convention = convention
+
 
     def readLL(self):
         # allow for 2-band lat/lon raster

@@ -201,22 +201,26 @@ def calcDelays(iargs=None):
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
+    # Extract and buffer the AOI
+    los = params['los']
+    aoi = params['aoi']
+    model = params['weather_model']
+
+    # add a small buffer
+    aoi.add_buffer(buffer = 1.5 * model.getLLRes())
+
+    # add a buffer determined by latitude for ray tracing
+    if los.ray_trace():
+        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
+    else:
+        wm_bounds = aoi.bounds()
+
     wet_filenames = []
     for t, w, f in zip(
         params['date_list'],
         params['wetFilenames'],
         params['hydroFilenames']
     ):
-
-        los = params['los']
-        aoi = params['aoi']
-        model = params['weather_model']
-
-        # add a buffer for raytracing
-        if los.ray_trace():
-            ll_bounds = aoi.add_buffer(buffer=1)
-        else:
-            ll_bounds = aoi.add_buffer(buffer=1)
 
         ###########################################################
         # weather model calculation
@@ -234,7 +238,7 @@ def calcDelays(iargs=None):
             try:
                 wfile = prepareWeatherModel(
                         model, tt,
-                        ll_bounds=ll_bounds, # SNWE
+                        ll_bounds=wm_bounds, # SNWE
                         wmLoc=params['weather_model_directory'],
                         makePlots=params['verbose'],
                         )
@@ -246,8 +250,8 @@ def calcDelays(iargs=None):
 
             # catch when something else within weather model class fails
             except:
-                S, N, W, E = ll_bounds
-                logger.info(f'Query point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+                S, N, W, E = wm_bounds
+                logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
                 logger.info(f'Query datetime: {tt}')
                 msg = f'Downloading and/or preparation of {model._Name} failed.'
                 logger.error(msg)

@@ -105,7 +105,7 @@ def tropo_delay(
         try:
             ifWet, ifHydro = getInterpolators(ds, "ztd")
         except RuntimeError:
-            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
+            logger.exception('Weather model %s failed, may contain NaNs', weather_model_file)
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
@@ -125,6 +125,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los
     """
 
     # Determine the output grid extent here and clip output grid to multiples of spacing
+
     snwe = transform_bbox(ll_bounds, src_crs=4326, dest_crs=crs)
     out_spacing = get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, crs)
     out_snwe = clip_bbox(snwe, out_spacing)

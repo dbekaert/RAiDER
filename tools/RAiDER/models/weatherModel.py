@@ -138,6 +138,10 @@ class WeatherModel(ABC):
 
     def dtime(self):
         return self._time_res
+    
+
+    def getLLRes(self):
+        return np.max([self._lat_res, self._lon_res])
 
 
     def fetch(self, out, ll_bounds, time):

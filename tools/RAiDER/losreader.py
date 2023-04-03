@@ -181,6 +181,7 @@ class Raytracing(LOS):
         self._time = time
         self._pad  = pad
         self._convention = los_convention
+        self._orbit = None
         if self._convention.lower() != 'isce':
             raise NotImplementedError()
 
@@ -197,6 +198,23 @@ class Raytracing(LOS):
             self._look_dir = isce.core.LookSide.Left
         else:
             raise RuntimeError(f"Unknown look direction: {look_dir}")
+    
+
+    def getSensorDirection(self):
+        if self._orbit is None:
+            raise ValueError('The orbit has not been set')
+        z = self._orbit.position[:,2]
+        t = self._orbit.time
+        start = np.argmin(t)
+        end = np.argmax(t)
+        if z[start] > z[end]:
+            return 'desc'
+        else:
+            return 'asc'
+    
+
+    def getLookDirection(self):
+        return self._look_dir
 
     # Called in checkArgs
     def setTime(self, time, pad=600):
