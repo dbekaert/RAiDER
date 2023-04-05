@@ -7,6 +7,7 @@ import numpy as np
 from herbie import Herbie
 from pathlib import Path
 from pyproj import CRS
+from shapely.geometry import Polygon
 
 from RAiDER.models.weatherModel import (
     WeatherModel, TIME_RES
@@ -72,6 +73,8 @@ class HRRR(WeatherModel):
                  f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
                  f'+b={earth_radius} +units=m +no_defs')
         self._proj = p1
+
+        self._valid_bounds =  Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
 
 
 

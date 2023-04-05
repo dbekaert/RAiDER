@@ -87,6 +87,7 @@ class WeatherModel(ABC):
         self._lats = None
         self._lons = None
         self._ll_bounds = None
+        self._valid_bounds =  box(-180, -90, 180, 90) # Shapely box with WSEN bounds
 
         self._p = None
         self._q = None
@@ -468,6 +469,22 @@ class WeatherModel(ABC):
             self._bbox = [lons[0], lats[0], lons[1], lats[1]]
 
         return self._bbox
+
+
+    def checkValidBounds(
+            self: weatherModel,
+            ll_bounds: np.ndarray,
+                         ) -> bool:
+        '''
+        Checks whether the given bounding box is valid for the model (i.e., intersects with the model domain at all)
+
+        Args:
+        ll_bounds : np.ndarray
+
+        Returns:
+        bool    True if the ll_bounds represent a valid area for the weather model
+        '''
+        return box(ll_bounds[2], ll_bounds[0], ll_bounds[3], ll_bounds[1]).intersects(self._valid_bounds)
 
 
     def checkContainment(self: weatherModel,
