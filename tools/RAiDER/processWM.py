@@ -50,11 +50,18 @@ def prepareWeatherModel(
     download_flag = True
     if os.path.exists(f) and not force_download:
         logger.warning(
-            'Weather model already exists, please remove it ("%s") if you want '
-            'to download a new one.', weather_model.files
+            'Weather model already exists, please remove it ("{}") if you want '
+            'to download a new one.'.format(weather_model.files)
         )
         download_flag = False
-
+    
+    # check valid bounds
+    if not weather_model.checkValidBounds(ll_bounds):
+        # TODO: Here is where we could update the weather model, e.g., if a user asks for HRRR but in Alaska.
+        logger.error(
+            'The requested area ({}) does not intersect with the valid domain of '
+            'the requested weather model ({}). Please update one or the other.'.format(ll_bounds, weather_model.Model())
+        )
 
     # if no weather model files supplied, check the standard location
     if download_flag:

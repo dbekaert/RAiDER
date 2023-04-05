@@ -1,6 +1,7 @@
 import datetime
 
 from pyproj import CRS
+from shapely.geometry import Polygon
 
 from RAiDER.models.hrrr import HRRR
 
@@ -19,6 +20,9 @@ class HRRRAK(HRRR):
             '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
             '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
         )
+
+        # This uses 0-360 longitudes instead of -180-180
+        self._valid_bounds =  Polygon(((195, 40), (157, 55), (260, 77), (232, 52)))
 
 
     def _fetch(self,  out):
