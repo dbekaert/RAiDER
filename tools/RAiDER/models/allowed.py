@@ -3,6 +3,5 @@ ALLOWED_MODELS = [
     'ERA5T',
     'HRES'
     'HRRR',
-    'HRRRAK',
     'GMAO',
 ]

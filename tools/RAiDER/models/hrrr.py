@@ -7,7 +7,7 @@ import numpy as np
 from herbie import Herbie
 from pathlib import Path
 from pyproj import CRS
-from shapely.geometry import Polygon
+from shapely.geometry import box, Polygon
 
 from RAiDER.models.weatherModel import (
     WeatherModel, TIME_RES
@@ -83,8 +83,17 @@ class HRRR(WeatherModel):
         Fetch weather model data from HRRR
         '''
         self._files = out
-        self._download_hrrr_file(self._time, out, model='hrrr')
-
+        if self.checkValidBounds(self._ll_bounds):
+            download_hrrr_file(self._ll_bounds, self._time, out, model=self._dataset)
+        else:
+            hrrrak = HRRRAK()
+            bounds = self._ll_bounds
+            bounds[2:] = np.mod(bounds[2:], 360)
+            if hrrrak.checkValidBounds(bounds) and hrrrak.checkTime(self._time):
+                download_hrrr_file(self._ll_bounds, self._time, out, model='hrrrak')
+            else:
+                raise ValueError('The requested location is unavailable for HRRR')
+            
 
     def load_weather(self, *args, filename=None, **kwargs):
         '''
@@ -92,7 +101,7 @@ class HRRR(WeatherModel):
         filename is passed.
         '''
         if filename is None:
-            filename = self.files if not isinstance(self.files, list) else self.files[0]
+            filename = self.files[0] if isinstance(self.files, list) else self.files
 
         # read data from the netcdf file
         ds = xarray.open_dataset(filename, engine='netcdf4')
@@ -131,66 +140,89 @@ class HRRR(WeatherModel):
         self._lons = _lons
 
 
-    def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
-        '''
-        Download a HRRR weather model using Herbie
+class HRRRAK(WeatherModel):
+    def __init__(self):
+        # The HRRR-AK model has a few different parameters than HRRR-CONUS. 
+        # These will get used if a user requests a bounding box in Alaska
+        super().__init__()
+        self._classname = 'hrrrak'
+        self._dataset = 'hrrrak'
+        self._Name = "HRRR-AK"
+        self._time_res = TIME_RES[self._dataset.upper()]
+        self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
+        self._lag_time = datetime.timedelta(hours=3)
+        self._valid_bounds =  Polygon(((195, 40), (157, 55), (260, 77), (232, 52)))
 
-        Args: 
-            DATE (Python datetime)  - Datetime as a Python datetime. Herbie will automatically return the closest valid time,
-                                      which is currently hourly. 
-            out (string)            - output location as a string
-            model (string)          - model can be "hrrr" or "hrrrak"
-            product (string)        - 'prs' for pressure levels, 'nat' for native levels
-            fxx (int)               - forecast time in hours. Can be up to 48 for 00/06/12/18
-            verbose (bool)          - True for extra printout of information
-        
-        Returns: 
-            None, writes data to a netcdf file
-        '''
-        H = Herbie(
-            DATE.strftime('%Y-%m-%d %H:%M'),
-            model=model,
-            product=product,
-            fxx=fxx,
-            overwrite=False,
-            verbose=True,
-            save_dir=Path(os.path.dirname(out)),
-        )
+        # This projection information will never get used but I'm keeping it for reference
+        # for the HRRR-AK model. The projection information gets read directly from the 
+        # weather model file. 
+        # self._proj = CRS.from_string(
+        #     '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
+        #     '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
+        # )
 
-        # Iterate through the list of datasets
-        #NOTE: https://github.com/blaylockbk/Herbie/issues/146
-        ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
-        ds_out = None
-        for ds in ds_list:
-            for var in ds.data_vars:
-                if var in ['t', 'q', 'gh']:
-                    if (len(ds[var].shape) == 3) & (ds[var].shape[0] > 2):
-                        ds_out = ds
-                        break
-        assert ds_out is not None
 
-        # bookkeepping
-        ds_out = ds_out.assign_coords(longitude=(((ds_out.longitude + 180) % 360) - 180))
-        ds_out = ds_out.rename({'gh': 'z', 'isobaricInhPa': 'levels'})
+def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
+    '''
+    Download a HRRR weather model using Herbie
 
-        # projection information
-        ds_out["proj"] = int()
-        for k, v in CRS.from_user_input(ds.herbie.crs).to_cf().items():
-            ds_out.proj.attrs[k] = v
-        for var in ds_out.data_vars:
-            ds_out[var].attrs['grid_mapping'] = 'proj'
+    Args: 
+        DATE (Python datetime)  - Datetime as a Python datetime. Herbie will automatically return the closest valid time,
+                                    which is currently hourly. 
+        out (string)            - output location as a string
+        model (string)          - model can be "hrrr" or "hrrrak"
+        product (string)        - 'prs' for pressure levels, 'nat' for native levels
+        fxx (int)               - forecast time in hours. Can be up to 48 for 00/06/12/18
+        verbose (bool)          - True for extra printout of information
+    
+    Returns: 
+        None, writes data to a netcdf file
+    '''
+    H = Herbie(
+        DATE.strftime('%Y-%m-%d %H:%M'),
+        model=model,
+        product=product,
+        fxx=fxx,
+        overwrite=False,
+        verbose=True,
+        save_dir=Path(os.path.dirname(out)),
+    )
 
-        # subset by AOI
-        x_min, x_max, y_min, y_max = get_bounds_indices(
-            self._ll_bounds, 
-            ds_out.latitude.to_numpy(), 
-            ds_out.longitude.to_numpy(),
-        )
-        ds_out = ds_out.sel(x=slice(x_min, x_max), y=slice(y_min, y_max))
-        
-        ds_out.to_netcdf(out, engine='netcdf4')
+    # Iterate through the list of datasets
+    #NOTE: https://github.com/blaylockbk/Herbie/issues/146
+    ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
+    ds_out = None
+    for ds in ds_list:
+        for var in ds.data_vars:
+            if var in ['t', 'q', 'gh']:
+                if (len(ds[var].shape) == 3) & (ds[var].shape[0] > 2):
+                    ds_out = ds
+                    break
+    assert ds_out is not None
 
-        return
+    # bookkeepping
+    ds_out = ds_out.assign_coords(longitude=(((ds_out.longitude + 180) % 360) - 180))
+    ds_out = ds_out.rename({'gh': 'z', 'isobaricInhPa': 'levels'})
+
+    # projection information
+    ds_out["proj"] = int()
+    for k, v in CRS.from_user_input(ds.herbie.crs).to_cf().items():
+        ds_out.proj.attrs[k] = v
+    for var in ds_out.data_vars:
+        ds_out[var].attrs['grid_mapping'] = 'proj'
+
+    # subset the full file by AOI
+    x_min, x_max, y_min, y_max = get_bounds_indices(
+        ll_bounds, 
+        ds_out.latitude.to_numpy(), 
+        ds_out.longitude.to_numpy(),
+    )
+    ds_out = ds_out.sel(x=slice(x_min, x_max), y=slice(y_min, y_max))
+    
+    # Write to a NETCDF file
+    ds_out.to_netcdf(out, engine='netcdf4')
+
+    return
 
 
 def get_bounds_indices(SNWE, lats, lons):
@@ -220,3 +252,4 @@ def get_bounds_indices(SNWE, lats, lons):
     m1 = None
 
     return x_min, x_max, y_min, y_max
+
