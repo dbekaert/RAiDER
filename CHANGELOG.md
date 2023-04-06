@@ -20,6 +20,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Verify some constants / equations and remove the comments questioning them
 + Relocate the time resolution of wmodels to one spot
 + Skip test_scenario_3 until a new golden dataset is created
++ Update scipy requirement
 
 ## [0.4.2]
 
