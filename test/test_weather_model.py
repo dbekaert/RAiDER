@@ -18,7 +18,7 @@ from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
 from RAiDER.models.hres import HRES
-from RAiDER.models.hrrr import HRRR
+from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
@@ -66,6 +66,12 @@ def merra2():
 @pytest.fixture
 def hrrr():
     wm = HRRR()
+    return wm
+
+
+@pytest.fixture
+def hrrrak():
+    wm = HRRRAK()
     return wm
 
 
@@ -302,6 +308,24 @@ def test_hrrr(hrrr):
     assert wm._Name == 'HRRR'
     assert wm._valid_range[0] == datetime.datetime(2016, 7, 15)
     assert wm._proj.to_epsg() is None
+    with pytest.raises(RuntimeError):
+        wm.checkTime(datetime.datetime(2010, 7, 15))
+    wm.checkTime(datetime.datetime(2018, 7, 12))
+    assert wm.checkValidBounds([35, 40, -95, -90])
+    assert ~wm.checkValidBounds([45, 47, 200, 210])
+
+
+def test_hrrrak(hrrrak):
+    wm = hrrrak
+    assert wm._Name == 'HRRR-AK'
+    assert wm._valid_range[0] == datetime.datetime(2018, 7, 13)
+    
+    assert ~wm.checkValidBounds([15, 20, 265, 270])
+    assert wm.checkValidBounds([45, 47, 200, 210])
+    
+    with pytest.raises(RuntimeError):
+        wm.checkTime(datetime.datetime(2018, 7, 12))
+    wm.checkTime(datetime.datetime(2018, 7, 15))
 
 
 def test_ncmr(ncmr):
@@ -341,3 +365,14 @@ def test_ztd(model):
 
     assert np.allclose(m._wet_ztd, m._true_wet_ztd)
     assert np.allclose(m._hydrostatic_ztd, m._true_hydro_ztd)
+
+
+def test_get_bounds_indices():
+    snwe = [-10, 10, -10, 10]
+    ll = np.arange(-20, 20)
+    lats, lons = np.meshgrid(ll, ll)
+    xmin, xmax, ymin, ymax = get_bounds_indices(snwe, lats, lons)
+    assert xmin == 10
+    assert xmax == 30
+    assert ymin == 10
+    assert ymax == 30
