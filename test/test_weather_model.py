@@ -376,3 +376,59 @@ def test_get_bounds_indices():
     assert xmax == 30
     assert ymin == 10
     assert ymax == 30
+
+
+def test_get_bounds_indices_2():
+    snwe = [-10, 10, 170, -170]
+    l = np.arange(-20, 20)
+    l2 = (((np.arange(160, 200) + 180) % 360) - 180)
+    lats, lons = np.meshgrid(l, l2)
+    xmin, xmax, ymin, ymax = get_bounds_indices(snwe, lats, lons)
+    assert xmin == 10
+    assert xmax == 30
+    assert ymin == 10
+    assert ymax == 30
+
+def test_get_bounds_indices_3():
+    snwe = [-10, 10, -10, 10]
+    l = np.arange(-20, 20)
+    l2 = (((np.arange(160, 200) + 180) % 360) - 180)
+    lats, lons = np.meshgrid(l, l2)
+    with pytest.raises(RuntimeError):
+        get_bounds_indices(snwe, lats, lons)
+    
+
+def test_hrrr_badloc(hrrr):
+    wm = hrrr
+    wm.set_latlon_bounds([-10, 10, -10, 10])
+    wm.setTime( datetime.datetime(2020, 10, 1, 0, 0, 0))
+    with pytest.raises(ValueError):
+        wm._fetch('dummy_filename')
+
+
+
+def test_hrrr_ak(tmp_path, hrrr):
+    wm = hrrr
+    d = tmp_path / "files"
+    d.mkdir()
+    fname = d / "hrrr_ak.nc"
+    wm.set_latlon_bounds([65, 67, -160, -150])
+    wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
+
+    wm._fetch(fname)
+    assert True
+
+
+def test_hrrr_ak2(tmp_path, hrrr):
+    # test the international date line crossing
+    wm = hrrr
+    d = tmp_path / "files"
+    d.mkdir()
+    fname = d / "hrrr_ak.nc"
+    
+    wm.set_latlon_bounds([50, 52, 179, -179])
+    wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
+    
+    wm._fetch(fname)
+    assert True
+

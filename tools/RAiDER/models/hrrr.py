@@ -84,12 +84,13 @@ class HRRR(WeatherModel):
         '''
         self._files = out
         if self.checkValidBounds(self._ll_bounds):
-            download_hrrr_file(self._ll_bounds, self._time, out, model=self._dataset)
+            download_hrrr_file(self._ll_bounds, self._time, out, model='hrrr')
         else:
             hrrrak = HRRRAK()
             bounds = self._ll_bounds
             bounds[2:] = np.mod(bounds[2:], 360)
-            if hrrrak.checkValidBounds(bounds) and hrrrak.checkTime(self._time):
+            if hrrrak.checkValidBounds(bounds):
+                hrrrak.checkTime(self._time)
                 download_hrrr_file(self._ll_bounds, self._time, out, model='hrrrak')
             else:
                 raise ValueError('The requested location is unavailable for HRRR')
@@ -151,7 +152,7 @@ class HRRRAK(WeatherModel):
         self._time_res = TIME_RES['HRRR']
         self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
         self._lag_time = datetime.timedelta(hours=3)
-        self._valid_bounds =  Polygon(((195, 40), (157, 55), (260, 77), (232, 52)))
+        self._valid_bounds =  Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
 
         # This projection information will never get used but I'm keeping it for reference
         # for the HRRR-AK model. The projection information gets read directly from the 
@@ -235,11 +236,14 @@ def get_bounds_indices(SNWE, lats, lons):
     '''
     # Unpack the bounds and find the relevent indices 
     S, N, W, E = SNWE
-    m1 = (S <= lats) & (N >= lats) &\
-                (W <= lons) & (E >= lons)
+    m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
 
     if np.sum(m1) == 0:
-        raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
+        lons = np.mod(lons, 360)
+        W, E = np.mod([W, E], 360)
+        m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
+        if np.sum(m1) == 0:
+            raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
 
     # Y extent
     shp = lats.shape
