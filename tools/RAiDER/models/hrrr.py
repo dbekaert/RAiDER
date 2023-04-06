@@ -148,7 +148,7 @@ class HRRRAK(WeatherModel):
         self._classname = 'hrrrak'
         self._dataset = 'hrrrak'
         self._Name = "HRRR-AK"
-        self._time_res = TIME_RES[self._dataset.upper()]
+        self._time_res = TIME_RES['HRRR']
         self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
         self._lag_time = datetime.timedelta(hours=3)
         self._valid_bounds =  Polygon(((195, 40), (157, 55), (260, 77), (232, 52)))
@@ -160,6 +160,10 @@ class HRRRAK(WeatherModel):
         #     '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
         #     '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
         # )
+    def _fetch(self):
+        pass
+    def load_weather(self, *args, **kwargs):
+        return super().load_weather(*args, **kwargs)
 
 
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
@@ -240,14 +244,14 @@ def get_bounds_indices(SNWE, lats, lons):
     # Y extent
     shp = lats.shape
     m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
-    y_min = max(m1_y[0][0] - 2, 0)
-    y_max = min(m1_y[-1][0] + 3, shp[0])
+    y_min = max(m1_y[0][0], 0)
+    y_max = min(m1_y[-1][0], shp[0])
     m1_y = None
 
     # X extent
     m1_x = np.argwhere(np.sum(m1, axis=0) != 0)
-    x_min = max(m1_x[0][0] - 2, 0)
-    x_max = min(m1_x[-1][0] + 3, shp[1])
+    x_min = max(m1_x[0][0], 0)
+    x_max = min(m1_x[-1][0], shp[1])
     m1_x = None
     m1 = None
 
