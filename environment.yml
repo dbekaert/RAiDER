@@ -37,7 +37,7 @@ dependencies:
  - rioxarray
  - requests
  - s3fs
- - scipy
+ - scipy>1.10.0
  - shapely
  - sysroot_linux-64
  - tqdm
