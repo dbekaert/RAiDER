@@ -956,7 +956,6 @@ class RaiderStats(object):
                 self.df['Date'] <= self.timeinterval[-1])]
 
         # seasonal filter
-        print('pre Date', self.df['Date'].min(), self.df['Date'].max())
         if self.seasonalinterval:
             self.seasonalinterval = self.seasonalinterval.split()
             # get day of year
@@ -989,7 +988,6 @@ class RaiderStats(object):
                 del filtered_self
 
         # estimate central longitude lines if '--time_lines' specified
-        print('post Date', self.df['Date'].min(), self.df['Date'].max())
         if self.time_lines and 'Datetime' in self.df.keys():
             self.df['Date_hr'] = self.df['Datetime'].dt.hour.astype(float).astype("Int32")
             # get list of unique times
