@@ -262,8 +262,8 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-             logger.error('No weather model data available on: %s', t.date())
-             continue
+             logger.error('No weather model data available on the requested dates')
+             raise RuntimeError
 
         # nearest weather model time
         elif len(wfiles)==1 and len(times)==1:
@@ -271,8 +271,8 @@ def calcDelays(iargs=None):
 
         # only one time in temporal interpolation worked
         elif len(wfiles)==1 and len(times)==2:
-            logger.error('Time interpolation did not succeed. Skipping: %s', tt.date())
-            continue
+            logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
+            weather_model_file = wfiles[0]
 
         # temporal interpolation
         elif len(wfiles)==2:
