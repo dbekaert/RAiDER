@@ -13,9 +13,8 @@ import os
 import sys
 from logging import FileHandler, Formatter, StreamHandler
 
-# Can change the default log location
-_log_file_write_location = os.getcwd()
 
+from RAiDER.cli import LOGGER_PATH
 
 # Inspired by
 # https://stackoverflow.com/questions/384076/how-can-i-color-python-logging-output
@@ -63,14 +62,14 @@ stdout_handler = StreamHandler(sys.stdout)
 stdout_handler.setFormatter(CustomFormatter(use_color=os.name != "nt"))
 stdout_handler.setLevel(logging.DEBUG)
 
-debugfile_handler = FileHandler(os.path.join(_log_file_write_location, "debug.log"))
+debugfile_handler = FileHandler(os.path.join(LOGGER_PATH, "debug.log"))
 debugfile_handler.setFormatter(Formatter(
     "[{asctime}] {funcName:>20}:{lineno:<5} {levelname:<10} {message}",
     style="{"
 ))
 debugfile_handler.setLevel(logging.DEBUG)
 
-errorfile_handler = FileHandler(os.path.join(_log_file_write_location, "error.log"))
+errorfile_handler = FileHandler(os.path.join(LOGGER_PATH, "error.log"))
 errorfile_handler.setFormatter(Formatter(
     "[{asctime}] {funcName:>20}:{lineno:<5} {levelname:<10} {message}",
     style="{"

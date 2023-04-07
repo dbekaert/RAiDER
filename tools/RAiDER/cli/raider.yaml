@@ -128,3 +128,4 @@ runtime_group:
   output_projection:  # Specify the PROJ-compatible projection of the output delays as an EPSG code
   cube_spacing_in_m:  # Specify the horizontal cube spacing in m (Default: 2000)
   download_only: # Only download the weather model (Default: False)
+  logger_path: # Path to log stdout and stderr, default cwd
