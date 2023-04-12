@@ -40,9 +40,5 @@ DEFAULT_DICT = AttributeDict(
             weather_model_directory=None,
             output_projection='EPSG:4326',
             interpolate_time=True,
-            logger_path=os.getcwd(),
         )
     )
-
-# Can change the default log location
-LOGGER_PATH = DEFAULT_DICT.logger_path
