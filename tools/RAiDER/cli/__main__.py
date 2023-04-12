@@ -3,10 +3,7 @@ import sys
 
 from importlib.metadata import entry_points
 
-from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
-
 import RAiDER.cli.conf as conf
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -31,6 +28,8 @@ def main():
     conf.setLoggerPath(args.logger_path)
     
     sys.argv = [args.process, *unknowns]    
+
+    from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
 
     try:
         # python >=3.10 interface
