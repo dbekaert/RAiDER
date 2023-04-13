@@ -152,8 +152,8 @@ def length_of_ray(target_xyz:list, model_zs, los):
 @dataclass
 class StudyArea(object):
     """ Object with shared parameters related to the study area """
-    reg:str  = 'LA'
-    WM = 'GMAO'
+    reg:str
+    WM:str
     wd = op.join(TEST_DIR, 'synthetic_test')
 
     def __post_init__(self):
@@ -183,7 +183,14 @@ class StudyArea(object):
         if self.reg == 'LA':
             self.SNWE  = 33, 34, -118.25, -117.25
             self.dt    = datetime(2020, 1, 30, 13, 52, 45)
-            self.orbit = f'{self.wd}/S1B_OPER_AUX_POEORB_OPOD_20210317T025713_V20200129T225942_20200131T005942.EOF'
+            self.orbit = self.wd + \
+                '/S1B_OPER_AUX_POEORB_OPOD_20210317T025713_V20200129T225942_20200131T005942.EOF'
+
+        elif self.reg == 'Fort':
+            self.SNWE = -4.0, -3.5, -38.75, -38.25
+            self.dt   = datetime(2019, 11, 17, 20, 51, 58)
+            self.orbit = self.wd + \
+                '/S1A_OPER_AUX_POEORB_OPOD_20210315T014833_V20191116T225942_20191118T005942.EOF'
 
 
     def make_config_dict(self):
@@ -200,12 +207,12 @@ class StudyArea(object):
         return dct
 
 
-def dl_real():
+def dl_real(reg='LA', mod='GMAO'):
     """ Download the real weather model to overwrite
 
     This 'golden dataset' shouldnt be changed
     """
-    SAobj = StudyArea()
+    SAobj = StudyArea(reg, mod)
     dct_cfg = SAobj.make_config_dict()
     # set the real weather model path and download only
     dct_cfg['runtime_group']['weather_model_directory'] = \
@@ -222,7 +229,7 @@ def dl_real():
     return
 
 
-def test_hydrostatic_eq():
+def test_hydrostatic_eq(reg='Fort', mod='GMAO'):
     """ Test the hydrostatic eqn by setting t=p and comparing to ray
 
     The ray length is computed here (length_of_ray; m), and in raider (m * K/Pa)
@@ -235,7 +242,7 @@ def test_hydrostatic_eq():
     """
 
     ## setup the config files
-    SAobj = StudyArea()
+    SAobj = StudyArea(reg, mod)
     dct_cfg      = SAobj.make_config_dict()
     wm_dir_synth = op.dirname(SAobj.path_wm_real).replace('real', 'synth')
     dct_cfg['runtime_group']['weather_model_directory'] = wm_dir_synth
@@ -281,7 +288,7 @@ def test_hydrostatic_eq():
     return
 
 
-def test_wet_eq1():
+def test_wet_eq1(reg='Fort', mod='GMAO'):
     """ Test the wet eqn (k2 part) by setting t=e and comparing to ray
 
     The ray length is computed here (length_of_ray; m), and in raider (m * K/Pa)
@@ -294,7 +301,7 @@ def test_wet_eq1():
     """
 
     ## setup the config files
-    SAobj = StudyArea()
+    SAobj = StudyArea(reg, mod)
     dct_cfg      = SAobj.make_config_dict()
     wm_dir_synth = op.dirname(SAobj.path_wm_real).replace('real', 'synth')
     dct_cfg['runtime_group']['weather_model_directory'] = wm_dir_synth
@@ -340,7 +347,7 @@ def test_wet_eq1():
     return
 
 
-def test_wet_eq2():
+def test_wet_eq2(reg='Fort', mod='GMAO'):
     """ Test the wet eqn (k2 part) by setting t=e and comparing to ray
 
     The ray length is computed here (length_of_ray; m), and in raider (m * K^2/Pa)
@@ -352,7 +359,7 @@ def test_wet_eq2():
         significantly different = 7 decimal places
     """
     ## setup the config files
-    SAobj = StudyArea()
+    SAobj = StudyArea(reg, mod)
     dct_cfg      = SAobj.make_config_dict()
     wm_dir_synth = op.dirname(SAobj.path_wm_real).replace('real', 'synth')
     dct_cfg['runtime_group']['weather_model_directory'] = wm_dir_synth
