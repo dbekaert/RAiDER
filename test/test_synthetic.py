@@ -12,6 +12,8 @@ from RAiDER.models.gmao import GMAO
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, getTopOfAtmosphere
 from RAiDER.utilFcns import lla2ecef, ecef2lla
+from RAiDER.cli.validators import modelName2Module
+
 
 import pytest
 from test import TEST_DIR
@@ -48,7 +50,8 @@ def update_model(wm_file:str, kind:str, wm_dir:str='weather_files_synth'):
     from RAiDER.models.gmao import GMAO
     # initialize dummy wm to calculate constant delays
     # any model will do as 1) all constants same 2) all equations same
-    Obj = GMAO()
+    model = op.basename(wm_file).split('_')[0].upper().replace("-", "")
+    Obj = modelName2Module(model)[1]()
     ds = xr.open_dataset(wm_file)
     t  = ds['t']
     p  = ds['p']
@@ -159,7 +162,7 @@ class StudyArea(object):
         self.dts   = self.dt.strftime('%Y_%m_%d_T%H_%M_%S')
         self.ttime = self.dt.strftime('%H:%M:%S')
 
-        self.wmObj = GMAO()
+        self.wmObj = modelName2Module(self.WM.upper().replace("-", ""))[1]()
 
         aoi = BoundingBox(self.SNWE)
         aoi.add_buffer(buffer = 1.5 * self.wmObj.getLLRes())
@@ -220,7 +223,17 @@ def dl_real():
 
 
 def test_hydrostatic_eq():
-    """ Test the hydrostatic eqn by setting t=p and comparing to ray """
+    """ Test the hydrostatic eqn by setting t=p and comparing to ray
+
+    The ray length is computed here (length_of_ray; m), and in raider (m * K/Pa)
+    ray length computed here is then scaled by constant K/Pa
+    ray length from raider is unscaled from parts per million
+    We check they are both large enough for meaningful numerical comparison (>1)
+    We then compute residual and normalize it we theoretical ray length
+    We ensure that normalized residual is not significantly different from 0
+        significantly different = 7 decimal places
+    """
+
     ## setup the config files
     SAobj = StudyArea()
     dct_cfg      = SAobj.make_config_dict()
@@ -249,14 +262,19 @@ def test_hydrostatic_eq():
     targ_xyz = [da.x.data, da.y.data, da.z.data]
     ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los)
 
-    ray_data  = ray_length * 1e-6 * SAobj.wmObj._k1
-    raid_data = da.data # actual raider
+    # scale by constant (units K/Pa) to match raider (m K / Pa)
+    ray_data  = ray_length * SAobj.wmObj._k1
 
-    # ray_data1 = np.where(np.isnan(raid_data), np.nan, ray_data)
-    assert np.allclose(ray_data, raid_data), f'Ray and RAiDER hydro dont match for {SAobj.WM}, S/N/W/E:{SAobj.SNWE}'
+    # actual raider data
+    # undo scaling of ppm;  units are  meters * K/Pa
+    raid_data = da.data * 1e6
 
-    per_diff = 100*(raid_data-ray_data)/ray_data
-    print (f'Max difference {np.abs(per_diff).max():.2e} (%)')
+    assert np.all(np.abs(ray_data) > 1)
+    assert np.all(np.abs(raid_data) > 1)
+
+    # normalize with the theoretical data and compare difference with 0
+    resid     = (ray_data - raid_data) / ray_data
+    np.testing.assert_almost_equal(0, resid, decimal=7)
 
     da.close()
     del da
@@ -264,7 +282,17 @@ def test_hydrostatic_eq():
 
 
 def test_wet_eq1():
-    """ Test the wet eqn (k2 part) by setting t=e and comparing to ray """
+    """ Test the wet eqn (k2 part) by setting t=e and comparing to ray
+
+    The ray length is computed here (length_of_ray; m), and in raider (m * K/Pa)
+    ray length computed here is then scaled by constant K/Pa
+    ray length from raider is unscaled from parts per million
+    We check they are both large enough for meaningful numerical comparison (>1)
+    We then compute residual and normalize it we theoretical ray length
+    We ensure that normalized residual is not significantly different from 0
+        significantly different = 7 decimal places
+    """
+
     ## setup the config files
     SAobj = StudyArea()
     dct_cfg      = SAobj.make_config_dict()
@@ -293,14 +321,19 @@ def test_wet_eq1():
     targ_xyz = [da.x.data, da.y.data, da.z.data]
     ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los)
 
-    ray_data  = ray_length * 1e-6 * SAobj.wmObj._k2
-    raid_data = da.data # actual raider
+    # scale by constant (units K/Pa) to match raider (m K / Pa)
+    ray_data  = ray_length * SAobj.wmObj._k2
 
-    # ray_data1 = np.where(np.isnan(raid_data), np.nan, ray_data)
-    assert np.allclose(ray_data, raid_data), f'Ray and RAiDER wet1 dont match for {SAobj.WM}, S/N/W/E:{SAobj.SNWE}'
+    # actual raider data
+    # undo scaling of ppm;  units are  meters * K/Pa
+    raid_data = da.data * 1e6
 
-    per_diff = 100*(raid_data-ray_data)/ray_data
-    print (f'Max difference {np.abs(per_diff).max():.2e} (%)')
+    assert np.all(np.abs(ray_data) > 1)
+    assert np.all(np.abs(raid_data) > 1)
+
+    # normalize with the theoretical data and compare difference with 0
+    resid     = (ray_data - raid_data) / ray_data
+    np.testing.assert_almost_equal(0, resid, decimal=7)
 
     da.close()
     del da
@@ -308,7 +341,16 @@ def test_wet_eq1():
 
 
 def test_wet_eq2():
-    """ Test the wet eqn (k2 part) by setting t=e and comparing to ray """
+    """ Test the wet eqn (k2 part) by setting t=e and comparing to ray
+
+    The ray length is computed here (length_of_ray; m), and in raider (m * K^2/Pa)
+    ray length computed here is then scaled by constant K^2/Pa
+    ray length from raider is unscaled from parts per million
+    We check they are both large enough for meaningful numerical comparison (>1)
+    We then compute residual and normalize it we theoretical ray length
+    We ensure that normalized residual is not significantly different from 0
+        significantly different = 7 decimal places
+    """
     ## setup the config files
     SAobj = StudyArea()
     dct_cfg      = SAobj.make_config_dict()
@@ -336,15 +378,19 @@ def test_wet_eq2():
     # now build the rays at the unbuffered wm nodes
     targ_xyz = [da.x.data, da.y.data, da.z.data]
     ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los)
+    # scale by constant (units K/Pa) to match raider (m K^2 / Pa)
+    ray_data  = ray_length * SAobj.wmObj._k3
 
-    ray_data  = ray_length * 1e-6 * SAobj.wmObj._k3
-    raid_data = da.data # actual raider
+    # actual raider data
+    # undo scaling of ppm;  units are  meters * K^2 /Pa
+    raid_data = da.data * 1e6
 
-    # ray_data1 = np.where(np.isnan(raid_data), np.nan, ray_data)
-    assert np.allclose(ray_data, raid_data), f'Ray and RAiDER wet2 dont match for {SAobj.WM}, S/N/W/E:{SAobj.SNWE}'
+    assert np.all(np.abs(ray_data) > 1)
+    assert np.all(np.abs(raid_data) > 1)
 
-    per_diff = 100*(raid_data-ray_data)/ray_data
-    print (f'Max difference {np.abs(per_diff).max():.2e} (%)')
+    # normalize with the theoretical data and compare difference with 0
+    resid     = (ray_data - raid_data) / ray_data
+    np.testing.assert_almost_equal(0, resid, decimal=7)
 
     da.close()
     os.remove('./temp.yaml')
