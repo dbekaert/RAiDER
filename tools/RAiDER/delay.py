@@ -403,8 +403,8 @@ def _build_cube_ray(
                     pts = np.stack(pts, axis=-1)
 
                 ## adjust the lowest level by ~ 1 mm to account for transformation error
-                if (pts[:, :, -1] < ht).all():
-                    pts[:, :, -1] = ht
+                if (pts[:, :, -1] < model_zs[0]).all():
+                    pts[:, :, -1] = model_zs[0]
 
                 # Trapezoidal integration with scaling
                 wt = 0.5 if findex in [0, fracs.size-1] else 1.0
