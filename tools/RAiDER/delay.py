@@ -402,7 +402,12 @@ def _build_cube_ray(
                 else:
                     pts = np.stack(pts, axis=-1)
 
-                ## adjust the lowest level by ~ 1 mm to account for transformation error
+                # ray points first exist in ECEF; they are then projected to WGS84
+                # this adds slight error (order 1 mm for 500 m)
+                # at the lowest weather model layer (-500 m) the error pushes the
+                # ray points slightly below (e.g., -500.0002 m)
+                # the subsequent interpolation then results in nans
+                # here we force the lowest layer up to -500 m if it exceeds it
                 if (pts[:, :, -1] < model_zs[0]).all():
                     pts[:, :, -1] = model_zs[0]
 
