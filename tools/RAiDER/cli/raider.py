@@ -98,9 +98,6 @@ def read_template_file(fname):
         if key == 'download_only':
             template[key] = bool(value)
 
-        if not key in DEFAULT_DICT.keys() and not key.endswith('group'):
-            raise KeyError(f'Invalid key in yaml file: {key}')
-
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
         if key == 'height_group':
