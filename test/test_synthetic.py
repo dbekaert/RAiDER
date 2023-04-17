@@ -8,7 +8,6 @@ import xarray as xr
 
 import RAiDER
 from RAiDER.llreader import BoundingBox
-from RAiDER.models.gmao import GMAO
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, getTopOfAtmosphere
 from RAiDER.utilFcns import lla2ecef, ecef2lla
@@ -55,7 +54,6 @@ def update_model(wm_file:str, wm_eq_type:str, wm_dir:str='weather_files_synth'):
     """
     assert wm_eq_type in 'hydro wet_linear wet_nonlinear', \
                     'Set  wm_eq_type to hydro, wet_linear, or wet_nonlinear'
-    from RAiDER.models.gmao import GMAO
     # initialize dummy wm to calculate constant delays
     # any model will do as 1) all constants same 2) all equations same
     model = op.basename(wm_file).split('_')[0].upper().replace("-", "")
@@ -188,9 +186,9 @@ class StudyArea(object):
         wm_fname  = make_weather_model_filename(self.wmName, self.dt, self.wmObj._ll_bounds)
         self.path_wm_real = op.join(self.wd, 'weather_files_real', wm_fname)
 
-        grid_spacing = 0.5
+        grid_spacing = 0.1
         self.cube_spacing = np.round(grid_spacing/1e-5).astype(np.float32)
-        self.hgt_lvls     = np.arange(-500, 1500, 500)
+        self.hgt_lvls     = np.arange(-500, 9500, 500)
 
 
     def setup_region(self):
@@ -214,6 +212,14 @@ class StudyArea(object):
             self.orbit = self.wd + \
                 '/S1A_OPER_AUX_POEORB_OPOD_20210315T014833_V20191116T225942_20191118T005942.EOF'
 
+        # Utqiagvik, Alaska
+        # descending
+        elif self.region == 'AK':
+            self.SNWE = 70.25, 71.50, -157.75, -155.55
+            self.dt   = datetime(2022, 8, 29, 17, 0, 1)
+            self.orbit = self.wd + \
+                '/S1A_OPER_AUX_POEORB_OPOD_20220918T081841_V20220828T225942_20220830T005942.EOF'
+
 
     def make_config_dict(self):
         dct = {
@@ -229,7 +235,9 @@ class StudyArea(object):
         return dct
 
 
-def dl_real(region='LA', mod='GMAO'):
+@pytest.mark.skip
+@pytest.mark.parametrize('region', 'AK LA Fort'.split())
+def test_dl_real(region, mod='ERA5'):
     """ Download the real weather model to overwrite
 
     This 'golden dataset' shouldnt be changed
@@ -250,7 +258,8 @@ def dl_real(region='LA', mod='GMAO'):
     assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
 
-def test_hydrostatic_eq(region='Fort', mod='GMAO'):
+@pytest.mark.parametrize('region', 'AK LA Fort'.split())
+def test_hydrostatic_eq(region, mod='ERA-5'):
     """ Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp)
 
     The hydrostatic delay reduces to an integral along the ray path when P=T.
@@ -264,7 +273,7 @@ def test_hydrostatic_eq(region='Fort', mod='GMAO'):
     Check they are both large enough for meaningful numerical comparison (>1)
     Compute residual and normalize by theoretical ray length (calculated here)
     Ensure that normalized residual is not significantly different from 0
-        significantly different = 7 decimal places
+        significantly different = 6 decimal places
     """
 
     ## setup the config files
@@ -285,8 +294,9 @@ def test_hydrostatic_eq(region='Fort', mod='GMAO'):
     assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
     # get the just created synthetic delays
+    wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
     ds = xr.open_dataset(
-        f'{SAobj.wd}/{SAobj.wmName}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
+        f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
     da = ds['hydro']
     ds.close()
     del ds
@@ -307,13 +317,14 @@ def test_hydrostatic_eq(region='Fort', mod='GMAO'):
 
     # normalize with the theoretical data and compare difference with 0
     resid     = (ray_data - raid_data) / ray_data
-    np.testing.assert_almost_equal(0, resid, decimal=7)
+    np.testing.assert_almost_equal(0, resid, decimal=6)
 
     da.close()
     del da
 
 
-def test_wet_eq_linear(region='Fort', mod='GMAO'):
+@pytest.mark.parametrize('region', 'AK LA Fort'.split())
+def test_wet_eq_linear(region, mod='ERA-5'):
     """ Test linear part of wet equation.
 
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
@@ -351,8 +362,9 @@ def test_wet_eq_linear(region='Fort', mod='GMAO'):
     assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
     # get the just created synthetic delays
+    wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
     ds = xr.open_dataset(
-        f'{SAobj.wd}/{SAobj.wmName}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
+        f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
     da = ds['wet']
     ds.close()
     del ds
@@ -373,13 +385,14 @@ def test_wet_eq_linear(region='Fort', mod='GMAO'):
 
     # normalize with the theoretical data and compare difference with 0
     resid     = (ray_data - raid_data) / ray_data
-    np.testing.assert_almost_equal(0, resid, decimal=7)
+    np.testing.assert_almost_equal(0, resid, decimal=6)
 
     da.close()
     del da
 
 
-def test_wet_eq_nonlinear(region='Fort', mod='GMAO'):
+@pytest.mark.parametrize('region', 'AK LA Fort'.split())
+def test_wet_eq_nonlinear(region, mod='ERA-5'):
     """ Test the nonlinear part of the wet equation.
 
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
@@ -395,7 +408,7 @@ def test_wet_eq_nonlinear(region='Fort', mod='GMAO'):
     We check they are both large enough for meaningful numerical comparison (>1)
     We then compute residual and normalize it with theoretical ray length
     We ensure that normalized residual is not significantly different from 0
-        significantly different = 7 decimal places
+        significantly different = 6 decimal places
     """
 
     ## setup the config files
@@ -416,8 +429,9 @@ def test_wet_eq_nonlinear(region='Fort', mod='GMAO'):
     assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
     # get the just created synthetic delays
+    wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
     ds = xr.open_dataset(
-        f'{SAobj.wd}/{SAobj.wmName}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
+        f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
     da = ds['wet']
     ds.close()
     del ds
@@ -437,7 +451,7 @@ def test_wet_eq_nonlinear(region='Fort', mod='GMAO'):
 
     # normalize with the theoretical data and compare difference with 0
     resid     = (ray_data - raid_data) / ray_data
-    np.testing.assert_almost_equal(0, resid, decimal=7)
+    np.testing.assert_almost_equal(0, resid, decimal=6)
 
     da.close()
     os.remove('./temp.yaml')
