@@ -408,8 +408,12 @@ def _build_cube_ray(
                 # ray points slightly below (e.g., -500.0002 m)
                 # the subsequent interpolation then results in nans
                 # here we force the lowest layer up to -500 m if it exceeds it
-                if (pts[:, :, -1] < model_zs[0]).all():
-                    pts[:, :, -1] = model_zs[0]
+                if (pts[:, :, -1] < np.array(model_zs).min()).all():
+                    pts[:, :, -1] = np.array(model_zs).min()
+
+                # same thing for upper bound
+                if (pts[:, :, -1] > np.array(model_zs).max()).all():
+                    pts[:, :, -1] = np.array(model_zs).max()
 
                 # Trapezoidal integration with scaling
                 wt = 0.5 if findex in [0, fracs.size-1] else 1.0
