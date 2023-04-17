@@ -8,9 +8,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.3]
 + add unit tests for the hydro and two pieces of wet equation
-+ bump  bottom height of user requested levels by ~1mm during ray tracing to ensure interpolation works
++ bump  bottom/top height of user requested levels by ~1mm during ray tracing to ensure interpolation works
 + ensure directories for storage are written
-+ don't allow use pass keys that dont exist (likely a typo on user end)
 + fix bug in writing delays for station files
 
 + Force lat/lon/hgt to float32 so that they line up correctly in stitching

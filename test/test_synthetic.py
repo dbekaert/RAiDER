@@ -198,22 +198,21 @@ class StudyArea(object):
             LA (Los Angeles, California; midlatitude)
             Fort (Fortaleza, Brazil; equator)
         """
-        # Los Angeles
+        # Los Angeles, CA; Descending
         if self.region == 'LA':
             self.SNWE  = 33, 34, -118.25, -117.25
             self.dt    = datetime(2020, 1, 30, 13, 52, 45)
             self.orbit = self.wd + \
                 '/S1B_OPER_AUX_POEORB_OPOD_20210317T025713_V20200129T225942_20200131T005942.EOF'
 
-        # Fortaleza, Brazil
+        # Fortaleza, Brazil; Ascending
         elif self.region == 'Fort':
             self.SNWE = -4.0, -3.5, -38.75, -38.25
             self.dt   = datetime(2019, 11, 17, 20, 51, 58)
             self.orbit = self.wd + \
                 '/S1A_OPER_AUX_POEORB_OPOD_20210315T014833_V20191116T225942_20191118T005942.EOF'
 
-        # Utqiagvik, Alaska
-        # descending
+        # Utqiagvik, Alaska; Descending
         elif self.region == 'AK':
             self.SNWE = 70.25, 71.50, -157.75, -155.55
             self.dt   = datetime(2022, 8, 29, 17, 0, 1)
