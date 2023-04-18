@@ -154,13 +154,12 @@ class HRRRAK(WeatherModel):
         self._lag_time = datetime.timedelta(hours=3)
         self._valid_bounds =  Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
 
-        # This projection information will never get used but I'm keeping it for reference
-        # for the HRRR-AK model. The projection information gets read directly from the 
-        # weather model file. 
-        # self._proj = CRS.from_string(
-        #     '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
-        #     '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
-        # )
+        # The projection information gets read directly from the  weather model file but we 
+        # keep this here for object instantiation. 
+        self._proj = CRS.from_string(
+            '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
+            '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
+        )
     def _fetch(self):
         pass
     def load_weather(self, *args, **kwargs):
@@ -203,7 +202,6 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
                 if (len(ds[var].shape) == 3) & (ds[var].shape[0] > 2):
                     ds_out = ds
                     break
-    assert ds_out is not None
 
     # bookkeepping
     ds_out = ds_out.assign_coords(longitude=(((ds_out.longitude + 180) % 360) - 180))
