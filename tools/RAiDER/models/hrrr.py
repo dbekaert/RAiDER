@@ -104,41 +104,19 @@ class HRRR(WeatherModel):
         if filename is None:
             filename = self.files[0] if isinstance(self.files, list) else self.files
 
-        # read data from the netcdf file
-        ds = xarray.open_dataset(filename, engine='netcdf4')
-
-        pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
-        xArr = ds['x'].values
-        yArr = ds['y'].values
-        lats = ds['latitude'].values
-        lons = ds['longitude'].values
-        temps = ds['t'].values.transpose(1, 2, 0)
-        qs = ds['q'].values.transpose(1, 2, 0)
-        geo_hgt = ds['z'].values.transpose(1, 2, 0)
-
-        lons[lons > 180] -= 360
-
-        # data cube format should be lats,lons,heights
-        _xs = np.broadcast_to(xArr[np.newaxis, :, np.newaxis],
-                              geo_hgt.shape)
-        _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
-                              geo_hgt.shape)
-        _lons = np.broadcast_to(lons[..., np.newaxis],
-                                geo_hgt.shape)
-        _lats = np.broadcast_to(lats[..., np.newaxis],
-                                geo_hgt.shape)
-
-        # correct for latitude
+        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt = load_weather_hrrr(filename)
+            # correct for latitude
         self._get_heights(_lats, geo_hgt)
 
         self._t = temps
         self._q = qs
         self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
-                                  geo_hgt.shape)
+                                    geo_hgt.shape)
         self._xs = _xs
         self._ys = _ys
         self._lats = _lats
         self._lons = _lons
+
 
 
 class HRRRAK(WeatherModel):
@@ -160,10 +138,28 @@ class HRRRAK(WeatherModel):
             '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
             '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
         )
-    def _fetch(self):
-        pass
-    def load_weather(self, *args, **kwargs):
-        return super().load_weather(*args, **kwargs)
+    def _fetch(self, out):
+        bounds = self._ll_bounds
+        bounds[2:] = np.mod(bounds[2:], 360)
+        if self.checkValidBounds(bounds):
+            self.checkTime(self._time)
+            download_hrrr_file(self._ll_bounds, self._time, out, model='hrrrak')
+
+    def load_weather(self, *args, filename=None, **kwargs):
+        if filename is None:
+            filename = self.files[0] if isinstance(self.files, list) else self.files
+        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt = load_weather_hrrr(filename)
+            # correct for latitude
+        self._get_heights(_lats, geo_hgt)
+
+        self._t = temps
+        self._q = qs
+        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
+                                    geo_hgt.shape)
+        self._xs = _xs
+        self._ys = _ys
+        self._lats = _lats
+        self._lons = _lons
 
 
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
@@ -259,3 +255,33 @@ def get_bounds_indices(SNWE, lats, lons):
 
     return x_min, x_max, y_min, y_max
 
+
+def load_weather_hrrr(filename):
+    '''
+    Loads a weather model from a HRRR file
+    '''
+    # read data from the netcdf file
+    ds = xarray.open_dataset(filename, engine='netcdf4')
+
+    pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
+    xArr = ds['x'].values
+    yArr = ds['y'].values
+    lats = ds['latitude'].values
+    lons = ds['longitude'].values
+    temps = ds['t'].values.transpose(1, 2, 0)
+    qs = ds['q'].values.transpose(1, 2, 0)
+    geo_hgt = ds['z'].values.transpose(1, 2, 0)
+
+    lons[lons > 180] -= 360
+
+    # data cube format should be lats,lons,heights
+    _xs = np.broadcast_to(xArr[np.newaxis, :, np.newaxis],
+                            geo_hgt.shape)
+    _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
+                            geo_hgt.shape)
+    _lons = np.broadcast_to(lons[..., np.newaxis],
+                            geo_hgt.shape)
+    _lats = np.broadcast_to(lats[..., np.newaxis],
+                            geo_hgt.shape)
+
+    return _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt
