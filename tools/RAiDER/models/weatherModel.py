@@ -26,7 +26,8 @@ TIME_RES = {'GMAO': 3,
             'HRES': 6,
             'HRRR': 1,
             'WRF': 1,
-            'NCMR': 1
+            'NCMR': 1,
+            'HRRR-AK': 6,
             }
 
 

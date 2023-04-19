@@ -9,6 +9,7 @@ from pathlib import Path
 from pyproj import CRS
 from shapely.geometry import box, Polygon
 
+from RAiDER.utilFcns import round_date
 from RAiDER.models.weatherModel import (
     WeatherModel, TIME_RES
 )
@@ -34,7 +35,7 @@ class HRRR(WeatherModel):
         self._valid_range = (datetime.datetime(2016, 7, 15), "Present")
         self._lag_time = datetime.timedelta(hours=3)  # Availability lag time in days
 
-        # model constants: TODO: need to update/double-check these
+        # model constants
         self._k1 = 0.776  # [K/Pa]
         self._k2 = 0.233  # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
@@ -83,15 +84,20 @@ class HRRR(WeatherModel):
         Fetch weather model data from HRRR
         '''
         self._files = out
+        corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
+        if not corrected_DT == self._time:
+            print('Rounded given datetime from  %s to %s', self._time, corrected_DT)
+
         if self.checkValidBounds(self._ll_bounds):
-            download_hrrr_file(self._ll_bounds, self._time, out, model='hrrr')
+            self.checkTime(corrected_DT)
+            download_hrrr_file(self._ll_bounds, corrected_DT, out, model='hrrr')
         else:
             hrrrak = HRRRAK()
             bounds = self._ll_bounds
             bounds[2:] = np.mod(bounds[2:], 360)
             if hrrrak.checkValidBounds(bounds):
-                hrrrak.checkTime(self._time)
-                download_hrrr_file(self._ll_bounds, self._time, out, model='hrrrak')
+                hrrrak.checkTime(corrected_DT)
+                download_hrrr_file(self._ll_bounds, corrected_DT, out, model='hrrrak')
             else:
                 raise ValueError('The requested location is unavailable for HRRR')
             
@@ -124,10 +130,28 @@ class HRRRAK(WeatherModel):
         # The HRRR-AK model has a few different parameters than HRRR-CONUS. 
         # These will get used if a user requests a bounding box in Alaska
         super().__init__()
+
+        # model constants
+        self._k1 = 0.776  # [K/Pa]
+        self._k2 = 0.233  # [K/Pa]
+        self._k3 = 3.75e3  # [K^2/Pa]
+
+        # 3 km horizontal grid spacing
+        self._lat_res = 3. / 111
+        self._lon_res = 3. / 111
+        self._x_res = 3.
+        self._y_res = 3.
+
+        self._Nproc = 1
+        self._Npl = 0
+        self.files = None
+        self._bounds = None
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
+
         self._classname = 'hrrrak'
         self._dataset = 'hrrrak'
         self._Name = "HRRR-AK"
-        self._time_res = TIME_RES['HRRR']
+        self._time_res = TIME_RES['HRRR-AK']
         self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
         self._lag_time = datetime.timedelta(hours=3)
         self._valid_bounds =  Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
@@ -139,11 +163,15 @@ class HRRRAK(WeatherModel):
             '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
         )
     def _fetch(self, out):
-        bounds = self._ll_bounds
+        bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
         if self.checkValidBounds(bounds):
-            self.checkTime(self._time)
-            download_hrrr_file(self._ll_bounds, self._time, out, model='hrrrak')
+            corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
+            if not corrected_DT == self._time:
+                print('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
+            
+            self.checkTime(corrected_DT)
+            download_hrrr_file(self._ll_bounds, corrected_DT, out, model='hrrrak')
 
     def load_weather(self, *args, filename=None, **kwargs):
         if filename is None:
@@ -263,7 +291,8 @@ def load_weather_hrrr(filename):
     # read data from the netcdf file
     ds = xarray.open_dataset(filename, engine='netcdf4')
 
-    pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
+    # Pull the relevant data from the file
+    pl = np.array([p * 100 for p in ds.levels.values]) # convert millibars to Pascals
     xArr = ds['x'].values
     yArr = ds['y'].values
     lats = ds['latitude'].values
