@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import os
+import json
 import shutil
 import sys
 import yaml
@@ -445,6 +446,8 @@ def downloadGNSS():
 
 ## ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW(iargs: list[str] = None):
+    # from RAiDER.aria.prepFromGUNW import main as GUNW_prep
+    # from RAiDER.aria.calcGUNW import tropo_gunw_slc as GUNW_calc
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
@@ -490,7 +493,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
     )
 
-    args = p.parse_args()
+    args = p.parse_args(iargs)
 
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
@@ -503,6 +506,11 @@ def calcDelaysGUNW(iargs: list[str] = None):
     # args.files = glob.glob(args.files) # eventually support multiple files
     if not args.file and args.bucket:
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
+        json_file_path = aws.get_s3_file(args.bucket, args.bucket_prefix, '.json')
+        json_data = json.load(open(json_file_path))
+        json_data.setdefault('weather_model', []).append(args.weather_model)
+        json.dump(json_data, open(json_file_path, 'w'))
+
     elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
 
@@ -521,3 +529,4 @@ def calcDelaysGUNW(iargs: list[str] = None):
     # upload to s3
     if args.bucket:
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
+        aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
