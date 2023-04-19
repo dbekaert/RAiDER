@@ -16,18 +16,16 @@ from RAiDER.cli.raider import calcDelaysGUNW
 import RAiDER.cli.raider as raider
 
 
-WEATHER_MODEL_NAME = 'GMAO'
-
-
 @pytest.mark.isce3
-def test_GUNW_update(test_dir_path, test_gunw_path):
+@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR'])
+def test_GUNW_update(test_dir_path, test_gunw_path, weather_model_name):
     scenario_dir = test_dir_path / 'GUNW'
     scenario_dir.mkdir(exist_ok=True, parents=True)
     orig_GUNW = test_gunw_path
     updated_GUNW = scenario_dir / orig_GUNW.name
     shutil.copy(orig_GUNW, updated_GUNW)
 
-    cmd = f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {WEATHER_MODEL_NAME} -o {scenario_dir}'
+    cmd = f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {weather_model_name} -o {scenario_dir}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0
 
@@ -35,7 +33,7 @@ def test_GUNW_update(test_dir_path, test_gunw_path):
     epsg = 4326
     transform = (0.1, 0.0, -119.85, 0, -0.1, 35.55)
 
-    group = f'science/grids/corrections/external/troposphere/{WEATHER_MODEL_NAME}/reference'
+    group = f'science/grids/corrections/external/troposphere/{weather_model_name}/reference'
     for v in 'troposphereWet troposphereHydrostatic'.split():
         ds = rio.open(f'netcdf:{updated_GUNW}:{group}/{v}')
         with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
@@ -54,8 +52,7 @@ def test_GUNW_update(test_dir_path, test_gunw_path):
     # Clean up files
     shutil.rmtree(scenario_dir)
     os.remove('GUNW_20200130-20200124_135156.yaml')
-    [os.remove(f) for f in glob.glob(f'{WEATHER_MODEL_NAME}*')]
-    return
+    [os.remove(f) for f in glob.glob(f'{weather_model_name}*')]
 
 
 def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, monkeypatch):
