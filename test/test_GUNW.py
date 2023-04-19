@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -89,3 +90,5 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, m
 
     assert metadata['weather_model'] == ['HRES']
     assert (jsonschema.validate(instance=metadata, schema=schema) is None)
+
+    Path(temp_json_path).unlink()
