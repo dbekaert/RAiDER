@@ -17,6 +17,8 @@ from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
+from RAiDER.aria.prepFromGUNW import main as GUNW_prep
+from RAiDER.aria.calcGUNW import tropo_gunw_slc as GUNW_calc
 
 
 HELP_MESSAGE = """
