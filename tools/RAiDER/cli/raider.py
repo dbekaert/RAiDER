@@ -446,8 +446,6 @@ def downloadGNSS():
 
 ## ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW(iargs: list[str] = None):
-    # from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-    # from RAiDER.aria.calcGUNW import tropo_gunw_slc as GUNW_calc
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
