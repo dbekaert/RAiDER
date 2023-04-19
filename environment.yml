@@ -30,6 +30,7 @@ dependencies:
  - numpy
  - pandas
  - progressbar
+ - pybind
  - pydap>3.2.2
  - pyproj>=2.2.0
  - pyyaml
