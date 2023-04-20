@@ -20,7 +20,13 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Verify some constants / equations and remove the comments questioning them
 + Relocate the time resolution of wmodels to one spot
 + Skip test_scenario_3 until a new golden dataset is created
-+ Update environment with scipy version minimum and requiring pybind11
++ Update environment with scipy version minimum and requiring pybind11 (the latter for Apple ARM64 with rosetta2)
++ For GUNW workflow, update json metadata when bucket argument is provided to include `weather_model` key with value being a list.
++ For the GUNW workflow:
+   - Updated GUNW workflow to expose arguments for testing
+   - Include integration test of HRRR
+   - Test the json write (do not test s3 upload/download)
+   - Removed comments that were left during development
 
 ## [0.4.2]
 
