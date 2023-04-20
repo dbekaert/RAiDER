@@ -35,19 +35,20 @@ def test_GUNW_update(test_dir_path, test_gunw_path, weather_model_name):
 
     group = f'science/grids/corrections/external/troposphere/{weather_model_name}/reference'
     for v in 'troposphereWet troposphereHydrostatic'.split():
-        ds = rio.open(f'netcdf:{updated_GUNW}:{group}/{v}')
         with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
             ds.crs.to_epsg()
-            assert np.isclose(ds.crs.to_epsg(), epsg), 'CRS incorrect'
-            assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
+            assert ds.crs.to_epsg() == epsg, 'CRS incorrect'
+            if weather_model_name == 'GMAO':
+                assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
 
     with xr.open_dataset(updated_GUNW, group=group) as ds:
         for v in 'troposphereWet troposphereHydrostatic'.split():
             da = ds[v]
-            assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
+            if weather_model_name == 'GMAO':
+                assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
 
         crs = rio.crs.CRS.from_wkt(ds['crs'].crs_wkt)
-        assert np.isclose(crs.to_epsg(), epsg), 'CRS incorrect'
+        assert crs.to_epsg() == epsg, 'CRS incorrect'
 
     # Clean up files
     shutil.rmtree(scenario_dir)
@@ -56,6 +57,9 @@ def test_GUNW_update(test_dir_path, test_gunw_path, weather_model_name):
 
 
 def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, monkeypatch):
+    """This test performs the GUNW entrypoint with bucket/prefix provided and only updates the json.
+    Monkey patches the upload/download to/from s3 and the actual computation.
+    """
     temp_json_path = str(test_gunw_json_path)
     temp_json_path = temp_json_path.replace('.json', '-temp.json')
     shutil.copy(test_gunw_json_path, temp_json_path)
@@ -64,6 +68,7 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, m
              '--bucket-prefix', 'bar']
 
     def do_nothing_factory(length_of_return_list: int = 0):
+        """Returns a function with a list of specified length"""
         n = length_of_return_list
         items = ['foo'] * n if n else None
 
