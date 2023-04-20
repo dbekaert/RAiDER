@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import subprocess
+import unittest
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,7 @@ import jsonschema
 import rasterio as rio
 import xarray as xr
 
+import RAiDER
 from RAiDER import aws
 from RAiDER.cli.raider import calcDelaysGUNW
 import RAiDER.cli.raider as raider
@@ -56,44 +58,51 @@ def test_GUNW_update(test_dir_path, test_gunw_path, weather_model_name):
     [os.remove(f) for f in glob.glob(f'{weather_model_name}*')]
 
 
-def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, monkeypatch):
+def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, tmp_path, mocker):
     """This test performs the GUNW entrypoint with bucket/prefix provided and only updates the json.
     Monkey patches the upload/download to/from s3 and the actual computation.
     """
-    temp_json_path = str(test_gunw_json_path)
-    temp_json_path = temp_json_path.replace('.json', '-temp.json')
+    temp_json_path = tmp_path / 'temp.json'
     shutil.copy(test_gunw_json_path, temp_json_path)
-
-    # Monkey patching the correction computation and s3 download/upload
-    def do_nothing_factory(length_of_return_list: int = 0):
-        """Returns a function with a list of specified length"""
-        n = length_of_return_list
-        items = ['foo'] * n if n else None
-
-        def do_nothing(*args, **kwargs) -> list:
-            return items
-        return do_nothing
-
-    def mock_s3_file(*args):
-        return str(temp_json_path)
 
     # We only need to make sure the json file is passed, the netcdf file name will not have
     # any impact on subsequent testing
-    monkeypatch.setattr(aws, "get_s3_file", mock_s3_file)
-    monkeypatch.setattr(aws, "upload_file_to_s3", do_nothing_factory())
-    monkeypatch.setattr(raider, "GUNW_prep", do_nothing_factory(2))
-    monkeypatch.setattr(raider, "calcDelays", do_nothing_factory(2))
-    monkeypatch.setattr(raider, "GUNW_calc", do_nothing_factory())
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
+    mocker.patch("RAiDER.aws.upload_file_to_s3")
+    mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
+    mocker.patch("RAiDER.cli.raider.calcDelays", return_value=['file1', 'file2'])
+    mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
+    mocker.patch("os.getcwd", return_value='myDir')
 
     iargs = ['--weather-model', 'HRES',
-             '--bucket', 'foo',
-             '--bucket-prefix', 'bar']
+             '--bucket', 'myBucket',
+             '--bucket-prefix', 'myPrefix']
     calcDelaysGUNW(iargs)
 
-    metadata = json.load(open(temp_json_path))
-    schema = json.load(open(test_gunw_json_schema_path))
+    metadata = json.loads(temp_json_path.read_text())
+    schema = json.loads(test_gunw_json_schema_path.read_text())
 
     assert metadata['weather_model'] == ['HRES']
     assert (jsonschema.validate(instance=metadata, schema=schema) is None)
 
-    Path(temp_json_path).unlink()
+    assert aws.get_s3_file.mock_calls == [
+        unittest.mock.call('myBucket', 'myPrefix', '.nc'),
+        unittest.mock.call('myBucket', 'myPrefix', '.json'),
+    ]
+
+    RAiDER.aria.prepFromGUNW.main.assert_called_once()
+
+    raider.calcDelays.assert_called_once_with(['my_path_cfg'])
+
+    RAiDER.aria.calcGUNW.tropo_gunw_slc.assert_called_once_with(
+        ['file1', 'file2'],
+        'foo.nc',
+        'my_wavelength',
+        'myDir',
+        True,
+    )
+
+    assert aws.upload_file_to_s3.mock_calls == [
+        unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
+        unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
+    ]
