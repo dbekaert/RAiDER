@@ -4,18 +4,16 @@ import os
 import shutil
 import subprocess
 import unittest
-from pathlib import Path
 
-import numpy as np
-import pytest
 import jsonschema
+import pytest
 import rasterio as rio
 import xarray as xr
 
 import RAiDER
+import RAiDER.cli.raider as raider
 from RAiDER import aws
 from RAiDER.cli.raider import calcDelaysGUNW
-import RAiDER.cli.raider as raider
 
 
 @pytest.mark.isce3
