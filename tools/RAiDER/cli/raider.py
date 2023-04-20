@@ -18,8 +18,7 @@ from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
-from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-from RAiDER.aria.calcGUNW import tropo_gunw_slc as GUNW_calc
+from RAiDER import aria
 
 
 HELP_MESSAGE = """
@@ -513,7 +512,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
         raise ValueError('Either argument --file or --bucket must be provided')
 
     # prep the config needed for delay calcs
-    path_cfg, wavelength = GUNW_prep(args)
+    path_cfg, wavelength = aria.prepFromGUNW.main(args)
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
@@ -522,7 +521,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
-    GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
+    aria.calcGUNW.tropo_gunw_slc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
 
     # upload to s3
     if args.bucket:

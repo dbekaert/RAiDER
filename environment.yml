@@ -49,6 +49,7 @@ dependencies:
  - pytest
  - pytest-cov
  - pytest-timeout
+ - pytest-mock
  - pytest-console-scripts
  - setuptools_scm >=6.2
  # For docs website
