@@ -11,6 +11,8 @@ import xarray as xr
 
 from textwrap import dedent
 
+import RAiDER.aria.prepFromGUNW
+import RAiDER.aria.calcGUNW
 from RAiDER import aws
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
@@ -18,7 +20,6 @@ from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
-from RAiDER import aria
 
 
 HELP_MESSAGE = """
@@ -512,7 +513,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
         raise ValueError('Either argument --file or --bucket must be provided')
 
     # prep the config needed for delay calcs
-    path_cfg, wavelength = aria.prepFromGUNW.main(args)
+    path_cfg, wavelength = RAiDER.aria.prepFromGUNW.main(args)
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
@@ -521,7 +522,11 @@ def calcDelaysGUNW(iargs: list[str] = None):
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
-    aria.calcGUNW.tropo_gunw_slc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
+    RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames, 
+                                        args.file, 
+                                        wavelength, 
+                                        args.output_directory, 
+                                        args.update_GUNW)
 
     # upload to s3
     if args.bucket:
