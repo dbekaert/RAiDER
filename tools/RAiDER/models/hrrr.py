@@ -6,8 +6,8 @@ import numpy as np
 
 from herbie import Herbie
 from pathlib import Path
-from pyproj import CRS
-from shapely.geometry import box, Polygon
+from pyproj import CRS, Transformer
+from shapely.geometry import Polygon
 
 from RAiDER.utilFcns import round_date
 from RAiDER.models.weatherModel import (
@@ -217,15 +217,12 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     )
 
     # Iterate through the list of datasets
-    #NOTE: https://github.com/blaylockbk/Herbie/issues/146
     ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
     ds_out = None
     for ds in ds_list:
-        for var in ds.data_vars:
-            if var in ['t', 'q', 'gh']:
-                if (len(ds[var].shape) == 3) & (ds[var].shape[0] > 2):
-                    ds_out = ds
-                    break
+        if ('isobaricInhPa' in ds._coord_names) or ('levels' in ds._coord_names):
+            ds_out = ds
+            break
 
     # bookkeepping
     ds_out = ds_out.assign_coords(longitude=(((ds_out.longitude + 180) % 360) - 180))
@@ -245,6 +242,15 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
         ds_out.longitude.to_numpy(),
     )
     ds_out = ds_out.sel(x=slice(x_min, x_max), y=slice(y_min, y_max))
+
+    # transform coordinates. HRRR uses pixel index as the base coordinate, but 
+    # I need actual coordinates later on to do the interpolation
+    t = Transformer.from_crs(CRS.from_epsg(4326), ds_out.herbie.crs)
+    x,y = t.transform(ds_out.latitude, ds_out.longitude)
+    x = np.mean(x,axis=0).copy()
+    y = np.mean(y,axis=1).copy()
+    ds_out['x'] = x
+    ds_out['y'] = y
     
     # Write to a NETCDF file
     ds_out.to_netcdf(out, engine='netcdf4')
