@@ -77,10 +77,7 @@ def prepareWeatherModel(
         return None
 
     # Otherwise, load the weather model data
-    f = weather_model.load(
-        wmLoc,
-        ll_bounds = ll_bounds,
-    )
+    f = weather_model.load(wmLoc, ll_bounds = ll_bounds)
     if f is not None:
         logger.warning(
             'The processed weather model file already exists,'
