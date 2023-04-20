@@ -63,10 +63,8 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, m
     temp_json_path = str(test_gunw_json_path)
     temp_json_path = temp_json_path.replace('.json', '-temp.json')
     shutil.copy(test_gunw_json_path, temp_json_path)
-    iargs = ['--weather-model', 'HRES',
-             '--bucket', 'foo',
-             '--bucket-prefix', 'bar']
 
+    # Monkey patching the correction computation and s3 download/upload
     def do_nothing_factory(length_of_return_list: int = 0):
         """Returns a function with a list of specified length"""
         n = length_of_return_list
@@ -79,12 +77,17 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, m
     def mock_s3_file(*args):
         return str(temp_json_path)
 
+    # We only need to make sure the json file is passed, the netcdf file name will not have
+    # any impact on subsequent testing
     monkeypatch.setattr(aws, "get_s3_file", mock_s3_file)
     monkeypatch.setattr(aws, "upload_file_to_s3", do_nothing_factory())
     monkeypatch.setattr(raider, "GUNW_prep", do_nothing_factory(2))
     monkeypatch.setattr(raider, "calcDelays", do_nothing_factory(2))
     monkeypatch.setattr(raider, "GUNW_calc", do_nothing_factory())
 
+    iargs = ['--weather-model', 'HRES',
+             '--bucket', 'foo',
+             '--bucket-prefix', 'bar']
     calcDelaysGUNW(iargs)
 
     metadata = json.load(open(temp_json_path))
