@@ -21,12 +21,13 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Relocate the time resolution of wmodels to one spot
 + Skip test_scenario_3 until a new golden dataset is created
 + Update environment with scipy version minimum and requiring pybind11 (the latter for Apple ARM64 with rosetta2)
-+ For GUNW workflow, update json metadata when bucket argument is provided to include `weather_model` key with value being a list.
++ For GUNW entrypoint and associated workflow, update json metadata when bucket argument is provided to include `weather_model` key with value being a list.
+   - A GUNW is downloaded from a bucket prefix with netcdf, json, and png whose name is the <GUNW_ID>. We download the json and update it to be consistent with ASF DAAC schema (link: https://github.com/asfadmin/grfn-ingest/blob/test/verify/src/metadata_schema.json)
 + For the GUNW workflow:
-   - Updated GUNW workflow to expose arguments for testing
-   - Include integration test of HRRR
+   - Updated GUNW workflow to expose input arguments (usually passed through command line options) within the python function for testing
+   - Include integration test of HRRR for GUNW workflow
    - Test the json write (do not test s3 upload/download)
-   - Removed comments that were left during development
+   - Removed comments in GUNW test suite that were left during previous development
 
 ## [0.4.2]
 
