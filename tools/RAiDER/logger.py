@@ -71,16 +71,17 @@ stdout_handler.setLevel(logging.DEBUG)
 
 debugfile_handler = FileHandler(os.path.join(logger_path, "debug.log"))
 debugfile_handler.setFormatter(Formatter(
-    "[{asctime}] {funcName:>20}:{lineno:<5} {levelname:<10} {message}",
+    "[{asctime}] {levelname:<10} {module} {exc_info} {funcName:>20}:{lineno:<5} {message}",
     style="{"
 ))
 debugfile_handler.setLevel(logging.DEBUG)
 
 errorfile_handler = FileHandler(os.path.join(logger_path, "error.log"))
 errorfile_handler.setFormatter(Formatter(
-    "[{asctime}] {funcName:>20}:{lineno:<5} {levelname:<10} {message}",
+    "[{asctime}] {levelname:<10} {module:<10} {exc_info} {funcName:>20}:{lineno:<5} {message}",
     style="{"
 ))
+# <time-tag>, <log level>, <workflow>, <module>, <error code>, <error location>, <logged message>
 errorfile_handler.setLevel(logging.WARNING)
 
 logger.addHandler(stdout_handler)
