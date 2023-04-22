@@ -22,9 +22,20 @@ from RAiDER.utilFcns import rio_open, rio_profile, rio_extents, get_file_and_ban
 
 
 def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):
-    '''
-    Fcn to return heights from a DEM, either one that already exists
-    or will download one if needed.
+  '''
+    Function to return heights from a Digital Elevation Model (DEM), either from an existing file
+    or by downloading one if needed.
+
+    Parameters:
+        - ll_bounds (tuple): Lower left and upper right bounds of the area of interest, in the format (lonmin, latmin, lonmax, latmax).
+        - dem_type (str): Type of DEM to retrieve. Options are: 'hgt' (heights already stored in a .hgt file), 'csv' (heights stored in a .csv file), 'interpolate' (heights to be vertically interpolated), 'download' or 'dem' (download a DEM and interpolate to query points).
+        - dem_file (str): File name or path for the DEM file to read or download.
+        - lats (array or None): Array of latitudes for query points if dem_type is 'download' or 'dem'. Defaults to None.
+        - lons (array or None): Array of longitudes for query points if dem_type is 'download' or 'dem'. Defaults to None.
+
+    Returns:
+        - hts (array or None): Array of heights from the DEM, or None if dem_type is 'interpolate'.
+
     '''
     # height_type, height_data = heights
     if dem_type == 'hgt':
@@ -57,7 +68,20 @@ def download_dem(
     buf=0.02,
     overwrite=False,
 ):
-    """  Download a DEM if one is not already present. """
+    '''
+    Download a Digital Elevation Model (DEM) if it is not already present.
+
+    Parameters:
+        - ll_bounds (tuple): Lower left and upper right bounds of the area of interest, in the format (lonmin, latmin, lonmax, latmax).
+        - writeDEM (bool): Whether to write the downloaded DEM to a file. Defaults to False.
+        - outName (str): File name or path for the downloaded DEM file. Defaults to 'warpedDEM'.
+        - buf (float): Buffer size to add to the bounds of the area of interest. Defaults to 0.02.
+        - overwrite (bool): Whether to overwrite an existing DEM file with the same name as outName. Defaults to False.
+
+    Returns:
+        - zvals (array): 2D array of elevation values from the DEM.
+        - metadata (dict): Dictionary of metadata for the DEM file.
+    '''
     if os.path.exists(outName) and not overwrite:
         logger.info('Using existing DEM: %s', outName)
         zvals, metadata = rio_open(outName, returnProj=True)
