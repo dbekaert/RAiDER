@@ -57,7 +57,18 @@ def download_dem(
     buf=0.02,
     overwrite=False,
 ):
-    """  Download a DEM if one is not already present. """
+    """  
+    Download a DEM if one is not already present. 
+    Args:
+            llbounds: list/ndarry of floats   -lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]
+            writeDEM: boolean                 -write the DEM to file
+            outName: string                   -name of the DEM file   
+            buf: float                        -buffer to add to the bounds
+            overwrite: boolean                -overwrite existing DEM
+    Returns:
+            zvals: np.array         -DEM heights
+            metadata:               -metadata for the DEM
+    """
     if os.path.exists(outName) and not overwrite:
         logger.info('Using existing DEM: %s', outName)
         zvals, metadata = rio_open(outName, returnProj=True)
