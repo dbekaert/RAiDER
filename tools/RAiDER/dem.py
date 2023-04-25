@@ -35,7 +35,6 @@ def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):
 
     Returns:
         - hts (array or None): Array of heights from the DEM, or None if dem_type is 'interpolate'.
-
     '''
     # height_type, height_data = heights
     if dem_type == 'hgt':
