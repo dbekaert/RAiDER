@@ -19,7 +19,9 @@ from shapely.ops import transform
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
-from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band
+from RAiDER.utilFcns import (
+    rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band, clip_bbox
+    )
 from RAiDER.logger import logger
 
 
@@ -34,9 +36,10 @@ class AOI(object):
     '''
     def __init__(self):
         self._output_directory = os.getcwd()
-        self._bounding_box = None
-        self._proj = CRS.from_epsg(4326)
-        self._geotransform = None
+        self._bounding_box   = None
+        self._proj           = CRS.from_epsg(4326)
+        self._geotransform   = None
+        self._cube_spacing_m = None
 
 
     def type(self):
@@ -55,13 +58,33 @@ class AOI(object):
         return self._proj
 
 
-    def add_buffer(self, buffer=0.5, digits=2):
-        """
-        Add a fixed buffer to the AOI. Ensures cube is slighly larger than requested area.
+    def set_output_spacing(self, ll_res=None):
+        """ Calculate the spacing for the output grid and weather model
 
+        Use the requested spacing if exists or the weather model grid itself
+
+        Returns:
+            None. Sets self._output_spacing
+        """
+        assert ll_res or self._cube_spacing_m, \
+            'Must pass lat/lon resolution if _cube_spacing_m is None'
+
+        out_spacing = self._cube_spacing_m / 1e5  \
+            if self._cube_spacing_m else ll_res
+
+        self._output_spacing = out_spacing
+        logger.debug(f'Output cube spacing: {self._output_spacing}')
+
+
+    def add_buffer(self, ll_res, digits=2):
+        """
+        Add a fixed buffer to the AOI, accounting for the cube spacing.
+
+        Ensures cube is slighly larger than requested area.
         Args:
-            buffer (float)  - decimal degrees to be added to the bounding box
-            digits (int)    - number of decimal digits to include in the output
+            cube_spacing_m  - user requested size of grid cells
+            ll_res          - weather model lat/lon resolution
+            digits          - number of decimal digits to include in the output
 
         Returns:
             None. Updates self._bounding_box
@@ -75,10 +98,15 @@ class AOI(object):
         >>> aoi.bounds()
          [36.93, 38.07, -92.07, -90.93]
         """
-        S, N, W, E = self.bounds()
+        self.set_output_spacing(ll_res)
+
+        S, N, W, E  = clip_bbox(self.bounds(), self._output_spacing)
+
+        buffer = 1.5 * ll_res
 
         S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
-        W, E = W-buffer, E+buffer # will need to handle dateline crossings elsewhere
+
+        W, E = W-buffer, E+buffer # TODO: handle dateline crossings
 
         if np.max([np.abs(W), np.abs(E)]) > 180:
             logger.warning('Bounds extend past +/- 180. Results may be incorrect.')

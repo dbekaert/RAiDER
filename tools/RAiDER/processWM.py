@@ -13,7 +13,7 @@ import numpy as np
 from typing import List
 
 from RAiDER.logger import logger
-from RAiDER.utilFcns import getTimeFromFile
+from RAiDER.utilFcns import getTimeFromFile, clip_bbox
 
 
 def prepareWeatherModel(
@@ -39,6 +39,7 @@ def prepareWeatherModel(
     Returns:
         str: filename of the netcdf file to which the weather model has been written
     """
+
     # Ensure the file output location exists
     if wmLoc is None:
         wmLoc = os.path.join(os.getcwd(), 'weather_files')

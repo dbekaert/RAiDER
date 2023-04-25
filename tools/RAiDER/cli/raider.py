@@ -97,7 +97,7 @@ def read_template_file(fname):
                 raise ValueError(f"Unknown look direction {value}")
             template['look_dir'] = value.lower()
         if key == 'cube_spacing_in_m':
-            template[key] = float(value)
+            template[key] = float(value) if isinstance(value, str) else value
         if key == 'download_only':
             template[key] = bool(value)
 
@@ -112,6 +112,8 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
+
+    template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
     return AttributeDict(template)
 
 
@@ -209,8 +211,8 @@ def calcDelays(iargs=None):
     aoi = params['aoi']
     model = params['weather_model']
 
-    # add a small buffer
-    aoi.add_buffer(buffer = 1.5 * model.getLLRes())
+    # adjust user requested AOI by grid size and buffer slightly
+    aoi.add_buffer(model.getLLRes())
 
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
@@ -312,7 +314,6 @@ def calcDelays(iargs=None):
                 height_levels = params['height_levels'],
                 out_proj = params['output_projection'],
                 look_dir = params['look_dir'],
-                cube_spacing_m = params['cube_spacing_in_m'],
             )
         except RuntimeError:
             logger.exception("Datetime %s failed", t)
@@ -522,10 +523,10 @@ def calcDelaysGUNW(iargs: list[str] = None):
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
-    RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames, 
-                                        args.file, 
-                                        wavelength, 
-                                        args.output_directory, 
+    RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames,
+                                        args.file,
+                                        wavelength,
+                                        args.output_directory,
                                         args.update_GUNW)
 
     # upload to s3
