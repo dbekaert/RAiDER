@@ -726,3 +726,64 @@ def get_orbit(orbit_file, ref_time, pad):
     orb = isce.core.Orbit(svs_i)
 
     return orb
+
+
+def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT):
+    """
+    Compute the ray length in ECEF between each  weather model layers
+
+    Only heights up to MAX_TROPO_HEIGHT are considered
+    Assumption: model_zs (model) are assumed to be sorted in height
+    We start integrating bottom up
+    """
+    low_xyz = None
+    high_xyz = None
+    cos_factor = None
+
+    ray_lengths, low_xyzs, high_xyzs = [], [], []
+    for zz in range(model_zs.size-1):
+        # Low and High for model interval
+        low_ht = model_zs[zz]
+        high_ht = model_zs[zz + 1]
+
+        # If high_ht < height of point - no contribution to integral
+        # If low_ht > max_tropo_height - no contribution to integral
+        if (high_ht <= ht) or (low_ht >= MAX_TROPO_HEIGHT):
+            continue
+
+        # If low_ht < requested height, start integral at requested height
+        if low_ht < ht:
+            low_ht = ht
+
+        # If high_ht > max_tropo_height - integral only up to max tropo
+        # height
+        if high_ht > MAX_TROPO_HEIGHT:
+            high_ht = MAX_TROPO_HEIGHT
+
+        # Continue only if needed - 1m troposphere does nothing
+        if np.abs(high_ht - low_ht) < 1.0:
+            continue
+
+        # If high_xyz was defined, make new low_xyz - save computation
+        if high_xyz is not None:
+            low_xyz = high_xyz
+        else:
+            low_xyz = getTopOfAtmosphere(xyz, LOS, low_ht, factor=cos_factor)
+
+        # Compute high_xyz (upper model level)
+        high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
+
+        # Compute ray length
+        ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)
+
+        # Compute cos_factor for first iteration
+        if cos_factor is None:
+            cos_factor = (high_ht - low_ht) / ray_length
+
+        ray_lengths.append(ray_length)
+        low_xyzs.append(low_xyz)
+        high_xyzs.append(high_xyz)
+
+
+    return np.stack(ray_lengths), np.stack(low_xyzs), np.stack(high_xyzs)
+
