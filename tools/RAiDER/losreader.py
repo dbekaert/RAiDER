@@ -728,7 +728,7 @@ def get_orbit(orbit_file, ref_time, pad):
     return orb
 
 
-def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT):
+def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=50000):
     """
     Compute the ray length in ECEF between each  weather model layers
 
