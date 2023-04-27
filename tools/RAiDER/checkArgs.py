@@ -29,8 +29,8 @@ def checkArgs(args):
     if args.weather_model_directory is None:
         args.weather_model_directory = os.path.join(args.output_directory, 'weather_files')
 
-    if not os.path.exists(args.weather_model_directory):
-        os.mkdir(args.weather_model_directory)
+    os.makedirs(args.output_directory, exist_ok=True)
+    os.makedirs(args.weather_model_directory, exist_ok=True)
 
     #########################################################################################################################
     # Date and Time parsing
@@ -40,6 +40,7 @@ def checkArgs(args):
                         'look vectors for all requested times, if you '
                         'want to use separate orbit files you will '
                         'need to run raider separately for each time.')
+
     args.los.setTime(args.date_list[0])
 
     #########################################################################################################################
@@ -58,7 +59,7 @@ def checkArgs(args):
                         d.strftime('%Y%m%dT%H%M%S'),
                     )
                 )
-                hydroFilename = None # only the 'wetFilename' is used for the station_file
+                hydroFilename = '' # only the 'wetFilename' is used for the station_file
 
                 # copy the input station file to the output location for editing
                 indf = pd.read_csv(args.aoi._filename).drop_duplicates(subset=["Lat", "Lon"])

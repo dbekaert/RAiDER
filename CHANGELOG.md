@@ -12,6 +12,11 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + add log file write location as a top-level command-line option and within Python as a user-specified option
 
 ## [0.4.3]
++ add unit tests for the hydro and two pieces of wet equation
++ bump  bottom/top height of user requested levels by ~1mm during ray tracing to ensure interpolation works
++ ensure directories for storage are written
++ fix bug in writing delays for station files
+
 + Force lat/lon/hgt to float32 so that they line up correctly in stitching
 + Add two stage buffer; 
     + first pad user bounding box such that a 3D cube is generated that at min covers user area of interest.

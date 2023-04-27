@@ -329,7 +329,7 @@ def calcDelays(iargs=None):
             out_filename = w
 
         if hydro_delay is None:
-            # means that a dataset was returned
+            # means that a dataset was returned (cubes and station files)
             ds = wet_delay
             ext = os.path.splitext(out_filename)[1]
             out_filename = out_filename.replace('wet', 'tropo')

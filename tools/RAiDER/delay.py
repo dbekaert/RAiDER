@@ -102,10 +102,12 @@ def tropo_delay(
             pnts = pnts.transpose(2,1,0)
         elif pnts.ndim == 2:
             pnts = pnts.T
+
         try:
             ifWet, ifHydro = getInterpolators(ds, "ztd")
         except RuntimeError:
             logger.exception('Weather model %s failed, may contain NaNs', weather_model_file)
+
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
@@ -148,6 +150,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los
             ifWet, ifHydro = getInterpolators(weather_model_file, "total")
         except RuntimeError:
             logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
+
 
 
         # Build cube
@@ -291,7 +294,7 @@ def _build_cube_ray(
     # Create a regular 2D grid
     xx, yy = np.meshgrid(xpts, ypts)
 
-    # Output arrays
+    # Output arrays (1 for wet, 1 for hydro)
     output_created_here = False
     if outputArrs is None:
         output_created_here = True
@@ -340,7 +343,7 @@ def _build_cube_ray(
             if (high_ht <= ht) or (low_ht >= MAX_TROPO_HEIGHT):
                 continue
 
-            # If low_ht < height of point - integral only up to height of point
+            # If low_ht < requested height, start integral at requested height
             if low_ht < ht:
                 low_ht = ht
 
@@ -381,7 +384,7 @@ def _build_cube_ray(
             # fractions
             fracs = np.linspace(0., 1., num=nParts)
 
-            # Integrate over the ray
+            # Integrate over chunks of ray
             for findex, ff in enumerate(fracs):
                 # Ray point in ECEF coordinates
                 pts_xyz = low_xyz + ff * (high_xyz - low_xyz)
@@ -399,6 +402,19 @@ def _build_cube_ray(
                 else:
                     pts = np.stack(pts, axis=-1)
 
+                # ray points first exist in ECEF; they are then projected to WGS84
+                # this adds slight error (order 1 mm for 500 m)
+                # at the lowest weather model layer (-500 m) the error pushes the
+                # ray points slightly below (e.g., -500.0002 m)
+                # the subsequent interpolation then results in nans
+                # here we force the lowest layer up to -500 m if it exceeds it
+                if (pts[:, :, -1] < np.array(model_zs).min()).all():
+                    pts[:, :, -1] = np.array(model_zs).min()
+
+                # same thing for upper bound
+                if (pts[:, :, -1] > np.array(model_zs).max()).all():
+                    pts[:, :, -1] = np.array(model_zs).max()
+
                 # Trapezoidal integration with scaling
                 wt = 0.5 if findex in [0, fracs.size-1] else 1.0
                 wt *= ray_length *1.0e-6 / (nParts - 1.0)
@@ -406,7 +422,6 @@ def _build_cube_ray(
                 # For each interpolator, integrate between levels
                 for mm, out in enumerate(outSubs):
                     val =  interpolators[mm](pts)
-
                     # TODO - This should not occur if there is enough padding in model
                     val[np.isnan(val)] = 0.0
                     out += wt * val
