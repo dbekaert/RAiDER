@@ -36,7 +36,6 @@ def tropo_delay(
         los,
         height_levels: List[float]=None,
         out_proj: Union[int, str] =4326,
-        look_dir: str='right',
     ):
     """
     Calculate integrated delays on query points. Options are:
@@ -51,7 +50,6 @@ def tropo_delay(
         los: LOS object             - LOS object
         height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
         out_proj: int,str           - (optional) EPSG code for output projection
-        look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
 
     Returns:
         xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
@@ -77,7 +75,7 @@ def tropo_delay(
 
     #TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
-            los, crs=crs, look_dir=look_dir)
+            los, crs=crs)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -116,7 +114,7 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
-def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, look_dir='right', nproc=1):
+def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, nproc=1):
     """
     raider cube generation function.
     """
