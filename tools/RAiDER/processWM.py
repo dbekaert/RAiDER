@@ -13,7 +13,7 @@ import numpy as np
 from typing import List
 
 from RAiDER.logger import logger
-from RAiDER.utilFcns import getTimeFromFile, clip_bbox
+from RAiDER.utilFcns import getTimeFromFile
 
 
 def prepareWeatherModel(
