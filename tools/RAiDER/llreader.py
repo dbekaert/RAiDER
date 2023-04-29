@@ -58,6 +58,10 @@ class AOI(object):
         return self._proj
 
 
+    def get_output_spacing(self):
+        return self._output_spacing
+
+
     def set_output_spacing(self, ll_res=None):
         """ Calculate the spacing for the output grid and weather model
 

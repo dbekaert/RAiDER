@@ -125,9 +125,10 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
     logger.debug(f"Output SNWE: {out_snwe}")
 
     # Build the output grid
+    out_spacing = aoi.get_output_spacing()
     zpts = np.array(heights)
-    xpts = np.arange(out_snwe[2], out_snwe[3] + aoi._output_spacing, aoi._output_spacing)
-    ypts = np.arange(out_snwe[1], out_snwe[0] - aoi._output_spacing, -aoi._output_spacing)
+    xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+    ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
 
     # If no orbit is provided
     # Build zenith delay cube
@@ -411,6 +412,7 @@ def _build_cube_ray(
                 # For each interpolator, integrate between levels
                 for mm, out in enumerate(outSubs):
                     val =  interpolators[mm](pts)
+
                     # TODO - This should not occur if there is enough padding in model
                     val[np.isnan(val)] = 0.0
                     out += wt * val
