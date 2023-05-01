@@ -19,7 +19,7 @@ import sys
 import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
-from RAiDER.models import credentials, era5, hrrr, hres, gmao
+from RAiDER.models import credentials
 from eof.download import download_eofs
 
 ## cube spacing in degrees for each model
