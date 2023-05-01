@@ -18,15 +18,15 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + fix bug in writing delays for station files
 
 + Force lat/lon/hgt to float32 so that they line up correctly in stitching
-+ Add two stage buffer; 
++ Add two stage buffer;
     + first pad user bounding box such that a 3D cube is generated that at min covers user area of interest.
     + then if ray tracing is used, pad the downloaded model in look direction. Assumes look angle is fixed increases with latitude.
-       
+
 + Update and convert user given AOI to weather model projection (except for HRRR)
 + Clean up error messagse, skip date if temporal interpolation fails
 + Update valid range for ERA5 (current date - 3 months) & ERA5T
 + Temporal interpolation of delays if the requested datetime is more than _THRESHOLD_SECONDS away from the closest weather model available time and `interpolate_time = True` (default behavior)
-+ Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written 
++ Add assert statement to raise error if the delay cube for each SAR date in a GUNW IFG is not written
 + Verify some constants / equations and remove the comments questioning them
 + Relocate the time resolution of wmodels to one spot
 + Skip test_scenario_3 until a new golden dataset is created
@@ -36,15 +36,16 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + For the GUNW workflow:
    - Updated GUNW workflow to expose input arguments (usually passed through command line options) within the python function for testing
    - Include integration test of HRRR for GUNW workflow
-   - Test the json write (do not test s3 upload/download)
+   - Test the json write (do not test s3 upload/download) in that it conforms to the DAAC ingest schema correctly - we add a weather model field to the metadata in this workflow
    - Removed comments in GUNW test suite that were left during previous development
+   - If a bucket is provided and the GUNWs reference or secondary scenes are not in the valid range, we do nothing - this is to ensure that GUNWs can still be delivered to the DAAC without painful operator (i.e. person submitting to the hyp3 API) book-keeping
 
 ## [0.4.2]
 
 ### New/Updated Features
 + `prepFromGUNW` reads the date/time from the SLCs rather than the GUNW filename
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
-+ Removed NCMR removed from supported model list till re-tested 
++ Removed NCMR removed from supported model list till re-tested
 + `credentials` looks for weather model API credentials RC_file hidden file, and creates it if it does not exists
 + Isolate ISCE3 imports to only those functions that need it.
 + Small bugfixes and updates to docstrings
@@ -68,34 +69,34 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.0]
 
-Adding of new GUNW support to RAiDER. This is an interface delivery allowing for subsequent integration into HYP3 (input/output parsing is not expected to change; computed data is not yet verified). 
+Adding of new GUNW support to RAiDER. This is an interface delivery allowing for subsequent integration into HYP3 (input/output parsing is not expected to change; computed data is not yet verified).
 
 ### New/Updated Features
 + Working GUNW entry point in workflow for raider.py
 + Ability to parse a GUNW to workflows from which all required RAiDER information is extracted (e.g. dates, UTC, orbit, bbox, look direction, wavelength) with an option to specify weather model (those already supported by RAiDER) and ability to squeeze in the derived output into the original GUNW product.
-+ Delays for GUNW are calculated in RAiDER using the ray-tracing option specifying bbox (GUNW driven), a hardcoded lateral posting (0.05º for HRRR and 0.1º for others),  fixed vertical height levels, using an different orbit file for  secondary and master. 
++ Delays for GUNW are calculated in RAiDER using the ray-tracing option specifying bbox (GUNW driven), a hardcoded lateral posting (0.05º for HRRR and 0.1º for others),  fixed vertical height levels, using an different orbit file for  secondary and master.
      - The hard-coded heights and posting will be refined per model and to ensure stitching abilities in ARIA-tools.
-     - The orbit should be refined to not change between secondary and reference to avoid issues. See https://github.com/dbekaert/RAiDER/discussions/435#discussioncomment-4392665 
-+ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).  
+     - The orbit should be refined to not change between secondary and reference to avoid issues. See https://github.com/dbekaert/RAiDER/discussions/435#discussioncomment-4392665
++ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).
 + Add unit test for date input argument checking (single day, two dates, two dates with samples)
 + Write the diagnostic weather model files to the 'output_directory' rather than PWD
 + Fix for incorrectly written hard-cored projection embedded in the computed output data
 + Allow for multiple orbits files/dates to be used for slant:projection
-+ correctly pass llh to lla_to_ecef function for slant:projection 
++ correctly pass llh to lla_to_ecef function for slant:projection
     ++ verified this doesnt change anything
 + removed deprecated ray projection functionality
 + added 1º buffer for zenith and projected (already done for ray tracing)
 + differential delay is rounded to model-dependent nearest hour
-+ version 1c hardcoded into the updated GUNW 
++ version 1c hardcoded into the updated GUNW
 
 ### Added dependencies for:
-+ sentinelof: used to fetch the orbit for GUNW 
++ sentinelof: used to fetch the orbit for GUNW
 + rioxarray: used for reading rasters with xarray
 
 ### Not implemented / supported in this release### Not implemented / supported in this release
-+ no temporal interpolation 
++ no temporal interpolation
 + no refined model specific hardcoded spacing and heights
-+ no ability for single orbit Interferometric calculation 
++ no ability for single orbit Interferometric calculation
 + no verification of results
 
 ## [0.3.1]
