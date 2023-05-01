@@ -15,6 +15,7 @@ from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.aria.prepFromGUNW import check_weather_model_availability
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
 
@@ -503,6 +504,12 @@ def calcDelaysGUNW():
     # args.files = glob.glob(args.files) # eventually support multiple files
     if not args.file and args.bucket:
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
+        if not check_weather_model_availability(args.file, args.weather_model):
+            # NOTE: We want to submit jobs that are outside of acceptable weather model range
+            #       and still deliver these products to the DAAC without this layer. Therefore
+            #       we include this within this portion of the control flow.
+            print('Nothing to do because outside of weather model range')
+            return
     elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
 

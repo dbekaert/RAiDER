@@ -10,18 +10,79 @@ from datetime import datetime
 import numpy as np
 import xarray as xr
 import rasterio
+import pandas as pd
 import yaml
 import shapely.wkt
 from dataclasses import dataclass
+import sys
 
 import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
-from RAiDER.models import credentials
+from RAiDER.models import credentials, era5, hrrr, hres, gmao
 from eof.download import download_eofs
 
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
+
+
+def get_slc_ids_from_gunw(gunw_path: str,
+                          reference_or_secondary: str = 'reference') -> list[str]:
+    if reference_or_secondary not in ['reference', 'secondary']:
+        raise ValueError('"reference_or_secondary" must be either "reference" or "secondary"')
+    group = f'science/radarMetaData/inputSLC/{reference_or_secondary}'
+    with xr.open_dataset(gunw_path, group=group) as ds:
+        slc_ids = ds['L1InputGranules'].values[0]
+    return slc_ids
+
+
+def get_acq_from_slc_id(slc_id: str) -> pd.Timestamp:
+    ts_str = slc_id.split('_')[5]
+    return pd.Timestamp(ts_str)
+
+
+def check_weather_model_availability(gunw_path: str,
+                                     weather_model_name: str) -> bool:
+    """Checks weather reference and secondary dates of GUNW occur within
+    weather model valid range
+
+    Parameters
+    ----------
+    gunw_path : str
+    weather_model_name : str
+        Should be one of 'HRRR', 'HRES', 'ERA5', 'ERA5T', 'GMAO'.
+    Returns
+    -------
+    bool:
+        True if both reference and secondary acquisitions are within the valid range. We assume that
+        reference_date > secondary_date (i.e. reference scenes are most recent)
+
+    Raises
+    ------
+    ValueError
+        If weather model is not correctly referencing the Class from RAiDER.models
+    """
+    ref_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='reference')
+    sec_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='secondary')
+
+    ref_ts = get_acq_from_slc_id(ref_slc_ids[0])
+    sec_ts = get_acq_from_slc_id(sec_slc_ids[0])
+
+    # source: https://stackoverflow.com/a/7668273
+    # Allows us to get weather models as strings
+    # getattr(module, 'HRRR') will return HRRR class
+    module = sys.modules['RAiDER.models']
+    weather_model_names = module.__all__
+    if weather_model_name not in weather_model_names:
+        raise ValueError(f'The "weather_model_name" must be in {", ".join(weather_model_names)}')
+
+    weather_model_cls = getattr(module, weather_model_name)
+    weather_model = weather_model_cls()
+
+    wm_start_date, wm_end_date = weather_model._valid_range
+    ref_cond = ref_ts <= wm_end_date
+    sec_cond = sec_ts >= wm_start_date
+    return ref_cond and sec_cond
 
 
 @dataclass
