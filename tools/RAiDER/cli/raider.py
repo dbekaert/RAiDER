@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import os
+import json
 import shutil
 import sys
 import yaml
@@ -10,6 +11,8 @@ import xarray as xr
 
 from textwrap import dedent
 
+import RAiDER.aria.prepFromGUNW
+import RAiDER.aria.calcGUNW
 from RAiDER import aws
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
@@ -263,8 +266,8 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-             logger.error('No weather model data available on: %s', t.date())
-             continue
+             logger.error('No weather model data available on the requested dates')
+             raise RuntimeError
 
         # nearest weather model time
         elif len(wfiles)==1 and len(times)==1:
@@ -272,8 +275,8 @@ def calcDelays(iargs=None):
 
         # only one time in temporal interpolation worked
         elif len(wfiles)==1 and len(times)==2:
-            logger.error('Time interpolation did not succeed. Skipping: %s', tt.date())
-            continue
+            logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
+            weather_model_file = wfiles[0]
 
         # temporal interpolation
         elif len(wfiles)==2:
@@ -327,7 +330,7 @@ def calcDelays(iargs=None):
             out_filename = w
 
         if hydro_delay is None:
-            # means that a dataset was returned
+            # means that a dataset was returned (cubes and station files)
             ds = wet_delay
             ext = os.path.splitext(out_filename)[1]
             out_filename = out_filename.replace('wet', 'tropo')
@@ -443,9 +446,7 @@ def downloadGNSS():
 
 
 ## ------------------------------------------------------------ prepFromGUNW.py
-def calcDelaysGUNW():
-    from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-    from RAiDER.aria.calcGUNW import tropo_gunw_slc as GUNW_calc
+def calcDelaysGUNW(iargs: list[str] = None):
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
@@ -491,7 +492,7 @@ def calcDelaysGUNW():
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
     )
 
-    args = p.parse_args()
+    args = p.parse_args(iargs)
 
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
@@ -510,11 +511,16 @@ def calcDelaysGUNW():
             #       we include this within this portion of the control flow.
             print('Nothing to do because outside of weather model range')
             return
+        json_file_path = aws.get_s3_file(args.bucket, args.bucket_prefix, '.json')
+        json_data = json.load(open(json_file_path))
+        json_data.setdefault('weather_model', []).append(args.weather_model)
+        json.dump(json_data, open(json_file_path, 'w'))
+
     elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
 
     # prep the config needed for delay calcs
-    path_cfg, wavelength = GUNW_prep(args)
+    path_cfg, wavelength = RAiDER.aria.prepFromGUNW.main(args)
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
@@ -523,8 +529,13 @@ def calcDelaysGUNW():
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
-    GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
+    RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames,
+                                        args.file,
+                                        wavelength,
+                                        args.output_directory,
+                                        args.update_GUNW)
 
     # upload to s3
     if args.bucket:
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
+        aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)

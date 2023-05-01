@@ -30,7 +30,7 @@ class ERA5(ECMWF):
         self._lag_time = relativedelta(months=lag_time)
 
         # Default, need to change to ml
-        self.setLevelType('pl')
+        self.setLevelType('ml')
 
     def _fetch(self, out):
         '''

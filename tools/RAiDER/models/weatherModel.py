@@ -1,11 +1,9 @@
 import datetime
-from dateutil.relativedelta import relativedelta
 import os
 from abc import ABC, abstractmethod
 
 import numpy as np
 import netCDF4
-import rasterio
 import xarray
 
 from pyproj import CRS
@@ -28,9 +26,9 @@ TIME_RES = {'GMAO': 3,
             'HRES': 6,
             'HRRR': 1,
             'WRF': 1,
-            'NCMR': 1
+            'NCMR': 1,
+            'HRRR-AK': 6,
             }
-
 
 
 class WeatherModel(ABC):
@@ -87,6 +85,7 @@ class WeatherModel(ABC):
         self._lats = None
         self._lons = None
         self._ll_bounds = None
+        self._valid_bounds =  box(-180, -90, 180, 90) # Shapely box with WSEN bounds
 
         self._p = None
         self._q = None
@@ -138,7 +137,7 @@ class WeatherModel(ABC):
 
     def dtime(self):
         return self._time_res
-    
+
 
     def getLLRes(self):
         return np.max([self._lat_res, self._lon_res])
@@ -468,6 +467,22 @@ class WeatherModel(ABC):
             self._bbox = [lons[0], lats[0], lons[1], lats[1]]
 
         return self._bbox
+
+
+    def checkValidBounds(
+            self: weatherModel,
+            ll_bounds: np.ndarray,
+                         ) -> bool:
+        '''
+        Checks whether the given bounding box is valid for the model (i.e., intersects with the model domain at all)
+
+        Args:
+        ll_bounds : np.ndarray
+
+        Returns:
+        bool    True if the ll_bounds represent a valid area for the weather model
+        '''
+        return box(ll_bounds[2], ll_bounds[0], ll_bounds[3], ll_bounds[1]).intersects(self._valid_bounds)
 
 
     def checkContainment(self: weatherModel,
@@ -847,34 +862,18 @@ class WeatherModel(ABC):
 
 
 def make_weather_model_filename(name, time, ll_bounds):
-    if ll_bounds[0] < 0:
-        S = 'S'
-    else:
-        S = 'N'
-    if ll_bounds[1] < 0:
-        N = 'S'
-    else:
-        N = 'N'
-    if ll_bounds[2] < 0:
-        W = 'W'
-    else:
-        W = 'E'
-    if ll_bounds[3] < 0:
-        E = 'W'
-    else:
-        E = 'E'
-    return '{}_{}_{:.0f}{}_{:.0f}{}_{:.0f}{}_{:.0f}{}.nc'.format(
-        name,
-        time.strftime("%Y_%m_%d_T%H_%M_%S"),
-        np.ceil(np.abs(ll_bounds[0])),
-        S,
-        np.ceil(np.abs(ll_bounds[1])),
-        N,
-        np.ceil(np.abs(ll_bounds[2])),
-        W,
-        np.ceil(np.abs(ll_bounds[3])),
-        E
-    )
+    s = np.floor(ll_bounds[0])
+    S = f'{np.abs(s):.0f}S' if s <0 else f'{s:.0f}N'
+
+    n = np.ceil(ll_bounds[1])
+    N = f'{np.abs(n):.0f}S' if n <0 else f'{n:.0f}N'
+
+    w = np.floor(ll_bounds[2])
+    W = f'{np.abs(w):.0f}W' if w <0 else f'{w:.0f}E'
+
+    e = np.ceil(ll_bounds[3])
+    E = f'{np.abs(e):.0f}W' if e <0 else f'{e:.0f}E'
+    return f'{name}_{time.strftime("%Y_%m_%d_T%H_%M_%S")}_{S}_{N}_{W}_{E}.nc'
 
 
 def make_raw_weather_data_filename(outLoc, name, time):
