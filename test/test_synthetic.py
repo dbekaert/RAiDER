@@ -177,7 +177,7 @@ class StudyArea(object):
         self.wmObj = modelName2Module(self.wmName.upper().replace("-", ""))[1]()
 
         aoi = BoundingBox(self.SNWE)
-        aoi.add_buffer(buffer = 1.5 * self.wmObj.getLLRes())
+        aoi.add_buffer(self.wmObj.getLLRes())
 
         self.los  = Raytracing(self.orbit, time=self.dt)
 

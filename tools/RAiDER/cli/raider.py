@@ -212,7 +212,7 @@ def calcDelays(iargs=None):
     model = params['weather_model']
 
     # adjust user requested AOI by grid size and buffer slightly
-    aoi.add_buffer(1.5*model.getLLRes())
+    aoi.add_buffer(model.getLLRes())
 
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
