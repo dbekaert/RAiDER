@@ -17,6 +17,9 @@ from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
 
+HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
+HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
+
 
 class HRRR(WeatherModel):
     def __init__(self):
@@ -75,7 +78,7 @@ class HRRR(WeatherModel):
                  f'+b={earth_radius} +units=m +no_defs')
         self._proj = p1
 
-        self._valid_bounds =  Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
+        self._valid_bounds = HRRR_CONUS_COVERAGE_POLYGON
 
 
 
@@ -154,7 +157,7 @@ class HRRRAK(WeatherModel):
         self._time_res = TIME_RES['HRRR-AK']
         self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
         self._lag_time = datetime.timedelta(hours=3)
-        self._valid_bounds =  Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
+        self._valid_bounds =  HRRR_AK_COVERAGE_POLYGON
 
         # The projection information gets read directly from the  weather model file but we 
         # keep this here for object instantiation. 
