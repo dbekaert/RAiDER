@@ -70,6 +70,7 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
     mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
     mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
+    mocker.patch("RAiDER.aria.prepFromGUNW.check_weather_model_availability", return_value=True)
     mocker.patch("RAiDER.cli.raider.calcDelays", return_value=['file1', 'file2'])
     mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
     mocker.patch("os.getcwd", return_value='myDir')
