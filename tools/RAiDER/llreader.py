@@ -76,8 +76,8 @@ class AOI(object):
         out_spacing = self._cube_spacing_m / 1e5  \
             if self._cube_spacing_m else ll_res
 
+        logger.debug(f'Output cube spacing: {out_spacing}')
         self._output_spacing = out_spacing
-        logger.debug(f'Output cube spacing: {self._output_spacing}')
 
 
     def add_buffer(self, ll_res, digits=2):
@@ -164,7 +164,6 @@ class AOI(object):
     def set_output_directory(self, output_directory):
         self._output_directory = output_directory
         return
-
 
 
 class StationFile(AOI):
