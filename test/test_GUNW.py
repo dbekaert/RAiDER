@@ -14,6 +14,7 @@ import RAiDER
 import RAiDER.cli.raider as raider
 from RAiDER import aws
 from RAiDER.cli.raider import calcDelaysGUNW
+from RAiDER.aria.prepFromGUNW import check_weather_model_availability
 
 
 @pytest.mark.isce3
@@ -104,3 +105,29 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
         unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
     ]
+
+
+@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR', 'HRES', 'ERA5', 'ERA5'])
+def test_check_weather_model_availability(test_gunw_path, weather_model_name):
+    # Should be True for all weather models
+    # S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc
+    assert check_weather_model_availability(test_gunw_path, weather_model_name)
+
+
+@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR', 'HRES', 'ERA5', 'ERA5'])
+def test_weather_model_availability_integration(test_gunw_path, tmp_path, weather_model_name):
+    temp_json_path = tmp_path / 'temp.json'
+    shutil.copy(test_gunw_path, temp_json_path)
+
+    # We will pass the test GUNW to the workflow
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=[test_gunw_path, 'foo.json'])
+    mocker.patch("RAiDER.aws.upload_file_to_s3")
+    mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
+    mocker.patch("RAiDER.cli.raider.calcDelays", return_value=['file1', 'file2'])
+    mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
+    mocker.patch("os.getcwd", return_value='myDir')
+
+    iargs = ['--weather-model', 'HRES',
+             '--bucket', 'myBucket',
+             '--bucket-prefix', 'myPrefix']
+    calcDelaysGUNW(iargs)
