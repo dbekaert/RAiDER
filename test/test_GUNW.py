@@ -6,7 +6,6 @@ import subprocess
 import unittest
 
 import jsonschema
-import pytest
 import pandas as pd
 import pytest
 import rasterio as rio
