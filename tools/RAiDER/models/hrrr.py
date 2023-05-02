@@ -5,6 +5,7 @@ import xarray
 import numpy as np
 
 from herbie import Herbie
+import geopandas as gpd
 from pathlib import Path
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon
@@ -21,6 +22,7 @@ HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 
 HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
 HRRR_PROJ_AK = CRS.from_string('+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 '
                                '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs')
+# Source: https://eric.clst.org/tech/usgeojson/
 AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
 
 

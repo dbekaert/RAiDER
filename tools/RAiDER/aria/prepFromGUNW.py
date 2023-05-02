@@ -10,16 +10,20 @@ from datetime import datetime
 import numpy as np
 import xarray as xr
 import rasterio
+import geopandas as gpd
 import pandas as pd
 import yaml
 import shapely.wkt
 from dataclasses import dataclass
 import sys
+from shapely.geometry import box
+from rasterio.crs import CRS
 
 import RAiDER
 from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 from RAiDER.models import credentials
+from RAiDER.models.hrrr import HRRR_CONUS_COVERAGE_POLYGON, AK_GEO
 from eof.download import download_eofs
 
 ## cube spacing in degrees for each model
@@ -32,7 +36,7 @@ def get_slc_ids_from_gunw(gunw_path: str,
         raise ValueError('"reference_or_secondary" must be either "reference" or "secondary"')
     group = f'science/radarMetaData/inputSLC/{reference_or_secondary}'
     with xr.open_dataset(gunw_path, group=group) as ds:
-        slc_ids = ds['L1InputGranules'].values[0]
+        slc_ids = ds['L1InputGranules'].values
     return slc_ids
 
 
@@ -60,13 +64,26 @@ def check_weather_model_availability(gunw_path: str,
     Raises
     ------
     ValueError
-        If weather model is not correctly referencing the Class from RAiDER.models
+        - If weather model is not correctly referencing the Class from RAiDER.models
+        - HRRR was requested and it's not in the HRRR CONUS or HRRR AK coverage area
     """
     ref_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='reference')
     sec_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='secondary')
 
     ref_ts = get_acq_from_slc_id(ref_slc_ids[0])
     sec_ts = get_acq_from_slc_id(sec_slc_ids[0])
+
+    if weather_model_name == 'HRRR':
+        group = '/science/grids/data/'
+        variable = 'coherence'
+        with rasterio.open(f'netcdf:{gunw_path}:{group}/{variable}') as ds:
+            gunw_poly = box(*ds.bounds)
+        if HRRR_CONUS_COVERAGE_POLYGON.intersects(gunw_poly):
+            pass
+        elif AK_GEO.intersects(gunw_poly):
+            weather_model_name = 'HRRRAK'
+        else:
+            raise ValueError('HRRR was requested but it is not available in this area')
 
     # source: https://stackoverflow.com/a/7668273
     # Allows us to get weather models as strings
@@ -80,6 +97,10 @@ def check_weather_model_availability(gunw_path: str,
     weather_model = weather_model_cls()
 
     wm_start_date, wm_end_date = weather_model._valid_range
+    if isinstance(wm_end_date, str) and wm_end_date == 'Present':
+        wm_end_date = datetime.today() - weather_model._lag_time
+    elif not isinstance(wm_end_date, datetime):
+        raise ValueError(f'the weather model\'s end date is not valid: {wm_end_date}')
     ref_cond = ref_ts <= wm_end_date
     sec_cond = sec_ts >= wm_start_date
     return ref_cond and sec_cond
