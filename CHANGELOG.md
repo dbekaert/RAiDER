@@ -77,7 +77,7 @@ Adding of new GUNW support to RAiDER. This is an interface delivery allowing for
 + Delays for GUNW are calculated in RAiDER using the ray-tracing option specifying bbox (GUNW driven), a hardcoded lateral posting (0.05º for HRRR and 0.1º for others),  fixed vertical height levels, using an different orbit file for  secondary and master. 
      - The hard-coded heights and posting will be refined per model and to ensure stitching abilities in ARIA-tools.
      - The orbit should be refined to not change between secondary and reference to avoid issues. See https://github.com/dbekaert/RAiDER/discussions/435#discussioncomment-4392665 
-+ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).
++ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).  
 + Add unit test for date input argument checking (single day, two dates, two dates with samples)
 + Write the diagnostic weather model files to the 'output_directory' rather than PWD
 + Fix for incorrectly written hard-cored projection embedded in the computed output data
