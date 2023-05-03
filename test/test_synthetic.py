@@ -176,8 +176,12 @@ class StudyArea(object):
 
         self.wmObj = modelName2Module(self.wmName.upper().replace("-", ""))[1]()
 
+        self.hgt_lvls        = np.arange(-500, 9500, 500)
+        self._cube_spacing_m = 10000.
+
         aoi = BoundingBox(self.SNWE)
-        aoi.add_buffer(buffer = 1.5 * self.wmObj.getLLRes())
+        aoi._cube_spacing_m = self._cube_spacing_m
+        aoi.add_buffer(self.wmObj.getLLRes())
 
         self.los  = Raytracing(self.orbit, time=self.dt)
 
@@ -185,10 +189,6 @@ class StudyArea(object):
         self.wmObj.set_latlon_bounds(wm_bounds)
         wm_fname  = make_weather_model_filename(self.wmName, self.dt, self.wmObj._ll_bounds)
         self.path_wm_real = op.join(self.wd, 'weather_files_real', wm_fname)
-
-        grid_spacing = 0.1
-        self.cube_spacing = np.round(grid_spacing/1e-5).astype(np.float32)
-        self.hgt_lvls     = np.arange(-500, 9500, 500)
 
 
     def setup_region(self):
@@ -226,7 +226,7 @@ class StudyArea(object):
             'height_group': {'height_levels': self.hgt_lvls.tolist()},
             'time_group': {'time': self.ttime, 'interpolate_time': False},
             'date_group': {'date_list': datetime.strftime(self.dt, '%Y%m%d')},
-            'cube_spacing_in_m': str(self.cube_spacing),
+            'cube_spacing_in_m': str(self._cube_spacing_m),
             'los_group': {'ray_trace': True, 'orbit_file': self.orbit},
             'weather_model': self.wmName,
             'runtime_group': {'output_directory': self.wd},
@@ -234,7 +234,7 @@ class StudyArea(object):
         return dct
 
 
-@pytest.mark.skip
+@pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_dl_real(region, mod='ERA5'):
     """ Download the real weather model to overwrite

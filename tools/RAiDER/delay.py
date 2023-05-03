@@ -20,14 +20,11 @@ from typing import List, Union
 
 import numpy as np
 
-from RAiDER.delayFcns import (
-    getInterpolators, get_output_spacing,
-)
+from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import getTopOfAtmosphere
 from RAiDER.utilFcns import (
-    lla2ecef, transform_bbox, clip_bbox, writeResultsToXarray,
-    rio_profile,
+    lla2ecef, transform_bbox, writeResultsToXarray, rio_profile
 )
 
 
@@ -39,8 +36,6 @@ def tropo_delay(
         los,
         height_levels: List[float]=None,
         out_proj: Union[int, str] =4326,
-        cube_spacing_m: int=None,
-        look_dir: str='right',
     ):
     """
     Calculate integrated delays on query points. Options are:
@@ -55,8 +50,6 @@ def tropo_delay(
         los: LOS object             - LOS object
         height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
         out_proj: int,str           - (optional) EPSG code for output projection
-        look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
-        cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
 
     Returns:
         xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
@@ -81,8 +74,8 @@ def tropo_delay(
                 height_levels = ds.z.values
 
     #TODO: expose this as library function
-    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi.bounds(), height_levels,
-            los, crs=crs, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
+    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
+            los, crs=crs)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -121,21 +114,18 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
-def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los, crs, cube_spacing_m=None, look_dir='right', nproc=1):
+def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, nproc=1):
     """
     raider cube generation function.
     """
 
     # Determine the output grid extent here and clip output grid to multiples of spacing
 
-    snwe = transform_bbox(ll_bounds, src_crs=4326, dest_crs=crs)
-    out_spacing = get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, crs)
-    out_snwe = clip_bbox(snwe, out_spacing)
-
+    out_snwe    = transform_bbox(aoi.bounds(), src_crs=4326, dest_crs=crs)
     logger.debug(f"Output SNWE: {out_snwe}")
-    logger.debug(f"Output cube spacing: {out_spacing}")
 
     # Build the output grid
+    out_spacing = aoi.get_output_spacing()
     zpts = np.array(heights)
     xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
     ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
@@ -422,6 +412,7 @@ def _build_cube_ray(
                 # For each interpolator, integrate between levels
                 for mm, out in enumerate(outSubs):
                     val =  interpolators[mm](pts)
+
                     # TODO - This should not occur if there is enough padding in model
                     val[np.isnan(val)] = 0.0
                     out += wt * val

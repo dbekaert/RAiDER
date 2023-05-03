@@ -74,24 +74,3 @@ def interpolate2(fun, x, y, z):
     out = fun((y.ravel(), x.ravel(), z.ravel()))  # note that this re-ordering is on purpose to match the weather model
     outData = out.reshape(in_shape)
     return outData
-
-
-def get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, out_crs):
-    '''
-    Return the output spacing for a cube.
-    '''
-    # Calculate the appropriate cube spacing from the weather model
-    if cube_spacing_m is None:
-        with xarray.load_dataset(weather_model_file) as ds:
-            xpts = ds.x.values
-            ypts = ds.y.values
-        cube_spacing_m = np.nanmean([np.nanmean(np.diff(xpts)), np.nanmean(np.diff(ypts))])
-        if wm_proj.axis_info[0].unit_name == "degree":
-            cube_spacing_m = cube_spacing_m * 1.0e5  # Scale by 100km
-
-    if out_crs.axis_info[0].unit_name == "degree":
-        out_spacing = cube_spacing_m / 1e5  # Scale by 100km
-    else:
-        out_spacing = cube_spacing_m
-
-    return out_spacing
