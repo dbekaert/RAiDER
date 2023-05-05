@@ -20,14 +20,11 @@ from typing import List, Union
 
 import numpy as np
 
-from RAiDER.delayFcns import (
-    getInterpolators, get_output_spacing,
-)
+from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import getTopOfAtmosphere
 from RAiDER.utilFcns import (
-    lla2ecef, transform_bbox, clip_bbox, writeResultsToXarray,
-    rio_profile,
+    lla2ecef, transform_bbox, writeResultsToXarray, rio_profile
 )
 
 
@@ -39,8 +36,6 @@ def tropo_delay(
         los,
         height_levels: List[float]=None,
         out_proj: Union[int, str] =4326,
-        cube_spacing_m: int=None,
-        look_dir: str='right',
     ):
     """
     Calculate integrated delays on query points. Options are:
@@ -55,8 +50,6 @@ def tropo_delay(
         los: LOS object             - LOS object
         height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
         out_proj: int,str           - (optional) EPSG code for output projection
-        look_dir: str               - (optional) Satellite look direction. Only needed for slant delay calculation
-        cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
 
     Returns:
         xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
@@ -81,8 +74,8 @@ def tropo_delay(
                 height_levels = ds.z.values
 
     #TODO: expose this as library function
-    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi.bounds(), height_levels,
-            los, crs=crs, cube_spacing_m=cube_spacing_m, look_dir=look_dir)
+    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
+            los, crs=crs)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -102,10 +95,12 @@ def tropo_delay(
             pnts = pnts.transpose(2,1,0)
         elif pnts.ndim == 2:
             pnts = pnts.T
+
         try:
             ifWet, ifHydro = getInterpolators(ds, "ztd")
         except RuntimeError:
             logger.exception('Weather model %s failed, may contain NaNs', weather_model_file)
+
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
 
@@ -119,21 +114,18 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
-def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los, crs, cube_spacing_m=None, look_dir='right', nproc=1):
+def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, nproc=1):
     """
     raider cube generation function.
     """
 
     # Determine the output grid extent here and clip output grid to multiples of spacing
 
-    snwe = transform_bbox(ll_bounds, src_crs=4326, dest_crs=crs)
-    out_spacing = get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, crs)
-    out_snwe = clip_bbox(snwe, out_spacing)
-
+    out_snwe    = transform_bbox(aoi.bounds(), src_crs=4326, dest_crs=crs)
     logger.debug(f"Output SNWE: {out_snwe}")
-    logger.debug(f"Output cube spacing: {out_spacing}")
 
     # Build the output grid
+    out_spacing = aoi.get_output_spacing()
     zpts = np.array(heights)
     xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
     ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
@@ -148,6 +140,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los
             ifWet, ifHydro = getInterpolators(weather_model_file, "total")
         except RuntimeError:
             logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
+
 
 
         # Build cube
@@ -291,7 +284,7 @@ def _build_cube_ray(
     # Create a regular 2D grid
     xx, yy = np.meshgrid(xpts, ypts)
 
-    # Output arrays
+    # Output arrays (1 for wet, 1 for hydro)
     output_created_here = False
     if outputArrs is None:
         output_created_here = True
@@ -340,7 +333,7 @@ def _build_cube_ray(
             if (high_ht <= ht) or (low_ht >= MAX_TROPO_HEIGHT):
                 continue
 
-            # If low_ht < height of point - integral only up to height of point
+            # If low_ht < requested height, start integral at requested height
             if low_ht < ht:
                 low_ht = ht
 
@@ -381,7 +374,7 @@ def _build_cube_ray(
             # fractions
             fracs = np.linspace(0., 1., num=nParts)
 
-            # Integrate over the ray
+            # Integrate over chunks of ray
             for findex, ff in enumerate(fracs):
                 # Ray point in ECEF coordinates
                 pts_xyz = low_xyz + ff * (high_xyz - low_xyz)
@@ -398,6 +391,19 @@ def _build_cube_ray(
                     pts = np.stack((pts[1], pts[0], pts[2]), axis=-1)
                 else:
                     pts = np.stack(pts, axis=-1)
+
+                # ray points first exist in ECEF; they are then projected to WGS84
+                # this adds slight error (order 1 mm for 500 m)
+                # at the lowest weather model layer (-500 m) the error pushes the
+                # ray points slightly below (e.g., -500.0002 m)
+                # the subsequent interpolation then results in nans
+                # here we force the lowest layer up to -500 m if it exceeds it
+                if (pts[:, :, -1] < np.array(model_zs).min()).all():
+                    pts[:, :, -1] = np.array(model_zs).min()
+
+                # same thing for upper bound
+                if (pts[:, :, -1] > np.array(model_zs).max()).all():
+                    pts[:, :, -1] = np.array(model_zs).max()
 
                 # Trapezoidal integration with scaling
                 wt = 0.5 if findex in [0, fracs.size-1] else 1.0

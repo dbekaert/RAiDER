@@ -198,7 +198,7 @@ class Raytracing(LOS):
             self._look_dir = isce.core.LookSide.Left
         else:
             raise RuntimeError(f"Unknown look direction: {look_dir}")
-    
+
 
     def getSensorDirection(self):
         if self._orbit is None:
@@ -211,7 +211,7 @@ class Raytracing(LOS):
             return 'desc'
         else:
             return 'asc'
-    
+
 
     def getLookDirection(self):
         return self._look_dir
@@ -228,6 +228,7 @@ class Raytracing(LOS):
         '''
         # TODO - Modify when isce3 vectorization is available
         los = np.full(yy.shape + (3,), np.nan)
+        llh = llh.copy()
         llh[0] = np.deg2rad(llh[0])
         llh[1] = np.deg2rad(llh[1])
 

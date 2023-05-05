@@ -39,6 +39,7 @@ def prepareWeatherModel(
     Returns:
         str: filename of the netcdf file to which the weather model has been written
     """
+
     # Ensure the file output location exists
     if wmLoc is None:
         wmLoc = os.path.join(os.getcwd(), 'weather_files')
@@ -50,11 +51,10 @@ def prepareWeatherModel(
     download_flag = True
     if os.path.exists(f) and not force_download:
         logger.warning(
-            'Weather model already exists, please remove it ("%s") if you want '
-            'to download a new one.', weather_model.files
+            'Weather model already exists, please remove it ("{}") if you want '
+            'to download a new one.'.format(weather_model.files)
         )
         download_flag = False
-
 
     # if no weather model files supplied, check the standard location
     if download_flag:
@@ -78,10 +78,7 @@ def prepareWeatherModel(
         return None
 
     # Otherwise, load the weather model data
-    f = weather_model.load(
-        wmLoc,
-        ll_bounds = ll_bounds,
-    )
+    f = weather_model.load(wmLoc, ll_bounds = ll_bounds)
     if f is not None:
         logger.warning(
             'The processed weather model file already exists,'

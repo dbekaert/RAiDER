@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Latest updates:
++ Re-work the HRRR weather model to use herbie (https://github.com/blaylockbk/Herbie) for weather model access. HRRR conus and Alaska validation periods are respectively 2016-7-15 and 2018-7-13 onwards.
++ minor bug fixes and unit test updates
++ add log file write location as a top-level command-line option and within Python as a user-specified option
++ account for grid spacing impact on bounding box before downloading weather model 
+
 ## [0.4.3]
 + Series of bug-fixes/compatibility updates with stats class: 
     + Inconsistent definition of index IDs, which leads to key errors as so when querying the grid space for valid data points
@@ -13,6 +19,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     + Assign valid geotrans to output tif files used for replotting/dedup.
     + Properly load existing grids for replotting runs. Before the program crashed as single bands were incorrectly being read as cubes.
     + Update in pandas not backwards compatible with original conditional logic. Specifically, conditions like `(not self.df['Date'].dt.is_leap_year)` replaced with `(self.df['Date'].dt.is_leap_year is False)`
++ add unit tests for the hydro and two pieces of wet equation
++ bump  bottom/top height of user requested levels by ~1mm during ray tracing to ensure interpolation works
++ ensure directories for storage are written
++ fix bug in writing delays for station files
 + Force lat/lon/hgt to float32 so that they line up correctly in stitching
 + Add two stage buffer; 
     + first pad user bounding box such that a 3D cube is generated that at min covers user area of interest.
@@ -26,6 +36,14 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Verify some constants / equations and remove the comments questioning them
 + Relocate the time resolution of wmodels to one spot
 + Skip test_scenario_3 until a new golden dataset is created
++ Update environment with scipy version minimum and requiring pybind11 (the latter for Apple ARM64 with rosetta2)
++ For GUNW entrypoint and associated workflow, update json metadata when bucket argument is provided to include `weather_model` key with value being a list.
+   - A GUNW is downloaded from a bucket prefix with netcdf, json, and png whose name is the <GUNW_ID>. We download the json and update it to be consistent with ASF DAAC schema (link: https://github.com/asfadmin/grfn-ingest/blob/test/verify/src/metadata_schema.json)
++ For the GUNW workflow:
+   - Updated GUNW workflow to expose input arguments (usually passed through command line options) within the python function for testing
+   - Include integration test of HRRR for GUNW workflow
+   - Test the json write (do not test s3 upload/download)
+   - Removed comments in GUNW test suite that were left during previous development
 
 ## [0.4.2]
 
