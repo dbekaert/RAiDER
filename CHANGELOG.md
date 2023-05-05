@@ -7,6 +7,12 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.3]
++ Series of bug-fixes/compatibility updates with stats class: 
+    + Inconsistent definition of index IDs, which leads to key errors as so when querying the grid space for valid data points
+    + Turn off default behavior of plotting minor ticks on colorbars, which translates to unreadable plots especially when scientific notation is involved
+    + Assign valid geotrans to output tif files used for replotting/dedup.
+    + Properly load existing grids for replotting runs. Before the program crashed as single bands were incorrectly being read as cubes.
+    + Update in pandas not backwards compatible with original conditional logic. Specifically, conditions like `(not self.df['Date'].dt.is_leap_year)` replaced with `(self.df['Date'].dt.is_leap_year is False)`
 + Force lat/lon/hgt to float32 so that they line up correctly in stitching
 + Add two stage buffer; 
     + first pad user bounding box such that a 3D cube is generated that at min covers user area of interest.
