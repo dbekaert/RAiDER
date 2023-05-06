@@ -9,7 +9,7 @@ from pathlib import Path
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon
 
-from RAiDER.utilFcns import round_date
+from RAiDER.utilFcns import round_date, transform_coords
 from RAiDER.models.weatherModel import (
     WeatherModel, TIME_RES
 )
@@ -224,6 +224,13 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
             ds_out = ds
             break
 
+    # subset the full file by AOI
+    x_min, x_max, y_min, y_max = get_bounds_indices(
+        ll_bounds, 
+        ds_out.latitude.to_numpy(), 
+        ds_out.longitude.to_numpy(),
+    )
+
     # bookkeepping
     ds_out = ds_out.assign_coords(longitude=(((ds_out.longitude + 180) % 360) - 180))
     ds_out = ds_out.rename({'gh': 'z', 'isobaricInhPa': 'levels'})
@@ -235,20 +242,13 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     for var in ds_out.data_vars:
         ds_out[var].attrs['grid_mapping'] = 'proj'
 
-    # subset the full file by AOI
-    x_min, x_max, y_min, y_max = get_bounds_indices(
-        ll_bounds, 
-        ds_out.latitude.to_numpy(), 
-        ds_out.longitude.to_numpy(),
-    )
     ds_out = ds_out.sel(x=slice(x_min, x_max), y=slice(y_min, y_max))
 
     # transform coordinates. HRRR uses pixel index as the base coordinate, but 
     # I need actual coordinates later on to do the interpolation
-    t = Transformer.from_crs(CRS.from_epsg(4326), ds_out.herbie.crs)
-    x,y = t.transform(ds_out.latitude, ds_out.longitude)
-    x = np.mean(x,axis=0).copy()
-    y = np.mean(y,axis=1).copy()
+    X,Y = transform_coords(CRS.from_epsg(4326), ds_out.herbie.crs, ds_out.longitude, ds_out.latitude)
+    x = np.mean(X,axis=0).copy()
+    y = np.mean(Y,axis=1).copy()
     ds_out['x'] = x
     ds_out['y'] = y
     
