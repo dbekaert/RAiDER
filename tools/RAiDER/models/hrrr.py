@@ -231,6 +231,8 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
         ds_out.longitude.to_numpy(),
     )
 
+    breakpoint()
+
     # bookkeepping
     ds_out = ds_out.assign_coords(longitude=(((ds_out.longitude + 180) % 360) - 180))
     ds_out = ds_out.rename({'gh': 'z', 'isobaricInhPa': 'levels'})
@@ -242,16 +244,18 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     for var in ds_out.data_vars:
         ds_out[var].attrs['grid_mapping'] = 'proj'
 
-    ds_out = ds_out.sel(x=slice(x_min, x_max), y=slice(y_min, y_max))
-
     # transform coordinates. HRRR uses pixel index as the base coordinate, but 
     # I need actual coordinates later on to do the interpolation
-    X,Y = transform_coords(CRS.from_epsg(4326), ds_out.herbie.crs, ds_out.longitude, ds_out.latitude)
-    x = np.mean(X,axis=0).copy()
-    y = np.mean(Y,axis=1).copy()
-    ds_out['x'] = x
-    ds_out['y'] = y
-    
+    xy = ds_out.herbie.crs.transform_points(
+            CRS.from_epsg(4326), 
+            ds_out.longitude.to_numpy(), 
+            ds_out.latitude.to_numpy()
+        )
+    ds_out['x'] = xy[0,:,0].copy()
+    ds_out['y'] = xy[:,0,0].copy()
+
+    ds_out = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
+
     # Write to a NETCDF file
     ds_out.to_netcdf(out, engine='netcdf4')
 
