@@ -11,6 +11,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + minor bug fixes and unit test updates
 + add log file write location as a top-level command-line option and within Python as a user-specified option
 + account for grid spacing impact on bounding box before downloading weather model 
++ update the GUNW test to account for change in grid spacing on affine transform
 
 ## [0.4.3]
 + add unit tests for the hydro and two pieces of wet equation
