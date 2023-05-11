@@ -689,7 +689,7 @@ class RaiderStats(object):
                  usr_colormap='hot_r', grid_heatmap=False, grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False,
                  grid_seasonal_phase=False, grid_delay_absolute_mean=False, grid_delay_absolute_median=False,
                  grid_delay_absolute_stdev=False, grid_seasonal_absolute_phase=False, grid_to_raster=False, min_span=[2, 0.6],
-                 period_limit=0.5, numCPUs=8, phaseamp_per_station=False):
+                 period_limit=0., numCPUs=8, phaseamp_per_station=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -972,7 +972,7 @@ class RaiderStats(object):
                                          59 else i for i in self.seasonalinterval]
                 filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year == True) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])]
-                self.df = filtered_self.append(filtered_self_ly, ignore_index=True)
+                self.df = pd.concat([filtered_self, filtered_self_ly], ignore_index=True)
                 del filtered_self
             # e.g. month/day: 12/01 to 03/01
             if self.seasonalinterval[0] > self.seasonalinterval[1]:
@@ -984,7 +984,7 @@ class RaiderStats(object):
                                          59 else i for i in self.seasonalinterval]
                 filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year == True) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[-1]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[0])]
-                self.df = filtered_self.append(filtered_self_ly, ignore_index=True)
+                self.df = pd.concat([filtered_self, filtered_self_ly], ignore_index=True)
                 del filtered_self
 
         # estimate central longitude lines if '--time_lines' specified
@@ -1411,7 +1411,7 @@ class RaiderStats(object):
         periodfit_c[station] = np.nan
         seasonalfit_rmse[station] = np.nan
         # Fit with custom fit function with fixed period, if specified
-        if period_limit != 0:
+        if period_limit != 0.:
             # convert from years to radians/seconds
             w = (1 / period_limit) * (1 / 31556952) * (2. * np.pi)
 
@@ -1432,7 +1432,7 @@ class RaiderStats(object):
             guess_offset = np.mean(yy)
             guess = np.array([guess_amp, 2. * np.pi * guess_freq, 0., guess_offset])
             # Adjust frequency guess to reflect fixed period, if specified
-            if period_limit != 0:
+            if period_limit != 0.:
                 guess = np.array([guess_amp, 0., guess_offset])
             # Catch warning where covariance cannot be estimated
             # I.e. OptimizeWarning: Covariance of the parameters could not be estimated
@@ -1458,7 +1458,7 @@ class RaiderStats(object):
                           '.format(station, os.path.join(self.workdir, 'phaseamp_per_station', 'station{}.png'.format(station))))
                     pass
             # Adjust expected output to reflect fixed period, if specified
-            if period_limit != 0:
+            if period_limit != 0.:
                 A, p, c = popt
             else:
                 A, w, p, c = popt
