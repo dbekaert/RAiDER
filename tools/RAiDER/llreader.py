@@ -13,9 +13,7 @@ import pandas as pd
 import xarray
 import rasterio
 
-from pyproj import CRS, Transformer
-from shapely.geometry import Point, Polygon
-from shapely.ops import transform
+from pyproj import CRS
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM

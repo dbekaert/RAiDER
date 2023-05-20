@@ -384,11 +384,21 @@ def test_get_bounds_indices_2():
     l = np.arange(-20, 20)
     l2 = (((np.arange(160, 200) + 180) % 360) - 180)
     lats, lons = np.meshgrid(l, l2)
+    with pytest.raises(ValueError):
+        get_bounds_indices(snwe, lats, lons)
+
+
+def test_get_bounds_indices_2b():
+    snwe = [-10, 10, 170, 190]
+    l = np.arange(-20, 20)
+    l2 = np.arange(160, 200)
+    lats, lons = np.meshgrid(l, l2)
     xmin, xmax, ymin, ymax = get_bounds_indices(snwe, lats, lons)
     assert xmin == 10
     assert xmax == 30
     assert ymin == 10
     assert ymax == 30
+
 
 def test_get_bounds_indices_3():
     snwe = [-10, 10, -10, 10]

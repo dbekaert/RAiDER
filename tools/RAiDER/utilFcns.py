@@ -122,7 +122,6 @@ def rio_profile(fname):
         raise AttributeError(
             f"{fname} does not contain geotransform information"
         )
-
     return profile
 
 
@@ -188,7 +187,19 @@ def nodataToNan(inarr, listofvals):
             inarr[inarr == val] = np.nan
 
 
-def rio_stats(fname, band=1, userNDV=None):
+def rio_stats(fname, band=1):
+    '''
+    Read a rasterio-compatible file and pull the metadata.
+
+    Args:
+        fname   - filename to be loaded
+        band    - band number to use for getting statistics
+    
+    Returns:
+        stats   - a list of stats for the specified band
+        proj    - CRS/projection information for the file
+        gt      - geotransform for the data
+    '''
     if os.path.basename(fname).startswith('S1-GUNW'):
         fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
 

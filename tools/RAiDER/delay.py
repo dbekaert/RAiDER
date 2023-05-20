@@ -51,6 +51,10 @@ def tropo_delay(
         los: LOS object             - LOS object
         height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
         out_proj: int,str           - (optional) EPSG code for output projection
+<<<<<<< HEAD
+=======
+        cube_spacing_m: int         - (optional) Horizontal spacing in meters when generating cubes
+>>>>>>> 6dc7cd6 (some general clean-up)
 
     Returns:
         xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
@@ -64,7 +68,7 @@ def tropo_delay(
        wm_proj = CRS.from_epsg(4326)
     else:
         wm_proj = CRS.from_wkt(wm_proj.to_wkt())
-
+    
     # get heights
     if height_levels is None:
         if aoi.type() == 'Geocube':
@@ -75,8 +79,13 @@ def tropo_delay(
                 height_levels = ds.z.values
 
     #TODO: expose this as library function
+<<<<<<< HEAD
     ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
             los, crs=crs)
+=======
+    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi.bounds(), height_levels,
+            los, crs=crs, cube_spacing_m=cube_spacing_m)
+>>>>>>> 6dc7cd6 (some general clean-up)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -115,14 +124,25 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
+<<<<<<< HEAD
 def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, nproc=1):
+=======
+def _get_delays_on_cube(dt, weather_model_file, wm_proj, ll_bounds, heights, los, crs, cube_spacing_m=None, nproc=1):
+>>>>>>> 6dc7cd6 (some general clean-up)
     """
     raider cube generation function.
     """
 
     # Determine the output grid extent here and clip output grid to multiples of spacing
+<<<<<<< HEAD
 
     out_snwe    = transform_bbox(aoi.bounds(), src_crs=4326, dest_crs=crs)
+=======
+    snwe = transform_bbox(ll_bounds, src_crs=4326, dest_crs=crs)
+    out_spacing = get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, crs)
+    out_snwe = clip_bbox(snwe, out_spacing)
+
+>>>>>>> 6dc7cd6 (some general clean-up)
     logger.debug(f"Output SNWE: {out_snwe}")
 
     # Build the output grid
@@ -196,23 +216,14 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
                   for mm in range(len(interpolators))]
 
-    # Assume all interpolators to be on same grid
-    zmin = min(interpolators[0].grid[2])
-    zmax = max(interpolators[0].grid[2])
-
     # Loop over heights and compute delays
     for ii, ht in enumerate(zpts):
         
         # pts is in weather model system
         if model_crs != pts_crs:
-            pts = np.transpose(
-                transformPoints(
-                    yy, xx, np.full(yy.shape, ht),
-                    pts_crs, model_crs,
-                ), (2, 1, 0))
+            pts = np.transpose(transformPoints(yy, xx, np.full(yy.shape, ht), pts_crs, model_crs), (2, 1, 0))
         else:
             pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
-
         for mm, intp in enumerate(interpolators):
             outputArrs[mm][ii,...] = intp(pts)
 
