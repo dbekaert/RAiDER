@@ -1,5 +1,6 @@
 import datetime
 import os
+import rioxarray
 import xarray
 
 import numpy as np
@@ -9,7 +10,7 @@ from pathlib import Path
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon
 
-from RAiDER.utilFcns import round_date, transform_coords
+from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
 from RAiDER.models.weatherModel import (
     WeatherModel, TIME_RES
 )
@@ -110,19 +111,19 @@ class HRRR(WeatherModel):
         if filename is None:
             filename = self.files[0] if isinstance(self.files, list) else self.files
 
-        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt = load_weather_hrrr(filename)
+        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(filename)
             # correct for latitude
         self._get_heights(_lats, geo_hgt)
 
         self._t = temps
         self._q = qs
-        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
-                                    geo_hgt.shape)
+        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :], geo_hgt.shape)
         self._xs = _xs
         self._ys = _ys
         self._lats = _lats
         self._lons = _lons
 
+        self._proj = proj
 
 
 class HRRRAK(WeatherModel):
@@ -176,7 +177,7 @@ class HRRRAK(WeatherModel):
     def load_weather(self, *args, filename=None, **kwargs):
         if filename is None:
             filename = self.files[0] if isinstance(self.files, list) else self.files
-        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt = load_weather_hrrr(filename)
+        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(filename)
             # correct for latitude
         self._get_heights(_lats, geo_hgt)
 
@@ -188,6 +189,8 @@ class HRRRAK(WeatherModel):
         self._ys = _ys
         self._lats = _lats
         self._lons = _lons
+
+        self._proj = proj
 
 
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
@@ -231,11 +234,9 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
         ds_out.longitude.to_numpy(),
     )
 
-    breakpoint()
-
     # bookkeepping
-    ds_out = ds_out.assign_coords(longitude=(((ds_out.longitude + 180) % 360) - 180))
     ds_out = ds_out.rename({'gh': 'z', 'isobaricInhPa': 'levels'})
+    ny, nx = ds_out['longitude'].shape
 
     # projection information
     ds_out["proj"] = int()
@@ -243,21 +244,24 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
         ds_out.proj.attrs[k] = v
     for var in ds_out.data_vars:
         ds_out[var].attrs['grid_mapping'] = 'proj'
+    
 
-    # transform coordinates. HRRR uses pixel index as the base coordinate, but 
-    # I need actual coordinates later on to do the interpolation
-    xy = ds_out.herbie.crs.transform_points(
-            CRS.from_epsg(4326), 
-            ds_out.longitude.to_numpy(), 
-            ds_out.latitude.to_numpy()
-        )
-    ds_out['x'] = xy[0,:,0].copy()
-    ds_out['y'] = xy[:,0,0].copy()
+    # pull the grid information
+    proj = CRS.from_cf(ds_out['proj'].attrs)
+    t = Transformer.from_crs(4326, proj, always_xy=True)
+    xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
+    E, W, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
 
-    ds_out = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
+    grid_x = np.round((E - W) / nx)
+    grid_y = np.round((N - S) / ny)
+    xs = np.arange(W, E-grid_x/2, grid_x)
+    ys = np.arange(S, N-grid_y/2, grid_y)
 
-    # Write to a NETCDF file
-    ds_out.to_netcdf(out, engine='netcdf4')
+    ds_out['x'] = xs
+    ds_out['y'] = ys
+
+    ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
+    ds_sub.to_netcdf(out, engine='netcdf4')
 
     return
 
@@ -268,7 +272,15 @@ def get_bounds_indices(SNWE, lats, lons):
     '''
     # Unpack the bounds and find the relevent indices 
     S, N, W, E = SNWE
-    m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
+
+    # Need to account for crossing the international date line
+    if W < E:
+        m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
+    else:
+        raise ValueError(
+            'Longitude is either flipped or you are crossing the international date line;' +
+            'if the latter please give me longitudes from 0-360'
+        )
 
     if np.sum(m1) == 0:
         lons = np.mod(lons, 360)
@@ -311,6 +323,8 @@ def load_weather_hrrr(filename):
     qs = ds['q'].values.transpose(1, 2, 0)
     geo_hgt = ds['z'].values.transpose(1, 2, 0)
 
+    proj = CRS.from_cf(ds['proj'].attrs)
+
     lons[lons > 180] -= 360
 
     # data cube format should be lats,lons,heights
@@ -318,9 +332,5 @@ def load_weather_hrrr(filename):
                             geo_hgt.shape)
     _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
                             geo_hgt.shape)
-    _lons = np.broadcast_to(lons[..., np.newaxis],
-                            geo_hgt.shape)
-    _lats = np.broadcast_to(lats[..., np.newaxis],
-                            geo_hgt.shape)
-
-    return _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt
+    
+    return _xs, _ys, lons, lats, qs, temps, pl, geo_hgt, proj
