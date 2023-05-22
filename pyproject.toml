@@ -41,13 +41,14 @@ repository = "https://github.com/dbekaert/RAiDER"
 "Bug Tracker" = "https://github.com/dbekaert/RAiDER/issues"
 
 [project.scripts]
-"raider.py"       = "RAiDER.cli.__main__:main"
-"calcDelays.py"   = "RAiDER.cli.raider:calcDelays"
+"raider.py"             = "RAiDER.cli.__main__:main"
+"calcDelays.py"         = "RAiDER.cli.raider:calcDelays"
 "calcDelaysGUNW.py"     = "RAiDER.cli.raider:calcDelaysGUNW"
 "raiderDownloadGNSS.py" = "RAiDER.cli.raider:downloadGNSS"
-"downloadGNSS.py" = "RAiDER.cli.raider:downloadGNSS"
-"raiderStats.py"  = "RAiDER.cli.statsPlot:main"
+"downloadGNSS.py"       = "RAiDER.cli.raider:downloadGNSS"
+"raiderStats.py"        = "RAiDER.cli.statsPlot:main"
 "generateGACOSVRT.py"   = "RAiDER.models.generateGACOSVRT:main"
+"raiderCombine.py"      = "RAiDER.cli.raider:combineZTDFiles"
 
 [tool.setuptools]
 include-package-data = true
