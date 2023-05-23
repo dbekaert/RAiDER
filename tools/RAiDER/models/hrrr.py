@@ -185,13 +185,11 @@ class HRRRAK(WeatherModel):
 
         self._t = temps
         self._q = qs
-        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
-                                    geo_hgt.shape)
+        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :], geo_hgt.shape)
         self._xs = _xs
         self._ys = _ys
         self._lats = _lats
         self._lons = _lons
-
         self._proj = proj
 
 
@@ -254,10 +252,10 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
     W, E, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
 
-    grid_x = np.round((E - W) / nx)
-    grid_y = np.round((N - S) / ny)
-    xs = np.arange(W, E-grid_x/2, grid_x)
-    ys = np.arange(S, N-grid_y/2, grid_y)
+    grid_x = 3000 # meters
+    grid_y = 3000 # meters
+    xs = np.arange(W, E+grid_x/2, grid_x)
+    ys = np.arange(S, N+grid_y/2, grid_y)
 
     ds_out['x'] = xs
     ds_out['y'] = ys
