@@ -532,3 +532,30 @@ def calcDelaysGUNW(iargs: list[str] = None):
     if args.bucket:
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
         aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
+
+## ------------------------------------------------------------ processDelays.py
+def combineZTDFiles():
+    '''
+    Command-line program to process delay files from RAiDER and GNSS into a single file. 
+    '''
+    from RAiDER.gnss.processDelayFiles import main, combineDelayFiles, create_parser
+
+    p = create_parser()
+    args = p.parse_args()
+
+    if not os.path.exists(args.raider_file):
+        combineDelayFiles(args.raider_file, loc=args.raider_folder)
+
+    if not os.path.exists(args.gnss_file):
+        combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source='GNSS',
+                          ref=args.raider_file, col_name=args.column_name)
+    
+    if args.gnss_file is not None:
+        main(
+            args.raider_file,
+            args.gnss_file,
+            col_name=args.column_name,
+            raider_delay=args.raider_column_name,
+            outName=args.out_name,
+            localTime=args.local_time
+        )
