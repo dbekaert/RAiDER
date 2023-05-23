@@ -89,16 +89,18 @@ class HRRR(WeatherModel):
         if not corrected_DT == self._time:
             print('Rounded given datetime from  %s to %s', self._time, corrected_DT)
 
+        # HRRR uses 0-360 longitude, so we need to convert the bounds to that
+        bounds = self._ll_bounds.copy()
+        bounds[2:] = np.mod(bounds[2:], 360)
+
         if self.checkValidBounds(self._ll_bounds):
             self.checkTime(corrected_DT)
-            download_hrrr_file(self._ll_bounds, corrected_DT, out, model='hrrr')
+            download_hrrr_file(bounds, corrected_DT, out, model='hrrr')
         else:
             hrrrak = HRRRAK()
-            bounds = self._ll_bounds
-            bounds[2:] = np.mod(bounds[2:], 360)
             if hrrrak.checkValidBounds(bounds):
                 hrrrak.checkTime(corrected_DT)
-                download_hrrr_file(self._ll_bounds, corrected_DT, out, model='hrrrak')
+                download_hrrr_file(bounds, corrected_DT, out, model='hrrrak')
             else:
                 raise ValueError('The requested location is unavailable for HRRR')
             
@@ -172,7 +174,7 @@ class HRRRAK(WeatherModel):
                 print('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
             
             self.checkTime(corrected_DT)
-            download_hrrr_file(self._ll_bounds, corrected_DT, out, model='hrrrak')
+            download_hrrr_file(bounds, corrected_DT, out, model='hrrrak')
 
     def load_weather(self, *args, filename=None, **kwargs):
         if filename is None:
