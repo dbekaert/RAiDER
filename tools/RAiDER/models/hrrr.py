@@ -252,7 +252,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     proj = CRS.from_cf(ds_out['proj'].attrs)
     t = Transformer.from_crs(4326, proj, always_xy=True)
     xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
-    E, W, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
+    W, E, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
 
     grid_x = np.round((E - W) / nx)
     grid_y = np.round((N - S) / ny)
