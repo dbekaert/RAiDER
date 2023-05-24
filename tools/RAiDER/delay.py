@@ -180,6 +180,9 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
             # Loop over heights
             raise NotImplementedError
 
+    if np.isnan(wetDelay).any() or np.isnan(hydroDelay).any():
+        raise Exception('There are missing delay values. Check your inputs. Not writing to disk.')
+
     # Write output file
     ds = writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type)
 
@@ -357,7 +360,7 @@ def _build_cube_ray(
                     val =  interpolators[mm](pts)
 
                     # TODO - This should not occur if there is enough padding in model
-                    val[np.isnan(val)] = 0.0
+                    # val[np.isnan(val)] = 0.0
                     out += wt * val
 
     if output_created_here:
