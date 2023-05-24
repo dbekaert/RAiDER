@@ -24,7 +24,7 @@ from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import getTopOfAtmosphere
 from RAiDER.utilFcns import (
-    lla2ecef, transform_bbox, clip_bbox, writeResultsToXarray,
+    lla2ecef, transform_bbox, writeResultsToXarray,
     rio_profile, transformPoints,
 )
 
@@ -64,7 +64,7 @@ def tropo_delay(
        wm_proj = CRS.from_epsg(4326)
     else:
         wm_proj = CRS.from_wkt(wm_proj.to_wkt())
-    
+
     # get heights
     if height_levels is None:
         if aoi.type() == 'Geocube':
@@ -126,10 +126,11 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
     logger.debug(f"Output SNWE: {out_snwe}")
 
     # Build the output grid
-    out_spacing = aoi.get_output_spacing()
+    out_spacing = aoi.get_output_spacing(crs)
     zpts = np.array(heights)
     xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
     ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+
 
     # If no orbit is provided
     # Build zenith delay cube
@@ -198,10 +199,11 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 
     # Loop over heights and compute delays
     for ii, ht in enumerate(zpts):
-        
+
         # pts is in weather model system
         if model_crs != pts_crs:
-            pts = np.transpose(transformPoints(yy, xx, np.full(yy.shape, ht), pts_crs, model_crs), (2, 1, 0))
+            pts = np.transpose(transformPoints(yy, xx, np.full(yy.shape, ht),
+                                               pts_crs, model_crs), (2, 1, 0))
         else:
             pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
         for mm, intp in enumerate(interpolators):

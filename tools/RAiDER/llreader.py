@@ -56,8 +56,19 @@ class AOI(object):
         return self._proj
 
 
-    def get_output_spacing(self):
-        return self._output_spacing
+    def get_output_spacing(self, crs=4326):
+        """ Return the output spacing in desired units """
+        output_spacing_deg = self._output_spacing
+        if not isinstance(crs, CRS):
+            crs = CRS.from_epsg(crs)
+
+        ## convert it to meters users wants a projected coordinate system
+        if all(axis_info.unit_name == 'degree' for axis_info in crs.axis_info):
+            output_spacing = output_spacing_deg
+        else:
+            output_spacing = output_spacing_deg*1e5
+
+        return output_spacing
 
 
     def set_output_spacing(self, ll_res=None):
@@ -74,7 +85,7 @@ class AOI(object):
         out_spacing = self._cube_spacing_m / 1e5  \
             if self._cube_spacing_m else ll_res
 
-        logger.debug(f'Output cube spacing: {out_spacing}')
+        logger.debug(f'Output cube spacing: {out_spacing} degrees')
         self._output_spacing = out_spacing
 
 
@@ -83,8 +94,8 @@ class AOI(object):
         Add a fixed buffer to the AOI, accounting for the cube spacing.
 
         Ensures cube is slighly larger than requested area.
+        The AOI will always be in EPSG:4326
         Args:
-            cube_spacing_m  - user requested size of grid cells
             ll_res          - weather model lat/lon resolution
             digits          - number of decimal digits to include in the output
 
@@ -100,20 +111,26 @@ class AOI(object):
         >>> aoi.bounds()
          [36.93, 38.07, -92.07, -90.93]
         """
-        self.set_output_spacing(ll_res)
-
-        S, N, W, E  = clip_bbox(self.bounds(), self._output_spacing)
-
-        buffer = 1.5 * ll_res
-
+        ## add an extra buffer around the user specified region
+        S, N, W, E = self.bounds()
+        buffer     = (1.5 * ll_res)
         S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
-
         W, E = W-buffer, E+buffer # TODO: handle dateline crossings
+
+        ## clip the buffered region to a multiple of the spaacing
+        self.set_output_spacing(ll_res)
+        S, N, W, E  = clip_bbox(self.bounds(), self._output_spacing)
 
         if np.max([np.abs(W), np.abs(E)]) > 180:
             logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
 
         self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
+
+        ## possibly add one more grid cell?
+        # out_spacing = self._output_spacing
+        # out_snwe = self._bounding_box
+        # xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+        # ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
         return
 
 
