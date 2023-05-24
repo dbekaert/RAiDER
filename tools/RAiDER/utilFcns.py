@@ -2,19 +2,16 @@
 import multiprocessing as mp
 import os
 import re
+import progressbar
+import rasterio
 import xarray
 
 from datetime import datetime, timedelta
-
-import h5py
-import xarray as xr
-import numpy as np
 from numpy import ndarray
+from pyproj import Transformer, CRS, Proj
+
+import numpy as np
 import pandas as pd
-import pyproj
-from pyproj import Transformer
-import progressbar
-import rasterio
 
 from RAiDER.constants import (
     _g0 as g0,
@@ -125,7 +122,6 @@ def rio_profile(fname):
         raise AttributeError(
             f"{fname} does not contain geotransform information"
         )
-
     return profile
 
 
@@ -191,7 +187,19 @@ def nodataToNan(inarr, listofvals):
             inarr[inarr == val] = np.nan
 
 
-def rio_stats(fname, band=1, userNDV=None):
+def rio_stats(fname, band=1):
+    '''
+    Read a rasterio-compatible file and pull the metadata.
+
+    Args:
+        fname   - filename to be loaded
+        band    - band number to use for getting statistics
+    
+    Returns:
+        stats   - a list of stats for the specified band
+        proj    - CRS/projection information for the file
+        gt      - geotransform for the data
+    '''
     if os.path.basename(fname).startswith('S1-GUNW'):
         fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
 
@@ -590,7 +598,7 @@ def project(coordinates, z=None, l=None):
     if l is None:
         l = letter(coordinates)
     if z not in _projections:
-        _projections[z] = pyproj.Proj(proj='utm', zone=z, ellps='WGS84')
+        _projections[z] = Proj(proj='utm', zone=z, ellps='WGS84')
     x, y = _projections[z](coordinates[0], coordinates[1])
     if y < 0:
         y += 10000000
@@ -599,7 +607,7 @@ def project(coordinates, z=None, l=None):
 
 def unproject(z, l, x, y):
     if z not in _projections:
-        _projections[z] = pyproj.Proj(proj='utm', zone=z, ellps='WGS84')
+        _projections[z] = Proj(proj='utm', zone=z, ellps='WGS84')
     if l < 'N':
         y -= 10000000
     lng, lat = _projections[z](x, y, inverse=True)
@@ -658,18 +666,18 @@ def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
     """
     # TODO - Handle dateline crossing
     if isinstance(src_crs, int):
-        src_crs = pyproj.CRS.from_epsg(src_crs)
+        src_crs = CRS.from_epsg(src_crs)
     elif isinstance(src_crs, str):
-        src_crs = pyproj.CRS(src_crs)
+        src_crs = CRS(src_crs)
 
     # Handle margin for input bbox in degrees
     if src_crs.axis_info[0].unit_name == "degree":
         margin = margin / 1.0e5
 
     if isinstance(dest_crs, int):
-        dest_crs = pyproj.CRS.from_epsg(dest_crs)
+        dest_crs = CRS.from_epsg(dest_crs)
     elif isinstance(dest_crs, str):
-        dest_crs = pyproj.CRS(dest_crs)
+        dest_crs = CRS(dest_crs)
 
     # If dest_crs is same as src_crs
     if dest_crs == src_crs:
@@ -843,11 +851,11 @@ def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_na
 
     if mapping_name == 'WGS84':
         epsg = 4326
-        crs = pyproj.CRS.from_epsg(epsg)
+        crs = CRS.from_epsg(epsg)
 
         grid_mapping = 'WGS84'  # need to set this as an attribute for the image variables
     else:
-        crs = pyproj.CRS.from_wkt(mapping_name)
+        crs = CRS.from_wkt(mapping_name)
         grid_mapping = 'CRS'
 
     datatype = np.dtype('S1')
@@ -1112,3 +1120,41 @@ def get_dt(t1,t2):
      18000.0
     '''
     return np.abs((t1 - t2).total_seconds())
+
+
+def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
+    '''
+    Transform lat/lon/hgt data to an array of points in a new
+    projection
+
+    Args:
+        lats: ndarray   - WGS-84 latitude (EPSG: 4326)
+        lons: ndarray   - ditto for longitude
+        hgts: ndarray   - Ellipsoidal height in meters
+        old_proj: CRS   - the original projection of the points
+        new_proj: CRS   - the new projection in which to return the points
+
+    Returns:
+        ndarray: the array of query points in the weather model coordinate system (YX)
+    '''
+    # Flags for flipping inputs or outputs
+    if not isinstance(new_proj, CRS):
+        new_proj = CRS.from_epsg(new_proj.lstrip('EPSG:'))
+    if not isinstance(old_proj, CRS):
+        old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
+
+    t = Transformer.from_crs(old_proj, new_proj)
+
+    in_flip = old_proj.axis_info[0].direction
+    out_flip = new_proj.axis_info[0].direction
+
+    if in_flip == 'east':
+        res = t.transform(lons, lats, hgts)
+    else:
+        res = t.transform(lats, lons, hgts)
+    
+    if out_flip == 'east':
+        return np.stack((res[1], res[0], res[2]), axis=-1).T
+    else:
+        return np.stack(res, axis=-1).T
+

@@ -13,6 +13,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + account for grid spacing impact on bounding box before downloading weather model 
 + update the GUNW test to account for change in grid spacing on affine transform
 + add CLI for the old processDelayFiles script and rename to raiderCombine
++ Fix gridding bug in accessing HRRR-AK 
++ misc clean-up
 
 ## [0.4.3]
 + add unit tests for the hydro and two pieces of wet equation

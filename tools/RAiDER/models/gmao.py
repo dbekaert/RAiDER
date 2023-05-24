@@ -174,17 +174,14 @@ class GMAO(WeatherModel):
             p = np.array(f.variables['PL'][:])
             t = np.array(f.variables['T'][:])
 
-        # restructure the 3-D lat/lon/h in regular grid
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], t.shape)
+        # restructure the 1-D lat/lon in regular 2D grid
+        _lons, _lats= np.meshgrid(lons, lats)
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         p = np.transpose(p)
         q = np.transpose(q)
         t = np.transpose(t)
         h = np.transpose(h)
-        _lats = np.transpose(_lats)
-        _lons = np.transpose(_lons)
 
         # check this
         # data cube format should be lats,lons,heights
@@ -192,16 +189,12 @@ class GMAO(WeatherModel):
         q = q.swapaxes(0, 1)
         t = t.swapaxes(0, 1)
         h = h.swapaxes(0, 1)
-        _lats = _lats.swapaxes(0, 1)
-        _lons = _lons.swapaxes(0, 1)
 
         # For some reason z is opposite the others
         p = np.flip(p, axis=2)
         q = np.flip(q, axis=2)
         t = np.flip(t, axis=2)
         h = np.flip(h, axis=2)
-        _lats = np.flip(_lats, axis=2)
-        _lons = np.flip(_lons, axis=2)
 
         # assign the regular-grid (lat/lon/h) variables
 

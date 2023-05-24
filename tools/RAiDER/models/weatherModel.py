@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import netCDF4
+import rioxarray
 import xarray
 
 from pyproj import CRS
@@ -323,7 +324,8 @@ class WeatherModel(ABC):
         Transform geo heights to WGS84 ellipsoidal heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        self._zs = util.geo_to_ht(lats, geo_ht_fix)
+        lats_full = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
+        self._zs = util.geo_to_ht(lats_full, geo_ht_fix)
 
 
     def _find_e(self):
@@ -564,8 +566,8 @@ class WeatherModel(ABC):
         '''
         get the bounding box around a set of lats/lons
         '''
-        lat = self._lats[:, :, 0]
-        lon = self._lons[:, :, 0]
+        lat = self._lats.copy()
+        lon = self._lons.copy()
         lat[np.isnan(lat)] = np.nanmean(lat)
         lon[np.isnan(lon)] = np.nanmean(lon)
         mask = (lat >= extent[0]) & (lat <= extent[1]) & \
@@ -584,8 +586,8 @@ class WeatherModel(ABC):
         index4 = min(np.arange(len(ma2))[ma2][-1] + 2, nx)
 
         # subset around points of interest
-        self._lons = self._lons[index1:index2, index3:index4, :]
-        self._lats = self._lats[index1:index2, index3:index4, ...]
+        self._lons = self._lons[index1:index2, index3:index4]
+        self._lats = self._lats[index1:index2, index3:index4]
         self._xs = self._xs[index3:index4]
         self._ys = self._ys[index1:index2]
         self._p = self._p[index1:index2, index3:index4, ...]
@@ -649,12 +651,6 @@ class WeatherModel(ABC):
         self._e = interpolate_along_axis(
             self._zs, self._e, new_zs, axis=2, fill_value=np.nan
         ).astype(np.float32)
-        self._lats = interpolate_along_axis(
-            self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
-        ).astype(np.float32)
-        self._lons = interpolate_along_axis(
-            self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
-        ).astype(np.float32)
 
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
@@ -701,163 +697,71 @@ class WeatherModel(ABC):
         return f
 
 
-    def write(
-            self,
-            NoDataValue=-3.4028234e+38,
-            chunk=(1, 128, 128),
-        ):
+    def write(self):
         '''
         By calling the abstract/modular netcdf writer
         (RAiDER.utilFcns.write2NETCDF4core), write the weather model data
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
         # Generate the filename
-        mapping_name= get_mapping(self._proj)
-
         f = self._out_name
 
-        dimidY, dimidX, dimidZ = self._t.shape
-        chunk_lines_Y = np.min([chunk[1], dimidY])
-        chunk_lines_X = np.min([chunk[2], dimidX])
-        ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
+        attrs_dict = {
+                "Conventions": 'CF-1.6',
+                "datetime": datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"),
+                'date_created': datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
+                'title': 'Weather model data and delay calculations',
 
-        nc_outfile = netCDF4.Dataset(f, 'w', clobber=True, format='NETCDF4')
-        nc_outfile.setncattr('Conventions', 'CF-1.6')
-        nc_outfile.setncattr('datetime', datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
-        nc_outfile.setncattr('date_created', datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
-        title = 'Weather model data and delay calculations'
-        nc_outfile.setncattr('title', title)
+            }
 
-        tran = [self._xs[0], self._xs[1] - self._xs[0], 0.0, self._ys[0], 0.0, self._ys[1] - self._ys[0]]
         dimension_dict = {
-            'x': {'varname': 'x',
-                  'datatype': np.dtype('float64'),
-                  'dimensions': ('x'),
-                  'length': dimidX,
-                  'FillValue': None,
-                  'standard_name': 'projection_x_coordinate',
-                  'description': 'weather model native x',
-                  'dataset': self._xs,
-                  'units': 'degrees_east'},
-            'y': {'varname': 'y',
-                  'datatype': np.dtype('float64'),
-                  'dimensions': ('y'),
-                  'length': dimidY,
-                  'FillValue': None,
-                  'standard_name': 'projection_y_coordinate',
-                  'description': 'weather model native y',
-                  'dataset': self._ys,
-                  'units': 'degrees_north'},
-            'z': {'varname': 'z',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z'),
-                  'length': dimidZ,
-                  'FillValue': None,
-                  'standard_name': 'projection_z_coordinate',
-                  'description': 'vertical coordinate',
-                  'dataset': self._zs,
-                  'units': 'm'}
+            'x': ('x', self._xs),
+            'y': ('y', self._ys),
+            'z': ('z', self._zs),
+            'latitude': (('y', 'x'), self._lats),
+            'longitude': (('y', 'x'), self._lons),
+            'datetime': self._time,
         }
 
         dataset_dict = {
-            'latitude': {'varname': 'latitude',
-                         'datatype': np.dtype('float64'),
-                         'dimensions': ('z', 'y', 'x'),
-                         'grid_mapping': mapping_name,
-                         'FillValue': NoDataValue,
-                         'ChunkSize': ChunkSize,
-                         'standard_name': 'latitude',
-                         'description': 'latitude',
-                         'dataset': self._lats.swapaxes(0, 2).swapaxes(1, 2),
-                         'units': 'degrees_north'},
-            'longitude': {'varname': 'longitude',
-                          'datatype': np.dtype('float64'),
-                          'dimensions': ('z', 'y', 'x'),
-                          'grid_mapping': mapping_name,
-                          'FillValue': NoDataValue,
-                          'ChunkSize': ChunkSize,
-                          'standard_name': 'longitude',
-                          'description': 'longitude',
-                          'dataset': self._lons.swapaxes(0, 2).swapaxes(1, 2),
-                          'units': 'degrees_east'},
-            't': {'varname': 't',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z', 'y', 'x'),
-                  'grid_mapping': mapping_name,
-                  'FillValue': NoDataValue,
-                  'ChunkSize': ChunkSize,
-                  'standard_name': 'temperature',
-                  'description': 'temperature',
-                  'dataset': self._t.swapaxes(0, 2).swapaxes(1, 2),
-                  'units': 'K'},
-            'p': {'varname': 'p',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z', 'y', 'x'),
-                  'grid_mapping': mapping_name,
-                  'FillValue': NoDataValue,
-                  'ChunkSize': ChunkSize,
-                  'standard_name': 'pressure',
-                  'description': 'pressure',
-                  'dataset': self._p.swapaxes(0, 2).swapaxes(1, 2),
-                  'units': 'Pa'},
-            'e': {'varname': 'e',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z', 'y', 'x'),
-                  'grid_mapping': mapping_name,
-                  'FillValue': NoDataValue,
-                  'ChunkSize': ChunkSize,
-                  'standard_name': 'humidity',
-                  'description': 'humidity',
-                  'dataset': self._e.swapaxes(0, 2).swapaxes(1, 2),
-                  'units': 'Pa'},
-            'wet': {'varname': 'wet',
-                    'datatype': np.dtype('float32'),
-                    'dimensions': ('z', 'y', 'x'),
-                    'grid_mapping': mapping_name,
-                    'FillValue': NoDataValue,
-                    'ChunkSize': ChunkSize,
-                    'standard_name': 'wet_refractivity',
-                    'description': 'wet_refractivity',
-                    'dataset': self._wet_refractivity.swapaxes(0, 2).swapaxes(1, 2)},
-            'hydro': {'varname': 'hydro',
-                      'datatype': np.dtype('float32'),
-                      'dimensions': ('z', 'y', 'x'),
-                      'grid_mapping': mapping_name,
-                      'FillValue': NoDataValue,
-                      'ChunkSize': ChunkSize,
-                      'standard_name': 'hydrostatic_refractivity',
-                      'description': 'hydrostatic_refractivity',
-                      'dataset': self._hydrostatic_refractivity.swapaxes(0, 2).swapaxes(1, 2)},
-            'wet_total': {'varname': 'wet_total',
-                          'datatype': np.dtype('float32'),
-                          'dimensions': ('z', 'y', 'x'),
-                          'grid_mapping': mapping_name,
-                          'FillValue': NoDataValue,
-                          'ChunkSize': ChunkSize,
-                          'standard_name': 'total_wet_refractivity',
-                          'description': 'total_wet_refractivity',
-                          'dataset': self._wet_ztd.swapaxes(0, 2).swapaxes(1, 2)},
-            'hydro_total': {'varname': 'hydro_total',
-                            'datatype': np.dtype('float32'),
-                            'dimensions': ('z', 'y', 'x'),
-                            'grid_mapping': mapping_name,
-                            'FillValue': NoDataValue,
-                            'ChunkSize': ChunkSize,
-                            'standard_name': 'total_hydrostatic_refractivity',
-                            'description': 'total_hydrostatic_refractivity',
-                            'dataset': self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)}
+            't': (('z', 'y', 'x'), self._t.swapaxes(0, 2).swapaxes(1, 2)),
+            'p': (('z', 'y', 'x'), self._p.swapaxes(0, 2).swapaxes(1, 2)),
+            'e': (('z', 'y', 'x'), self._e.swapaxes(0, 2).swapaxes(1, 2)),
+            'wet': (('z', 'y', 'x'), self._wet_refractivity.swapaxes(0, 2).swapaxes(1, 2)),
+            'hydro': (('z', 'y', 'x'), self._hydrostatic_refractivity.swapaxes(0, 2).swapaxes(1, 2)),
+            'wet_total': (('z', 'y', 'x'), self._wet_ztd.swapaxes(0, 2).swapaxes(1, 2)),
+            'hydro_total': (('z', 'y', 'x'), self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)),
         }
+        
+        ds = xarray.Dataset(data_vars=dataset_dict, coords=dimension_dict, attrs=attrs_dict)
 
-        nc_outfile = write2NETCDF4core(
-            nc_outfile,
-            dimension_dict,
-            dataset_dict,
-            tran,
-            mapping_name=mapping_name
-        )
+        # Define units
+        ds['t'].attrs['units'] = 'K'
+        ds['e'].attrs['units'] = 'Pa'
+        ds['p'].attrs['units'] = 'Pa'
+        ds['wet'].attrs['units'] = 'dimentionless'
+        ds['hydro'].attrs['units'] = 'dimentionless'
+        ds['wet_total'].attrs['units'] = 'm'
+        ds['hydro_total'].attrs['units'] = 'm'
 
-        nc_outfile.sync()  # flush data to disk
-        nc_outfile.close()
+        # Define standard names
+        ds['t'].attrs['standard_name'] = 'temperature'
+        ds['e'].attrs['standard_name'] = 'humidity'
+        ds['p'].attrs['standard_name'] = 'pressure'
+        ds['wet'].attrs['standard_name'] = 'wet_refractivity'
+        ds['hydro'].attrs['standard_name'] = 'hydrostatic_refractivity'
+        ds['wet_total'].attrs['standard_name'] = 'total_wet_refractivity'
+        ds['hydro_total'].attrs['standard_name'] = 'total_hydrostatic_refractivity' 
+
+        # projection information
+        ds["proj"] = int()
+        for k, v in self._proj.to_cf().items():
+            ds.proj.attrs[k] = v
+        for var in ds.data_vars:
+            ds[var].attrs['grid_mapping'] = 'proj'
+        
+        # write to file and return the filename
+        ds.to_netcdf(f)
         return f
 
 

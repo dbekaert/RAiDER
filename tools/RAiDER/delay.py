@@ -24,7 +24,8 @@ from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import getTopOfAtmosphere
 from RAiDER.utilFcns import (
-    lla2ecef, transform_bbox, writeResultsToXarray, rio_profile
+    lla2ecef, transform_bbox, clip_bbox, writeResultsToXarray,
+    rio_profile, transformPoints,
 )
 
 
@@ -63,7 +64,7 @@ def tropo_delay(
        wm_proj = CRS.from_epsg(4326)
     else:
         wm_proj = CRS.from_wkt(wm_proj.to_wkt())
-
+    
     # get heights
     if height_levels is None:
         if aoi.type() == 'Geocube':
@@ -120,8 +121,8 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
     """
 
     # Determine the output grid extent here and clip output grid to multiples of spacing
-
     out_snwe    = transform_bbox(aoi.bounds(), src_crs=4326, dest_crs=crs)
+
     logger.debug(f"Output SNWE: {out_snwe}")
 
     # Build the output grid
@@ -184,43 +185,6 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
     return ds
 
 
-def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
-    '''
-    Transform lat/lon/hgt data to an array of points in a new
-    projection
-
-    Args:
-        lats: ndarray   - WGS-84 latitude (EPSG: 4326)
-        lons: ndarray   - ditto for longitude
-        hgts: ndarray   - Ellipsoidal height in meters
-        old_proj: CRS   - the original projection of the points
-        new_proj: CRS   - the new projection in which to return the points
-
-    Returns:
-        ndarray: the array of query points in the weather model coordinate system (YX)
-    '''
-    t = Transformer.from_crs(old_proj, new_proj)
-
-    # Flags for flipping inputs or outputs
-    if not isinstance(new_proj, pyproj.CRS):
-        new_proj = CRS.from_epsg(new_proj.lstrip('EPSG:'))
-    if not isinstance(old_proj, pyproj.CRS):
-        old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
-
-    in_flip = old_proj.axis_info[0].direction
-    out_flip = new_proj.axis_info[0].direction
-
-    if in_flip == 'east':
-        res = t.transform(lons, lats, hgts)
-    else:
-        res = t.transform(lats, lons, hgts)
-
-    if out_flip == 'east':
-        return np.stack((res[1], res[0], res[2]), axis=-1).T
-    else:
-        return np.stack(res, axis=-1).T
-
-
 def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     """
     Iterate over interpolators and build a cube using Zenith
@@ -232,37 +196,14 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
                   for mm in range(len(interpolators))]
 
-    # Assume all interpolators to be on same grid
-    zmin = min(interpolators[0].grid[2])
-    zmax = max(interpolators[0].grid[2])
-
-    # print("Output grid: ")
-    # print("crs: ", pts_crs)
-    # print("X: ", xpts[0], xpts[-1])
-    # print("Y: ", ypts[0], ypts[-1])
-
-    # ii = interpolators[0]
-    # print("Model grid: ")
-    # print("crs: ", model_crs)
-    # print("X: ", ii.grid[1][0], ii.grid[1][-1])
-    # print("Y: ", ii.grid[0][0], ii.grid[0][-1])
-
     # Loop over heights and compute delays
     for ii, ht in enumerate(zpts):
-
-        # Uncomment this line to clip heights for interpolator
-        # ht = max(zmin, min(ht, zmax))
-
+        
         # pts is in weather model system
         if model_crs != pts_crs:
-            pts = np.transpose(
-                transformPoints(
-                    yy, xx, np.full(yy.shape, ht),
-                    pts_crs, model_crs,
-                ), (2, 1, 0))
+            pts = np.transpose(transformPoints(yy, xx, np.full(yy.shape, ht), pts_crs, model_crs), (2, 1, 0))
         else:
             pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
-
         for mm, intp in enumerate(interpolators):
             outputArrs[mm][ii,...] = intp(pts)
 

@@ -319,10 +319,8 @@ class ECMWF(WeatherModel):
         geo_hgt = z / self._g0
 
         # re-assign lons, lats to match heights
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
-                                geo_hgt.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
-                                geo_hgt.shape)
+        _lons = lons
+        _lats = lats
 
         # correct heights for latitude
         self._get_heights(_lats, geo_hgt)
