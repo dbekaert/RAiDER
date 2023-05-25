@@ -55,11 +55,11 @@ class HRRR(WeatherModel):
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         # Projection
-        # NOTE: The HRRR projection will get read directly from the downloaded weather model file; however, 
-        # we also define it here so that the projection can be used without downloading any data. This is 
-        # used for consistency with the other weather models and allows for some nice features, such as 
+        # NOTE: The HRRR projection will get read directly from the downloaded weather model file; however,
+        # we also define it here so that the projection can be used without downloading any data. This is
+        # used for consistency with the other weather models and allows for some nice features, such as
         # buffering.
-        # 
+
         # See https://github.com/blaylockbk/pyBKB_v2/blob/master/demos/HRRR_earthRelative_vs_gridRelative_winds.ipynb and code lower down
         # '262.5:38.5:38.5:38.5 237.280472:1799:3000.00 21.138123:1059:3000.00'
         # 'lov:latin1:latin2:latd lon1:nx:dx lat1:ny:dy'
@@ -103,7 +103,7 @@ class HRRR(WeatherModel):
                 download_hrrr_file(bounds, corrected_DT, out, model='hrrrak')
             else:
                 raise ValueError('The requested location is unavailable for HRRR')
-            
+
 
     def load_weather(self, *args, filename=None, **kwargs):
         '''
@@ -130,7 +130,7 @@ class HRRR(WeatherModel):
 
 class HRRRAK(WeatherModel):
     def __init__(self):
-        # The HRRR-AK model has a few different parameters than HRRR-CONUS. 
+        # The HRRR-AK model has a few different parameters than HRRR-CONUS.
         # These will get used if a user requests a bounding box in Alaska
         super().__init__()
 
@@ -159,8 +159,8 @@ class HRRRAK(WeatherModel):
         self._lag_time = datetime.timedelta(hours=3)
         self._valid_bounds =  Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
 
-        # The projection information gets read directly from the  weather model file but we 
-        # keep this here for object instantiation. 
+        # The projection information gets read directly from the  weather model file but we
+        # keep this here for object instantiation.
         self._proj = CRS.from_string(
             '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
             '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
@@ -172,7 +172,7 @@ class HRRRAK(WeatherModel):
             corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
             if not corrected_DT == self._time:
                 print('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
-            
+
             self.checkTime(corrected_DT)
             download_hrrr_file(bounds, corrected_DT, out, model='hrrrak')
 
@@ -197,16 +197,16 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     '''
     Download a HRRR weather model using Herbie
 
-    Args: 
+    Args:
         DATE (Python datetime)  - Datetime as a Python datetime. Herbie will automatically return the closest valid time,
-                                    which is currently hourly. 
+                                    which is currently hourly.
         out (string)            - output location as a string
         model (string)          - model can be "hrrr" or "hrrrak"
         product (string)        - 'prs' for pressure levels, 'nat' for native levels
         fxx (int)               - forecast time in hours. Can be up to 48 for 00/06/12/18
         verbose (bool)          - True for extra printout of information
-    
-    Returns: 
+
+    Returns:
         None, writes data to a netcdf file
     '''
     H = Herbie(
@@ -229,8 +229,8 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
 
     # subset the full file by AOI
     x_min, x_max, y_min, y_max = get_bounds_indices(
-        ll_bounds, 
-        ds_out.latitude.to_numpy(), 
+        ll_bounds,
+        ds_out.latitude.to_numpy(),
         ds_out.longitude.to_numpy(),
     )
 
@@ -244,7 +244,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
         ds_out.proj.attrs[k] = v
     for var in ds_out.data_vars:
         ds_out[var].attrs['grid_mapping'] = 'proj'
-    
+
 
     # pull the grid information
     proj = CRS.from_cf(ds_out['proj'].attrs)
@@ -270,7 +270,7 @@ def get_bounds_indices(SNWE, lats, lons):
     '''
     Convert SNWE lat/lon bounds to index bounds
     '''
-    # Unpack the bounds and find the relevent indices 
+    # Unpack the bounds and find the relevent indices
     S, N, W, E = SNWE
 
     # Need to account for crossing the international date line
@@ -332,5 +332,5 @@ def load_weather_hrrr(filename):
                             geo_hgt.shape)
     _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
                             geo_hgt.shape)
-    
+
     return _xs, _ys, lons, lats, qs, temps, pl, geo_hgt, proj
