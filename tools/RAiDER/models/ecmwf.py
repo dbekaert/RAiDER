@@ -104,7 +104,7 @@ class ECMWF(WeatherModel):
         self._lons, self._lats = np.meshgrid(lons, lats)
 
         # ys is latitude
-        self._get_heights(self._lats, hgt)
+        self._get_heights(self._lats, hgt.transpose(1, 2, 0))
         h = self._zs.copy()
 
         # We want to support both pressure levels and true pressure grids.
@@ -317,8 +317,7 @@ class ECMWF(WeatherModel):
         geo_hgt = z / self._g0
 
         # re-assign lons, lats to match heights
-        _lons = lons
-        _lats = lats
+        self._lons, self._lats = np.meshgrid(lons, lats)
 
         # correct heights for latitude
         self._get_heights(_lats, geo_hgt)
