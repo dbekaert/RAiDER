@@ -126,11 +126,6 @@ class AOI(object):
 
         self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
 
-        ## possibly add one more grid cell?
-        # out_spacing = self._output_spacing
-        # out_snwe = self._bounding_box
-        # xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
-        # ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
         return
 
 
