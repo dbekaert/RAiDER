@@ -21,6 +21,7 @@ from RAiDER.models.era5t import ERA5T
 from RAiDER.models.hres import HRES
 from RAiDER.models.hrrr import HRRR, get_bounds_indices
 from RAiDER.models.hrrrak import HRRRAK
+
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
@@ -138,6 +139,7 @@ class MockWeatherModel(WeatherModel):
 @pytest.fixture
 def model():
     return MockWeatherModel()
+
 
 def test_weatherModel_basic1(model: MockWeatherModel):
     wm = model
@@ -427,29 +429,29 @@ def test_hrrr_badloc(hrrr: HRRR):
         wm._fetch('dummy_filename')
 
 
-
-def test_hrrr_ak(tmp_path: Path, hrrr: HRRR):
-    wm = hrrr
+def test_hrrr_ak(tmp_path: Path, hrrrak: HRRRAK):
+    wm = hrrrak
     d = tmp_path / "files"
     d.mkdir()
-    fname = d / "hrrr_ak.nc"
+    fname  = d / "hrrr_ak.nc"
     wm.set_latlon_bounds([65, 67, -160, -150])
+    assert wm.checkValidBounds(wm.get_latlon_bounds())
     wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
 
     wm._fetch(fname)
     assert True
 
 
-def test_hrrr_ak2(tmp_path: Path, hrrr: HRRR):
+def test_hrrr_ak2(tmp_path: Path, hrrrak: HRRRAK):
     # test the international date line crossing
-    wm = hrrr
+    wm = hrrrak
     d = tmp_path / "files"
     d.mkdir()
     fname = d / "hrrr_ak.nc"
 
     wm.set_latlon_bounds([50, 52, 179, -179])
+    assert wm.checkValidBounds(wm.get_latlon_bounds())
     wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
 
     wm._fetch(fname)
     assert True
-

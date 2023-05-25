@@ -185,7 +185,7 @@ class WeatherModel(ABC):
 
 
     def get_latlon_bounds(self):
-        raise NotImplementedError
+        return self._ll_bounds
 
 
     def set_latlon_bounds(self, ll_bounds, Nextra=2):
