@@ -17,7 +17,7 @@ from RAiDER import aws
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
-from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.cli.validators import DateListAction, date_type, enforce_wm
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
 
@@ -53,7 +53,7 @@ def read_template_file(fname):
 
     """
     from RAiDER.cli.validators import (
-        enforce_time, parse_dates, get_query_region, get_heights, get_los, enforce_wm
+        enforce_time, parse_dates, get_query_region, get_heights, get_los
     )
     with open(fname, 'r') as f:
         try:
@@ -216,9 +216,19 @@ def calcDelays(iargs=None):
 
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
-        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
+        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(),
+                            lookDir=los.getLookDirection(), incAngle=30)
     else:
         wm_bounds = aoi.bounds()
+
+    ## check the bounds of the weather model are okay
+    if not model.checkValidBounds(wm_bounds):
+        if model._Name == 'HRRR':
+            model = enforce_wm('HRRRAK')
+            if not model.checkValidBounds(wm_bounds):
+                raise ValueError('The requested location is unavailable for HRRR')
+        else:
+            raise ValueError(f'The requested location is unavailable for {model._Name}')
 
     wet_filenames = []
     for t, w, f in zip(
@@ -268,7 +278,7 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-             logger.error('No weather model data available on the requested dates')
+             logger.error('No weather model data was successfully obtained.')
              raise RuntimeError
 
         # nearest weather model time
@@ -534,10 +544,11 @@ def calcDelaysGUNW(iargs: list[str] = None):
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
         aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
 
+
 ## ------------------------------------------------------------ processDelays.py
 def combineZTDFiles():
     '''
-    Command-line program to process delay files from RAiDER and GNSS into a single file. 
+    Command-line program to process delay files from RAiDER and GNSS into a single file.
     '''
     from RAiDER.gnss.processDelayFiles import main, combineDelayFiles, create_parser
 
@@ -550,7 +561,7 @@ def combineZTDFiles():
     if not os.path.exists(args.gnss_file):
         combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source='GNSS',
                           ref=args.raider_file, col_name=args.column_name)
-    
+
     if args.gnss_file is not None:
         main(
             args.raider_file,

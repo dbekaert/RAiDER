@@ -19,7 +19,8 @@ from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
 from RAiDER.models.hres import HRES
-from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
+from RAiDER.models.hrrr import HRRR, get_bounds_indices
+from RAiDER.models.hrrrak import HRRRAK
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
@@ -122,10 +123,10 @@ class MockWeatherModel(WeatherModel):
         self._true_hydro_ztd = np.zeros(self._t.shape)
         for layer in range(len(self._zs)):
             self._true_hydro_ztd[:,:,layer] = 1e-6 * 0.5 * (self._zs[-1] - self._zs[layer]) * _p[layer]
-        
+
         self._true_wet_refr = 2 * np.ones(self._t.shape)
         self._true_wet_refr[:,3:] = 4
-    
+
     def interpWet(self):
         _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)
         return _ifWet
@@ -320,10 +321,10 @@ def test_hrrrak(hrrrak: HRRRAK):
     wm = hrrrak
     assert wm._Name == 'HRRR-AK'
     assert wm._valid_range[0] == datetime.datetime(2018, 7, 13)
-    
+
     assert ~wm.checkValidBounds([15, 20, 265, 270])
     assert wm.checkValidBounds([45, 47, 200, 210])
-    
+
     with pytest.raises(RuntimeError):
         wm.checkTime(datetime.datetime(2018, 7, 12))
     wm.checkTime(datetime.datetime(2018, 7, 15))
@@ -358,7 +359,7 @@ def test_ztd(model: MockWeatherModel):
     # hydro refractivity should be all the same
     m._get_hydro_refractivity()
     assert np.allclose(
-        m._hydrostatic_refractivity, 
+        m._hydrostatic_refractivity,
         m._true_hydro_refr,
     )
 
@@ -445,10 +446,10 @@ def test_hrrr_ak2(tmp_path: Path, hrrr: HRRR):
     d = tmp_path / "files"
     d.mkdir()
     fname = d / "hrrr_ak.nc"
-    
+
     wm.set_latlon_bounds([50, 52, 179, -179])
     wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
-    
+
     wm._fetch(fname)
     assert True
 

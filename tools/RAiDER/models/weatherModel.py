@@ -28,7 +28,7 @@ TIME_RES = {'GMAO': 3,
             'HRRR': 1,
             'WRF': 1,
             'NCMR': 1,
-            'HRRR-AK': 6,
+            'HRRR-AK': 3,
             }
 
 
@@ -484,6 +484,10 @@ class WeatherModel(ABC):
         Returns:
         bool    True if the ll_bounds represent a valid area for the weather model
         '''
+        if self._Name == 'HRRR-AK':
+            ll_bounds = ll_bounds.copy()
+            ll_bounds[2:] = np.mod(ll_bounds[2:], 360)
+
         return box(ll_bounds[2], ll_bounds[0], ll_bounds[3], ll_bounds[1]).intersects(self._valid_bounds)
 
 
@@ -732,7 +736,7 @@ class WeatherModel(ABC):
             'wet_total': (('z', 'y', 'x'), self._wet_ztd.swapaxes(0, 2).swapaxes(1, 2)),
             'hydro_total': (('z', 'y', 'x'), self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)),
         }
-        
+
         ds = xarray.Dataset(data_vars=dataset_dict, coords=dimension_dict, attrs=attrs_dict)
 
         # Define units
@@ -751,7 +755,7 @@ class WeatherModel(ABC):
         ds['wet'].attrs['standard_name'] = 'wet_refractivity'
         ds['hydro'].attrs['standard_name'] = 'hydrostatic_refractivity'
         ds['wet_total'].attrs['standard_name'] = 'total_wet_refractivity'
-        ds['hydro_total'].attrs['standard_name'] = 'total_hydrostatic_refractivity' 
+        ds['hydro_total'].attrs['standard_name'] = 'total_hydrostatic_refractivity'
 
         # projection information
         ds["proj"] = int()
@@ -759,7 +763,7 @@ class WeatherModel(ABC):
             ds.proj.attrs[k] = v
         for var in ds.data_vars:
             ds[var].attrs['grid_mapping'] = 'proj'
-        
+
         # write to file and return the filename
         ds.to_netcdf(f)
         return f
