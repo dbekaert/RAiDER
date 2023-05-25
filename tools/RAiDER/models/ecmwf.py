@@ -101,11 +101,10 @@ class ECMWF(WeatherModel):
         self._q = q
         geo_hgt, pres, hgt = self._calculategeoh(z, lnsp)
 
-        # re-assign lons, lats to match heights
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], hgt.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], hgt.shape)
+        self._lons, self._lats = np.meshgrid(lons, lats)
+
         # ys is latitude
-        self._get_heights(_lats, hgt)
+        self._get_heights(self._lats, hgt)
         h = self._zs.copy()
 
         # We want to support both pressure levels and true pressure grids.
@@ -121,8 +120,7 @@ class ECMWF(WeatherModel):
         self._t = np.transpose(self._t, (1, 2, 0))
         self._q = np.transpose(self._q, (1, 2, 0))
         h = np.transpose(h, (1, 2, 0))
-        self._lats = np.transpose(_lats, (1, 2, 0))
-        self._lons = np.transpose(_lons, (1, 2, 0))
+
 
         # Flip all the axis so that zs are in order from bottom to top
         # lats / lons are simply replicated to all heights so they don't need flipped
