@@ -324,8 +324,8 @@ class WeatherModel(ABC):
         Transform geo heights to WGS84 ellipsoidal heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        lats_full = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
-        self._zs = util.geo_to_ht(lats_full, geo_ht_fix)
+        lats_full  = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
+        self._zs   = util.geo_to_ht(lats_full, geo_ht_fix)
 
 
     def _find_e(self):

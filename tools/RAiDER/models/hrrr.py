@@ -18,7 +18,6 @@ from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
 
-
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
     '''
     Download a HRRR weather model using Herbie
