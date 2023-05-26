@@ -324,8 +324,8 @@ class WeatherModel(ABC):
         Transform geo heights to WGS84 ellipsoidal heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        lats_full = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
-        self._zs = util.geo_to_ht(lats_full, geo_ht_fix)
+        lats_full  = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
+        self._zs   = util.geo_to_ht(lats_full, geo_ht_fix)
 
 
     def _find_e(self):
@@ -732,7 +732,7 @@ class WeatherModel(ABC):
             'wet_total': (('z', 'y', 'x'), self._wet_ztd.swapaxes(0, 2).swapaxes(1, 2)),
             'hydro_total': (('z', 'y', 'x'), self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)),
         }
-        
+
         ds = xarray.Dataset(data_vars=dataset_dict, coords=dimension_dict, attrs=attrs_dict)
 
         # Define units
@@ -751,7 +751,7 @@ class WeatherModel(ABC):
         ds['wet'].attrs['standard_name'] = 'wet_refractivity'
         ds['hydro'].attrs['standard_name'] = 'hydrostatic_refractivity'
         ds['wet_total'].attrs['standard_name'] = 'total_wet_refractivity'
-        ds['hydro_total'].attrs['standard_name'] = 'total_hydrostatic_refractivity' 
+        ds['hydro_total'].attrs['standard_name'] = 'total_hydrostatic_refractivity'
 
         # projection information
         ds["proj"] = int()
@@ -759,7 +759,7 @@ class WeatherModel(ABC):
             ds.proj.attrs[k] = v
         for var in ds.data_vars:
             ds[var].attrs['grid_mapping'] = 'proj'
-        
+
         # write to file and return the filename
         ds.to_netcdf(f)
         return f

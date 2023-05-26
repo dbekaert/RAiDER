@@ -7,6 +7,7 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Update ERA5 model coordinates to reflect changes in support of HRRR
 + Re-work the HRRR weather model to use herbie (https://github.com/blaylockbk/Herbie) for weather model access. HRRR conus and Alaska validation periods are respectively 2016-7-15 and 2018-7-13 onwards.
 + minor bug fixes and unit test updates
 + add log file write location as a top-level command-line option and within Python as a user-specified option
