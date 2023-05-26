@@ -214,6 +214,9 @@ def calcDelays(iargs=None):
     # adjust user requested AOI by grid size and buffer slightly
     aoi.add_buffer(model.getLLRes())
 
+    # define the xy grid within the buffered bounding box
+    aoi.set_output_xygrid(params['output_projection'])
+
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
         wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)

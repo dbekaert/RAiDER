@@ -13,12 +13,14 @@ import pandas as pd
 import xarray
 import rasterio
 
+import pyproj
 from pyproj import CRS
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.utilFcns import (
-    rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band, clip_bbox
+    rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band,
+    clip_bbox, transform_bbox
     )
 from RAiDER.logger import logger
 
@@ -173,6 +175,23 @@ class AOI(object):
 
     def set_output_directory(self, output_directory):
         self._output_directory = output_directory
+        return
+
+
+    def set_output_xygrid(self, dst_crs=4326):
+        """ Define the locations where the delays will be returned """
+        try:
+            out_proj = CRS.from_epsg(dst_crs.replace('EPSG:', ''))
+        except pyproj.exceptions.CRSError:
+            out_proj = dst_crs
+
+        out_snwe = transform_bbox(self.bounds(), src_crs=4326, dest_crs=out_proj)
+        logger.debug(f"Output SNWE: {out_snwe}")
+
+        # Build the output grid
+        out_spacing = self.get_output_spacing(out_proj)
+        self.xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+        self.ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
         return
 
 

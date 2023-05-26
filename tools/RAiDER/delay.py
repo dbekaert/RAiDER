@@ -24,7 +24,7 @@ from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import getTopOfAtmosphere
 from RAiDER.utilFcns import (
-    lla2ecef, transform_bbox, writeResultsToXarray,
+    lla2ecef,  writeResultsToXarray,
     rio_profile, transformPoints,
 )
 
@@ -119,21 +119,9 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
     """
     raider cube generation function.
     """
-
-    # Determine the output grid extent here and clip output grid to multiples of spacing
-    out_snwe    = transform_bbox(aoi.bounds(), src_crs=4326, dest_crs=crs)
-
-    logger.debug(f"Output SNWE: {out_snwe}")
-
-    # Build the output grid
-    out_spacing = aoi.get_output_spacing(crs)
     zpts = np.array(heights)
-    xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
-    ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
-
 
     # If no orbit is provided
-    # Build zenith delay cube
     if los.is_Zenith() or los.is_Projected():
         out_type = ["zenith" if los.is_Zenith() else 'slant - projected'][0]
 
@@ -144,10 +132,9 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
             logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
 
 
-
         # Build cube
         wetDelay, hydroDelay = _build_cube(
-            xpts, ypts, zpts,
+            aoi.xpts, aoi.ypts, zpts,
             wm_proj, crs,
             [ifWet, ifHydro])
 
@@ -167,7 +154,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
         # Build cube
         if nproc == 1:
             wetDelay, hydroDelay = _build_cube_ray(
-                xpts, ypts, zpts, los,
+                aoi.xpts, aoi.ypts, zpts, los,
                 wm_proj, crs,
                 [ifWet, ifHydro])
 
@@ -184,7 +171,8 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
         raise Exception('There are missing delay values. Check your inputs. Not writing to disk.')
 
     # Write output file
-    ds = writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type)
+    ds = writeResultsToXarray(dt, aoi.xpts, aoi.ypts, zpts, crs, wetDelay,
+                              hydroDelay, weather_model_file, out_type)
 
     return ds
 
