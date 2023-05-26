@@ -7,7 +7,11 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
+<<<<<<< HEAD
 + Check the valid bounds prior to starting and use HRRR-AK if its correct so that rounding times to obtain data at are correctly fed to Herbie
++ Replace the real weather model files used for the synthetic test with the correct ones (bounding box changed slightly)
++ Update test_scenerio_1 to match golden data by selecting a grid by lat/lon rather than indices
++ Adjust the buffering to account for grid spacing
 + Update ERA5 model coordinates to reflect changes in support of HRRR
 + Re-work the HRRR weather model to use herbie (https://github.com/blaylockbk/Herbie) for weather model access. HRRR conus and Alaska validation periods are respectively 2016-7-15 and 2018-7-13 onwards.
 + minor bug fixes and unit test updates
