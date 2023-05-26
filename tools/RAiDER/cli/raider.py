@@ -214,6 +214,9 @@ def calcDelays(iargs=None):
     # adjust user requested AOI by grid size and buffer slightly
     aoi.add_buffer(model.getLLRes())
 
+    # define the xy grid within the buffered bounding box
+    aoi.set_output_xygrid(params['output_projection'])
+
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
         wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
@@ -534,10 +537,11 @@ def calcDelaysGUNW(iargs: list[str] = None):
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
         aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
 
+
 ## ------------------------------------------------------------ processDelays.py
 def combineZTDFiles():
     '''
-    Command-line program to process delay files from RAiDER and GNSS into a single file. 
+    Command-line program to process delay files from RAiDER and GNSS into a single file.
     '''
     from RAiDER.gnss.processDelayFiles import main, combineDelayFiles, create_parser
 
@@ -550,7 +554,7 @@ def combineZTDFiles():
     if not os.path.exists(args.gnss_file):
         combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source='GNSS',
                           ref=args.raider_file, col_name=args.column_name)
-    
+
     if args.gnss_file is not None:
         main(
             args.raider_file,

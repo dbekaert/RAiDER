@@ -201,6 +201,7 @@ class WeatherModel(ABC):
 
         if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
+
         elif self._Name == 'HRRR':
             Nextra = 6 # have a bigger buffer
 
@@ -209,10 +210,12 @@ class WeatherModel(ABC):
         S, N, W, E = ll_bounds
 
         # Adjust bounds if they get near the poles or IDL
-        S = np.max([S - Nextra * self._lat_res, -90.0 + Nextra * self._lat_res])
-        N = np.min([N + Nextra * self._lat_res, 90.0 - Nextra * self._lat_res])
-        W = np.max([W - Nextra * self._lon_res, -180.0 + Nextra * self._lon_res])
-        E = np.min([E + Nextra * self._lon_res + ex_buffer_lon_max, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
+        pixlat, pixlon = Nextra*self._lat_res, Nextra*self._lon_res
+
+        S= np.max([S - pixlat, -90.0 + pixlat])
+        N= np.min([N + pixlat, 90.0 - pixlat])
+        W= np.max([W - pixlon, -180.0 + pixlon])
+        E= np.min([E + (pixlon + ex_buffer_lon_max), 180.0 - pixlon - ex_buffer_lon_max])
 
         self._ll_bounds = np.array([S, N, W, E])
 

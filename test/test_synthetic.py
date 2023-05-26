@@ -1,18 +1,15 @@
 import os, os.path as op
 from dataclasses import dataclass
-import yaml
 import subprocess
 from datetime import datetime
 import numpy as np
 import xarray as xr
 
-import RAiDER
 from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, getTopOfAtmosphere
 from RAiDER.utilFcns import lla2ecef, ecef2lla
 from RAiDER.cli.validators import modelName2Module
-
 
 import pytest
 from test import TEST_DIR
@@ -24,6 +21,7 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
     Updates parameters in the default 'raider.yaml' file.
     Each key:value pair will in 'dct_cfg' will overwrite that in the default
     """
+    import RAiDER, yaml
 
     template_file = os.path.join(
                     os.path.dirname(RAiDER.__file__), 'cli', 'raider.yaml')
