@@ -241,90 +241,6 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     return dfr, dfz
 
 
-def mergeDelayFiles(
-    raiderFile,
-    ztdFile,
-    col_name='ZTD',
-    raider_delay='totalDelay',
-    outName=None,
-    localTime=None
-):
-    '''
-    Merge a combined RAiDER delays file with a GPS ZTD delay file
-    '''
-    print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
-    dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
-    # drop extra columns
-    expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay',
-                             'hydroDelay', raider_delay]
-    dfr = dfr.drop(columns=[col for col in dfr if col not in
-                            expected_data_columns])
-    dfz = pd.read_csv(ztdFile, parse_dates=['Datetime'])
-    # drop extra columns
-    expected_data_columns = ['ID', 'Date', 'wet_delay', 'hydrostatic_delay',
-                             'times', 'sigZTD', 'Lat', 'Lon', 'Hgt_m', 'Datetime',
-                             col_name]
-    dfz = dfz.drop(columns=[col for col in dfz if col not in
-                            expected_data_columns])
-    # only pass common locations and times
-    dfz = pass_common_obs(dfr, dfz)
-    dfr = pass_common_obs(dfz, dfr)
-
-    # If specified, convert to local-time reference frame WRT 0 longitude
-    common_keys = ['Datetime', 'ID']
-    if localTime is not None:
-        dfr, dfz = local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime)
-        common_keys.append('Localtime')
-        # only pass common locations and times
-        dfz = pass_common_obs(dfr, dfz, localtime='Localtime')
-        dfr = pass_common_obs(dfz, dfr, localtime='Localtime')
-
-    # drop all lines with nans
-    dfr.dropna(how='any', inplace=True)
-    dfz.dropna(how='any', inplace=True)
-    # drop all duplicate lines
-    dfr.drop_duplicates(inplace=True)
-    dfz.drop_duplicates(inplace=True)
-
-    print('Beginning merge')
-
-    dfc = dfr.merge(
-        dfz[common_keys + ['ZTD', 'sigZTD']],
-        how='left',
-        left_on=common_keys,
-        right_on=common_keys,
-        sort=True
-    )
-
-    # only keep observation closest to Localtime
-    if 'Localtime' in dfc.keys():
-        dfc['Localtimediff'] = abs((dfc['Datetime'] -
-                                    dfc['Localtime']).dt.total_seconds() / 3600)
-        dfc = dfc.loc[dfc.groupby(['ID', 'Localtime']).Localtimediff.idxmin()
-                      ].reset_index(drop=True)
-        dfc.drop(columns=['Localtimediff'], inplace=True)
-
-    # estimate residual
-    dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
-
-    print('Total number of rows in the concatenated file: '
-          '{}'.format(dfc.shape[0]))
-    print('Total number of rows containing NaNs: {}'.format(
-        dfc[dfc.isna().any(axis=1)].shape[0]
-    )
-    )
-    print('Merge finished')
-
-    if outName is None:
-        return dfc
-    else:
-        # drop all lines with nans
-        dfc.dropna(how='any', inplace=True)
-        # drop all duplicate lines
-        dfc.drop_duplicates(inplace=True)
-        dfc.to_csv(outName, index=False)
-
-
 def readZTDFile(filename, col_name='ZTD'):
     '''
     Read and parse a GPS zenith delay file
@@ -438,30 +354,79 @@ def create_parser():
     return p
 
 
-def parseCMD():
-    """
-    Parse command-line arguments and pass to delay.py
-    """
+def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName=None, localTime=None):
+    '''
+    Merge a combined RAiDER delays file with a GPS ZTD delay file
+    '''
+    print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
+    dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
+    # drop extra columns
+    expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay',
+                             'hydroDelay', raider_delay]
+    dfr = dfr.drop(columns=[col for col in dfr if col not in
+                            expected_data_columns])
+    dfz = pd.read_csv(ztdFile, parse_dates=['Date'])
+    dfz.rename(columns={'Date': 'Datetime'}, inplace=True)
+    # drop extra columns
+    expected_data_columns = ['ID', 'Datetime', 'wet_delay', 'hydrostatic_delay',
+                             'times', 'sigZTD', 'Lat', 'Lon', 'Hgt_m',
+                             col_name]
+    dfz = dfz.drop(columns=[col for col in dfz if col not in
+                            expected_data_columns])
+    # only pass common locations and times
+    dfz = pass_common_obs(dfr, dfz)
+    dfr = pass_common_obs(dfz, dfr)
 
-    p = create_parser()
-    args = p.parse_args()
+    # If specified, convert to local-time reference frame WRT 0 longitude
+    common_keys = ['Datetime', 'ID']
+    if localTime is not None:
+        dfr, dfz = local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime)
+        common_keys.append('Localtime')
+        # only pass common locations and times
+        dfz = pass_common_obs(dfr, dfz, localtime='Localtime')
+        dfr = pass_common_obs(dfz, dfr, localtime='Localtime')
 
-    if not os.path.exists(args.raider_file):
-        combineDelayFiles(args.raider_file, loc=args.raider_folder)
+    # drop all lines with nans
+    dfr.dropna(how='any', inplace=True)
+    dfz.dropna(how='any', inplace=True)
+    # drop all duplicate lines
+    dfr.drop_duplicates(inplace=True)
+    dfz.drop_duplicates(inplace=True)
 
-    if not os.path.exists(args.gnss_file):
-        combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source='GNSS',
-                          ref=args.raider_file, col_name=args.column_name)
+    print('Beginning merge')
 
-    if args.gnss_file is not None:
-        mergeDelayFiles(
-            args.raider_file,
-            args.gnss_file,
-            col_name=args.column_name,
-            raider_delay=args.raider_column_name,
-            outName=args.out_name,
-            localTime=args.local_time
-        )
+    dfc = dfr.merge(
+        dfz[common_keys + ['ZTD', 'sigZTD']],
+        how='left',
+        left_on=common_keys,
+        right_on=common_keys,
+        sort=True
+    )
 
-def main():
-    parseCMD()
+    # only keep observation closest to Localtime
+    if 'Localtime' in dfc.keys():
+        dfc['Localtimediff'] = abs((dfc['Datetime'] -
+                                    dfc['Localtime']).dt.total_seconds() / 3600)
+        dfc = dfc.loc[dfc.groupby(['ID', 'Localtime']).Localtimediff.idxmin()
+                      ].reset_index(drop=True)
+        dfc.drop(columns=['Localtimediff'], inplace=True)
+
+    # estimate residual
+    dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
+
+    print('Total number of rows in the concatenated file: '
+          '{}'.format(dfc.shape[0]))
+    print('Total number of rows containing NaNs: {}'.format(
+        dfc[dfc.isna().any(axis=1)].shape[0]
+    )
+    )
+    print('Merge finished')
+
+    if outName is None:
+        return dfc
+    else:
+        # drop all lines with nans
+        dfc.dropna(how='any', inplace=True)
+        # drop all duplicate lines
+        dfc.drop_duplicates(inplace=True)
+        dfc.to_csv(outName, index=False)
