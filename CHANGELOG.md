@@ -7,6 +7,7 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Update test_intersect to already existing weather model files 
 + Replace the real weather model files used for the synthetic test with the correct ones (bounding box changed slightly)
 + Update test_scenerio_1 to match golden data by selecting a grid by lat/lon rather than indices
 + Adjust the buffering to account for grid spacing
