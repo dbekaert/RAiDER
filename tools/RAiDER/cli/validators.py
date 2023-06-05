@@ -19,7 +19,7 @@ from RAiDER.logger import logger
 
 _BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees
 
-def enforce_wm(value):
+def enforce_wm(value, aoi):
     model = value.upper().replace("-", "")
     try:
         _, model_obj = modelName2Module(model)
@@ -30,7 +30,11 @@ def enforce_wm(value):
                 please contribute!
                 '''.format(model))
         )
-    return model_obj()
+
+    ## check the user requsted bounding box is within the weather model domain
+    modObj = model_obj().checkValidBounds(aoi.bounds())
+
+    return modObj
 
 
 def get_los(args):

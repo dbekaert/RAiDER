@@ -485,9 +485,21 @@ class WeatherModel(ABC):
         ll_bounds : np.ndarray
 
         Returns:
-        bool    True if the ll_bounds represent a valid area for the weather model
+        bool    The weather model object
         '''
-        return box(ll_bounds[2], ll_bounds[0], ll_bounds[3], ll_bounds[1]).intersects(self._valid_bounds)
+        S, N, W, E = ll_bounds
+        if box(W, S, E, N).intersects(self._valid_bounds):
+            Mod = self
+
+        elif self._Name == 'HRRR':
+            from RAiDER.models.hrrr import HRRRAK
+            Mod = HRRRAK()
+            if not box(W, S, E, N).intersects(Mod._valid_bounds):
+                raise ValueError('The requested location is unavailable for HRRR')
+        else:
+            raise ValueError(f'The requested location is unavailable for {self._Name}')
+
+        return Mod
 
 
     def checkContainment(self: weatherModel,

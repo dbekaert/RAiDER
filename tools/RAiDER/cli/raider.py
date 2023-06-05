@@ -78,8 +78,6 @@ def read_template_file(fname):
             for k, v in value.items():
                 if v is not None:
                     template[k] = v
-        if key == 'weather_model':
-            template[key]= enforce_wm(value)
         if key == 'time_group':
             template.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
@@ -112,6 +110,9 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
+
+        if key == 'weather_model':
+            template[key]= enforce_wm(value, template['aoi'])
 
     template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
     return AttributeDict(template)
@@ -271,7 +272,7 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-             logger.error('No weather model data available on the requested dates')
+             logger.error('No weather model data was successfully obtained.')
              raise RuntimeError
 
         # nearest weather model time
@@ -309,7 +310,6 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
-
 
         # Now process the delays
         try:
