@@ -13,7 +13,7 @@ from RAiDER.cli import AttributeDict
 
 
 from RAiDER.cli.validators import (
-    modelName2Module, getBufferedExtent, isOutside, isInside, 
+    modelName2Module, getBufferedExtent, isOutside, isInside,
     enforce_valid_dates as date_type, convert_time as time_type,
     enforce_bbox, parse_dates, enforce_wm, get_los
 )
@@ -62,8 +62,8 @@ def args1():
 
 def test_enforce_wm():
     with pytest.raises(NotImplementedError):
-        enforce_wm('notamodel')
-    
+        enforce_wm('notamodel', 'fakeaoi')
+
 
 def test_get_los_ray(args1):
     args = args1
@@ -110,16 +110,16 @@ def test_date_list_action():
     }
     assert date_type(date_list['date_start']) == datetime(2020,1,1)
 
-    
+
     assert parse_dates(date_list) == [datetime(2020,1,1)]
-    
+
     date_list['date_end'] = '20200103'
     assert date_type(date_list['date_end']) == datetime(2020,1,3)
     assert parse_dates(date_list) == [datetime(2020,1,1), datetime(2020,1,2), datetime(2020,1,3)]
 
     date_list['date_end'] = '20200112'
     date_list['date_step'] = '5'
-    assert parse_dates(date_list) == [datetime(2020,1,1), datetime(2020,1,6), datetime(2020,1,11)]    
+    assert parse_dates(date_list) == [datetime(2020,1,1), datetime(2020,1,6), datetime(2020,1,11)]
 
 
 def test_bbox_action():
