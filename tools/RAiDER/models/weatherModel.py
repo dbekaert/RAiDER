@@ -494,6 +494,8 @@ class WeatherModel(ABC):
         elif self._Name == 'HRRR':
             from RAiDER.models.hrrr import HRRRAK
             Mod = HRRRAK()
+            # valid bounds are in 0->360 to account for dateline crossing
+            W, E = np.mod([W, E], 360)
             if not box(W, S, E, N).intersects(Mod._valid_bounds):
                 raise ValueError('The requested location is unavailable for HRRR')
         else:

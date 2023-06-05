@@ -15,6 +15,7 @@ from RAiDER.models.weatherModel import (
     make_raw_weather_data_filename,
     make_weather_model_filename,
 )
+from RAiDER.llreader import BoundingBox
 from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
@@ -324,7 +325,11 @@ def test_hrrrak(hrrrak: HRRRAK):
     assert wm._Name == 'HRRR-AK'
     assert wm._valid_range[0] == datetime.datetime(2018, 7, 13)
 
-    assert wm.checkValidBounds([45, 47, 200, 210])
+    assert isinstance(wm.checkValidBounds([45, 47, 200, 210]), HRRRAK)
+
+    ## check that coords passed in the typical way be properly accounted for
+    aoi = BoundingBox([45, 47, 200-360, 210-360])
+    assert isinstance(enforce_wm(wm._Name, aoi), HRRRAK)
 
     with pytest.raises(ValueError):
         wm.checkValidBounds([15, 20, 265, 270])
