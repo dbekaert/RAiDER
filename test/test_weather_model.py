@@ -122,10 +122,10 @@ class MockWeatherModel(WeatherModel):
         self._true_hydro_ztd = np.zeros(self._t.shape)
         for layer in range(len(self._zs)):
             self._true_hydro_ztd[:,:,layer] = 1e-6 * 0.5 * (self._zs[-1] - self._zs[layer]) * _p[layer]
-        
+
         self._true_wet_refr = 2 * np.ones(self._t.shape)
         self._true_wet_refr[:,3:] = 4
-    
+
     def interpWet(self):
         _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)
         return _ifWet
@@ -312,20 +312,26 @@ def test_hrrr(hrrr: HRRR):
     with pytest.raises(RuntimeError):
         wm.checkTime(datetime.datetime(2010, 7, 15))
     wm.checkTime(datetime.datetime(2018, 7, 12))
-    assert wm.checkValidBounds([35, 40, -95, -90])
-    assert ~wm.checkValidBounds([45, 47, 200, 210])
+
+    assert isinstance(wm.checkValidBounds([35, 40, -95, -90]), HRRR)
+
+    with pytest.raises(ValueError):
+        wm.checkValidBounds([45, 47, 300, 310])
 
 
 def test_hrrrak(hrrrak: HRRRAK):
     wm = hrrrak
     assert wm._Name == 'HRRR-AK'
     assert wm._valid_range[0] == datetime.datetime(2018, 7, 13)
-    
-    assert ~wm.checkValidBounds([15, 20, 265, 270])
+
     assert wm.checkValidBounds([45, 47, 200, 210])
-    
+
+    with pytest.raises(ValueError):
+        wm.checkValidBounds([15, 20, 265, 270])
+
     with pytest.raises(RuntimeError):
         wm.checkTime(datetime.datetime(2018, 7, 12))
+
     wm.checkTime(datetime.datetime(2018, 7, 15))
 
 
@@ -358,7 +364,7 @@ def test_ztd(model: MockWeatherModel):
     # hydro refractivity should be all the same
     m._get_hydro_refractivity()
     assert np.allclose(
-        m._hydrostatic_refractivity, 
+        m._hydrostatic_refractivity,
         m._true_hydro_refr,
     )
 
@@ -418,18 +424,17 @@ def test_get_bounds_indices_4():
     assert bounds_list == (0, 4, 0, 9)
 
 
-def test_hrrr_badloc(hrrr: HRRR):
-    wm = hrrr
+def test_hrrr_badloc(wm:hrrr=HRRR):
+    wm = wm()
     wm.set_latlon_bounds([-10, 10, -10, 10])
-    wm.setTime( datetime.datetime(2020, 10, 1, 0, 0, 0))
+    wm.setTime(datetime.datetime(2020, 10, 1, 0, 0, 0))
     with pytest.raises(ValueError):
         wm._fetch('dummy_filename')
 
 
-
-def test_hrrr_ak(tmp_path: Path, hrrr: HRRR):
-    wm = hrrr
-    d = tmp_path / "files"
+def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK):
+    wm = wm()
+    d  = tmp_path / "files"
     d.mkdir()
     fname = d / "hrrr_ak.nc"
     wm.set_latlon_bounds([65, 67, -160, -150])
@@ -439,16 +444,16 @@ def test_hrrr_ak(tmp_path: Path, hrrr: HRRR):
     assert True
 
 
-def test_hrrr_ak2(tmp_path: Path, hrrr: HRRR):
+def test_hrrrak_dl2(tmp_path: Path, wm:hrrrak=HRRRAK):
     # test the international date line crossing
-    wm = hrrr
-    d = tmp_path / "files"
+    wm = wm()
+    d  = tmp_path / "files"
     d.mkdir()
     fname = d / "hrrr_ak.nc"
-    
+
     wm.set_latlon_bounds([50, 52, 179, -179])
     wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
-    
+
     wm._fetch(fname)
     assert True
 
