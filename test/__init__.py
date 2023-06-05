@@ -1,6 +1,7 @@
 import os
 import pytest
 import subprocess
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -13,6 +14,7 @@ TEST_DIR = test_dir.absolute()
 DATA_DIR = os.path.join(TEST_DIR, 'data')
 GEOM_DIR = os.path.join(TEST_DIR, 'test_geom')
 WM_DIR   = os.path.join(TEST_DIR, 'weather_files')
+ORB_DIR  = os.path.join(TEST_DIR, 'orbit_files')
 
 WM = 'GMAO'
 
