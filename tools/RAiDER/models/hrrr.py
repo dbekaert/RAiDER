@@ -1,6 +1,5 @@
 import datetime
 import os
-from ........users.buzzanga.software_insar.raider_git.tools.RAiDER.models import weatherModel
 import rioxarray
 import xarray
 
@@ -9,7 +8,7 @@ import numpy as np
 from herbie import Herbie
 from pathlib import Path
 from pyproj import CRS, Transformer
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, box
 
 from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
 from RAiDER.models.weatherModel import (
@@ -263,7 +262,7 @@ class HRRR(WeatherModel):
         self._proj = proj
 
 
-    def checkValidBounds(self: weatherModel, ll_bounds: np.ndarray):
+    def checkValidBounds(self: WeatherModel, ll_bounds: np.ndarray):
         '''
         Checks whether the given bounding box is valid for the HRRR or HRRRAK
         (i.e., intersects with the model domain at all)
