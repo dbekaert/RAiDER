@@ -223,6 +223,8 @@ def calcDelays(iargs=None):
         wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
     else:
         wm_bounds = aoi.bounds()
+        # bounds = aoi.bounds()
+        # wm_bounds = [bounds[0]-1, bounds[1]+1, bounds[2]-1, bounds[3]+1]
 
     wet_filenames = []
     for t, w, f in zip(
@@ -340,7 +342,6 @@ def calcDelays(iargs=None):
 
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
-
 
             if out_filename.endswith(".nc"):
                 ds.to_netcdf(out_filename, mode="w")

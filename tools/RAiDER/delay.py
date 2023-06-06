@@ -92,9 +92,8 @@ def tropo_delay(
         lats, lons = aoi.readLL()
         hgts = aoi.readZ()
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
-        if pnts.ndim == 3:
-            pnts = pnts.transpose(2,1,0)
-        elif pnts.ndim == 2:
+
+        if pnts.ndim == 2:
             pnts = pnts.T
 
         try:
@@ -188,15 +187,18 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
     outputArrs = [np.zeros((zpts.size, ypts.size, xpts.size))
                   for mm in range(len(interpolators))]
 
+
     # Loop over heights and compute delays
     for ii, ht in enumerate(zpts):
 
-        # pts is in weather model system
+        # pts is in weather model system;
         if model_crs != pts_crs:
-            pts = np.transpose(transformPoints(yy, xx, np.full(yy.shape, ht),
-                                               pts_crs, model_crs), (2, 1, 0))
+            # lat / lon / height for hrrr
+            pts = transformPoints(yy, xx, np.full(yy.shape, ht),
+                                               pts_crs, model_crs)
         else:
             pts = np.stack([yy, xx, np.full(yy.shape, ht)], axis=-1)
+
         for mm, intp in enumerate(interpolators):
             outputArrs[mm][ii,...] = intp(pts)
 
@@ -229,9 +231,8 @@ def _build_cube_ray(
     epsg4326 = CRS.from_epsg(4326)
     cube_to_llh = Transformer.from_crs(pts_crs, epsg4326,
                                        always_xy=True)
-    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs)
-    # For calling the interpolators
-    flip_xy = model_crs.axis_info[0].direction == "east"
+    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs,
+                                         always_xy=True)
 
     # Loop over heights of output cube and compute delays
     for hh, ht in enumerate(zpts):
@@ -272,7 +273,6 @@ def _build_cube_ray(
                 low_ht = ht
 
             # If high_ht > max_tropo_height - integral only up to max tropo
-            # height
             if high_ht > MAX_TROPO_HEIGHT:
                 high_ht = MAX_TROPO_HEIGHT
 
@@ -313,18 +313,15 @@ def _build_cube_ray(
                 # Ray point in ECEF coordinates
                 pts_xyz = low_xyz + ff * (high_xyz - low_xyz)
 
-                # Ray point in model coordinates
+                # Ray point in model coordinates (x, y, z)
                 pts = ecef_to_model.transform(
                     pts_xyz[..., 0],
                     pts_xyz[..., 1],
                     pts_xyz[..., 2]
                 )
 
-                # Order for the interpolator
-                if flip_xy:
-                    pts = np.stack((pts[1], pts[0], pts[2]), axis=-1)
-                else:
-                    pts = np.stack(pts, axis=-1)
+                # Order for the interpolator (from xyz to yxz)
+                pts = np.stack((pts[1], pts[0], pts[2]), axis=-1)
 
                 # ray points first exist in ECEF; they are then projected to WGS84
                 # this adds slight error (order 1 mm for 500 m)

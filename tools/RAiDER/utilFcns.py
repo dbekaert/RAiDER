@@ -194,7 +194,7 @@ def rio_stats(fname, band=1):
     Args:
         fname   - filename to be loaded
         band    - band number to use for getting statistics
-    
+
     Returns:
         stats   - a list of stats for the specified band
         proj    - CRS/projection information for the file
@@ -566,7 +566,7 @@ def getTimeFromFile(filename):
         return datetime.strptime(out, fmt)
     except BaseException:  # TODO: Which error(s)?
         raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
-    
+
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
 # Credits go to Tom Payne
@@ -1143,18 +1143,13 @@ def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_pr
     if not isinstance(old_proj, CRS):
         old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
 
-    t = Transformer.from_crs(old_proj, new_proj)
+    t = Transformer.from_crs(old_proj, new_proj, always_xy=True)
 
     in_flip = old_proj.axis_info[0].direction
     out_flip = new_proj.axis_info[0].direction
 
-    if in_flip == 'east':
-        res = t.transform(lons, lats, hgts)
-    else:
-        res = t.transform(lats, lons, hgts)
-    
-    if out_flip == 'east':
-        return np.stack((res[1], res[0], res[2]), axis=-1).T
-    else:
-        return np.stack(res, axis=-1).T
+    res  = t.transform(lons, lats, hgts)
+
+    # lat/lon/height
+    return  np.stack([res[1], res[0], res[2]], axis=-1)
 

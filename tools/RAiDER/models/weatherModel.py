@@ -28,7 +28,7 @@ TIME_RES = {'GMAO': 3,
             'HRRR': 1,
             'WRF': 1,
             'NCMR': 1,
-            'HRRR-AK': 6,
+            'HRRR-AK': 3,
             }
 
 
@@ -185,7 +185,7 @@ class WeatherModel(ABC):
 
 
     def get_latlon_bounds(self):
-        raise NotImplementedError
+        return self._ll_bounds
 
 
     def set_latlon_bounds(self, ll_bounds, Nextra=2):
@@ -202,7 +202,7 @@ class WeatherModel(ABC):
         if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
 
-        elif self._Name == 'HRRR':
+        elif self._Name in 'HRRR HRRR-AK'.split():
             Nextra = 6 # have a bigger buffer
 
 

@@ -17,6 +17,7 @@ from RAiDER.models.weatherModel import (
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
+from RAiDER.logger import logger
 
 
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
