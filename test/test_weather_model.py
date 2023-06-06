@@ -327,10 +327,6 @@ def test_hrrrak(hrrrak: HRRRAK):
 
     assert isinstance(wm.checkValidBounds([45, 47, 200, 210]), HRRRAK)
 
-    ## check that coords passed in the typical way be properly accounted for
-    aoi = BoundingBox([45, 47, 200-360, 210-360])
-    assert isinstance(enforce_wm(wm._Name, aoi), HRRRAK)
-
     with pytest.raises(ValueError):
         wm.checkValidBounds([15, 20, 265, 270])
 

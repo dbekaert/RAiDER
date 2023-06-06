@@ -477,27 +477,21 @@ class WeatherModel(ABC):
     def checkValidBounds(
             self: weatherModel,
             ll_bounds: np.ndarray,
-                         ) -> bool:
+                         ):
         '''
-        Checks whether the given bounding box is valid for the model (i.e., intersects with the model domain at all)
+        Checks whether the given bounding box is valid for the model
+        (i.e., intersects with the model domain at all)
 
         Args:
         ll_bounds : np.ndarray
 
         Returns:
-        bool    The weather model object
+            The weather model object
         '''
         S, N, W, E = ll_bounds
         if box(W, S, E, N).intersects(self._valid_bounds):
             Mod = self
 
-        elif self._Name == 'HRRR':
-            from RAiDER.models.hrrr import HRRRAK
-            Mod = HRRRAK()
-            # valid bounds are in 0->360 to account for dateline crossing
-            W, E = np.mod([W, E], 360)
-            if not box(W, S, E, N).intersects(Mod._valid_bounds):
-                raise ValueError('The requested location is unavailable for HRRR')
         else:
             raise ValueError(f'The requested location is unavailable for {self._Name}')
 

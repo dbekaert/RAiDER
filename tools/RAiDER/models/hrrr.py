@@ -1,5 +1,6 @@
 import datetime
 import os
+from ........users.buzzanga.software_insar.raider_git.tools.RAiDER.models import weatherModel
 import rioxarray
 import xarray
 
@@ -260,6 +261,30 @@ class HRRR(WeatherModel):
         self._lons = _lons
 
         self._proj = proj
+
+
+    def checkValidBounds(self: weatherModel, ll_bounds: np.ndarray):
+        '''
+        Checks whether the given bounding box is valid for the HRRR or HRRRAK
+        (i.e., intersects with the model domain at all)
+
+        Args:
+        ll_bounds : np.ndarray
+
+        Returns:
+            The weather model object
+        '''
+        S, N, W, E = ll_bounds
+        if box(W, S, E, N).intersects(self._valid_bounds):
+            Mod = self
+
+        else:
+            Mod = HRRRAK()
+            # valid bounds are in 0->360 to account for dateline crossing
+            W, E = np.mod([W, E], 360)
+            if not box(W, S, E, N).intersects(Mod._valid_bounds):
+                raise ValueError('The requested location is unavailable for HRRR')
+        return Mod
 
 
 class HRRRAK(WeatherModel):
