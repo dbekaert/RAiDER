@@ -12,7 +12,7 @@ from shapely.geometry import box
 from shapely.affinity import translate
 from shapely.ops import unary_union
 
-from RAiDER.constants import _ZREF, _ZMIN, _g0
+from RAiDER.constants import _ZMIN, _ZREF, _g0
 from RAiDER import utilFcns as util
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
@@ -107,7 +107,7 @@ class WeatherModel(ABC):
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projection: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
-        string += 'ZMAX: {}\n'.format(self._zmax)
+        string += 'ZMAX: {}\n'.format(self._zref)
         string += 'k1 = {}\n'.format(self._k1)
         string += 'k2 = {}\n'.format(self._k2)
         string += 'k3 = {}\n'.format(self._k3)
@@ -240,7 +240,6 @@ class WeatherModel(ABC):
         self,
         *args,
         _zlevels=None,
-        zref=_ZREF,
         **kwargs
     ):
         '''
@@ -267,7 +266,7 @@ class WeatherModel(ABC):
             self._adjust_grid(self.get_latlon_bounds())
 
             # Compute Zenith delays at the weather model grid nodes
-            self._getZTD(zref)
+            self._getZTD()
             return None
 
 
@@ -390,8 +389,6 @@ class WeatherModel(ABC):
         '''
         This function pads the weather grid with a level at self._zmin, if
         it does not already go that low.
-        <<The functionality below has been removed.>>
-        <<It also removes levels that are above self._zmax, since they are not needed.>>
         '''
 
         if self._zmin < np.nanmin(self._zs):
@@ -407,13 +404,10 @@ class WeatherModel(ABC):
                 self._trimExtent(ll_bounds)
 
 
-    def _getZTD(self, zref=None):
+    def _getZTD(self):
         '''
-        Compute the full slant tropospheric delay for each weather model grid node, using the reference
-        height zref
+        Compute full zenith tropospheric delay for each weather model grid node
         '''
-        if zref is None:
-            zref = self._zmax
 
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()

@@ -41,6 +41,18 @@ class ECMWF(WeatherModel):
         self._model_level_type = 'ml'  # Default
 
 
+    def __pressure_levels__(self):
+        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
+        self._levels = len(self._zlevels)
+
+
+    def __model_levels__(self):
+        self._levels = 137
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
+        self._a = A_137_HRES
+        self._b = B_137_HRES
+
+
     def setLevelType(self, levelType):
         '''Set the level type to model levels or pressure levels'''
         if levelType in ['ml', 'pl']:
@@ -52,18 +64,6 @@ class ECMWF(WeatherModel):
             self.__model_levels__()
         else:
             self.__pressure_levels__()
-
-
-    def __pressure_levels__(self):
-        self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
-        self._levels = len(self._zlevels)
-
-
-    def __model_levels__(self):
-        self._levels = 137
-        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
-        self._a = A_137_HRES
-        self._b = B_137_HRES
 
 
     def load_weather(self, f=None, *args, **kwargs):

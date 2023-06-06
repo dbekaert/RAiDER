@@ -6,8 +6,6 @@ import xarray as xr
 from test import *
 
 
-# @pytest.mark.isce3
-# @pytest.mark.skip(reason='outdated golden data')
 @pytest.mark.parametrize('weather_model_name', ['ERA5'])
 def test_ray_tracing(weather_model_name):
     SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
@@ -42,18 +40,16 @@ def test_ray_tracing(weather_model_name):
     cmd  = f'raider.py {cfg}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
-    return
 
     # model to lat/lon/correct value
-    gold = {'ERA5': [33.4, -117.8, 5]}
-    lat, lon, val = gold[weather_model_name]
+    gold = {'ERA5': [33.4, -117.8, 0, 2.978902512]}
+    lat, lon, hgt, val = gold[weather_model_name]
+
     path_delays = os.path.join(SCENARIO_DIR, f'{weather_model_name}_tropo_{date}T{time.replace(":", "")}_ray.nc')
     with xr.open_dataset(path_delays) as ds:
-        da_hyd = ds['hydro'].sel(y=lat, x=lon, method='nearest')
-        da_wet = ds['wet'].sel(y=lat, x=lon, method='nearest')
-        res    = (da_hyd + da_wet).item()
-
-    np.testing.assert_almost_equal(val, res)
+        delay = (ds['hydro'] + ds['wet']).sel(
+            y=lat, x=lon, z=hgt, method='nearest').item()
+    np.testing.assert_almost_equal(delay, val)
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
@@ -94,18 +90,15 @@ def test_slant_proj(weather_model_name):
     cmd  = f'raider.py {cfg}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
-    return
 
-    # model to lat/lon/correct value
-    gold = {'ERA5': [33.4, -117.8, 5]}
-    lat, lon, val = gold[weather_model_name]
+    gold = {'ERA5': [33.4, -117.8, 0, 2.33663906]}
+    lat, lon, hgt, val = gold[weather_model_name]
     path_delays = os.path.join(SCENARIO_DIR, f'{weather_model_name}_tropo_{date}T{time.replace(":", "")}_std.nc')
     with xr.open_dataset(path_delays) as ds:
-        da_hyd = ds['hydro'].sel(y=lat, x=lon, method='nearest')
-        da_wet = ds['wet'].sel(y=lat, x=lon, method='nearest')
-        res    = (da_hyd + da_wet).item()
+        delay = (ds['hydro'] + ds['wet']).sel(
+            y=lat, x=lon, z=hgt, method='nearest').item()
 
-    np.testing.assert_almost_equal(val, res)
+    np.testing.assert_almost_equal(delay, val)
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)

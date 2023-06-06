@@ -18,8 +18,6 @@ from scipy.interpolate import interp1d
 from RAiDER.utilFcns import (
     cosd, sind, rio_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
 )
-from RAiDER.constants import _ZREF
-
 
 class LOS(ABC):
     '''
@@ -165,7 +163,7 @@ class Raytracing(LOS):
             an Earth-centered, earth-fixed reference frame (ECEF).
             Convention is vectors point from the target pixel to the
             sensor.
-    ndarray - array of <in_shape> of the distnce from the surface to
+    ndarray - array of <in_shape> of the distance from the surface to
             the top of the troposphere (denoted by zref)
 
     Example:
