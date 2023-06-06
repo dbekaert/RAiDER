@@ -220,11 +220,10 @@ def calcDelays(iargs=None):
 
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
-        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
+        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(),
+                                lookDir=los.getLookDirection(), incAngle=30)
     else:
         wm_bounds = aoi.bounds()
-        # bounds = aoi.bounds()
-        # wm_bounds = [bounds[0]-1, bounds[1]+1, bounds[2]-1, bounds[3]+1]
 
     wet_filenames = []
     for t, w, f in zip(

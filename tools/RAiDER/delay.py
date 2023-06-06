@@ -93,9 +93,6 @@ def tropo_delay(
         hgts = aoi.readZ()
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
 
-        if pnts.ndim == 2:
-            pnts = pnts.T
-
         try:
             ifWet, ifHydro = getInterpolators(ds, "ztd")
         except RuntimeError:
