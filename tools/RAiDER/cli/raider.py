@@ -78,8 +78,6 @@ def read_template_file(fname):
             for k, v in value.items():
                 if v is not None:
                     template[k] = v
-        if key == 'weather_model':
-            template[key]= enforce_wm(value)
         if key == 'time_group':
             template.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
@@ -112,6 +110,9 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
+
+        if key == 'weather_model':
+            template[key]= enforce_wm(value, template['aoi'])
 
     template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
     return AttributeDict(template)
@@ -219,7 +220,8 @@ def calcDelays(iargs=None):
 
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
-        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
+        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(),
+                                lookDir=los.getLookDirection(), incAngle=30)
     else:
         wm_bounds = aoi.bounds()
 
@@ -271,7 +273,7 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-             logger.error('No weather model data available on the requested dates')
+             logger.error('No weather model data was successfully obtained.')
              raise RuntimeError
 
         # nearest weather model time
@@ -310,7 +312,6 @@ def calcDelays(iargs=None):
             )
             ds.to_netcdf(weather_model_file)
 
-
         # Now process the delays
         try:
             wet_delay, hydro_delay = tropo_delay(
@@ -340,7 +341,6 @@ def calcDelays(iargs=None):
 
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
-
 
             if out_filename.endswith(".nc"):
                 ds.to_netcdf(out_filename, mode="w")

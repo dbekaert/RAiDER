@@ -119,9 +119,9 @@ class AOI(object):
         S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
         W, E = W-buffer, E+buffer # TODO: handle dateline crossings
 
-        ## clip the buffered region to a multiple of the spaacing
+        ## clip the buffered region to a multiple of the spacing
         self.set_output_spacing(ll_res)
-        S, N, W, E  = clip_bbox(self.bounds(), self._output_spacing)
+        S, N, W, E  = clip_bbox([S,N,W,E], self._output_spacing)
 
         if np.max([np.abs(W), np.abs(E)]) > 180:
             logger.warning('Bounds extend past +/- 180. Results may be incorrect.')

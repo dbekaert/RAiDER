@@ -28,7 +28,7 @@ TIME_RES = {'GMAO': 3,
             'HRRR': 1,
             'WRF': 1,
             'NCMR': 1,
-            'HRRR-AK': 6,
+            'HRRR-AK': 3,
             }
 
 
@@ -185,7 +185,7 @@ class WeatherModel(ABC):
 
 
     def get_latlon_bounds(self):
-        raise NotImplementedError
+        return self._ll_bounds
 
 
     def set_latlon_bounds(self, ll_bounds, Nextra=2):
@@ -202,7 +202,7 @@ class WeatherModel(ABC):
         if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
 
-        elif self._Name == 'HRRR':
+        elif self._Name in 'HRRR HRRR-AK'.split():
             Nextra = 6 # have a bigger buffer
 
 
@@ -477,17 +477,25 @@ class WeatherModel(ABC):
     def checkValidBounds(
             self: weatherModel,
             ll_bounds: np.ndarray,
-                         ) -> bool:
+                         ):
         '''
-        Checks whether the given bounding box is valid for the model (i.e., intersects with the model domain at all)
+        Checks whether the given bounding box is valid for the model
+        (i.e., intersects with the model domain at all)
 
         Args:
         ll_bounds : np.ndarray
 
         Returns:
-        bool    True if the ll_bounds represent a valid area for the weather model
+            The weather model object
         '''
-        return box(ll_bounds[2], ll_bounds[0], ll_bounds[3], ll_bounds[1]).intersects(self._valid_bounds)
+        S, N, W, E = ll_bounds
+        if box(W, S, E, N).intersects(self._valid_bounds):
+            Mod = self
+
+        else:
+            raise ValueError(f'The requested location is unavailable for {self._Name}')
+
+        return Mod
 
 
     def checkContainment(self: weatherModel,
