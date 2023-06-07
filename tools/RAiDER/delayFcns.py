@@ -5,10 +5,15 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import multiprocessing as mp
+try:
+    import multiprocessing as mp
+except ImportError:
+    mp = None
+
 import xarray
 
 import numpy as np
+
 from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 from RAiDER.utilFcns import transformPoints
@@ -62,6 +67,9 @@ def make_shared_raw(inarr):
     Make numpy view array of mp.Array
     """
     # Create flat shared array
+    if mp is None:
+        raise ImportError('multiprocessing is not available')
+    
     shared_arr = mp.RawArray('d', inarr.size)
     # Create a numpy view of it
     shared_arr_np = np.ndarray(inarr.shape, dtype=np.float64,
