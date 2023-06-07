@@ -55,7 +55,6 @@ def test_cube_intersect():
     return
 
 
-@pytest.mark.skip()
 def test_gnss_intersect():
     WM = 'ERA5'
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")

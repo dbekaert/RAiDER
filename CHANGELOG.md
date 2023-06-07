@@ -7,6 +7,8 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Update the integration height for raytracing from 50 km to 80 km
++ Reinstate test 3 (slant proj and ray trace), remove unused calls with ZREF
 + Add buffer to HRES when downloading as with the other models
 + Only reuse weather file if the cropped one exists
 + Refactor to pass a weather file directly to fetch

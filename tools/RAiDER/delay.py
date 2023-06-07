@@ -28,6 +28,8 @@ from RAiDER.utilFcns import (
     rio_profile, transformPoints,
 )
 
+from RAiDER.constants import _ZREF
+
 
 ###############################################################################
 def tropo_delay(
@@ -37,6 +39,7 @@ def tropo_delay(
         los,
         height_levels: List[float]=None,
         out_proj: Union[int, str] =4326,
+        zref: Union[int, float]=_ZREF,
     ):
     """
     Calculate integrated delays on query points. Options are:
@@ -51,6 +54,7 @@ def tropo_delay(
         los: LOS object             - LOS object
         height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
         out_proj: int,str           - (optional) EPSG code for output projection
+        zref: int,float             - (optional) maximum height to integrate up to during raytracing
 
     Returns:
         xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
@@ -76,7 +80,7 @@ def tropo_delay(
 
     #TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
-            los, crs=crs)
+            los, crs, zref)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -111,7 +115,7 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
-def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, nproc=1):
+def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, zref, nproc=1):
     """
     raider cube generation function.
     """
@@ -151,8 +155,8 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
         if nproc == 1:
             wetDelay, hydroDelay = _build_cube_ray(
                 aoi.xpts, aoi.ypts, zpts, los,
-                wm_proj, crs,
-                [ifWet, ifHydro])
+                wm_proj, crs, [ifWet, ifHydro], MAX_TROPO_HEIGHT=zref)
+
 
         ### Use multi-processing here
         else:
@@ -205,7 +209,7 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 def _build_cube_ray(
         xpts, ypts, zpts, los, model_crs,
         pts_crs, interpolators, outputArrs=None, MAX_SEGMENT_LENGTH = 1000.,
-        MAX_TROPO_HEIGHT = 50000.,
+        MAX_TROPO_HEIGHT = _ZREF,
     ):
     """
     Iterate over interpolators and build a cube using raytracing
@@ -339,10 +343,7 @@ def _build_cube_ray(
 
                 # For each interpolator, integrate between levels
                 for mm, out in enumerate(outSubs):
-                    val =  interpolators[mm](pts)
-
-                    # TODO - This should not occur if there is enough padding in model
-                    # val[np.isnan(val)] = 0.0
+                    val  =  interpolators[mm](pts)
                     out += wt * val
 
     if output_created_here:

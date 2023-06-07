@@ -107,7 +107,7 @@ class WeatherModel(ABC):
         string += 'Longitude resolution: {}\n'.format(self._lon_res)
         string += 'Native projection: {}\n'.format(self._proj)
         string += 'ZMIN: {}\n'.format(self._zmin)
-        string += 'ZMAX: {}\n'.format(self._zref)
+        string += 'ZMAX: {}\n'.format(self._zmax)
         string += 'k1 = {}\n'.format(self._k1)
         string += 'k2 = {}\n'.format(self._k2)
         string += 'k3 = {}\n'.format(self._k3)

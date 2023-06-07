@@ -8,6 +8,7 @@ from RAiDER.losreader import Raytracing, getTopOfAtmosphere
 from RAiDER.utilFcns import lla2ecef, ecef2lla
 from RAiDER.cli.validators import modelName2Module
 
+from RAiDER.constants import _ZREF
 from test import *
 
 
@@ -96,12 +97,12 @@ def length_of_ray(target_xyz:list, model_zs, los):
             low_ht = model_zs[zz]
             high_ht = model_zs[zz + 1]
 
-            if (high_ht <= ht) or (low_ht >= 50000):
+            if (high_ht <= ht) or (low_ht >= _ZREF):
                 continue
 
             # If high_ht > max_tropo_height - integral only up to max tropo
-            if high_ht > 50000:
-                high_ht = 50000
+            if high_ht > _ZREF:
+                high_ht = _ZREF
 
             # If low_ht < height of point - integral only up to height of point
             if low_ht < ht:

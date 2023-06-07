@@ -317,6 +317,7 @@ def calcDelays(iargs=None):
                 t, weather_model_file, aoi, los,
                 height_levels = params['height_levels'],
                 out_proj = params['output_projection'],
+                zref     = params['zref']
             )
         except RuntimeError:
             logger.exception("Datetime %s failed", t)

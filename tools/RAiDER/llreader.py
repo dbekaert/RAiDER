@@ -162,7 +162,8 @@ class AOI(object):
         buffer  = near / (np.cos(np.deg2rad(lat_max)) * 100)
 
         # buffer on the side nearest the sensor
-        if ((lookDir == 'right') and (direction == 'asc')) or ((lookDir == 'left') and (direction == 'desc')):
+        if ((lookDir == 'right') and (direction == 'asc')) or \
+            ((lookDir == 'left') and (direction == 'desc')):
             W = W - buffer
         else:
             E = E + buffer
