@@ -5,23 +5,20 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-from abc import abstractmethod
 import os
+import pyproj
+import xarray
 
 import numpy as np
-import pandas as pd
-import xarray
-import rasterio
 
-import pyproj
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+
 from pyproj import CRS
 
-from RAiDER.dem import download_dem
-from RAiDER.interpolator import interpolateDEM
-from RAiDER.utilFcns import (
-    rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band,
-    clip_bbox, transform_bbox
-    )
+from RAiDER.utilFcns import rio_open, rio_stats
 from RAiDER.logger import logger
 
 
@@ -113,6 +110,8 @@ class AOI(object):
         >>> aoi.bounds()
          [36.93, 38.07, -92.07, -90.93]
         """
+        from RAiDER.utilFcns import clip_bbox
+
         ## add an extra buffer around the user specified region
         S, N, W, E = self.bounds()
         buffer     = (1.5 * ll_res)
@@ -180,6 +179,8 @@ class AOI(object):
 
     def set_output_xygrid(self, dst_crs=4326):
         """ Define the locations where the delays will be returned """
+        from RAiDER.utilFcns import transform_bbox
+
         try:
             out_proj = CRS.from_epsg(dst_crs.replace('EPSG:', ''))
         except pyproj.exceptions.CRSError:
@@ -206,31 +207,39 @@ class StationFile(AOI):
 
 
     def readLL(self):
+        '''Read the station lat/lons from the csv file'''
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         return df['Lat'].values, df['Lon'].values
 
 
     def readZ(self):
+        '''
+        Read the station heights from the file, or download a DEM if not present
+        '''
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         if 'Hgt_m' in df.columns:
             return df['Hgt_m'].values
         else:
+            # Download the DEM
+            from RAiDER.dem import download_dem
+            from RAiDER.interpolator import interpolateDEM
+            
             demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
                             if self._demfile is None else self._demfile
 
-            zvals, metadata = download_dem(
+            _, _ = download_dem(
                 self._bounding_box,
                 writeDEM=True,
                 outName=demFile,
             )
-            ## select instead
+            
+            ## interpolate the DEM to the query points
             z_out0 = interpolateDEM(demFile, self.readLL())
             if np.isnan(z_out0).all():
                 raise Exception('DEM interpolation failed. Check DEM bounds and station coords.')
+            z_out = np.diag(z_out0)  # the diagonal is the actual stations coordinates
 
-
-            # the diagonal is the actual stations coordinates
-            z_out = np.diag(z_out0)
+            # write the elevations to the file
             df['Hgt_m'] = z_out
             df.to_csv(self._filename, index=False)
             self.__init__(self._filename)
@@ -238,6 +247,9 @@ class StationFile(AOI):
 
 
 class RasterRDR(AOI):
+    '''
+    Use a 2-band raster file containing lat/lon coordinates. 
+    '''    
     def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce'):
         super().__init__()
         self._type = 'radar_rasters'
@@ -253,8 +265,8 @@ class RasterRDR(AOI):
         try:
             bpg = bounds_from_latlon_rasters(lat_file, lon_file)
             self._bounding_box, self._proj, self._geotransform = bpg
-        except rasterio.errors.RasterioIOError:
-            raise ValueError(f'Could not open {self._latfile}')
+        except Exception as e:
+            raise ValueError(f'Could not read lat/lon rasters: {e}')
 
         # keep track of the height file, dem and convention
         self._hgtfile = hgt_file
@@ -273,15 +285,22 @@ class RasterRDR(AOI):
 
 
     def readZ(self):
+        '''
+        Read the heights from the raster file, or download a DEM if not present
+        '''
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             return rio_open(self._hgtfile)
 
         else:
+            # Download the DEM
+            from RAiDER.dem import download_dem
+            from RAiDER.interpolator import interpolateDEM
+            
             demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
                             if self._demfile is None else self._demfile
 
-            zvals, metadata = download_dem(
+            _, _ = download_dem(
                 self._bounding_box,
                 writeDEM=True,
                 outName=demFile,
@@ -303,6 +322,9 @@ class GeocodedFile(AOI):
     '''Parse a Geocoded file for coordinates'''
     def __init__(self, filename, is_dem=False):
         super().__init__()
+
+        from RAiDER.utilFcns import rio_profile, rio_extents
+
         self._filename     = filename
         self.p             = rio_profile(filename)
         self._bounding_box = rio_extents(self.p)
@@ -324,11 +346,16 @@ class GeocodedFile(AOI):
 
 
     def readZ(self):
+        '''
+        Download a DEM for the file
+        '''
+        from RAiDER.dem import download_dem
+        from RAiDER.interpolator import interpolateDEM
+
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox    = self._bounding_box
-        zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
+        _, _ = download_dem(bbox, writeDEM=True, outName=demFile)
         z_out = interpolateDEM(demFile, self.readLL())
-
 
         return z_out
 
@@ -340,7 +367,7 @@ class Geocube(AOI):
         self.path  = path_cube
         self._type = 'Geocube'
         self._bounding_box = self.get_extent()
-        _, self._proj, self._geotransform = rio_stats(filename)
+        _, self._proj, self._geotransform = rio_stats(path_cube)
 
     def get_extent(self):
         with xarray.open_dataset(self.path) as ds:
@@ -368,6 +395,7 @@ def bounds_from_latlon_rasters(latfile, lonfile):
     Parse lat/lon/height inputs and return
     the appropriate outputs
     '''
+    from RAiDER.utilFcns import get_file_and_band
     latinfo = get_file_and_band(latfile)
     loninfo = get_file_and_band(lonfile)
     lat_stats, lat_proj, lat_gt = rio_stats(latinfo[0], band=latinfo[1])
