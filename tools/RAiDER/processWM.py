@@ -14,13 +14,12 @@ from typing import List
 
 from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
+from RAiDER.models.weatherModel import make_raw_weather_data_filename
 
 
 def prepareWeatherModel(
         weather_model,
         time,
-        wmLoc: str=None,
-        ll_bounds: List[float]=None,
         download_only: bool=False,
         makePlots: bool=False,
         force_download: bool=False,
@@ -30,8 +29,6 @@ def prepareWeatherModel(
     Args:
         weather_model: WeatherModel   - instantiated weather model object
         time: datetime                - Python datetime to request. Will be rounded to nearest available time
-        wmLoc: str                    - file path to which to write weather model file(s)
-        ll_bounds: list of float      - bounding box to download in [S, N, W, E] format
         download_only: bool           - False if preprocessing weather model data
         makePlots: bool               - whether to write debug plots
         force_download: bool          - True if you want to download even when the weather model exists
@@ -41,27 +38,28 @@ def prepareWeatherModel(
     """
 
     # Ensure the file output location exists
-    if wmLoc is None:
-        wmLoc = os.path.join(os.getcwd(), 'weather_files')
-    os.makedirs(wmLoc, exist_ok=True)
+    ll_bounds = weather_model.get_latlon_bounds()
+    wmLoc     = weather_model.get_wmLoc()
+    weather_model.setTime(time)
 
-    # check whether weather model files are supplied or should be downloaded
-    f = weather_model.filename(time, wmLoc)
+    # get the path to the less processed weather model file
+    path_wm_raw = make_raw_weather_data_filename(wmLoc, weather_model.Model(), time)
 
+    # get the path to the more processed (cropped) weather model file
+    path_wm_crop = weather_model.out_file(wmLoc)
+
+    # check whether weather model files exists and/or or should be downloaded
     download_flag = True
-    if os.path.exists(f) and not force_download:
+    if os.path.exists(path_wm_crop) and not force_download:
         logger.warning(
-            'Weather model already exists, please remove it ("{}") if you want '
-            'to download a new one.'.format(weather_model.files)
-        )
+            'Weather model already exists, please remove it ("%s") if you want '
+            'to download a new one.', path_wm_crop)
         download_flag = False
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        weather_model.fetch(*weather_model.files, ll_bounds, time)
+        weather_model.fetch(path_wm_raw, time)
     else:
-        time = getTimeFromFile(weather_model.files[0])
-        weather_model.setTime(time)
         containment = weather_model.checkContainment(ll_bounds)
 
         if not containment:
@@ -78,7 +76,8 @@ def prepareWeatherModel(
         return None
 
     # Otherwise, load the weather model data
-    f = weather_model.load(wmLoc, ll_bounds = ll_bounds)
+    f = weather_model.load()
+
     if f is not None:
         logger.warning(
             'The processed weather model file already exists,'
@@ -88,10 +87,9 @@ def prepareWeatherModel(
 
     # Logging some basic info
     logger.debug(
-        'Number of weather model nodes: {}'.format(
+        'Number of weather model nodes: %s',
             np.prod(weather_model.getWetRefractivity().shape)
-        )
-    )
+            )
     shape = weather_model.getWetRefractivity().shape
     logger.debug(f'Shape of weather model: {shape}')
     logger.debug(

@@ -21,6 +21,8 @@ from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
 
+import traceback
+
 
 HELP_MESSAGE = """
 Command line options for RAiDER processing. Default options can be found by running
@@ -225,6 +227,8 @@ def calcDelays(iargs=None):
     else:
         wm_bounds = aoi.bounds()
 
+    model.set_latlon_bounds(wm_bounds) # set the weather model bounds
+
     wet_filenames = []
     for t, w, f in zip(
         params['date_list'],
@@ -245,27 +249,22 @@ def calcDelays(iargs=None):
                     model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
         wfiles = []
         for tt in times:
-            try:
-                wfile = prepareWeatherModel(
-                        model, tt,
-                        ll_bounds=wm_bounds, # SNWE
-                        wmLoc=params['weather_model_directory'],
-                        makePlots=params['verbose'],
-                        )
-                wfiles.append(wfile)
+            # try:
+            wfile = prepareWeatherModel(model, tt, makePlots=params['verbose'])
+            wfiles.append(wfile)
 
             # catch when requested datetime fails
-            except RuntimeError:
-                continue
+            # except RuntimeError as re:
+                # continue
 
             # catch when something else within weather model class fails
-            except Exception as e:
-                S, N, W, E = wm_bounds
-                logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
-                logger.info(f'Query datetime: {tt}')
-                msg = f'Downloading and/or preparation of {model._Name} failed.'
-                logger.error(e)
-                logger.error(msg)
+            # except Exception as e:
+            #     S, N, W, E = wm_bounds
+            #     logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+            #     logger.info(f'Query datetime: {tt}')
+            #     msg = f'Downloading and/or preparation of {model._Name} failed.'
+            #     logger.error(e)
+            #     logger.error(msg)
 
 
         # dont process the delays for download only

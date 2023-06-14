@@ -144,7 +144,7 @@ class WeatherModel(ABC):
         return np.max([self._lat_res, self._lon_res])
 
 
-    def fetch(self, out, ll_bounds, time):
+    def fetch(self, out, time):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
@@ -156,12 +156,11 @@ class WeatherModel(ABC):
         time = UTC datetime
         '''
         self.checkTime(time)
-        self.set_latlon_bounds(ll_bounds)
-        self.setTime(time)
 
         # write the error raised by the weather model API to the log
         try:
             self._fetch(out)
+
         except Exception as E:
             logger.error(E)
 
@@ -172,6 +171,10 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+
+    def getTime(self):
+        return self._time
 
 
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
@@ -219,12 +222,19 @@ class WeatherModel(ABC):
 
         self._ll_bounds = np.array([S, N, W, E])
 
+    def get_wmLoc(self):
+        """ Get the path to the direct with the weather model files """
+        return self._wmLoc
+
+
+    def set_wmLoc(self, weather_model_directory:str):
+        """ Set the path to the directory with the weather model files """
+        self._wmLoc = weather_model_directory
+
 
     def load(
         self,
-        outLoc,
         *args,
-        ll_bounds=None,
         _zlevels=None,
         zref=_ZREF,
         **kwargs
@@ -233,15 +243,16 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        self.set_latlon_bounds(ll_bounds)
-
         # If the weather file has already been processed, do nothing
+        outLoc = self.get_wmLoc()
+        path_wm_raw    = make_raw_weather_data_filename(outLoc, self.Model(), self.getTime())
         self._out_name = self.out_file(outLoc)
+
         if os.path.exists(self._out_name):
             return self._out_name
         else:
             # Load the weather just for the query points
-            self.load_weather(*args, **kwargs)
+            self.load_weather(f=path_wm_raw, *args, **kwargs)
 
             # Process the weather model data
             self._find_e()
@@ -249,7 +260,7 @@ class WeatherModel(ABC):
             self._checkForNans()
             self._get_wet_refractivity()
             self._get_hydro_refractivity()
-            self._adjust_grid(ll_bounds)
+            self._adjust_grid(self.get_latlon_bounds())
 
             # Compute Zenith delays at the weather model grid nodes
             self._getZTD(zref)
@@ -262,14 +273,6 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-
-    def _get_time(self, filename=None):
-        if filename is None:
-            filename = self.files[0]
-        with netCDF4.Dataset(filename, mode='r') as f:
-            time = f.attrs['datetime'].copy()
-        self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
 
     def plot(self, plotType='pqt', savefig=True):
@@ -455,10 +458,13 @@ class WeatherModel(ABC):
         ValueError
            When `self.files` is None.
         """
+
         if self._bbox is None:
-            if self.files is None:
+            weather_model_path = make_raw_weather_data_filename(
+                self.get_wmLoc(), self.Model(), self.getTime())
+            if not os.path.exists(weather_model_path):
                 raise ValueError('Need to save weather model as netcdf')
-            weather_model_path = self.files[0]
+
             with xarray.load_dataset(weather_model_path) as ds:
                 try:
                     xmin, xmax = ds.x.min(), ds.x.max()

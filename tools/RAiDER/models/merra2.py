@@ -145,15 +145,14 @@ class MERRA2(WeatherModel):
             logger.exception("MERRA-2: Unable to save weathermodel to file")
             raise RuntimeError('MERRA-2 failed with the following error: {}'.format(e))
 
-    def load_weather(self, *args, f=None, **kwargs):
+    def load_weather(self,  f=None, *args, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-        if f is None:
-            f = self.files[0]
+        f = self.files[0] if f is None else f
         self._load_model_level(f)
 
     def _load_model_level(self, filename):
