@@ -250,7 +250,7 @@ def calcDelays(iargs=None):
         wfiles = []
         for tt in times:
             try:
-                wfile = prepareWeatherModel(model, tt, makePlots=params['verbose'])
+                wfile = prepareWeatherModel(model, tt, aoi.bounds(), makePlots=params['verbose'])
                 wfiles.append(wfile)
 
             # catch when requested datetime fails

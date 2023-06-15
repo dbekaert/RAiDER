@@ -460,12 +460,11 @@ class WeatherModel(ABC):
         """
 
         if self._bbox is None:
-            weather_model_path = make_raw_weather_data_filename(
-                self.get_wmLoc(), self.Model(), self.getTime())
-            if not os.path.exists(weather_model_path):
-                raise ValueError('Need to save weather model as netcdf')
+            path_weather_model = self.out_file(self.get_wmLoc())
+            if not os.path.exists(path_weather_model):
+                raise ValueError('Need to save cropped weather model as netcdf')
 
-            with xarray.load_dataset(weather_model_path) as ds:
+            with xarray.load_dataset(path_weather_model) as ds:
                 try:
                     xmin, xmax = ds.x.min(), ds.x.max()
                     ymin, ymax = ds.y.min(), ds.y.max()
@@ -481,7 +480,7 @@ class WeatherModel(ABC):
             W, E = np.min(lons), np.max(lons)
             # S, N = np.sort([lats[np.argmin(lons)], lats[np.argmax(lons)]])
             S, N = np.min(lats), np.max(lats)
-            self._bbox = S, N, W, E
+            self._bbox = W, S, E, N
 
         return self._bbox
 
@@ -511,7 +510,7 @@ class WeatherModel(ABC):
 
 
     def checkContainment(self: weatherModel,
-                         ll_bounds: np.ndarray,
+                         ll_bounds,
                          buffer_deg: float = 1e-5) -> bool:
         """"
         Checks containment of weather model bbox of outLats and outLons
@@ -520,10 +519,7 @@ class WeatherModel(ABC):
         Args:
         ----------
         weather_model : weatherModel
-        outLats : np.ndarray
-            An array of latitude points
-        outLons : np.ndarray
-            An array of longitude points
+        ll_bounds: an array of floats (SNWE) demarcating bbox of targets
         buffer_deg : float
             For x-translates for extents that lie outside of world bounding box,
             this ensures that translates have some overlap. The default is 1e-5
@@ -539,7 +535,6 @@ class WeatherModel(ABC):
         input_box   = box(xmin_input, ymin_input, xmax_input, ymax_input)
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
-
         world_box  = box(-180, -90, 180, 90)
 
         # Logger

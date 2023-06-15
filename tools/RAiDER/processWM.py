@@ -20,6 +20,7 @@ from RAiDER.models.weatherModel import make_raw_weather_data_filename
 def prepareWeatherModel(
         weather_model,
         time,
+        aoi_bounds,
         download_only: bool=False,
         makePlots: bool=False,
         force_download: bool=False,
@@ -29,6 +30,7 @@ def prepareWeatherModel(
     Args:
         weather_model: WeatherModel   - instantiated weather model object
         time: datetime                - Python datetime to request. Will be rounded to nearest available time
+        aoi_bounds: list/array        - SNWE bounds target area to ensure weather model contains them
         download_only: bool           - False if preprocessing weather model data
         makePlots: bool               - whether to write debug plots
         force_download: bool          - True if you want to download even when the weather model exists
@@ -52,21 +54,13 @@ def prepareWeatherModel(
     download_flag = True
     if os.path.exists(path_wm_crop) and not force_download:
         logger.warning(
-            'Weather model already exists, please remove it ("%s") if you want '
+            'Processed weather model already exists, please remove it ("%s") if you want '
             'to download a new one.', path_wm_crop)
         download_flag = False
 
     # if no weather model files supplied, check the standard location
     if download_flag:
         weather_model.fetch(path_wm_raw, time)
-    else:
-        containment = weather_model.checkContainment(ll_bounds)
-
-        if not containment:
-            logger.warning(
-                'The weather model passed does not cover all of the input '
-                'points; you may need to download a larger area.'
-            )
 
     # If only downloading, exit now
     if download_only:
@@ -83,6 +77,13 @@ def prepareWeatherModel(
             'The processed weather model file already exists,'
             ' so I will use that.'
         )
+
+        containment = weather_model.checkContainment(aoi_bounds)
+        if not containment:
+            msg = 'The weather model passed does not cover all of the input ' \
+                'points; you may need to download a larger area.'
+            logger.error(msg)
+            raise RuntimeError(msg)
         return f
 
     # Logging some basic info
@@ -115,13 +116,22 @@ def prepareWeatherModel(
 
     try:
         f = weather_model.write()
-        return f
+        containment = weather_model.checkContainment(aoi_bounds)
+
     except Exception as e:
         logger.exception("Unable to save weathermodel to file")
         logger.exception(e)
         raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
+
+    if not containment:
+        msg = 'The weather model passed does not cover all of the input ' \
+            'points; you may need to download a larger area.'
+        logger.error(msg)
+        raise RuntimeError(msg)
+    else:
+        return f
 
 
 def _weather_model_debug(
