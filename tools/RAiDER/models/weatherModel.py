@@ -58,6 +58,7 @@ class WeatherModel(ABC):
         self._classname = None
         self._dataset = None
         self._name    = None
+        self._wmLoc   = None
 
         self._model_level_type = 'ml'
 
@@ -66,7 +67,6 @@ class WeatherModel(ABC):
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
-
         self._bbox = None
 
         # Define fixed constants
@@ -224,7 +224,11 @@ class WeatherModel(ABC):
 
     def get_wmLoc(self):
         """ Get the path to the direct with the weather model files """
-        return self._wmLoc
+        if self._wmLoc is None:
+            wmLoc = os.path.join(os.getcwd(), 'weather_files')
+        else:
+            wmLoc = self._wmLoc
+        return wmLoc
 
 
     def set_wmLoc(self, weather_model_directory:str):

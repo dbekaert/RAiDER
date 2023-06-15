@@ -20,7 +20,7 @@ from RAiDER.models.weatherModel import make_raw_weather_data_filename
 def prepareWeatherModel(
         weather_model,
         time,
-        aoi_bounds,
+        ll_bounds,
         download_only: bool=False,
         makePlots: bool=False,
         force_download: bool=False,
@@ -30,7 +30,7 @@ def prepareWeatherModel(
     Args:
         weather_model: WeatherModel   - instantiated weather model object
         time: datetime                - Python datetime to request. Will be rounded to nearest available time
-        aoi_bounds: list/array        - SNWE bounds target area to ensure weather model contains them
+        ll_bounds: list/array        - SNWE bounds target area to ensure weather model contains them
         download_only: bool           - False if preprocessing weather model data
         makePlots: bool               - whether to write debug plots
         force_download: bool          - True if you want to download even when the weather model exists
@@ -38,9 +38,11 @@ def prepareWeatherModel(
     Returns:
         str: filename of the netcdf file to which the weather model has been written
     """
+    ## set the bounding box from the in the case that it hasn't been set
+    if weather_model.get_latlon_bounds() is None:
+        weather_model.set_latlon_bounds(ll_bounds)
 
     # Ensure the file output location exists
-    ll_bounds = weather_model.get_latlon_bounds()
     wmLoc     = weather_model.get_wmLoc()
     weather_model.setTime(time)
 
@@ -78,7 +80,7 @@ def prepareWeatherModel(
             ' so I will use that.'
         )
 
-        containment = weather_model.checkContainment(aoi_bounds)
+        containment = weather_model.checkContainment(ll_bounds)
         if not containment:
             msg = 'The weather model passed does not cover all of the input ' \
                 'points; you may need to download a larger area.'
@@ -116,7 +118,7 @@ def prepareWeatherModel(
 
     try:
         f = weather_model.write()
-        containment = weather_model.checkContainment(aoi_bounds)
+        containment = weather_model.checkContainment(ll_bounds)
 
     except Exception as e:
         logger.exception("Unable to save weathermodel to file")
