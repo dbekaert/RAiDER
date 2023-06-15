@@ -474,8 +474,14 @@ class WeatherModel(ABC):
                     ymin, ymax = ds.latitude.min(), ds.latitude.max()
 
             wm_proj    = self._proj
-            lons, lats = transform_coords(wm_proj, CRS(4326), [xmin, xmax], [ymin, ymax])
-            self._bbox = [lons[0], lats[0], lons[1], lats[1]]
+            xs, ys     = [xmin, xmin, xmax, xmax], [ymin, ymax, ymin, ymax]
+            lons, lats = transform_coords(wm_proj, CRS(4326), xs, ys)
+            ## projected weather models may not be aligned N/S
+            ## should only matter for warning messages
+            W, E = np.min(lons), np.max(lons)
+            # S, N = np.sort([lats[np.argmin(lons)], lats[np.argmax(lons)]])
+            S, N = np.min(lats), np.max(lats)
+            self._bbox = S, N, W, E
 
         return self._bbox
 
