@@ -257,6 +257,7 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     path_synth = update_model(SAobj.path_wm_real, 'hydro', SAobj.wm_dir_synth)
 
     cfg = update_yaml(dct_cfg)
+    assert None
 
     ## run raider with the synthetic model
     cmd  = f'raider.py {cfg}'

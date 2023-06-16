@@ -34,8 +34,8 @@ class ECMWF(WeatherModel):
 
         self._time_res = TIME_RES['ECMWF']
 
-        self._lon_res = 0.2
-        self._lat_res = 0.2
+        self._lon_res = 0.25
+        self._lat_res = 0.25
         self._proj = CRS.from_epsg(4326)
 
         self._model_level_type = 'ml'  # Default
@@ -221,7 +221,6 @@ class ECMWF(WeatherModel):
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
         # round to the closest legal time
-
         corrected_DT = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)

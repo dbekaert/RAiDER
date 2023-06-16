@@ -19,7 +19,7 @@ from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
 from RAiDER.utilFcns import (
-    robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords
+    robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords, clip_bbox
 )
 
 TIME_RES = {'GMAO': 3,
@@ -191,7 +191,7 @@ class WeatherModel(ABC):
         return self._ll_bounds
 
 
-    def set_latlon_bounds(self, ll_bounds, Nextra=2):
+    def set_latlon_bounds(self, ll_bounds, Nextra=2, output_spacing=None):
         '''
         Need to correct lat/lon bounds because not all of the weather models have valid
         data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
@@ -200,14 +200,11 @@ class WeatherModel(ABC):
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
         '''
-        ex_buffer_lon_max = 0.0
-
-        if self._Name == 'GMAO' or self._Name == 'MERRA2':
-            ex_buffer_lon_max = self._lon_res
+        if self._Name in 'HRRR HRRR-AK'.split():
+            Nextra, ex_buffer_lon_max = 6, 0.0 # have a bigger buffer
 
         elif self._Name in 'HRRR HRRR-AK HRES'.split():
             Nextra = 6 # have a bigger buffer
-
 
         # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
         S, N, W, E = ll_bounds
@@ -215,12 +212,16 @@ class WeatherModel(ABC):
         # Adjust bounds if they get near the poles or IDL
         pixlat, pixlon = Nextra*self._lat_res, Nextra*self._lon_res
 
-        S= np.max([S - pixlat, -90.0 + pixlat])
-        N= np.min([N + pixlat, 90.0 - pixlat])
-        W= np.max([W - pixlon, -180.0 + pixlon])
-        E= np.min([E + (pixlon + ex_buffer_lon_max), 180.0 - pixlon - ex_buffer_lon_max])
+        S = np.max([S - pixlat, -90.0 + pixlat])
+        N = np.min([N + pixlat, 90.0 - pixlat])
+        W = np.max([W - pixlon, -180.0 + pixlon])
+        E = np.min([E + (pixlon + ex_buffer_lon_max), 180.0 - pixlon - ex_buffer_lon_max])
+
+        if output_spacing is not None:
+            S, N, W, E  = clip_bbox([S,N,W,E], output_spacing)
 
         self._ll_bounds = np.array([S, N, W, E])
+
 
     def get_wmLoc(self):
         """ Get the path to the direct with the weather model files """
@@ -390,7 +391,6 @@ class WeatherModel(ABC):
         This function pads the weather grid with a level at self._zmin, if
         it does not already go that low.
         '''
-
         if self._zmin < np.nanmin(self._zs):
             # first add in a new layer at zmin
             self._zs = np.insert(self._zs, 0, self._zmin)
