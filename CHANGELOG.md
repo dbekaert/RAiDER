@@ -7,6 +7,8 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Only reuse weather file if the cropped one exists
++ Refactor to pass a weather file directly to fetch
 + Update staged weather models to reflect update to aligned grid
 + Correctly pass buffered bounds when aligning grid
 + Check the valid bounds prior to starting and use HRRR-AK if its correct so that rounding times to obtain data at are correctly fed to Herbie

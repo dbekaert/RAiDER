@@ -239,15 +239,16 @@ class HRRR(WeatherModel):
         download_hrrr_file(bounds, corrected_DT, out, model='hrrr')
 
 
-    def load_weather(self, *args, filename=None, **kwargs):
+    def load_weather(self, f=None, *args, **kwargs):
         '''
         Load a weather model into a python weatherModel object, from self.files if no
         filename is passed.
         '''
-        if filename is None:
-            filename = self.files[0] if isinstance(self.files, list) else self.files
+        if f is None:
+            f = self.files[0] if isinstance(self.files, list) else self.files
 
-        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(filename)
+
+        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(f)
             # correct for latitude
         self._get_heights(_lats, geo_hgt)
 
@@ -336,10 +337,10 @@ class HRRRAK(WeatherModel):
         download_hrrr_file(bounds, corrected_DT, out, model='hrrrak')
 
 
-    def load_weather(self, *args, filename=None, **kwargs):
-        if filename is None:
-            filename = self.files[0] if isinstance(self.files, list) else self.files
-        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(filename)
+    def load_weather(self, f=None, *args, **kwargs):
+        if f is None:
+            f = self.files[0] if isinstance(self.files, list) else self.files
+        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(f)
             # correct for latitude
         self._get_heights(_lats, geo_hgt)
 

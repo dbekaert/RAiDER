@@ -14,13 +14,13 @@ from typing import List
 
 from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
+from RAiDER.models.weatherModel import make_raw_weather_data_filename
 
 
 def prepareWeatherModel(
         weather_model,
         time,
-        wmLoc: str=None,
-        ll_bounds: List[float]=None,
+        ll_bounds,
         download_only: bool=False,
         makePlots: bool=False,
         force_download: bool=False,
@@ -30,8 +30,7 @@ def prepareWeatherModel(
     Args:
         weather_model: WeatherModel   - instantiated weather model object
         time: datetime                - Python datetime to request. Will be rounded to nearest available time
-        wmLoc: str                    - file path to which to write weather model file(s)
-        ll_bounds: list of float      - bounding box to download in [S, N, W, E] format
+        ll_bounds: list/array        - SNWE bounds target area to ensure weather model contains them
         download_only: bool           - False if preprocessing weather model data
         makePlots: bool               - whether to write debug plots
         force_download: bool          - True if you want to download even when the weather model exists
@@ -39,36 +38,31 @@ def prepareWeatherModel(
     Returns:
         str: filename of the netcdf file to which the weather model has been written
     """
+    ## set the bounding box from the in the case that it hasn't been set
+    if weather_model.get_latlon_bounds() is None:
+        weather_model.set_latlon_bounds(ll_bounds)
 
     # Ensure the file output location exists
-    if wmLoc is None:
-        wmLoc = os.path.join(os.getcwd(), 'weather_files')
-    os.makedirs(wmLoc, exist_ok=True)
+    wmLoc     = weather_model.get_wmLoc()
+    weather_model.setTime(time)
 
-    # check whether weather model files are supplied or should be downloaded
-    f = weather_model.filename(time, wmLoc)
+    # get the path to the less processed weather model file
+    path_wm_raw = make_raw_weather_data_filename(wmLoc, weather_model.Model(), time)
 
+    # get the path to the more processed (cropped) weather model file
+    path_wm_crop = weather_model.out_file(wmLoc)
+
+    # check whether weather model files exists and/or or should be downloaded
     download_flag = True
-    if os.path.exists(f) and not force_download:
+    if os.path.exists(path_wm_crop) and not force_download:
         logger.warning(
-            'Weather model already exists, please remove it ("{}") if you want '
-            'to download a new one.'.format(weather_model.files)
-        )
+            'Processed weather model already exists, please remove it ("%s") if you want '
+            'to download a new one.', path_wm_crop)
         download_flag = False
 
     # if no weather model files supplied, check the standard location
     if download_flag:
-        weather_model.fetch(*weather_model.files, ll_bounds, time)
-    else:
-        time = getTimeFromFile(weather_model.files[0])
-        weather_model.setTime(time)
-        containment = weather_model.checkContainment(ll_bounds)
-
-        if not containment:
-            logger.warning(
-                'The weather model passed does not cover all of the input '
-                'points; you may need to download a larger area.'
-            )
+        weather_model.fetch(path_wm_raw, time)
 
     # If only downloading, exit now
     if download_only:
@@ -78,20 +72,27 @@ def prepareWeatherModel(
         return None
 
     # Otherwise, load the weather model data
-    f = weather_model.load(wmLoc, ll_bounds = ll_bounds)
+    f = weather_model.load()
+
     if f is not None:
         logger.warning(
             'The processed weather model file already exists,'
             ' so I will use that.'
         )
+
+        containment = weather_model.checkContainment(ll_bounds)
+        if not containment:
+            msg = 'The weather model passed does not cover all of the input ' \
+                'points; you may need to download a larger area.'
+            logger.error(msg)
+            raise RuntimeError(msg)
         return f
 
     # Logging some basic info
     logger.debug(
-        'Number of weather model nodes: {}'.format(
+        'Number of weather model nodes: %s',
             np.prod(weather_model.getWetRefractivity().shape)
-        )
-    )
+            )
     shape = weather_model.getWetRefractivity().shape
     logger.debug(f'Shape of weather model: {shape}')
     logger.debug(
@@ -117,13 +118,22 @@ def prepareWeatherModel(
 
     try:
         f = weather_model.write()
-        return f
+        containment = weather_model.checkContainment(ll_bounds)
+
     except Exception as e:
         logger.exception("Unable to save weathermodel to file")
         logger.exception(e)
         raise RuntimeError("Unable to save weathermodel to file")
     finally:
         del weather_model
+
+    if not containment:
+        msg = 'The weather model passed does not cover all of the input ' \
+            'points; you may need to download a larger area.'
+        logger.error(msg)
+        raise RuntimeError(msg)
+    else:
+        return f
 
 
 def _weather_model_debug(

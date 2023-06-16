@@ -31,6 +31,7 @@ def checkArgs(args):
 
     os.makedirs(args.output_directory, exist_ok=True)
     os.makedirs(args.weather_model_directory, exist_ok=True)
+    args['weather_model'].set_wmLoc(args.weather_model_directory)
 
     #########################################################################################################################
     # Date and Time parsing

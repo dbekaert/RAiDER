@@ -21,6 +21,8 @@ from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
 
+import traceback
+
 
 HELP_MESSAGE = """
 Command line options for RAiDER processing. Default options can be found by running
@@ -225,6 +227,8 @@ def calcDelays(iargs=None):
     else:
         wm_bounds = aoi.bounds()
 
+    model.set_latlon_bounds(wm_bounds) # set the weather model bounds
+
     wet_filenames = []
     for t, w, f in zip(
         params['date_list'],
@@ -246,16 +250,11 @@ def calcDelays(iargs=None):
         wfiles = []
         for tt in times:
             try:
-                wfile = prepareWeatherModel(
-                        model, tt,
-                        ll_bounds=wm_bounds, # SNWE
-                        wmLoc=params['weather_model_directory'],
-                        makePlots=params['verbose'],
-                        )
+                wfile = prepareWeatherModel(model, tt, aoi.bounds(), makePlots=params['verbose'])
                 wfiles.append(wfile)
 
             # catch when requested datetime fails
-            except RuntimeError:
+            except RuntimeError as re:
                 continue
 
             # catch when something else within weather model class fails

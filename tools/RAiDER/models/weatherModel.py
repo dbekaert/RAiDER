@@ -58,6 +58,7 @@ class WeatherModel(ABC):
         self._classname = None
         self._dataset = None
         self._name    = None
+        self._wmLoc   = None
 
         self._model_level_type = 'ml'
 
@@ -66,7 +67,6 @@ class WeatherModel(ABC):
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
-
         self._bbox = None
 
         # Define fixed constants
@@ -144,7 +144,7 @@ class WeatherModel(ABC):
         return np.max([self._lat_res, self._lon_res])
 
 
-    def fetch(self, out, ll_bounds, time):
+    def fetch(self, out, time):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
@@ -156,12 +156,11 @@ class WeatherModel(ABC):
         time = UTC datetime
         '''
         self.checkTime(time)
-        self.set_latlon_bounds(ll_bounds)
-        self.setTime(time)
 
         # write the error raised by the weather model API to the log
         try:
             self._fetch(out)
+
         except Exception as E:
             logger.error(E)
 
@@ -172,6 +171,10 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+
+    def getTime(self):
+        return self._time
 
 
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
@@ -219,12 +222,23 @@ class WeatherModel(ABC):
 
         self._ll_bounds = np.array([S, N, W, E])
 
+    def get_wmLoc(self):
+        """ Get the path to the direct with the weather model files """
+        if self._wmLoc is None:
+            wmLoc = os.path.join(os.getcwd(), 'weather_files')
+        else:
+            wmLoc = self._wmLoc
+        return wmLoc
+
+
+    def set_wmLoc(self, weather_model_directory:str):
+        """ Set the path to the directory with the weather model files """
+        self._wmLoc = weather_model_directory
+
 
     def load(
         self,
-        outLoc,
         *args,
-        ll_bounds=None,
         _zlevels=None,
         zref=_ZREF,
         **kwargs
@@ -233,15 +247,16 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        self.set_latlon_bounds(ll_bounds)
-
         # If the weather file has already been processed, do nothing
+        outLoc = self.get_wmLoc()
+        path_wm_raw    = make_raw_weather_data_filename(outLoc, self.Model(), self.getTime())
         self._out_name = self.out_file(outLoc)
+
         if os.path.exists(self._out_name):
             return self._out_name
         else:
             # Load the weather just for the query points
-            self.load_weather(*args, **kwargs)
+            self.load_weather(f=path_wm_raw, *args, **kwargs)
 
             # Process the weather model data
             self._find_e()
@@ -249,7 +264,7 @@ class WeatherModel(ABC):
             self._checkForNans()
             self._get_wet_refractivity()
             self._get_hydro_refractivity()
-            self._adjust_grid(ll_bounds)
+            self._adjust_grid(self.get_latlon_bounds())
 
             # Compute Zenith delays at the weather model grid nodes
             self._getZTD(zref)
@@ -262,14 +277,6 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-
-    def _get_time(self, filename=None):
-        if filename is None:
-            filename = self.files[0]
-        with netCDF4.Dataset(filename, mode='r') as f:
-            time = f.attrs['datetime'].copy()
-        self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
 
     def plot(self, plotType='pqt', savefig=True):
@@ -455,11 +462,13 @@ class WeatherModel(ABC):
         ValueError
            When `self.files` is None.
         """
+
         if self._bbox is None:
-            if self.files is None:
-                raise ValueError('Need to save weather model as netcdf')
-            weather_model_path = self.files[0]
-            with xarray.load_dataset(weather_model_path) as ds:
+            path_weather_model = self.out_file(self.get_wmLoc())
+            if not os.path.exists(path_weather_model):
+                raise ValueError('Need to save cropped weather model as netcdf')
+
+            with xarray.load_dataset(path_weather_model) as ds:
                 try:
                     xmin, xmax = ds.x.min(), ds.x.max()
                     ymin, ymax = ds.y.min(), ds.y.max()
@@ -468,8 +477,14 @@ class WeatherModel(ABC):
                     ymin, ymax = ds.latitude.min(), ds.latitude.max()
 
             wm_proj    = self._proj
-            lons, lats = transform_coords(wm_proj, CRS(4326), [xmin, xmax], [ymin, ymax])
-            self._bbox = [lons[0], lats[0], lons[1], lats[1]]
+            xs, ys     = [xmin, xmin, xmax, xmax], [ymin, ymax, ymin, ymax]
+            lons, lats = transform_coords(wm_proj, CRS(4326), xs, ys)
+            ## projected weather models may not be aligned N/S
+            ## should only matter for warning messages
+            W, E = np.min(lons), np.max(lons)
+            # S, N = np.sort([lats[np.argmin(lons)], lats[np.argmax(lons)]])
+            S, N = np.min(lats), np.max(lats)
+            self._bbox = W, S, E, N
 
         return self._bbox
 
@@ -499,7 +514,7 @@ class WeatherModel(ABC):
 
 
     def checkContainment(self: weatherModel,
-                         ll_bounds: np.ndarray,
+                         ll_bounds,
                          buffer_deg: float = 1e-5) -> bool:
         """"
         Checks containment of weather model bbox of outLats and outLons
@@ -508,10 +523,7 @@ class WeatherModel(ABC):
         Args:
         ----------
         weather_model : weatherModel
-        outLats : np.ndarray
-            An array of latitude points
-        outLons : np.ndarray
-            An array of longitude points
+        ll_bounds: an array of floats (SNWE) demarcating bbox of targets
         buffer_deg : float
             For x-translates for extents that lie outside of world bounding box,
             this ensures that translates have some overlap. The default is 1e-5
@@ -527,7 +539,6 @@ class WeatherModel(ABC):
         input_box   = box(xmin_input, ymin_input, xmax_input, ymax_input)
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
-
         world_box  = box(-180, -90, 180, 90)
 
         # Logger

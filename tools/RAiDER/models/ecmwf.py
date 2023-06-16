@@ -40,6 +40,7 @@ class ECMWF(WeatherModel):
 
         self._model_level_type = 'ml'  # Default
 
+
     def setLevelType(self, levelType):
         '''Set the level type to model levels or pressure levels'''
         if levelType in ['ml', 'pl']:
@@ -52,9 +53,11 @@ class ECMWF(WeatherModel):
         else:
             self.__pressure_levels__()
 
+
     def __pressure_levels__(self):
         self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
         self._levels = len(self._zlevels)
+
 
     def __model_levels__(self):
         self._levels = 137
@@ -62,14 +65,16 @@ class ECMWF(WeatherModel):
         self._a = A_137_HRES
         self._b = B_137_HRES
 
-    def load_weather(self, *args, **kwargs):
+
+    def load_weather(self, f=None, *args, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-        self._load_model_level(*self.files)
+        f = self.files[0] if f is None else f
+        self._load_model_level(f)
 
 
     def _load_model_level(self, fname):
@@ -192,6 +197,7 @@ class ECMWF(WeatherModel):
             "target": out,    # target: the name of the output file.
         })
 
+
     def _get_from_cds(
         self,
         lat_min,
@@ -282,6 +288,7 @@ class ECMWF(WeatherModel):
             out
         )
 
+
     def _load_pressure_level(self, filename, *args, **kwargs):
         with xr.open_dataset(filename) as block:
             # Pull the data
@@ -350,6 +357,7 @@ class ECMWF(WeatherModel):
         self._p = np.flip(self._p, axis=2)
         self._t = np.flip(self._t, axis=2)
         self._q = np.flip(self._q, axis=2)
+
 
     def _makeDataCubes(self, fname, verbose=False):
         '''
