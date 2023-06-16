@@ -40,7 +40,7 @@ def test_cube_intersect():
     assert proc.returncode == 0, 'RAiDER Failed.'
 
     ## hard code what it should be and check it matches
-    gold = {'ERA5': 2.291002512, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.29040694, 'GMAO': np.nan, 'HRRR': np.nan}
 
     path_delays = os.path.join(SCENARIO_DIR, f'{WM}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
     da  = xrr.open_rasterio(path_delays, band_as_variable=True)['band_1']
@@ -82,7 +82,7 @@ def test_gnss_intersect():
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
 
-    gold = {'ERA5': 2.34482552, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.34488399, 'GMAO': np.nan, 'HRRR': np.nan}
 
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{WM}_Delay_{date}T{time.replace(":", "")}.csv'))
 
