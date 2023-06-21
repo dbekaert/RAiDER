@@ -7,6 +7,7 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Add buffer to HRES when downloading as with the other models
 + Only reuse weather file if the cropped one exists
 + Refactor to pass a weather file directly to fetch
 + Update staged weather models to reflect update to aligned grid

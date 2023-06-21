@@ -205,7 +205,7 @@ class WeatherModel(ABC):
         if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
 
-        elif self._Name in 'HRRR HRRR-AK'.split():
+        elif self._Name in 'HRRR HRRR-AK HRES'.split():
             Nextra = 6 # have a bigger buffer
 
 
