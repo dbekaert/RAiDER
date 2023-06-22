@@ -200,10 +200,12 @@ class WeatherModel(ABC):
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
         '''
-        if self._Name in 'HRRR HRRR-AK'.split():
-            Nextra, ex_buffer_lon_max = 6, 0.0 # have a bigger buffer
+        ex_buffer_lon_max = 0
 
-        elif self._Name in 'HRRR HRRR-AK HRES'.split():
+        if self._Name.upper() in 'GMAO MERRA2'.split():
+            ex_buffer_lon_max = self._lon_res
+
+        elif self._Name.upper() in 'HRRR HRRR-AK HRES'.split():
             Nextra = 6 # have a bigger buffer
 
         # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
