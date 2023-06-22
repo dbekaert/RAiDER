@@ -1,4 +1,4 @@
 #!/bin/bash --login
 set -e
 conda activate RAiDER
-exec raider.py "$@"
+exec python -u raider.py "$@"
