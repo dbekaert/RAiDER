@@ -46,16 +46,9 @@ def test_cube_intersect(wm):
     gold = {'ERA5': 2.2787, 'GMAO': np.nan, 'HRRR': np.nan}
 
     path_delays = os.path.join(SCENARIO_DIR, f'{wm}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
-    latf = os.path.join(SCENARIO_DIR, 'lat.rdr')
-    lonf = os.path.join(SCENARIO_DIR, 'lon.rdr')
-
-    hyd = rasterio.open(path_delays).read(1)
-    lats = rasterio.open(latf).read(1)
-    lons = rasterio.open(lonf).read(1)
-    hyd = griddata(np.stack([lons.flatten(), lats.flatten()], axis=-1), hyd.flatten(), (-100.6, 16.15), method='nearest')
-
-    # test for equality with golden data
-    np.testing.assert_almost_equal(hyd, gold[wm], decimal=4)
+    da  = xrr.open_rasterio(path_delays, band_as_variable=True)['band_1']
+    hyd = da.sel(x=-117.8, y=33.4, method='nearest').item()
+    np.testing.assert_almost_equal(hyd, gold[WM], decimal=4)
 
     return
 

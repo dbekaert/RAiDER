@@ -12,9 +12,11 @@ tropospheric wet and hydrostatic delays from a weather model. Weather
 models are accessed as NETCDF files and should have "wet" "hydro"
 "wet_total" and "hydro_total" fields specified.
 """
+import os
 import pyproj
 import xarray
 
+from datetime import datetime
 from pyproj import CRS, Transformer
 from typing import List, Union
 
@@ -406,18 +408,12 @@ def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_pr
     if not isinstance(old_proj, CRS):
         old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
 
-    t = Transformer.from_crs(old_proj, new_proj)
+    t = Transformer.from_crs(old_proj, new_proj, always_xy=True)
 
     in_flip = old_proj.axis_info[0].direction
     out_flip = new_proj.axis_info[0].direction
 
-    if in_flip == 'east':
-        res = t.transform(lons, lats, hgts)
-    else:
-        res = t.transform(lats, lons, hgts)
-    
-    if out_flip == 'east':
-        return np.stack((res[1], res[0], res[2]), axis=-1).T
-    else:
-        return np.stack(res, axis=-1).T
+    res  = t.transform(lons, lats, hgts)
 
+    # lat/lon/height
+    return  np.stack([res[1], res[0], res[2]], axis=-1)
