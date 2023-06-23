@@ -20,6 +20,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Update the integration height for raytracing from 50 km to 80 km
 + Reinstate test 3 (slant proj and ray trace), remove unused calls with ZREF
 + Add buffer to W/E for ERA5
++ refactor imports to allow for a cleaner raider-base
 + Add buffer to HRES when downloading as with the other models
 + Refactor to pass a weather file directly to fetch
 + Update staged weather models to reflect update to aligned grid
