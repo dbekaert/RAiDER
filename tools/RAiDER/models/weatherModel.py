@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import netCDF4
+import rioxarray
 import xarray
 
 from pyproj import CRS
@@ -27,7 +28,7 @@ TIME_RES = {'GMAO': 3,
             'HRRR': 1,
             'WRF': 1,
             'NCMR': 1,
-            'HRRR-AK': 6,
+            'HRRR-AK': 3,
             }
 
 
@@ -57,6 +58,7 @@ class WeatherModel(ABC):
         self._classname = None
         self._dataset = None
         self._name    = None
+        self._wmLoc   = None
 
         self._model_level_type = 'ml'
 
@@ -65,7 +67,6 @@ class WeatherModel(ABC):
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
-
         self._bbox = None
 
         # Define fixed constants
@@ -143,7 +144,7 @@ class WeatherModel(ABC):
         return np.max([self._lat_res, self._lon_res])
 
 
-    def fetch(self, out, ll_bounds, time):
+    def fetch(self, out, time):
         '''
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
@@ -155,12 +156,11 @@ class WeatherModel(ABC):
         time = UTC datetime
         '''
         self.checkTime(time)
-        self.set_latlon_bounds(ll_bounds)
-        self.setTime(time)
 
         # write the error raised by the weather model API to the log
         try:
             self._fetch(out)
+
         except Exception as E:
             logger.error(E)
 
@@ -171,6 +171,10 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
+
+
+    def getTime(self):
+        return self._time
 
 
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
@@ -184,7 +188,7 @@ class WeatherModel(ABC):
 
 
     def get_latlon_bounds(self):
-        raise NotImplementedError
+        return self._ll_bounds
 
 
     def set_latlon_bounds(self, ll_bounds, Nextra=2):
@@ -200,7 +204,8 @@ class WeatherModel(ABC):
 
         if self._Name == 'GMAO' or self._Name == 'MERRA2':
             ex_buffer_lon_max = self._lon_res
-        elif self._Name == 'HRRR':
+
+        elif self._Name in 'HRRR HRRR-AK HRES'.split():
             Nextra = 6 # have a bigger buffer
 
 
@@ -208,19 +213,32 @@ class WeatherModel(ABC):
         S, N, W, E = ll_bounds
 
         # Adjust bounds if they get near the poles or IDL
-        S = np.max([S - Nextra * self._lat_res, -90.0 + Nextra * self._lat_res])
-        N = np.min([N + Nextra * self._lat_res, 90.0 - Nextra * self._lat_res])
-        W = np.max([W - Nextra * self._lon_res, -180.0 + Nextra * self._lon_res])
-        E = np.min([E + Nextra * self._lon_res + ex_buffer_lon_max, 180.0 - Nextra * self._lon_res - ex_buffer_lon_max])
+        pixlat, pixlon = Nextra*self._lat_res, Nextra*self._lon_res
+
+        S= np.max([S - pixlat, -90.0 + pixlat])
+        N= np.min([N + pixlat, 90.0 - pixlat])
+        W= np.max([W - pixlon, -180.0 + pixlon])
+        E= np.min([E + (pixlon + ex_buffer_lon_max), 180.0 - pixlon - ex_buffer_lon_max])
 
         self._ll_bounds = np.array([S, N, W, E])
+
+    def get_wmLoc(self):
+        """ Get the path to the direct with the weather model files """
+        if self._wmLoc is None:
+            wmLoc = os.path.join(os.getcwd(), 'weather_files')
+        else:
+            wmLoc = self._wmLoc
+        return wmLoc
+
+
+    def set_wmLoc(self, weather_model_directory:str):
+        """ Set the path to the directory with the weather model files """
+        self._wmLoc = weather_model_directory
 
 
     def load(
         self,
-        outLoc,
         *args,
-        ll_bounds=None,
         _zlevels=None,
         zref=_ZREF,
         **kwargs
@@ -229,15 +247,16 @@ class WeatherModel(ABC):
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
         '''
-        self.set_latlon_bounds(ll_bounds)
-
         # If the weather file has already been processed, do nothing
+        outLoc = self.get_wmLoc()
+        path_wm_raw    = make_raw_weather_data_filename(outLoc, self.Model(), self.getTime())
         self._out_name = self.out_file(outLoc)
+
         if os.path.exists(self._out_name):
             return self._out_name
         else:
             # Load the weather just for the query points
-            self.load_weather(*args, **kwargs)
+            self.load_weather(f=path_wm_raw, *args, **kwargs)
 
             # Process the weather model data
             self._find_e()
@@ -245,7 +264,7 @@ class WeatherModel(ABC):
             self._checkForNans()
             self._get_wet_refractivity()
             self._get_hydro_refractivity()
-            self._adjust_grid(ll_bounds)
+            self._adjust_grid(self.get_latlon_bounds())
 
             # Compute Zenith delays at the weather model grid nodes
             self._getZTD(zref)
@@ -258,14 +277,6 @@ class WeatherModel(ABC):
         Placeholder method. Should be implemented in each weather model type class
         '''
         pass
-
-
-    def _get_time(self, filename=None):
-        if filename is None:
-            filename = self.files[0]
-        with netCDF4.Dataset(filename, mode='r') as f:
-            time = f.attrs['datetime'].copy()
-        self.time = datetime.datetime.strptime(time, "%Y_%m_%dT%H_%M_%S")
 
 
     def plot(self, plotType='pqt', savefig=True):
@@ -323,7 +334,8 @@ class WeatherModel(ABC):
         Transform geo heights to WGS84 ellipsoidal heights
         '''
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
-        self._zs = util.geo_to_ht(lats, geo_ht_fix)
+        lats_full  = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
+        self._zs   = util.geo_to_ht(lats_full, geo_ht_fix)
 
 
     def _find_e(self):
@@ -450,11 +462,13 @@ class WeatherModel(ABC):
         ValueError
            When `self.files` is None.
         """
+
         if self._bbox is None:
-            if self.files is None:
-                raise ValueError('Need to save weather model as netcdf')
-            weather_model_path = self.files[0]
-            with xarray.load_dataset(weather_model_path) as ds:
+            path_weather_model = self.out_file(self.get_wmLoc())
+            if not os.path.exists(path_weather_model):
+                raise ValueError('Need to save cropped weather model as netcdf')
+
+            with xarray.load_dataset(path_weather_model) as ds:
                 try:
                     xmin, xmax = ds.x.min(), ds.x.max()
                     ymin, ymax = ds.y.min(), ds.y.max()
@@ -463,8 +477,14 @@ class WeatherModel(ABC):
                     ymin, ymax = ds.latitude.min(), ds.latitude.max()
 
             wm_proj    = self._proj
-            lons, lats = transform_coords(wm_proj, CRS(4326), [xmin, xmax], [ymin, ymax])
-            self._bbox = [lons[0], lats[0], lons[1], lats[1]]
+            xs, ys     = [xmin, xmin, xmax, xmax], [ymin, ymax, ymin, ymax]
+            lons, lats = transform_coords(wm_proj, CRS(4326), xs, ys)
+            ## projected weather models may not be aligned N/S
+            ## should only matter for warning messages
+            W, E = np.min(lons), np.max(lons)
+            # S, N = np.sort([lats[np.argmin(lons)], lats[np.argmax(lons)]])
+            S, N = np.min(lats), np.max(lats)
+            self._bbox = W, S, E, N
 
         return self._bbox
 
@@ -472,21 +492,29 @@ class WeatherModel(ABC):
     def checkValidBounds(
             self: weatherModel,
             ll_bounds: np.ndarray,
-                         ) -> bool:
+                         ):
         '''
-        Checks whether the given bounding box is valid for the model (i.e., intersects with the model domain at all)
+        Checks whether the given bounding box is valid for the model
+        (i.e., intersects with the model domain at all)
 
         Args:
         ll_bounds : np.ndarray
 
         Returns:
-        bool    True if the ll_bounds represent a valid area for the weather model
+            The weather model object
         '''
-        return box(ll_bounds[2], ll_bounds[0], ll_bounds[3], ll_bounds[1]).intersects(self._valid_bounds)
+        S, N, W, E = ll_bounds
+        if box(W, S, E, N).intersects(self._valid_bounds):
+            Mod = self
+
+        else:
+            raise ValueError(f'The requested location is unavailable for {self._Name}')
+
+        return Mod
 
 
     def checkContainment(self: weatherModel,
-                         ll_bounds: np.ndarray,
+                         ll_bounds,
                          buffer_deg: float = 1e-5) -> bool:
         """"
         Checks containment of weather model bbox of outLats and outLons
@@ -495,10 +523,7 @@ class WeatherModel(ABC):
         Args:
         ----------
         weather_model : weatherModel
-        outLats : np.ndarray
-            An array of latitude points
-        outLons : np.ndarray
-            An array of longitude points
+        ll_bounds: an array of floats (SNWE) demarcating bbox of targets
         buffer_deg : float
             For x-translates for extents that lie outside of world bounding box,
             this ensures that translates have some overlap. The default is 1e-5
@@ -514,7 +539,6 @@ class WeatherModel(ABC):
         input_box   = box(xmin_input, ymin_input, xmax_input, ymax_input)
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
-
         world_box  = box(-180, -90, 180, 90)
 
         # Logger
@@ -564,8 +588,8 @@ class WeatherModel(ABC):
         '''
         get the bounding box around a set of lats/lons
         '''
-        lat = self._lats[:, :, 0]
-        lon = self._lons[:, :, 0]
+        lat = self._lats.copy()
+        lon = self._lons.copy()
         lat[np.isnan(lat)] = np.nanmean(lat)
         lon[np.isnan(lon)] = np.nanmean(lon)
         mask = (lat >= extent[0]) & (lat <= extent[1]) & \
@@ -584,8 +608,8 @@ class WeatherModel(ABC):
         index4 = min(np.arange(len(ma2))[ma2][-1] + 2, nx)
 
         # subset around points of interest
-        self._lons = self._lons[index1:index2, index3:index4, :]
-        self._lats = self._lats[index1:index2, index3:index4, ...]
+        self._lons = self._lons[index1:index2, index3:index4]
+        self._lats = self._lats[index1:index2, index3:index4]
         self._xs = self._xs[index3:index4]
         self._ys = self._ys[index1:index2]
         self._p = self._p[index1:index2, index3:index4, ...]
@@ -649,12 +673,6 @@ class WeatherModel(ABC):
         self._e = interpolate_along_axis(
             self._zs, self._e, new_zs, axis=2, fill_value=np.nan
         ).astype(np.float32)
-        self._lats = interpolate_along_axis(
-            self._zs, self._lats, new_zs, axis=2, fill_value=np.nan
-        ).astype(np.float32)
-        self._lons = interpolate_along_axis(
-            self._zs, self._lons, new_zs, axis=2, fill_value=np.nan
-        ).astype(np.float32)
 
         self._zs = _zlevels
         self._xs = np.unique(self._xs)
@@ -701,163 +719,71 @@ class WeatherModel(ABC):
         return f
 
 
-    def write(
-            self,
-            NoDataValue=-3.4028234e+38,
-            chunk=(1, 128, 128),
-        ):
+    def write(self):
         '''
         By calling the abstract/modular netcdf writer
         (RAiDER.utilFcns.write2NETCDF4core), write the weather model data
         and refractivity to an NETCDF4 file that can be accessed by external programs.
         '''
         # Generate the filename
-        mapping_name= get_mapping(self._proj)
-
         f = self._out_name
 
-        dimidY, dimidX, dimidZ = self._t.shape
-        chunk_lines_Y = np.min([chunk[1], dimidY])
-        chunk_lines_X = np.min([chunk[2], dimidX])
-        ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
+        attrs_dict = {
+                "Conventions": 'CF-1.6',
+                "datetime": datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"),
+                'date_created': datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
+                'title': 'Weather model data and delay calculations',
 
-        nc_outfile = netCDF4.Dataset(f, 'w', clobber=True, format='NETCDF4')
-        nc_outfile.setncattr('Conventions', 'CF-1.6')
-        nc_outfile.setncattr('datetime', datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
-        nc_outfile.setncattr('date_created', datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
-        title = 'Weather model data and delay calculations'
-        nc_outfile.setncattr('title', title)
+            }
 
-        tran = [self._xs[0], self._xs[1] - self._xs[0], 0.0, self._ys[0], 0.0, self._ys[1] - self._ys[0]]
         dimension_dict = {
-            'x': {'varname': 'x',
-                  'datatype': np.dtype('float64'),
-                  'dimensions': ('x'),
-                  'length': dimidX,
-                  'FillValue': None,
-                  'standard_name': 'projection_x_coordinate',
-                  'description': 'weather model native x',
-                  'dataset': self._xs,
-                  'units': 'degrees_east'},
-            'y': {'varname': 'y',
-                  'datatype': np.dtype('float64'),
-                  'dimensions': ('y'),
-                  'length': dimidY,
-                  'FillValue': None,
-                  'standard_name': 'projection_y_coordinate',
-                  'description': 'weather model native y',
-                  'dataset': self._ys,
-                  'units': 'degrees_north'},
-            'z': {'varname': 'z',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z'),
-                  'length': dimidZ,
-                  'FillValue': None,
-                  'standard_name': 'projection_z_coordinate',
-                  'description': 'vertical coordinate',
-                  'dataset': self._zs,
-                  'units': 'm'}
+            'x': ('x', self._xs),
+            'y': ('y', self._ys),
+            'z': ('z', self._zs),
+            'latitude': (('y', 'x'), self._lats),
+            'longitude': (('y', 'x'), self._lons),
+            'datetime': self._time,
         }
 
         dataset_dict = {
-            'latitude': {'varname': 'latitude',
-                         'datatype': np.dtype('float64'),
-                         'dimensions': ('z', 'y', 'x'),
-                         'grid_mapping': mapping_name,
-                         'FillValue': NoDataValue,
-                         'ChunkSize': ChunkSize,
-                         'standard_name': 'latitude',
-                         'description': 'latitude',
-                         'dataset': self._lats.swapaxes(0, 2).swapaxes(1, 2),
-                         'units': 'degrees_north'},
-            'longitude': {'varname': 'longitude',
-                          'datatype': np.dtype('float64'),
-                          'dimensions': ('z', 'y', 'x'),
-                          'grid_mapping': mapping_name,
-                          'FillValue': NoDataValue,
-                          'ChunkSize': ChunkSize,
-                          'standard_name': 'longitude',
-                          'description': 'longitude',
-                          'dataset': self._lons.swapaxes(0, 2).swapaxes(1, 2),
-                          'units': 'degrees_east'},
-            't': {'varname': 't',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z', 'y', 'x'),
-                  'grid_mapping': mapping_name,
-                  'FillValue': NoDataValue,
-                  'ChunkSize': ChunkSize,
-                  'standard_name': 'temperature',
-                  'description': 'temperature',
-                  'dataset': self._t.swapaxes(0, 2).swapaxes(1, 2),
-                  'units': 'K'},
-            'p': {'varname': 'p',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z', 'y', 'x'),
-                  'grid_mapping': mapping_name,
-                  'FillValue': NoDataValue,
-                  'ChunkSize': ChunkSize,
-                  'standard_name': 'pressure',
-                  'description': 'pressure',
-                  'dataset': self._p.swapaxes(0, 2).swapaxes(1, 2),
-                  'units': 'Pa'},
-            'e': {'varname': 'e',
-                  'datatype': np.dtype('float32'),
-                  'dimensions': ('z', 'y', 'x'),
-                  'grid_mapping': mapping_name,
-                  'FillValue': NoDataValue,
-                  'ChunkSize': ChunkSize,
-                  'standard_name': 'humidity',
-                  'description': 'humidity',
-                  'dataset': self._e.swapaxes(0, 2).swapaxes(1, 2),
-                  'units': 'Pa'},
-            'wet': {'varname': 'wet',
-                    'datatype': np.dtype('float32'),
-                    'dimensions': ('z', 'y', 'x'),
-                    'grid_mapping': mapping_name,
-                    'FillValue': NoDataValue,
-                    'ChunkSize': ChunkSize,
-                    'standard_name': 'wet_refractivity',
-                    'description': 'wet_refractivity',
-                    'dataset': self._wet_refractivity.swapaxes(0, 2).swapaxes(1, 2)},
-            'hydro': {'varname': 'hydro',
-                      'datatype': np.dtype('float32'),
-                      'dimensions': ('z', 'y', 'x'),
-                      'grid_mapping': mapping_name,
-                      'FillValue': NoDataValue,
-                      'ChunkSize': ChunkSize,
-                      'standard_name': 'hydrostatic_refractivity',
-                      'description': 'hydrostatic_refractivity',
-                      'dataset': self._hydrostatic_refractivity.swapaxes(0, 2).swapaxes(1, 2)},
-            'wet_total': {'varname': 'wet_total',
-                          'datatype': np.dtype('float32'),
-                          'dimensions': ('z', 'y', 'x'),
-                          'grid_mapping': mapping_name,
-                          'FillValue': NoDataValue,
-                          'ChunkSize': ChunkSize,
-                          'standard_name': 'total_wet_refractivity',
-                          'description': 'total_wet_refractivity',
-                          'dataset': self._wet_ztd.swapaxes(0, 2).swapaxes(1, 2)},
-            'hydro_total': {'varname': 'hydro_total',
-                            'datatype': np.dtype('float32'),
-                            'dimensions': ('z', 'y', 'x'),
-                            'grid_mapping': mapping_name,
-                            'FillValue': NoDataValue,
-                            'ChunkSize': ChunkSize,
-                            'standard_name': 'total_hydrostatic_refractivity',
-                            'description': 'total_hydrostatic_refractivity',
-                            'dataset': self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)}
+            't': (('z', 'y', 'x'), self._t.swapaxes(0, 2).swapaxes(1, 2)),
+            'p': (('z', 'y', 'x'), self._p.swapaxes(0, 2).swapaxes(1, 2)),
+            'e': (('z', 'y', 'x'), self._e.swapaxes(0, 2).swapaxes(1, 2)),
+            'wet': (('z', 'y', 'x'), self._wet_refractivity.swapaxes(0, 2).swapaxes(1, 2)),
+            'hydro': (('z', 'y', 'x'), self._hydrostatic_refractivity.swapaxes(0, 2).swapaxes(1, 2)),
+            'wet_total': (('z', 'y', 'x'), self._wet_ztd.swapaxes(0, 2).swapaxes(1, 2)),
+            'hydro_total': (('z', 'y', 'x'), self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)),
         }
 
-        nc_outfile = write2NETCDF4core(
-            nc_outfile,
-            dimension_dict,
-            dataset_dict,
-            tran,
-            mapping_name=mapping_name
-        )
+        ds = xarray.Dataset(data_vars=dataset_dict, coords=dimension_dict, attrs=attrs_dict)
 
-        nc_outfile.sync()  # flush data to disk
-        nc_outfile.close()
+        # Define units
+        ds['t'].attrs['units'] = 'K'
+        ds['e'].attrs['units'] = 'Pa'
+        ds['p'].attrs['units'] = 'Pa'
+        ds['wet'].attrs['units'] = 'dimentionless'
+        ds['hydro'].attrs['units'] = 'dimentionless'
+        ds['wet_total'].attrs['units'] = 'm'
+        ds['hydro_total'].attrs['units'] = 'm'
+
+        # Define standard names
+        ds['t'].attrs['standard_name'] = 'temperature'
+        ds['e'].attrs['standard_name'] = 'humidity'
+        ds['p'].attrs['standard_name'] = 'pressure'
+        ds['wet'].attrs['standard_name'] = 'wet_refractivity'
+        ds['hydro'].attrs['standard_name'] = 'hydrostatic_refractivity'
+        ds['wet_total'].attrs['standard_name'] = 'total_wet_refractivity'
+        ds['hydro_total'].attrs['standard_name'] = 'total_hydrostatic_refractivity'
+
+        # projection information
+        ds["proj"] = int()
+        for k, v in self._proj.to_cf().items():
+            ds.proj.attrs[k] = v
+        for var in ds.data_vars:
+            ds[var].attrs['grid_mapping'] = 'proj'
+
+        # write to file and return the filename
+        ds.to_netcdf(f)
         return f
 
 

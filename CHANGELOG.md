@@ -7,10 +7,26 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Add buffer to HRES when downloading as with the other models
++ Only reuse weather file if the cropped one exists
++ Refactor to pass a weather file directly to fetch
++ Update staged weather models to reflect update to aligned grid
++ Correctly pass buffered bounds when aligning grid
++ Check the valid bounds prior to starting and use HRRR-AK if its correct so that rounding times to obtain data at are correctly fed to Herbie
++ Update test_intersect to already existing weather model files 
++ Replace the real weather model files used for the synthetic test with the correct ones (bounding box changed slightly)
++ Update test_scenerio_1 to match golden data by selecting a grid by lat/lon rather than indices
++ Adjust the buffering to account for grid spacing
++ Update ERA5 model coordinates to reflect changes in support of HRRR
 + Re-work the HRRR weather model to use herbie (https://github.com/blaylockbk/Herbie) for weather model access. HRRR conus and Alaska validation periods are respectively 2016-7-15 and 2018-7-13 onwards.
 + minor bug fixes and unit test updates
 + add log file write location as a top-level command-line option and within Python as a user-specified option
 + account for grid spacing impact on bounding box before downloading weather model 
++ update the GUNW test to account for change in grid spacing on affine transform
++ add CLI for the old processDelayFiles script and rename to raiderCombine
++ Fix gridding bug in accessing HRRR-AK 
++ misc clean-up
++ specify unbuffered python output in the docker entrypoint script
 
 ## [0.4.3]
 + Series of bug-fixes/compatibility updates with stats class: 

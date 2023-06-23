@@ -6,6 +6,7 @@ import numpy as np
 from functools import reduce
 from numpy import nan
 from scipy.interpolate import RegularGridInterpolator as rgi
+from pathlib import Path
 
 from RAiDER.constants import _ZMIN, _ZREF
 from RAiDER.models.weatherModel import (
@@ -14,6 +15,7 @@ from RAiDER.models.weatherModel import (
     make_raw_weather_data_filename,
     make_weather_model_filename,
 )
+from RAiDER.llreader import BoundingBox
 from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
@@ -121,10 +123,10 @@ class MockWeatherModel(WeatherModel):
         self._true_hydro_ztd = np.zeros(self._t.shape)
         for layer in range(len(self._zs)):
             self._true_hydro_ztd[:,:,layer] = 1e-6 * 0.5 * (self._zs[-1] - self._zs[layer]) * _p[layer]
-        
+
         self._true_wet_refr = 2 * np.ones(self._t.shape)
         self._true_wet_refr[:,3:] = 4
-    
+
     def interpWet(self):
         _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)
         return _ifWet
@@ -137,7 +139,7 @@ class MockWeatherModel(WeatherModel):
 def model():
     return MockWeatherModel()
 
-def test_weatherModel_basic1(model):
+def test_weatherModel_basic1(model: MockWeatherModel):
     wm = model
     assert wm._zmin == _ZMIN
     assert wm._zmax == _ZREF
@@ -164,7 +166,7 @@ def test_weatherModel_basic1(model):
         wm.checkTime(datetime.datetime.now())
 
 
-def test_uniform_in_z_small(model):
+def test_uniform_in_z_small(model: MockWeatherModel):
     # Uneven z spacing, but averages to [1, 2]
     model._zs = np.array([
         [[1., 2.],
@@ -202,7 +204,7 @@ def test_uniform_in_z_small(model):
     assert np.allclose(model._ys, np.array([2, 3]), rtol=0)
 
 
-def test_uniform_in_z_large(model):
+def test_uniform_in_z_large(model: MockWeatherModel):
     shape = (400, 500, 40)
     x, y, z = shape
     size = product(shape)
@@ -249,7 +251,7 @@ def test_mrwmf():
         './ERA-5_2020_01_01_T00_00_00.nc'
 
 
-def test_erai(erai):
+def test_erai(erai: ERAI):
     wm = erai
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-I'
@@ -258,7 +260,7 @@ def test_erai(erai):
     assert wm._proj.to_epsg() == 4326
 
 
-def test_era5(era5):
+def test_era5(era5: ERA5):
     wm = era5
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-5'
@@ -266,7 +268,7 @@ def test_era5(era5):
     assert wm._proj.to_epsg() == 4326
 
 
-def test_era5t(era5t):
+def test_era5t(era5t: ERA5T):
     wm = era5t
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-5T'
@@ -274,7 +276,7 @@ def test_era5t(era5t):
     assert wm._proj.to_epsg() == 4326
 
 
-def test_hres(hres):
+def test_hres(hres: HRES):
     wm = hres
     assert wm._humidityType == 'q'
     assert wm._Name == 'HRES'
@@ -286,7 +288,7 @@ def test_hres(hres):
     assert wm._levels == 91
 
 
-def test_gmao(gmao):
+def test_gmao(gmao: GMAO):
     wm = gmao
     assert wm._humidityType == 'q'
     assert wm._Name == 'GMAO'
@@ -294,7 +296,7 @@ def test_gmao(gmao):
     assert wm._proj.to_epsg() == 4326
 
 
-def test_merra2(merra2):
+def test_merra2(merra2: MERRA2):
     wm = merra2
     assert wm._humidityType == 'q'
     assert wm._Name == 'MERRA2'
@@ -302,7 +304,7 @@ def test_merra2(merra2):
     assert wm._proj.to_epsg() == 4326
 
 
-def test_hrrr(hrrr):
+def test_hrrr(hrrr: HRRR):
     wm = hrrr
     assert wm._humidityType == 'q'
     assert wm._Name == 'HRRR'
@@ -311,24 +313,30 @@ def test_hrrr(hrrr):
     with pytest.raises(RuntimeError):
         wm.checkTime(datetime.datetime(2010, 7, 15))
     wm.checkTime(datetime.datetime(2018, 7, 12))
-    assert wm.checkValidBounds([35, 40, -95, -90])
-    assert ~wm.checkValidBounds([45, 47, 200, 210])
+
+    assert isinstance(wm.checkValidBounds([35, 40, -95, -90]), HRRR)
+
+    with pytest.raises(ValueError):
+        wm.checkValidBounds([45, 47, 300, 310])
 
 
-def test_hrrrak(hrrrak):
+def test_hrrrak(hrrrak: HRRRAK):
     wm = hrrrak
     assert wm._Name == 'HRRR-AK'
     assert wm._valid_range[0] == datetime.datetime(2018, 7, 13)
-    
-    assert ~wm.checkValidBounds([15, 20, 265, 270])
-    assert wm.checkValidBounds([45, 47, 200, 210])
-    
+
+    assert isinstance(wm.checkValidBounds([45, 47, 200, 210]), HRRRAK)
+
+    with pytest.raises(ValueError):
+        wm.checkValidBounds([15, 20, 265, 270])
+
     with pytest.raises(RuntimeError):
         wm.checkTime(datetime.datetime(2018, 7, 12))
+
     wm.checkTime(datetime.datetime(2018, 7, 15))
 
 
-def test_ncmr(ncmr):
+def test_ncmr(ncmr: NCMR):
     wm = ncmr
     assert wm._humidityType == 'q'
     assert wm._Name == 'NCMR'
@@ -346,7 +354,7 @@ def test_find_svp():
     assert np.allclose(svp_test, svp_true)
 
 
-def test_ztd(model):
+def test_ztd(model: MockWeatherModel):
     m = model
     m.load_weather()
 
@@ -357,7 +365,7 @@ def test_ztd(model):
     # hydro refractivity should be all the same
     m._get_hydro_refractivity()
     assert np.allclose(
-        m._hydrostatic_refractivity, 
+        m._hydrostatic_refractivity,
         m._true_hydro_refr,
     )
 
@@ -383,11 +391,21 @@ def test_get_bounds_indices_2():
     l = np.arange(-20, 20)
     l2 = (((np.arange(160, 200) + 180) % 360) - 180)
     lats, lons = np.meshgrid(l, l2)
+    with pytest.raises(ValueError):
+        get_bounds_indices(snwe, lats, lons)
+
+
+def test_get_bounds_indices_2b():
+    snwe = [-10, 10, 170, 190]
+    l = np.arange(-20, 20)
+    l2 = np.arange(160, 200)
+    lats, lons = np.meshgrid(l, l2)
     xmin, xmax, ymin, ymax = get_bounds_indices(snwe, lats, lons)
     assert xmin == 10
     assert xmax == 30
     assert ymin == 10
     assert ymax == 30
+
 
 def test_get_bounds_indices_3():
     snwe = [-10, 10, -10, 10]
@@ -396,20 +414,28 @@ def test_get_bounds_indices_3():
     lats, lons = np.meshgrid(l, l2)
     with pytest.raises(RuntimeError):
         get_bounds_indices(snwe, lats, lons)
-    
 
-def test_hrrr_badloc(hrrr):
-    wm = hrrr
+
+def test_get_bounds_indices_4():
+    snwe = [55, 60, 175, 185]
+    l = np.arange(55, 60, 1)
+    l2 = np.arange(175, 185, 1)
+    lats, lons = np.meshgrid(l, l2)
+    bounds_list = get_bounds_indices(snwe, lats, lons)
+    assert bounds_list == (0, 4, 0, 9)
+
+
+def test_hrrr_badloc(wm:hrrr=HRRR):
+    wm = wm()
     wm.set_latlon_bounds([-10, 10, -10, 10])
-    wm.setTime( datetime.datetime(2020, 10, 1, 0, 0, 0))
+    wm.setTime(datetime.datetime(2020, 10, 1, 0, 0, 0))
     with pytest.raises(ValueError):
         wm._fetch('dummy_filename')
 
 
-
-def test_hrrr_ak(tmp_path, hrrr):
-    wm = hrrr
-    d = tmp_path / "files"
+def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK):
+    wm = wm()
+    d  = tmp_path / "files"
     d.mkdir()
     fname = d / "hrrr_ak.nc"
     wm.set_latlon_bounds([65, 67, -160, -150])
@@ -419,16 +445,16 @@ def test_hrrr_ak(tmp_path, hrrr):
     assert True
 
 
-def test_hrrr_ak2(tmp_path, hrrr):
+def test_hrrrak_dl2(tmp_path: Path, wm:hrrrak=HRRRAK):
     # test the international date line crossing
-    wm = hrrr
-    d = tmp_path / "files"
+    wm = wm()
+    d  = tmp_path / "files"
     d.mkdir()
     fname = d / "hrrr_ak.nc"
-    
+
     wm.set_latlon_bounds([50, 52, 179, -179])
     wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
-    
+
     wm._fetch(fname)
     assert True
 
