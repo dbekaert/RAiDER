@@ -8,7 +8,7 @@
 import numpy as np
 
 _ZMIN = np.float64(-100)   # minimum required height
-_ZREF = np.float64(15000)  # maximum requierd height
+_ZREF = np.float64(80000)  # maximum integration height
 _STEP = np.float64(15.0)   # integration step size in meters
 
 _g0 = np.float64(9.80665) # Standard gravitational constant
