@@ -80,7 +80,7 @@ def tropo_delay(
 
     #TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
-            los, crs=crs)
+            los, crs, zref)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -135,7 +135,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
         # Build cube
         wetDelay, hydroDelay = _build_cube(
             aoi.xpts, aoi.ypts, zpts,
-            wm_proj, crs, [ifWet, ifHydro], MAX_TROPO_HEIGHT=zref)
+            wm_proj, crs, [ifWet, ifHydro])
 
     else:
         out_type = "slant - raytracing"
@@ -155,7 +155,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
             wetDelay, hydroDelay = _build_cube_ray(
                 aoi.xpts, aoi.ypts, zpts, los,
                 wm_proj, crs,
-                [ifWet, ifHydro])
+                [ifWet, ifHydro], MAX_TROPO_HEIGHT=zref)
 
         ### Use multi-processing here
         else:

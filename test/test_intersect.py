@@ -40,12 +40,12 @@ def test_cube_intersect():
     assert proc.returncode == 0, 'RAiDER Failed.'
 
     ## hard code what it should be and check it matches
-    gold = {'ERA5': 2.291002512, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.2906842, 'GMAO': np.nan, 'HRRR': np.nan}
 
     path_delays = os.path.join(SCENARIO_DIR, f'{WM}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
     da  = xrr.open_rasterio(path_delays, band_as_variable=True)['band_1']
     hyd = da.sel(x=-117.8, y=33.4, method='nearest').item()
-    np.testing.assert_almost_equal(hyd, gold[WM])
+    np.testing.assert_almost_equal(gold[WM], hyd)
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
@@ -55,12 +55,11 @@ def test_cube_intersect():
     return
 
 
-@pytest.mark.skip()
 def test_gnss_intersect():
     WM = 'ERA5'
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
-    gnss_file = os.path.join(TEST_DIR, 'scenario_2', 'stations1.csv')
+    gnss_file = os.path.join(TEST_DIR, 'scenario_2', 'stations2.csv')
     date       = 20200130
     time       ='13:52:45'
 
@@ -83,12 +82,13 @@ def test_gnss_intersect():
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
 
-    gold = {'ERA5': 2.34482552, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.3444392, 'GMAO': np.nan, 'HRRR': np.nan}
 
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{WM}_Delay_{date}T{time.replace(":", "")}.csv'))
 
-    td = df['totalDelay']
-    np.testing.assert_almost_equal(td.item(), gold[WM])
+    id = 'TORP'
+    td = df.set_index('ID').loc[id, 'totalDelay']
+    np.testing.assert_almost_equal(gold[WM], td.item())
 
     shutil.rmtree(SCENARIO_DIR)
     [os.remove(f) for f in glob.glob(f'{WM}*')]

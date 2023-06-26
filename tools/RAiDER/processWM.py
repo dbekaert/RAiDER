@@ -162,7 +162,6 @@ def _weather_model_debug(
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
-    # TODO: make_weather_model_filename is undefined
     wm_filename = make_weather_model_filename(
         weather_model['name'],
         time,
