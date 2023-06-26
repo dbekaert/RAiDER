@@ -11,7 +11,7 @@ def test_slant_proj(weather_model_name):
     os.makedirs(SCENARIO_DIR, exist_ok=True)
 
     ## make the lat lon grid
-    S, N, W, E = 33, 34, -118.25, -117.25
+    S, N, W, E = 33, 34, -118.25, -116.75
     date       = 20200130
     time       ='13:52:45'
 
@@ -40,7 +40,7 @@ def test_slant_proj(weather_model_name):
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
 
-    gold = {'ERA5': [33.4, -117.8, 0, 2.33401980]}
+    gold = {'ERA5': [33.4, -117.8, 0, 2.3338790]}
     lat, lon, hgt, val = gold[weather_model_name]
     path_delays = os.path.join(SCENARIO_DIR,
                     make_delay_name(weather_model_name, date, time, 'std'))
@@ -92,7 +92,7 @@ def test_ray_tracing(weather_model_name):
     assert proc.returncode == 0, 'RAiDER Failed.'
 
     # model to lat/lon/correct value
-    gold = {'ERA5': [33.4, -117.8, 0, 2.9777146]}
+    gold = {'ERA5': [33.4, -117.8, 0, 2.9771327]}
     lat, lon, hgt, val = gold[weather_model_name]
 
     path_delays = os.path.join(SCENARIO_DIR,
