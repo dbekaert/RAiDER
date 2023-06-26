@@ -205,7 +205,7 @@ class StudyArea(object):
         }
         return dct
 
-
+@pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_dl_real(region, mod='ERA5'):
     """ Download the real weather model to overwrite
@@ -291,7 +291,6 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     da.close()
     del da
 
-@pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_linear(region, mod='ERA-5'):
     """ Test linear part of wet equation.
@@ -359,7 +358,6 @@ def test_wet_eq_linear(region, mod='ERA-5'):
     del da
 
 
-@pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_nonlinear(region, mod='ERA-5'):
     """ Test the nonlinear part of the wet equation.
