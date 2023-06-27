@@ -104,7 +104,7 @@ height_group:
 ## STD calculation:
 los_group:
   ray_trace: False  # Use projected slant delay by default
-  zref: # Integration height. Only used in raytracing.
+  zref: # Maximum integration height. Only used in raytracing. Default 80km.
 
   # raster file in radar or geocoordinates
   los_file:

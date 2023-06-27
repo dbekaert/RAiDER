@@ -8,6 +8,7 @@ from RAiDER.losreader import Raytracing, getTopOfAtmosphere
 from RAiDER.utilFcns import lla2ecef, ecef2lla
 from RAiDER.cli.validators import modelName2Module
 
+from RAiDER.constants import _ZREF
 from test import *
 
 
@@ -96,12 +97,12 @@ def length_of_ray(target_xyz:list, model_zs, los):
             low_ht = model_zs[zz]
             high_ht = model_zs[zz + 1]
 
-            if (high_ht <= ht) or (low_ht >= 50000):
+            if (high_ht <= ht) or (low_ht >= _ZREF):
                 continue
 
             # If high_ht > max_tropo_height - integral only up to max tropo
-            if high_ht > 50000:
-                high_ht = 50000
+            if high_ht > _ZREF:
+                high_ht = _ZREF
 
             # If low_ht < height of point - integral only up to height of point
             if low_ht < ht:
@@ -135,6 +136,7 @@ class StudyArea(object):
     region:str
     wmName:str
     wd = op.join(TEST_DIR, 'synthetic_test')
+    orb_dir = ORB_DIR
 
     def __post_init__(self):
         self.setup_region()
@@ -172,21 +174,21 @@ class StudyArea(object):
         if self.region == 'LA':
             self.SNWE  = 33, 34, -118.25, -117.25
             self.dt    = datetime(2020, 1, 30, 13, 52, 45)
-            self.orbit = self.wd + \
+            self.orbit = self.orb_dir + \
                 '/S1B_OPER_AUX_POEORB_OPOD_20210317T025713_V20200129T225942_20200131T005942.EOF'
 
         # Fortaleza, Brazil; Ascending
         elif self.region == 'Fort':
             self.SNWE = -4.0, -3.5, -38.75, -38.25
             self.dt   = datetime(2019, 11, 17, 20, 51, 58)
-            self.orbit = self.wd + \
+            self.orbit = self.orb_dir + \
                 '/S1A_OPER_AUX_POEORB_OPOD_20210315T014833_V20191116T225942_20191118T005942.EOF'
 
         # Utqiagvik, Alaska; Descending
         elif self.region == 'AK':
             self.SNWE = 70.25, 71.50, -157.75, -155.55
             self.dt   = datetime(2022, 8, 29, 17, 0, 1)
-            self.orbit = self.wd + \
+            self.orbit = self.orb_dir + \
                 '/S1A_OPER_AUX_POEORB_OPOD_20220918T081841_V20220828T225942_20220830T005942.EOF'
 
 
@@ -202,7 +204,6 @@ class StudyArea(object):
             'runtime_group': {'output_directory': self.wd},
         }
         return dct
-
 
 @pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
@@ -289,7 +290,6 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
 
     da.close()
     del da
-
 
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_linear(region, mod='ERA-5'):

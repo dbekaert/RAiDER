@@ -34,8 +34,8 @@ class ECMWF(WeatherModel):
 
         self._time_res = TIME_RES['ECMWF']
 
-        self._lon_res = 0.2
-        self._lat_res = 0.2
+        self._lon_res = 0.25
+        self._lat_res = 0.25
         self._proj = CRS.from_epsg(4326)
 
         self._model_level_type = 'ml'  # Default

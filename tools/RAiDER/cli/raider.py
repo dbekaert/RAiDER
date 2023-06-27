@@ -227,7 +227,7 @@ def calcDelays(iargs=None):
     else:
         wm_bounds = aoi.bounds()
 
-    model.set_latlon_bounds(wm_bounds) # set the weather model bounds
+    model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
     wet_filenames = []
     for t, w, f in zip(

@@ -1,10 +1,5 @@
 import datetime
-import os
-import pytest
-from test import TEST_DIR
-
 import numpy as np
-
 from RAiDER.losreader import (
     read_ESA_Orbit_file,
     read_txt_file,
@@ -16,7 +11,7 @@ from RAiDER.losreader import (
     Zenith,
 )
 
-SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
+from test import *
 
 
 @pytest.fixture
@@ -96,7 +91,7 @@ def svs():
 
 def test_read_ESA_Orbit_file(svs):
     true_svs = svs
-    filename = os.path.join(SCENARIO_DIR, 'S1_orbit_example.EOF')
+    filename = os.path.join(ORB_DIR, 'S1_orbit_example.EOF')
     svs = read_ESA_Orbit_file(filename)
     assert [np.allclose(
         [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
@@ -107,7 +102,7 @@ def test_read_ESA_Orbit_file(svs):
 
 def test_read_txt_file(svs):
     true_svs = svs
-    filename = os.path.join(SCENARIO_DIR, 'S1_sv_file.txt')
+    filename = os.path.join(ORB_DIR, 'S1_sv_file.txt')
     svs = read_txt_file(filename)
     assert [np.allclose(
         [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
@@ -118,7 +113,7 @@ def test_read_txt_file(svs):
 
 def test_get_sv_1(svs):
     true_svs = svs
-    filename = os.path.join(SCENARIO_DIR, 'S1_orbit_example.EOF')
+    filename = os.path.join(ORB_DIR, 'S1_orbit_example.EOF')
     svs = get_sv(filename, true_svs[0][0], pad=3*60)
     assert [np.allclose(
         [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
@@ -129,7 +124,7 @@ def test_get_sv_1(svs):
 
 def test_get_sv_2(svs):
     true_svs = svs
-    filename = os.path.join(SCENARIO_DIR, 'S1_sv_file.txt')
+    filename = os.path.join(ORB_DIR, 'S1_sv_file.txt')
     svs = get_sv(filename, true_svs[0][0], pad=3*60)
     assert [np.allclose(
         [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
@@ -140,14 +135,14 @@ def test_get_sv_2(svs):
 
 def test_get_sv_3(svs):
     true_svs = svs
-    filename = os.path.join(SCENARIO_DIR, 'incorrect_file.txt')
+    filename = os.path.join(ORB_DIR, 'incorrect_file.txt')
     with pytest.raises(ValueError):
         get_sv(filename, true_svs[0][0], pad=3*60)
 
 
 def test_get_sv_4(svs):
     true_svs = svs
-    filename = os.path.join(SCENARIO_DIR, 'no_exist.txt')
+    filename = os.path.join(ORB_DIR, 'no_exist.txt')
     with pytest.raises(FileNotFoundError):
         get_sv(filename, true_svs[0][0], pad=3*60)
 

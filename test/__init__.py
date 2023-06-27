@@ -1,6 +1,7 @@
 import os
 import pytest
 import subprocess
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -13,6 +14,7 @@ TEST_DIR = test_dir.absolute()
 DATA_DIR = os.path.join(TEST_DIR, 'data')
 GEOM_DIR = os.path.join(TEST_DIR, 'test_geom')
 WM_DIR   = os.path.join(TEST_DIR, 'weather_files')
+ORB_DIR  = os.path.join(TEST_DIR, 'orbit_files')
 
 WM = 'GMAO'
 
@@ -71,3 +73,8 @@ def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
     da_lon.to_netcdf(dst_lon)
 
     return dst_lat, dst_lon
+
+
+def make_delay_name(weather_model_name, date, time, kind='ztd'):
+    assert kind in 'ztd std ray'.split(), 'Incorrect type of delays.'
+    return f'{weather_model_name}_tropo_{date}T{time.replace(":", "")}_{kind}.nc'

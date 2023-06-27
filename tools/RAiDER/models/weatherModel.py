@@ -19,7 +19,7 @@ from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
 from RAiDER.utilFcns import (
-    robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords
+    robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords, clip_bbox
 )
 
 TIME_RES = {'GMAO': 3,
@@ -191,7 +191,7 @@ class WeatherModel(ABC):
         return self._ll_bounds
 
 
-    def set_latlon_bounds(self, ll_bounds, Nextra=2):
+    def set_latlon_bounds(self, ll_bounds, Nextra=2, output_spacing=None):
         '''
         Need to correct lat/lon bounds because not all of the weather models have valid
         data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
@@ -202,12 +202,11 @@ class WeatherModel(ABC):
         '''
         ex_buffer_lon_max = 0.0
 
-        if self._Name == 'GMAO' or self._Name == 'MERRA2':
-            ex_buffer_lon_max = self._lon_res
-
-        elif self._Name in 'HRRR HRRR-AK HRES'.split():
+        if self._Name in 'HRRR HRRR-AK HRES'.split():
             Nextra = 6 # have a bigger buffer
 
+        else:
+            ex_buffer_lon_max = self._lon_res
 
         # At boundary lats and lons, need to modify Nextra buffer so that the lats and lons do not exceed the boundary
         S, N, W, E = ll_bounds
@@ -217,10 +216,13 @@ class WeatherModel(ABC):
 
         S= np.max([S - pixlat, -90.0 + pixlat])
         N= np.min([N + pixlat, 90.0 - pixlat])
-        W= np.max([W - pixlon, -180.0 + pixlon])
+        W= np.max([W - (pixlon + ex_buffer_lon_max), -180.0 + (pixlon+ex_buffer_lon_max)])
         E= np.min([E + (pixlon + ex_buffer_lon_max), 180.0 - pixlon - ex_buffer_lon_max])
+        if output_spacing is not None:
+            S, N, W, E  = clip_bbox([S,N,W,E], output_spacing)
 
         self._ll_bounds = np.array([S, N, W, E])
+
 
     def get_wmLoc(self):
         """ Get the path to the direct with the weather model files """
@@ -240,7 +242,6 @@ class WeatherModel(ABC):
         self,
         *args,
         _zlevels=None,
-        zref=_ZREF,
         **kwargs
     ):
         '''
@@ -267,7 +268,7 @@ class WeatherModel(ABC):
             self._adjust_grid(self.get_latlon_bounds())
 
             # Compute Zenith delays at the weather model grid nodes
-            self._getZTD(zref)
+            self._getZTD()
             return None
 
 
@@ -407,14 +408,11 @@ class WeatherModel(ABC):
                 self._trimExtent(ll_bounds)
 
 
-    def _getZTD(self, zref=None):
+    def _getZTD(self):
         '''
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
         '''
-        if zref is None:
-            zref = self._zmax
-
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 
@@ -568,7 +566,6 @@ class WeatherModel(ABC):
             weather_model_box = unary_union(translates)
 
         return weather_model_box.contains(input_box)
-
 
     def _isOutside(self, extent1, extent2):
         '''
@@ -857,3 +854,68 @@ def get_mapping(proj):
         return 'WGS84'
     else:
         return proj.to_wkt()
+
+
+
+def checkContainment_raw(path_wm_raw,
+                        ll_bounds,
+                        buffer_deg: float = 1e-5) -> bool:
+    """"
+    Checks if existing raw weather model contains
+    requested ll_bounds
+
+    Args:
+    ----------
+    path_wm_raw : path to downloaded, uncropped weather model file
+    ll_bounds: an array of floats (SNWE) demarcating bbox of targets
+    buffer_deg : float
+        For x-translates for extents that lie outside of world bounding box,
+        this ensures that translates have some overlap. The default is 1e-5
+        or ~11.1 meters.
+
+    Returns:
+    -------
+    bool
+        True if weather model contains bounding box of OutLats and outLons
+        and False otherwise.
+    """
+    import xarray as xr
+    ymin_input, ymax_input, xmin_input, xmax_input = ll_bounds
+    input_box   = box(xmin_input, ymin_input, xmax_input, ymax_input)
+
+    with xr.open_dataset(path_wm_raw) as ds:
+        try:
+            ymin, ymax = ds.latitude.min(), ds.latitude.max()
+            xmin, xmax = ds.longitude.min(), ds.longitude.max()
+        except:
+            ymin, ymax = ds.y.min(), ds.y.max()
+            xmin, xmax = ds.x.min(), ds.x.max()
+
+        xmin, xmax = np.mod(np.array([xmin, xmax])+180, 360) - 180
+        weather_model_box = box(xmin, ymin, xmax, ymax)
+
+    world_box  = box(-180, -90, 180, 90)
+
+    # Logger
+    input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input,
+                                            xmax_input, ymax_input]]
+    weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
+
+    weath_box_str = ', '.join(weath_box_str)
+    input_box_str = ', '.join(input_box_str)
+
+
+    # If the bounding box goes beyond the normal world extents
+    # Look at two x-translates, buffer them, and take their union.
+    if not world_box.contains(weather_model_box):
+        logger.info('Considering x-translates of weather model +/-360 '
+                    'as bounding box outside of -180, -90, 180, 90')
+        translates = [weather_model_box.buffer(buffer_deg),
+                        translate(weather_model_box,
+                                xoff=360).buffer(buffer_deg),
+                        translate(weather_model_box,
+                                xoff=-360).buffer(buffer_deg)
+                        ]
+        weather_model_box = unary_union(translates)
+
+    return weather_model_box.contains(input_box)
