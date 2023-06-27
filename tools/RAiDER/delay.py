@@ -255,17 +255,11 @@ def _build_cube_ray(
         ray_lengths, low_xyzs, high_xyzs = \
             build_ray(model_zs, ht, xyz, LOS,  MAX_TROPO_HEIGHT)
 
-
         # Determine number of parts to break ray into (this is what gets integrated over)
         try:
-            # nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
             nParts = np.ceil(ray_lengths.max((1,2)) / MAX_SEGMENT_LENGTH).astype(int) + 1
         except ValueError:
             raise ValueError("geo2rdr did not converge. Check orbit coverage")
-
-            # If high_ht > max_tropo_height - integral only up to max tropo
-            if high_ht > MAX_TROPO_HEIGHT:
-                high_ht = MAX_TROPO_HEIGHT
 
         # iterate over weather model height levels
         for zz, nparts in enumerate(nParts):

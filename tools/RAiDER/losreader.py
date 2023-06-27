@@ -728,7 +728,7 @@ def get_orbit(orbit_file, ref_time, pad):
     return orb
 
 
-def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=50000):
+def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
     """
     Compute the ray length in ECEF between each  weather model layers
 
@@ -755,8 +755,7 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=50000):
         if low_ht < ht:
             low_ht = ht
 
-        # If high_ht > max_tropo_height - integral only up to max tropo
-        # height
+        # If high_ht > max_tropo_height - integral only up to max tropo height
         if high_ht > MAX_TROPO_HEIGHT:
             high_ht = MAX_TROPO_HEIGHT
 
@@ -783,7 +782,6 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=50000):
         ray_lengths.append(ray_length)
         low_xyzs.append(low_xyz)
         high_xyzs.append(high_xyz)
-
 
     return np.stack(ray_lengths), np.stack(low_xyzs), np.stack(high_xyzs)
 
