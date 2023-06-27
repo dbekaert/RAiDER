@@ -14,10 +14,10 @@ def test_cube_intersect(wm):
     os.makedirs(SCENARIO_DIR, exist_ok=True)
 
     ## make the lat lon grid
-    S, N, W, E = 33, 34, -118.25, -116.75
+    S, N, W, E = 33, 34.5, -118.0, -117.0
     date       = 20200130
     time       ='13:52:45'
-    f_lat, f_lon = makeLatLonGrid([S, N, W, E], 'LA', SCENARIO_DIR, 0.1)
+    f_lat, f_lon = makeLatLonGrid([S, N, W, E], 'LA', SCENARIO_DIR, 0.5)
 
     ## make the template file
     grp = {
@@ -39,7 +39,7 @@ def test_cube_intersect(wm):
     assert proc.returncode == 0, 'RAiDER Failed.'
 
     ## hard code what it should be and check it matches
-    gold = {'ERA5': 2.2902908, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.2906463, 'GMAO': np.nan, 'HRRR': np.nan}
 
     path_delays = os.path.join(SCENARIO_DIR, f'{wm}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
     da  = xrr.open_rasterio(path_delays, band_as_variable=True)['band_1']
