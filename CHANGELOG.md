@@ -26,7 +26,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + add CLI for the old processDelayFiles script and rename to raiderCombine
 + Fix gridding bug in accessing HRRR-AK 
 + misc clean-up
-+ specify unbuffered python output in the docker entrypoint script
 
 ## [0.4.3]
 + add unit tests for the hydro and two pieces of wet equation
