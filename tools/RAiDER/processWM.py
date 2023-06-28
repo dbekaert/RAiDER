@@ -14,7 +14,7 @@ from typing import List
 
 from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
-from RAiDER.models.weatherModel import make_raw_weather_data_filename
+from RAiDER.models.weatherModel import make_raw_weather_data_filename, checkContainment_raw
 
 
 def prepareWeatherModel(
@@ -53,15 +53,20 @@ def prepareWeatherModel(
     path_wm_crop = weather_model.out_file(wmLoc)
 
     # check whether weather model files exists and/or or should be downloaded
-    download_flag = True
     if os.path.exists(path_wm_crop) and not force_download:
         logger.warning(
             'Processed weather model already exists, please remove it ("%s") if you want '
             'to download a new one.', path_wm_crop)
-        download_flag = False
+
+    # check whether the raw weather model covers this area
+    elif os.path.exists(path_wm_raw) and \
+        checkContainment_raw(path_wm_raw, ll_bounds) and not force_download:
+        logger.warning(
+            'Raw weather model already exists, please remove it ("%s") if you want '
+            'to download a new one.', path_wm_raw)
 
     # if no weather model files supplied, check the standard location
-    if download_flag:
+    else:
         weather_model.fetch(path_wm_raw, time)
 
     # If only downloading, exit now
@@ -162,7 +167,6 @@ def _weather_model_debug(
         wmLoc = os.path.join(out, 'weather_files')
 
     # weather model calculation
-    # TODO: make_weather_model_filename is undefined
     wm_filename = make_weather_model_filename(
         weather_model['name'],
         time,

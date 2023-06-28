@@ -8,6 +8,7 @@
 from RAiDER.logger import logger, logging
 from RAiDER.cli.parser import add_cpus
 from RAiDER.utilFcns import WGS84_to_UTM
+from rasterio.transform import Affine
 from scipy import optimize
 from scipy import sum as scipy_sum
 from scipy.optimize import OptimizeWarning
@@ -234,15 +235,13 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
         metadata_dict['time_lines'] = 'False'
 
     # Write data to file
+    transform = Affine(spacing, 0., plotbbox[0], 0., -1*spacing, plotbbox[-1])
     with rasterio.open(fname, mode="w", count=1,
                        width=df.shape[1], height=df.shape[0],
-                       dtype=dtype, nodata=noData) as dst:
+                       dtype=dtype, nodata=noData,
+                       crs='+proj=latlong', transform=transform) as dst:
+        dst.update_tags(0, **metadata_dict)
         dst.write(df, 1)
-        dst.update_tags(1, **metadata_dict)
-
-    # Finalize VRT
-    vrtname = fname + ".vrt"
-    rasterio.shutil.copy(fname, fname + ".vrt", driver="VRT")
 
     return
 
@@ -253,7 +252,7 @@ def load_gridfile(fname, unit):
     '''
 
     with rasterio.open(fname) as src:
-        grid_array = src.read().astype(float)
+        grid_array = src.read(1).astype(float)
 
         # Read metadata variables needed for plotting
         metadata_dict = src.tags()
@@ -268,6 +267,7 @@ def load_gridfile(fname, unit):
     grid_array = np.ma.filled(grid_array, np.nan)
 
     # Make plotting command a global variable
+    print('metadata_dict', metadata_dict)
     gridfile_type = metadata_dict['gridfile_type']
     globals()[gridfile_type] = True
 
@@ -689,7 +689,7 @@ class RaiderStats(object):
                  usr_colormap='hot_r', grid_heatmap=False, grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False,
                  grid_seasonal_phase=False, grid_delay_absolute_mean=False, grid_delay_absolute_median=False,
                  grid_delay_absolute_stdev=False, grid_seasonal_absolute_phase=False, grid_to_raster=False, min_span=[2, 0.6],
-                 period_limit=0.5, numCPUs=8, phaseamp_per_station=False):
+                 period_limit=0., numCPUs=8, phaseamp_per_station=False):
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -895,10 +895,10 @@ class RaiderStats(object):
         # Get grid cell polygon which intersect with station coordinate
         grid_int = self.polygon_tree.query(coord)
         # Pass corresponding grid cell index
-        if grid_int:
-            return self.polygon_dict[id(grid_int[0])]
-
-        return 'NaN'
+        if len(grid_int) != 0:
+            return grid_int[0]
+        else:
+            return 'NaN'
 
     def _reader(self):
         '''
@@ -965,24 +965,26 @@ class RaiderStats(object):
             # e.g. month/day: 03/01 to 06/01
             if self.seasonalinterval[0] < self.seasonalinterval[1]:
                 # non leap-year
-                filtered_self = self.df[(not self.df['Date'].dt.is_leap_year) & (
+                filtered_self = self.df[(self.df['Date'].dt.is_leap_year == False) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])]
                 # leap-year
                 self.seasonalinterval = [i + 1 if i >
                                          59 else i for i in self.seasonalinterval]
-                self.df = filtered_self.append(self.df[(self.df['Date'].dt.is_leap_year) & (
-                    self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])], ignore_index=True)
+                filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year == True) & (
+                    self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])]
+                self.df = pd.concat([filtered_self, filtered_self_ly], ignore_index=True)
                 del filtered_self
             # e.g. month/day: 12/01 to 03/01
             if self.seasonalinterval[0] > self.seasonalinterval[1]:
                 # non leap-year
-                filtered_self = self.df[(not self.df['Date'].dt.is_leap_year) & (
+                filtered_self = self.df[(self.df['Date'].dt.is_leap_year == False) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[-1]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[0])]
                 # leap-year
                 self.seasonalinterval = [i + 1 if i >
                                          59 else i for i in self.seasonalinterval]
-                self.df = filtered_self.append(self.df[(self.df['Date'].dt.is_leap_year) & (
-                    self.df['Date'].dt.dayofyear >= self.seasonalinterval[-1]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[0])], ignore_index=True)
+                filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year == True) & (
+                    self.df['Date'].dt.dayofyear >= self.seasonalinterval[-1]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[0])]
+                self.df = pd.concat([filtered_self, filtered_self_ly], ignore_index=True)
                 del filtered_self
 
         # estimate central longitude lines if '--time_lines' specified
@@ -1037,7 +1039,6 @@ class RaiderStats(object):
         self.unique_points = [self.unique_points.index.get_level_values('ID').tolist(), self.unique_points.index.get_level_values(
             'Lon').tolist(), self.unique_points.index.get_level_values('Lat').tolist()]
         # Initiate R-tree of gridded array domain
-        self.polygon_dict = dict((id(pt), i) for i, pt in enumerate(append_poly))
         self.polygon_tree = STRtree(append_poly)
         for stat_ID in self.unique_points[0]:
             grd_index = self._check_stationgrid_intersection(stat_ID)
@@ -1046,7 +1047,7 @@ class RaiderStats(object):
         # map gridnode dictionary to dataframe
         self.df['gridnode'] = self.df['ID'].map(idtogrid_dict)
         self.df = self.df[self.df['gridnode'].astype(str) != 'NaN']
-        del self.unique_points, self.polygon_dict, self.polygon_tree, idtogrid_dict, append_poly
+        del self.unique_points, self.polygon_tree, idtogrid_dict, append_poly
         # sort by grid and date
         self.df.sort_values(['gridnode', 'Date'])
 
@@ -1410,7 +1411,7 @@ class RaiderStats(object):
         periodfit_c[station] = np.nan
         seasonalfit_rmse[station] = np.nan
         # Fit with custom fit function with fixed period, if specified
-        if period_limit != 0:
+        if period_limit != 0.:
             # convert from years to radians/seconds
             w = (1 / period_limit) * (1 / 31556952) * (2. * np.pi)
 
@@ -1431,7 +1432,7 @@ class RaiderStats(object):
             guess_offset = np.mean(yy)
             guess = np.array([guess_amp, 2. * np.pi * guess_freq, 0., guess_offset])
             # Adjust frequency guess to reflect fixed period, if specified
-            if period_limit != 0:
+            if period_limit != 0.:
                 guess = np.array([guess_amp, 0., guess_offset])
             # Catch warning where covariance cannot be estimated
             # I.e. OptimizeWarning: Covariance of the parameters could not be estimated
@@ -1457,7 +1458,7 @@ class RaiderStats(object):
                           '.format(station, os.path.join(self.workdir, 'phaseamp_per_station', 'station{}.png'.format(station))))
                     pass
             # Adjust expected output to reflect fixed period, if specified
-            if period_limit != 0:
+            if period_limit != 0.:
                 A, p, c = popt
             else:
                 A, w, p, c = popt
@@ -1533,7 +1534,7 @@ class RaiderStats(object):
         '''
         return A * np.sin(w * t + p) + c
 
-    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2e', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
+    def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
         '''
             Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
         '''
@@ -1636,6 +1637,7 @@ class RaiderStats(object):
                 cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
                 cbar_ax = fig.colorbar(im, spacing='proportional',
                                        ticks=colorbounds_ticks, boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+                cbar_ax.ax.minorticks_off()
 
         # If gridded area passed
         else:
@@ -1674,6 +1676,7 @@ class RaiderStats(object):
             cax = divider.append_axes("right", size="5%", pad=0.05, axes_class=plt.Axes)
             cbar_ax = fig.colorbar(im, spacing='proportional', ticks=colorbounds_ticks,
                                    boundaries=colorbounds, format=colorbarfmt, pad=0.1, cax=cax)
+            cbar_ax.ax.minorticks_off()
 
             # superimpose your gridded array with a supplementary list of point, if specified
             if self.stationsongrids:

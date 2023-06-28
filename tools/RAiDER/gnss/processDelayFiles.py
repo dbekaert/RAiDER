@@ -365,10 +365,11 @@ def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName
                              'hydroDelay', raider_delay]
     dfr = dfr.drop(columns=[col for col in dfr if col not in
                             expected_data_columns])
-    dfz = pd.read_csv(ztdFile, parse_dates=['Datetime'])
+    dfz = pd.read_csv(ztdFile, parse_dates=['Date'])
+    dfz.rename(columns={'Date': 'Datetime'}, inplace=True)
     # drop extra columns
-    expected_data_columns = ['ID', 'Date', 'wet_delay', 'hydrostatic_delay',
-                             'times', 'sigZTD', 'Lat', 'Lon', 'Hgt_m', 'Datetime',
+    expected_data_columns = ['ID', 'Datetime', 'wet_delay', 'hydrostatic_delay',
+                             'times', 'sigZTD', 'Lat', 'Lon', 'Hgt_m',
                              col_name]
     dfz = dfz.drop(columns=[col for col in dfz if col not in
                             expected_data_columns])
@@ -420,7 +421,7 @@ def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName
     )
     )
     print('Merge finished')
-
+    
     if outName is None:
         return dfc
     else:
