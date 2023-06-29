@@ -29,7 +29,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + add CLI for the old processDelayFiles script and rename to raiderCombine
 + Fix gridding bug in accessing HRRR-AK 
 + misc clean-up
-+ specify unbuffered python output in the docker entrypoint script
++ Specify unbuffered python output in the docker entrypoint script using `python -um RAiDER.cli ...` whose `__main__.py` is the desired entrypoint.
 
 ## [0.4.3]
 + Series of bug-fixes/compatibility updates with stats class: 
