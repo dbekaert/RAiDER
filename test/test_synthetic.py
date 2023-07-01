@@ -4,7 +4,7 @@ from datetime import datetime
 
 from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
-from RAiDER.losreader import Raytracing, getTopOfAtmosphere
+from RAiDER.losreader import Raytracing, build_ray
 from RAiDER.utilFcns import lla2ecef, ecef2lla
 from RAiDER.cli.validators import modelName2Module
 
@@ -82,45 +82,11 @@ def length_of_ray(target_xyz:list, model_zs, los):
 
     # iterate over height levels
     for hh, ht in enumerate(hgt_lvls):
-
         llh = [xx, yy, np.full(yy.shape, ht)]
-
         xyz = np.stack(lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)), axis=-1)
         LOS = los.getLookVectors(ht, llh, xyz, yy)
-
-        cos_factor = None
-
-        # 2d array where output is added to; one per hgt lvl
-        outSubs = outputArrs[hh, ...]
-        # iterate over all model levels
-        for zz in range(model_zs.size-1):
-            low_ht = model_zs[zz]
-            high_ht = model_zs[zz + 1]
-
-            if (high_ht <= ht) or (low_ht >= _ZREF):
-                continue
-
-            # If high_ht > max_tropo_height - integral only up to max tropo
-            if high_ht > _ZREF:
-                high_ht = _ZREF
-
-            # If low_ht < height of point - integral only up to height of point
-            if low_ht < ht:
-                low_ht = ht
-
-            # Continue only if needed - 1m troposphere does nothing
-            if np.abs(high_ht - low_ht) < 1.0:
-                continue
-
-            low_xyz = getTopOfAtmosphere(xyz, LOS, low_ht, factor=cos_factor)
-            high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
-
-            ray_length = np.linalg.norm(high_xyz - low_xyz, axis=-1)
-
-            outSubs   += ray_length
-
-            cos_factor = (high_ht - low_ht) / ray_length if cos_factor is None else cos_factor
-
+        ray_lengths = build_ray(model_zs, ht, xyz, LOS)[0]
+        outputArrs[hh] = ray_lengths.sum(0)
     return outputArrs
 
 

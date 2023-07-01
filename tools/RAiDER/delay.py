@@ -23,7 +23,7 @@ import numpy as np
 from RAiDER.constants import _ZREF
 from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
-from RAiDER.losreader import getTopOfAtmosphere
+from RAiDER.losreader import build_ray
 from RAiDER.utilFcns import (
     lla2ecef,  writeResultsToXarray,
     rio_profile, transformPoints,
@@ -252,66 +252,23 @@ def _build_cube_ray(
         LOS = los.getLookVectors(ht, llh, xyz, yy)
 
         # Step 3 - Determine delays between each model height per ray
-        # Assumption: zpts (output cube) and model_zs (model) are assumed to be
-        # sorted in height
-        # We start integrating bottom up
-        low_xyz = None
-        high_xyz = None
-        cos_factor = None
-        for zz in range(model_zs.size-1):
-            # Low and High for model interval
-            low_ht = model_zs[zz]
-            high_ht = model_zs[zz + 1]
+        ray_lengths, low_xyzs, high_xyzs = \
+            build_ray(model_zs, ht, xyz, LOS,  MAX_TROPO_HEIGHT)
 
-            # If high_ht < height of point - no contribution to integral
-            # If low_ht > max_tropo_height - no contribution to integral
-            if (high_ht <= ht) or (low_ht >= MAX_TROPO_HEIGHT):
-                continue
+        # Determine number of parts to break ray into (this is what gets integrated over)
+        try:
+            nParts = np.ceil(ray_lengths.max((1,2)) / MAX_SEGMENT_LENGTH).astype(int) + 1
+        except ValueError:
+            raise ValueError("geo2rdr did not converge. Check orbit coverage")
 
-            # If low_ht < requested height, start integral at requested height
-            if low_ht < ht:
-                low_ht = ht
-
-            # If high_ht > max_tropo_height - integral only up to max tropo
-            if high_ht > MAX_TROPO_HEIGHT:
-                high_ht = MAX_TROPO_HEIGHT
-
-            # Continue only if needed - 1m troposphere does nothing
-            if np.abs(high_ht - low_ht) < 1.0:
-                continue
-
-            # If high_xyz was defined, make new low_xyz - save computation
-            if high_xyz is not None:
-                low_xyz = high_xyz
-            else:
-                low_xyz = getTopOfAtmosphere(xyz, LOS, low_ht, factor=cos_factor)
-
-            # Compute high_xyz (upper model level)
-            high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
-
-            # Compute ray length
-            ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)
-
-            # Compute cos_factor for first iteration
-            if cos_factor is None:
-                cos_factor = (high_ht - low_ht) / ray_length
-
-            # Determine number of parts to break ray into (this is what gets integrated over)
-            try:
-                nParts = int(np.ceil(ray_length.max() / MAX_SEGMENT_LENGTH)) + 1
-            except ValueError:
-                raise ValueError("geo2rdr did not converge. Check orbit coverage")
-
-            if (nParts == 1):
-                raise RuntimeError("Ray with one segment encountered")
-
-            # fractions
-            fracs = np.linspace(0., 1., num=nParts)
+        # iterate over weather model height levels
+        for zz, nparts in enumerate(nParts):
+            fracs = np.linspace(0., 1., num=nparts)
 
             # Integrate over chunks of ray
             for findex, ff in enumerate(fracs):
                 # Ray point in ECEF coordinates
-                pts_xyz = low_xyz + ff * (high_xyz - low_xyz)
+                pts_xyz = low_xyzs[zz] + ff * (high_xyzs[zz] - low_xyzs[zz])
 
                 # Ray point in model coordinates (x, y, z)
                 pts = ecef_to_model.transform(
@@ -338,7 +295,7 @@ def _build_cube_ray(
 
                 # Trapezoidal integration with scaling
                 wt = 0.5 if findex in [0, fracs.size-1] else 1.0
-                wt *= ray_length *1.0e-6 / (nParts - 1.0)
+                wt *= ray_lengths[zz] *1.0e-6 / (nparts - 1.0)
 
                 # For each interpolator, integrate between levels
                 for mm, out in enumerate(outSubs):
