@@ -275,15 +275,27 @@ class HRRR(WeatherModel):
             The weather model object
         '''
         S, N, W, E = ll_bounds
-        if box(W, S, E, N).intersects(self._valid_bounds):
+        aoi = box(W, S, E, N)
+        if self._valid_bounds.contains(aoi):
             Mod = self
+
+        elif aoi.intersects(self._valid_bounds):
+            Mod = self
+            log.critical('The HRRR weather model extent doesnt completely cover your AOI!')
 
         else:
             Mod = HRRRAK()
             # valid bounds are in 0->360 to account for dateline crossing
             W, E = np.mod([W, E], 360)
-            if not box(W, S, E, N).intersects(Mod._valid_bounds):
+            aoi  = box(W, S, E, N)
+            if Mod._valid_bounds.contain(aoi):
+                pass
+            elif aoi.intersects(Mod._valid_bounds):
+                log.critical('The HRRR-AK weather model extent doesnt completely cover your AOI!')
+
+            else:
                 raise ValueError('The requested location is unavailable for HRRR')
+
         return Mod
 
 

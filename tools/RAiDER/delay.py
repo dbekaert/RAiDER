@@ -167,7 +167,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
             raise NotImplementedError
 
     if np.isnan(wetDelay).any() or np.isnan(hydroDelay).any():
-        raise Exception('There are missing delay values. Check your inputs. Not writing to disk.')
+        logger.critical('There are missing delay values. Check your inputs.')
 
     # Write output file
     ds = writeResultsToXarray(dt, aoi.xpts, aoi.ypts, zpts, crs, wetDelay,
