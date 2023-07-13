@@ -288,7 +288,7 @@ class HRRR(WeatherModel):
             # valid bounds are in 0->360 to account for dateline crossing
             W, E = np.mod([W, E], 360)
             aoi  = box(W, S, E, N)
-            if Mod._valid_bounds.contain(aoi):
+            if Mod._valid_bounds.contains(aoi):
                 pass
             elif aoi.intersects(Mod._valid_bounds):
                 log.critical('The HRRR-AK weather model extent doesnt completely cover your AOI!')
