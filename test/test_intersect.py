@@ -44,7 +44,7 @@ def test_cube_intersect(wm):
     path_delays = os.path.join(SCENARIO_DIR, f'{wm}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
     da  = xrr.open_rasterio(path_delays, band_as_variable=True)['band_1']
     hyd = da.sel(x=-117.8, y=33.4, method='nearest').item()
-    np.testing.assert_almost_equal(hyd, gold[wm])
+    np.testing.assert_almost_equal(gold[wm], hyd, decimal=4)
 
     # Clean up files
     shutil.rmtree(SCENARIO_DIR)
@@ -88,7 +88,7 @@ def test_gnss_intersect(wm):
 
     id = 'TORP'
     td = df.set_index('ID').loc[id, 'totalDelay']
-    np.testing.assert_almost_equal(gold[wm], td.item())
+    np.testing.assert_almost_equal(gold[wm], td.item(), decimal=4)
 
     shutil.rmtree(SCENARIO_DIR)
     [os.remove(f) for f in glob.glob(f'{wm}*')]

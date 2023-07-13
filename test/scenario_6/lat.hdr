@@ -1,9 +1,14 @@
 ENVI
-samples = 226
-lines   = 45
+description = {
+lat.rdr}
+samples = 7
+lines   = 7
 bands   = 1
 header offset = 0
 file type = ENVI Standard
-data type = 5
+data type = 4
 interleave = bsq
 byte order = 0
+band names = {
+Band 1}
+data ignore value = -9999
