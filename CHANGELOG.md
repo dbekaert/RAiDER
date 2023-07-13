@@ -7,6 +7,7 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ write delays even if they contain nans
 + check that the aoi is contained within HRRR extent
 + move the ray building out of the _build_cube_ray and into its own function for cleaner testing
 + update the tests to use the new build_ray function
