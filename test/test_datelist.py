@@ -42,7 +42,6 @@ def test_datelist():
 def test_datestep():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'scenario_5')
     st, en, step = '20200124', '20200130', 3
-    n_dates      = 3
     true_dates = [datetime.datetime(2020,1,24), datetime.datetime(2020,1,27), datetime.datetime(2020,1,30)]
 
     dct_group = {
