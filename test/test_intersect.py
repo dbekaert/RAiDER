@@ -83,7 +83,7 @@ def test_gnss_intersect(wm):
 
     gold = {'ERA5': 2.3451457, 'GMAO': np.nan, 'HRRR': np.nan}
 
-    df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{wm}_Delay_{date}T{time.replace(":", "")}.csv'))
+    df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{wm}_Delay_{date}T{time.replace(":", "")}_ztd.csv'))
 
     id = 'TORP'
     td = df.set_index('ID').loc[id, 'totalDelay']

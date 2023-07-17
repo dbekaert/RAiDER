@@ -174,7 +174,7 @@ def calcDelays(iargs=None):
     if args.generate_template:
         dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(template_file, dst)
-        logger.info('Wrote %s', dst)
+        logger.info('Wrote: %s', dst)
         sys.exit()
 
 
