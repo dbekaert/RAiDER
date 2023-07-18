@@ -97,7 +97,7 @@ def interpVector(vec, Nx):
     return f(xnew)
 
 
-def fillna3D(array, axis=-1):
+def fillna3D(array, axis=-1, fill_value=0.):
     '''
     This function fills in NaNs in 3D arrays, specifically using the nearest non-nan value
     for "low" NaNs and 0s for "high" NaNs. 
@@ -117,7 +117,7 @@ def fillna3D(array, axis=-1):
 
     # fill upper NaNs with 0s
     outmat = np.moveaxis(out, -1, axis)
-    outmat[np.isnan(outmat)] = 0.
+    outmat[np.isnan(outmat)] = fill_value
     return outmat
 
 

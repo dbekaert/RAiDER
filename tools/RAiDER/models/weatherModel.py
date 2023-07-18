@@ -681,7 +681,7 @@ class WeatherModel(ABC):
         Fill in NaN-values
         '''
         self._p = fillna3D(self._p)
-        self._t = fillna3D(self._t)
+        self._t = fillna3D(self._t, fill_value=1e16)
         self._e = fillna3D(self._e)
 
 
