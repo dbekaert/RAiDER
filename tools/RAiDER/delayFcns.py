@@ -12,6 +12,8 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 from RAiDER.utilFcns import transformPoints
+from RAiDER.logger import logger
+
 
 def getInterpolators(wm_file, kind='pointwise', shared=False):
     '''
@@ -37,7 +39,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     hydro = np.array(hydro).transpose(1, 2, 0)
 
     if np.any(np.isnan(wet)) or np.any(np.isnan(hydro)):
-        raise RuntimeError(f'Weather model {wm_file} contains NaNs')
+        logger.critical(f'Weather model contains NaNs!')
 
     # If shared interpolators are requested
     # The arrays are not modified - so turning off lock for performance

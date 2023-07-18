@@ -281,7 +281,7 @@ class HRRR(WeatherModel):
 
         elif aoi.intersects(self._valid_bounds):
             Mod = self
-            log.critical('The HRRR weather model extent doesnt completely cover your AOI!')
+            logger.critical('The HRRR weather model extent does not completely cover your AOI!')
 
         else:
             Mod = HRRRAK()
@@ -291,7 +291,7 @@ class HRRR(WeatherModel):
             if Mod._valid_bounds.contains(aoi):
                 pass
             elif aoi.intersects(Mod._valid_bounds):
-                log.critical('The HRRR-AK weather model extent doesnt completely cover your AOI!')
+                logger.critical('The HRRR-AK weather model extent does not completely cover your AOI!')
 
             else:
                 raise ValueError('The requested location is unavailable for HRRR')
