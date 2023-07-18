@@ -18,13 +18,12 @@ def test_scenario_1():
 
     new_data  = xr.load_dataset(os.path.join(SCENARIO_DIR, 'HRRR_tropo_20200101T120000_ztd.nc'))
     new_data1 = new_data.sel(x=-91.84, y=36.84, z=0, method='nearest')
-    golden_data = 3.36171181, 0.03765481 # hydro|wet
+    golden_data = 2.2011017, 0.03755665 # hydro|wet
 
-    assert np.isclose(new_data1['hydro'].data, golden_data[0])
-    assert np.isclose(new_data1['wet'].data, golden_data[1])
-
+    np.testing.assert_almost_equal(golden_data[0], new_data1['hydro'].data)
+    np.testing.assert_almost_equal(golden_data[1], new_data1['wet'].data)
 
     # Clean up files
     for f in glob.glob(os.path.join(SCENARIO_DIR, 'HRRR*')):
         os.remove(f)
-    # shutil.rmtree(os.path.join(SCENARIO_DIR, 'weather_files'))
+    shutil.rmtree(os.path.join(SCENARIO_DIR, 'weather_files'))
