@@ -98,13 +98,27 @@ def interpVector(vec, Nx):
 
 
 def fillna3D(array, axis=-1):
+    '''
+    This function fills in NaNs in 3D arrays, specifically using the nearest non-nan value
+    for "low" NaNs and 0s for "high" NaNs. 
 
+    Arguments: 
+        array   - 3D array, where the last axis is the "z" dimension
+    
+    Returns: 
+        3D array with low NaNs filled as nearest neighbors and high NaNs filled as 0s
+    '''
+
+    # fill lower NaNs with nearest neighbor
     narr = np.moveaxis(array, axis, -1)
     nars = narr.reshape((np.prod(narr.shape[:-1]),) + (narr.shape[-1],))
-    dfd = pd.DataFrame(data=nars).interpolate(axis=1, limit_direction='both')
+    dfd = pd.DataFrame(data=nars).interpolate(axis=1, limit_direction='backward')
     out = dfd.values.reshape(array.shape)
 
-    return np.moveaxis(out, -1, axis)
+    # fill upper NaNs with 0s
+    outmat = np.moveaxis(out, -1, axis)
+    outmat[np.isnan(outmat)] = 0.
+    return outmat
 
 
 def interpolateDEM(demFile, outLL, method='nearest'):
