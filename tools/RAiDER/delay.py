@@ -100,7 +100,7 @@ def tropo_delay(
         try:
             ifWet, ifHydro = getInterpolators(ds, "ztd")
         except RuntimeError:
-            logger.exception('Weather model %s failed, may contain NaNs', weather_model_file)
+            logger.exception('Failed to get weather model %s interpolators.', weather_model_file)
 
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)
@@ -129,7 +129,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
         try:
             ifWet, ifHydro = getInterpolators(weather_model_file, "total")
         except RuntimeError:
-            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
+            logger.exception('Failed to get weather model %s interpolators.', weather_model_file)
 
 
         # Build cube
@@ -148,7 +148,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
                 shared=(nproc > 1),
             )
         except RuntimeError:
-            logger.exception('Weather model {} failed, may contain NaNs'.format(weather_model_file))
+            logger.exception('Failed to get weather model %s interpolators.', weather_model_file)
 
         # Build cube
         if nproc == 1:
