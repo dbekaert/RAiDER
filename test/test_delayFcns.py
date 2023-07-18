@@ -22,9 +22,10 @@ def test_getInterpolators(wmdata):
     tw, th = getInterpolators(ds, kind='pointwise')
     assert True # always pass unless an error is raised
 
-def test_getInterpolators_2(wmdata):
+def test_getInterpolators_2(wmdata, caplog):
     ds = wmdata
     ds['hydro'][0,0,0] = np.nan
-    with pytest.raises(RuntimeError):
-        getInterpolators(ds, kind='pointwise')
-    
+    # with pytest.raises(RuntimeError):
+    getInterpolators(ds, kind='pointwise')
+    assert 'Weather model contains NaNs!' in caplog.text, 'No warning was raised!'
+
