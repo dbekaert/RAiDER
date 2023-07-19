@@ -10,9 +10,8 @@ from test import TEST_DIR, WM
 
 def test_datelist():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'datelist')
-
     if os.path.exists(SCENARIO_DIR):
-        shutil.rmtree(SCENARIO_DIR) 
+        shutil.rmtree(SCENARIO_DIR)
     os.makedirs(SCENARIO_DIR, exist_ok=False)
 
     dates = ['20200124', '20200130']

@@ -171,6 +171,7 @@ class StudyArea(object):
         }
         return dct
 
+
 @pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_dl_real(region, mod='ERA5'):
@@ -186,7 +187,6 @@ def test_dl_real(region, mod='ERA5'):
     dct_cfg['download_only'] = True
 
     cfg = update_yaml(dct_cfg)
-
     ## run raider to download the real weather model
     cmd  = f'raider.py {cfg}'
 
@@ -256,6 +256,7 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
 
     da.close()
     del da
+
 
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_linear(region, mod='ERA-5'):
