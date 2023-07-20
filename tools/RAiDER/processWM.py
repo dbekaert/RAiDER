@@ -132,7 +132,7 @@ def prepareWeatherModel(
     finally:
         del weather_model
 
-    if not containment:
+    if not containment and not weather_model._Name.startswith('HRRR'):
         msg = 'The weather model passed does not cover all of the input ' \
             'points; you may need to download a larger area.'
         logger.error(msg)
