@@ -567,6 +567,7 @@ class WeatherModel(ABC):
 
         return weather_model_box.contains(input_box)
 
+
     def _isOutside(self, extent1, extent2):
         '''
         Determine whether any of extent1  lies outside extent2
