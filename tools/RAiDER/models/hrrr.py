@@ -47,7 +47,12 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     )
 
     # Iterate through the list of datasets
-    ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
+    try:
+        ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
+    except ValueError as E:
+        logger.error (E)
+        raise ValueError
+
     ds_out = None
     for ds in ds_list:
         if ('isobaricInhPa' in ds._coord_names) or ('levels' in ds._coord_names):

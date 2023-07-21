@@ -160,9 +160,12 @@ class WeatherModel(ABC):
         # write the error raised by the weather model API to the log
         try:
             self._fetch(out)
+            err = False
 
-        except Exception as E:
-            logger.error(E)
+        except Exception:
+            err = True
+
+        return err
 
 
     @abstractmethod

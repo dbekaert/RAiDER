@@ -272,8 +272,12 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-             logger.error('No weather model data was successfully obtained.')
-             raise RuntimeError
+            logger.error('No weather model data was successfully obtained.')
+            if len(params['date_list']) == 1:
+                raise RuntimeError
+            # skip date if mnultiple are requested
+            else:
+                continue
 
         # nearest weather model time
         elif len(wfiles)==1 and len(times)==1:

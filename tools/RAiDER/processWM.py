@@ -67,7 +67,10 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     else:
-        weather_model.fetch(path_wm_raw, time)
+        E = weather_model.fetch(path_wm_raw, time)
+        if E:
+            print ('raise runtimeerror')
+            raise RuntimeError
 
     # If only downloading, exit now
     if download_only:
