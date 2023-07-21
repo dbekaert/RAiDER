@@ -129,10 +129,12 @@ def prepareWeatherModel(
         logger.exception("Unable to save weathermodel to file")
         logger.exception(e)
         raise RuntimeError("Unable to save weathermodel to file")
+
     finally:
+        wm = weather_model.Model()
         del weather_model
 
-    if not containment and weather_model.Model() in 'GMAO ERA5 ERA5T HRES'.split():
+    if not containment and wm in 'GMAO ERA5 ERA5T HRES'.split():
         msg = 'The weather model passed does not cover all of the input ' \
             'points; you may need to download a larger area.'
         logger.error(msg)
