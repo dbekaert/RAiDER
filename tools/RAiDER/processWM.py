@@ -67,7 +67,10 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     else:
-        weather_model.fetch(path_wm_raw, time)
+        E = weather_model.fetch(path_wm_raw, time)
+        if E:
+            print ('raise runtimeerror')
+            raise RuntimeError
 
     # If only downloading, exit now
     if download_only:
@@ -86,7 +89,7 @@ def prepareWeatherModel(
         )
 
         containment = weather_model.checkContainment(ll_bounds)
-        if not containment:
+        if not containment and weather_model.Model() in 'GMAO ERA5 ERA5T HRES'.split():
             msg = 'The weather model passed does not cover all of the input ' \
                 'points; you may need to download a larger area.'
             logger.error(msg)
@@ -129,10 +132,12 @@ def prepareWeatherModel(
         logger.exception("Unable to save weathermodel to file")
         logger.exception(e)
         raise RuntimeError("Unable to save weathermodel to file")
+
     finally:
+        wm = weather_model.Model()
         del weather_model
 
-    if not containment:
+    if not containment and wm in 'GMAO ERA5 ERA5T HRES'.split():
         msg = 'The weather model passed does not cover all of the input ' \
             'points; you may need to download a larger area.'
         logger.error(msg)

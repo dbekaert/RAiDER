@@ -160,9 +160,12 @@ class WeatherModel(ABC):
         # write the error raised by the weather model API to the log
         try:
             self._fetch(out)
+            err = False
 
-        except Exception as E:
-            logger.error(E)
+        except Exception:
+            err = True
+
+        return err
 
 
     @abstractmethod
@@ -566,6 +569,7 @@ class WeatherModel(ABC):
             weather_model_box = unary_union(translates)
 
         return weather_model_box.contains(input_box)
+
 
     def _isOutside(self, extent1, extent2):
         '''
