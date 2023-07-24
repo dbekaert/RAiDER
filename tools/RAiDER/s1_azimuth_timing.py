@@ -6,8 +6,9 @@ import hyp3lib
 import isce3.ext.isce3 as isce
 import numpy as np
 import pandas as pd
-from RAiDER.losreader import get_orbit as get_isce_orbit
 from shapely.geometry import Point
+
+from .losreader import get_orbit as get_isce_orbit
 
 
 def _asf_query(point: Point,
