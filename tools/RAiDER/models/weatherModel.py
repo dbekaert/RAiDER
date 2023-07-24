@@ -860,7 +860,6 @@ def get_mapping(proj):
         return proj.to_wkt()
 
 
-
 def checkContainment_raw(path_wm_raw,
                         ll_bounds,
                         buffer_deg: float = 1e-5) -> bool:

@@ -272,10 +272,10 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-            logger.error('No weather model data was successfully obtained.')
+            logger.error('No weather model data was successfully processed.')
             if len(params['date_list']) == 1:
                 raise RuntimeError
-            # skip date if mnultiple are requested
+            # skip date and continue processing if multiple dates are requested
             else:
                 continue
 
