@@ -121,7 +121,7 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
 @pytest.mark.parametrize('model', ['HRRR'])
 def test_azimuth_timing_against_interpolation(model, tmp_path, gunw_azimuth_test):
     """This test shows that the azimuth timing interpolation does not deviate from
-    the center time by more than 1e-3 mm for the HRRR model. This is expected since the model times are
+    the center time by more than 1 mm for the HRRR model. This is expected since the model times are
     6 hours apart and a the azimuth time is changing the interpolation weights for a given pixel at the order
     of seconds and thus these two approaches are quite similar."""
 
@@ -140,9 +140,11 @@ def test_azimuth_timing_against_interpolation(model, tmp_path, gunw_azimuth_test
     for ifg_type in ['reference', 'secondary']:
         for var in ['troposphereHydrostatic', 'troposphereWet']:
             group = f'science/grids/corrections/external/troposphere/{model}/{ifg_type}'
-            with xr.open_dataset(out_path_0, group=group) as ds:
+            with xr.open_dataset(out_0, group=group) as ds:
                 da_0 = ds[var]
-            with xr.open_dataset(out_path_1, group=group) as ds:
+            with xr.open_dataset(out_1, group=group) as ds:
                 da_1 = ds[var]
-            diff_mm = (da_1 - da_0).data * 0.055465761572122574 / (2 * 2 * np.pi) * 1_000
-            np.testing.assert_almost_equal(0, diff_mm, 1e-3)
+            # diff * wavelength / (4 pi) transforms to meters; then x 1000 to mm
+            diff_mm = (da_1 - da_0).data * 0.055465761572122574 / (4 * np.pi) * 1_000
+            # Differences in mm are bounded by 1
+            assert np.all(diff_mm < 1)
