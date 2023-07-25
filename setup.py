@@ -44,4 +44,5 @@ cython_extensions = cythonize(
 setup(
     ext_modules=cython_extensions + pybind_extensions,
     cmdclass={"build_ext": build_ext},
+    package_data={'tools': ['RAiDER/models/*.zip']}
 )

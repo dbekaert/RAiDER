@@ -6,6 +6,7 @@ import subprocess
 import unittest
 
 import jsonschema
+import pandas as pd
 import pytest
 import rasterio as rio
 import xarray as xr
@@ -13,6 +14,7 @@ import xarray as xr
 import RAiDER
 import RAiDER.cli.raider as raider
 from RAiDER import aws
+from RAiDER.aria.prepFromGUNW import check_weather_model_availability
 from RAiDER.cli.raider import calcDelaysGUNW
 
 def compute_transform(lats, lons):
@@ -28,10 +30,10 @@ def compute_transform(lats, lons):
 
 @pytest.mark.isce3
 @pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR'])
-def test_GUNW_update(test_dir_path, test_gunw_path, weather_model_name):
+def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
     scenario_dir = test_dir_path / 'GUNW'
     scenario_dir.mkdir(exist_ok=True, parents=True)
-    orig_GUNW = test_gunw_path
+    orig_GUNW = test_gunw_path_factory()
     updated_GUNW = scenario_dir / orig_GUNW.name
     shutil.copy(orig_GUNW, updated_GUNW)
 
@@ -78,6 +80,7 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
     mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
     mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
+    mocker.patch("RAiDER.aria.prepFromGUNW.check_weather_model_availability", return_value=True)
     mocker.patch("RAiDER.cli.raider.calcDelays", return_value=['file1', 'file2'])
     mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
     mocker.patch("os.getcwd", return_value='myDir')
@@ -114,3 +117,66 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
         unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
     ]
+
+
+@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR', 'HRES', 'ERA5', 'ERA5'])
+def test_check_weather_model_availability(test_gunw_path_factory, weather_model_name, mocker):
+    # Should be True for all weather models
+    # S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc
+    test_gunw_path = test_gunw_path_factory()
+    assert check_weather_model_availability(test_gunw_path, weather_model_name)
+
+    # Let's mock an earlier date for some models
+    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_from_slc_id", side_effect=[pd.Timestamp('2015-01-01'),
+                                                                              pd.Timestamp('2014-01-01')])
+    cond = check_weather_model_availability(test_gunw_path, weather_model_name)
+    if weather_model_name in ['HRRR', 'GMAO']:
+        cond = not cond
+    assert cond
+
+
+@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR'])
+def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, weather_model_name, mocker):
+    # Should be True for all weather models
+    # S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
+    test_gunw_path = test_gunw_path_factory(location='alaska')
+    assert check_weather_model_availability(test_gunw_path, weather_model_name)
+
+    # Let's mock an earlier date
+    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_from_slc_id", side_effect=[pd.Timestamp('2017-01-01'),
+                                                                              pd.Timestamp('2016-01-01')])
+    cond = check_weather_model_availability(test_gunw_path, weather_model_name)
+    if weather_model_name == 'HRRR':
+        cond = not cond
+    assert cond
+
+
+@pytest.mark.parametrize('weather_model_name', ['HRRR', 'GMAO'])
+@pytest.mark.parametrize('location', ['california-t71', 'alaska'])
+def test_weather_model_availability_integration(location, test_gunw_path_factory, tmp_path, weather_model_name, mocker):
+    temp_json_path = tmp_path / 'temp.json'
+    test_gunw_path = test_gunw_path_factory(location=location)
+    shutil.copy(test_gunw_path, temp_json_path)
+
+    # We will pass the test GUNW to the workflow
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=[test_gunw_path, 'foo.json'])
+    mocker.patch("RAiDER.aws.upload_file_to_s3")
+    # These are outside temporal availability of GMAO and HRRR
+    ref_date, sec_date = pd.Timestamp('2015-01-01'), pd.Timestamp('2014-01-01')
+    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_from_slc_id", side_effect=[ref_date, sec_date])
+    # Don't specify side-effects or return values, because never called
+    mocker.patch("RAiDER.aria.prepFromGUNW.main")
+    mocker.patch("RAiDER.cli.raider.calcDelays")
+    mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
+
+    iargs = ['--weather-model', weather_model_name,
+             '--bucket', 'myBucket',
+             '--bucket-prefix', 'myPrefix']
+    out = calcDelaysGUNW(iargs)
+    # Check it returned None
+    assert out is None
+
+    # Check these functions were not called
+    RAiDER.cli.raider.calcDelays.assert_not_called()
+    RAiDER.aria.prepFromGUNW.main.assert_not_called()
+    RAiDER.aria.calcGUNW.tropo_gunw_slc.assert_not_called()

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
@@ -30,8 +31,16 @@ def test_dir_path() -> Path:
 
 
 @pytest.fixture(scope='session')
-def test_gunw_path() -> Path:
-    return TEST_DIR / 'gunw_test_data' / 'S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc'
+def test_gunw_path_factory() -> Callable:
+    def factory(location: str = 'california-t71') -> Path:
+        if location == 'california-t71':
+            file_name = 'S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc'
+        elif location == 'alaska':
+            file_name = 'S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
+        else:
+            raise NotImplementedError
+        return TEST_DIR / 'gunw_test_data' / file_name
+    return factory
 
 
 @pytest.fixture(scope='session')

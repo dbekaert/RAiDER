@@ -68,8 +68,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + For the GUNW workflow:
    - Updated GUNW workflow to expose input arguments (usually passed through command line options) within the python function for testing
    - Include integration test of HRRR for GUNW workflow
-   - Test the json write (do not test s3 upload/download) - ensures that weather_model list is included in json `metadata`
+   - Test the json write (do not test s3 upload/download) in that it conforms to the DAAC ingest schema correctly - we add a weather model field to the metadata in this workflow
    - Removed comments in GUNW test suite that were left during previous development
+   - If a bucket is provided and the GUNWs reference or secondary scenes are not in the valid range, we do nothing - this is to ensure that GUNWs can still be delivered to the DAAC without painful operator (i.e. person submitting to the hyp3 API) book-keeping
 
 ## [0.4.2]
 
