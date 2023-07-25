@@ -513,7 +513,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
         json_file_path = aws.get_s3_file(args.bucket, args.bucket_prefix, '.json')
         json_data = json.load(open(json_file_path))
-        json_data.setdefault('weather_model', []).append(args.weather_model)
+        json_data['metadata'].setdefault('weather_model', []).append(args.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
     elif not args.file:

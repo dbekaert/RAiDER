@@ -90,7 +90,7 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
     metadata = json.loads(temp_json_path.read_text())
     schema = json.loads(test_gunw_json_schema_path.read_text())
 
-    assert metadata['weather_model'] == ['HRES']
+    assert metadata['metadata']['weather_model'] == ['HRES']
     assert (jsonschema.validate(instance=metadata, schema=schema) is None)
 
     assert aws.get_s3_file.mock_calls == [
