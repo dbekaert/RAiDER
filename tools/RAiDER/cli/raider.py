@@ -20,6 +20,7 @@ from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
+from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_n_closest_datetimes
 
 import traceback
 
@@ -249,6 +250,14 @@ def calcDelays(iargs=None):
         if interp_method in ['none', 'center_time']:
             times = get_nearest_wmtimes(t, [model.dtime() if \
                                         model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
+        elif interp_method == 'azimuth_time_grid':
+            n_target_dates = 3
+            step = model.dtime()
+            time_step_hours = step if step is not None else 6
+            # Will yield 3 dates
+            times = get_n_closest_datetimes(t,
+                                            n_target_dates,
+                                            time_step_hours)
         else:
             raise NotImplementedError
         wfiles = []
@@ -318,6 +327,44 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
+        elif interp_method == 'azimuth_time_grid':
+            if len(wfiles) != 3:
+                raise ValueError('Not enough weather model files downloaded for azimuth grid interpolation')
+            datasets = [xr.open_dataset(f) for f in wfiles]
+            if model._dataset == 'hrrr':
+                lat_2d = datasets[0].latitude.data
+                lon_2d = datasets[0].longitude.data
+                z_1d = datasets[0].z.data
+                m, n, p = z_1d.shape[0], lat_2d.shape[0], lat_2d.shape[1]
+
+                lat = np.broadcast_to(lat_2d, (m, n, p))
+                lon = np.broadcast_to(lon_2d, (m, n, p))
+                hgt = np.broadcast_to(z_1d[:, None, None], (m, n, p))
+
+            else:
+                raise NotImplementedError('Azimuth Time is currently only implemented for HRRR')
+
+            time_grid = get_s1_azimuth_time_grid(lon,
+                                                 lat,
+                                                 hgt,
+                                                 # This is the acq time from loop
+                                                 t)
+
+            if np.any(np.isnan(time_grid)):
+                raise ValueError('The Time Grid return nans meaning no orbit was downloaded.')
+            wgts = get_inverse_weights_for_dates(time_grid, times)
+            # combine datasets
+            ds_out = datasets[0]
+            for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+                ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
+            ds_out.attrs['Date1'] = 0
+            ds_out.attrs['Date2'] = 0
+            weather_model_file = os.path.join(
+                os.path.dirname(wfiles[0]),
+                # TODO: clean up
+                os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterpAziGrid_' + '_'.join(wfiles[0].split('_')[-4:]),
+            )
+            ds_out.to_netcdf(weather_model_file)
 
         # Now process the delays
         try:

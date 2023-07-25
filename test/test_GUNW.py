@@ -6,6 +6,7 @@ import subprocess
 import unittest
 
 import jsonschema
+import numpy as np
 import pytest
 import rasterio as rio
 import xarray as xr
@@ -14,6 +15,7 @@ import RAiDER
 import RAiDER.cli.raider as raider
 from RAiDER import aws
 from RAiDER.cli.raider import calcDelaysGUNW
+
 
 def compute_transform(lats, lons):
     """ Hand roll an affine transform from lat/lon coords """
@@ -114,3 +116,33 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
         unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
     ]
+
+
+@pytest.mark.parametrize('model', ['HRRR'])
+def test_azimuth_timing_against_interpolation(model, tmp_path, gunw_azimuth_test):
+    """This test shows that the azimuth timing interpolation does not deviate from
+    the center time by more than 1e-3 mm for the HRRR model. This is expected since the model times are
+    6 hours apart and a the azimuth time is changing the interpolation weights for a given pixel at the order
+    of seconds and thus these two approaches are quite similar."""
+
+    out_0 = gunw_azimuth_test.name.replace('.nc', '__ct_interp.nc')
+    out_1 = gunw_azimuth_test.name.replace('.nc', '__az_interp.nc')
+
+    out_path_0 = shutil.copy(gunw_azimuth_test, tmp_path / out_0)
+    out_path_1 = shutil.copy(gunw_azimuth_test, tmp_path / out_1)
+
+    cmd = f'raider.py ++process calcDelaysGUNW -f {out_path_0} -m HRRR -interp center_time'
+    subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+
+    cmd = f'raider.py ++process calcDelaysGUNW -f {out_path_1} -m HRRR -interp azimuth_time_grid'
+    subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+
+    for ifg_type in ['reference', 'secondary']:
+        for var in ['troposphereHydrostatic', 'troposphereWet']:
+            group = f'science/grids/corrections/external/troposphere/{model}/{ifg_type}'
+            with xr.open_dataset(out_path_0, group=group) as ds:
+                da_0 = ds[var]
+            with xr.open_dataset(out_path_1, group=group) as ds:
+                da_1 = ds[var]
+            diff_mm = (da_1 - da_0).data * 0.055465761572122574 / (2 * 2 * np.pi) * 1_000
+            np.testing.assert_almost_equal(0, diff_mm, 1e-3)

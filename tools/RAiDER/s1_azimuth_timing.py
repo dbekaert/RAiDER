@@ -2,7 +2,7 @@ import datetime
 import warnings
 
 import asf_search as asf
-import hyp3lib
+import hyp3lib.get_orb
 import isce3.ext.isce3 as isce
 import numpy as np
 import pandas as pd
@@ -56,14 +56,14 @@ def get_slc_id_from_point_and_time(lon: float,
     return slc_ids[0]
 
 
-def get_azimuth_time_grid(lon: np.ndarray,
-                          lat: np.ndarray,
-                          hgt:  np.ndarray,
+def get_azimuth_time_grid(lon_mesh: np.ndarray,
+                          lat_mesh: np.ndarray,
+                          hgt_mesh:  np.ndarray,
                           orb: isce.core.Orbit) -> np.ndarray:
     '''
     Source: https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/losreader.py#L601C1-L674C22
 
-    lon, lat, hgt are coordinate arrays (this routine makes a mesh to comute azimuth timing grid)
+    lon_mesh, lat_mesh, hgt_mesh are coordinate arrays (this routine makes a mesh to comute azimuth timing grid)
 
     Technically, this is "sensor neutral" since it uses an orb object.
     '''
@@ -75,12 +75,6 @@ def get_azimuth_time_grid(lon: np.ndarray,
     dop = isce.core.LUT2d()
     look = isce.core.LookSide.Right
 
-    hgt_mesh, lat_mesh, lon_mesh = np.meshgrid(hgt, lat, lon,
-                                               # indexing keyword argument
-                                               # Ensures output dimensions
-                                               # align with order the inputs
-                                               # height x latitude x longitude
-                                               indexing='ij')
     m, n, p = hgt_mesh.shape
     az_arr = np.full((m, n, p),
                      np.datetime64('NaT'),
@@ -124,11 +118,11 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
     Parameters
     ----------
     lon : np.ndarray
-        1 dimensional coordinate array
+        1 dimensional coordinate array or 3d mesh of coordinates
     lat : np.ndarray
-        1 dimensional coordinate array
+        1 dimensional coordinate array or 3d mesh of coordinates
     hgt : np.ndarray
-        1 dimensional coordinate array
+        1 dimensional coordinate array or 3d mesh of coordinates
     dt : datetime.datetime
 
     Returns
@@ -136,17 +130,31 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
     np.ndarray
         Cube whose coordinates are hgt x lat x lon with each pixel
     """
-    if not all([len(arr.shape) == 1 for arr in [lon, lat, hgt]]):
-        raise ValueError('The dimensions of the array must be 1d')
+    dims = [len(c.shape) for c in [lon, lat, hgt]]
+    if not all([dim == dims[0] for dim in dims]):
+        raise ValueError('All coordinates have same dimension (either 1 or 3 dimensional)')
+    if not all([dim in [1, 3] for dim in dims]):
+        raise ValueError('Coordinates must be 1d or 3d coordinate arrays')
 
-    lon_m = np.mean(lon)
-    lat_m = np.mean(lat)
+    if dims[0] == 1:
+        hgt_mesh, lat_mesh, lon_mesh = np.meshgrid(hgt, lat, lon,
+                                                   # indexing keyword argument
+                                                   # Ensures output dimensions
+                                                   # align with order the inputs
+                                                   # height x latitude x longitude
+                                                   indexing='ij')
+    else:
+        hgt_mesh = hgt
+        lat_mesh = lat
+        lon_mesh = lon
 
     try:
+        lon_m = np.mean(lon)
+        lat_m = np.mean(lat)
         slc_id = get_slc_id_from_point_and_time(lon_m, lat_m, dt)
     except ValueError:
         warnings.warn('No slc id found for the given datetime and grid; returning empty grid')
-        m, n, p = hgt.shape[0], lat.shape[0], lon.shape[0]
+        m, n, p = hgt_mesh.shape
         az_arr = np.full((m, n, p),
                          np.datetime64('NaT'),
                          dtype='datetime64[ms]')
@@ -154,7 +162,7 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
     orb_file, _ = hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id)
     orb = get_isce_orbit(orb_file, dt, pad=600)
 
-    az_arr = get_azimuth_time_grid(lon, lat, hgt, orb)
+    az_arr = get_azimuth_time_grid(lon_mesh, lat_mesh, hgt_mesh, orb)
     return az_arr
 
 
