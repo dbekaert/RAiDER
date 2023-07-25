@@ -31,6 +31,7 @@ def checkArgs(args):
 
     os.makedirs(args.output_directory, exist_ok=True)
     os.makedirs(args.weather_model_directory, exist_ok=True)
+    args['weather_model'].set_wmLoc(args.weather_model_directory)
 
     #########################################################################################################################
     # Date and Time parsing
@@ -53,12 +54,10 @@ def checkArgs(args):
             if (args.aoi.type()=='station_file'):
                 wetFilename = os.path.join(
                     args.output_directory,
-                    '{}_Delay_{}.csv'
-                    .format(
-                        args.weather_model._dataset.upper(),
-                        d.strftime('%Y%m%dT%H%M%S'),
-                    )
+                    f'{args.weather_model._dataset.upper()}_Delay'\
+                    f'_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv'
                 )
+
                 hydroFilename = '' # only the 'wetFilename' is used for the station_file
 
                 # copy the input station file to the output location for editing

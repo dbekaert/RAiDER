@@ -14,11 +14,9 @@ import pandas as pd
 import rasterio
 from dem_stitcher.stitcher import stitch_dem
 
-import RAiDER.utilFcns
-
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_open, rio_profile, rio_extents, get_file_and_band
+from RAiDER.utilFcns import rio_open, get_file_and_band
 
 
 def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):

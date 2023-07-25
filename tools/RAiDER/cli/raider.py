@@ -21,6 +21,8 @@ from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
 
+import traceback
+
 
 HELP_MESSAGE = """
 Command line options for RAiDER processing. Default options can be found by running
@@ -78,8 +80,6 @@ def read_template_file(fname):
             for k, v in value.items():
                 if v is not None:
                     template[k] = v
-        if key == 'weather_model':
-            template[key]= enforce_wm(value)
         if key == 'time_group':
             template.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
@@ -97,7 +97,7 @@ def read_template_file(fname):
                 raise ValueError(f"Unknown look direction {value}")
             template['look_dir'] = value.lower()
         if key == 'cube_spacing_in_m':
-            template[key] = float(value)
+            template[key] = float(value) if isinstance(value, str) else value
         if key == 'download_only':
             template[key] = bool(value)
 
@@ -112,6 +112,11 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
+
+        if key == 'weather_model':
+            template[key]= enforce_wm(value, template['aoi'])
+
+    template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
     return AttributeDict(template)
 
 
@@ -169,7 +174,7 @@ def calcDelays(iargs=None):
     if args.generate_template:
         dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(template_file, dst)
-        logger.info('Wrote %s', dst)
+        logger.info('Wrote: %s', dst)
         sys.exit()
 
 
@@ -209,14 +214,20 @@ def calcDelays(iargs=None):
     aoi = params['aoi']
     model = params['weather_model']
 
-    # add a small buffer
-    aoi.add_buffer(buffer = 1.5 * model.getLLRes())
+    # adjust user requested AOI by grid size and buffer slightly
+    aoi.add_buffer(model.getLLRes())
+
+    # define the xy grid within the buffered bounding box
+    aoi.set_output_xygrid(params['output_projection'])
 
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
-        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
+        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(),
+                                lookDir=los.getLookDirection(), incAngle=30)
     else:
         wm_bounds = aoi.bounds()
+
+    model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
     wet_filenames = []
     for t, w, f in zip(
@@ -239,24 +250,20 @@ def calcDelays(iargs=None):
         wfiles = []
         for tt in times:
             try:
-                wfile = prepareWeatherModel(
-                        model, tt,
-                        ll_bounds=wm_bounds, # SNWE
-                        wmLoc=params['weather_model_directory'],
-                        makePlots=params['verbose'],
-                        )
+                wfile = prepareWeatherModel(model, tt, aoi.bounds(), makePlots=params['verbose'])
                 wfiles.append(wfile)
 
             # catch when requested datetime fails
-            except RuntimeError:
+            except RuntimeError as re:
                 continue
 
             # catch when something else within weather model class fails
-            except:
+            except Exception as e:
                 S, N, W, E = wm_bounds
                 logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
                 logger.info(f'Query datetime: {tt}')
                 msg = f'Downloading and/or preparation of {model._Name} failed.'
+                logger.error(e)
                 logger.error(msg)
 
 
@@ -265,8 +272,12 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-             logger.error('No weather model data available on the requested dates')
-             raise RuntimeError
+            logger.error('No weather model data was successfully obtained.')
+            if len(params['date_list']) == 1:
+                raise RuntimeError
+            # skip date if mnultiple are requested
+            else:
+                continue
 
         # nearest weather model time
         elif len(wfiles)==1 and len(times)==1:
@@ -304,15 +315,12 @@ def calcDelays(iargs=None):
             )
             ds.to_netcdf(weather_model_file)
 
-
         # Now process the delays
         try:
             wet_delay, hydro_delay = tropo_delay(
                 t, weather_model_file, aoi, los,
                 height_levels = params['height_levels'],
                 out_proj = params['output_projection'],
-                look_dir = params['look_dir'],
-                cube_spacing_m = params['cube_spacing_in_m'],
             )
         except RuntimeError:
             logger.exception("Datetime %s failed", t)
@@ -336,7 +344,6 @@ def calcDelays(iargs=None):
 
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
-
 
             if out_filename.endswith(".nc"):
                 ds.to_netcdf(out_filename, mode="w")
@@ -512,7 +519,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
             return
         json_file_path = aws.get_s3_file(args.bucket, args.bucket_prefix, '.json')
         json_data = json.load(open(json_file_path))
-        json_data.setdefault('weather_model', []).append(args.weather_model)
+        json_data['metadata'].setdefault('weather_model', []).append(args.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
     elif not args.file:
@@ -538,3 +545,31 @@ def calcDelaysGUNW(iargs: list[str] = None):
     if args.bucket:
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
         aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
+
+
+## ------------------------------------------------------------ processDelays.py
+def combineZTDFiles():
+    '''
+    Command-line program to process delay files from RAiDER and GNSS into a single file.
+    '''
+    from RAiDER.gnss.processDelayFiles import main, combineDelayFiles, create_parser
+
+    p = create_parser()
+    args = p.parse_args()
+
+    if not os.path.exists(args.raider_file):
+        combineDelayFiles(args.raider_file, loc=args.raider_folder)
+
+    if not os.path.exists(args.gnss_file):
+        combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source='GNSS',
+                          ref=args.raider_file, col_name=args.column_name)
+
+    if args.gnss_file is not None:
+        main(
+            args.raider_file,
+            args.gnss_file,
+            col_name=args.column_name,
+            raider_delay=args.raider_column_name,
+            outName=args.out_name,
+            localTime=args.local_time
+        )

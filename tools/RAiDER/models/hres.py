@@ -59,22 +59,21 @@ class HRES(ECMWF):
         self._a = A_91_HRES
         self._b = B_91_HRES
 
-    def load_weather(self, filename=None):
+    def load_weather(self, f=None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-        if filename is None:
-            filename = self.files[0]
+        f = self.files[0] if f is None else f
 
         if self._model_level_type == 'ml':
             if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
                 self.update_a_b()
-            self._load_model_level(filename)
+            self._load_model_level(f)
         elif self._model_level_type == 'pl':
-            self._load_pressure_levels(filename)
+            self._load_pressure_levels(f)
 
     def _fetch(self,out):
         '''

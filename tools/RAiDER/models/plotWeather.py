@@ -47,7 +47,7 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
 
     # setup the plot
     f = plt.figure(figsize=(18, 14))
-    f.suptitle(f'{weatherObj._Name} Pressure/Humidity/Temperature at height {z1}m and {z1}m (values should drop as elevation increases)')
+    f.suptitle(f'{weatherObj._Name} Pressure/Humidity/Temperature at height {z1}m and {z2}m (values should drop as elevation increases)')
 
     xind = int(np.floor(weatherObj._xs.shape[0] / 2))
     yind = int(np.floor(weatherObj._ys.shape[0] / 2))
@@ -129,7 +129,7 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
 
     # setup the plot
     f = plt.figure(figsize=(14, 10))
-    f.suptitle(f'{weatherObj._Name} Wet and Hydrostatic refractivity at height {z1}m and {z1}m')
+    f.suptitle(f'{weatherObj._Name} Wet and Hydrostatic refractivity at height {z1}m and {z2}m')
 
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):

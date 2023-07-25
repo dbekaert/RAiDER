@@ -17,6 +17,16 @@ from RAiDER import aws
 from RAiDER.aria.prepFromGUNW import check_weather_model_availability
 from RAiDER.cli.raider import calcDelaysGUNW
 
+def compute_transform(lats, lons):
+    """ Hand roll an affine transform from lat/lon coords """
+    a = lons[1] - lons[0] # lon spacing
+    b = 0
+    c = lons[0] - a/2 # lon start, adjusted by half a grid cell
+    d = 0
+    e = lats[1] - lats[0]
+    f = lats[0] - e/2
+    return (a, b, c, d, e, f)
+
 
 @pytest.mark.isce3
 @pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR'])
@@ -33,24 +43,24 @@ def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
 
     # check the CRS and affine are written correctly
     epsg = 4326
-    transform = (0.1, 0.0, -119.85, 0, -0.1, 35.55)
 
     group = f'science/grids/corrections/external/troposphere/{weather_model_name}/reference'
-    for v in 'troposphereWet troposphereHydrostatic'.split():
-        with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
-            ds.crs.to_epsg()
-            assert ds.crs.to_epsg() == epsg, 'CRS incorrect'
-            if weather_model_name == 'GMAO':
-                assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
 
     with xr.open_dataset(updated_GUNW, group=group) as ds:
         for v in 'troposphereWet troposphereHydrostatic'.split():
             da = ds[v]
-            if weather_model_name == 'GMAO':
-                assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
+            lats, lons = da.latitudeMeta.to_numpy(), da.longitudeMeta.to_numpy()
+            transform  = compute_transform(lats, lons)
+            assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
 
         crs = rio.crs.CRS.from_wkt(ds['crs'].crs_wkt)
         assert crs.to_epsg() == epsg, 'CRS incorrect'
+
+    for v in 'troposphereWet troposphereHydrostatic'.split():
+        with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
+            ds.crs.to_epsg()
+            assert ds.crs.to_epsg() == epsg, 'CRS incorrect'
+            assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
 
     # Clean up files
     shutil.rmtree(scenario_dir)
@@ -83,7 +93,7 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
     metadata = json.loads(temp_json_path.read_text())
     schema = json.loads(test_gunw_json_schema_path.read_text())
 
-    assert metadata['weather_model'] == ['HRES']
+    assert metadata['metadata']['weather_model'] == ['HRES']
     assert (jsonschema.validate(instance=metadata, schema=schema) is None)
 
     assert aws.get_s3_file.mock_calls == [

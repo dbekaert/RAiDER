@@ -1,46 +1,15 @@
-import os, os.path as op
+import os.path as op
 from dataclasses import dataclass
-import yaml
-import subprocess
 from datetime import datetime
-import numpy as np
-import xarray as xr
 
-import RAiDER
 from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
-from RAiDER.losreader import Raytracing, getTopOfAtmosphere
+from RAiDER.losreader import Raytracing, build_ray
 from RAiDER.utilFcns import lla2ecef, ecef2lla
 from RAiDER.cli.validators import modelName2Module
 
-
-import pytest
-from test import TEST_DIR
-
-
-def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
-    """ Write a new yaml file from a dictionary.
-
-    Updates parameters in the default 'raider.yaml' file.
-    Each key:value pair will in 'dct_cfg' will overwrite that in the default
-    """
-
-    template_file = os.path.join(
-                    os.path.dirname(RAiDER.__file__), 'cli', 'raider.yaml')
-
-    with open(template_file, 'r') as f:
-        try:
-            params = yaml.safe_load(f)
-        except yaml.YAMLError as exc:
-            print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {template_file}')
-
-    params = {**params, **dct_cfg}
-
-    with open(dst, 'w') as fh:
-        yaml.safe_dump(params, fh,  default_flow_style=False)
-
-    return dst
+from RAiDER.constants import _ZREF
+from test import *
 
 
 def update_model(wm_file:str, wm_eq_type:str, wm_dir:str='weather_files_synth'):
@@ -113,45 +82,11 @@ def length_of_ray(target_xyz:list, model_zs, los):
 
     # iterate over height levels
     for hh, ht in enumerate(hgt_lvls):
-
         llh = [xx, yy, np.full(yy.shape, ht)]
-
         xyz = np.stack(lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)), axis=-1)
         LOS = los.getLookVectors(ht, llh, xyz, yy)
-
-        cos_factor = None
-
-        # 2d array where output is added to; one per hgt lvl
-        outSubs = outputArrs[hh, ...]
-        # iterate over all model levels
-        for zz in range(model_zs.size-1):
-            low_ht = model_zs[zz]
-            high_ht = model_zs[zz + 1]
-
-            if (high_ht <= ht) or (low_ht >= 50000):
-                continue
-
-            # If high_ht > max_tropo_height - integral only up to max tropo
-            if high_ht > 50000:
-                high_ht = 50000
-
-            # If low_ht < height of point - integral only up to height of point
-            if low_ht < ht:
-                low_ht = ht
-
-            # Continue only if needed - 1m troposphere does nothing
-            if np.abs(high_ht - low_ht) < 1.0:
-                continue
-
-            low_xyz = getTopOfAtmosphere(xyz, LOS, low_ht, factor=cos_factor)
-            high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
-
-            ray_length = np.linalg.norm(high_xyz - low_xyz, axis=-1)
-
-            outSubs   += ray_length
-
-            cos_factor = (high_ht - low_ht) / ray_length if cos_factor is None else cos_factor
-
+        ray_lengths = build_ray(model_zs, ht, xyz, LOS)[0]
+        outputArrs[hh] = ray_lengths.sum(0)
     return outputArrs
 
 
@@ -167,6 +102,7 @@ class StudyArea(object):
     region:str
     wmName:str
     wd = op.join(TEST_DIR, 'synthetic_test')
+    orb_dir = ORB_DIR
 
     def __post_init__(self):
         self.setup_region()
@@ -176,19 +112,21 @@ class StudyArea(object):
 
         self.wmObj = modelName2Module(self.wmName.upper().replace("-", ""))[1]()
 
+        self.hgt_lvls        = np.arange(-500, 9500, 500)
+        self._cube_spacing_m = 10000.
+
         aoi = BoundingBox(self.SNWE)
-        aoi.add_buffer(buffer = 1.5 * self.wmObj.getLLRes())
+        aoi._cube_spacing_m = self._cube_spacing_m
+        aoi.add_buffer(self.wmObj.getLLRes())
 
         self.los  = Raytracing(self.orbit, time=self.dt)
 
         wm_bounds = aoi.calc_buffer_ray(self.los.getSensorDirection(), lookDir=self.los.getLookDirection())
         self.wmObj.set_latlon_bounds(wm_bounds)
         wm_fname  = make_weather_model_filename(self.wmName, self.dt, self.wmObj._ll_bounds)
-        self.path_wm_real = op.join(self.wd, 'weather_files_real', wm_fname)
+        self.path_wm_real = op.join(WM_DIR, wm_fname)
 
-        grid_spacing = 0.1
-        self.cube_spacing = np.round(grid_spacing/1e-5).astype(np.float32)
-        self.hgt_lvls     = np.arange(-500, 9500, 500)
+        self.wm_dir_synth = op.join(self.wd, 'weather_files_synth')
 
 
     def setup_region(self):
@@ -202,21 +140,21 @@ class StudyArea(object):
         if self.region == 'LA':
             self.SNWE  = 33, 34, -118.25, -117.25
             self.dt    = datetime(2020, 1, 30, 13, 52, 45)
-            self.orbit = self.wd + \
+            self.orbit = self.orb_dir + \
                 '/S1B_OPER_AUX_POEORB_OPOD_20210317T025713_V20200129T225942_20200131T005942.EOF'
 
         # Fortaleza, Brazil; Ascending
         elif self.region == 'Fort':
             self.SNWE = -4.0, -3.5, -38.75, -38.25
             self.dt   = datetime(2019, 11, 17, 20, 51, 58)
-            self.orbit = self.wd + \
+            self.orbit = self.orb_dir + \
                 '/S1A_OPER_AUX_POEORB_OPOD_20210315T014833_V20191116T225942_20191118T005942.EOF'
 
         # Utqiagvik, Alaska; Descending
         elif self.region == 'AK':
             self.SNWE = 70.25, 71.50, -157.75, -155.55
             self.dt   = datetime(2022, 8, 29, 17, 0, 1)
-            self.orbit = self.wd + \
+            self.orbit = self.orb_dir + \
                 '/S1A_OPER_AUX_POEORB_OPOD_20220918T081841_V20220828T225942_20220830T005942.EOF'
 
 
@@ -226,7 +164,7 @@ class StudyArea(object):
             'height_group': {'height_levels': self.hgt_lvls.tolist()},
             'time_group': {'time': self.ttime, 'interpolate_time': False},
             'date_group': {'date_list': datetime.strftime(self.dt, '%Y%m%d')},
-            'cube_spacing_in_m': str(self.cube_spacing),
+            'cube_spacing_in_m': str(self._cube_spacing_m),
             'los_group': {'ray_trace': True, 'orbit_file': self.orbit},
             'weather_model': self.wmName,
             'runtime_group': {'output_directory': self.wd},
@@ -234,7 +172,7 @@ class StudyArea(object):
         return dct
 
 
-@pytest.mark.skip
+@pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_dl_real(region, mod='ERA5'):
     """ Download the real weather model to overwrite
@@ -249,7 +187,6 @@ def test_dl_real(region, mod='ERA5'):
     dct_cfg['download_only'] = True
 
     cfg = update_yaml(dct_cfg)
-
     ## run raider to download the real weather model
     cmd  = f'raider.py {cfg}'
 
@@ -278,12 +215,11 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     ## setup the config files
     SAobj = StudyArea(region, mod)
     dct_cfg      = SAobj.make_config_dict()
-    wm_dir_synth = op.dirname(SAobj.path_wm_real).replace('real', 'synth')
-    dct_cfg['runtime_group']['weather_model_directory'] = wm_dir_synth
+    dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
     dct_cfg['download_only'] = False
 
     ## update the weather model; t = p for hydrostatic
-    path_synth = update_model(SAobj.path_wm_real, 'hydro', wm_dir_synth)
+    path_synth = update_model(SAobj.path_wm_real, 'hydro', SAobj.wm_dir_synth)
 
     cfg = update_yaml(dct_cfg)
 
@@ -346,12 +282,11 @@ def test_wet_eq_linear(region, mod='ERA-5'):
     ## setup the config files
     SAobj = StudyArea(region, mod)
     dct_cfg      = SAobj.make_config_dict()
-    wm_dir_synth = op.dirname(SAobj.path_wm_real).replace('real', 'synth')
-    dct_cfg['runtime_group']['weather_model_directory'] = wm_dir_synth
+    dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
     dct_cfg['download_only'] = False
 
     ## update the weather model; t = e for wet1
-    path_synth = update_model(SAobj.path_wm_real, 'wet_linear', wm_dir_synth)
+    path_synth = update_model(SAobj.path_wm_real, 'wet_linear', SAobj.wm_dir_synth)
 
     cfg = update_yaml(dct_cfg)
 
@@ -413,12 +348,11 @@ def test_wet_eq_nonlinear(region, mod='ERA-5'):
     ## setup the config files
     SAobj = StudyArea(region, mod)
     dct_cfg      = SAobj.make_config_dict()
-    wm_dir_synth = op.dirname(SAobj.path_wm_real).replace('real', 'synth')
-    dct_cfg['runtime_group']['weather_model_directory'] = wm_dir_synth
+    dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
     dct_cfg['download_only'] = False
 
     ## update the weather model; t = e for wet1
-    path_synth = update_model(SAobj.path_wm_real, 'wet_nonlinear', wm_dir_synth)
+    path_synth = update_model(SAobj.path_wm_real, 'wet_nonlinear', SAobj.wm_dir_synth)
 
     cfg = update_yaml(dct_cfg)
 

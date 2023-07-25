@@ -13,13 +13,15 @@ import pandas as pd
 import xarray
 import rasterio
 
-from pyproj import CRS, Transformer
-from shapely.geometry import Point, Polygon
-from shapely.ops import transform
+import pyproj
+from pyproj import CRS
 
 from RAiDER.dem import download_dem
 from RAiDER.interpolator import interpolateDEM
-from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band
+from RAiDER.utilFcns import (
+    rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band,
+    clip_bbox, transform_bbox
+    )
 from RAiDER.logger import logger
 
 
@@ -34,9 +36,10 @@ class AOI(object):
     '''
     def __init__(self):
         self._output_directory = os.getcwd()
-        self._bounding_box = None
-        self._proj = CRS.from_epsg(4326)
-        self._geotransform = None
+        self._bounding_box   = None
+        self._proj           = CRS.from_epsg(4326)
+        self._geotransform   = None
+        self._cube_spacing_m = None
 
 
     def type(self):
@@ -55,13 +58,48 @@ class AOI(object):
         return self._proj
 
 
-    def add_buffer(self, buffer=0.5, digits=2):
-        """
-        Add a fixed buffer to the AOI. Ensures cube is slighly larger than requested area.
+    def get_output_spacing(self, crs=4326):
+        """ Return the output spacing in desired units """
+        output_spacing_deg = self._output_spacing
+        if not isinstance(crs, CRS):
+            crs = CRS.from_epsg(crs)
 
+        ## convert it to meters users wants a projected coordinate system
+        if all(axis_info.unit_name == 'degree' for axis_info in crs.axis_info):
+            output_spacing = output_spacing_deg
+        else:
+            output_spacing = output_spacing_deg*1e5
+
+        return output_spacing
+
+
+    def set_output_spacing(self, ll_res=None):
+        """ Calculate the spacing for the output grid and weather model
+
+        Use the requested spacing if exists or the weather model grid itself
+
+        Returns:
+            None. Sets self._output_spacing
+        """
+        assert ll_res or self._cube_spacing_m, \
+            'Must pass lat/lon resolution if _cube_spacing_m is None'
+
+        out_spacing = self._cube_spacing_m / 1e5  \
+            if self._cube_spacing_m else ll_res
+
+        logger.debug(f'Output cube spacing: {out_spacing} degrees')
+        self._output_spacing = out_spacing
+
+
+    def add_buffer(self, ll_res, digits=2):
+        """
+        Add a fixed buffer to the AOI, accounting for the cube spacing.
+
+        Ensures cube is slighly larger than requested area.
+        The AOI will always be in EPSG:4326
         Args:
-            buffer (float)  - decimal degrees to be added to the bounding box
-            digits (int)    - number of decimal digits to include in the output
+            ll_res          - weather model lat/lon resolution
+            digits          - number of decimal digits to include in the output
 
         Returns:
             None. Updates self._bounding_box
@@ -75,15 +113,21 @@ class AOI(object):
         >>> aoi.bounds()
          [36.93, 38.07, -92.07, -90.93]
         """
+        ## add an extra buffer around the user specified region
         S, N, W, E = self.bounds()
-
+        buffer     = (1.5 * ll_res)
         S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
-        W, E = W-buffer, E+buffer # will need to handle dateline crossings elsewhere
+        W, E = W-buffer, E+buffer # TODO: handle dateline crossings
+
+        ## clip the buffered region to a multiple of the spacing
+        self.set_output_spacing(ll_res)
+        S, N, W, E  = clip_bbox([S,N,W,E], self._output_spacing)
 
         if np.max([np.abs(W), np.abs(E)]) > 180:
             logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
 
         self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
+
         return
 
 
@@ -133,6 +177,22 @@ class AOI(object):
         self._output_directory = output_directory
         return
 
+
+    def set_output_xygrid(self, dst_crs=4326):
+        """ Define the locations where the delays will be returned """
+        try:
+            out_proj = CRS.from_epsg(dst_crs.replace('EPSG:', ''))
+        except pyproj.exceptions.CRSError:
+            out_proj = dst_crs
+
+        out_snwe = transform_bbox(self.bounds(), src_crs=4326, dest_crs=out_proj)
+        logger.debug(f"Output SNWE: {out_snwe}")
+
+        # Build the output grid
+        out_spacing = self.get_output_spacing(out_proj)
+        self.xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+        self.ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+        return
 
 
 class StationFile(AOI):

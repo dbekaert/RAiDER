@@ -7,16 +7,48 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Update tests to account for different interpolation scheme
++ Dont error out when the weather model contains nan values (HRRR)
++ Fix bug in fillna3D for NaNs at elevations higher than present in the weather model
++ write delays even if they contain nans
++ check that the aoi is contained within HRRR extent
++ move the ray building out of the _build_cube_ray and into its own function for cleaner testing
++ update the tests to use the new build_ray function
++ If the processed weather file exists use it; otherwise check if raw exists and covers study area; otherwise download new
++ Update the integration height for raytracing from 50 km to 80 km
++ Reinstate test 3 (slant proj and ray trace), remove unused calls with ZREF
++ Add buffer to W/E for ERA5
++ Add buffer to HRES when downloading as with the other models
++ Refactor to pass a weather file directly to fetch
++ Update staged weather models to reflect update to aligned grid
++ Correctly pass buffered bounds when aligning grid
++ Check the valid bounds prior to starting and use HRRR-AK if its correct so that rounding times to obtain data at are correctly fed to Herbie
++ Update test_intersect to already existing weather model files 
++ Replace the real weather model files used for the synthetic test with the correct ones (bounding box changed slightly)
++ Update test_scenerio_1 to match golden data by selecting a grid by lat/lon rather than indices
++ Adjust the buffering to account for grid spacing
++ Update ERA5 model coordinates to reflect changes in support of HRRR
 + Re-work the HRRR weather model to use herbie (https://github.com/blaylockbk/Herbie) for weather model access. HRRR conus and Alaska validation periods are respectively 2016-7-15 and 2018-7-13 onwards.
 + minor bug fixes and unit test updates
 + add log file write location as a top-level command-line option and within Python as a user-specified option
++ account for grid spacing impact on bounding box before downloading weather model
++ update the GUNW test to account for change in grid spacing on affine transform
++ add CLI for the old processDelayFiles script and rename to raiderCombine
++ Fix gridding bug in accessing HRRR-AK 
++ misc clean-up
++ Specify unbuffered python output in the docker entrypoint script using `python -um RAiDER.cli ...` whose `__main__.py` is the desired entrypoint.
 
 ## [0.4.3]
++ Series of bug-fixes/compatibility updates with stats class: 
+    + Inconsistent definition of index IDs, which leads to key errors as so when querying the grid space for valid data points
+    + Turn off default behavior of plotting minor ticks on colorbars, which translates to unreadable plots especially when scientific notation is involved
+    + Assign valid geotrans to output tif files used for replotting/dedup.
+    + Properly load existing grids for replotting runs. Before the program crashed as single bands were incorrectly being read as cubes.
+    + Update in pandas not backwards compatible with original conditional logic. Specifically, conditions like `(not self.df['Date'].dt.is_leap_year)` replaced with `(self.df['Date'].dt.is_leap_year is False)`
 + add unit tests for the hydro and two pieces of wet equation
 + bump  bottom/top height of user requested levels by ~1mm during ray tracing to ensure interpolation works
 + ensure directories for storage are written
 + fix bug in writing delays for station files
-
 + Force lat/lon/hgt to float32 so that they line up correctly in stitching
 + Add two stage buffer;
     + first pad user bounding box such that a 3D cube is generated that at min covers user area of interest.
@@ -45,7 +77,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### New/Updated Features
 + `prepFromGUNW` reads the date/time from the SLCs rather than the GUNW filename
 + `calcDelaysGUNW` allows processing with any supported weather model as listed in [`RAiDER.models.allowed.ALLOWED_MODELS`](https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/models/allowed.py).
-+ Removed NCMR removed from supported model list till re-tested 
++ Removed NCMR removed from supported model list till re-tested
 + `credentials` looks for weather model API credentials RC_file hidden file, and creates it if it does not exists
 + Isolate ISCE3 imports to only those functions that need it.
 + Small bugfixes and updates to docstrings
@@ -69,34 +101,34 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.4.0]
 
-Adding of new GUNW support to RAiDER. This is an interface delivery allowing for subsequent integration into HYP3 (input/output parsing is not expected to change; computed data is not yet verified). 
+Adding of new GUNW support to RAiDER. This is an interface delivery allowing for subsequent integration into HYP3 (input/output parsing is not expected to change; computed data is not yet verified).
 
 ### New/Updated Features
 + Working GUNW entry point in workflow for raider.py
 + Ability to parse a GUNW to workflows from which all required RAiDER information is extracted (e.g. dates, UTC, orbit, bbox, look direction, wavelength) with an option to specify weather model (those already supported by RAiDER) and ability to squeeze in the derived output into the original GUNW product.
-+ Delays for GUNW are calculated in RAiDER using the ray-tracing option specifying bbox (GUNW driven), a hardcoded lateral posting (0.05º for HRRR and 0.1º for others),  fixed vertical height levels, using an different orbit file for  secondary and master. 
++ Delays for GUNW are calculated in RAiDER using the ray-tracing option specifying bbox (GUNW driven), a hardcoded lateral posting (0.05º for HRRR and 0.1º for others),  fixed vertical height levels, using an different orbit file for  secondary and master.
      - The hard-coded heights and posting will be refined per model and to ensure stitching abilities in ARIA-tools.
-     - The orbit should be refined to not change between secondary and reference to avoid issues. See https://github.com/dbekaert/RAiDER/discussions/435#discussioncomment-4392665 
-+ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).  
+     - The orbit should be refined to not change between secondary and reference to avoid issues. See https://github.com/dbekaert/RAiDER/discussions/435#discussioncomment-4392665
++ Bug fix for raider.py "date" input argument when multiple dates are requested (i.e. support of requesting two dates or two dates with a sampling).
 + Add unit test for date input argument checking (single day, two dates, two dates with samples)
 + Write the diagnostic weather model files to the 'output_directory' rather than PWD
 + Fix for incorrectly written hard-cored projection embedded in the computed output data
 + Allow for multiple orbits files/dates to be used for slant:projection
-+ correctly pass llh to lla_to_ecef function for slant:projection 
++ correctly pass llh to lla_to_ecef function for slant:projection
     ++ verified this doesnt change anything
 + removed deprecated ray projection functionality
 + added 1º buffer for zenith and projected (already done for ray tracing)
 + differential delay is rounded to model-dependent nearest hour
-+ version 1c hardcoded into the updated GUNW 
++ version 1c hardcoded into the updated GUNW
 
 ### Added dependencies for:
-+ sentinelof: used to fetch the orbit for GUNW 
++ sentinelof: used to fetch the orbit for GUNW
 + rioxarray: used for reading rasters with xarray
 
 ### Not implemented / supported in this release### Not implemented / supported in this release
-+ no temporal interpolation 
++ no temporal interpolation
 + no refined model specific hardcoded spacing and heights
-+ no ability for single orbit Interferometric calculation 
++ no ability for single orbit Interferometric calculation
 + no verification of results
 
 ## [0.3.1]

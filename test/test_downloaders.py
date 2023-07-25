@@ -14,9 +14,9 @@ from RAiDER.models.erai import ERAI
 @pytest.mark.long
 def test_era5():
     wm = ERA5()
+    wm.set_latlon_bounds(np.array([10, 10.2, -72, -72]))
     wm.fetch(
         os.path.join(TEST_DIR, 'test_geom', 'test_era5.nc'),
-        np.array([10, 10.2, -72, -72]),
         datetime(2020, 1, 1, 0, 0, 0)
     )
 
@@ -24,9 +24,9 @@ def test_era5():
 @pytest.mark.long
 def test_era5t():
     wm = ERA5T()
+    wm.set_latlon_bounds(np.array([10, 10.2, -72, -72]))
     wm.fetch(
         os.path.join(TEST_DIR, 'test_geom', 'test_era5t.nc'),
-        np.array([10, 10.2, -72, -72]),
         datetime(2020, 1, 1, 0, 0, 0)
     )
 
@@ -34,8 +34,8 @@ def test_era5t():
 @pytest.mark.long
 def test_erai():
     wm = ERAI()
+    wm.set_latlon_bounds(np.array([10, 10.2, -72, -72]))
     wm.fetch(
         os.path.join(TEST_DIR, 'test_geom', 'test_erai.nc'),
-        np.array([10, 10.2, -72, -72]),
         datetime(2017, 1, 1, 0, 0, 0)
     )

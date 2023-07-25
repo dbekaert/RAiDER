@@ -7,7 +7,6 @@ from RAiDER.models.ecmwf import ECMWF
 from RAiDER.logger import logger
 
 
-
 class ERA5(ECMWF):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
@@ -32,6 +31,7 @@ class ERA5(ECMWF):
         # Default, need to change to ml
         self.setLevelType('ml')
 
+
     def _fetch(self, out):
         '''
         Fetch a weather model from ECMWF
@@ -44,13 +44,12 @@ class ERA5(ECMWF):
         self._get_from_cds(lat_min, lat_max, lon_min, lon_max, time, out)
 
 
-    def load_weather(self, *args, **kwargs):
+    def load_weather(self, f=None, *args, **kwargs):
         '''Load either pressure or model level data'''
+        f = self.files[0] if f is None else f
         if self._model_level_type == 'pl':
-            self._load_pressure_level(*self.files, *args, **kwargs)
+            self._load_pressure_level(f, *args, **kwargs)
         elif self._model_level_type == 'ml':
-            self._load_model_level(*self.files, *args, **kwargs)
+            self._load_model_level(f, *args, **kwargs)
         else:
-            raise RuntimeError(
-                '{} is not a valid model type'.format(self._model_level_type)
-            )
+            raise RuntimeError(f'{self._model_level_type} is not a valid model type')
