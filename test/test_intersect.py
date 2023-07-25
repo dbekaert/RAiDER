@@ -32,7 +32,6 @@ def test_cube_intersect(wm):
 
     ## generate the default template file and overwrite it with new parms
     cfg  = update_yaml(grp, 'temp.yaml')
-    assert None
 
     ## run raider and intersect
     cmd  = f'raider.py {cfg}'
@@ -57,7 +56,6 @@ def test_cube_intersect(wm):
 
 
 @pytest.mark.parametrize('wm', 'ERA5'.split())
-@pytest.mark.skip()
 def test_gnss_intersect(wm):
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
