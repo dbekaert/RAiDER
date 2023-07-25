@@ -11,12 +11,8 @@ from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
 
 from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
-from RAiDER.models.weatherModel import (
-    WeatherModel, TIME_RES
-)
-from RAiDER.models.model_levels import (
-    LEVELS_50_HEIGHTS_CONUS,
-)
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
+from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
 from RAiDER.logger import logger
 
 
@@ -250,7 +246,7 @@ class HRRR(WeatherModel):
 
     def __model_levels__(self):
         self._levels  = 50
-        self._zlevels = np.flipud(LEVELS_50_HEIGHTS_CONUS)
+        self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
 
 
     def _fetch(self,  out):
@@ -266,7 +262,9 @@ class HRRR(WeatherModel):
         # HRRR uses 0-360 longitude, so we need to convert the bounds to that
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
-        download_hrrr_file(bounds, corrected_DT, out, model='hrrr')
+
+        hlt = 'prs' if self._model_level_type == 'pl' else 'nat'
+        download_hrrr_file(bounds, corrected_DT, out, model='hrrr', product=hlt)
 
 
     def load_weather(self, f=None, *args, **kwargs):
@@ -382,8 +380,8 @@ class HRRRAK(WeatherModel):
 
 
     def __model_levels__(self):
-        self._levels  = 137
-        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
+        self._levels  = 50
+        self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
 
 
     def _fetch(self, out):
@@ -394,7 +392,8 @@ class HRRRAK(WeatherModel):
         if not corrected_DT == self._time:
             logger.info('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
 
-        download_hrrr_file(bounds, corrected_DT, out, model='hrrrak')
+        hlt = 'prs' if self._model_level_type == 'pl' else 'nat'
+        download_hrrr_file(bounds, corrected_DT, out, model='hrrrak', product=hlt)
 
 
     def load_weather(self, f=None, *args, **kwargs):
