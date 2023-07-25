@@ -282,7 +282,9 @@ def main(args):
            'aoi_group' : {'bounding_box': GUNWObj.SNWE},
            'height_group' : {'height_levels': GUNWObj.heights},
            'date_group': {'date_list': GUNWObj.dates},
-           'time_group': {'time': GUNWObj.mid_time, 'interpolate_time': True},
+           'time_group': {'time': GUNWObj.mid_time,
+                          # Options are 'none', 'center_time', and 'azimuth_time_grid'
+                          'interpolate_time': args.interpolate_time},
            'los_group' : {'ray_trace': True,
                           'orbit_file': GUNWObj.OrbitFile,
                           'wavelength': GUNWObj.wavelength,

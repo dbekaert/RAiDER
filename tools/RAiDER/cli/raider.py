@@ -245,8 +245,12 @@ def calcDelays(iargs=None):
         # Grab the closest two times unless the user specifies 'nearest'
         # If the model time_delta is not specified then use 6
         # The two datetimes will be combined to a single file and processed
-        times = get_nearest_wmtimes(t, [model.dtime() if \
-                    model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
+        interp_method = params['interpolate_time']
+        if interp_method in ['none', 'center_time']:
+            times = get_nearest_wmtimes(t, [model.dtime() if \
+                                        model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
+        else:
+            raise NotImplementedError
         wfiles = []
         for tt in times:
             try:
@@ -489,6 +493,15 @@ def calcDelaysGUNW(iargs: list[str] = None):
     )
 
     p.add_argument(
+        '-interp', '--interpolate-time', default='center_time', type=str,
+        help=('How to interpolate across model time steps. Possible options are: '
+              '[\'none\', \'center_time\', \'azimuth_time_grid\'] '
+              'None: means nearest model time; center_time: linearly across center time; '
+              'Azimuth_time_grid: means every pixel is weighted with respect to azimuth time of S1;'
+              )
+    )
+
+    p.add_argument(
         '-o', '--output-directory', default=os.getcwd(), type=str,
         help='Directory to store results.'
     )
@@ -499,6 +512,9 @@ def calcDelaysGUNW(iargs: list[str] = None):
     )
 
     args = p.parse_args(iargs)
+
+    if args.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
+        raise ValueError('interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
 
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
