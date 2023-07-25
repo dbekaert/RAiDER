@@ -6,6 +6,7 @@ import xarray
 import numpy as np
 
 from herbie import Herbie
+import geopandas as gpd
 from pathlib import Path
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
@@ -14,6 +15,14 @@ from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
 from RAiDER.logger import logger
+
+
+HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
+HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
+HRRR_AK_PROJ = CRS.from_string('+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 '
+                               '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs')
+# Source: https://eric.clst.org/tech/usgeojson/
+AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
 
 
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False):
@@ -171,6 +180,7 @@ def load_weather_hrrr(filename):
     return _xs, _ys, lons, lats, qs, temps, pres, geo_hgt, proj
 
 
+
 class HRRR(WeatherModel):
     def __init__(self):
         # initialize a weather model
@@ -222,12 +232,10 @@ class HRRR(WeatherModel):
         x0 = 0
         y0 = 0
         earth_radius = 6371229
-        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
+        self._proj = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
                  f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
                  f'+b={earth_radius} +units=m +no_defs')
-        self._proj = p1
-
-        self._valid_bounds =  Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
+        self._valid_bounds = HRRR_CONUS_COVERAGE_POLYGON
         self.setLevelType('ml')
 
 
@@ -355,14 +363,10 @@ class HRRRAK(WeatherModel):
         self._time_res = TIME_RES['HRRR-AK']
         self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
         self._lag_time = datetime.timedelta(hours=3)
-        self._valid_bounds =  Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
-
+        self._valid_bounds = HRRR_AK_COVERAGE_POLYGON
         # The projection information gets read directly from the  weather model file but we
         # keep this here for object instantiation.
-        self._proj = CRS.from_string(
-            '+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 ' +
-            '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
-        )
+        self._proj = HRRR_AK_PROJ
         self.setLevelType('ml')
 
 
