@@ -16,7 +16,6 @@ import numpy as np
 
 from scipy.interpolate import RegularGridInterpolator as Interpolator
 
-from RAiDER.utilFcns import transformPoints
 from RAiDER.logger import logger
 
 
