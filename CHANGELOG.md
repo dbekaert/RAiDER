@@ -7,7 +7,7 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
-+ Use native model levels in HRRR
++ Use native model levels in HRRR which extend up to 2 hPa as opposed to 50 hPa in pressure levels
 + Update tests to account for different interpolation scheme
 + Dont error out when the weather model contains nan values (HRRR)
 + Fix bug in fillna3D for NaNs at elevations higher than present in the weather model
