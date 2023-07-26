@@ -41,19 +41,6 @@ class ECMWF(WeatherModel):
         self._model_level_type = 'ml'  # Default
 
 
-    def setLevelType(self, levelType):
-        '''Set the level type to model levels or pressure levels'''
-        if levelType in ['ml', 'pl']:
-            self._model_level_type = levelType
-        else:
-            raise RuntimeError('Level type {} is not recognized'.format(levelType))
-
-        if levelType == 'ml':
-            self.__model_levels__()
-        else:
-            self.__pressure_levels__()
-
-
     def __pressure_levels__(self):
         self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
         self._levels  = len(self._zlevels)

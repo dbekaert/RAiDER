@@ -180,7 +180,6 @@ def load_weather_hrrr(filename):
     return _xs, _ys, lons, lats, qs, temps, pres, geo_hgt, proj
 
 
-
 class HRRR(WeatherModel):
     def __init__(self):
         # initialize a weather model
@@ -236,25 +235,16 @@ class HRRR(WeatherModel):
                  f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
                  f'+b={earth_radius} +units=m +no_defs')
         self._valid_bounds = HRRR_CONUS_COVERAGE_POLYGON
-        self.setLevelType('ml')
-
-
-    def setLevelType(self, levelType):
-        '''Set the level type to model levels or pressure levels'''
-        if levelType in ['ml', 'pl']:
-            self._model_level_type = levelType
-        else:
-            raise RuntimeError(f'Level type {levelType} is not recognized')
-
-        if levelType == 'ml':
-            self.__model_levels__()
-        else:
-            raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
+        self.setLevelType('nat')
 
 
     def __model_levels__(self):
         self._levels  = 50
         self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
+
+
+    def __pressure_levels__(self):
+        raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
 
 
     def _fetch(self,  out):
@@ -271,8 +261,7 @@ class HRRR(WeatherModel):
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
 
-        hlt = 'prs' if self._model_level_type == 'pl' else 'nat'
-        download_hrrr_file(bounds, corrected_DT, out, model='hrrr', product=hlt)
+        download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
 
 
     def load_weather(self, f=None, *args, **kwargs):
@@ -367,25 +356,16 @@ class HRRRAK(WeatherModel):
         # The projection information gets read directly from the  weather model file but we
         # keep this here for object instantiation.
         self._proj = HRRR_AK_PROJ
-        self.setLevelType('ml')
-
-
-    def setLevelType(self, levelType):
-        '''Set the level type to model levels or pressure levels'''
-        if levelType in ['ml', 'pl']:
-            self._model_level_type = levelType
-        else:
-            raise RuntimeError(f'Level type {levelType} is not recognized')
-
-        if levelType == 'ml':
-            self.__model_levels__()
-        else:
-            raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
+        self.setLevelType('nat')
 
 
     def __model_levels__(self):
         self._levels  = 50
         self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
+
+
+    def __pressure_levels__(self):
+        raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
 
 
     def _fetch(self, out):
@@ -396,8 +376,7 @@ class HRRRAK(WeatherModel):
         if not corrected_DT == self._time:
             logger.info('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
 
-        hlt = 'prs' if self._model_level_type == 'pl' else 'nat'
-        download_hrrr_file(bounds, corrected_DT, out, model='hrrrak', product=hlt)
+        download_hrrr_file(bounds, corrected_DT, out, 'hrrrak', self._model_level_type)
 
 
     def load_weather(self, f=None, *args, **kwargs):
