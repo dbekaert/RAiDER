@@ -365,7 +365,7 @@ class HRRRAK(WeatherModel):
 
 
     def __pressure_levels__(self):
-        raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
+        raise NotImplementedError('hrrr.py: Revisit whether or not pressure levels from HRRR can be used for delay calculations; they do not go high enough compared to native model levels.')
 
 
     def _fetch(self, out):
