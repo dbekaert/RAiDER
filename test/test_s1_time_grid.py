@@ -227,6 +227,7 @@ def test_inverse_weighting(input_time: np.datetime64,
                           dtype='datetime64[ms]')
     delta = np.timedelta64(1, 's') * np.arange(N**2)
     delta = delta.reshape((N, N))
+    timing_grid += delta
 
     out_weights = get_inverse_weights_for_dates(timing_grid,
                                                 dates,
@@ -240,3 +241,47 @@ def test_inverse_weighting(input_time: np.datetime64,
         np.testing.assert_almost_equal(expected_weights[k],
                                        out_weights[k],
                                        1e-3)
+
+    # a retrieval r_i on date_i should be interpolated as
+    # w_0 * r_0 + ... + r_n * w_n and so we expect w's to have a sum of 1s
+    # per pixel
+    sum_weights_per_pixel = np.stack(out_weights, axis=1).sum(axis=1)
+    np.testing.assert_almost_equal(1, sum_weights_per_pixel)
+
+
+def test_triple_date_usage():
+    """This test shows that when a time grid has pixels that are closer to two different pairs of date and that the
+    inverse weights come out correctly. Put slightly differently, the scenario is when one of the 3 closest dates
+    occurs at "center time" of the grid and some pixels require dates before the center time and some pixels
+    require dates after center time.
+    """
+    date_0 = np.datetime64('2021-01-01T00:00:00')
+    date_1 = np.datetime64('2021-01-01T06:00:00')
+    date_2 = np.datetime64('2020-12-31T18:00:00')
+
+    dates = [date_0, date_1, date_2]
+    dates = list(map(lambda dt: dt.astype(datetime.datetime), dates))
+
+    timing_grid = np.full((3,),
+                          np.datetime64('2021-01-01T00:00:00'),
+                          dtype='datetime64[ms]')
+    delta = np.timedelta64(1, 's') * np.array([-10_000, 0, 10_000])
+    timing_grid += delta
+
+    out_weights = get_inverse_weights_for_dates(timing_grid,
+                                                dates,
+                                                temporal_window_hours=6,
+                                                inverse_regularizer=1e-10
+                                                )
+
+    w_0 = out_weights[0]  # for date_0
+    w_1 = out_weights[1]  # for date_1
+    w_2 = out_weights[2]  # for date_2
+
+    assert all([w > 0 for w in w_0])
+    assert (w_1[0] <= 0) and (w_1[2] > 0)
+    assert (w_2[0] > 0) and (w_2[2] <= 0)
+
+    # see previous test for explanation
+    sum_weights_per_pixel = np.stack(out_weights, axis=1).sum(axis=1)
+    np.testing.assert_almost_equal(1, sum_weights_per_pixel)
