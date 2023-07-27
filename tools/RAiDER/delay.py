@@ -255,7 +255,11 @@ def _build_cube_ray(
         ray_lengths, low_xyzs, high_xyzs = \
             build_ray(model_zs, ht, xyz, LOS,  MAX_TROPO_HEIGHT)
 
-        if np.isnan(ray_lengths).all():
+        # if the top most height layer doesnt contribute to the integral, skip it
+        if ray_lengths is None and ht == zpts[-1]:
+            continue
+
+        elif np.isnan(ray_lengths).all():
             raise ValueError("geo2rdr did not converge. Check orbit coverage")
 
         # Determine number of parts to break ray into (this is what gets integrated over)

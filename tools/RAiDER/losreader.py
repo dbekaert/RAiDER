@@ -783,5 +783,8 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
         low_xyzs.append(low_xyz)
         high_xyzs.append(high_xyz)
 
-    return np.stack(ray_lengths), np.stack(low_xyzs), np.stack(high_xyzs)
-
+    ## if all weather model levels are requested the top most layer might not contribute anything
+    if not ray_lengths:
+        return None, None, None
+    else:
+        return np.stack(ray_lengths), np.stack(low_xyzs), np.stack(high_xyzs)
