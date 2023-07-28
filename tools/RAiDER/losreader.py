@@ -748,7 +748,7 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
 
         # If high_ht < height of point - no contribution to integral
         # If low_ht > max_tropo_height - no contribution to integral
-        if (high_ht <= ht) or (low_ht >= MAX_TROPO_HEIGHT):
+        if (high_ht < ht) or (low_ht >= MAX_TROPO_HEIGHT):
             continue
 
         # If low_ht < requested height, start integral at requested height
@@ -783,5 +783,8 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
         low_xyzs.append(low_xyz)
         high_xyzs.append(high_xyz)
 
-    return np.stack(ray_lengths), np.stack(low_xyzs), np.stack(high_xyzs)
-
+    ## if all weather model levels are requested the top most layer might not contribute anything
+    if not ray_lengths:
+        return None, None, None
+    else:
+        return np.stack(ray_lengths), np.stack(low_xyzs), np.stack(high_xyzs)

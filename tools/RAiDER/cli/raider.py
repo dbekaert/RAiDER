@@ -285,10 +285,10 @@ def calcDelays(iargs=None):
             continue
 
         if len(wfiles)==0:
-            logger.error('No weather model data was successfully obtained.')
+            logger.error('No weather model data was successfully processed.')
             if len(params['date_list']) == 1:
                 raise RuntimeError
-            # skip date if mnultiple are requested
+            # skip date and continue processing if multiple dates are requested
             else:
                 continue
 
@@ -574,9 +574,15 @@ def calcDelaysGUNW(iargs: list[str] = None):
     # args.files = glob.glob(args.files) # eventually support multiple files
     if not args.file and args.bucket:
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
+        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
+            # NOTE: We want to submit jobs that are outside of acceptable weather model range
+            #       and still deliver these products to the DAAC without this layer. Therefore
+            #       we include this within this portion of the control flow.
+            print('Nothing to do because outside of weather model range')
+            return
         json_file_path = aws.get_s3_file(args.bucket, args.bucket_prefix, '.json')
         json_data = json.load(open(json_file_path))
-        json_data.setdefault('weather_model', []).append(args.weather_model)
+        json_data['metadata'].setdefault('weather_model', []).append(args.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
     elif not args.file:

@@ -505,3 +505,25 @@ LEVELS_25_HEIGHTS = [
     -300,
     -500,
 ]
+
+## HRRR Model Levels
+# Computed according to: H = a + b * Z where:
+    # H is the resulting levels in geometric height
+    # a is the Surface geopotential height (in meters)
+        # the surface geopotential is fetched from Herbie and divided by g0=9.80665
+        # averaged in space over CONUS
+    # b is the native (sigma) model levels (https://rapidrefresh.noaa.gov/faq/HRRR.faq.html)
+    # Z is the spatial average geopotential height of the sigma level (in meters)
+LEVELS_50_HEIGHTS = [2.61580385e+04, 2.48712879e+04, 2.36910518e+04, 2.25524744e+04,
+                      2.13986900e+04, 2.02464207e+04, 1.90883153e+04, 1.79427740e+04,
+                      1.68476065e+04, 1.57399654e+04, 1.45826790e+04, 1.33886515e+04,
+                      1.22171878e+04, 1.11019360e+04, 1.00395775e+04, 9.01965365e+03,
+                      8.03486128e+03, 7.09323111e+03, 6.27822334e+03, 5.57101666e+03,
+                      4.96120000e+03, 4.42159162e+03, 3.94118518e+03, 3.51064883e+03,
+                      3.12371808e+03, 2.77490670e+03, 2.45941860e+03, 2.17290722e+03,
+                      1.90394551e+03, 1.66716448e+03, 1.44127808e+03, 1.22697117e+03,
+                      1.02507126e+03, 8.38877887e+02, 6.74297597e+02, 5.34810131e+02,
+                      4.18916771e+02, 3.23291544e+02, 2.44985788e+02, 1.81492083e+02,
+                      1.34383211e+02, 1.02007390e+02, 7.70762881e+01, 5.77739913e+01,
+                      4.31591299e+01, 3.26389095e+01, 2.52657431e+01, 2.02104423e+01,
+                      1.66520787e+01, 1.39366382e+01, 0, -10, -20, -50, -100, -200, -500]
