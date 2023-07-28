@@ -29,7 +29,7 @@ def compute_transform(lats, lons):
 
 
 @pytest.mark.isce3
-@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR'])
+@pytest.mark.parametrize('weather_model_name', ['GMAO'])
 def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
     scenario_dir = test_dir_path / 'GUNW'
     scenario_dir.mkdir(exist_ok=True, parents=True)

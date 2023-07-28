@@ -41,26 +41,13 @@ class ECMWF(WeatherModel):
         self._model_level_type = 'ml'  # Default
 
 
-    def setLevelType(self, levelType):
-        '''Set the level type to model levels or pressure levels'''
-        if levelType in ['ml', 'pl']:
-            self._model_level_type = levelType
-        else:
-            raise RuntimeError('Level type {} is not recognized'.format(levelType))
-
-        if levelType == 'ml':
-            self.__model_levels__()
-        else:
-            self.__pressure_levels__()
-
-
     def __pressure_levels__(self):
         self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
-        self._levels = len(self._zlevels)
+        self._levels  = len(self._zlevels)
 
 
     def __model_levels__(self):
-        self._levels = 137
+        self._levels  = 137
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
         self._a = A_137_HRES
         self._b = B_137_HRES
@@ -321,39 +308,24 @@ class ECMWF(WeatherModel):
         self._t = t
         self._q = q
 
-        geo_hgt = z / self._g0
+        geo_hgt = (z / self._g0).transpose(1, 2, 0)
 
         # re-assign lons, lats to match heights
         self._lons, self._lats = np.meshgrid(lons, lats)
 
         # correct heights for latitude
-        self._get_heights(_lats, geo_hgt)
+        self._get_heights(self._lats, geo_hgt)
 
-        self._p = np.broadcast_to(levels[:, np.newaxis, np.newaxis],
+        self._p = np.broadcast_to(levels[np.newaxis, np.newaxis, :],
                                   self._zs.shape)
 
-        # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
-        self._p = np.transpose(self._p)
-        self._t = np.transpose(self._t)
-        self._q = np.transpose(self._q)
-        self._lats = np.transpose(_lats)
-        self._lons = np.transpose(_lons)
+        # Re-structure from (heights, lats, lons) to (lons, lats, heights)
+        self._t = self._t.transpose(1, 2, 0)
+        self._q = self._q.transpose(1, 2, 0)
         self._ys = self._lats.copy()
         self._xs = self._lons.copy()
-        self._zs = np.transpose(self._zs)
 
-        # check this
-        # data cube format should be lats,lons,heights
-        self._lats = self._lats.swapaxes(0, 1)
-        self._lons = self._lons.swapaxes(0, 1)
-        self._xs = self._xs.swapaxes(0, 1)
-        self._ys = self._ys.swapaxes(0, 1)
-        self._zs = self._zs.swapaxes(0, 1)
-        self._p = self._p.swapaxes(0, 1)
-        self._q = self._q.swapaxes(0, 1)
-        self._t = self._t.swapaxes(0, 1)
-
-        # For some reason z is opposite the others
+        # flip z to go from surface to toa
         self._p = np.flip(self._p, axis=2)
         self._t = np.flip(self._t, axis=2)
         self._q = np.flip(self._q, axis=2)

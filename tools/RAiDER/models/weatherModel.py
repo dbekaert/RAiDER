@@ -326,6 +326,19 @@ class WeatherModel(ABC):
             raise RuntimeError(msg)
 
 
+    def setLevelType(self, levelType):
+        '''Set the level type to model levels or pressure levels'''
+        if levelType in 'ml pl nat prs'.split():
+            self._model_level_type = levelType
+        else:
+            raise RuntimeError(f'Level type {levelType} is not recognized')
+
+        if levelType in 'ml nat'.split():
+            self.__model_levels__()
+        else:
+            self.__pressure_levels__()
+
+
     def _convertmb2Pa(self, pres):
         '''
         Convert pressure in millibars to Pascals
@@ -858,7 +871,6 @@ def get_mapping(proj):
         return 'WGS84'
     else:
         return proj.to_wkt()
-
 
 
 def checkContainment_raw(path_wm_raw,

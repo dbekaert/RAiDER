@@ -12,16 +12,20 @@ from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
 
 from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
-from RAiDER.models.weatherModel import (
-    WeatherModel, TIME_RES
-)
-from RAiDER.models.model_levels import (
-    LEVELS_137_HEIGHTS,
-)
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
+from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
 from RAiDER.logger import logger
 
 
-def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
+HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
+HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
+HRRR_AK_PROJ = CRS.from_string('+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 '
+                               '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs')
+# Source: https://eric.clst.org/tech/usgeojson/
+AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
+
+
+def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False):
     '''
     Download a HRRR weather model using Herbie
 
@@ -47,6 +51,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
         save_dir=Path(os.path.dirname(out)),
     )
 
+
     # Iterate through the list of datasets
     try:
         ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
@@ -55,9 +60,15 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
         raise ValueError
 
     ds_out = None
+
     for ds in ds_list:
-        if ('isobaricInhPa' in ds._coord_names) or ('levels' in ds._coord_names):
+        if 'isobaricInhPa' in ds._coord_names:
             ds_out = ds
+            coord = 'isobaricInhPa'
+            break
+        elif 'hybrid' in ds._coord_names:
+            ds_out = ds
+            coord = 'hybrid'
             break
 
     # subset the full file by AOI
@@ -68,7 +79,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='prs', fxx=0,
     )
 
     # bookkeepping
-    ds_out = ds_out.rename({'gh': 'z', 'isobaricInhPa': 'levels'})
+    ds_out = ds_out.rename({'gh': 'z', coord: 'levels'})
     ny, nx = ds_out['longitude'].shape
 
     # projection information
@@ -145,9 +156,9 @@ def load_weather_hrrr(filename):
     '''
     # read data from the netcdf file
     ds = xarray.open_dataset(filename, engine='netcdf4')
-
     # Pull the relevant data from the file
-    pl = np.array([p * 100 for p in ds.levels.values]) # convert millibars to Pascals
+    pl = ds.levels.values
+    pres = ds['pres'].values.transpose(1, 2, 0)
     xArr = ds['x'].values
     yArr = ds['y'].values
     lats = ds['latitude'].values
@@ -166,14 +177,7 @@ def load_weather_hrrr(filename):
     _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
                             geo_hgt.shape)
 
-    return _xs, _ys, lons, lats, qs, temps, pl, geo_hgt, proj
-
-HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
-HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
-HRRR_AK_PROJ = CRS.from_string('+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 '
-                               '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs')
-# Source: https://eric.clst.org/tech/usgeojson/
-AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
+    return _xs, _ys, lons, lats, qs, temps, pres, geo_hgt, proj
 
 
 class HRRR(WeatherModel):
@@ -209,7 +213,6 @@ class HRRR(WeatherModel):
         self._Npl = 0
         self.files = None
         self._bounds = None
-        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         # Projection
         # NOTE: The HRRR projection will get read directly from the downloaded weather model file; however,
@@ -228,12 +231,20 @@ class HRRR(WeatherModel):
         x0 = 0
         y0 = 0
         earth_radius = 6371229
-        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
+        self._proj = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
                  f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
                  f'+b={earth_radius} +units=m +no_defs')
-        self._proj = p1
-
         self._valid_bounds = HRRR_CONUS_COVERAGE_POLYGON
+        self.setLevelType('nat')
+
+
+    def __model_levels__(self):
+        self._levels  = 50
+        self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
+
+
+    def __pressure_levels__(self):
+        raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
 
 
     def _fetch(self,  out):
@@ -249,7 +260,8 @@ class HRRR(WeatherModel):
         # HRRR uses 0-360 longitude, so we need to convert the bounds to that
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
-        download_hrrr_file(bounds, corrected_DT, out, model='hrrr')
+
+        download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
 
 
     def load_weather(self, f=None, *args, **kwargs):
@@ -261,18 +273,18 @@ class HRRR(WeatherModel):
             f = self.files[0] if isinstance(self.files, list) else self.files
 
 
-        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(f)
-            # correct for latitude
+        _xs, _ys, _lons, _lats, qs, temps, pres, geo_hgt, proj = load_weather_hrrr(f)
+
+        # convert geopotential height to geometric height
         self._get_heights(_lats, geo_hgt)
 
         self._t = temps
         self._q = qs
-        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :], geo_hgt.shape)
+        self._p = pres
         self._xs = _xs
         self._ys = _ys
         self._lats = _lats
         self._lons = _lons
-
         self._proj = proj
 
 
@@ -333,7 +345,6 @@ class HRRRAK(WeatherModel):
         self._Npl = 0
         self.files = None
         self._bounds = None
-        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         self._classname = 'hrrrak'
         self._dataset = 'hrrrak'
@@ -345,6 +356,17 @@ class HRRRAK(WeatherModel):
         # The projection information gets read directly from the  weather model file but we
         # keep this here for object instantiation.
         self._proj = HRRR_AK_PROJ
+        self.setLevelType('nat')
+
+
+    def __model_levels__(self):
+        self._levels  = 50
+        self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
+
+
+    def __pressure_levels__(self):
+        raise NotImplementedError('hrrr.py: Revisit whether or not pressure levels from HRRR can be used for delay calculations; they do not go high enough compared to native model levels.')
+
 
     def _fetch(self, out):
         bounds = self._ll_bounds.copy()
@@ -354,19 +376,20 @@ class HRRRAK(WeatherModel):
         if not corrected_DT == self._time:
             logger.info('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
 
-        download_hrrr_file(bounds, corrected_DT, out, model='hrrrak')
+        download_hrrr_file(bounds, corrected_DT, out, 'hrrrak', self._model_level_type)
 
 
     def load_weather(self, f=None, *args, **kwargs):
         if f is None:
             f = self.files[0] if isinstance(self.files, list) else self.files
-        _xs, _ys, _lons, _lats, qs, temps, pl, geo_hgt, proj = load_weather_hrrr(f)
-            # correct for latitude
+        _xs, _ys, _lons, _lats, qs, temps, pres, geo_hgt, proj = load_weather_hrrr(f)
+
+        # correct for latitude
         self._get_heights(_lats, geo_hgt)
 
         self._t = temps
         self._q = qs
-        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :], geo_hgt.shape)
+        self._p = pres
         self._xs = _xs
         self._ys = _ys
         self._lats = _lats
