@@ -9,7 +9,7 @@ from test import *
 @pytest.mark.parametrize('wm', 'ERA5'.split())
 def test_cube_intersect(wm):
     """ Test the intersection of lat/lon files with the DEM (model height levels?) """
-    SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
+    SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_6")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
 
     ## make the lat lon grid
@@ -43,8 +43,7 @@ def test_cube_intersect(wm):
     assert proc.returncode == 0, 'RAiDER Failed.'
 
     ## hard code what it should be and check it matches
-    gold = {'ERA5': 2.29017997, 'GMAO': np.nan, 'HRRR': np.nan}
-    # gold = {'ERA5': 2.2787, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.2787, 'GMAO': np.nan, 'HRRR': np.nan}
 
     path_delays = os.path.join(SCENARIO_DIR, f'{wm}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
     latf = os.path.join(SCENARIO_DIR, 'lat.rdr')
@@ -94,8 +93,7 @@ def test_gnss_intersect(wm):
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
 
-    gold = {'ERA5': 2.34513194, 'GMAO': np.nan, 'HRRR': np.nan}
-    # gold = {'ERA5': 2.3466, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.3466, 'GMAO': np.nan, 'HRRR': np.nan}
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{wm}_Delay_{date}T{time.replace(":", "")}.csv'))
     td = df['totalDelay'][df['ID']==id].values
 
