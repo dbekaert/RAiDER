@@ -122,6 +122,10 @@ def update_time(row, localTime_hrs):
 
 def pass_common_obs(reference, target, localtime=None):
     '''Pass only observations in target spatiotemporally common to reference'''
+    if isinstance(target['Datetime'][0], 'str'):
+        target['Datetime'] = target['Datetime'].apply(lambda x:
+                                                      datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+                                                     )
     if localtime:
         return target[target['Datetime'].dt.date.isin(reference['Datetime']
                       .dt.date) &
