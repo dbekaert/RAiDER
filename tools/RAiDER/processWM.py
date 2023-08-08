@@ -69,7 +69,7 @@ def prepareWeatherModel(
     else:
         E = weather_model.fetch(path_wm_raw, time)
         if E:
-            print ('raise runtimeerror')
+            logger.warning (E)
             raise RuntimeError
 
     # If only downloading, exit now

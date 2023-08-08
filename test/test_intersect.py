@@ -24,7 +24,7 @@ def test_cube_intersect(wm):
             'time_group': {'time': time, 'interpolate_time': False},
             'weather_model': wm,
             'aoi_group': {
-                'lat_file': os.path.join(SCENARIO_DIR, 'lat.rdr'), 
+                'lat_file': os.path.join(SCENARIO_DIR, 'lat.rdr'),
                 'lon_file': os.path.join(SCENARIO_DIR, 'lon.rdr')
             },
             'runtime_group': {
@@ -64,9 +64,7 @@ def test_cube_intersect(wm):
 @pytest.mark.parametrize('wm', 'ERA5'.split())
 def test_gnss_intersect(wm):
     SCENARIO_DIR = os.path.join(TEST_DIR, 'scenario_6')
-    WM_DIR = os.path.join(SCENARIO_DIR, 'weather_files')
-
-    gnss_file = os.path.join(SCENARIO_DIR, 'stations.csv')
+    gnss_file    = os.path.join(SCENARIO_DIR, 'stations.csv')
     id = 'TORP'
 
     date       = 20200130
@@ -93,8 +91,8 @@ def test_gnss_intersect(wm):
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
 
-    gold = {'ERA5': 2.3466, 'GMAO': np.nan, 'HRRR': np.nan}
-    df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{wm}_Delay_{date}T{time.replace(":", "")}.csv'))
+    gold = {'ERA5': 2.34514, 'GMAO': np.nan, 'HRRR': np.nan}
+    df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{wm}_Delay_{date}T{time.replace(":", "")}_ztd.csv'))
     td = df['totalDelay'][df['ID']==id].values
 
     # test for equality with golden data

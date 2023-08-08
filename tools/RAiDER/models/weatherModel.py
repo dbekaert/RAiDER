@@ -162,8 +162,8 @@ class WeatherModel(ABC):
             self._fetch(out)
             err = False
 
-        except Exception:
-            err = True
+        except Exception as E:
+            err = E
 
         return err
 
