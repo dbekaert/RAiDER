@@ -28,7 +28,6 @@ def compute_transform(lats, lons):
     return (a, b, c, d, e, f)
 
 
-@pytest.mark.long
 @pytest.mark.isce3
 @pytest.mark.parametrize('weather_model_name', ['GMAO'])
 def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
@@ -69,7 +68,6 @@ def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
     [os.remove(f) for f in glob.glob(f'{weather_model_name}*')]
 
 
-@pytest.mark.long
 def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, tmp_path, mocker):
     """This test performs the GUNW entrypoint with bucket/prefix provided and only updates the json.
     Monkey patches the upload/download to/from s3 and the actual computation.
