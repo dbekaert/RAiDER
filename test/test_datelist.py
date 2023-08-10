@@ -24,9 +24,8 @@ def test_datelist():
             }
       }
     
-    dst = os.path.join(SCENARIO_DIR, 'temp.yaml')
-    update_yaml(dct_group, dst)
-    param_dict = read_template_file(dst)
+    cfg  = update_yaml(dct_group, 'temp.yaml')
+    param_dict = read_template_file(cfg)
     assert param_dict['date_list'] == true_dates
 
 
@@ -46,7 +45,6 @@ def test_datestep():
             }
       }
     
-    dst = os.path.join(SCENARIO_DIR, 'temp.yaml')
-    update_yaml(dct_group, dst)
-    param_dict = read_template_file(dst)
+    cfg  = update_yaml(dct_group, 'temp.yaml')
+    param_dict = read_template_file(cfg)
     assert param_dict['date_list'] == true_dates
