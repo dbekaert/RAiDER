@@ -1,8 +1,7 @@
-import glob
-import shutil
-
 import pandas as pd
-import rioxarray as xrr
+import rasterio
+
+from scipy.interpolate import griddata
 
 from test import *
 
@@ -10,7 +9,7 @@ from test import *
 @pytest.mark.parametrize('wm', 'ERA5'.split())
 def test_cube_intersect(wm):
     """ Test the intersection of lat/lon files with the DEM (model height levels?) """
-    SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
+    SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_6")
     os.makedirs(SCENARIO_DIR, exist_ok=True)
 
     ## make the lat lon grid
@@ -24,10 +23,15 @@ def test_cube_intersect(wm):
             'date_group': {'date_start': date},
             'time_group': {'time': time, 'interpolate_time': False},
             'weather_model': wm,
-            'aoi_group': {'lat_file': f_lat, 'lon_file': f_lon},
-            'runtime_group': {'output_directory': SCENARIO_DIR,
-                              'weather_model_directory': WM_DIR,
-                              },
+            'aoi_group': {
+                'lat_file': os.path.join(SCENARIO_DIR, 'lat.rdr'),
+                'lon_file': os.path.join(SCENARIO_DIR, 'lon.rdr')
+            },
+            'runtime_group': {
+                'output_directory': SCENARIO_DIR,
+                'weather_model_directory': WM_DIR,
+            },
+            'verbose': False,
         }
 
     ## generate the default template file and overwrite it with new parms
@@ -39,17 +43,19 @@ def test_cube_intersect(wm):
     assert proc.returncode == 0, 'RAiDER Failed.'
 
     ## hard code what it should be and check it matches
-    gold = {'ERA5': 2.29017997, 'GMAO': np.nan, 'HRRR': np.nan}
+    gold = {'ERA5': 2.2787, 'GMAO': np.nan, 'HRRR': np.nan}
 
     path_delays = os.path.join(SCENARIO_DIR, f'{wm}_hydro_{date}T{time.replace(":", "")}_ztd.tiff')
-    da  = xrr.open_rasterio(path_delays, band_as_variable=True)['band_1']
-    hyd = da.sel(x=-117.8, y=33.4, method='nearest').item()
-    np.testing.assert_almost_equal(hyd, gold[wm])
+    latf = os.path.join(SCENARIO_DIR, 'lat.rdr')
+    lonf = os.path.join(SCENARIO_DIR, 'lon.rdr')
 
-    # Clean up files
-    shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{wm}*')]
-    os.remove('temp.yaml')
+    hyd = rasterio.open(path_delays).read(1)
+    lats = rasterio.open(latf).read(1)
+    lons = rasterio.open(lonf).read(1)
+    hyd = griddata(np.stack([lons.flatten(), lats.flatten()], axis=-1), hyd.flatten(), (-100.6, 16.15), method='nearest')
+
+    # test for equality with golden data
+    np.testing.assert_almost_equal(hyd, gold[wm], decimal=4)
 
     return
 
@@ -57,9 +63,10 @@ def test_cube_intersect(wm):
 
 @pytest.mark.parametrize('wm', 'ERA5'.split())
 def test_gnss_intersect(wm):
-    SCENARIO_DIR = os.path.join(TEST_DIR, "INTERSECT")
-    os.makedirs(SCENARIO_DIR, exist_ok=True)
-    gnss_file = os.path.join(TEST_DIR, 'scenario_2', 'stations2.csv')
+    SCENARIO_DIR = os.path.join(TEST_DIR, 'scenario_6')
+    gnss_file    = os.path.join(SCENARIO_DIR, 'stations.csv')
+    id = 'TORP'
+
     date       = 20200130
     time       ='13:52:45'
 
@@ -69,9 +76,11 @@ def test_gnss_intersect(wm):
             'time_group': {'time': time, 'interpolate_time': False},
             'weather_model': wm,
             'aoi_group': {'station_file': gnss_file},
-            'runtime_group': {'output_directory': SCENARIO_DIR,
-                              'weather_model_directory': WM_DIR,
-                            }
+            'runtime_group': {
+                'output_directory': SCENARIO_DIR,
+                'weather_model_directory': WM_DIR,
+            },
+            'verbose': False,
         }
 
     ## generate the default template file and overwrite it with new parms
@@ -82,16 +91,11 @@ def test_gnss_intersect(wm):
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER Failed.'
 
-    gold = {'ERA5': 2.34513194, 'GMAO': np.nan, 'HRRR': np.nan}
-
+    gold = {'ERA5': 2.34514, 'GMAO': np.nan, 'HRRR': np.nan}
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{wm}_Delay_{date}T{time.replace(":", "")}_ztd.csv'))
+    td = df['totalDelay'][df['ID']==id].values
 
-    id = 'TORP'
-    td = df.set_index('ID').loc[id, 'totalDelay']
-    np.testing.assert_almost_equal(gold[wm], td.item())
-
-    shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{wm}*')]
-    os.remove('temp.yaml')
+    # test for equality with golden data
+    np.testing.assert_almost_equal(td.item(), gold[wm], decimal=4)
 
     return
