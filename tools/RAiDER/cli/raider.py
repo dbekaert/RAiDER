@@ -135,9 +135,9 @@ def drop_nans(d):
 def calcDelays(iargs=None):
     """ Parse command line arguments using argparse. """
     import RAiDER
+    import RAiDER.processWM
     from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
-    from RAiDER.processWM import prepareWeatherModel
     from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
@@ -263,7 +263,10 @@ def calcDelays(iargs=None):
         wfiles = []
         for tt in times:
             try:
-                wfile = prepareWeatherModel(model, tt, aoi.bounds(), makePlots=params['verbose'])
+                wfile = RAiDER.processWM.prepareWeatherModel(model,
+                                                             tt,
+                                                             aoi.bounds(),
+                                                             makePlots=params['verbose'])
                 wfiles.append(wfile)
 
             # catch when requested datetime fails
@@ -541,6 +544,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
 
     p.add_argument(
         '-interp', '--interpolate-time', default='center_time', type=str,
+        choices=['none', 'center_time', 'azimuth_time_grid'],
         help=('How to interpolate across model time steps. Possible options are: '
               '[\'none\', \'center_time\', \'azimuth_time_grid\'] '
               'None: means nearest model time; center_time: linearly across center time; '

@@ -58,8 +58,8 @@ def test_get_slc_id():
 @pytest.mark.parametrize('ifg_type', ['reference', 'secondary'],)
 def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
                                              ifg_type: str,
-                                             orbit_dict_for_azimuth_test: dict,
-                                             slc_id_dict_for_azimuth_test: dict,
+                                             orbit_dict_for_azimuth_time_test: dict,
+                                             slc_id_dict_for_azimuth_time_test: dict,
                                              mocker):
     """Make sure the SLC start time is within reasonable amount of grid. The flow chart is:
 
@@ -88,9 +88,9 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
     # Azimuth time grid
     mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
                  # Hyp3 Lib returns 2 values
-                 return_value=(orbit_dict_for_azimuth_test[ifg_type], ''))
+                 return_value=(orbit_dict_for_azimuth_time_test[ifg_type], ''))
     mocker.patch('RAiDER.s1_azimuth_timing._asf_query',
-                 return_value=(slc_id_dict_for_azimuth_test[ifg_type], ''))
+                 return_value=(slc_id_dict_for_azimuth_time_test[ifg_type], ''))
     time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, slc_start_time)
 
     abs_diff = np.abs(time_grid - np.datetime64(slc_start_time)) / np.timedelta64(1, 's')
@@ -106,8 +106,8 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
 @pytest.mark.parametrize('ifg_type', ['reference', 'secondary'])
 def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
                                       ifg_type: str,
-                                      orbit_dict_for_azimuth_test: dict,
-                                      slc_id_dict_for_azimuth_test: dict,
+                                      orbit_dict_for_azimuth_time_test: dict,
+                                      slc_id_dict_for_azimuth_time_test: dict,
                                       mocker):
     """Make sure along the hgt dimension of grid there is very small deviations
     """
@@ -132,9 +132,9 @@ def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
     # Azimuth time grid
     mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
                  # Hyp3 Lib returns 2 values
-                 return_value=(orbit_dict_for_azimuth_test[ifg_type], ''))
+                 return_value=(orbit_dict_for_azimuth_time_test[ifg_type], ''))
     mocker.patch('RAiDER.s1_azimuth_timing._asf_query',
-                 return_value=(slc_id_dict_for_azimuth_test[ifg_type], ''))
+                 return_value=(slc_id_dict_for_azimuth_time_test[ifg_type], ''))
     X = get_s1_azimuth_time_grid(lon, lat, hgt, slc_start_time)
 
     Z = (X - X.min()) / np.timedelta64(1, 's')
