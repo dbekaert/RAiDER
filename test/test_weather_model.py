@@ -15,7 +15,6 @@ from RAiDER.models.weatherModel import (
     make_raw_weather_data_filename,
     make_weather_model_filename,
 )
-from RAiDER.llreader import BoundingBox
 from RAiDER.models.erai import ERAI
 from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T

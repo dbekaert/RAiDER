@@ -18,6 +18,7 @@ except ImportError:
 
 from abc import ABC
 
+from RAiDER.constants import _ZREF
 from RAiDER.utilFcns import (
     cosd, sind, rio_open, lla2ecef, ecef2lla
 )

@@ -26,9 +26,6 @@ from RAiDER.constants import _ZREF
 from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import build_ray
-from RAiDER.utilFcns import (
-    writeResultsToXarray, transformPoints,
-)
 
 ###############################################################################
 def tropo_delay(

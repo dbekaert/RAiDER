@@ -1,7 +1,8 @@
 import pandas as pd
-import rasterio
+# import rasterio
 
-from scipy.interpolate import griddata
+# from scipy.interpolate import griddata
+import rioxarray as xrr
 
 from test import *
 
@@ -13,10 +14,10 @@ def test_cube_intersect(wm):
     os.makedirs(SCENARIO_DIR, exist_ok=True)
 
     ## make the lat lon grid
-    S, N, W, E = 33.5, 34, -118.0, -117.5
+    # S, N, W, E = 33.5, 34, -118.0, -117.5
     date       = 20200130
     time       ='13:52:45'
-    f_lat, f_lon = makeLatLonGrid([S, N, W, E], 'LA', SCENARIO_DIR, 0.25)
+    # f_lat, f_lon = makeLatLonGrid([S, N, W, E], 'LA', SCENARIO_DIR, 0.25)
 
     ## make the template file
     grp = {
