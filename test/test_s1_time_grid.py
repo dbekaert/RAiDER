@@ -286,6 +286,7 @@ def test_triple_date_usage():
     sum_weights_per_pixel = np.stack(out_weights, axis=1).sum(axis=1)
     np.testing.assert_almost_equal(1, sum_weights_per_pixel)
 
+
 def test_error_catching_with_s1_grid():
     """Tests proper error handling with improper inputs"""
     N = 10
