@@ -285,3 +285,24 @@ def test_triple_date_usage():
     # see previous test for explanation
     sum_weights_per_pixel = np.stack(out_weights, axis=1).sum(axis=1)
     np.testing.assert_almost_equal(1, sum_weights_per_pixel)
+
+def test_error_catching_with_s1_grid():
+    """Tests proper error handling with improper inputs"""
+    N = 10
+    M = 11
+    P = 12
+
+    # hgt is mesh but lat/lon are 1d
+    lon = np.arange(N)
+    lat = np.arange(M)
+    hgt = np.zeros((P, P))
+    dt = datetime.datetime(2023, 1, 1)
+    with pytest.raises(ValueError):
+        get_s1_azimuth_time_grid(lon, lat, hgt, dt)
+
+    # lon is not 1 or 3d
+    lon = np.zeros((N, N, N, N))
+    lat = np.arange(M)
+    hgt = np.arange(P)
+    with pytest.raises(ValueError):
+        get_s1_azimuth_time_grid(lon, lat, hgt, dt)
