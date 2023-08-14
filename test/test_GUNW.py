@@ -6,6 +6,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
+import eof.download
 import hyp3lib
 import jsonschema
 import numpy as np
@@ -136,7 +137,7 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     6 hours apart and a the azimuth time is changing the interpolation weights for a given pixel at the order
     of seconds and thus these two approaches are quite similar.
 
-    Effectively, this mocks the following CL script
+    Effectively, this mocks the following CL script and then compares the output:
 
     ```
     cmd = f'raider.py ++process calcDelaysGUNW -f {out_path_0} -m {weather_model_name} -interp center_time'
@@ -146,7 +147,8 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     ```
 
-    Getting weather model file names requires patience. For HRRR and center time, here are the calls:
+    Getting weather model file names requires patience. We mock API requests.
+    For HRRR and center time, here are the calls:
 
     ```
     wfile_0 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 1, 0), [33.45, 35.45, -119.15, -115.95])
@@ -194,6 +196,18 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
                                (orbit_dict_for_azimuth_time_test['secondary'], ''),
                                ]
                  )
+
+    # For prepGUNW
+    side_effect = [
+                   # center-time
+                   orbit_dict_for_azimuth_time_test['reference'],
+                   # azimuth-time
+                   orbit_dict_for_azimuth_time_test['reference'],
+                   ]
+    side_effect = list(map(str, side_effect))
+    mocker.patch('eof.download.download_eofs',
+                 side_effect=side_effect)
+
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                  return_value=[
                                # Center_time
@@ -226,6 +240,8 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     assert RAiDER.processWM.prepareWeatherModel.call_count == 10
     # Only calls for azimuth timing for reference and secondary
     assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 2
+    # Once for center-time and azimuth-time each
+    assert eof.download.download_eofs.call_count == 2
 
     for ifg_type in ['reference', 'secondary']:
         for var in ['troposphereHydrostatic', 'troposphereWet']:
