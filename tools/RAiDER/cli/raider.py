@@ -334,7 +334,12 @@ def calcDelays(iargs=None):
             if len(wfiles) != 3:
                 raise ValueError('Not enough weather model files downloaded for azimuth grid interpolation')
             datasets = [xr.open_dataset(f) for f in wfiles]
-            if model._dataset == 'hrrr':
+
+            # Each model will require some inspection here
+            # the subsequent s1 azimuth time grid requires dimension
+            # inputs to all have same dimensions and either be
+            # 1d or 3d.
+            if model._dataset in ['hrrr', 'hrrrak']:
                 lat_2d = datasets[0].latitude.data
                 lon_2d = datasets[0].longitude.data
                 z_1d = datasets[0].z.data
@@ -543,7 +548,7 @@ def calcDelaysGUNW(iargs: list[str] = None):
     )
 
     p.add_argument(
-        '-interp', '--interpolate-time', default='center_time', type=str,
+        '-interp', '--interpolate-time', default='azimuth_time_grid', type=str,
         choices=['none', 'center_time', 'azimuth_time_grid'],
         help=('How to interpolate across model time steps. Possible options are: '
               '[\'none\', \'center_time\', \'azimuth_time_grid\'] '
