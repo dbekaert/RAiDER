@@ -244,7 +244,7 @@ def _build_cube_ray(
         else:
             llh = [xx, yy, np.full(yy.shape, ht)]
 
-        xyz = np.stack(T.transform(llh[1], llh[0], np.full(yy.shape, ht)), axis=-1)
+        xyz = np.stack(T.transform(llh[0], llh[1], np.full(yy.shape, ht)), axis=-1)
 
         # Step 2 - get LOS vectors for targets
         LOS = los.getLookVectors(ht, llh, xyz, yy)

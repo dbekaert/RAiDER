@@ -5,10 +5,9 @@ from datetime import datetime
 from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, build_ray
-from RAiDER.utilFcns import lla2ecef, ecef2lla
+from RAiDER.utilFcns import lla2ecef
 from RAiDER.cli.validators import modelName2Module
 
-from RAiDER.constants import _ZREF
 from test import *
 
 
@@ -61,7 +60,6 @@ def update_model(wm_file:str, wm_eq_type:str, wm_dir:str='weather_files_synth'):
 
     ds.close()
     del ds
-    print ('Wrote synthetic weather model file to:', dst)
     return dst
 
 
@@ -172,7 +170,7 @@ class StudyArea(object):
         return dct
 
 
-@pytest.mark.skip()
+@pytest.mark.long()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_dl_real(region, mod='ERA5'):
     """ Download the real weather model to overwrite
@@ -193,7 +191,7 @@ def test_dl_real(region, mod='ERA5'):
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
-
+@pytest.mark.long()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_hydrostatic_eq(region, mod='ERA-5'):
     """ Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp)
@@ -257,7 +255,7 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     da.close()
     del da
 
-
+@pytest.mark.long()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_linear(region, mod='ERA-5'):
     """ Test linear part of wet equation.
@@ -324,7 +322,7 @@ def test_wet_eq_linear(region, mod='ERA-5'):
     da.close()
     del da
 
-
+@pytest.mark.long()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_nonlinear(region, mod='ERA-5'):
     """ Test the nonlinear part of the wet equation.
