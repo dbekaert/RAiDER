@@ -227,10 +227,8 @@ def _build_cube_ray(
 
     # Various transformers needed here
     epsg4326 = CRS.from_epsg(4326)
-    cube_to_llh = Transformer.from_crs(pts_crs, epsg4326,
-                                       always_xy=True)
-    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs,
-                                         always_xy=True)
+    cube_to_llh = Transformer.from_crs(pts_crs, epsg4326, always_xy=True)
+    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs, always_xy=True)
 
     # Loop over heights of output cube and compute delays
     for hh, ht in enumerate(zpts):
@@ -407,8 +405,8 @@ def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_pr
 
     t = Transformer.from_crs(old_proj, new_proj, always_xy=True)
 
-    in_flip = old_proj.axis_info[0].direction
-    out_flip = new_proj.axis_info[0].direction
+    # in_flip = old_proj.axis_info[0].direction
+    # out_flip = new_proj.axis_info[0].direction
 
     res  = t.transform(lons, lats, hgts)
 

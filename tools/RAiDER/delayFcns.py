@@ -54,7 +54,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
         wet   = make_shared_raw(wet)
         hydro = make_shared_raw(hydro)
 
-
+    
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan, bounds_error = False)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan, bounds_error = False)
 
