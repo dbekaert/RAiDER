@@ -13,6 +13,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Fix bug in fillna3D for NaNs at elevations higher than present in the weather model
 + write delays even if they contain nans
 + check that the aoi is contained within HRRR extent
++ streamline some unit tests to remove downloading
 + move the ray building out of the _build_cube_ray and into its own function for cleaner testing
 + update the tests to use the new build_ray function
 + If the processed weather file exists use it; otherwise check if raw exists and covers study area; otherwise download new
