@@ -70,17 +70,20 @@ def tropo_delay(
         wm_proj = CRS.from_wkt(wm_proj.to_wkt())
 
     # get heights
+    with xarray.load_dataset(weather_model_file) as ds:
+        wm_levels = ds.z.values
+
+    max_tropo_height = wm_levels.max()-1 # wont integrate rays past top of w mod
+
     if height_levels is None:
         if aoi.type() == 'Geocube':
             height_levels = aoi.readZ()
-
         else:
-            with xarray.load_dataset(weather_model_file) as ds:
-                height_levels = ds.z.values
+            height_levels = wm_levels
 
     #TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
-            los, crs, zref)
+            los, crs, max_tropo_height)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -207,11 +210,13 @@ def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
 
 def _build_cube_ray(
         xpts, ypts, zpts, los, model_crs,
-        pts_crs, interpolators, outputArrs=None, MAX_SEGMENT_LENGTH = 1000.,
+        pts_crs, interpolators, outputArrs=None, MAX_SEGMENT_LENGTH=1000.,
         MAX_TROPO_HEIGHT=_ZREF,
     ):
     """
     Iterate over interpolators and build a cube using raytracing
+
+    MAX_TROPO_HEIGHT should not extend above the top of the weather model
     """
     # Get model heights in an array
     # Assumption: All interpolators here are on the same grid

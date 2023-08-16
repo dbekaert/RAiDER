@@ -65,7 +65,7 @@ def update_model(wm_file:str, wm_eq_type:str, wm_dir:str='weather_files_synth'):
     return dst
 
 
-def length_of_ray(target_xyz:list, model_zs, los):
+def length_of_ray(target_xyz:list, model_zs, los, max_height):
     """ Build rays at xy locations
 
     Target xyz is a list of lists (xpts, ypts, hgt_levels)
@@ -85,7 +85,7 @@ def length_of_ray(target_xyz:list, model_zs, los):
         llh = [xx, yy, np.full(yy.shape, ht)]
         xyz = np.stack(lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)), axis=-1)
         LOS = los.getLookVectors(ht, llh, xyz, yy)
-        ray_lengths = build_ray(model_zs, ht, xyz, LOS)[0]
+        ray_lengths = build_ray(model_zs, ht, xyz, LOS, max_height)[0]
         outputArrs[hh] = ray_lengths.sum(0)
     return outputArrs
 
@@ -236,9 +236,11 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     ds.close()
     del ds
 
+
     # now build the rays at the unbuffered wm nodes
-    targ_xyz = [da.x.data, da.y.data, da.z.data]
-    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los)
+    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+    targ_xyz   = [da.x.data, da.y.data, da.z.data]
+    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
 
     # scale by constant (units K/Pa) to match raider (m K / Pa)
     ray_data  = ray_length * SAobj.wmObj._k1
@@ -304,8 +306,9 @@ def test_wet_eq_linear(region, mod='ERA-5'):
     del ds
 
     # now build the rays at the unbuffered wm nodes
-    targ_xyz = [da.x.data, da.y.data, da.z.data]
-    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los)
+    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+    targ_xyz   = [da.x.data, da.y.data, da.z.data]
+    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
 
     # scale by constant (units K/Pa) to match raider (m K / Pa)
     ray_data  = ray_length * SAobj.wmObj._k2
@@ -323,7 +326,6 @@ def test_wet_eq_linear(region, mod='ERA-5'):
 
     da.close()
     del da
-
 
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_nonlinear(region, mod='ERA-5'):
@@ -370,8 +372,9 @@ def test_wet_eq_nonlinear(region, mod='ERA-5'):
     del ds
 
     # now build the rays at the unbuffered wm nodes
-    targ_xyz = [da.x.data, da.y.data, da.z.data]
-    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los)
+    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+    targ_xyz   = [da.x.data, da.y.data, da.z.data]
+    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
     # scale by constant (units K/Pa) to match raider (m K^2 / Pa)
     ray_data  = ray_length * SAobj.wmObj._k3
 
