@@ -14,6 +14,7 @@ from textwrap import dedent
 import RAiDER.aria.prepFromGUNW
 import RAiDER.aria.calcGUNW
 from RAiDER import aws
+from RAiDER.constants import _ZREF
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
@@ -91,7 +92,8 @@ def read_template_file(fname):
             template['aoi'] = get_query_region(AttributeDict(dct_temp))
 
         if key == 'los_group':
-            template['los'] = get_los(AttributeDict(value))
+            template['los']  = get_los(AttributeDict(value))
+            template['zref'] = AttributeDict(value).get('zref', _ZREF)
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
@@ -321,6 +323,7 @@ def calcDelays(iargs=None):
                 t, weather_model_file, aoi, los,
                 height_levels = params['height_levels'],
                 out_proj = params['output_projection'],
+                zref=params['zref']
             )
         except RuntimeError:
             logger.exception("Datetime %s failed", t)

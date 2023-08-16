@@ -73,7 +73,6 @@ def tropo_delay(
     with xarray.load_dataset(weather_model_file) as ds:
         wm_levels = ds.z.values
 
-    max_tropo_height = wm_levels.max()-1 # wont integrate rays past top of w mod
 
     if height_levels is None:
         if aoi.type() == 'Geocube':
@@ -81,9 +80,13 @@ def tropo_delay(
         else:
             height_levels = wm_levels
 
+    if zref > wm_levels.max()-1:
+        logger.warning('Requested integration height (zref) is higher than top of weather. May introduce nans.')
+
+
     #TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
-            los, crs, max_tropo_height)
+            los, crs, zref)
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
@@ -309,6 +312,18 @@ def _build_cube_ray(
                 # For each interpolator, integrate between levels
                 for mm, out in enumerate(outSubs):
                     val =  interpolators[mm](pts)
+                    if np.isnan(val).any() and ht == 3500:
+                        ray_lengths, low_xyzs, high_xyzs = \
+                            build_ray(model_zs, ht, xyz, LOS,  MAX_TROPO_HEIGHT, bp=True)
+
+                    elif np.isnan(val).any() and ht == 4000:
+                        ray_lengths, low_xyzs, high_xyzs = \
+                            build_ray(model_zs, ht, xyz, LOS,  MAX_TROPO_HEIGHT, bp=True)
+
+                    # if ht == 9000 and zz == 82:
+                    #     ray_lengths, low_xyzs, high_xyzs = \
+                    #         build_ray(model_zs, ht, xyz, LOS,  MAX_TROPO_HEIGHT, bp=True)
+
 
                     # TODO - This should not occur if there is enough padding in model
                     # val[np.isnan(val)] = 0.0
