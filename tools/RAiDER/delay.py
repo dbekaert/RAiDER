@@ -72,6 +72,7 @@ def tropo_delay(
     # get heights
     with xarray.load_dataset(weather_model_file) as ds:
         wm_levels = ds.z.values
+        toa       = wm_levels.max() - 1
 
 
     if height_levels is None:
@@ -80,8 +81,9 @@ def tropo_delay(
         else:
             height_levels = wm_levels
 
-    if zref > wm_levels.max()-1:
-        logger.warning('Requested integration height (zref) is higher than top of weather. May introduce nans.')
+    if zref > toa:
+        zref = toa
+        logger.warning('Requested integration height (zref) is higher than top of weather model. Forcing to top ({toa}).')
 
 
     #TODO: expose this as library function

@@ -675,6 +675,7 @@ class WeatherModel(ABC):
                 _zlevels = self._zlevels
             except BaseException:
                 _zlevels = np.nanmean(self._zs, axis=(0, 1))
+
         new_zs = np.tile(_zlevels, (nx, ny, 1))
 
         # re-assign values to the uniform z
