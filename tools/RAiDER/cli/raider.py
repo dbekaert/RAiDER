@@ -93,7 +93,7 @@ def read_template_file(fname):
 
         if key == 'los_group':
             template['los']  = get_los(AttributeDict(value))
-            template['zref'] = AttributeDict(value).get('zref', _ZREF)
+            template['zref'] = AttributeDict(value).get('zref')
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
