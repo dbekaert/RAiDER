@@ -122,6 +122,9 @@ def update_time(row, localTime_hrs):
 
 def pass_common_obs(reference, target, localtime=None):
     '''Pass only observations in target spatiotemporally common to reference'''
+    if isinstance(target['Datetime'].iloc[0], str):
+        target['Datetime'] = target['Datetime'].apply(lambda x:
+                          datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
     if localtime:
         return target[target['Datetime'].dt.date.isin(reference['Datetime']
                       .dt.date) &
@@ -366,7 +369,8 @@ def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName
     dfr = dfr.drop(columns=[col for col in dfr if col not in
                             expected_data_columns])
     dfz = pd.read_csv(ztdFile, parse_dates=['Date'])
-    dfz.rename(columns={'Date': 'Datetime'}, inplace=True)
+    if not 'Datetime' in dfz.keys():
+        dfz.rename(columns={'Date': 'Datetime'}, inplace=True)
     # drop extra columns
     expected_data_columns = ['ID', 'Datetime', 'wet_delay', 'hydrostatic_delay',
                              'times', 'sigZTD', 'Lat', 'Lon', 'Hgt_m',
