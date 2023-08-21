@@ -243,11 +243,17 @@ def calcDelays(iargs=None):
         logger.debug(f'Date: {t.strftime("%Y%m%d")}')
         logger.debug('Beginning weather model pre-processing')
 
-        # Grab the closest two times unless the user specifies 'nearest'
+        interp_method = params.get('interpolate_time')
+        if interp_method is None:
+            interp_method = 'none'
+            logger.warning('interp_method is not specified, defaulting to \'none\', i.e. nearest datetime for delay '
+                           'calculation')
+
+        # Grab the closest two times unless the user specifies 'nearest' via 'none' or None.
         # If the model time_delta is not specified then use 6
         # The two datetimes will be combined to a single file and processed
-        interp_method = params['interpolate_time']
-        if interp_method in ['none', 'center_time']:
+        # TODO: make more transparent control flow for GUNW and non-GUNW workflow
+        if (interp_method in ['none', 'center_time']):
             times = get_nearest_wmtimes(t, [model.dtime() if \
                                         model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
         elif interp_method == 'azimuth_time_grid':
@@ -259,7 +265,8 @@ def calcDelays(iargs=None):
                                             n_target_dates,
                                             time_step_hours)
         else:
-            raise NotImplementedError
+            raise NotImplementedError('Only none, center_time, and azimuth_time_grid are accepted values for '
+                                      'interp_method.')
         wfiles = []
         for tt in times:
             try:
@@ -282,12 +289,11 @@ def calcDelays(iargs=None):
                 logger.error(e)
                 logger.error(msg)
 
-
         # dont process the delays for download only
         if dl_only:
             continue
 
-        if len(wfiles)==0:
+        if len(wfiles) == 0:
             logger.error('No weather model data was successfully processed.')
             if len(params['date_list']) == 1:
                 raise RuntimeError
@@ -295,17 +301,20 @@ def calcDelays(iargs=None):
             else:
                 continue
 
-        # nearest weather model time
-        elif len(wfiles)==1 and len(times)==1:
+        # nearest weather model time via 'none' is specified
+        # When interp_method is 'none' only 1 weather model file and one relevant time
+        elif (interp_method == 'none') and (len(wfiles) == 1) and (len(times) == 1):
             weather_model_file = wfiles[0]
 
         # only one time in temporal interpolation worked
+        # TODO: this seems problematic - unexpected behavior possibly for 'center_time'
         elif len(wfiles)==1 and len(times)==2:
             logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
             weather_model_file = wfiles[0]
 
-        # temporal interpolation
-        elif len(wfiles)==2:
+        # TODO: ensure this additional conditional is appropriate; assuming wfiles == 2 ONLY for 'center_time'
+        #  value of 'interp_method' parameter
+        elif (interp_method == 'center_time') and (len(wfiles) == 2):
             ds1 = xr.open_dataset(wfiles[0])
             ds2 = xr.open_dataset(wfiles[1])
 
@@ -330,9 +339,7 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
-        elif interp_method == 'azimuth_time_grid':
-            if len(wfiles) != 3:
-                raise ValueError('Not enough weather model files downloaded for azimuth grid interpolation')
+        elif (interp_method == 'azimuth_time_grid') and (len(wfiles) == 3):
             datasets = [xr.open_dataset(f) for f in wfiles]
 
             # Each model will require some inspection here
@@ -373,6 +380,11 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterpAziGrid_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds_out.to_netcdf(weather_model_file)
+        # TODO: test to ensure this error is caught
+        else:
+            n = len(wfiles)
+            raise NotImplementedError(f'The {interp_method} with {n} retrieved weather model files was not well posed '
+                                      'for the dela current workflow.')
 
         # Now process the delays
         try:
