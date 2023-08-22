@@ -240,7 +240,7 @@ def calcDelays(iargs=None):
         ###########################################################
         # weather model calculation
         logger.debug('Starting to run the weather model calculation')
-        logger.debug(f'Date: {t.strftime("%Y%m%d")}')
+        logger.debug(f'Requested date,time: {t.strftime("%Y%m%d, %H:%M")}')
         logger.debug('Beginning weather model pre-processing')
 
         interp_method = params.get('interpolate_time')
