@@ -61,7 +61,7 @@ def tropo_delay(
     # Load CRS from weather model file
     with xarray.load_dataset(weather_model_file) as ds:
         try:
-            wm_proj = CRS.from_wkt(ds['t'].attrs['crs'].to_wkt())
+            wm_proj = CRS.from_wkt(ds['proj'].attrs['crs_wkt'])
         except KeyError:
             logger.warning("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
             wm_proj = CRS.from_epsg(4326)
@@ -242,7 +242,7 @@ def _build_cube_ray(
         else:
             llh = [xx, yy, np.full(yy.shape, ht)]
 
-        xyz = np.stack(T.transform(llh[0], llh[1], np.full(yy.shape, ht)), axis=-1)
+        xyz = np.stack(T.transform(llh[0], llh[1], llh[2]), axis=-1)
 
         # Step 2 - get LOS vectors for targets
         LOS = los.getLookVectors(ht, llh, xyz, yy)

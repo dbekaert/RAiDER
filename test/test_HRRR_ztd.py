@@ -23,7 +23,6 @@ def test_scenario_1():
     np.testing.assert_almost_equal(golden_data[1], new_data1['wet'].data)
 
     # Clean up files
-    assert False
     for f in glob.glob(os.path.join(SCENARIO_DIR, 'HRRR*')):
         os.remove(f)
     shutil.rmtree(os.path.join(SCENARIO_DIR, 'weather_files'))
