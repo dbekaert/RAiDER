@@ -170,7 +170,7 @@ class StudyArea(object):
         return dct
 
 
-@pytest.mark.long()
+@pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_dl_real(region, mod='ERA5'):
     """ Download the real weather model to overwrite
