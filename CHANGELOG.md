@@ -7,6 +7,8 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest updates:
++ Prevent ray tracing integration from occuring at exactly top of weather model
++ Properly expose z_ref (max integration height) parameter, and dont allow higher than weather model
 + Min version for sentineleof for obtaining restituted orbits.
 + Rename datetime columns and convert from strings for GNSS workflow
 + Use native model levels in HRRR which extend up to 2 hPa as opposed to 50 hPa in pressure levels

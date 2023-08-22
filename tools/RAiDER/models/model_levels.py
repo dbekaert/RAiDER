@@ -2,7 +2,7 @@
 Pre-defined model levels and a, b constants for the different weather models
 
 **NOTE**: The fixed heights used here are from ECMWF's _geometric_ altitudes
-(https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels),
+(https://confluence.ecmwf.int/display/UDOC/L137+model+level+definitions),
 where "geopotential altitude is calculated from a mathematical model that adjusts
 the altitude to include the variation of gravity with height, while geometric
 altitude is the standard direct vertical distance above mean sea level (MSL)."
