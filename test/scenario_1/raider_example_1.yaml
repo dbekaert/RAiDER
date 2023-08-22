@@ -4,6 +4,7 @@
     date_start: 20200101 
   time_group:
     time: "12:00:00" # UTC time as a string
+    interpolate_time: 'none'
   weather_model: HRRR # RAiDER supports several models, including ECMWF, HRRR, GMAO, and MERRA-2
   aoi_group: 
     bounding_box: 36 37 -92 -91 # bounding box uses the weather model grid nodes

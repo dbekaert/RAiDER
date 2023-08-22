@@ -19,7 +19,7 @@ def test_slant_proj(weather_model_name):
     grp = {
             'date_group': {'date_start': date},
             'height_group': {'height_levels': [0, 100, 500, 1000]},
-            'time_group': {'time': time, 'interpolate_time': False},
+            'time_group': {'time': time, 'interpolate_time': 'none'},
             'weather_model': weather_model_name,
             'aoi_group': {'bounding_box': [S, N, W, E]},
             'runtime_group': {'output_directory': SCENARIO_DIR,
@@ -70,7 +70,7 @@ def test_ray_tracing(weather_model_name):
     grp = {
             'date_group': {'date_start': date},
             'height_group': {'height_levels': [0, 100, 500, 1000]},
-            'time_group': {'time': time, 'interpolate_time': False},
+            'time_group': {'time': time, 'interpolate_time': 'none'},
             'weather_model': weather_model_name,
             'aoi_group': {'bounding_box': [S, N, W, E]},
             'runtime_group': {'output_directory': SCENARIO_DIR,

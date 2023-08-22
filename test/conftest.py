@@ -52,3 +52,48 @@ def test_gunw_json_path() -> Path:
 @pytest.fixture(scope='session')
 def test_gunw_json_schema_path() -> Path:
     return TEST_DIR / 'gunw_test_data' / 'gunw_schema.json'
+
+
+@pytest.fixture(scope='session')
+def gunw_azimuth_test():
+    test_data = TEST_DIR / 'gunw_azimuth_test_data'
+    return test_data / 'S1-GUNW-A-R-064-tops-20210723_20210711-015000-00119W_00033N-PP-6267-v2_0_6.nc'
+
+
+@pytest.fixture(scope='session')
+def orbit_dict_for_azimuth_time_test():
+    test_data = TEST_DIR / 'gunw_azimuth_test_data'
+    return {'reference': test_data / 'S1B_OPER_AUX_POEORB_OPOD_20210812T111941_V20210722T225942_20210724T005942.EOF',
+            'secondary': test_data / 'S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF'}
+
+
+@pytest.fixture(scope='session')
+def slc_id_dict_for_azimuth_time_test():
+    test_data = TEST_DIR / 'gunw_azimuth_test_data'
+    return {'reference': test_data / 'S1B_IW_SLC__1SDV_20210723T014947_20210723T015014_027915_0354B4_B3A9',
+            'secondary': test_data / 'S1B_IW_SLC__1SDV_20210711T014947_20210711T015013_027740_034F80_D404'}
+
+
+@pytest.fixture(scope='session')
+def weather_model_dict_for_azimuth_time_test():
+    """The order is important; will be closest to InSAR acq time so goes 2, 1, 3 AM."""
+    test_data = TEST_DIR / 'gunw_azimuth_test_data' / 'weather_files'
+    return {'HRRR': [test_data / 'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_23_T03_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_11_T03_00_00_33N_36N_120W_115W.nc'
+                     ]}
+
+
+@pytest.fixture(scope='session')
+def weather_model_dict_for_center_time_test():
+    """Order is important here; will be in chronological order with respect to closest date times"""
+    test_data = TEST_DIR / 'gunw_azimuth_test_data' / 'weather_files'
+    return {'HRRR': [test_data / 'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
+                     test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
+                     ]
+            }

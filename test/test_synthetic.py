@@ -162,7 +162,7 @@ class StudyArea(object):
         dct = {
             'aoi_group': {'bounding_box': list(self.SNWE)},
             'height_group': {'height_levels': self.hgt_lvls.tolist()},
-            'time_group': {'time': self.ttime, 'interpolate_time': False},
+            'time_group': {'time': self.ttime, 'interpolate_time': 'none'},
             'date_group': {'date_list': datetime.strftime(self.dt, '%Y%m%d')},
             'cube_spacing_in_m': str(self._cube_spacing_m),
             'los_group': {'ray_trace': True, 'orbit_file': self.orbit},

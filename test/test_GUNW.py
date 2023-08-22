@@ -4,8 +4,12 @@ import os
 import shutil
 import subprocess
 import unittest
+from pathlib import Path
 
+import eof.download
+import hyp3lib
 import jsonschema
+import numpy as np
 import pandas as pd
 import pytest
 import rasterio as rio
@@ -17,11 +21,12 @@ from RAiDER import aws
 from RAiDER.aria.prepFromGUNW import check_weather_model_availability
 from RAiDER.cli.raider import calcDelaysGUNW
 
+
 def compute_transform(lats, lons):
     """ Hand roll an affine transform from lat/lon coords """
-    a = lons[1] - lons[0] # lon spacing
+    a = lons[1] - lons[0]  # lon spacing
     b = 0
-    c = lons[0] - a/2 # lon start, adjusted by half a grid cell
+    c = lons[0] - a/2  # lon start, adjusted by half a grid cell
     d = 0
     e = lats[1] - lats[0]
     f = lats[0] - e/2
@@ -37,7 +42,7 @@ def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
     updated_GUNW = scenario_dir / orig_GUNW.name
     shutil.copy(orig_GUNW, updated_GUNW)
 
-    cmd = f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {weather_model_name} -o {scenario_dir}'
+    cmd = f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {weather_model_name} -o {scenario_dir} -interp center_time'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0
 
@@ -50,7 +55,7 @@ def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
         for v in 'troposphereWet troposphereHydrostatic'.split():
             da = ds[v]
             lats, lons = da.latitudeMeta.to_numpy(), da.longitudeMeta.to_numpy()
-            transform  = compute_transform(lats, lons)
+            transform = compute_transform(lats, lons)
             assert da.rio.transform().almost_equals(transform), 'Affine Transform incorrect'
 
         crs = rio.crs.CRS.from_wkt(ds['crs'].crs_wkt)
@@ -117,6 +122,138 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
         unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
     ]
+
+
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
+def test_azimuth_timing_against_interpolation(weather_model_name: str,
+                                              tmp_path: Path,
+                                              gunw_azimuth_test: Path,
+                                              orbit_dict_for_azimuth_time_test: dict[str],
+                                              weather_model_dict_for_azimuth_time_test,
+                                              weather_model_dict_for_center_time_test,
+                                              mocker):
+    """This test shows that the azimuth timing interpolation does not deviate from
+    the center time by more than 1 mm for the HRRR model. This is expected since the model times are
+    6 hours apart and a the azimuth time is changing the interpolation weights for a given pixel at the order
+    of seconds and thus these two approaches are quite similar.
+
+    Effectively, this mocks the following CL script and then compares the output:
+
+    ```
+    cmd = f'raider.py ++process calcDelaysGUNW -f {out_path_0} -m {weather_model_name} -interp center_time'
+    subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+
+    cmd = f'raider.py ++process calcDelaysGUNW -f {out_path_1} -m {weather_model_name} -interp azimuth_time_grid'
+    subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+    ```
+
+    Getting weather model file names requires patience. We mock API requests.
+    For HRRR and center time, here are the calls:
+
+    ```
+    wfile_0 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 1, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_1 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 2, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_2 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 1, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_3 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 2, 0), [33.45, 35.45, -119.15, -115.95])
+    ```
+
+    And similarly for the azimuth time:
+
+    ```
+    wfile_0 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 2, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_1 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 1, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_2 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 3, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_3 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 2, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_4 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 1, 0), [33.45, 35.45, -119.15, -115.95])
+    wfile_5 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 3, 0), [33.45, 35.45, -119.15, -115.95])
+    ```
+
+    Note for azimuth time they are acquired in order of proximity to acq as opposed to chronological.
+    """
+
+    out_0 = gunw_azimuth_test.name.replace('.nc', '__ct_interp.nc')
+    out_1 = gunw_azimuth_test.name.replace('.nc', '__az_interp.nc')
+
+    out_path_0 = shutil.copy(gunw_azimuth_test, tmp_path / out_0)
+    out_path_1 = shutil.copy(gunw_azimuth_test, tmp_path / out_1)
+
+    # In the loop here: https://github.com/dbekaert/RAiDER/blob/
+    # f77af9ce2d3875b00730603305c0e92d6c83adc2/tools/RAiDER/cli/raider.py#L233-L237
+    # Which reads the datelist from the YAML
+    # We note that reference scene is processed *first* and then secondary
+    # as yaml is created using these:
+    # https://github.com/dbekaert/RAiDER/blob/
+    # f77af9ce2d3875b00730603305c0e92d6c83adc2/tools/RAiDER/aria/prepFromGUNW.py#L151-L200
+
+    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
+                 # Hyp3 Lib returns 2 values
+                 side_effect=[
+                               # For center time
+                               (orbit_dict_for_azimuth_time_test['reference'], ''),
+                               (orbit_dict_for_azimuth_time_test['secondary'], ''),
+                               # For azimuth time
+                               (orbit_dict_for_azimuth_time_test['reference'], ''),
+                               (orbit_dict_for_azimuth_time_test['secondary'], ''),
+                               ]
+                 )
+
+    # For prepGUNW
+    side_effect = [
+                   # center-time
+                   orbit_dict_for_azimuth_time_test['reference'],
+                   # azimuth-time
+                   orbit_dict_for_azimuth_time_test['reference'],
+                   ]
+    side_effect = list(map(str, side_effect))
+    mocker.patch('eof.download.download_eofs',
+                 side_effect=side_effect)
+
+    mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
+                 return_value=[
+                               # Center_time
+                               'reference_slc_id', 'secondary_slc_id',
+                               # Azimuth time
+                               'reference_slc_id', 'secondary_slc_id',
+                               ])
+
+    side_effect = (weather_model_dict_for_center_time_test[weather_model_name] +
+                   weather_model_dict_for_azimuth_time_test[weather_model_name])
+    # RAiDER needs strings for paths
+    side_effect = list(map(str, side_effect))
+    mocker.patch('RAiDER.processWM.prepareWeatherModel',
+                 side_effect=side_effect)
+    iargs_0 = [
+               '--file', str(out_path_0),
+               '--weather-model', weather_model_name,
+               '-interp', 'center_time'
+               ]
+    calcDelaysGUNW(iargs_0)
+
+    iargs_1 = [
+               '--file', str(out_path_1),
+               '--weather-model', weather_model_name,
+               '-interp', 'azimuth_time_grid'
+               ]
+    calcDelaysGUNW(iargs_1)
+
+    # Calls 6 times for azimuth time and 4 times for center time
+    assert RAiDER.processWM.prepareWeatherModel.call_count == 10
+    # Only calls for azimuth timing for reference and secondary
+    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 2
+    # Once for center-time and azimuth-time each
+    assert eof.download.download_eofs.call_count == 2
+
+    for ifg_type in ['reference', 'secondary']:
+        for var in ['troposphereHydrostatic', 'troposphereWet']:
+            group = f'science/grids/corrections/external/troposphere/{weather_model_name}/{ifg_type}'
+            with xr.open_dataset(out_path_0, group=group) as ds:
+                da_0 = ds[var]
+            with xr.open_dataset(out_path_1, group=group) as ds:
+                da_1 = ds[var]
+            # diff * wavelength / (4 pi) transforms to meters; then x 1000 to mm
+            abs_diff_mm = np.abs((da_1 - da_0).data) * 0.055465761572122574 / (4 * np.pi) * 1_000
+            # Differences in mm are bounded by 1
+            assert np.nanmax(abs_diff_mm) < 1
 
 
 @pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR', 'HRES', 'ERA5', 'ERA5'])
