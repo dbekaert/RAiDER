@@ -58,7 +58,7 @@ date_group:
 time_group:
   time:
   end_time:
-  interpolate_time: True # if True will interpolate two closest times, if False will take the nearest time
+  interpolate_time: 'center_time' # possible options are string values with 'none', 'center_time', 'azimuth_time_grid'
 
 
 ########## 4. Area of Interest

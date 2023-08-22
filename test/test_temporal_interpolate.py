@@ -24,13 +24,14 @@ def test_cube_timemean():
             'date_group': {'date_start': date},
             'weather_model': WM,
             'aoi_group': {'bounding_box': [S, N, W, E]},
+            'time_group': {'interpolate_time': 'none'},
             'runtime_group': {'output_directory': SCENARIO_DIR},
         }
 
 
-    ## run raider original for two exact weather model times
+    ## run raider without interpolation for two exact weather model times
     for hr in [hr1, hr2]:
-        grp['time_group'] =  {'time': f'{hr}:00:00'}
+        grp['time_group'].update({'time': f'{hr}:00:00'})
         ## generate the default template file and overwrite it with new parms
         cfg  = update_yaml(grp)
 
@@ -40,7 +41,7 @@ def test_cube_timemean():
         assert np.isclose(proc.returncode, 0)
 
     ## run interpolation in the middle of the two
-    grp['time_group'] =  {'time': ti, 'interpolate_time': True}
+    grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
     cfg  = update_yaml(grp)
 
     cmd  = f'raider.py {cfg}'
@@ -84,13 +85,14 @@ def test_cube_weighting():
             'date_group': {'date_start': date},
             'weather_model': WM,
             'aoi_group': {'bounding_box': [S, N, W, E]},
+            'time_group': {'interpolate_time': 'none'},
             'runtime_group': {'output_directory': SCENARIO_DIR},
         }
 
 
-    ## run raider original for two exact weather model times
+    ## run raider without interpolation for two exact weather model times
     for hr in [hr1, hr2]:
-        grp['time_group'] =  {'time': f'{hr}:00:00'}
+        grp['time_group'].update({'time': f'{hr}:00:00'})
         ## generate the default template file and overwrite it with new parms
         cfg  = update_yaml(grp)
 
@@ -100,7 +102,7 @@ def test_cube_weighting():
         assert np.isclose(proc.returncode, 0)
 
     ## run interpolation very near the first
-    grp['time_group'] =  {'time': ti, 'interpolate_time': True}
+    grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
     cfg  = update_yaml(grp)
 
     cmd  = f'raider.py {cfg}'

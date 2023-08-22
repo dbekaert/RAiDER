@@ -21,6 +21,7 @@ from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
+from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_n_closest_datetimes
 
 import traceback
 
@@ -136,9 +137,9 @@ def drop_nans(d):
 def calcDelays(iargs=None):
     """ Parse command line arguments using argparse. """
     import RAiDER
+    import RAiDER.processWM
     from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
-    from RAiDER.processWM import prepareWeatherModel
     from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
@@ -241,18 +242,40 @@ def calcDelays(iargs=None):
         ###########################################################
         # weather model calculation
         logger.debug('Starting to run the weather model calculation')
-        logger.debug(f'Date: {t.strftime("%Y%m%d")}')
+        logger.debug(f'Requested date,time: {t.strftime("%Y%m%d, %H:%M")}')
         logger.debug('Beginning weather model pre-processing')
 
-        # Grab the closest two times unless the user specifies 'nearest'
+        interp_method = params.get('interpolate_time')
+        if interp_method is None:
+            interp_method = 'none'
+            logger.warning('interp_method is not specified, defaulting to \'none\', i.e. nearest datetime for delay '
+                           'calculation')
+
+        # Grab the closest two times unless the user specifies 'nearest' via 'none' or None.
         # If the model time_delta is not specified then use 6
         # The two datetimes will be combined to a single file and processed
-        times = get_nearest_wmtimes(t, [model.dtime() if \
-                    model.dtime() is not None else 6][0]) if params['interpolate_time'] else [t]
+        # TODO: make more transparent control flow for GUNW and non-GUNW workflow
+        if (interp_method in ['none', 'center_time']):
+            times = get_nearest_wmtimes(t, [model.dtime() if \
+                                        model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
+        elif interp_method == 'azimuth_time_grid':
+            n_target_dates = 3
+            step = model.dtime()
+            time_step_hours = step if step is not None else 6
+            # Will yield 3 dates
+            times = get_n_closest_datetimes(t,
+                                            n_target_dates,
+                                            time_step_hours)
+        else:
+            raise NotImplementedError('Only none, center_time, and azimuth_time_grid are accepted values for '
+                                      'interp_method.')
         wfiles = []
         for tt in times:
             try:
-                wfile = prepareWeatherModel(model, tt, aoi.bounds(), makePlots=params['verbose'])
+                wfile = RAiDER.processWM.prepareWeatherModel(model,
+                                                             tt,
+                                                             aoi.bounds(),
+                                                             makePlots=params['verbose'])
                 wfiles.append(wfile)
 
             # catch when requested datetime fails
@@ -268,12 +291,11 @@ def calcDelays(iargs=None):
                 logger.error(e)
                 logger.error(msg)
 
-
         # dont process the delays for download only
         if dl_only:
             continue
 
-        if len(wfiles)==0:
+        if len(wfiles) == 0:
             logger.error('No weather model data was successfully processed.')
             if len(params['date_list']) == 1:
                 raise RuntimeError
@@ -281,17 +303,20 @@ def calcDelays(iargs=None):
             else:
                 continue
 
-        # nearest weather model time
-        elif len(wfiles)==1 and len(times)==1:
+        # nearest weather model time via 'none' is specified
+        # When interp_method is 'none' only 1 weather model file and one relevant time
+        elif (interp_method == 'none') and (len(wfiles) == 1) and (len(times) == 1):
             weather_model_file = wfiles[0]
 
         # only one time in temporal interpolation worked
+        # TODO: this seems problematic - unexpected behavior possibly for 'center_time'
         elif len(wfiles)==1 and len(times)==2:
             logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
             weather_model_file = wfiles[0]
 
-        # temporal interpolation
-        elif len(wfiles)==2:
+        # TODO: ensure this additional conditional is appropriate; assuming wfiles == 2 ONLY for 'center_time'
+        #  value of 'interp_method' parameter
+        elif (interp_method == 'center_time') and (len(wfiles) == 2):
             ds1 = xr.open_dataset(wfiles[0])
             ds2 = xr.open_dataset(wfiles[1])
 
@@ -316,6 +341,52 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
+        elif (interp_method == 'azimuth_time_grid') and (len(wfiles) == 3):
+            datasets = [xr.open_dataset(f) for f in wfiles]
+
+            # Each model will require some inspection here
+            # the subsequent s1 azimuth time grid requires dimension
+            # inputs to all have same dimensions and either be
+            # 1d or 3d.
+            if model._dataset in ['hrrr', 'hrrrak']:
+                lat_2d = datasets[0].latitude.data
+                lon_2d = datasets[0].longitude.data
+                z_1d = datasets[0].z.data
+                m, n, p = z_1d.shape[0], lat_2d.shape[0], lat_2d.shape[1]
+
+                lat = np.broadcast_to(lat_2d, (m, n, p))
+                lon = np.broadcast_to(lon_2d, (m, n, p))
+                hgt = np.broadcast_to(z_1d[:, None, None], (m, n, p))
+
+            else:
+                raise NotImplementedError('Azimuth Time is currently only implemented for HRRR')
+
+            time_grid = get_s1_azimuth_time_grid(lon,
+                                                 lat,
+                                                 hgt,
+                                                 # This is the acq time from loop
+                                                 t)
+
+            if np.any(np.isnan(time_grid)):
+                raise ValueError('The Time Grid return nans meaning no orbit was downloaded.')
+            wgts = get_inverse_weights_for_dates(time_grid, times)
+            # combine datasets
+            ds_out = datasets[0]
+            for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+                ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
+            ds_out.attrs['Date1'] = 0
+            ds_out.attrs['Date2'] = 0
+            weather_model_file = os.path.join(
+                os.path.dirname(wfiles[0]),
+                # TODO: clean up
+                os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterpAziGrid_' + '_'.join(wfiles[0].split('_')[-4:]),
+            )
+            ds_out.to_netcdf(weather_model_file)
+        # TODO: test to ensure this error is caught
+        else:
+            n = len(wfiles)
+            raise NotImplementedError(f'The {interp_method} with {n} retrieved weather model files was not well posed '
+                                      'for the dela current workflow.')
 
         # Now process the delays
         try:
@@ -492,6 +563,16 @@ def calcDelaysGUNW(iargs: list[str] = None):
     )
 
     p.add_argument(
+        '-interp', '--interpolate-time', default='azimuth_time_grid', type=str,
+        choices=['none', 'center_time', 'azimuth_time_grid'],
+        help=('How to interpolate across model time steps. Possible options are: '
+              '[\'none\', \'center_time\', \'azimuth_time_grid\'] '
+              'None: means nearest model time; center_time: linearly across center time; '
+              'Azimuth_time_grid: means every pixel is weighted with respect to azimuth time of S1;'
+              )
+    )
+
+    p.add_argument(
         '-o', '--output-directory', default=os.getcwd(), type=str,
         help='Directory to store results.'
     )
@@ -502,6 +583,9 @@ def calcDelaysGUNW(iargs: list[str] = None):
     )
 
     args = p.parse_args(iargs)
+
+    if args.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
+        raise ValueError('interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
 
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally

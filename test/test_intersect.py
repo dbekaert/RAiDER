@@ -21,7 +21,7 @@ def test_cube_intersect(wm):
     ## make the template file
     grp = {
             'date_group': {'date_start': date},
-            'time_group': {'time': time, 'interpolate_time': False},
+            'time_group': {'time': time, 'interpolate_time': 'none'},
             'weather_model': wm,
             'aoi_group': {
                 'lat_file': os.path.join(SCENARIO_DIR, 'lat.rdr'),
@@ -73,7 +73,7 @@ def test_gnss_intersect(wm):
     ## make the template file
     grp = {
             'date_group': {'date_start': date},
-            'time_group': {'time': time, 'interpolate_time': False},
+            'time_group': {'time': time, 'interpolate_time': 'none'},
             'weather_model': wm,
             'aoi_group': {'station_file': gnss_file},
             'runtime_group': {

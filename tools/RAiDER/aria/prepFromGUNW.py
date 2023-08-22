@@ -8,6 +8,7 @@
 import os
 from datetime import datetime
 import numpy as np
+import eof.download
 import xarray as xr
 import rasterio
 import geopandas as gpd
@@ -24,7 +25,6 @@ from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 from RAiDER.models import credentials
 from RAiDER.models.hrrr import HRRR_CONUS_COVERAGE_POLYGON, AK_GEO
-from eof.download import download_eofs
 
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
@@ -235,7 +235,7 @@ class GUNW:
         sat = slc.split('_')[0]
         dt  = datetime.strptime(f'{self.dates[0]}T{self.mid_time}', '%Y%m%dT%H:%M:%S')
 
-        path_orb = download_eofs([dt], [sat], save_dir=orbit_dir)
+        path_orb = eof.download.download_eofs([dt], [sat], save_dir=orbit_dir)
 
         return path_orb
 
@@ -364,7 +364,9 @@ def main(args):
            'aoi_group' : {'bounding_box': GUNWObj.SNWE},
            'height_group' : {'height_levels': GUNWObj.heights},
            'date_group': {'date_list': GUNWObj.dates},
-           'time_group': {'time': GUNWObj.mid_time, 'interpolate_time': True},
+           'time_group': {'time': GUNWObj.mid_time,
+                          # Options are 'none', 'center_time', and 'azimuth_time_grid'
+                          'interpolate_time': args.interpolate_time},
            'los_group' : {'ray_trace': True,
                           'orbit_file': GUNWObj.OrbitFile,
                           'wavelength': GUNWObj.wavelength,

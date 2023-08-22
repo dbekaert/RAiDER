@@ -9,6 +9,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## Latest updates:
 + Prevent ray tracing integration from occuring at exactly top of weather model
 + Properly expose z_ref (max integration height) parameter, and dont allow higher than weather model
++ Min version for sentineleof for obtaining restituted orbits.
 + Rename datetime columns and convert from strings for GNSS workflow
 + Use native model levels in HRRR which extend up to 2 hPa as opposed to 50 hPa in pressure levels
 + Update tests to account for different interpolation scheme
@@ -42,6 +43,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Fix gridding bug in accessing HRRR-AK 
 + misc clean-up
 + Specify unbuffered python output in the docker entrypoint script using `python -um RAiDER.cli ...` whose `__main__.py` is the desired entrypoint.
++ For the GUNW workflow uses azimuth time interpolation using ISCE3 geo2rdr (see [here](https://github.com/ACCESS-Cloud-Based-InSAR/s1_azimuth_time_grid)).
+    - Updates `interpolate_time` options to: `'none'` (formerly `False`), `'center_time'` (formerly `True` and `default`), and `azimuth_time_grid` (not implemented previously)
 
 ## [0.4.3]
 + Series of bug-fixes/compatibility updates with stats class: 
