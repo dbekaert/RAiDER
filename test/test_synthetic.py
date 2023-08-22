@@ -191,7 +191,7 @@ def test_dl_real(region, mod='ERA5'):
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
-@pytest.mark.long()
+
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_hydrostatic_eq(region, mod='ERA-5'):
     """ Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp)
@@ -255,7 +255,7 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     da.close()
     del da
 
-@pytest.mark.long()
+
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_linear(region, mod='ERA-5'):
     """ Test linear part of wet equation.
@@ -322,7 +322,7 @@ def test_wet_eq_linear(region, mod='ERA-5'):
     da.close()
     del da
 
-@pytest.mark.long()
+
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
 def test_wet_eq_nonlinear(region, mod='ERA-5'):
     """ Test the nonlinear part of the wet equation.
