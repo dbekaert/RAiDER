@@ -5,17 +5,26 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import multiprocessing as mp
+try:
+    import multiprocessing as mp
+except ImportError:
+    mp = None
+
 import xarray
 
 import numpy as np
+
 from scipy.interpolate import RegularGridInterpolator as Interpolator
+
+from RAiDER.logger import logger
 
 
 def getInterpolators(wm_file, kind='pointwise', shared=False):
     '''
     Read 3D gridded data from a processed weather model file and wrap it with
     the scipy RegularGridInterpolator
+
+    The interpolator grid is (y, x, z)
     '''
     # Get the weather model data
     try:
@@ -26,6 +35,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     xs_wm = np.array(ds.variables['x'][:])
     ys_wm = np.array(ds.variables['y'][:])
     zs_wm = np.array(ds.variables['z'][:])
+
     wet = ds.variables['wet_total' if kind=='total' else 'wet'][:]
     hydro = ds.variables['hydro_total' if kind=='total' else 'hydro'][:]
 
@@ -33,7 +43,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     hydro = np.array(hydro).transpose(1, 2, 0)
 
     if np.any(np.isnan(wet)) or np.any(np.isnan(hydro)):
-        raise RuntimeError('Weather model {} contains NaNs'.format(wm_file))
+        logger.critical(f'Weather model contains NaNs!')
 
     # If shared interpolators are requested
     # The arrays are not modified - so turning off lock for performance
@@ -41,9 +51,10 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
         xs_wm = make_shared_raw(xs_wm)
         ys_wm = make_shared_raw(ys_wm)
         zs_wm = make_shared_raw(zs_wm)
-        wet = make_shared_raw(wet)
+        wet   = make_shared_raw(wet)
         hydro = make_shared_raw(hydro)
 
+    
     ifWet = Interpolator((ys_wm, xs_wm, zs_wm), wet, fill_value=np.nan, bounds_error = False)
     ifHydro = Interpolator((ys_wm, xs_wm, zs_wm), hydro, fill_value=np.nan, bounds_error = False)
 
@@ -55,6 +66,9 @@ def make_shared_raw(inarr):
     Make numpy view array of mp.Array
     """
     # Create flat shared array
+    if mp is None:
+        raise ImportError('multiprocessing is not available')
+    
     shared_arr = mp.RawArray('d', inarr.size)
     # Create a numpy view of it
     shared_arr_np = np.ndarray(inarr.shape, dtype=np.float64,
@@ -74,23 +88,3 @@ def interpolate2(fun, x, y, z):
     outData = out.reshape(in_shape)
     return outData
 
-
-def get_output_spacing(cube_spacing_m, weather_model_file, wm_proj, out_crs):
-    '''
-    Return the output spacing for a cube. 
-    '''
-    # Calculate the appropriate cube spacing from the weather model
-    if cube_spacing_m is None:
-        with xarray.load_dataset(weather_model_file) as ds:
-            xpts = ds.x.values
-            ypts = ds.y.values
-        cube_spacing_m = np.nanmean([np.nanmean(np.diff(xpts)), np.nanmean(np.diff(ypts))])
-        if wm_proj.axis_info[0].unit_name == "degree":
-            cube_spacing_m = cube_spacing_m * 1.0e5  # Scale by 100km
-
-    if out_crs.axis_info[0].unit_name == "degree":
-        out_spacing = cube_spacing_m / 1e5  # Scale by 100km
-    else:
-        out_spacing = cube_spacing_m
-    
-    return out_spacing

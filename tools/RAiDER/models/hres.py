@@ -5,7 +5,7 @@ import numpy as np
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.models.model_levels import (
     LEVELS_91_HEIGHTS,
     LEVELS_25_HEIGHTS,
@@ -28,7 +28,6 @@ class HRES(ECMWF):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-        self._time_res = 6
 
         # 9 km horizontal grid spacing. This is only used for extending the download-buffer, i.e. not in subsequent processing.
         self._lon_res = 9. / 111  # 0.08108115
@@ -44,6 +43,7 @@ class HRES(ECMWF):
         self._Name = 'HRES'
         self._proj = CRS.from_epsg(4326)
 
+        self._time_res = TIME_RES[self._dataset.upper()]
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(1983, 4, 20), "Present")
         # Availability lag time in days
@@ -59,22 +59,21 @@ class HRES(ECMWF):
         self._a = A_91_HRES
         self._b = B_91_HRES
 
-    def load_weather(self, filename=None):
+    def load_weather(self, f=None):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-        if filename is None:
-            filename = self.files[0]
+        f = self.files[0] if f is None else f
 
         if self._model_level_type == 'ml':
             if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
                 self.update_a_b()
-            self._load_model_level(filename)
+            self._load_model_level(f)
         elif self._model_level_type == 'pl':
-            self._load_pressure_levels(filename)
+            self._load_pressure_levels(f)
 
     def _fetch(self,out):
         '''

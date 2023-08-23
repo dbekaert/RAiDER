@@ -11,6 +11,7 @@ dependencies:
  - python>=3.8
  - pip
  # For running
+ - asf_search
  - boto3
  - cdsapi
  - cfgrib
@@ -23,13 +24,16 @@ dependencies:
  - h5py
  - herbie-data
  - h5netcdf
+ - hyp3lib
  - isce3>=0.9.0
+ - jsonschema==3.2.0  # this is for ASF DAAC ingest schema validation
  - lxml
  - matplotlib
  - netcdf4
  - numpy
  - pandas
  - progressbar
+ - pybind11
  - pydap>3.2.2
  - pyproj>=2.2.0
  - pyyaml
@@ -37,7 +41,7 @@ dependencies:
  - rioxarray
  - requests
  - s3fs
- - scipy
+ - scipy>1.10.0
  - shapely
  - sysroot_linux-64
  - tqdm
@@ -47,6 +51,7 @@ dependencies:
  - pytest
  - pytest-cov
  - pytest-timeout
+ - pytest-mock
  - pytest-console-scripts
  - setuptools_scm >=6.2
  # For docs website
@@ -56,7 +61,7 @@ dependencies:
  - mkdocs-macros-plugin
  - mkdocs-material
  - mkdocs-material-extensions
- - sentineleof
+ - sentineleof>=0.8.1
  # For RAiDER-docs
  - jupyterlab
  - jupyter_contrib_nbextensions

@@ -1,0 +1,187 @@
+{
+    "type": "object",
+    "required": [
+      "label",
+      "location",
+      "metadata",
+      "creation_timestamp",
+      "version"
+    ],
+    "properties": {
+      "label": {
+        "type": "string",
+        "minLength": 1
+      },
+      "creation_timestamp": {
+        "$ref": "#/definitions/iso_datetime"
+      },
+      "version": {
+        "type": "string"
+      },
+      "location": {
+        "type": "object",
+        "required": [
+          "type",
+          "coordinates"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["Polygon"]
+          },
+          "coordinates": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "array",
+              "minItems": 4,
+              "items": {
+                "$ref": "#/definitions/coordinate"
+              }
+            }
+          }
+        }
+      },
+      "metadata": {
+        "type": "object",
+        "required": [
+          "ogr_bbox",
+          "reference_scenes",
+          "secondary_scenes",
+          "sensing_start",
+          "sensing_stop",
+          "orbit_number",
+          "platform",
+          "beam_mode",
+          "orbit_direction",
+          "dataset_type",
+          "product_type",
+          "polarization",
+          "look_direction",
+          "track_number",
+          "perpendicular_baseline"
+        ],
+        "properties": {
+          "ogr_bbox": {
+            "type": "array",
+            "minItems": 4,
+            "maxItems": 4,
+            "items": {
+              "#ref": "#/definitions/coordinate"
+            }
+          },
+          "reference_scenes": {
+            "$ref": "#/definitions/granule_list"
+          },
+          "secondary_scenes": {
+            "$ref": "#/definitions/granule_list"
+          },
+          "sensing_start": {
+            "$ref": "#/definitions/iso_datetime"
+          },
+          "sensing_stop": {
+            "$ref": "#/definitions/iso_datetime"
+          },
+          "orbit_number": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "platform": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": ["Sentinel-1A", "Sentinel-1B"]
+            }
+          },
+          "beam_mode": {
+            "type": "string",
+            "enum": ["IW", "EW", "WV", "S1", "S2", "S3", "S4", "S5", "S6"]
+          },
+          "orbit_direction": {
+            "type": "string",
+            "enum": ["ascending", "descending"]
+          },
+          "dataset_type": {
+            "type": "string"
+          },
+          "product_type": {
+            "type": "string"
+          },
+          "polarization": {
+            "type": "string",
+            "enum": ["VV", "HH", "VV+VH", "HH+HV"]
+          },
+          "look_direction": {
+            "type": "string",
+            "enum": ["right", "left"]
+          },
+          "track_number": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 175
+          },
+          "perpendicular_baseline": {
+            "type": "number"
+          },
+          "weather_model": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "enum": [
+                "ERA5",
+                "ERA5T",
+                "GMAO",
+                "HRES",
+                "HRRR"
+              ]
+            }
+          },
+          "temporal_baseline_days": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "frame_number": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "definitions": {
+      "granule_list": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "coordinate": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": [
+          {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          }
+        ]
+      },
+      "iso_datetime": {
+        "type": "string",
+        "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-(3[0-1]|[1-2][0-9]|0[1-9])T(2[0-3]|[0-1][0-9]):[0-5][0-9]:[0-5][0-9]\\.[0-9]{6}Z$"
+      }
+    }
+  }

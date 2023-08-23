@@ -14,11 +14,9 @@ import pandas as pd
 import rasterio
 from dem_stitcher.stitcher import stitch_dem
 
-import RAiDER.utilFcns
-
 from RAiDER.interpolator import interpolateDEM
 from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_open, rio_profile, rio_extents, get_file_and_band
+from RAiDER.utilFcns import rio_open, get_file_and_band
 
 
 def getHeights(ll_bounds, dem_type, dem_file, lats=None, lons=None):
@@ -57,7 +55,18 @@ def download_dem(
     buf=0.02,
     overwrite=False,
 ):
-    """  Download a DEM if one is not already present. """
+    """  
+    Download a DEM if one is not already present. 
+    Args:
+            llbounds: list/ndarry of floats   -lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]
+            writeDEM: boolean                 -write the DEM to file
+            outName: string                   -name of the DEM file   
+            buf: float                        -buffer to add to the bounds
+            overwrite: boolean                -overwrite existing DEM
+    Returns:
+            zvals: np.array         -DEM heights
+            metadata:               -metadata for the DEM
+    """
     if os.path.exists(outName) and not overwrite:
         logger.info('Using existing DEM: %s', outName)
         zvals, metadata = rio_open(outName, returnProj=True)

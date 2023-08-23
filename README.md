@@ -115,6 +115,7 @@ For more details on installing from source see [here](https://github.com/dbekaer
 * David Bekaert
 * Jeremy Maurer
 * Raymond Hogenson
+* Brett Buzzanga
 * Piyush Agram _(Descartes Labs)_
 * Yang Lei
 * Rohan Weeden

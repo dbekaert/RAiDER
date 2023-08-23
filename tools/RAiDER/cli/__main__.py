@@ -1,9 +1,9 @@
 import argparse
 import sys
+
 from importlib.metadata import entry_points
 
-from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
-
+import RAiDER.cli.conf as conf
 
 def main():
     parser = argparse.ArgumentParser(
@@ -15,8 +15,21 @@ def main():
                      default='calcDelays',
                      help='Select the entrypoint to use'
     )
+    parser.add_argument(
+        '++logger_path', 
+        required = False,
+        default = None,
+        help='Set the path to write the log files',
+    )
+
     args, unknowns = parser.parse_known_args()
-    sys.argv = [args.process, *unknowns]
+    
+    # Needed for a global logging path
+    conf.setLoggerPath(args.logger_path)
+    
+    sys.argv = [args.process, *unknowns]    
+
+    from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
 
     try:
         # python >=3.10 interface

@@ -18,13 +18,14 @@ def nanArr():
     array[1, 0, 0] = np.nan
     array[0, 1, 1] = np.nan
     array[1, 1, 2] = np.nan
+
     true_array = array.copy()
-    true_array[0, 0, 0] = np.nan
-    true_array[0, 0, 1] = np.nan
-    true_array[0, 0, 2] = np.nan
+    true_array[0, 0, 0] = 0
+    true_array[0, 0, 1] = 0
+    true_array[0, 0, 2] = 0
     true_array[1, 0, 0] = true_array[1, 0, 1]
     true_array[0, 1, 1] = (true_array[0, 1, 0] + true_array[0, 1, 2]) / 2
-    true_array[1, 1, 2] = true_array[1, 1, 1]
+    true_array[1, 1, 2] = 0
     return array, true_array
 
 

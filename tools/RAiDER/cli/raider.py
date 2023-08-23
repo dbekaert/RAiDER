@@ -1,17 +1,29 @@
 import argparse
+import datetime
 import os
+import json
 import shutil
 import sys
 import yaml
 
+import numpy as np
+import xarray as xr
+
 from textwrap import dedent
 
+import RAiDER.aria.prepFromGUNW
+import RAiDER.aria.calcGUNW
 from RAiDER import aws
+from RAiDER.constants import _ZREF
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
+from RAiDER.utilFcns import get_dt
+from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_n_closest_datetimes
+
+import traceback
 
 
 HELP_MESSAGE = """
@@ -70,8 +82,6 @@ def read_template_file(fname):
             for k, v in value.items():
                 if v is not None:
                     template[k] = v
-        if key == 'weather_model':
-            template[key]= enforce_wm(value)
         if key == 'time_group':
             template.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
@@ -83,13 +93,14 @@ def read_template_file(fname):
             template['aoi'] = get_query_region(AttributeDict(dct_temp))
 
         if key == 'los_group':
-            template['los'] = get_los(AttributeDict(value))
+            template['los']  = get_los(AttributeDict(value))
+            template['zref'] = AttributeDict(value).get('zref')
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
             template['look_dir'] = value.lower()
         if key == 'cube_spacing_in_m':
-            template[key] = float(value)
+            template[key] = float(value) if isinstance(value, str) else value
         if key == 'download_only':
             template[key] = bool(value)
 
@@ -104,6 +115,11 @@ def read_template_file(fname):
                     template['bounding_box'],
                 )
             )
+
+        if key == 'weather_model':
+            template[key]= enforce_wm(value, template['aoi'])
+
+    template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
     return AttributeDict(template)
 
 
@@ -121,10 +137,10 @@ def drop_nans(d):
 def calcDelays(iargs=None):
     """ Parse command line arguments using argparse. """
     import RAiDER
+    import RAiDER.processWM
     from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
-    from RAiDER.processWM import prepareWeatherModel
-    from RAiDER.utilFcns import writeDelays
+    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
         '\n\t raider.py customTemplatefile.cfg' \
         '\n\t raider.py -g'
@@ -161,7 +177,7 @@ def calcDelays(iargs=None):
     if args.generate_template:
         dst = os.path.join(os.getcwd(), 'raider.yaml')
         shutil.copyfile(template_file, dst)
-        logger.info('Wrote %s', dst)
+        logger.info('Wrote: %s', dst)
         sys.exit()
 
 
@@ -196,6 +212,26 @@ def calcDelays(iargs=None):
     if not params.verbose:
         logger.setLevel(logging.INFO)
 
+    # Extract and buffer the AOI
+    los = params['los']
+    aoi = params['aoi']
+    model = params['weather_model']
+
+    # adjust user requested AOI by grid size and buffer slightly
+    aoi.add_buffer(model.getLLRes())
+
+    # define the xy grid within the buffered bounding box
+    aoi.set_output_xygrid(params['output_projection'])
+
+    # add a buffer determined by latitude for ray tracing
+    if los.ray_trace():
+        wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(),
+                                lookDir=los.getLookDirection(), incAngle=30)
+    else:
+        wm_bounds = aoi.bounds()
+
+    model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
+
     wet_filenames = []
     for t, w, f in zip(
         params['date_list'],
@@ -203,35 +239,154 @@ def calcDelays(iargs=None):
         params['hydroFilenames']
     ):
 
-        los = params['los']
-        aoi = params['aoi']
-        model = params['weather_model']
-
-        # add a buffer for raytracing
-        if los.ray_trace():
-            ll_bounds = aoi.add_buffer(buffer=1)
-        else:
-            ll_bounds = aoi.add_buffer(buffer=1)
-
         ###########################################################
         # weather model calculation
         logger.debug('Starting to run the weather model calculation')
-        logger.debug(f'Date: {t.strftime("%Y%m%d")}')
+        logger.debug(f'Requested date,time: {t.strftime("%Y%m%d, %H:%M")}')
         logger.debug('Beginning weather model pre-processing')
-        try:
-            weather_model_file = prepareWeatherModel(
-                model, t,
-                ll_bounds=ll_bounds, # SNWE
-                wmLoc=params['weather_model_directory'],
-                makePlots=params['verbose'],
-            )
-        except RuntimeError:
-            logger.exception("Date %s failed", t)
-            continue
+
+        interp_method = params.get('interpolate_time')
+        if interp_method is None:
+            interp_method = 'none'
+            logger.warning('interp_method is not specified, defaulting to \'none\', i.e. nearest datetime for delay '
+                           'calculation')
+
+        # Grab the closest two times unless the user specifies 'nearest' via 'none' or None.
+        # If the model time_delta is not specified then use 6
+        # The two datetimes will be combined to a single file and processed
+        # TODO: make more transparent control flow for GUNW and non-GUNW workflow
+        if (interp_method in ['none', 'center_time']):
+            times = get_nearest_wmtimes(t, [model.dtime() if \
+                                        model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
+        elif interp_method == 'azimuth_time_grid':
+            n_target_dates = 3
+            step = model.dtime()
+            time_step_hours = step if step is not None else 6
+            # Will yield 3 dates
+            times = get_n_closest_datetimes(t,
+                                            n_target_dates,
+                                            time_step_hours)
+        else:
+            raise NotImplementedError('Only none, center_time, and azimuth_time_grid are accepted values for '
+                                      'interp_method.')
+        wfiles = []
+        for tt in times:
+            try:
+                wfile = RAiDER.processWM.prepareWeatherModel(model,
+                                                             tt,
+                                                             aoi.bounds(),
+                                                             makePlots=params['verbose'])
+                wfiles.append(wfile)
+
+            # catch when requested datetime fails
+            except RuntimeError as re:
+                continue
+
+            # catch when something else within weather model class fails
+            except Exception as e:
+                S, N, W, E = wm_bounds
+                logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+                logger.info(f'Query datetime: {tt}')
+                msg = f'Downloading and/or preparation of {model._Name} failed.'
+                logger.error(e)
+                logger.error(msg)
 
         # dont process the delays for download only
         if dl_only:
             continue
+
+        if len(wfiles) == 0:
+            logger.error('No weather model data was successfully processed.')
+            if len(params['date_list']) == 1:
+                raise RuntimeError
+            # skip date and continue processing if multiple dates are requested
+            else:
+                continue
+
+        # nearest weather model time via 'none' is specified
+        # When interp_method is 'none' only 1 weather model file and one relevant time
+        elif (interp_method == 'none') and (len(wfiles) == 1) and (len(times) == 1):
+            weather_model_file = wfiles[0]
+
+        # only one time in temporal interpolation worked
+        # TODO: this seems problematic - unexpected behavior possibly for 'center_time'
+        elif len(wfiles)==1 and len(times)==2:
+            logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
+            weather_model_file = wfiles[0]
+
+        # TODO: ensure this additional conditional is appropriate; assuming wfiles == 2 ONLY for 'center_time'
+        #  value of 'interp_method' parameter
+        elif (interp_method == 'center_time') and (len(wfiles) == 2):
+            ds1 = xr.open_dataset(wfiles[0])
+            ds2 = xr.open_dataset(wfiles[1])
+
+            # calculate relative weights of each dataset
+            date1 = datetime.datetime.strptime(ds1.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
+            date2 = datetime.datetime.strptime(ds2.attrs['datetime'], '%Y_%m_%dT%H_%M_%S')
+            wgts  = [ 1 - get_dt(t, date1) / get_dt(date2, date1), 1 - get_dt(date2, t) / get_dt(date2, date1)]
+            try:
+                assert np.isclose(np.sum(wgts), 1)
+            except AssertionError:
+                logger.error('Time interpolation weights do not sum to one; something is off with query datetime: %s', t)
+                continue
+
+            # combine datasets
+            ds = ds1
+            for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+                ds[var] = (wgts[0] * ds1[var]) + (wgts[1] * ds2[var])
+            ds.attrs['Date1'] = 0
+            ds.attrs['Date2'] = 0
+            weather_model_file = os.path.join(
+                os.path.dirname(wfiles[0]),
+                os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
+            )
+            ds.to_netcdf(weather_model_file)
+        elif (interp_method == 'azimuth_time_grid') and (len(wfiles) == 3):
+            datasets = [xr.open_dataset(f) for f in wfiles]
+
+            # Each model will require some inspection here
+            # the subsequent s1 azimuth time grid requires dimension
+            # inputs to all have same dimensions and either be
+            # 1d or 3d.
+            if model._dataset in ['hrrr', 'hrrrak']:
+                lat_2d = datasets[0].latitude.data
+                lon_2d = datasets[0].longitude.data
+                z_1d = datasets[0].z.data
+                m, n, p = z_1d.shape[0], lat_2d.shape[0], lat_2d.shape[1]
+
+                lat = np.broadcast_to(lat_2d, (m, n, p))
+                lon = np.broadcast_to(lon_2d, (m, n, p))
+                hgt = np.broadcast_to(z_1d[:, None, None], (m, n, p))
+
+            else:
+                raise NotImplementedError('Azimuth Time is currently only implemented for HRRR')
+
+            time_grid = get_s1_azimuth_time_grid(lon,
+                                                 lat,
+                                                 hgt,
+                                                 # This is the acq time from loop
+                                                 t)
+
+            if np.any(np.isnan(time_grid)):
+                raise ValueError('The Time Grid return nans meaning no orbit was downloaded.')
+            wgts = get_inverse_weights_for_dates(time_grid, times)
+            # combine datasets
+            ds_out = datasets[0]
+            for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+                ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
+            ds_out.attrs['Date1'] = 0
+            ds_out.attrs['Date2'] = 0
+            weather_model_file = os.path.join(
+                os.path.dirname(wfiles[0]),
+                # TODO: clean up
+                os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterpAziGrid_' + '_'.join(wfiles[0].split('_')[-4:]),
+            )
+            ds_out.to_netcdf(weather_model_file)
+        # TODO: test to ensure this error is caught
+        else:
+            n = len(wfiles)
+            raise NotImplementedError(f'The {interp_method} with {n} retrieved weather model files was not well posed '
+                                      'for the dela current workflow.')
 
         # Now process the delays
         try:
@@ -239,17 +394,13 @@ def calcDelays(iargs=None):
                 t, weather_model_file, aoi, los,
                 height_levels = params['height_levels'],
                 out_proj = params['output_projection'],
-                look_dir = params['look_dir'],
-                cube_spacing_m = params['cube_spacing_in_m'],
+                zref=params['zref']
             )
         except RuntimeError:
-            logger.exception("Date %s failed", t)
+            logger.exception("Datetime %s failed", t)
             continue
 
-        ###########################################################
-        # Write the delays to file
         # Different options depending on the inputs
-
         if los.is_Projected():
             out_filename = w.replace("_ztd", "_std")
             f = f.replace("_ztd", "_std")
@@ -260,7 +411,7 @@ def calcDelays(iargs=None):
             out_filename = w
 
         if hydro_delay is None:
-            # means that a dataset was returned
+            # means that a dataset was returned (cubes and station files)
             ds = wet_delay
             ext = os.path.splitext(out_filename)[1]
             out_filename = out_filename.replace('wet', 'tropo')
@@ -268,12 +419,12 @@ def calcDelays(iargs=None):
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
 
-
             if out_filename.endswith(".nc"):
                 ds.to_netcdf(out_filename, mode="w")
             elif out_filename.endswith(".h5"):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
-            logger.info('Wrote delays to: %s', out_filename)
+
+            logger.info('\nSuccessfully wrote delay cube to: %s\n', out_filename)
 
         else:
             if aoi.type() == 'station_file':
@@ -375,9 +526,7 @@ def downloadGNSS():
 
 
 ## ------------------------------------------------------------ prepFromGUNW.py
-def calcDelaysGUNW():
-    from RAiDER.aria.prepFromGUNW import main as GUNW_prep
-    from RAiDER.aria.calcGUNW import tropo_gunw_inf as GUNW_calc
+def calcDelaysGUNW(iargs: list[str] = None):
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
@@ -404,13 +553,23 @@ def calcDelaysGUNW():
     )
 
     p.add_argument(
-        '-uid', '--api_uid', default=None, type=str, 
+        '-uid', '--api_uid', default=None, type=str,
         help='Weather model API UID [uid, email, username], depending on model.'
     )
 
     p.add_argument(
-        '-key', '--api_key', default=None, type=str, 
+        '-key', '--api_key', default=None, type=str,
         help='Weather model API KEY [key, password], depending on model.'
+    )
+
+    p.add_argument(
+        '-interp', '--interpolate-time', default='azimuth_time_grid', type=str,
+        choices=['none', 'center_time', 'azimuth_time_grid'],
+        help=('How to interpolate across model time steps. Possible options are: '
+              '[\'none\', \'center_time\', \'azimuth_time_grid\'] '
+              'None: means nearest model time; center_time: linearly across center time; '
+              'Azimuth_time_grid: means every pixel is weighted with respect to azimuth time of S1;'
+              )
     )
 
     p.add_argument(
@@ -423,7 +582,10 @@ def calcDelaysGUNW():
         help='Optionally update the GUNW by writing the delays into the troposphere group.'
     )
 
-    args = p.parse_args()
+    args = p.parse_args(iargs)
+
+    if args.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
+        raise ValueError('interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
 
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
@@ -436,11 +598,22 @@ def calcDelaysGUNW():
     # args.files = glob.glob(args.files) # eventually support multiple files
     if not args.file and args.bucket:
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
+        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
+            # NOTE: We want to submit jobs that are outside of acceptable weather model range
+            #       and still deliver these products to the DAAC without this layer. Therefore
+            #       we include this within this portion of the control flow.
+            print('Nothing to do because outside of weather model range')
+            return
+        json_file_path = aws.get_s3_file(args.bucket, args.bucket_prefix, '.json')
+        json_data = json.load(open(json_file_path))
+        json_data['metadata'].setdefault('weather_model', []).append(args.weather_model)
+        json.dump(json_data, open(json_file_path, 'w'))
+
     elif not args.file:
         raise ValueError('Either argument --file or --bucket must be provided')
-    
+
     # prep the config needed for delay calcs
-    path_cfg, wavelength = GUNW_prep(args)
+    path_cfg, wavelength = RAiDER.aria.prepFromGUNW.main(args)
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
@@ -449,8 +622,41 @@ def calcDelaysGUNW():
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
-    GUNW_calc(cube_filenames, args.file, wavelength, args.output_directory, args.update_GUNW)
+    RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames,
+                                        args.file,
+                                        wavelength,
+                                        args.output_directory,
+                                        args.update_GUNW)
 
     # upload to s3
     if args.bucket:
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
+        aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
+
+
+## ------------------------------------------------------------ processDelays.py
+def combineZTDFiles():
+    '''
+    Command-line program to process delay files from RAiDER and GNSS into a single file.
+    '''
+    from RAiDER.gnss.processDelayFiles import main, combineDelayFiles, create_parser
+
+    p = create_parser()
+    args = p.parse_args()
+
+    if not os.path.exists(args.raider_file):
+        combineDelayFiles(args.raider_file, loc=args.raider_folder)
+
+    if not os.path.exists(args.gnss_file):
+        combineDelayFiles(args.gnss_file, loc=args.gnss_folder, source='GNSS',
+                          ref=args.raider_file, col_name=args.column_name)
+
+    if args.gnss_file is not None:
+        main(
+            args.raider_file,
+            args.gnss_file,
+            col_name=args.column_name,
+            raider_delay=args.raider_column_name,
+            outName=args.out_name,
+            localTime=args.local_time
+        )

@@ -58,6 +58,7 @@ date_group:
 time_group:
   time:
   end_time:
+  interpolate_time: 'center_time' # possible options are string values with 'none', 'center_time', 'azimuth_time_grid'
 
 
 ########## 4. Area of Interest
@@ -103,7 +104,7 @@ height_group:
 ## STD calculation:
 los_group:
   ray_trace: False  # Use projected slant delay by default
-  zref: # Integration height. Only used in raytracing.
+  zref: # Maximum integration height. Only used in raytracing. Default: top of weather model.
 
   # raster file in radar or geocoordinates
   los_file:

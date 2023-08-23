@@ -1,22 +1,182 @@
 import datetime
-import logging
 import os
-import shutil
-import requests
+import rioxarray
 import xarray
 
 import numpy as np
 
 from herbie import Herbie
+import geopandas as gpd
 from pathlib import Path
 from pyproj import CRS, Transformer
+from shapely.geometry import Polygon, box
 
+from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
+from RAiDER.models.model_levels import LEVELS_50_HEIGHTS, LEVELS_137_HEIGHTS
 from RAiDER.logger import logger
-from RAiDER.utilFcns import rio_profile, rio_extents
-from RAiDER.models.weatherModel import WeatherModel, transform_coords
-from RAiDER.models.model_levels import (
-    LEVELS_137_HEIGHTS,
-)
+
+HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
+HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
+HRRR_AK_PROJ = CRS.from_string('+proj=stere +ellps=sphere +a=6371229.0 +b=6371229.0 +lat_0=90 +lon_0=225.0 '
+                               '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs')
+# Source: https://eric.clst.org/tech/usgeojson/
+AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
+
+
+def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False):
+    '''
+    Download a HRRR weather model using Herbie
+
+    Args:
+        DATE (Python datetime)  - Datetime as a Python datetime. Herbie will automatically return the closest valid time,
+                                    which is currently hourly.
+        out (string)            - output location as a string
+        model (string)          - model can be "hrrr" or "hrrrak"
+        product (string)        - 'prs' for pressure levels, 'nat' for native levels
+        fxx (int)               - forecast time in hours. Can be up to 48 for 00/06/12/18
+        verbose (bool)          - True for extra printout of information
+
+    Returns:
+        None, writes data to a netcdf file
+    '''
+    H = Herbie(
+        DATE.strftime('%Y-%m-%d %H:%M'),
+        model=model,
+        product=product,
+        fxx=fxx,
+        overwrite=False,
+        verbose=True,
+        save_dir=Path(os.path.dirname(out)),
+    )
+
+
+    # Iterate through the list of datasets
+    try:
+        ds_list = H.xarray(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
+    except ValueError as E:
+        logger.error (E)
+        raise ValueError
+
+    ds_out = None
+
+    for ds in ds_list:
+        if 'isobaricInhPa' in ds._coord_names:
+            ds_out = ds
+            coord = 'isobaricInhPa'
+            break
+        elif 'hybrid' in ds._coord_names:
+            ds_out = ds
+            coord = 'hybrid'
+            break
+
+    # subset the full file by AOI
+    x_min, x_max, y_min, y_max = get_bounds_indices(
+        ll_bounds,
+        ds_out.latitude.to_numpy(),
+        ds_out.longitude.to_numpy(),
+    )
+
+    # bookkeepping
+    ds_out = ds_out.rename({'gh': 'z', coord: 'levels'})
+    ny, nx = ds_out['longitude'].shape
+
+    # projection information
+    ds_out["proj"] = int()
+    for k, v in CRS.from_user_input(ds.herbie.crs).to_cf().items():
+        ds_out.proj.attrs[k] = v
+    for var in ds_out.data_vars:
+        ds_out[var].attrs['grid_mapping'] = 'proj'
+
+
+    # pull the grid information
+    proj = CRS.from_cf(ds_out['proj'].attrs)
+    t = Transformer.from_crs(4326, proj, always_xy=True)
+    xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
+    W, E, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
+
+    grid_x = 3000 # meters
+    grid_y = 3000 # meters
+    xs = np.arange(W, E+grid_x/2, grid_x)
+    ys = np.arange(S, N+grid_y/2, grid_y)
+
+    ds_out['x'] = xs
+    ds_out['y'] = ys
+
+    ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
+    ds_sub.to_netcdf(out, engine='netcdf4')
+
+    return
+
+
+def get_bounds_indices(SNWE, lats, lons):
+    '''
+    Convert SNWE lat/lon bounds to index bounds
+    '''
+    # Unpack the bounds and find the relevent indices
+    S, N, W, E = SNWE
+
+    # Need to account for crossing the international date line
+    if W < E:
+        m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
+    else:
+        raise ValueError(
+            'Longitude is either flipped or you are crossing the international date line;' +
+            'if the latter please give me longitudes from 0-360'
+        )
+
+    if np.sum(m1) == 0:
+        lons = np.mod(lons, 360)
+        W, E = np.mod([W, E], 360)
+        m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
+        if np.sum(m1) == 0:
+            raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
+
+    # Y extent
+    shp = lats.shape
+    m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
+    y_min = max(m1_y[0][0], 0)
+    y_max = min(m1_y[-1][0], shp[0])
+    m1_y = None
+
+    # X extent
+    m1_x = np.argwhere(np.sum(m1, axis=0) != 0)
+    x_min = max(m1_x[0][0], 0)
+    x_max = min(m1_x[-1][0], shp[1])
+    m1_x = None
+    m1 = None
+
+    return x_min, x_max, y_min, y_max
+
+
+def load_weather_hrrr(filename):
+    '''
+    Loads a weather model from a HRRR file
+    '''
+    # read data from the netcdf file
+    ds = xarray.open_dataset(filename, engine='netcdf4')
+    # Pull the relevant data from the file
+    pl = ds.levels.values
+    pres = ds['pres'].values.transpose(1, 2, 0)
+    xArr = ds['x'].values
+    yArr = ds['y'].values
+    lats = ds['latitude'].values
+    lons = ds['longitude'].values
+    temps = ds['t'].values.transpose(1, 2, 0)
+    qs = ds['q'].values.transpose(1, 2, 0)
+    geo_hgt = ds['z'].values.transpose(1, 2, 0)
+
+    proj = CRS.from_cf(ds['proj'].attrs)
+
+    lons[lons > 180] -= 360
+
+    # data cube format should be lats,lons,heights
+    _xs = np.broadcast_to(xArr[np.newaxis, :, np.newaxis],
+                            geo_hgt.shape)
+    _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
+                            geo_hgt.shape)
+
+    return _xs, _ys, lons, lats, qs, temps, pres, geo_hgt, proj
 
 
 class HRRR(WeatherModel):
@@ -30,13 +190,13 @@ class HRRR(WeatherModel):
         self._classname = 'hrrr'
         self._dataset = 'hrrr'
 
-        self._time_res = 1
+        self._time_res = TIME_RES[self._dataset.upper()]
 
         # Tuple of min/max years where data is available.
         self._valid_range = (datetime.datetime(2016, 7, 15), "Present")
         self._lag_time = datetime.timedelta(hours=3)  # Availability lag time in days
 
-        # model constants: TODO: need to update/double-check these
+        # model constants
         self._k1 = 0.776  # [K/Pa]
         self._k2 = 0.233  # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
@@ -52,9 +212,13 @@ class HRRR(WeatherModel):
         self._Npl = 0
         self.files = None
         self._bounds = None
-        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
 
         # Projection
+        # NOTE: The HRRR projection will get read directly from the downloaded weather model file; however,
+        # we also define it here so that the projection can be used without downloading any data. This is
+        # used for consistency with the other weather models and allows for some nice features, such as
+        # buffering.
+
         # See https://github.com/blaylockbk/pyBKB_v2/blob/master/demos/HRRR_earthRelative_vs_gridRelative_winds.ipynb and code lower down
         # '262.5:38.5:38.5:38.5 237.280472:1799:3000.00 21.138123:1059:3000.00'
         # 'lov:latin1:latin2:latd lon1:nx:dx lat1:ny:dy'
@@ -66,212 +230,167 @@ class HRRR(WeatherModel):
         x0 = 0
         y0 = 0
         earth_radius = 6371229
-        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
+        self._proj = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} '\
                  f'+lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} '\
                  f'+b={earth_radius} +units=m +no_defs')
-        self._proj = p1
+        self._valid_bounds = HRRR_CONUS_COVERAGE_POLYGON
+        self.setLevelType('nat')
+
+
+    def __model_levels__(self):
+        self._levels  = 50
+        self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
+
+
+    def __pressure_levels__(self):
+        raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
 
 
     def _fetch(self,  out):
         '''
         Fetch weather model data from HRRR
         '''
-        # bounding box plus a buffer
-        time = self._time
+        self._files = out
+        corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
+        self.checkTime(corrected_DT)
+        if not corrected_DT == self._time:
+            logger.info('Rounded given datetime from  %s to %s', self._time, corrected_DT)
 
-        self.files = self._download_hrrr_file(time, out)
+        # HRRR uses 0-360 longitude, so we need to convert the bounds to that
+        bounds = self._ll_bounds.copy()
+        bounds[2:] = np.mod(bounds[2:], 360)
+
+        download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
 
 
-    def load_weather(self, *args, filename=None, **kwargs):
+    def load_weather(self, f=None, *args, **kwargs):
         '''
         Load a weather model into a python weatherModel object, from self.files if no
         filename is passed.
         '''
-        if filename is None:
-            filename = self.files
+        if f is None:
+            f = self.files[0] if isinstance(self.files, list) else self.files
 
-        # read data from grib file
-        try:
-            ds = xarray.open_dataset(filename, engine='cfgrib')
-        except EOFError:
-            ds = xarray.open_dataset(filename, engine='netcdf4')
 
-        pl = np.array([self._convertmb2Pa(p) for p in ds.levels.values])
-        xArr = ds['x'].values
-        yArr = ds['y'].values
-        lats = ds['lats'].values
-        lons = ds['lons'].values
-        temps = ds['t'].values.transpose(1, 2, 0)
-        qs = ds['q'].values.transpose(1, 2, 0)
-        geo_hgt = ds['z'].values.transpose(1, 2, 0)
+        _xs, _ys, _lons, _lats, qs, temps, pres, geo_hgt, proj = load_weather_hrrr(f)
 
-        Ny, Nx = lats.shape
+        # convert geopotential height to geometric height
+        self._get_heights(_lats, geo_hgt)
 
-        lons[lons > 180] -= 360
+        self._t = temps
+        self._q = qs
+        self._p = pres
+        self._xs = _xs
+        self._ys = _ys
+        self._lats = _lats
+        self._lons = _lons
+        self._proj = proj
 
-        # data cube format should be lats,lons,heights
-        _xs = np.broadcast_to(xArr[np.newaxis, :, np.newaxis],
-                              geo_hgt.shape)
-        _ys = np.broadcast_to(yArr[:, np.newaxis, np.newaxis],
-                              geo_hgt.shape)
-        _lons = np.broadcast_to(lons[..., np.newaxis],
-                                geo_hgt.shape)
-        _lats = np.broadcast_to(lats[..., np.newaxis],
-                                geo_hgt.shape)
+
+    def checkValidBounds(self: WeatherModel, ll_bounds: np.ndarray):
+        '''
+        Checks whether the given bounding box is valid for the HRRR or HRRRAK
+        (i.e., intersects with the model domain at all)
+
+        Args:
+        ll_bounds : np.ndarray
+
+        Returns:
+            The weather model object
+        '''
+        S, N, W, E = ll_bounds
+        aoi = box(W, S, E, N)
+        if self._valid_bounds.contains(aoi):
+            Mod = self
+
+        elif aoi.intersects(self._valid_bounds):
+            Mod = self
+            logger.critical('The HRRR weather model extent does not completely cover your AOI!')
+
+        else:
+            Mod = HRRRAK()
+            # valid bounds are in 0->360 to account for dateline crossing
+            W, E = np.mod([W, E], 360)
+            aoi  = box(W, S, E, N)
+            if Mod._valid_bounds.contains(aoi):
+                pass
+            elif aoi.intersects(Mod._valid_bounds):
+                logger.critical('The HRRR-AK weather model extent does not completely cover your AOI!')
+
+            else:
+                raise ValueError('The requested location is unavailable for HRRR')
+
+        return Mod
+
+
+class HRRRAK(WeatherModel):
+    def __init__(self):
+        # The HRRR-AK model has a few different parameters than HRRR-CONUS.
+        # These will get used if a user requests a bounding box in Alaska
+        super().__init__()
+
+        # model constants
+        self._k1 = 0.776  # [K/Pa]
+        self._k2 = 0.233  # [K/Pa]
+        self._k3 = 3.75e3  # [K^2/Pa]
+
+        # 3 km horizontal grid spacing
+        self._lat_res = 3. / 111
+        self._lon_res = 3. / 111
+        self._x_res = 3.
+        self._y_res = 3.
+
+        self._Nproc = 1
+        self._Npl = 0
+        self.files = None
+        self._bounds = None
+
+        self._classname = 'hrrrak'
+        self._dataset = 'hrrrak'
+        self._Name = "HRRR-AK"
+        self._time_res = TIME_RES['HRRR-AK']
+        self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
+        self._lag_time = datetime.timedelta(hours=3)
+        self._valid_bounds = HRRR_AK_COVERAGE_POLYGON
+        # The projection information gets read directly from the  weather model file but we
+        # keep this here for object instantiation.
+        self._proj = HRRR_AK_PROJ
+        self.setLevelType('nat')
+
+
+    def __model_levels__(self):
+        self._levels  = 50
+        self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
+
+
+    def __pressure_levels__(self):
+        raise NotImplementedError('hrrr.py: Revisit whether or not pressure levels from HRRR can be used for delay calculations; they do not go high enough compared to native model levels.')
+
+
+    def _fetch(self, out):
+        bounds = self._ll_bounds.copy()
+        bounds[2:] = np.mod(bounds[2:], 360)
+        corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
+        self.checkTime(corrected_DT)
+        if not corrected_DT == self._time:
+            logger.info('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
+
+        download_hrrr_file(bounds, corrected_DT, out, 'hrrrak', self._model_level_type)
+
+
+    def load_weather(self, f=None, *args, **kwargs):
+        if f is None:
+            f = self.files[0] if isinstance(self.files, list) else self.files
+        _xs, _ys, _lons, _lats, qs, temps, pres, geo_hgt, proj = load_weather_hrrr(f)
 
         # correct for latitude
         self._get_heights(_lats, geo_hgt)
 
         self._t = temps
         self._q = qs
-        self._p = np.broadcast_to(pl[np.newaxis, np.newaxis, :],
-                                  geo_hgt.shape)
+        self._p = pres
         self._xs = _xs
         self._ys = _ys
         self._lats = _lats
         self._lons = _lons
-
-
-    def _makeDataCubes(self, filename, out=None):
-        '''
-        Create a cube of data representing temperature and relative humidity
-        at specified pressure levels
-        '''
-        if out is None:
-            out = filename
-
-        # Get profile information from gdal
-        prof = rio_profile(str(filename))
-
-        # Now get bounds
-        S, N, W, E = self._ll_bounds
-
-        # open the dataset and pull the data
-        ds = xarray.open_dataset(filename, engine='cfgrib', filter_by_keys={'typeOfLevel': 'isobaricInhPa'})
-
-        # Determine mask based on query bounds
-        lats = ds["latitude"].to_numpy()
-        lons = ds["longitude"].to_numpy()
-        levels = ds["isobaricInhPa"].to_numpy()
-        shp = lats.shape
-        lons[lons > 180.0] -= 360.
-        m1 = (S <= lats) & (N >= lats) &\
-                (W <= lons) & (E >= lons)
-
-        if np.sum(m1) == 0:
-            raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
-
-        # Y extent
-        m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
-        y_min = max(m1_y[0][0] - 2, 0)
-        y_max = min(m1_y[-1][0] + 3, shp[0])
-        m1_y = None
-
-        # X extent
-        m1_x = np.argwhere(np.sum(m1, axis=0) != 0)
-        x_min = max(m1_x[0][0] - 2, 0)
-        x_max = min(m1_x[-1][0] + 3, shp[1])
-        m1_x = None
-        m1 = None
-
-        # Coordinate arrays
-        # HRRR GRIB has data in south-up format
-        trans = prof["transform"].to_gdal()
-        xArr = trans[0] + (np.arange(x_min, x_max) + 0.5) * trans[1]
-        yArr = trans[3] + (prof["height"] * trans[5]) - (np.arange(y_min, y_max) + 0.5) * trans[5]
-        lats = lats[y_min:y_max, x_min:x_max]
-        lons = lons[y_min:y_max, x_min:x_max]
-
-        # Data variables
-        t = ds['t'][:, y_min:y_max, x_min:x_max].to_numpy()
-        z = ds['gh'][:, y_min:y_max, x_min:x_max].to_numpy()
-        q = ds['q'][:, y_min:y_max, x_min:x_max].to_numpy()
-        ds.close()
-
-        # This section is purely for flipping arrays as needed
-        # to match ECMWF reader is doing
-        # All flips are views - no extra memory use
-        # Lon -> From west to east
-        # Lat -> From south to north (ECMWF reads north to south and flips it
-        # load_weather) - So we do south to north here
-        # Pres -> High to Los - (ECWMF does now to high and flips it back) - so
-        # we do high to low
-        # Data is currently in [levels, y, x] order
-        flip_axes = []
-        if levels[-1] > levels[0]:
-            flip_axes.append(0)
-            levels = np.flip(levels)
-
-        if lats[0, 0] > lats[-1, 0]:
-            flip_axes.append(1)
-            lats = np.flip(lats, 0)
-            yArr = np.flip(yArr)
-
-        if lons[0, 0] > lons[0, -1]:
-            flip_axes.append(2)
-            lons = np.flip(lons, 1)
-            xArr = np.flip(xArr)
-
-        flip_axes = tuple(flip_axes)
-        if flip_axes:
-            t = np.flip(t, flip_axes)
-            z = np.flip(z, flip_axes)
-            q = np.flip(q, flip_axes)
-
-        # Create output dataset
-        ds_new = xarray.Dataset(
-            data_vars=dict(
-                t= (["level", "y", "x"], t,
-                    {"grid_mapping": "proj"}),
-                z= (["level", "y", "x"], z,
-                    {"grid_mapping": "proj"}),
-                q= (["level", "y", "x"], q,
-                    {"grid_mapping": "proj"}),
-                lats=(["y", "x"], lats),
-                lons=(["y", "x"], lons),
-            ),
-            coords=dict(
-                levels=(["level"], levels,
-                       {"units": "millibars",
-                        "long_name":  "pressure_level",
-                        "axis": "Z"}),
-                x=(["x"], xArr,
-                   {"standard_name": "projection_x_coordinate",
-                    "units": "m",
-                    "axis": "X"}),
-                y=(["y"], yArr,
-                   {"standard_name": "projection_y_coordinate",
-                    "units": "m",
-                    "axis": "Y"}),
-            ),
-            attrs={
-                'Conventions': 'CF-1.7',
-                'Weather_model':'HRRR',
-           }
-        )
-
-        # Write projection of output
-        ds_new["proj"] = int()
-        for k, v in self._proj.to_cf().items():
-            ds_new.proj.attrs[k] = v
-
-        ds_new.to_netcdf(out, engine='netcdf4')
-
-
-    def _download_hrrr_file(self, DATE, out, model='hrrr', product='prs', fxx=0, verbose=False):
-        '''
-        Download a HRRR model
-        '''
-        H = Herbie(
-            DATE.strftime('%Y-%m-%d %H:%M'),
-            model=model,
-            product=product,
-            overwrite=False,
-            verbose=True,
-            save_dir=Path(os.path.dirname(out)),
-        )
-        pf = H.download(":(SPFH|PRES|TMP|HGT):", verbose=verbose)
-
-        self._makeDataCubes(pf, out)
-
-        return out
+        self._proj = proj

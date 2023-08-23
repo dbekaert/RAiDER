@@ -14,7 +14,8 @@ from RAiDER.models.model_levels import (
     A_137_HRES,
     B_137_HRES,
 )
-from RAiDER.models.weatherModel import WeatherModel
+
+from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 
 
 class ECMWF(WeatherModel):
@@ -31,44 +32,37 @@ class ECMWF(WeatherModel):
         self._k2 = 0.233   # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-        self._time_res = 1
+        self._time_res = TIME_RES['ECMWF']
 
-        self._lon_res = 0.2
-        self._lat_res = 0.2
+        self._lon_res = 0.25
+        self._lat_res = 0.25
         self._proj = CRS.from_epsg(4326)
 
         self._model_level_type = 'ml'  # Default
 
-    def setLevelType(self, levelType):
-        '''Set the level type to model levels or pressure levels'''
-        if levelType in ['ml', 'pl']:
-            self._model_level_type = levelType
-        else:
-            raise RuntimeError('Level type {} is not recognized'.format(levelType))
-
-        if levelType == 'ml':
-            self.__model_levels__()
-        else:
-            self.__pressure_levels__()
 
     def __pressure_levels__(self):
         self._zlevels = np.flipud(LEVELS_25_HEIGHTS)
-        self._levels = len(self._zlevels)
+        self._levels  = len(self._zlevels)
+
 
     def __model_levels__(self):
-        self._levels = 137
+        self._levels  = 137
         self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
         self._a = A_137_HRES
         self._b = B_137_HRES
 
-    def load_weather(self, *args, **kwargs):
+
+    def load_weather(self, f=None, *args, **kwargs):
         '''
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
         '''
-        self._load_model_level(*self.files)
+        f = self.files[0] if f is None else f
+        self._load_model_level(f)
+
 
     def _load_model_level(self, fname):
         # read data from netcdf file
@@ -100,11 +94,10 @@ class ECMWF(WeatherModel):
         self._q = q
         geo_hgt, pres, hgt = self._calculategeoh(z, lnsp)
 
-        # re-assign lons, lats to match heights
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], hgt.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], hgt.shape)
+        self._lons, self._lats = np.meshgrid(lons, lats)
+
         # ys is latitude
-        self._get_heights(_lats, hgt)
+        self._get_heights(self._lats, hgt.transpose(1, 2, 0))
         h = self._zs.copy()
 
         # We want to support both pressure levels and true pressure grids.
@@ -116,12 +109,9 @@ class ECMWF(WeatherModel):
             self._p = pres
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
-        self._p = np.transpose(self._p, (1, 2, 0))
-        self._t = np.transpose(self._t, (1, 2, 0))
-        self._q = np.transpose(self._q, (1, 2, 0))
-        h = np.transpose(h, (1, 2, 0))
-        self._lats = np.transpose(_lats, (1, 2, 0))
-        self._lons = np.transpose(_lons, (1, 2, 0))
+        self._p = self._p.transpose(1, 2, 0)
+        self._t = self._t.transpose(1, 2, 0)
+        self._q = self._q.transpose(1, 2, 0)
 
         # Flip all the axis so that zs are in order from bottom to top
         # lats / lons are simply replicated to all heights so they don't need flipped
@@ -132,6 +122,7 @@ class ECMWF(WeatherModel):
         self._xs = self._lons.copy()
         self._zs = np.flip(h, axis=2)
 
+
     def _fetch(self, out):
         '''
         Fetch a weather model from ECMWF
@@ -140,21 +131,17 @@ class ECMWF(WeatherModel):
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
 
         # execute the search at ECMWF
-        try:
-            self._get_from_ecmwf(
-                lat_min,
-                lat_max,
-                self._lat_res,
-                lon_min,
-                lon_max,
-                self._lon_res,
-                self._time,
-                out
-            )
-        except Exception as e:
-            logger.warning('Query point bounds are {}/{}/{}/{}'.format(lat_min, lat_max, lon_min, lon_max))
-            logger.warning('Query time: {}'.format(self._time))
-            logger.exception(e)
+        self._get_from_ecmwf(
+            lat_min,
+            lat_max,
+            self._lat_res,
+            lon_min,
+            lon_max,
+            self._lon_res,
+            self._time,
+            out
+        )
+        return
 
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
@@ -163,7 +150,9 @@ class ECMWF(WeatherModel):
 
         server = ecmwfapi.ECMWFDataServer()
 
-        corrected_date = util.round_date(time, datetime.timedelta(hours=6))
+        corrected_DT = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        if not corrected_DT == time:
+            logger.warning('Rounded given datetime from  %s to %s', time, corrected_DT)
 
         server.retrieve({
             "class": self._classname,  # ERA-Interim
@@ -176,14 +165,14 @@ class ECMWF(WeatherModel):
             "stream": "oper",
             # date: Specify a single date as "2015-08-01" or a period as
             # "2015-08-01/to/2015-08-31".
-            "date": datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
+            "date": datetime.datetime.strftime(corrected_DT, "%Y-%m-%d"),
             # type: Use an (analysis) unless you have a particular reason to
             # use fc (forecast).
             "type": "an",
             # time: With type=an, time can be any of
             # "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can
             # be any of "00:00:00/12:00:00",
-            "time": datetime.time.strftime(corrected_date.time(), "%H:%M:%S"),
+            "time": datetime.time.strftime(corrected_DT.time(), "%H:%M:%S"),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -195,6 +184,7 @@ class ECMWF(WeatherModel):
             "target": out,    # target: the name of the output file.
         })
 
+
     def _get_from_cds(
         self,
         lat_min,
@@ -204,6 +194,7 @@ class ECMWF(WeatherModel):
         acqTime,
         outname
     ):
+        """ Used for ERA5 """
         import cdsapi
         c = cdsapi.Client(verify=0)
 
@@ -217,7 +208,11 @@ class ECMWF(WeatherModel):
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
         # round to the closest legal time
-        corrected_date = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
+
+        corrected_DT = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
+        if not corrected_DT == acqTime:
+            logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
+
 
         # I referenced https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
         dataDict = {
@@ -228,8 +223,8 @@ class ECMWF(WeatherModel):
             'param': var,
             "stream": "oper",
             "type": "an",
-            "date": "{}".format(corrected_date.strftime('%Y-%m-%d')),
-            "time": "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
+            "date": "{}".format(corrected_DT.strftime('%Y-%m-%d')),
+            "time": "{}".format(datetime.time.strftime(corrected_DT.time(), '%H:%M')),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             "step": "0",
@@ -240,18 +235,19 @@ class ECMWF(WeatherModel):
         try:
             c.retrieve('reanalysis-era5-complete', dataDict, outname)
         except Exception as e:
-            logger.warning('Query point bounds are {}/{} latitude and {}/{} longitude'.format(lat_min, lat_max, lon_min, lon_max))
-            logger.warning('Query time: {}'.format(acqTime))
-            logger.exception(e)
             raise Exception
 
+
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
+        """ Used for HRES """
         from ecmwfapi import ECMWFService
 
         server = ECMWFService("mars")
 
         # round to the closest legal time
-        corrected_date = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        corrected_DT = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        if not corrected_DT == time:
+            logger.warning('Rounded given datetime from  %s to %s', time, corrected_DT)
 
         if self._model_level_type == 'ml':
             param = "129/130/133/152"
@@ -269,8 +265,8 @@ class ECMWF(WeatherModel):
                 'levelist': "all",
                 'levtype': "{}".format(self._model_level_type),
                 'param': param,
-                'date': datetime.datetime.strftime(corrected_date, "%Y-%m-%d"),
-                'time': "{}".format(datetime.time.strftime(corrected_date.time(), '%H:%M')),
+                'date': datetime.datetime.strftime(corrected_DT, "%Y-%m-%d"),
+                'time': "{}".format(datetime.time.strftime(corrected_DT.time(), '%H:%M')),
                 'step': "0",
                 'grid': "{}/{}".format(lon_step, lat_step),
                 'area': "{}/{}/{}/{}".format(lat_max, util.floorish(lon_min, 0.1), util.floorish(lat_min, 0.1), lon_max),
@@ -278,6 +274,7 @@ class ECMWF(WeatherModel):
             },
             out
         )
+
 
     def _load_pressure_level(self, filename, *args, **kwargs):
         with xr.open_dataset(filename) as block:
@@ -311,45 +308,28 @@ class ECMWF(WeatherModel):
         self._t = t
         self._q = q
 
-        geo_hgt = z / self._g0
+        geo_hgt = (z / self._g0).transpose(1, 2, 0)
 
         # re-assign lons, lats to match heights
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :],
-                                geo_hgt.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis],
-                                geo_hgt.shape)
+        self._lons, self._lats = np.meshgrid(lons, lats)
 
         # correct heights for latitude
-        self._get_heights(_lats, geo_hgt)
+        self._get_heights(self._lats, geo_hgt)
 
-        self._p = np.broadcast_to(levels[:, np.newaxis, np.newaxis],
+        self._p = np.broadcast_to(levels[np.newaxis, np.newaxis, :],
                                   self._zs.shape)
 
-        # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
-        self._p = np.transpose(self._p)
-        self._t = np.transpose(self._t)
-        self._q = np.transpose(self._q)
-        self._lats = np.transpose(_lats)
-        self._lons = np.transpose(_lons)
+        # Re-structure from (heights, lats, lons) to (lons, lats, heights)
+        self._t = self._t.transpose(1, 2, 0)
+        self._q = self._q.transpose(1, 2, 0)
         self._ys = self._lats.copy()
         self._xs = self._lons.copy()
-        self._zs = np.transpose(self._zs)
 
-        # check this
-        # data cube format should be lats,lons,heights
-        self._lats = self._lats.swapaxes(0, 1)
-        self._lons = self._lons.swapaxes(0, 1)
-        self._xs = self._xs.swapaxes(0, 1)
-        self._ys = self._ys.swapaxes(0, 1)
-        self._zs = self._zs.swapaxes(0, 1)
-        self._p = self._p.swapaxes(0, 1)
-        self._q = self._q.swapaxes(0, 1)
-        self._t = self._t.swapaxes(0, 1)
-
-        # For some reason z is opposite the others
+        # flip z to go from surface to toa
         self._p = np.flip(self._p, axis=2)
         self._t = np.flip(self._t, axis=2)
         self._q = np.flip(self._q, axis=2)
+
 
     def _makeDataCubes(self, fname, verbose=False):
         '''

@@ -5,36 +5,38 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-from abc import abstractmethod
 import os
+import pyproj
+import xarray
 
 import numpy as np
-import pandas as pd
-import xarray
-import rasterio
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
 
 from pyproj import CRS
 
-from RAiDER.dem import download_dem
-from RAiDER.interpolator import interpolateDEM
-from RAiDER.utilFcns import rio_extents, rio_open, rio_profile, rio_stats, get_file_and_band
+from RAiDER.utilFcns import rio_open, rio_stats
 from RAiDER.logger import logger
 
 
 class AOI(object):
     '''
-    This instantiates a generic AOI class object. 
+    This instantiates a generic AOI class object.
 
     Attributes:
        _bounding_box    - S N W E bounding box
-       _proj            - pyproj-compatible CRS 
-       _type            - Type of AOI 
+       _proj            - pyproj-compatible CRS
+       _type            - Type of AOI
     '''
     def __init__(self):
         self._output_directory = os.getcwd()
-        self._bounding_box = None
-        self._proj = CRS.from_epsg(4326)
-        self._geotransform = None
+        self._bounding_box   = None
+        self._proj           = CRS.from_epsg(4326)
+        self._geotransform   = None
+        self._cube_spacing_m = None
 
 
     def type(self):
@@ -42,7 +44,7 @@ class AOI(object):
 
 
     def bounds(self):
-        return self._bounding_box
+        return list(self._bounding_box).copy()
 
 
     def geotransform(self):
@@ -53,26 +55,145 @@ class AOI(object):
         return self._proj
 
 
-    def add_buffer(self, buffer):
-        '''
-        Check whether an extra lat/lon buffer is needed for raytracing
-        '''
-        # if raytracing, add a 1-degree buffer all around
+    def get_output_spacing(self, crs=4326):
+        """ Return the output spacing in desired units """
+        output_spacing_deg = self._output_spacing
+        if not isinstance(crs, CRS):
+            crs = CRS.from_epsg(crs)
+
+        ## convert it to meters users wants a projected coordinate system
+        if all(axis_info.unit_name == 'degree' for axis_info in crs.axis_info):
+            output_spacing = output_spacing_deg
+        else:
+            output_spacing = output_spacing_deg*1e5
+
+        return output_spacing
+
+
+    def set_output_spacing(self, ll_res=None):
+        """ Calculate the spacing for the output grid and weather model
+
+        Use the requested spacing if exists or the weather model grid itself
+
+        Returns:
+            None. Sets self._output_spacing
+        """
+        assert ll_res or self._cube_spacing_m, \
+            'Must pass lat/lon resolution if _cube_spacing_m is None'
+
+        out_spacing = self._cube_spacing_m / 1e5  \
+            if self._cube_spacing_m else ll_res
+
+        logger.debug(f'Output cube spacing: {out_spacing} degrees')
+        self._output_spacing = out_spacing
+
+
+    def add_buffer(self, ll_res, digits=2):
+        """
+        Add a fixed buffer to the AOI, accounting for the cube spacing.
+
+        Ensures cube is slighly larger than requested area.
+        The AOI will always be in EPSG:4326
+        Args:
+            ll_res          - weather model lat/lon resolution
+            digits          - number of decimal digits to include in the output
+
+        Returns:
+            None. Updates self._bounding_box
+
+        Example:
+        >>> from RAiDER.models.hrrr import HRRR
+        >>> from RAiDER.llreader import BoundingBox
+        >>> wm = HRRR()
+        >>> aoi = BoundingBox([37, 38, -92, -91])
+        >>> aoi.add_buffer(buffer = 1.5 * wm.getLLRes())
+        >>> aoi.bounds()
+         [36.93, 38.07, -92.07, -90.93]
+        """
+        from RAiDER.utilFcns import clip_bbox
+
+        ## add an extra buffer around the user specified region
+        S, N, W, E = self.bounds()
+        buffer     = (1.5 * ll_res)
+        S, N = np.max([S-buffer, -90]),  np.min([N+buffer, 90])
+        W, E = W-buffer, E+buffer # TODO: handle dateline crossings
+
+        ## clip the buffered region to a multiple of the spacing
+        self.set_output_spacing(ll_res)
+        S, N, W, E  = clip_bbox([S,N,W,E], self._output_spacing)
+
+        if np.max([np.abs(W), np.abs(E)]) > 180:
+            logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
+
+        self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
+
+        return
+
+
+    def calc_buffer_ray(self, direction, lookDir='right', incAngle=30, maxZ=80, digits=2):
+        """
+        Calculate the buffer for ray tracing. This only needs to be done in the east-west
+        direction due to satellite orbits, and only needs extended on the side closest to
+        the sensor.
+
+        Args:
+            lookDir (str)      - Sensor look direction, can be "right" or "left"
+            losAngle (float)   - Incidence angle in degrees
+            maxZ (float)       - maximum integration elevation in km
+        """
+        direction = direction.lower()
+        # for isce object
         try:
-            ll_bounds = self._bounding_box.copy()
+            lookDir = lookDir.name.lower()
         except AttributeError:
-            ll_bounds = list(self._bounding_box)
-        ll_bounds[0] = np.max([ll_bounds[0] - buffer, -90])
-        ll_bounds[1] = np.min([ll_bounds[1] + buffer,  90])
-        ll_bounds[2] = np.max([ll_bounds[2] - buffer,-180])
-        ll_bounds[3] = np.min([ll_bounds[3] + buffer, 180])
-        return ll_bounds
+            lookDir = lookDir.lower()
+
+        assert direction in 'asc desc'.split(), \
+            f'Incorrection orbital direction: {direction}. Choose asc or desc.'
+        assert lookDir in 'right light'.split(), \
+            f'Incorrection look direction: {lookDir}. Choose right or left.'
+
+        S, N, W, E = self.bounds()
+
+        # use a small look angle to calculate near range
+        lat_max = np.max([np.abs(S), np.abs(N)])
+        near    = maxZ * np.tan(np.deg2rad(incAngle))
+        buffer  = near / (np.cos(np.deg2rad(lat_max)) * 100)
+
+        # buffer on the side nearest the sensor
+        if ((lookDir == 'right') and (direction == 'asc')) or ((lookDir == 'left') and (direction == 'desc')):
+            W = W - buffer
+        else:
+            E = E + buffer
+
+        bounds = [np.round(a, digits) for a in (S, N, W, E)]
+        if np.max([np.abs(W), np.abs(E)]) > 180:
+            logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
+        return bounds
 
 
     def set_output_directory(self, output_directory):
         self._output_directory = output_directory
         return
 
+
+    def set_output_xygrid(self, dst_crs=4326):
+        """ Define the locations where the delays will be returned """
+        from RAiDER.utilFcns import transform_bbox
+
+        try:
+            out_proj = CRS.from_epsg(dst_crs.replace('EPSG:', ''))
+        except pyproj.exceptions.CRSError:
+            out_proj = dst_crs
+
+        out_snwe = transform_bbox(self.bounds(), src_crs=4326, dest_crs=out_proj)
+        logger.debug(f"Output SNWE: {out_snwe}")
+
+        # Build the output grid
+        out_spacing = self.get_output_spacing(out_proj)
+        self.xpts = np.arange(out_snwe[2], out_snwe[3] + out_spacing, out_spacing)
+        self.ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
+        return
 
 
 class StationFile(AOI):
@@ -86,31 +207,39 @@ class StationFile(AOI):
 
 
     def readLL(self):
+        '''Read the station lat/lons from the csv file'''
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         return df['Lat'].values, df['Lon'].values
 
 
     def readZ(self):
+        '''
+        Read the station heights from the file, or download a DEM if not present
+        '''
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         if 'Hgt_m' in df.columns:
             return df['Hgt_m'].values
         else:
+            # Download the DEM
+            from RAiDER.dem import download_dem
+            from RAiDER.interpolator import interpolateDEM
+            
             demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
                             if self._demfile is None else self._demfile
 
-            zvals, metadata = download_dem(
+            _, _ = download_dem(
                 self._bounding_box,
                 writeDEM=True,
                 outName=demFile,
             )
-            ## select instead
+            
+            ## interpolate the DEM to the query points
             z_out0 = interpolateDEM(demFile, self.readLL())
             if np.isnan(z_out0).all():
                 raise Exception('DEM interpolation failed. Check DEM bounds and station coords.')
+            z_out = np.diag(z_out0)  # the diagonal is the actual stations coordinates
 
-
-            # the diagonal is the actual stations coordinates
-            z_out = np.diag(z_out0)
+            # write the elevations to the file
             df['Hgt_m'] = z_out
             df.to_csv(self._filename, index=False)
             self.__init__(self._filename)
@@ -118,6 +247,9 @@ class StationFile(AOI):
 
 
 class RasterRDR(AOI):
+    '''
+    Use a 2-band raster file containing lat/lon coordinates. 
+    '''    
     def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce'):
         super().__init__()
         self._type = 'radar_rasters'
@@ -133,13 +265,14 @@ class RasterRDR(AOI):
         try:
             bpg = bounds_from_latlon_rasters(lat_file, lon_file)
             self._bounding_box, self._proj, self._geotransform = bpg
-        except rasterio.errors.RasterioIOError:
-            raise ValueError(f'Could not open {self._latfile}')
+        except Exception as e:
+            raise ValueError(f'Could not read lat/lon rasters: {e}')
 
         # keep track of the height file, dem and convention
         self._hgtfile = hgt_file
         self._demfile = dem_file
         self._convention = convention
+
 
     def readLL(self):
         # allow for 2-band lat/lon raster
@@ -152,15 +285,22 @@ class RasterRDR(AOI):
 
 
     def readZ(self):
+        '''
+        Read the heights from the raster file, or download a DEM if not present
+        '''
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             return rio_open(self._hgtfile)
 
         else:
+            # Download the DEM
+            from RAiDER.dem import download_dem
+            from RAiDER.interpolator import interpolateDEM
+            
             demFile = os.path.join(self._output_directory, 'GLO30_fullres_dem.tif') \
                             if self._demfile is None else self._demfile
 
-            zvals, metadata = download_dem(
+            _, _ = download_dem(
                 self._bounding_box,
                 writeDEM=True,
                 outName=demFile,
@@ -182,6 +322,9 @@ class GeocodedFile(AOI):
     '''Parse a Geocoded file for coordinates'''
     def __init__(self, filename, is_dem=False):
         super().__init__()
+
+        from RAiDER.utilFcns import rio_profile, rio_extents
+
         self._filename     = filename
         self.p             = rio_profile(filename)
         self._bounding_box = rio_extents(self.p)
@@ -203,11 +346,16 @@ class GeocodedFile(AOI):
 
 
     def readZ(self):
+        '''
+        Download a DEM for the file
+        '''
+        from RAiDER.dem import download_dem
+        from RAiDER.interpolator import interpolateDEM
+
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox    = self._bounding_box
-        zvals, metadata = download_dem(bbox, writeDEM=True, outName=demFile)
+        _, _ = download_dem(bbox, writeDEM=True, outName=demFile)
         z_out = interpolateDEM(demFile, self.readLL())
-
 
         return z_out
 
@@ -219,7 +367,7 @@ class Geocube(AOI):
         self.path  = path_cube
         self._type = 'Geocube'
         self._bounding_box = self.get_extent()
-        _, self._proj, self._geotransform = rio_stats(filename)
+        _, self._proj, self._geotransform = rio_stats(path_cube)
 
     def get_extent(self):
         with xarray.open_dataset(self.path) as ds:
@@ -247,6 +395,7 @@ def bounds_from_latlon_rasters(latfile, lonfile):
     Parse lat/lon/height inputs and return
     the appropriate outputs
     '''
+    from RAiDER.utilFcns import get_file_and_band
     latinfo = get_file_and_band(latfile)
     loninfo = get_file_and_band(lonfile)
     lat_stats, lat_proj, lat_gt = rio_stats(latinfo[0], band=latinfo[1])

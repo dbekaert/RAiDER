@@ -10,15 +10,18 @@ import os
 import datetime
 import shelve
 
-import xml.etree.ElementTree as ET
 import numpy as np
-from abc import ABC
-from scipy.interpolate import interp1d
+try:
+    import xml.etree.ElementTree as ET
+except ImportError:
+    ET = None
 
-from RAiDER.utilFcns import (
-    cosd, sind, rio_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
-)
+from abc import ABC
+
 from RAiDER.constants import _ZREF
+from RAiDER.utilFcns import (
+    cosd, sind, rio_open, lla2ecef, ecef2lla
+)
 
 
 class LOS(ABC):
@@ -156,7 +159,7 @@ class Raytracing(LOS):
                                              compatible with the orbit file passed.
                                              Only required for a statevector file.
     pad: int                               - integer number of seconds to pad around
-                                             the user-specified time; default 3 hours
+                                             the user-specified time; default 10 min
                                              Only required for a statevector file.
 
     Returns:
@@ -181,13 +184,15 @@ class Raytracing(LOS):
         self._time = time
         self._pad  = pad
         self._convention = los_convention
+        self._orbit = None
         if self._convention.lower() != 'isce':
             raise NotImplementedError()
 
         # ISCE3 data structures
         import isce3.ext.isce3 as isce
         if self._time is not None:
-            self._orbit = get_orbit(self._filename, self._time)
+            # __call__ called in checkArgs; keep for modularity
+            self._orbit = get_orbit(self._file, self._time, pad=pad)
         self._elp = isce.core.Ellipsoid()
         self._dop = isce.core.LUT2d()
         if look_dir.lower() == "right":
@@ -196,10 +201,29 @@ class Raytracing(LOS):
             self._look_dir = isce.core.LookSide.Left
         else:
             raise RuntimeError(f"Unknown look direction: {look_dir}")
-        
-    def setTime(self, time):
+
+
+    def getSensorDirection(self):
+        if self._orbit is None:
+            raise ValueError('The orbit has not been set')
+        z = self._orbit.position[:,2]
+        t = self._orbit.time
+        start = np.argmin(t)
+        end = np.argmax(t)
+        if z[start] > z[end]:
+            return 'desc'
+        else:
+            return 'asc'
+
+
+    def getLookDirection(self):
+        return self._look_dir
+
+    # Called in checkArgs
+    def setTime(self, time, pad=600):
         self._time = time
-        self._orbit = get_orbit(self._file, self._time)
+        self._orbit = get_orbit(self._file, self._time, pad=pad)
+
 
     def getLookVectors(self, ht, llh, xyz, yy):
         '''
@@ -207,6 +231,7 @@ class Raytracing(LOS):
         '''
         # TODO - Modify when isce3 vectorization is available
         los = np.full(yy.shape + (3,), np.nan)
+        llh = llh.copy()
         llh[0] = np.deg2rad(llh[0])
         llh[1] = np.deg2rad(llh[1])
 
@@ -298,10 +323,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-
-
-
-def get_sv(los_file, ref_time, pad=3 * 60):
+def get_sv(los_file, ref_time, pad):
     """
     Read an LOS file and return orbital state vectors
 
@@ -311,7 +333,7 @@ def get_sv(los_file, ref_time, pad=3 * 60):
         ref_time (datetime):- User-requested datetime; if not encompassed
                               by the orbit times will raise a ValueError
         pad (int):          - number of seconds to keep around the
-                              requested time
+                              requested time (should be about 600 seconds)
 
     Returns:
         svs (list of ndarrays): - the times, x/y/z positions and velocities
@@ -459,6 +481,8 @@ def read_ESA_Orbit_file(filename):
     x, y, z: Nt x 1 ndarrays    - x/y/z positions of the sensor at the times t
     vx, vy, vz: Nt x 1 ndarrays - x/y/z velocities of the sensor at the times t
     '''
+    if ET is None:
+        raise ImportError('read_ESA_Orbit_file: cannot import xml.etree.ElementTree')
     tree = ET.parse(filename)
     root = tree.getroot()
     data_block = root[1]
@@ -559,7 +583,7 @@ def state_to_los(svs, llh_targets):
     return los_factor
 
 
-def cut_times(times, ref_time, pad=3600 * 3):
+def cut_times(times, ref_time, pad):
     """
     Slice the orbit file around the reference aquisition time. This is done
     by default using a three-hour window, which for Sentinel-1 empirically
@@ -646,7 +670,7 @@ def get_radar_pos(llh, orb):
 
             except Exception as e:
                 raise e
-            
+
         # in case nans in hgt field
         else:
             sr[ind] = np.nan
@@ -685,17 +709,91 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
     return pos
 
 
-def get_orbit(orbit_file, ref_time, pad=600): 
+def get_orbit(orbit_file, ref_time, pad):
     '''
     Returns state vectors from an orbit file
+    orbit file (str):   - user-passed file containing statevectors
+                          for the sensor (can download with sentineleof libray)
+    pad (int):          - number of seconds to keep around the
+                          requested time (should be about 600 seconds)
+
     '''
     # First load the state vectors into an isce orbit
     import isce3.ext.isce3 as isce
-    svs = get_sv(orbit_file, ref_time, pad)
-    orb = isce.core.Orbit([
-        isce.core.StateVector(
-            isce.core.DateTime(row[0]),
-            row[1:4], row[4:7]
-        ) for row in np.stack(svs, axis=-1)
-    ])
+
+    svs   = np.stack(get_sv(orbit_file, ref_time, pad), axis=-1)
+    svs_i = []
+    # format for ISCE
+    for sv in svs:
+       sv = isce.core.StateVector(isce.core.DateTime(sv[0]), sv[1:4], sv[4:7])
+       svs_i.append(sv)
+
+    orb = isce.core.Orbit(svs_i)
+
     return orb
+
+
+def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
+    """
+    Compute the ray length in ECEF between each  weather model layers
+
+    Only heights up to MAX_TROPO_HEIGHT are considered
+    Assumption: model_zs (model) are assumed to be sorted in height
+    We start integrating bottom up
+    """
+    low_xyz = None
+    high_xyz = None
+    cos_factor = None
+
+    ray_lengths, low_xyzs, high_xyzs = [], [], []
+    for zz in range(model_zs.size-1):
+        # Low and High for model interval
+        low_ht = model_zs[zz]
+        high_ht = model_zs[zz + 1]
+
+        # this will force ray lengths to stay within the weather model domain
+        if high_ht == model_zs[-1]:
+            high_ht -= 0.01
+
+        # If high_ht < height of point - no contribution to integral
+        # If low_ht > max_tropo_height - no contribution to integral
+        if (high_ht < ht) or (low_ht >= MAX_TROPO_HEIGHT):
+            continue
+
+        # If low_ht < requested height, start integral at requested height
+        if low_ht < ht:
+            low_ht = ht
+
+        # If high_ht > max_tropo_height - integral only up to max tropo height
+        if high_ht > MAX_TROPO_HEIGHT:
+            high_ht = MAX_TROPO_HEIGHT
+
+        # Continue only if needed - 1m troposphere does nothing
+        if np.abs(high_ht - low_ht) < 1.0:
+            continue
+
+        # If high_xyz was defined, make new low_xyz - save computation
+        if high_xyz is not None:
+            low_xyz = high_xyz
+        else:
+            low_xyz = getTopOfAtmosphere(xyz, LOS, low_ht, factor=cos_factor)
+
+        # Compute high_xyz (upper model level)
+        high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
+
+        # Compute ray length
+        ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)
+
+        # Compute cos_factor for first iteration
+        if cos_factor is None:
+            cos_factor = (high_ht - low_ht) / ray_length
+
+        ray_lengths.append(ray_length)
+        low_xyzs.append(low_xyz)
+        high_xyzs.append(high_xyz)
+
+    ## if all weather model levels are requested the top most layer might not contribute anything
+    if not ray_lengths:
+        return None, None, None
+    else:
+        return np.stack(ray_lengths), np.stack(low_xyzs), np.stack(high_xyzs)
