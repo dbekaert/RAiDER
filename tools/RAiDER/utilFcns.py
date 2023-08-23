@@ -1,17 +1,31 @@
 """Geodesy-related utility functions."""
-import multiprocessing as mp
 import os
 import re
-import progressbar
-import rasterio
-import xarray
 
 from datetime import datetime, timedelta
 from numpy import ndarray
 from pyproj import Transformer, CRS, Proj
 
 import numpy as np
-import pandas as pd
+
+# Optional imports
+try:
+    import pandas as pd
+except ImportError:
+    pd = None
+try:
+    import multiprocessing as mp
+except ImportError:
+    mp = None
+try:
+    import rasterio
+except ImportError:
+    rasterio = None
+try:
+    import progressbar
+except ImportError:
+    progressbar = None
+
 
 from RAiDER.constants import (
     _g0 as g0,
@@ -103,6 +117,12 @@ def ecef2enu(xyz, lat, lon, height):
 
 
 def rio_profile(fname):
+    '''
+    Reads the profile of a rasterio file
+    '''
+    if rasterio is None:
+        raise ImportError('RAiDER.utilFcns: rio_profile - rasterio is not installed')
+    
     ## need to access subdataset directly
     if os.path.basename(fname).startswith('S1-GUNW'):
         fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
@@ -139,6 +159,12 @@ def rio_extents(profile):
 
 
 def rio_open(fname, returnProj=False, userNDV=None, band=None):
+    '''
+    Reads a rasterio-compatible raster file and returns the data and profile
+    '''
+    if rasterio is None:
+        raise ImportError('RAiDER.utilFcns: rio_open - rasterio is not installed')
+
     if os.path.exists(fname + '.vrt'):
         fname = fname + '.vrt'
 
@@ -200,6 +226,9 @@ def rio_stats(fname, band=1):
         proj    - CRS/projection information for the file
         gt      - geotransform for the data
     '''
+    if rasterio is None:
+        raise ImportError('RAiDER.utilFcns: rio_stats - rasterio is not installed')
+
     if os.path.basename(fname).startswith('S1-GUNW'):
         fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
 
@@ -231,79 +260,6 @@ def get_file_and_band(filestr):
         raise ValueError(
             f"Cannot interpret {filestr} as valid filename"
         )
-
-
-def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type):
-    '''
-    write a 1-D array to a NETCDF5 file
-    '''
-       # Modify this as needed for NISAR / other projects
-    ds = xarray.Dataset(
-        data_vars=dict(
-            wet=(["z", "y", "x"],
-                 wetDelay,
-                 {"units" : "m",
-                  "description": f"wet {out_type} delay",
-                  # 'crs': crs.to_epsg(),
-                  "grid_mapping": "crs",
-
-                 }),
-            hydro=(["z", "y", "x"],
-                   hydroDelay,
-                   {"units": "m",
-                    # 'crs': crs.to_epsg(),
-                    "description": f"hydrostatic {out_type} delay",
-                    "grid_mapping": "crs",
-                   }),
-        ),
-        coords=dict(
-            x=(["x"], xpts),
-            y=(["y"], ypts),
-            z=(["z"], zpts),
-        ),
-        attrs=dict(
-            Conventions="CF-1.7",
-            title="RAiDER geo cube",
-            source=os.path.basename(weather_model_file),
-            history=str(datetime.utcnow()) + " RAiDER",
-            description=f"RAiDER geo cube - {out_type}",
-            reference_time=str(dt),
-        ),
-    )
-
-    # Write projection system mapping
-    ds["crs"] = int(-2147483647) # dummy placeholder
-    for k, v in crs.to_cf().items():
-        ds.crs.attrs[k] = v
-
-    # Write z-axis information
-    ds.z.attrs["axis"] = "Z"
-    ds.z.attrs["units"] = "m"
-    ds.z.attrs["description"] = "height above ellipsoid"
-
-    # If in degrees
-    if crs.axis_info[0].unit_name == "degree":
-        ds.y.attrs["units"] = "degrees_north"
-        ds.y.attrs["standard_name"] = "latitude"
-        ds.y.attrs["long_name"] = "latitude"
-
-        ds.x.attrs["units"] = "degrees_east"
-        ds.x.attrs["standard_name"] = "longitude"
-        ds.x.attrs["long_name"] = "longitude"
-
-    else:
-        ds.y.attrs["axis"] = "Y"
-        ds.y.attrs["standard_name"] = "projection_y_coordinate"
-        ds.y.attrs["long_name"] = "y-coordinate in projected coordinate system"
-        ds.y.attrs["units"] = "m"
-
-        ds.x.attrs["axis"] = "X"
-        ds.x.attrs["standard_name"] = "projection_x_coordinate"
-        ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
-        ds.x.attrs["units"] = "m"
-
-    return ds
-
 
 def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
     '''
@@ -490,15 +446,6 @@ def checkShapes(los, lats, lons, hts):
             'heights had shape {}, and los was not Zenith'.format(hts.shape))
 
 
-def read_hgt_file(filename):
-    '''
-    Read height data from a comma-delimited file
-    '''
-    data = pd.read_csv(filename)
-    hgts = data['Hgt_m'].values
-    return hgts
-
-
 def round_time(dt, roundTo=60):
     '''
     Round a datetime object to any time lapse in seconds
@@ -515,6 +462,8 @@ def writeDelays(aoi, wetDelay, hydroDelay,
                 wetFilename, hydroFilename=None,
                 outformat=None, ndv=0.):
     """ Write the delay numpy arrays to files in the format specified """
+    if pd is None:
+        raise ImportError('pandas is required to write GNSS delays to a file')
 
     # Need to consistently handle noDataValues
     wetDelay[np.isnan(wetDelay)] = ndv
@@ -949,6 +898,10 @@ def read_EarthData_loginInfo(filepath=None):
 
 
 def show_progress(block_num, block_size, total_size):
+    '''Show download progress'''
+    if progressbar is None:
+        raise ImportError('RAiDER.utilFcns: show_progress - progressbar is not available')
+    
     global pbar
     if pbar is None:
         pbar = progressbar.ProgressBar(maxval=total_size)
@@ -964,6 +917,8 @@ def show_progress(block_num, block_size, total_size):
 
 def getChunkSize(in_shape):
     '''Create a reasonable chunk size'''
+    if mp is None:
+        raise ImportError('RAiDER.utilFcns: getChunkSize - multiprocessing is not available')
     minChunkSize = 100
     maxChunkSize = 1000
     cpu_count = mp.cpu_count()
@@ -1121,35 +1076,4 @@ def get_dt(t1,t2):
     '''
     return np.abs((t1 - t2).total_seconds())
 
-
-def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
-    '''
-    Transform lat/lon/hgt data to an array of points in a new
-    projection
-
-    Args:
-        lats: ndarray   - WGS-84 latitude (EPSG: 4326)
-        lons: ndarray   - ditto for longitude
-        hgts: ndarray   - Ellipsoidal height in meters
-        old_proj: CRS   - the original projection of the points
-        new_proj: CRS   - the new projection in which to return the points
-
-    Returns:
-        ndarray: the array of query points in the weather model coordinate system (YX)
-    '''
-    # Flags for flipping inputs or outputs
-    if not isinstance(new_proj, CRS):
-        new_proj = CRS.from_epsg(new_proj.lstrip('EPSG:'))
-    if not isinstance(old_proj, CRS):
-        old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
-
-    t = Transformer.from_crs(old_proj, new_proj, always_xy=True)
-
-    in_flip = old_proj.axis_info[0].direction
-    out_flip = new_proj.axis_info[0].direction
-
-    res  = t.transform(lons, lats, hgts)
-
-    # lat/lon/height
-    return  np.stack([res[1], res[0], res[2]], axis=-1)
 

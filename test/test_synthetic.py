@@ -5,10 +5,9 @@ from datetime import datetime
 from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, build_ray
-from RAiDER.utilFcns import lla2ecef, ecef2lla
+from RAiDER.utilFcns import lla2ecef
 from RAiDER.cli.validators import modelName2Module
 
-from RAiDER.constants import _ZREF
 from test import *
 
 
@@ -61,7 +60,6 @@ def update_model(wm_file:str, wm_eq_type:str, wm_dir:str='weather_files_synth'):
 
     ds.close()
     del ds
-    print ('Wrote synthetic weather model file to:', dst)
     return dst
 
 

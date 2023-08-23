@@ -12,9 +12,11 @@ tropospheric wet and hydrostatic delays from a weather model. Weather
 models are accessed as NETCDF files and should have "wet" "hydro"
 "wet_total" and "hydro_total" fields specified.
 """
+import os
 import pyproj
 import xarray
 
+from datetime import datetime
 from pyproj import CRS, Transformer
 from typing import List, Union
 
@@ -24,11 +26,6 @@ from RAiDER.constants import _ZREF
 from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import build_ray
-from RAiDER.utilFcns import (
-    lla2ecef,  writeResultsToXarray,
-    rio_profile, transformPoints,
-)
-
 
 ###############################################################################
 def tropo_delay(
@@ -62,12 +59,12 @@ def tropo_delay(
     crs = CRS(out_proj)
 
     # Load CRS from weather model file
-    wm_proj = rio_profile(f"netcdf:{weather_model_file}:t")["crs"]
-    if wm_proj is None:
-       logger.warning("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
-       wm_proj = CRS.from_epsg(4326)
-    else:
-        wm_proj = CRS.from_wkt(wm_proj.to_wkt())
+    with xarray.load_dataset(weather_model_file) as ds:
+        try:
+            wm_proj = CRS.from_wkt(ds['proj'].attrs['crs_wkt'])
+        except KeyError:
+            logger.warning("WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84")
+            wm_proj = CRS.from_epsg(4326)
 
     # get heights
     with xarray.load_dataset(weather_model_file) as ds:
@@ -228,6 +225,7 @@ def _build_cube_ray(
     """
     # Get model heights in an array
     # Assumption: All interpolators here are on the same grid
+    T = Transformer.from_crs(4326, 4978, always_xy=True)
     model_zs = interpolators[0].grid[2]
 
     # Create a regular 2D grid
@@ -242,10 +240,8 @@ def _build_cube_ray(
 
     # Various transformers needed here
     epsg4326 = CRS.from_epsg(4326)
-    cube_to_llh = Transformer.from_crs(pts_crs, epsg4326,
-                                       always_xy=True)
-    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs,
-                                         always_xy=True)
+    cube_to_llh = Transformer.from_crs(pts_crs, epsg4326, always_xy=True)
+    ecef_to_model = Transformer.from_crs(CRS.from_epsg(4978), model_crs, always_xy=True)
 
     # Loop over heights of output cube and compute delays
     for hh, ht in enumerate(zpts):
@@ -259,7 +255,7 @@ def _build_cube_ray(
         else:
             llh = [xx, yy, np.full(yy.shape, ht)]
 
-        xyz = np.stack(lla2ecef(llh[1], llh[0], np.full(yy.shape, ht)), axis=-1)
+        xyz = np.stack(T.transform(llh[0], llh[1], llh[2]), axis=-1)
 
         # Step 2 - get LOS vectors for targets
         LOS = los.getLookVectors(ht, llh, xyz, yy)
@@ -324,3 +320,108 @@ def _build_cube_ray(
 
     if output_created_here:
         return outputArrs
+
+
+def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type):
+    '''
+    write a 1-D array to a NETCDF5 file
+    '''
+       # Modify this as needed for NISAR / other projects
+    ds = xarray.Dataset(
+        data_vars=dict(
+            wet=(["z", "y", "x"],
+                 wetDelay,
+                 {"units" : "m",
+                  "description": f"wet {out_type} delay",
+                  # 'crs': crs.to_epsg(),
+                  "grid_mapping": "crs",
+
+                 }),
+            hydro=(["z", "y", "x"],
+                   hydroDelay,
+                   {"units": "m",
+                    # 'crs': crs.to_epsg(),
+                    "description": f"hydrostatic {out_type} delay",
+                    "grid_mapping": "crs",
+                   }),
+        ),
+        coords=dict(
+            x=(["x"], xpts),
+            y=(["y"], ypts),
+            z=(["z"], zpts),
+        ),
+        attrs=dict(
+            Conventions="CF-1.7",
+            title="RAiDER geo cube",
+            source=os.path.basename(weather_model_file),
+            history=str(datetime.utcnow()) + " RAiDER",
+            description=f"RAiDER geo cube - {out_type}",
+            reference_time=str(dt),
+        ),
+    )
+
+    # Write projection system mapping
+    ds["crs"] = int(-2147483647) # dummy placeholder
+    for k, v in crs.to_cf().items():
+        ds.crs.attrs[k] = v
+
+    # Write z-axis information
+    ds.z.attrs["axis"] = "Z"
+    ds.z.attrs["units"] = "m"
+    ds.z.attrs["description"] = "height above ellipsoid"
+
+    # If in degrees
+    if crs.axis_info[0].unit_name == "degree":
+        ds.y.attrs["units"] = "degrees_north"
+        ds.y.attrs["standard_name"] = "latitude"
+        ds.y.attrs["long_name"] = "latitude"
+
+        ds.x.attrs["units"] = "degrees_east"
+        ds.x.attrs["standard_name"] = "longitude"
+        ds.x.attrs["long_name"] = "longitude"
+
+    else:
+        ds.y.attrs["axis"] = "Y"
+        ds.y.attrs["standard_name"] = "projection_y_coordinate"
+        ds.y.attrs["long_name"] = "y-coordinate in projected coordinate system"
+        ds.y.attrs["units"] = "m"
+
+        ds.x.attrs["axis"] = "X"
+        ds.x.attrs["standard_name"] = "projection_x_coordinate"
+        ds.x.attrs["long_name"] = "x-coordinate in projected coordinate system"
+        ds.x.attrs["units"] = "m"
+
+    return ds
+
+
+
+def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
+    '''
+    Transform lat/lon/hgt data to an array of points in a new
+    projection
+
+    Args:
+        lats: ndarray   - WGS-84 latitude (EPSG: 4326)
+        lons: ndarray   - ditto for longitude
+        hgts: ndarray   - Ellipsoidal height in meters
+        old_proj: CRS   - the original projection of the points
+        new_proj: CRS   - the new projection in which to return the points
+
+    Returns:
+        ndarray: the array of query points in the weather model coordinate system (YX)
+    '''
+    # Flags for flipping inputs or outputs
+    if not isinstance(new_proj, CRS):
+        new_proj = CRS.from_epsg(new_proj.lstrip('EPSG:'))
+    if not isinstance(old_proj, CRS):
+        old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
+
+    t = Transformer.from_crs(old_proj, new_proj, always_xy=True)
+
+    # in_flip = old_proj.axis_info[0].direction
+    # out_flip = new_proj.axis_info[0].direction
+
+    res  = t.transform(lons, lats, hgts)
+
+    # lat/lon/height
+    return  np.stack([res[1], res[0], res[2]], axis=-1)

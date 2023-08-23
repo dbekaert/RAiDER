@@ -13,9 +13,8 @@ from shapely.geometry import Polygon, box
 
 from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
-from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
+from RAiDER.models.model_levels import LEVELS_50_HEIGHTS, LEVELS_137_HEIGHTS
 from RAiDER.logger import logger
-
 
 HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
 HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))

@@ -10,15 +10,18 @@ import os
 import datetime
 import shelve
 
-import xml.etree.ElementTree as ET
 import numpy as np
-from abc import ABC
-from scipy.interpolate import interp1d
+try:
+    import xml.etree.ElementTree as ET
+except ImportError:
+    ET = None
 
-from RAiDER.utilFcns import (
-    cosd, sind, rio_open, enu2ecef, lla2ecef, ecef2enu, ecef2lla
-)
+from abc import ABC
+
 from RAiDER.constants import _ZREF
+from RAiDER.utilFcns import (
+    cosd, sind, rio_open, lla2ecef, ecef2lla
+)
 
 
 class LOS(ABC):
@@ -478,6 +481,8 @@ def read_ESA_Orbit_file(filename):
     x, y, z: Nt x 1 ndarrays    - x/y/z positions of the sensor at the times t
     vx, vy, vz: Nt x 1 ndarrays - x/y/z velocities of the sensor at the times t
     '''
+    if ET is None:
+        raise ImportError('read_ESA_Orbit_file: cannot import xml.etree.ElementTree')
     tree = ET.parse(filename)
     root = tree.getroot()
     data_block = root[1]
