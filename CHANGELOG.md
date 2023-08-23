@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Latest updates:
+## [0.4.3]
 + Prevent ray tracing integration from occuring at exactly top of weather model
 + Properly expose z_ref (max integration height) parameter, and dont allow higher than weather model
 + Min version for sentineleof for obtaining restituted orbits.
@@ -46,8 +46,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Specify unbuffered python output in the docker entrypoint script using `python -um RAiDER.cli ...` whose `__main__.py` is the desired entrypoint.
 + For the GUNW workflow uses azimuth time interpolation using ISCE3 geo2rdr (see [here](https://github.com/ACCESS-Cloud-Based-InSAR/s1_azimuth_time_grid)).
     - Updates `interpolate_time` options to: `'none'` (formerly `False`), `'center_time'` (formerly `True` and `default`), and `azimuth_time_grid` (not implemented previously)
-
-## [0.4.3]
 + Series of bug-fixes/compatibility updates with stats class: 
     + Inconsistent definition of index IDs, which leads to key errors as so when querying the grid space for valid data points
     + Turn off default behavior of plotting minor ticks on colorbars, which translates to unreadable plots especially when scientific notation is involved
@@ -62,7 +60,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 + Add two stage buffer;
     + first pad user bounding box such that a 3D cube is generated that at min covers user area of interest.
     + then if ray tracing is used, pad the downloaded model in look direction. Assumes look angle is fixed increases with latitude.
-
 + Update and convert user given AOI to weather model projection (except for HRRR)
 + Clean up error messagse, skip date if temporal interpolation fails
 + Update valid range for ERA5 (current date - 3 months) & ERA5T
