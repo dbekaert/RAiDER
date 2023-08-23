@@ -1,0 +1,762 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+      
+        <link rel="next" href="tutorials/">
+      
+      <link rel="icon" href="assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.2, mkdocs-material-9.1.21">
+    
+    
+      
+        <title>RAiDER API Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="assets/stylesheets/main.eebd395e.min.css">
+      
+      
+
+    
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL(".",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#raider" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="." title="RAiDER API Documentation" class="md-header__button md-logo" aria-label="RAiDER API Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            RAiDER API Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Home page
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/dbekaert/RAiDER" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    RAiDER
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="." title="RAiDER API Documentation" class="md-nav__button md-logo" aria-label="RAiDER API Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    RAiDER API Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/dbekaert/RAiDER" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.4.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2023 Fonticons, Inc.--><path d="M439.55 236.05 244 40.45a28.87 28.87 0 0 0-40.81 0l-40.66 40.63 51.52 51.52c27.06-9.14 52.68 16.77 43.39 43.68l49.66 49.66c34.23-11.8 61.18 31 35.47 56.69-26.49 26.49-70.21-2.87-56-37.34L240.22 199v121.85c25.3 12.54 22.26 41.85 9.08 55a34.34 34.34 0 0 1-48.55 0c-17.57-17.6-11.07-46.91 11.25-56v-123c-20.8-8.51-24.6-30.74-18.64-45L142.57 101 8.45 235.14a28.86 28.86 0 0 0 0 40.81l195.61 195.6a28.86 28.86 0 0 0 40.8 0l194.69-194.69a28.86 28.86 0 0 0 0-40.81z"/></svg>
+  </div>
+  <div class="md-source__repository">
+    RAiDER
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          Home page
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="." class="md-nav__link md-nav__link--active">
+        Home page
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    Contents
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-getting-started" class="md-nav__link">
+    1. Getting Started
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Getting Started">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#installing-with-conda" class="md-nav__link">
+    Installing With Conda
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-the-docker-image" class="md-nav__link">
+    Using the Docker image
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-setup-of-third-party-weather-model-access" class="md-nav__link">
+    2. Setup of third party weather model access
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-running-raider-and-documentation" class="md-nav__link">
+    3. Running RAiDER and Documentation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-citation" class="md-nav__link">
+    4. Citation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-development" class="md-nav__link">
+    5. Development
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Development">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-install" class="md-nav__link">
+    Development install
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contributors" class="md-nav__link">
+    Contributors
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+      
+      
+      
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+      
+      
+      
+        <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          Tutorials
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+        <label class="md-nav__title" for="__nav_2">
+          <span class="md-nav__icon md-icon"></span>
+          Tutorials
+        </label>
+        <ul class="md-nav__list" data-md-scrollfix>
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="tutorials/" class="md-nav__link">
+        Overview
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/RAiDER_tutorial/RAiDER_tutorial.ipynb" target="_blank" class="md-nav__link">
+        RAiDER tutorial
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/RAiDER_tutorial/RAiDER_Python_access.ipynb" target="_blank" class="md-nav__link">
+        RAiDER Python tutorial
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderStats/raiderStats_tutorial.ipynb" target="_blank" class="md-nav__link">
+        raiderStats tutorial
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/raiderDownloadGNSS/raiderDownloadGNSS_tutorial.ipynb"  target="_blank" class="md-nav__link">
+        Downloading GNSS tropospheric delays
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://nbviewer.org/github/dbekaert/RAiDER-docs/blob/main/notebooks/Pandas_tutorial/Pandas_tutorial.ipynb"  target="_blank" class="md-nav__link">
+        GNSS delay manipulation with Pandas
+      </a>
+    </li>
+  
+
+            
+          
+        </ul>
+      </nav>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="WeatherModels/" class="md-nav__link">
+        Weather Model Access
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference_td/" class="md-nav__link">
+        Delay Calculation
+      </a>
+    </li>
+  
+
+    
+      
+      
+      
+
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="reference/" class="md-nav__link">
+        API Reference
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#contents" class="md-nav__link">
+    Contents
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-getting-started" class="md-nav__link">
+    1. Getting Started
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Getting Started">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#installing-with-conda" class="md-nav__link">
+    Installing With Conda
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-the-docker-image" class="md-nav__link">
+    Using the Docker image
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-setup-of-third-party-weather-model-access" class="md-nav__link">
+    2. Setup of third party weather model access
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-running-raider-and-documentation" class="md-nav__link">
+    3. Running RAiDER and Documentation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-citation" class="md-nav__link">
+    4. Citation
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-development" class="md-nav__link">
+    5. Development
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Development">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-install" class="md-nav__link">
+    Development install
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contributors" class="md-nav__link">
+    Contributors
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="raider">RAiDER</h1>
+<p>Raytracing Atmospheric Delay Estimation for RADAR</p>
+<p><a href="https://www.python.org/"><img alt="Language" src="https://img.shields.io/badge/python-3.7%2B-blue.svg" /></a>
+<a href="https://github.com/dbekaert/RAiDER/blob/dev/LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" /></a>
+<a href="https://circleci.com/gh/dbekaert/RAiDER"><img alt="CircleCI" src="https://circleci.com/gh/dbekaert/RAiDER.svg?style=svg" /></a>
+<a href="https://coveralls.io/github/dbekaert/RAiDER?branch=dev"><img alt="Coverage Status" src="https://coveralls.io/repos/github/dbekaert/RAiDER/badge.svg?branch=dev" /></a></p>
+<p>RAiDER-tools is a package in Python which contains tools to calculate tropospheric corrections for Radar using a raytracing implementation. Its development was funded under the NASA Sea-level Change Team (NSLCT) program, the Earth Surface and Interior (ESI) program, and the NISAR Science Team (NISAR-ST) (NTR-51433). U.S. Government sponsorship acknowledged. </p>
+<p>Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rights reserved.</p>
+<p>THIS IS RESEARCH CODE PROVIDED TO YOU "AS IS" WITH NO WARRANTIES OF CORRECTNESS. USE AT YOUR OWN RISK.</p>
+<h2 id="contents">Contents</h2>
+<ol>
+<li><a href="#1-getting-started">Getting Started</a><ul>
+<li><a href="#installing-with-conda">Installing With Conda</a></li>
+<li><a href="#using-the-docker-image">Using the Docker Image</a></li>
+<li><a href="#installing-from-source">Installing from Source</a></li>
+</ul>
+</li>
+<li><a href="#2-setup-of-third-party-weather-model-access">Setup of third party weather model access</a></li>
+<li><a href="#3-running-raider-and-documentation">Running RAiDER and Documentation</a></li>
+<li><a href="#4-citation">Citing</a></li>
+<li><a href="#5-development">Development</a><ul>
+<li><a href="#contributors">Contributors</a> </li>
+</ul>
+</li>
+</ol>
+<hr />
+<h2 id="1-getting-started">1. Getting Started</h2>
+<p>RAiDER has been tested on the following systems:
+- Ubuntu v.16 and up
+- Mac OS v.10 and up</p>
+<p>RAiDER does <strong>not</strong> currently run on arm64 processors on Mac. We will update this note once the build becomes available. </p>
+<h3 id="installing-with-conda">Installing With Conda</h3>
+<p>RAiDER is available on <a href="https://anaconda.org/conda-forge/raider">conda-forge</a>. <strong><a href="https://docs.conda.io/en/latest/index.html">Conda</a></strong> is a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. We recommend using <a href="https://github.com/conda-forge/miniforge">Miniforge</a>, a conda environment manager that uses conda-forge as its default code repo. Alternatively,see <strong><a href="https://docs.anaconda.com/anaconda/install/">here</a></strong> for help installing Anaconda and <strong><a href="https://docs.conda.io/en/latest/miniconda.html">here</a></strong> for installing Miniconda.</p>
+<p>Installing RAiDER:</p>
+<pre><code>conda env create --name RAiDER  -c conda-forge raider
+conda activate RAiDER
+</code></pre>
+<h3 id="using-the-docker-image">Using the Docker image</h3>
+<p>RAiDER provides a <a href="https://docs.docker.com/get-started/">docker container image</a> with all the necessary dependencies pre-installed. To get the latest released version: </p>
+<pre><code>docker pull ghcr.io/dbekaert/raider:latest
+</code></pre>
+<p>a specific release version (&gt;=v0.2.0 only):</p>
+<pre><code>docker pull ghcr.io/dbekaert/raider:0.2.0
+</code></pre>
+<p>or the current development version:</p>
+<pre><code>docker pull ghcr.io/dbekaert/raider:test
+</code></pre>
+<p>To run <code>raider.py</code> inside the container:</p>
+<pre><code>docker run -it --rm ghcr.io/dbekaert/raider:latest
+</code></pre>
+<p>To mount your current directory inside the container so that files will be written back to your local machine:</p>
+<pre><code>docker run -it -v ${PWD}:/home/raider/work --rm ghcr.io/dbekaert/raider:latest
+cd work
+</code></pre>
+<p>To jump into a <code>bash</code> shell inside the container:</p>
+<pre><code>docker run -it --rm --entrypoint /bin/bash ghcr.io/dbekaert/raider:latest -l
+</code></pre>
+<p>For more docker run options, see: <a href="https://docs.docker.com/engine/reference/run/">https://docs.docker.com/engine/reference/run/</a>.</p>
+<hr />
+<h2 id="2-setup-of-third-party-weather-model-access">2. Setup of third party weather model access</h2>
+<p>RAiDER has the ability to download weather models from third-parties; some of which require license agreements. See <a href="https://github.com/dbekaert/RAiDER/blob/dev/docs/WeatherModels.md">here</a> for details.</p>
+<hr />
+<h2 id="3-running-raider-and-documentation">3. Running RAiDER and Documentation</h2>
+<p>For detailed documentation, examples, and Jupyter notebooks see the <a href="https://github.com/dbekaert/RAiDER-docs">RAiDER-docs repository</a>.
+We welcome contributions of other examples on how to leverage the RAiDER  (see <a href="https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md">here</a> for instructions).
+<code>raiderDelay.py -h</code> provides a help menu and list of example commands to get started.
+The RAiDER scripts are highly modularized in Python and allows for building your own processing workflow.</p>
+<hr />
+<h2 id="4-citation">4. Citation</h2>
+<p>TODO</p>
+<hr />
+<h2 id="5-development">5. Development</h2>
+<p>Contributions are welcome and heartily encourage! See our <a href="https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md">contributing guide</a>.</p>
+<h3 id="development-install">Development install</h3>
+<p>For development, we recommend installing directly from source.</p>
+<pre><code>git clone https://github.com/dbekaert/RAiDER.git
+cd RAiDER
+conda env create -f environment.yml
+conda activate RAiDER
+python -m pip install -e .
+</code></pre>
+<p>For more details on installing from source see <a href="https://github.com/dbekaert/RAiDER/blob/dev/docs/Installing_from_source.md">here</a>.</p>
+<hr />
+<h3 id="contributors">Contributors</h3>
+<ul>
+<li>David Bekaert</li>
+<li>Jeremy Maurer</li>
+<li>Raymond Hogenson</li>
+<li>Brett Buzzanga</li>
+<li>Piyush Agram <em>(Descartes Labs)</em></li>
+<li>Yang Lei</li>
+<li>Rohan Weeden</li>
+<li>Simran Sangha</li>
+<li><a href="https://github.com/dbekaert/RAiDER/graphs/contributors"><em>other community members</em></a></li>
+</ul>
+<p>We welcome community contributions! For instructions see <a href="https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md">here</a>.</p>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    <script id="__config" type="application/json">{"base": ".", "features": [], "search": "assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="assets/javascripts/bundle.220ee61c.min.js"></script>
+      
+    
+  </body>
+</html>
