@@ -312,6 +312,10 @@ def calcDelays(iargs=None):
         elif (len(wfiles) == 1) and (len(times) == 2) and (interp_method != 'azimuth_time_grid'):
             logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
             weather_model_file = wfiles[0]
+        
+        elif (interp_method == 'center_time')  and len(times)==1:
+            logger.info('Requested time is provided exactly, will use only one weather model datetime')
+            weather_model_file = wfiles[0]
 
         # TODO: ensure this additional conditional is appropriate; assuming wfiles == 2 ONLY for 'center_time'
         #  value of 'interp_method' parameter
@@ -388,6 +392,7 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterpAziGrid_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds_out.to_netcdf(weather_model_file)
+
         # TODO: test to ensure this error is caught
         else:
             n = len(wfiles)
