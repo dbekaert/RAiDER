@@ -185,6 +185,8 @@ class AOI(object):
             out_proj = CRS.from_epsg(dst_crs.replace('EPSG:', ''))
         except pyproj.exceptions.CRSError:
             out_proj = dst_crs
+        except AttributeError:
+            out_proj = CRS.from_epsg(dst_crs)
 
         out_snwe = transform_bbox(self.bounds(), src_crs=4326, dest_crs=out_proj)
         logger.debug(f"Output SNWE: {out_snwe}")
