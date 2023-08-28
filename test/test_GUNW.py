@@ -244,7 +244,8 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
 
     # Calls 6 times for azimuth time and 4 times for center time
     assert RAiDER.processWM.prepareWeatherModel.call_count == 10
-    # Only calls for azimuth timing for reference and secondary
+    # Only calls for azimuth timing for reference and secondary;
+    # There is 1 slc for ref and 2 for secondary, totalling 3 calls
     assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 3
     # Only calls for azimuth timing: once for ref and sec
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
