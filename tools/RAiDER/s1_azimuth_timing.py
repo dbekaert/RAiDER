@@ -53,7 +53,7 @@ def get_slc_id_from_point_and_time(lon: float,
     if not slc_ids:
         raise ValueError('No results found for input lon/lat and datetime')
 
-    return slc_ids[0]
+    return slc_ids
 
 
 def get_azimuth_time_grid(lon_mesh: np.ndarray,
@@ -151,7 +151,7 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
     try:
         lon_m = np.mean(lon)
         lat_m = np.mean(lat)
-        slc_id = get_slc_id_from_point_and_time(lon_m, lat_m, dt)
+        slc_ids = get_slc_id_from_point_and_time(lon_m, lat_m, dt)
     except ValueError:
         warnings.warn('No slc id found for the given datetime and grid; returning empty grid')
         m, n, p = hgt_mesh.shape
@@ -159,8 +159,9 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
                          np.datetime64('NaT'),
                          dtype='datetime64[ms]')
         return az_arr
-    orb_file, _ = hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id)
-    orb = get_isce_orbit(orb_file, dt, pad=600)
+    breakpoint()
+    orb_files = list(map(lambda slc_id: hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id)[0], slc_ids))
+    orb = get_isce_orbit(orb_files, dt, pad=600)
 
     az_arr = get_azimuth_time_grid(lon_mesh, lat_mesh, hgt_mesh, orb)
     return az_arr
