@@ -27,7 +27,7 @@ def _asf_query(point: Point,
 def get_slc_id_from_point_and_time(lon: float,
                                    lat: float,
                                    dt: datetime.datetime,
-                                   buffer_seconds: int = 60) -> str:
+                                   buffer_seconds: int = 600) -> list:
     """Obtains a (non-unique) SLC id from the lon/lat and datetime of inputs. The buffere ensures that
     an SLC id is within the queried start/end times. Note an S1 scene takes roughly 30 seconds to acquire.
 
@@ -37,12 +37,12 @@ def get_slc_id_from_point_and_time(lon: float,
     lat : float
     dt : datetime.datetime
     buffer_seconds : int, optional
-        Do not recommend adjusting this, by default 60
+        Do not recommend adjusting this, by default 600, to ensure enough padding for multiple orbit files
 
     Returns
     -------
-    str
-        First slc_id returned by asf_search
+    list
+        All slc_ids returned by asf_search
     """
     point = Point(lon, lat)
     time_delta = datetime.timedelta(seconds=buffer_seconds)
@@ -159,7 +159,6 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
                          np.datetime64('NaT'),
                          dtype='datetime64[ms]')
         return az_arr
-    breakpoint()
     orb_files = list(map(lambda slc_id: hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id)[0], slc_ids))
     orb = get_isce_orbit(orb_files, dt, pad=600)
 

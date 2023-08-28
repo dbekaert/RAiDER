@@ -215,12 +215,13 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     mocker.patch('eof.download.download_eofs',
                  side_effect=side_effect)
 
+    # These outputs are not needed since the orbits are specified above
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                  return_value=[
                                # Center_time
-                               'reference_slc_id', 'secondary_slc_id',
+                               ['reference_slc_id'], ['secondary_slc_id'],
                                # Azimuth time
-                               'reference_slc_id', 'secondary_slc_id',
+                               ['reference_slc_id'], ['secondary_slc_id'],
                                ])
 
     side_effect = (weather_model_dict_for_center_time_test[weather_model_name] +
