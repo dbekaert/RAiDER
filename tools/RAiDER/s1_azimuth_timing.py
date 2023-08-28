@@ -13,8 +13,22 @@ from .losreader import get_orbit as get_isce_orbit
 
 def _asf_query(point: Point,
                start: datetime.datetime,
-               end: datetime.datetime) -> list[str]:
-    results = asf.geo_search(intersectsWith=point.wkt,
+               end: datetime.datetime,
+               buffer_degrees: float = 2) -> list[str]:
+    """Using a buffer to get as many SLCs covering a given request as
+
+    Parameters
+    ----------
+    point : Point
+    start : datetime.datetime
+    end : datetime.datetime
+    buffer_degrees : float, optional
+
+    Returns
+    -------
+    list[str]
+    """
+    results = asf.geo_search(intersectsWith=point.buffer(buffer_degrees).wkt,
                              processingLevel=asf.PRODUCT_TYPE.SLC,
                              start=start,
                              end=end,
@@ -27,7 +41,8 @@ def _asf_query(point: Point,
 def get_slc_id_from_point_and_time(lon: float,
                                    lat: float,
                                    dt: datetime.datetime,
-                                   buffer_seconds: int = 600) -> list:
+                                   buffer_seconds: int = 600,
+                                   buffer_deg: float = 2) -> list:
     """Obtains a (non-unique) SLC id from the lon/lat and datetime of inputs. The buffere ensures that
     an SLC id is within the queried start/end times. Note an S1 scene takes roughly 30 seconds to acquire.
 
@@ -49,7 +64,9 @@ def get_slc_id_from_point_and_time(lon: float,
     start = dt - time_delta
     end = dt + time_delta
 
-    slc_ids = _asf_query(point, start, end)
+    # Requires buffer of degrees to get several SLCs and ensure we get correct
+    # orbit files
+    slc_ids = _asf_query(point, start, end, buffer_degrees=buffer_deg)
     if not slc_ids:
         raise ValueError('No results found for input lon/lat and datetime')
 
