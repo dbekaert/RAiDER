@@ -46,9 +46,9 @@ def test_get_slc_id():
 
     ids = [ref_slc_ids, sec_slc_ids]
     times = [ref_time, sec_time]
-    for time, slc_ids in zip(times, ids):
-        slc_id = get_slc_id_from_point_and_time(lon_center, lat_center, time)
-        assert slc_id in slc_ids
+    for time, slc_ids_expected in zip(times, ids):
+        slc_ids_retrieved = get_slc_id_from_point_and_time(lon_center, lat_center, time)
+        assert [slc_id in slc_ids_expected for slc_id in slc_ids_retrieved]
 
     for time, slc_ids in zip(times, ids):
         with pytest.raises(ValueError):
@@ -90,7 +90,7 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
                  # Hyp3 Lib returns 2 values
                  return_value=(orbit_dict_for_azimuth_time_test[ifg_type], ''))
     mocker.patch('RAiDER.s1_azimuth_timing._asf_query',
-                 return_value=(slc_id_dict_for_azimuth_time_test[ifg_type], ''))
+                 return_value=slc_id_dict_for_azimuth_time_test[ifg_type])
     time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, slc_start_time)
 
     abs_diff = np.abs(time_grid - np.datetime64(slc_start_time)) / np.timedelta64(1, 's')
@@ -99,8 +99,10 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
     # And our time we are comparing against is a *start_time*
     assert np.all(abs_diff < 40)
 
-    RAiDER.s1_azimuth_timing._asf_query.assert_called_once()
-    hyp3lib.get_orb.downloadSentinelOrbitFile.assert_called_once()
+    assert RAiDER.s1_azimuth_timing._asf_query.call_count == 1
+    # There are 2 slc ids so it downloads orbits twice
+    call_count = 1 if ifg_type == 'reference' else 2
+    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == call_count
 
 
 @pytest.mark.parametrize('ifg_type', ['reference', 'secondary'])
@@ -134,7 +136,7 @@ def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
                  # Hyp3 Lib returns 2 values
                  return_value=(orbit_dict_for_azimuth_time_test[ifg_type], ''))
     mocker.patch('RAiDER.s1_azimuth_timing._asf_query',
-                 return_value=(slc_id_dict_for_azimuth_time_test[ifg_type], ''))
+                 return_value=slc_id_dict_for_azimuth_time_test[ifg_type])
     X = get_s1_azimuth_time_grid(lon, lat, hgt, slc_start_time)
 
     Z = (X - X.min()) / np.timedelta64(1, 's')
@@ -142,8 +144,10 @@ def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
     # Asserts the standard deviation in height is less than 2e-3 seconds
     assert np.all(std_hgt < 2e-3)
 
-    RAiDER.s1_azimuth_timing._asf_query.assert_called_once()
-    hyp3lib.get_orb.downloadSentinelOrbitFile.assert_called_once()
+    assert RAiDER.s1_azimuth_timing._asf_query.call_count == 1
+    # There are 2 slc ids so it downloads orbits twice
+    call_count = 1 if ifg_type == 'reference' else 2
+    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == call_count
 
 
 def test_n_closest_dts():
