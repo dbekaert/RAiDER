@@ -98,3 +98,13 @@ def weather_model_dict_for_center_time_test():
                      test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
                      ]
             }
+
+
+@pytest.fixture(scope='session')
+def orbit_paths_for_duplicate_orbit_xml_test():
+    test_data = TEST_DIR / 'data_for_overlapping_orbits'
+    orbit_file_names = ['S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
+                        'S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
+                        'S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
+                        'S1A_OPER_AUX_POEORB_OPOD_20230412T080821_V20230322T225942_20230324T005942.EOF']
+    return [test_data / fn for fn in orbit_file_names]

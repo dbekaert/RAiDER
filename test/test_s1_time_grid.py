@@ -313,11 +313,21 @@ def test_error_catching_with_s1_grid():
         get_s1_azimuth_time_grid(lon, lat, hgt, dt)
 
 
-def test_duplicate_orbits():
+def test_duplicate_orbits(mocker, orbit_paths_for_duplicate_orbit_xml_test):
     hgt = np.linspace(-500, 26158.0385, 20)
     lat = np.linspace(40.647867694896775, 44.445117773316184, 20)
     lon = np.linspace(-74, -79, 20)
     t = datetime.datetime(2023, 3, 23, 23, 0, 28)
+
+    # These outputs are not needed since the orbits are specified above
+    mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
+                 side_effect=[['slc_id_0', 'slc_id_1', 'slc_id_2', 'slc_id_3']])
+
+    # Hyp3 Lib returns 2 values
+    side_effect = [(o_path, '') for o_path in orbit_paths_for_duplicate_orbit_xml_test]
+    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
+                 side_effect=side_effect
+                 )
 
     time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, t)
 
