@@ -754,7 +754,8 @@ def get_orbit(orbit_file: Union[list, str],
     '''
     Returns state vectors from an orbit file; state vectors are unique and ordered in terms of time
     orbit file (str | list):   - user-passed file(s) containing statevectors
-                                 for the sensor (can be download with sentineleof libray)
+                                 for the sensor (can be download with sentineleof libray). Lists of files
+                                 are only accepted for Sentinel-1 EOF files.
     pad (int):                 - number of seconds to keep around the
                                  requested time (should be about 600 seconds)
 
