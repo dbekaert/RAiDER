@@ -352,7 +352,10 @@ def get_sv(los_file: Union[str, list, PosixPath],
         try:
             los_files = [los_file] if isinstance(los_file, (str, PosixPath)) else los_file
             # Do not need duplicate xml files
-            los_files = list(set(los_files))
+            # It appears that we want to make sure that we get data from first available orbit file first in our tests
+            # TODO: figure out why - maybe tests data occur before midnight and has to do with midnight crossing
+            # Will need to more thoroughly test and investigate the `sorted` piece
+            los_files = sorted(list(set(los_files)))
 
             def filter_ESA_orbit_file_p(path: str) -> bool:
                 return filter_ESA_orbit_file(path, ref_time)
