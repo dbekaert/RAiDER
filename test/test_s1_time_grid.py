@@ -311,3 +311,14 @@ def test_error_catching_with_s1_grid():
     hgt = np.arange(P)
     with pytest.raises(ValueError):
         get_s1_azimuth_time_grid(lon, lat, hgt, dt)
+
+
+def test_duplicate_orbits():
+    hgt = np.linspace(-500, 26158.0385, 20)
+    lat = np.linspace(40.647867694896775, 44.445117773316184, 20)
+    lon = np.linspace(-74, -79, 20)
+    t = datetime.datetime(2023, 3, 23, 23, 0, 28)
+
+    time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, t)
+
+    assert time_grid.shape == (len(hgt), len(lat), len(lon))

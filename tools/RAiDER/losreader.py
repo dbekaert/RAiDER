@@ -765,10 +765,18 @@ def get_orbit(orbit_file: Union[list, str],
     for sv in svs:
         sv = isce.core.StateVector(isce.core.DateTime(sv[0]), sv[1:4], sv[4:7])
         sv_objs.append(sv)
-    sv_objs = list(set(sv_objs))
-    sv_objs = sorted(sv_objs, key=lambda sv: sv.datetime)
 
-    orb = isce.core.Orbit(sv_objs)
+    sv_objs = sorted(sv_objs, key=lambda sv: sv.datetime)
+    # Ensure only unique state vectors; unfortunately builtin set does not work.
+    visited_times = []
+    sv_objs_filtered = []
+    for sv in sv_objs:
+        if sv.datetime in visited_times:
+            continue
+        visited_times.append(sv.datetime)
+        sv_objs_filtered.append(sv)
+
+    orb = isce.core.Orbit(sv_objs_filtered)
 
     return orb
 

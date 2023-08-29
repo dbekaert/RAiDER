@@ -85,7 +85,7 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
     Technically, this is "sensor neutral" since it uses an orb object.
     '''
 
-    num_iteration = 30
+    num_iteration = 100
     residual_threshold = 1.0e-7
 
     elp = isce.core.Ellipsoid()
