@@ -361,7 +361,6 @@ def calcDelays(iargs=None):
             else:
                 raise NotImplementedError('Azimuth Time is currently only implemented for HRRR')
 
-            breakpoint()
             time_grid = get_s1_azimuth_time_grid(lon,
                                                  lat,
                                                  hgt,
