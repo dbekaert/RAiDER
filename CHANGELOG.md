@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4]
+
+## Fixes
+* For s1-azimuth-time interpolation, overlapping orbits when one orbit does not cover entire GUNW product errors out. We now ensure state-vectors are both unique and in order before creating a orbit object in ISCE3.
+
 ## [0.4.3]
 + Prevent ray tracing integration from occuring at exactly top of weather model
 + Properly expose z_ref (max integration height) parameter, and dont allow higher than weather model

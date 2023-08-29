@@ -9,6 +9,8 @@
 import os
 import datetime
 import shelve
+from typing import Union
+from pathlib import PosixPath
 
 import numpy as np
 try:
@@ -323,30 +325,46 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-def get_sv(los_file, ref_time, pad):
+def get_sv(los_file: Union[str, list, PosixPath],
+           ref_time: datetime.datetime,
+           pad: int):
     """
     Read an LOS file and return orbital state vectors
 
     Args:
-        los_file (str):     - user-passed file containing either look
-                              vectors or statevectors for the sensor
-        ref_time (datetime):- User-requested datetime; if not encompassed
-                              by the orbit times will raise a ValueError
-        pad (int):          - number of seconds to keep around the
-                              requested time (should be about 600 seconds)
+        los_file (str, Path, list):     - user-passed file containing either look
+                                          vectors or statevectors for the sensor
+        ref_time (datetime):            - User-requested datetime; if not encompassed
+                                          by the orbit times will raise a ValueError
+        pad (int):                      - number of seconds to keep around the
+                                          requested time (should be about 600 seconds)
 
     Returns:
         svs (list of ndarrays): - the times, x/y/z positions and velocities
         of the sensor for the given window around the reference time
+
+    Warning - if multiple orbit files are pasted the svs returned are not organized and returned in the order
+    with respect to the files inputted (and statevectors within them).
     """
     try:
         svs = read_txt_file(los_file)
     except (ValueError, TypeError):
         try:
-            if isinstance(los_file, list):
-                los_file = pick_ESA_orbit_file(los_file, ref_time)
+            los_files = [los_file] if isinstance(los_file, (str, PosixPath)) else los_file
+            # Do not need duplicate xml files
+            # It appears that we want to make sure that we get data from first available orbit file first in our tests
+            # TODO: figure out why - maybe tests data occur before midnight and has to do with midnight crossing
+            # Will need to more thoroughly test and investigate the `sorted` piece
+            los_files = sorted(list(set(los_files)))
 
-            svs = read_ESA_Orbit_file(los_file)
+            def filter_ESA_orbit_file_p(path: str) -> bool:
+                return filter_ESA_orbit_file(path, ref_time)
+            los_files = list(filter(filter_ESA_orbit_file_p, los_files))
+            if not los_files:
+                raise ValueError('There are no valid orbit files provided')
+            svs = []
+            for orb_path in los_files:
+                svs.extend(read_ESA_Orbit_file(orb_path))
 
         except BaseException:
             try:
@@ -530,6 +548,27 @@ def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
     return path
 
 
+def filter_ESA_orbit_file(orbit_xml: str,
+                          ref_time: datetime.datetime) -> bool:
+    """Returns true or false depending on whether orbit file contains ref time
+
+    Parameters
+    ----------
+    orbit_xml : str
+        ESA orbit xml
+    ref_time : datetime.datetime
+
+    Returns
+    -------
+    bool
+        True if ref time is within orbit_xml
+    """
+    f = os.path.basename(orbit_xml)
+    t0 = datetime.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
+    t1 = datetime.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
+    return (t0 < ref_time < t1)
+
+
 ############################
 def state_to_los(svs, llh_targets):
     '''
@@ -709,26 +748,39 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
     return pos
 
 
-def get_orbit(orbit_file, ref_time, pad):
+def get_orbit(orbit_file: Union[list, str],
+              ref_time: datetime.datetime,
+              pad: int):
     '''
-    Returns state vectors from an orbit file
-    orbit file (str):   - user-passed file containing statevectors
-                          for the sensor (can download with sentineleof libray)
-    pad (int):          - number of seconds to keep around the
-                          requested time (should be about 600 seconds)
+    Returns state vectors from an orbit file; state vectors are unique and ordered in terms of time
+    orbit file (str | list):   - user-passed file(s) containing statevectors
+                                 for the sensor (can be download with sentineleof libray). Lists of files
+                                 are only accepted for Sentinel-1 EOF files.
+    pad (int):                 - number of seconds to keep around the
+                                 requested time (should be about 600 seconds)
 
     '''
     # First load the state vectors into an isce orbit
     import isce3.ext.isce3 as isce
 
-    svs   = np.stack(get_sv(orbit_file, ref_time, pad), axis=-1)
-    svs_i = []
+    svs = np.stack(get_sv(orbit_file, ref_time, pad), axis=-1)
+    sv_objs = []
     # format for ISCE
     for sv in svs:
-       sv = isce.core.StateVector(isce.core.DateTime(sv[0]), sv[1:4], sv[4:7])
-       svs_i.append(sv)
+        sv = isce.core.StateVector(isce.core.DateTime(sv[0]), sv[1:4], sv[4:7])
+        sv_objs.append(sv)
 
-    orb = isce.core.Orbit(svs_i)
+    sv_objs = sorted(sv_objs, key=lambda sv: sv.datetime)
+    # Ensure only unique state vectors; unfortunately builtin set does not work.
+    visited_times = []
+    sv_objs_filtered = []
+    for sv in sv_objs:
+        if sv.datetime in visited_times:
+            continue
+        visited_times.append(sv.datetime)
+        sv_objs_filtered.append(sv)
+
+    orb = isce.core.Orbit(sv_objs_filtered)
 
     return orb
 

@@ -13,8 +13,22 @@ from .losreader import get_orbit as get_isce_orbit
 
 def _asf_query(point: Point,
                start: datetime.datetime,
-               end: datetime.datetime) -> list[str]:
-    results = asf.geo_search(intersectsWith=point.wkt,
+               end: datetime.datetime,
+               buffer_degrees: float = 2) -> list[str]:
+    """Using a buffer to get as many SLCs covering a given request as
+
+    Parameters
+    ----------
+    point : Point
+    start : datetime.datetime
+    end : datetime.datetime
+    buffer_degrees : float, optional
+
+    Returns
+    -------
+    list[str]
+    """
+    results = asf.geo_search(intersectsWith=point.buffer(buffer_degrees).wkt,
                              processingLevel=asf.PRODUCT_TYPE.SLC,
                              start=start,
                              end=end,
@@ -27,7 +41,8 @@ def _asf_query(point: Point,
 def get_slc_id_from_point_and_time(lon: float,
                                    lat: float,
                                    dt: datetime.datetime,
-                                   buffer_seconds: int = 60) -> str:
+                                   buffer_seconds: int = 600,
+                                   buffer_deg: float = 2) -> list:
     """Obtains a (non-unique) SLC id from the lon/lat and datetime of inputs. The buffere ensures that
     an SLC id is within the queried start/end times. Note an S1 scene takes roughly 30 seconds to acquire.
 
@@ -37,23 +52,25 @@ def get_slc_id_from_point_and_time(lon: float,
     lat : float
     dt : datetime.datetime
     buffer_seconds : int, optional
-        Do not recommend adjusting this, by default 60
+        Do not recommend adjusting this, by default 600, to ensure enough padding for multiple orbit files
 
     Returns
     -------
-    str
-        First slc_id returned by asf_search
+    list
+        All slc_ids returned by asf_search
     """
     point = Point(lon, lat)
     time_delta = datetime.timedelta(seconds=buffer_seconds)
     start = dt - time_delta
     end = dt + time_delta
 
-    slc_ids = _asf_query(point, start, end)
+    # Requires buffer of degrees to get several SLCs and ensure we get correct
+    # orbit files
+    slc_ids = _asf_query(point, start, end, buffer_degrees=buffer_deg)
     if not slc_ids:
         raise ValueError('No results found for input lon/lat and datetime')
 
-    return slc_ids[0]
+    return slc_ids
 
 
 def get_azimuth_time_grid(lon_mesh: np.ndarray,
@@ -68,7 +85,7 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
     Technically, this is "sensor neutral" since it uses an orb object.
     '''
 
-    num_iteration = 30
+    num_iteration = 100
     residual_threshold = 1.0e-7
 
     elp = isce.core.Ellipsoid()
@@ -151,7 +168,7 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
     try:
         lon_m = np.mean(lon)
         lat_m = np.mean(lat)
-        slc_id = get_slc_id_from_point_and_time(lon_m, lat_m, dt)
+        slc_ids = get_slc_id_from_point_and_time(lon_m, lat_m, dt)
     except ValueError:
         warnings.warn('No slc id found for the given datetime and grid; returning empty grid')
         m, n, p = hgt_mesh.shape
@@ -159,8 +176,8 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
                          np.datetime64('NaT'),
                          dtype='datetime64[ms]')
         return az_arr
-    orb_file, _ = hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id)
-    orb = get_isce_orbit(orb_file, dt, pad=600)
+    orb_files = list(map(lambda slc_id: hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id)[0], slc_ids))
+    orb = get_isce_orbit(orb_files, dt, pad=600)
 
     az_arr = get_azimuth_time_grid(lon_mesh, lat_mesh, hgt_mesh, orb)
     return az_arr
