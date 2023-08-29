@@ -332,3 +332,6 @@ def test_duplicate_orbits(mocker, orbit_paths_for_duplicate_orbit_xml_test):
     time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, t)
 
     assert time_grid.shape == (len(hgt), len(lat), len(lon))
+
+    assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 1
+    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 4
