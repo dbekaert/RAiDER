@@ -70,8 +70,9 @@ def orbit_dict_for_azimuth_time_test():
 @pytest.fixture(scope='session')
 def slc_id_dict_for_azimuth_time_test():
     test_data = TEST_DIR / 'gunw_azimuth_test_data'
-    return {'reference': test_data / 'S1B_IW_SLC__1SDV_20210723T014947_20210723T015014_027915_0354B4_B3A9',
-            'secondary': test_data / 'S1B_IW_SLC__1SDV_20210711T014947_20210711T015013_027740_034F80_D404'}
+    return {'reference': [test_data / 'S1B_IW_SLC__1SDV_20210723T014947_20210723T015014_027915_0354B4_B3A9'],
+            'secondary': [test_data / 'S1B_IW_SLC__1SDV_20210711T014922_20210711T014949_027740_034F80_859D',
+                          test_data / 'S1B_IW_SLC__1SDV_20210711T015011_20210711T015038_027740_034F80_376C']}
 
 
 @pytest.fixture(scope='session')
@@ -97,3 +98,13 @@ def weather_model_dict_for_center_time_test():
                      test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
                      ]
             }
+
+
+@pytest.fixture(scope='session')
+def orbit_paths_for_duplicate_orbit_xml_test():
+    test_data = TEST_DIR / 'data_for_overlapping_orbits'
+    orbit_file_names = ['S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
+                        'S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
+                        'S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
+                        'S1A_OPER_AUX_POEORB_OPOD_20230412T080821_V20230322T225942_20230324T005942.EOF']
+    return [test_data / fn for fn in orbit_file_names]

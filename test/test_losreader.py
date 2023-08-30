@@ -1,5 +1,6 @@
 import datetime
 import numpy as np
+import RAiDER
 from RAiDER.losreader import (
     read_ESA_Orbit_file,
     read_txt_file,
@@ -111,15 +112,18 @@ def test_read_txt_file(svs):
     assert [np.allclose(s, ts) for s, ts in zip(svs[1:], true_svs[1:])]
 
 
-def test_get_sv_1(svs):
+def test_get_sv_1(svs, mocker):
     true_svs = svs
     filename = os.path.join(ORB_DIR, 'S1_orbit_example.EOF')
+    # Ensures non-stardard file-name for orbit xml is not filtered out
+    mocker.patch('RAiDER.losreader.filter_ESA_orbit_file', side_effects=[True])
     svs = get_sv(filename, true_svs[0][0], pad=3*60)
     assert [np.allclose(
         [(x-y).total_seconds() for x, y in zip(svs[0], true_svs[0])],
         np.zeros(len(svs[0]))
     )]
     assert [np.allclose(s, ts) for s, ts in zip(svs[1:], true_svs[1:])]
+    assert RAiDER.losreader.filter_ESA_orbit_file.call_count == 1
 
 
 def test_get_sv_2(svs):

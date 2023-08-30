@@ -169,6 +169,12 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     ```
 
     Note for azimuth time they are acquired in order of proximity to acq as opposed to chronological.
+
+    For the test GUNW, we have the following input granules:
+
+    ref: S1B_IW_SLC__1SDV_20210723T014947_20210723T015014_027915_0354B4_B3A9
+    sec: S1B_IW_SLC__1SDV_20210711T015011_20210711T015038_027740_034F80_376C,
+         S1B_IW_SLC__1SDV_20210711T014922_20210711T014949_027740_034F80_859D
     """
 
     out_0 = gunw_azimuth_test.name.replace('.nc', '__ct_interp.nc')
@@ -188,11 +194,9 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
                  # Hyp3 Lib returns 2 values
                  side_effect=[
-                               # For center time
-                               (orbit_dict_for_azimuth_time_test['reference'], ''),
-                               (orbit_dict_for_azimuth_time_test['secondary'], ''),
                                # For azimuth time
                                (orbit_dict_for_azimuth_time_test['reference'], ''),
+                               (orbit_dict_for_azimuth_time_test['secondary'], ''),
                                (orbit_dict_for_azimuth_time_test['secondary'], ''),
                                ]
                  )
@@ -208,13 +212,15 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     mocker.patch('eof.download.download_eofs',
                  side_effect=side_effect)
 
+    # These outputs are not needed since the orbits are specified above
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
-                 return_value=[
-                               # Center_time
-                               'reference_slc_id', 'secondary_slc_id',
-                               # Azimuth time
-                               'reference_slc_id', 'secondary_slc_id',
-                               ])
+                 side_effect=[
+                              # Azimuth time
+                              ['reference_slc_id'],
+                              # using two "dummy" ids to mimic GUNW sec granules
+                              # See docstring
+                              ['secondary_slc_id', 'secondary_slc_id'],
+                             ])
 
     side_effect = (weather_model_dict_for_center_time_test[weather_model_name] +
                    weather_model_dict_for_azimuth_time_test[weather_model_name])
@@ -238,8 +244,11 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
 
     # Calls 6 times for azimuth time and 4 times for center time
     assert RAiDER.processWM.prepareWeatherModel.call_count == 10
-    # Only calls for azimuth timing for reference and secondary
-    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 2
+    # Only calls for azimuth timing for reference and secondary;
+    # There is 1 slc for ref and 2 for secondary, totalling 3 calls
+    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 3
+    # Only calls for azimuth timing: once for ref and sec
+    assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
     # Once for center-time and azimuth-time each
     assert eof.download.download_eofs.call_count == 2
 
