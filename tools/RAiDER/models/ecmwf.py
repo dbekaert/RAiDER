@@ -13,6 +13,7 @@ from RAiDER.models.model_levels import (
     LEVELS_25_HEIGHTS,
     A_137_HRES,
     B_137_HRES,
+    LEVELS_50_HEIGHTS,
 )
 
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
@@ -92,7 +93,30 @@ class ECMWF(WeatherModel):
 
         self._t = t
         self._q = q
+
         geo_hgt, pres, hgt = self._calculategeoh(z, lnsp)
+
+        TRUNCATE = True
+        if TRUNCATE:
+            # now edit all the variables
+            logger.info('Truncating weather model heights')
+
+            ## BB HACK FOR COMPARING HRES TO HRRR
+            self._levels  = 50
+            self._zlevels = np.flipud(LEVELS_50_HEIGHTS)
+            # this is the index to 26053.04  LEVELS_137_HEIGHTS
+            # which is the closest highest level to HRRR
+            # we will only take the variables up to this height from the weather model
+            # and then interpolate to LEVELS_50_HEIGHTS to match HRRR
+            self._mlixU = 36 # this is the index if your starting at the highest
+            self._mlixD = 109 # careful [:109] is corrrect
+
+            self._t = self._t[:self._mlixD]
+            self._q = self._q[:self._mlixD]
+            geo_hgt = geo_hgt[:self._mlixD]
+            pres    = pres[:self._mlixD]
+            hgt     = hgt[:self._mlixD]
+
 
         self._lons, self._lats = np.meshgrid(lons, lats)
 
@@ -361,5 +385,6 @@ class ECMWF(WeatherModel):
         if z.size == 0:
             raise RuntimeError('There is no data in z, '
                                'you may have a problem with your mask')
+
 
         return lats, lons, xs, ys, t, q, lnsp, z
