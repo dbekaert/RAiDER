@@ -94,6 +94,8 @@ class ECMWF(WeatherModel):
         self._t = t
         self._q = q
 
+        # reset the model levels to allow truncation to work with temporal interpolation
+        self.__model_levels__()
         geo_hgt, pres, hgt = self._calculategeoh(z, lnsp)
 
         TRUNCATE = True
