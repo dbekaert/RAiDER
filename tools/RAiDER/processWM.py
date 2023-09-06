@@ -83,11 +83,6 @@ def prepareWeatherModel(
     f = weather_model.load()
 
     if f is not None:
-        logger.warning(
-            'The processed weather model file already exists,'
-            ' so I will use that.'
-        )
-
         containment = weather_model.checkContainment(ll_bounds)
         if not containment and weather_model.Model() in 'GMAO ERA5 ERA5T HRES'.split():
             msg = 'The weather model passed does not cover all of the input ' \

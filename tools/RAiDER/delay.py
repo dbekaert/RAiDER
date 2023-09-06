@@ -78,6 +78,7 @@ def tropo_delay(
         else:
             height_levels = wm_levels
 
+    zref = float(zref)
     if not zref:
         zref = toa
 

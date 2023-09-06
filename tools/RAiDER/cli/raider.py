@@ -305,8 +305,18 @@ def calcDelays(iargs=None):
 
         # nearest weather model time via 'none' is specified
         # When interp_method is 'none' only 1 weather model file and one relevant time
-        elif (interp_method == 'none') and (len(wfiles) == 1) and (len(times) == 1):
-            weather_model_file = wfiles[0]
+        elif len(wfiles) == 1 and len(times) == 1:
+            if interp_method == 'none':
+                weather_model_file = wfiles[0]
+            else:
+                ## check if requested time is coincident with model time
+                valid_hours = np.arange(0, 24, model._time_res)
+                if model._time.hour in valid_hours:
+                    weather_model_file = wfiles[0]
+                else:
+                    n = len(wfiles)
+                    raise NotImplementedError(f'The {interp_method} with {n} retrieved weather model files was not well posed '
+                                      'for the dela current workflow.')
 
         # only one time in temporal interpolation worked
         # TODO: this seems problematic - unexpected behavior possibly for 'center_time'
