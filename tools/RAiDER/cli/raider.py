@@ -256,8 +256,11 @@ def calcDelays(iargs=None):
         # The two datetimes will be combined to a single file and processed
         # TODO: make more transparent control flow for GUNW and non-GUNW workflow
         if (interp_method in ['none', 'center_time']):
-            times = get_nearest_wmtimes(t, [model.dtime() if \
-                                        model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
+            if interp_method == 'center_time':
+                times = get_nearest_wmtimes(t, [model.dtime() if \
+                                        model.dtime() is not None else 6][0])
+            else:
+                times = [t]
         elif interp_method == 'azimuth_time_grid':
             n_target_dates = 3
             step = model.dtime()
@@ -311,7 +314,7 @@ def calcDelays(iargs=None):
             else:
                 ## check if requested time is coincident with model time
                 valid_hours = np.arange(0, 24, model._time_res)
-                if model._time.hour in valid_hours:
+                if tt.hour in valid_hours:
                     weather_model_file = wfiles[0]
                 else:
                     n = len(wfiles)
