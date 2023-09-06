@@ -10,6 +10,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Fixes
 * For s1-azimuth-time interpolation, overlapping orbits when one orbit does not cover entire GUNW product errors out. We now ensure state-vectors are both unique and in order before creating a orbit object in ISCE3.
+* Use single date when center_time is specified and requested occurs on model hour
 
 ## [0.4.3]
 + Prevent ray tracing integration from occuring at exactly top of weather model
