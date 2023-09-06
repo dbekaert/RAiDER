@@ -84,7 +84,7 @@ def tropo_delay(
 
     if zref > toa:
         zref = toa
-        logger.warning('Requested integration height (zref) is higher than top of weather model. Forcing to top ({toa}).')
+        logger.warning(f'Requested integration height (zref) is higher than top of weather model. Forcing to top ({toa}).')
 
 
     #TODO: expose this as library function
