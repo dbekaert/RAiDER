@@ -78,7 +78,12 @@ def tropo_delay(
         else:
             height_levels = wm_levels
 
-    zref = float(zref)
+    if isinstance(zref, str):
+        try:
+            zref = float(zref)
+        except:
+            log.warning('Cannot convert zref={%s} to a number', zref)
+
     if not zref:
         zref = toa
 
