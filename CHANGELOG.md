@@ -37,11 +37,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Return xarray.Dataset types for RAiDER.calcGUNW.tropo_gunw_slc and RAiDER.raider.calcDelayGUNW for easier inspection and testing
 
 ## [0.4.4]
-
-## Fixes
 * For s1-azimuth-time interpolation, overlapping orbits when one orbit does not cover entire GUNW product errors out. We now ensure state-vectors are both unique and in order before creating a orbit object in ISCE3.
 
 ## [0.4.3]
++ Bug fixes, unit tests, docstrings
 + Prevent ray tracing integration from occuring at exactly top of weather model
 + Properly expose z_ref (max integration height) parameter, and dont allow higher than weather model
 + Min version for sentineleof for obtaining restituted orbits.

@@ -294,7 +294,17 @@ def calcDelays(iargs=None):
         if dl_only:
             continue
 
-        if (len(wfiles) == 0) and (interp_method != 'azimuth_time_grid'):
+
+        ############################################################################
+        # Time interpolation
+        # 
+        # Need to handle various cases, including if the exact weather model time is
+        # requested, or if one or more datetimes are not available from the weather 
+        # model data provider
+        ############################################################################
+        
+        # Case 1 - No datetimes were retrieved 
+        if len(wfiles) == 0:
             logger.error('No weather model data was successfully processed.')
             if len(params['date_list']) == 1:
                 raise RuntimeError
@@ -302,23 +312,25 @@ def calcDelays(iargs=None):
             else:
                 continue
 
-        # nearest weather model time via 'none' is specified
-        # When interp_method is 'none' only 1 weather model file and one relevant time
+        # Case 2 - nearest weather model time is requested and retrieved 
         elif (interp_method == 'none') and (len(wfiles) == 1) and (len(times) == 1):
             weather_model_file = wfiles[0]
 
-        # only one time in temporal interpolation worked
-        # TODO: this seems problematic - unexpected behavior possibly for 'center_time'
-        elif (len(wfiles) == 1) and (len(times) == 2) and (interp_method != 'azimuth_time_grid'):
+        # Case 3 - two times were requested (e.g., for interpolation) but only one was 
+        # retrieved. In this case the code will complete but a warning is issued
+        # that only one time was available
+        elif len(wfiles)==1 and len(times)==2:
             logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
             weather_model_file = wfiles[0]
         
+        # Case 4 - Time interpolation is requested, but if the requested time exactly matching 
+        # the available (within _THRESHOLD_SECONDS), only a single time is returned and no
+        # interpolation is required
         elif (interp_method == 'center_time')  and len(times)==1:
             logger.info('Requested time is provided exactly, will use only one weather model datetime')
             weather_model_file = wfiles[0]
 
-        # TODO: ensure this additional conditional is appropriate; assuming wfiles == 2 ONLY for 'center_time'
-        #  value of 'interp_method' parameter
+        # Case 5 - two times requested for interpolation and two retrieved
         elif (interp_method == 'center_time') and (len(wfiles) == 2):
             ds1 = xr.open_dataset(wfiles[0])
             ds2 = xr.open_dataset(wfiles[1])
@@ -344,12 +356,9 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
-        elif (interp_method == 'azimuth_time_grid'):
-            n_files = len(wfiles)
-            n_times = len(times)
-            if n_files != n_times:
-                raise ValueError('The model files for the datetimes for requisite azimuth interpolation were not '
-                                 'succesfully downloaded or processed')
+
+        # Case 6 - Azimuth grid time, should end up with three times in total
+        elif (interp_method == 'azimuth_time_grid') and (len(wfiles) == 3):
             datasets = [xr.open_dataset(f) for f in wfiles]
 
             # Each model will require some inspection here
@@ -393,7 +402,7 @@ def calcDelays(iargs=None):
             )
             ds_out.to_netcdf(weather_model_file)
 
-        # TODO: test to ensure this error is caught
+        # Case 7 - Anything else errors out
         else:
             n = len(wfiles)
             raise NotImplementedError(f'The {interp_method} with {n} retrieved weather model files was not well posed '
