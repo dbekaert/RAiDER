@@ -10,7 +10,8 @@ import xarray as xr
 import RAiDER.s1_azimuth_timing
 from RAiDER.s1_azimuth_timing import (
     get_inverse_weights_for_dates, get_n_closest_datetimes,
-    get_s1_azimuth_time_grid, get_slc_id_from_point_and_time
+    get_s1_azimuth_time_grid, get_slc_id_from_point_and_time,
+    get_times_for_azimuth_interpolation
 )
 
 
@@ -335,3 +336,32 @@ def test_duplicate_orbits(mocker, orbit_paths_for_duplicate_orbit_xml_test):
 
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 1
     assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 4
+
+
+def test_get_times_for_az():
+
+    # Within 5 minutes of time-step (aka model time) so returns 3 times
+    dt = datetime.datetime(2023, 1, 1, 11, 1, 0)
+    out = get_times_for_azimuth_interpolation(dt, 1)
+
+    out_expected = [datetime.datetime(2023, 1, 1, 11, 0, 0),
+                    datetime.datetime(2023, 1, 1, 12, 0, 0),
+                    datetime.datetime(2023, 1, 1, 10, 0, 0)]
+
+    assert out == out_expected
+
+    # Since model time is now 3 hours, we are beyond buffer, so we get 2 times
+    out = get_times_for_azimuth_interpolation(dt, 3)
+    out_expected = [datetime.datetime(2023, 1, 1, 12, 0, 0),
+                    datetime.datetime(2023, 1, 1, 9, 0, 0)]
+    assert out == out_expected
+
+    # Similarly return 2 times if we nudge reference time away from buffer
+    # When model time is 1 hour
+    dt = datetime.datetime(2023, 1, 1, 11, 30, 0)
+    out = get_times_for_azimuth_interpolation(dt, 1)
+
+    out_expected = [datetime.datetime(2023, 1, 1, 11, 0, 0),
+                    datetime.datetime(2023, 1, 1, 12, 0, 0)]
+
+    assert out == out_expected

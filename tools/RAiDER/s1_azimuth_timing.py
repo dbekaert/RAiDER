@@ -239,6 +239,59 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
     return closest_times
 
 
+def get_times_for_azimuth_interpolation(ref_time: datetime.datetime,
+                                        time_step_hours: int,
+                                        buffer_in_seconds: int = 300) -> list[datetime.datetime]:
+    """Obtains times needed for azimuth interpolation. Filters 3 closests dates from ref_time
+    so that all returned dates are within `time_step_hours` + `buffer_in_seconds`.
+
+    This ensures we request dates that are really needed.
+    ```
+    dt = datetime.datetime(2023, 1, 1, 11, 1, 0)
+    get_times_for_azimuth_interpolation(dt, 1)
+    ```
+    yields
+    ```
+    [datetime.datetime(2023, 1, 1, 11, 0, 0),
+     datetime.datetime(2023, 1, 1, 12, 0, 0),
+     datetime.datetime(2023, 1, 1, 10, 0, 0)]
+    ```
+    whereas
+    ```
+    dt = datetime.datetime(2023, 1, 1, 11, 30, 0)
+    get_times_for_azimuth_interpolation(dt, 1)
+    ```
+    yields
+    ```
+    [datetime.datetime(2023, 1, 1, 11, 0, 0),
+     datetime.datetime(2023, 1, 1, 12, 0, 0)]
+    ```
+
+    Parameters
+    ----------
+    ref_time : datetime.datetime
+        A time of acquisition
+    time_step_hours : int
+        Weather model time step, should evenly divide 24 hours
+    buffer_in_seconds : int, optional
+        Buffer for filtering absolute times, by default 300 (or 5 minutes)
+
+    Returns
+    -------
+    list[datetime.datetime]
+        2 or 3 closest times within 1 time step (plust the buffer) and the reference time
+    """
+    # Get 3 closest times
+    closest_times = get_n_closest_datetimes(ref_time, 3, time_step_hours)
+
+    def filter_time(time: datetime.datetime):
+        absolute_time_difference_sec = abs((ref_time - time).total_seconds())
+        upper_bound_seconds = time_step_hours * 60 * 60 + buffer_in_seconds
+        return absolute_time_difference_sec < upper_bound_seconds
+    out_times = list(filter(filter_time, closest_times))
+    return out_times
+
+
 def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
                                   dates: list[datetime.datetime],
                                   inverse_regularizer: float = 1e-9,
