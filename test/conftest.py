@@ -81,10 +81,8 @@ def weather_model_dict_for_azimuth_time_test():
     test_data = TEST_DIR / 'gunw_azimuth_test_data' / 'weather_files'
     return {'HRRR': [test_data / 'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
                      test_data / 'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_23_T03_00_00_33N_36N_120W_115W.nc',
                      test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
                      test_data / 'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_11_T03_00_00_33N_36N_120W_115W.nc'
                      ]}
 
 

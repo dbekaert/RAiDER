@@ -21,7 +21,7 @@ from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
-from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_n_closest_datetimes
+from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_times_for_azimuth_interpolation
 
 import traceback
 
@@ -259,13 +259,10 @@ def calcDelays(iargs=None):
             times = get_nearest_wmtimes(t, [model.dtime() if \
                                         model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
         elif interp_method == 'azimuth_time_grid':
-            n_target_dates = 3
             step = model.dtime()
             time_step_hours = step if step is not None else 6
-            # Will yield 3 dates
-            times = get_n_closest_datetimes(t,
-                                            n_target_dates,
-                                            time_step_hours)
+            # Will yield 2 or 3 dates depending if t is within 5 minutes of time step
+            times = get_times_for_azimuth_interpolation(t, time_step_hours)
         else:
             raise NotImplementedError('Only none, center_time, and azimuth_time_grid are accepted values for '
                                       'interp_method.')
@@ -341,7 +338,7 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
-        elif (interp_method == 'azimuth_time_grid') and (len(wfiles) == 3):
+        elif (interp_method == 'azimuth_time_grid') and (len(wfiles) in [2, 3]):
             datasets = [xr.open_dataset(f) for f in wfiles]
 
             # Each model will require some inspection here
@@ -386,7 +383,7 @@ def calcDelays(iargs=None):
         else:
             n = len(wfiles)
             raise NotImplementedError(f'The {interp_method} with {n} retrieved weather model files was not well posed '
-                                      'for the dela current workflow.')
+                                      'for the the delay workflow.')
 
         # Now process the delays
         try:

@@ -162,10 +162,8 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
     ```
     wfile_0 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 2, 0), [33.45, 35.45, -119.15, -115.95])
     wfile_1 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 1, 0), [33.45, 35.45, -119.15, -115.95])
-    wfile_2 = prepareWeatherModel(model, datetime.datetime(2021, 7, 23, 3, 0), [33.45, 35.45, -119.15, -115.95])
     wfile_3 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 2, 0), [33.45, 35.45, -119.15, -115.95])
     wfile_4 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 1, 0), [33.45, 35.45, -119.15, -115.95])
-    wfile_5 = prepareWeatherModel(model, datetime.datetime(2021, 7, 11, 3, 0), [33.45, 35.45, -119.15, -115.95])
     ```
 
     Note for azimuth time they are acquired in order of proximity to acq as opposed to chronological.
@@ -242,8 +240,8 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
                ]
     calcDelaysGUNW(iargs_1)
 
-    # Calls 6 times for azimuth time and 4 times for center time
-    assert RAiDER.processWM.prepareWeatherModel.call_count == 10
+    # Calls 4 times for azimuth time and 4 times for center time
+    assert RAiDER.processWM.prepareWeatherModel.call_count == 8
     # Only calls for azimuth timing for reference and secondary;
     # There is 1 slc for ref and 2 for secondary, totalling 3 calls
     assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 3
