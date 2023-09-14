@@ -232,7 +232,6 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
                '-interp', 'center_time'
                ]
     calcDelaysGUNW(iargs_0)
-    breakpoint()
 
     iargs_1 = [
                '--file', str(out_path_1),
