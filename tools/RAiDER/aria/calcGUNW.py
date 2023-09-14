@@ -20,8 +20,22 @@ TROPO_NAMES = ['troposphereWet', 'troposphereHydrostatic']
 DIM_NAMES   = ['heightsMeta', 'latitudeMeta', 'longitudeMeta']
 
 
-def compute_delays_slc(cube_filenames:list, wavelength):
-    """ Get delays and convert to radians. Return xr dataset. """
+def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
+    """Get delays from standard RAiDER output formatting ouput including radian
+    conversion and metadata.
+
+    Parameters
+    ----------
+    cube_filenames : list
+        List of xarray datasets/cubes (for each date) output from raider.py CalcDelays
+    wavelength : float
+        Depends on sensor, e.g. for Sentinel-1 it is ~.05
+
+    Returns
+    -------
+    xr.Dataset
+        Formatted dataset for GUNW
+    """
     # parse date from filename
     dct_delays = {}
     for f in cube_filenames:
@@ -30,26 +44,25 @@ def compute_delays_slc(cube_filenames:list, wavelength):
 
     sec, ref = sorted(dct_delays.keys())
 
-    wet_delays  = []
-    hyd_delays  = []
+    wet_delays = []
+    hyd_delays = []
+    attrs_lst = []
     phase2range = (-4 * np.pi) / float(wavelength)
     for dt in [ref, sec]:
         path = dct_delays[dt]
         with xr.open_dataset(path) as ds:
-            da_wet   = ds['wet'] * phase2range
+            da_wet = ds['wet'] * phase2range
             da_hydro = ds['hydro'] * phase2range
 
             wet_delays.append(da_wet)
             hyd_delays.append(da_hydro)
-
-            crs = da_wet.rio.crs
-            gt  = da_wet.rio.transform()
+            attrs_lst.append(ds.attrs)
 
     chunk_sizes = da_wet.shape[0], da_wet.shape[1]/3, da_wet.shape[2]/3
 
     # open one to copy and store new data
-    ds_slc   = xr.open_dataset(path).copy()
-    encoding = ds_slc['wet'].encoding # chunksizes and fill value
+    ds_slc = xr.open_dataset(path).copy()
+    encoding = ds_slc['wet'].encoding  # chunksizes and fill value
     encoding['contiguous'] = False
     encoding['_FillValue'] = 0.
     encoding['chunksizes'] = tuple([np.floor(cs) for cs in chunk_sizes])
@@ -68,19 +81,25 @@ def compute_delays_slc(cube_filenames:list, wavelength):
 
     ## no data (fill value?) chunk size?
     for name in TROPO_NAMES:
-        for key in 'reference secondary'.split():
-            descrip  = f"Delay due to {name.lstrip('troposphere')} component of troposphere"
-            da_attrs = {**attrs,  'description':descrip,
-                        'long_name':name, 'standard_name':name,
+        for k, key in enumerate(['reference', 'secondary']):
+            descrip = f"Delay due to {name.lstrip('troposphere')} component of troposphere"
+            da_attrs = {**attrs,
+                        'description': descrip,
+                        'long_name': name,
+                        'standard_name': name,
                         'RAiDER version': RAiDER.__version__,
+                        'model_times_used': attrs_lst[k]['model_times_used'],
+                        'scene_center_time': attrs_lst[k]['reference_time'],
+                        'time_interpolation_method': attrs_lst[k]['interpolation_method']
                         }
             ds_slc[f'{key}_{name}'] = ds_slc[f'{key}_{name}'].assign_attrs(da_attrs)
             ds_slc[f'{key}_{name}'].encoding = encoding
+    ds_slc = ds_slc.assign_attrs(model=model,
+                                 method='ray tracing'
+                                 )
 
-    ds_slc = ds_slc.assign_attrs(model=model, method='ray tracing')
-
-    ## force these to float32 to prevent stitching errors
-    coords = {coord:ds_slc[coord].astype(np.float32) for coord in ds_slc.coords}
+    # force these to float32 to prevent stitching errors
+    coords = {coord: ds_slc[coord].astype(np.float32) for coord in ds_slc.coords}
     ds_slc = ds_slc.assign_coords(coords)
 
     return ds_slc.rename(z=DIM_NAMES[0], y=DIM_NAMES[1], x=DIM_NAMES[2])
@@ -163,35 +182,42 @@ def update_gunw_version(path_gunw):
     return
 
 
-### ------------------------------------------------------------- main function
-def tropo_gunw_slc(cube_filenames:list, path_gunw:str, wavelength, out_dir:str, update_gunw:bool):
-    """ Calculate ref/sec phase delay
+def tropo_gunw_slc(cube_filenames: list,
+                   path_gunw: str,
+                   wavelength: float,
+                   out_dir: str) -> xr.Dataset:
+    """
+    Computes and formats the troposphere phase delay for GUNW from RAiDER outputs.
 
-    Requires:
+    Parameters
+    ----------
+    cube_filenames : list
         list with filename of delay cube for ref and sec date (netcdf)
-        path to the gunw file
-        wavelength (units: m)
-        output directory (where to store the delays)
+    path_gunw : str
+        GUNW netcdf path
+    wavelength : float
+        Wavelength of SAR
+    out_dir : str
+        Where to store formatted delays
+
+    Returns
+    -------
+    xr.Dataset
+        Output cube that will be included in GUNW
     """
     os.makedirs(out_dir, exist_ok=True)
 
     ds_slc = compute_delays_slc(cube_filenames, wavelength)
-    da     = ds_slc[f'reference_{TROPO_NAMES[0]}'] # for metadata
-    model  = ds_slc.model
+    model = ds_slc.model
 
     # write the interferometric delay to disk
     ref, sec = os.path.basename(path_gunw).split('-')[6].split('_')
     mid_time = os.path.basename(path_gunw).split('-')[7]
-    dst      = os.path.join(out_dir, f'{model}_interferometric_{ref}-{sec}_{mid_time}.nc')
+    dst = os.path.join(out_dir, f'{model}_interferometric_{ref}-{sec}_{mid_time}.nc')
     ds_slc.to_netcdf(dst)
-    logger.info ('Wrote slc delays to: %s', dst)
+    logger.info('Wrote slc delays to: %s', dst)
 
-    ## optionally update netcdf with the slc delay
     update_gunw_slc(path_gunw, ds_slc)
-
-    ## temp
     update_gunw_version(path_gunw)
 
-
-if __name__ == '__main__':
-    main()
+    return ds_slc

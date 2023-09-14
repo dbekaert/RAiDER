@@ -73,7 +73,7 @@ def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
     [os.remove(f) for f in glob.glob(f'{weather_model_name}*')]
 
 
-def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, tmp_path, mocker):
+def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, tmp_path, mocker):
     """This test performs the GUNW entrypoint with bucket/prefix provided and only updates the json.
     Monkey patches the upload/download to/from s3 and the actual computation.
     """
@@ -125,13 +125,13 @@ def test_GUNW_metadata_update(test_gunw_json_path, test_gunw_json_schema_path, t
 
 
 @pytest.mark.parametrize('weather_model_name', ['HRRR'])
-def test_azimuth_timing_against_interpolation(weather_model_name: str,
-                                              tmp_path: Path,
-                                              gunw_azimuth_test: Path,
-                                              orbit_dict_for_azimuth_time_test: dict[str],
-                                              weather_model_dict_for_azimuth_time_test,
-                                              weather_model_dict_for_center_time_test,
-                                              mocker):
+def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: str,
+                                                          tmp_path: Path,
+                                                          gunw_azimuth_test: Path,
+                                                          orbit_dict_for_azimuth_time_test: dict[str],
+                                                          weather_model_dict_for_azimuth_time_test,
+                                                          weather_model_dict_for_center_time_test,
+                                                          mocker):
     """This test shows that the azimuth timing interpolation does not deviate from
     the center time by more than 1 mm for the HRRR model. This is expected since the model times are
     6 hours apart and a the azimuth time is changing the interpolation weights for a given pixel at the order
@@ -232,6 +232,7 @@ def test_azimuth_timing_against_interpolation(weather_model_name: str,
                '-interp', 'center_time'
                ]
     calcDelaysGUNW(iargs_0)
+    breakpoint()
 
     iargs_1 = [
                '--file', str(out_path_1),

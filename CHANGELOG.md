@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5]
+
+## Fixes
+* Issue [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 when HRRR model times are not available - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) GUNW stored in s3. If files unavailable, prior to running delay calculation for cloud CLI, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. 
+
+## Removed
+* Removes update option from calcGUNW workflow as it was not being used/applied - workflow previously always updated GUNW. Removed input arguments from respective functions.
+
+## Added
+* Allow for Hyp3 GUNW workflow for HRRR (i.e. specifying a gunw path in s3) to successfully exit if any of the HRRR model times required for `azimuth-time-grid` interpolation are not available when using bucket inputs (i.e. only on the cloud)
+* Get 2 or 3 times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement)
+* Added metadata provenance for each delay layer including:
+   * `model_times_used` - the weather models used and interpolated
+   * `interpolation_method` - whether `none`, `center_time`, or `azimuth_time_grid`
+   * `scene_center_time` - the center time in which the associated SAR image was acquired
+* Return xarray.Dataset types for RAiDER.calcGUNW.tropo_gunw_slc and RAiDER.raider.calcDelayGUNW for easier inspection and testing
+* Numpy docstrings and general linting to modified function including removing variables that were not being accessed
+
+## Changed
+* Made test names in `test_GUNW.py` more descriptive
+
 ## [0.4.4]
 
 ## Fixes

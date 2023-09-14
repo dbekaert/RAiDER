@@ -23,6 +23,7 @@ from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.utilFcns import get_dt
 from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_times_for_azimuth_interpolation
 
+
 import traceback
 
 
@@ -307,7 +308,7 @@ def calcDelays(iargs=None):
 
         # only one time in temporal interpolation worked
         # TODO: this seems problematic - unexpected behavior possibly for 'center_time'
-        elif len(wfiles)==1 and len(times)==2:
+        elif (len(wfiles) == 1) and (len(times) == 2) and (interp_method != 'azimuth_time_grid'):
             logger.warning('Time interpolation did not succeed, defaulting to nearest available date')
             weather_model_file = wfiles[0]
 
@@ -338,7 +339,12 @@ def calcDelays(iargs=None):
                 os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterp_' + '_'.join(wfiles[0].split('_')[-4:]),
             )
             ds.to_netcdf(weather_model_file)
-        elif (interp_method == 'azimuth_time_grid') and (len(wfiles) in [2, 3]):
+        elif (interp_method == 'azimuth_time_grid'):
+            n_files = len(wfiles)
+            n_times = len(times)
+            if n_files != n_times:
+                raise ValueError('The requisite times for azimuth interpolation were not succesfully downloaded; '
+                                 'Could be weather model files are unvailable for requested times')
             datasets = [xr.open_dataset(f) for f in wfiles]
 
             # Each model will require some inspection here
@@ -365,7 +371,7 @@ def calcDelays(iargs=None):
                                                  t)
 
             if np.any(np.isnan(time_grid)):
-                raise ValueError('The Time Grid return nans meaning no orbit was downloaded.')
+                raise ValueError('The azimuth time grid return nans meaning no orbit was downloaded.')
             wgts = get_inverse_weights_for_dates(time_grid, times)
             # combine datasets
             ds_out = datasets[0]
@@ -407,12 +413,18 @@ def calcDelays(iargs=None):
         else:
             out_filename = w
 
+        # A dataset was returned by the above
+        # Dataset returned: Cube e.g. GUNW workflow
         if hydro_delay is None:
-            # means that a dataset was returned (cubes and station files)
             ds = wet_delay
             ext = os.path.splitext(out_filename)[1]
             out_filename = out_filename.replace('wet', 'tropo')
 
+            # data provenance: include metadata for model and times used
+            times_str = [t.strftime("%Y%m%dT%H:%M:%S") for t in sorted(times)]
+            ds = ds.assign_attrs(model_name=model._Name,
+                                 model_times_used=times_str,
+                                 interpolation_method=interp_method)
             if ext not in ['.nc', '.h5']:
                 out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
 
@@ -422,7 +434,7 @@ def calcDelays(iargs=None):
                 ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
 
             logger.info('\nSuccessfully wrote delay cube to: %s\n', out_filename)
-
+        # Dataset returned: station files, radar_raster, geocoded_file
         else:
             if aoi.type() == 'station_file':
                 out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
@@ -523,7 +535,7 @@ def downloadGNSS():
 
 
 ## ------------------------------------------------------------ prepFromGUNW.py
-def calcDelaysGUNW(iargs: list[str] = None):
+def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
@@ -574,11 +586,6 @@ def calcDelaysGUNW(iargs: list[str] = None):
         help='Directory to store results.'
     )
 
-    p.add_argument(
-        '-u', '--update-GUNW', default=True,
-        help='Optionally update the GUNW by writing the delays into the troposphere group.'
-    )
-
     args = p.parse_args(iargs)
 
     if args.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
@@ -592,10 +599,16 @@ def calcDelaysGUNW(iargs: list[str] = None):
         print('Nothing to do!')
         return
 
-    # args.files = glob.glob(args.files) # eventually support multiple files
     if not args.file and args.bucket:
         args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
-        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
+        if args.weather_model == 'HRRR':
+            gunw_nc_name = args.prefix.split('/')[-1]
+            gunw_id = gunw_nc_name.replace('.nc')
+            if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_interpolation(gunw_id):
+                print('The required data for interpolation is not available; returning an unmodified dataset')
+                return
+
+        elif not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
             # NOTE: We want to submit jobs that are outside of acceptable weather model range
             #       and still deliver these products to the DAAC without this layer. Therefore
             #       we include this within this portion of the control flow.
@@ -619,16 +632,17 @@ def calcDelaysGUNW(iargs: list[str] = None):
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
-    RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames,
-                                        args.file,
-                                        wavelength,
-                                        args.output_directory,
-                                        args.update_GUNW)
+    ds = RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames,
+                                             args.file,
+                                             wavelength,
+                                             args.output_directory,
+                                             )
 
     # upload to s3
     if args.bucket:
         aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
         aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
+    return ds
 
 
 ## ------------------------------------------------------------ processDelays.py
