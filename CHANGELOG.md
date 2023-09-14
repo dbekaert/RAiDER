@@ -16,16 +16,16 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Added
 * Allow for Hyp3 GUNW workflow for HRRR (i.e. specifying a gunw path in s3) to successfully exit if any of the HRRR model times required for `azimuth-time-grid` interpolation are not available when using bucket inputs (i.e. only on the cloud)
-* Get 2 or 3 times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement)
-* Added metadata provenance for each delay layer including:
+* Added metadata provenance for each delay layer that is included in GUNW and the cube workflow generally in `calcDelays` including:
    * `model_times_used` - the weather models used and interpolated
    * `interpolation_method` - whether `none`, `center_time`, or `azimuth_time_grid`
    * `scene_center_time` - the center time in which the associated SAR image was acquired
-* Return xarray.Dataset types for RAiDER.calcGUNW.tropo_gunw_slc and RAiDER.raider.calcDelayGUNW for easier inspection and testing
-* Numpy docstrings and general linting to modified function including removing variables that were not being accessed
 
 ## Changed
+* Get 2 or 3 times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement)
 * Made test names in `test_GUNW.py` more descriptive
+* Numpy docstrings and general linting to modified function including removing variables that were not being accessed
+* Return xarray.Dataset types for RAiDER.calcGUNW.tropo_gunw_slc and RAiDER.raider.calcDelayGUNW for easier inspection and testing
 
 ## [0.4.4]
 
