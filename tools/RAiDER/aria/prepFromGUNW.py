@@ -31,7 +31,25 @@ from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
 
 
-def check_hrrr_dataset_availablity_for_s1_interpolation(gunw_id: str) -> bool:
+def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> datetime:
+    # Ex: S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0
+    if reference_or_secondary not in ['reference', 'secondary']:
+        raise ValueError('Reference_or_secondary must "reference" or "secondary"')
+    tokens = gunw_id.split('-')
+    date_tokens = tokens[6].split('_')
+    date_token = date_tokens[0] if 'reference' else date_tokens[1]
+    center_time_token = tokens[7]
+    cen_acq_time = datetime(int(date_token[:4]),
+                            int(date_token[4:6]),
+                            int(date_token[6:]),
+                            int(center_time_token[:2]),
+                            int(center_time_token[2:4]),
+                            int(center_time_token[4:]))
+    return cen_acq_time
+
+
+
+def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: str) -> bool:
     """Determines if all the times for azimuth interpolation are available using Herbie; note that not all 1 hour times
     are available within the said date range of HRRR.
 
@@ -43,10 +61,17 @@ def check_hrrr_dataset_availablity_for_s1_interpolation(gunw_id: str) -> bool:
     -------
     bool
     """
-    acq_time = get_acq_time_from_slc_id(gunw_id)
-    times_for_interp = get_times_for_azimuth_interpolation(acq_time, 1).to_pydatetime()
-    dataset_availability = list(map(check_hrrr_dataset_availability, times_for_interp))
-    return all(dataset_availability)
+    ref_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'reference')
+    sec_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'secondary')
+
+    model_step_hours = 1
+    ref_times_for_interp = get_times_for_azimuth_interpolation(ref_acq_time, model_step_hours)
+    sec_times_for_interp = get_times_for_azimuth_interpolation(sec_acq_time, model_step_hours)
+
+    ref_dataset_availability = list(map(check_hrrr_dataset_availability, ref_times_for_interp))
+    sec_dataset_availability = list(map(check_hrrr_dataset_availability, sec_times_for_interp))
+
+    return all(ref_dataset_availability) and all(sec_dataset_availability)
 
 
 def get_slc_ids_from_gunw(gunw_path: str,

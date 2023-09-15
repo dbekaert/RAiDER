@@ -600,15 +600,17 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         return
 
     if not args.file and args.bucket:
-        args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
+        # only use GUNW ID for checking if HRRR available
         if args.weather_model == 'HRRR':
-            gunw_nc_name = args.prefix.split('/')[-1]
-            gunw_id = gunw_nc_name.replace('.nc')
-            if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_interpolation(gunw_id):
-                print('The required data for interpolation is not available; returning an unmodified dataset')
+            gunw_nc_name = args.bucket_prefix.split('/')[-1]
+            gunw_id = gunw_nc_name.replace('.nc', '')
+            if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+                print('The required data for interpolation is not available; returning None and not modifying GUNW dataset')
                 return
 
-        elif not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
+        # Download file to obtain metadata
+        args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
+        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
             # NOTE: We want to submit jobs that are outside of acceptable weather model range
             #       and still deliver these products to the DAAC without this layer. Therefore
             #       we include this within this portion of the control flow.
@@ -635,7 +637,6 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     ds = RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames,
                                              args.file,
                                              wavelength,
-                                             args.output_directory,
                                              )
 
     # upload to s3

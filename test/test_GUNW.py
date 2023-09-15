@@ -18,7 +18,10 @@ import xarray as xr
 import RAiDER
 import RAiDER.cli.raider as raider
 from RAiDER import aws
-from RAiDER.aria.prepFromGUNW import check_weather_model_availability
+from RAiDER.aria.prepFromGUNW import (
+    check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
+    check_weather_model_availability
+)
 from RAiDER.cli.raider import calcDelaysGUNW
 
 
@@ -42,7 +45,8 @@ def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
     updated_GUNW = scenario_dir / orig_GUNW.name
     shutil.copy(orig_GUNW, updated_GUNW)
 
-    cmd = f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {weather_model_name} -o {scenario_dir} -interp center_time'
+    cmd = (f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {weather_model_name} '
+           f'-o {scenario_dir} -interp center_time')
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0
 
@@ -85,10 +89,11 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
     mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
     mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
+    mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
+                 side_effect=[True])
     mocker.patch("RAiDER.aria.prepFromGUNW.check_weather_model_availability", return_value=True)
     mocker.patch("RAiDER.cli.raider.calcDelays", return_value=['file1', 'file2'])
     mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
-    mocker.patch("os.getcwd", return_value='myDir')
 
     iargs = ['--weather-model', 'HRES',
              '--bucket', 'myBucket',
@@ -114,8 +119,6 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
         ['file1', 'file2'],
         'foo.nc',
         'my_wavelength',
-        'myDir',
-        True,
     )
 
     assert aws.upload_file_to_s3.mock_calls == [
@@ -271,8 +274,8 @@ def test_check_weather_model_availability(test_gunw_path_factory, weather_model_
     assert check_weather_model_availability(test_gunw_path, weather_model_name)
 
     # Let's mock an earlier date for some models
-    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_from_slc_id", side_effect=[pd.Timestamp('2015-01-01'),
-                                                                              pd.Timestamp('2014-01-01')])
+    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_time_from_slc_id", side_effect=[pd.Timestamp('2015-01-01'),
+                                                                                   pd.Timestamp('2014-01-01')])
     cond = check_weather_model_availability(test_gunw_path, weather_model_name)
     if weather_model_name in ['HRRR', 'GMAO']:
         cond = not cond
@@ -287,8 +290,8 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
     assert check_weather_model_availability(test_gunw_path, weather_model_name)
 
     # Let's mock an earlier date
-    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_from_slc_id", side_effect=[pd.Timestamp('2017-01-01'),
-                                                                              pd.Timestamp('2016-01-01')])
+    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_time_from_slc_id", side_effect=[pd.Timestamp('2017-01-01'),
+                                                                                   pd.Timestamp('2016-01-01')])
     cond = check_weather_model_availability(test_gunw_path, weather_model_name)
     if weather_model_name == 'HRRR':
         cond = not cond
@@ -297,7 +300,11 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
 
 @pytest.mark.parametrize('weather_model_name', ['HRRR', 'GMAO'])
 @pytest.mark.parametrize('location', ['california-t71', 'alaska'])
-def test_weather_model_availability_integration(location, test_gunw_path_factory, tmp_path, weather_model_name, mocker):
+def test_weather_model_availability_integration_using_valid_range(location,
+                                                                  test_gunw_path_factory,
+                                                                  tmp_path,
+                                                                  weather_model_name,
+                                                                  mocker):
     temp_json_path = tmp_path / 'temp.json'
     test_gunw_path = test_gunw_path_factory(location=location)
     shutil.copy(test_gunw_path, temp_json_path)
@@ -305,9 +312,14 @@ def test_weather_model_availability_integration(location, test_gunw_path_factory
     # We will pass the test GUNW to the workflow
     mocker.patch("RAiDER.aws.get_s3_file", side_effect=[test_gunw_path, 'foo.json'])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
+
+    # Have another test for checking the actual files - we are only checking for valid
+    if weather_model_name == 'HRRR':
+        mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
+                     side_effect=[True])
     # These are outside temporal availability of GMAO and HRRR
     ref_date, sec_date = pd.Timestamp('2015-01-01'), pd.Timestamp('2014-01-01')
-    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_from_slc_id", side_effect=[ref_date, sec_date])
+    mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_time_from_slc_id", side_effect=[ref_date, sec_date])
     # Don't specify side-effects or return values, because never called
     mocker.patch("RAiDER.aria.prepFromGUNW.main")
     mocker.patch("RAiDER.cli.raider.calcDelays")
@@ -324,3 +336,118 @@ def test_weather_model_availability_integration(location, test_gunw_path_factory
     RAiDER.cli.raider.calcDelays.assert_not_called()
     RAiDER.aria.prepFromGUNW.main.assert_not_called()
     RAiDER.aria.calcGUNW.tropo_gunw_slc.assert_not_called()
+
+
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
+@pytest.mark.parametrize('interp_method', ['center_time', 'azimuth_time_grid'])
+def test_provenance_metadata_for_tropo_group(weather_model_name: str,
+                                             tmp_path: Path,
+                                             gunw_azimuth_test: Path,
+                                             orbit_dict_for_azimuth_time_test: dict[str],
+                                             weather_model_dict_for_azimuth_time_test,
+                                             weather_model_dict_for_center_time_test,
+                                             interp_method,
+                                             mocker):
+    """
+    Same mocks as `test_azimuth_timing_interp_against_center_time_interp` above.
+    """
+
+    out = gunw_azimuth_test.name.replace('.nc', '__ct_interp.nc')
+
+    out_path = shutil.copy(gunw_azimuth_test, tmp_path / out)
+
+    if interp_method == 'azimuth_time_grid':
+        mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
+                     # Hyp3 Lib returns 2 values
+                     side_effect=[
+                                  # For azimuth time
+                                  (orbit_dict_for_azimuth_time_test['reference'], ''),
+                                  (orbit_dict_for_azimuth_time_test['secondary'], ''),
+                                  (orbit_dict_for_azimuth_time_test['secondary'], ''),
+                                 ]
+                     )
+
+        # For prepGUNW
+        side_effect = [
+                    # center-time
+                    orbit_dict_for_azimuth_time_test['reference'],
+                    # azimuth-time
+                    orbit_dict_for_azimuth_time_test['reference'],
+                    ]
+        side_effect = list(map(str, side_effect))
+        mocker.patch('eof.download.download_eofs',
+                     side_effect=side_effect)
+
+        # These outputs are not needed since the orbits are specified above
+        mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
+                     side_effect=[
+                                 # Azimuth time
+                                 ['reference_slc_id'],
+                                 # using two "dummy" ids to mimic GUNW sec granules
+                                 # See docstring
+                                 ['secondary_slc_id', 'secondary_slc_id'],
+                                 ])
+
+    weather_model_path_dict = (weather_model_dict_for_center_time_test
+                               if interp_method == 'center_time'
+                               else weather_model_dict_for_azimuth_time_test)
+    side_effect = weather_model_path_dict[weather_model_name]
+    # RAiDER needs strings for paths
+    side_effect = list(map(str, side_effect))
+    mocker.patch('RAiDER.processWM.prepareWeatherModel',
+                 side_effect=side_effect)
+    iargs = [
+             '--file', str(out_path),
+             '--weather-model', weather_model_name,
+             '-interp', interp_method
+             ]
+    calcDelaysGUNW(iargs)
+
+    # Check metadata
+    model_times_dict = {'reference': ["20210723T01:00:00", "20210723T02:00:00"],
+                        'secondary': ["20210711T01:00:00", "20210711T02:00:00"]}
+    time_dict = {'reference': "20210723T01:50:24",
+                 'secondary': "20210711T01:50:24"}
+    for insar_date in ['reference', 'secondary']:
+        group = f'science/grids/corrections/external/troposphere/HRRR/{insar_date}'
+        with xr.open_dataset(out_path, group=group) as ds:
+            center_time = time_dict[insar_date]
+            model_times_used = model_times_dict[insar_date]
+            for var in ['troposphereWet', 'troposphereHydrostatic']:
+                assert ds[var].attrs['time_interpolation_method'] == interp_method
+                assert ds[var].attrs['scene_center_time'] == center_time
+                assert ds[var].attrs['model_times_used'] == model_times_used
+
+
+def test_hrrr_availability_check_using_gunw_ids(mocker):
+    """Hits the HRRR servers and makes sure that for certain dates they are indeed flagged as false
+    """
+
+    # All dates in 2023 are available
+    gunw_id = 'S1-GUNW-A-R-106-tops-20230108_20230101-225947-00078W_00041N-PP-4be8-v3_0_0'
+
+    assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
+
+    # 2016-08-09 16:00:00 is a missing date
+    gunw_id = 'S1-GUNW-A-R-106-tops-20160809_20140101-160001-00078W_00041N-PP-4be8-v3_0_0'
+    assert not check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
+
+
+def test_hyp3_exits_succesfully_when_hrrr_not_available(mocker):
+    """This test performs the GUNW entrypoint with bucket/prefix provided and only updates the json.
+    Monkey patches the upload/download to/from s3 and the actual computation.
+    """
+    # 2016-08-09 16:00:00 is a missing date
+    mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
+                 side_effect=[False])
+    mocker.patch('RAiDER.aria.prepFromGUNW.check_weather_model_availability')
+    iargs = [
+               '--bucket', 's3://foo',
+               '--bucket-prefix', 'bar.nc',
+               '--weather-model', 'HRRR',
+               '-interp', 'azimuth_time_grid'
+               ]
+    out = calcDelaysGUNW(iargs)
+    assert out is None
+    # Ensure calcDelaysGUNW in raider.py ended after it saw HRRR was not available
+    RAiDER.aria.prepFromGUNW.check_weather_model_availability.assert_not_called()

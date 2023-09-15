@@ -184,8 +184,7 @@ def update_gunw_version(path_gunw):
 
 def tropo_gunw_slc(cube_filenames: list,
                    path_gunw: str,
-                   wavelength: float,
-                   out_dir: str) -> xr.Dataset:
+                   wavelength: float) -> xr.Dataset:
     """
     Computes and formats the troposphere phase delay for GUNW from RAiDER outputs.
 
@@ -197,27 +196,17 @@ def tropo_gunw_slc(cube_filenames: list,
         GUNW netcdf path
     wavelength : float
         Wavelength of SAR
-    out_dir : str
-        Where to store formatted delays
 
     Returns
     -------
     xr.Dataset
         Output cube that will be included in GUNW
     """
-    os.makedirs(out_dir, exist_ok=True)
-
     ds_slc = compute_delays_slc(cube_filenames, wavelength)
-    model = ds_slc.model
 
     # write the interferometric delay to disk
-    ref, sec = os.path.basename(path_gunw).split('-')[6].split('_')
-    mid_time = os.path.basename(path_gunw).split('-')[7]
-    dst = os.path.join(out_dir, f'{model}_interferometric_{ref}-{sec}_{mid_time}.nc')
-    ds_slc.to_netcdf(dst)
-    logger.info('Wrote slc delays to: %s', dst)
-
     update_gunw_slc(path_gunw, ds_slc)
     update_gunw_version(path_gunw)
+    logger.info('Wrote slc delays to: %s', path_gunw)
 
     return ds_slc
