@@ -269,6 +269,7 @@ class HRRR(WeatherModel):
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
 
+        self.checkValidBounds(bounds)
         download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
 
 

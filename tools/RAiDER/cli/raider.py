@@ -256,7 +256,6 @@ def calcDelays(iargs=None):
         # If the model time_delta is not specified then use 6
         # The two datetimes will be combined to a single file and processed
         # TODO: make more transparent control flow for GUNW and non-GUNW workflow
-        breakpoint()
         if (interp_method in ['none', 'center_time']):
             times = get_nearest_wmtimes(t, [model.dtime() if \
                                         model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
