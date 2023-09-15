@@ -9,10 +9,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.4.5]
 
 ## Fixes
-* Issue [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 when HRRR model times are not available - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) GUNW stored in s3. If files unavailable, prior to running delay calculation for cloud CLI, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. 
+* Issue [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW stored in s3. If weather model files are unavailable, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. 
 
 ## Removed
-* Removes update option from calcGUNW workflow as it was not being used/applied - workflow previously always updated GUNW. Removed input arguments from respective functions.
+* Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied - previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
 
 ## Added
 * Allow for Hyp3 GUNW workflow for HRRR (i.e. specifying a gunw path in s3) to successfully exit if any of the HRRR model times required for `azimuth-time-grid` interpolation are not available when using bucket inputs (i.e. only on the cloud)
