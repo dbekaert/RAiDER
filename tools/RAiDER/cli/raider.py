@@ -256,6 +256,7 @@ def calcDelays(iargs=None):
         # If the model time_delta is not specified then use 6
         # The two datetimes will be combined to a single file and processed
         # TODO: make more transparent control flow for GUNW and non-GUNW workflow
+        breakpoint()
         if (interp_method in ['none', 'center_time']):
             times = get_nearest_wmtimes(t, [model.dtime() if \
                                         model.dtime() is not None else 6][0]) if interp_method == 'center_time' else [t]
@@ -288,12 +289,13 @@ def calcDelays(iargs=None):
                 msg = f'Downloading and/or preparation of {model._Name} failed.'
                 logger.error(e)
                 logger.error(msg)
-
+                if interp_method == 'azimuth_time_grid':
+                    break
         # dont process the delays for download only
         if dl_only:
             continue
 
-        if len(wfiles) == 0:
+        if (len(wfiles) == 0) and (interp_method != 'azimuth_time_grid'):
             logger.error('No weather model data was successfully processed.')
             if len(params['date_list']) == 1:
                 raise RuntimeError
@@ -343,8 +345,8 @@ def calcDelays(iargs=None):
             n_files = len(wfiles)
             n_times = len(times)
             if n_files != n_times:
-                raise ValueError('The requisite times for azimuth interpolation were not succesfully downloaded; '
-                                 'Could be weather model files are unvailable for requested times')
+                raise ValueError('The model files for the datetimes for requisite azimuth interpolation were not '
+                                 'succesfully downloaded or processed')
             datasets = [xr.open_dataset(f) for f in wfiles]
 
             # Each model will require some inspection here
@@ -364,15 +366,17 @@ def calcDelays(iargs=None):
             else:
                 raise NotImplementedError('Azimuth Time is currently only implemented for HRRR')
 
-            time_grid = get_s1_azimuth_time_grid(lon,
-                                                 lat,
-                                                 hgt,
-                                                 # This is the acq time from loop
-                                                 t)
+            time_grid = RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid(lon,
+                                                                          lat,
+                                                                          hgt,
+                                                                          # This is the acq time from loop
+                                                                          t)
 
             if np.any(np.isnan(time_grid)):
                 raise ValueError('The azimuth time grid return nans meaning no orbit was downloaded.')
-            wgts = get_inverse_weights_for_dates(time_grid, times)
+            wgts = get_inverse_weights_for_dates(time_grid,
+                                                 times,
+                                                 temporal_window_hours=model._time_res)
             # combine datasets
             ds_out = datasets[0]
             for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
@@ -599,9 +603,15 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         print('Nothing to do!')
         return
 
+    if args.file and (args.weather_model == 'HRRR') and (args.interpolate_time == 'azimuth_time_grid'):
+        file_name = args.file.split('/')[-1]
+        gunw_id = file_name.replace('.nc', '')
+        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+            raise ValueError('The required data for interpolation is not available; returning None and not modifying GUNW dataset')
+
     if not args.file and args.bucket:
         # only use GUNW ID for checking if HRRR available
-        if args.weather_model == 'HRRR':
+        if args.weather_model == 'HRRR' and (args.interpolate_time == 'azimuth_time_grid'):
             gunw_nc_name = args.bucket_prefix.split('/')[-1]
             gunw_id = gunw_nc_name.replace('.nc', '')
             if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):

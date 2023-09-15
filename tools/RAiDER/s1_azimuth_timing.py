@@ -231,8 +231,9 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
 
         t_ceil = ts_0.floor(f'{time_step_hours}H')
         t_floor = ts_1.ceil(f'{time_step_hours}H')
-
-        closest_times.extend([t_ceil, t_floor])
+        # In the event that t_floor == t_ceil for k = 0
+        out_times = list(set([t_ceil, t_floor]))
+        closest_times.extend(out_times)
     closest_times = sorted(closest_times, key=lambda ts_rounded: abs(ts - ts_rounded))
     closest_times = [t.to_pydatetime() for t in closest_times]
     closest_times = closest_times[:n_target_times]
@@ -300,7 +301,8 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
     azimuth timing array and dates. The output will be a list with length equal to that of dates and
     whose entries are arrays each whose shape matches the azimuth_timing_array.
 
-    Note: we do not do any checking of the dates provided so the inferred `temporal_window_hours` may be incorrect.
+    Note: we do not do any checking of the provided dates outside that they are unique so the inferred
+    `temporal_window_hours` may be incorrect.
 
     Parameters
     ----------
@@ -322,6 +324,11 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
     list[np.ndarray]
         Weighting per pixel with respect to each date
     """
+    n_unique_dates = len(set(dates))
+    n_dates = len(dates)
+    if n_unique_dates != n_dates:
+        raise ValueError('Dates provided must be unique')
+
     if not all([isinstance(date, datetime.datetime) for date in dates]):
         raise TypeError('dates must be all datetimes')
     if temporal_window_hours is None:

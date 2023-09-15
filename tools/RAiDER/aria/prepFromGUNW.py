@@ -37,7 +37,7 @@ def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dat
         raise ValueError('Reference_or_secondary must "reference" or "secondary"')
     tokens = gunw_id.split('-')
     date_tokens = tokens[6].split('_')
-    date_token = date_tokens[0] if 'reference' else date_tokens[1]
+    date_token = date_tokens[0] if reference_or_secondary == 'reference' else date_tokens[1]
     center_time_token = tokens[7]
     cen_acq_time = datetime(int(date_token[:4]),
                             int(date_token[4:6]),
@@ -67,7 +67,6 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
     model_step_hours = 1
     ref_times_for_interp = get_times_for_azimuth_interpolation(ref_acq_time, model_step_hours)
     sec_times_for_interp = get_times_for_azimuth_interpolation(sec_acq_time, model_step_hours)
-
     ref_dataset_availability = list(map(check_hrrr_dataset_availability, ref_times_for_interp))
     sec_dataset_availability = list(map(check_hrrr_dataset_availability, sec_times_for_interp))
 

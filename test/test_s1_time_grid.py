@@ -181,6 +181,17 @@ def test_n_closest_dts():
                 datetime.datetime(2023, 1, 2, 0, 0, 0)]
     assert out == expected
 
+    # Make sure if ref_time occurs at model time then we get correct times
+    n_target_datetimes = 3
+    time_step = 1
+    dt = datetime.datetime(2023, 1, 2, 0, 0, 0)
+    out = get_n_closest_datetimes(dt, n_target_datetimes, time_step)
+    expected = [datetime.datetime(2023, 1, 2, 0, 0, 0),
+                datetime.datetime(2023, 1, 2, 1, 0, 0),
+                datetime.datetime(2023, 1, 1, 23, 0, 0)
+                ]
+    assert out == expected
+
     n_target_datetimes = 2
     # Does not divide 24 hours so has period > 1 day.
     time_step = 5
@@ -365,3 +376,10 @@ def test_get_times_for_az():
                     datetime.datetime(2023, 1, 1, 12, 0, 0)]
 
     assert out == out_expected
+
+
+def test_error_for_weighting_when_dates_not_unique():
+    dates = [datetime.datetime(2023, 1, 1)] * 2
+    with pytest.raises(ValueError):
+        get_inverse_weights_for_dates(np.zeros((3, 3)),
+                                      dates)

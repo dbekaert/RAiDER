@@ -10,12 +10,15 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Fixes
 * Issue [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW stored in s3. If weather model files are unavailable, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. 
+* Issue [#587](https://github.com/dbekaert/RAiDER/issues/587): similar to 584 except added here to the mix is control flow in RAiDER.py passes over numerous exceptions in workflow. This is now also fixed by ensuring that when files are not available for HRRR weather model and GUNW either (a) a ValueError is raised for local files or (b) exits successfully without modification by being more explicit in control flow.
 
 ## Removed
-* Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied - previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
+* Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied, i.e. previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
 
 ## Added
-* Allow for Hyp3 GUNW workflow for HRRR (i.e. specifying a gunw path in s3) to successfully exit if any of the HRRR model times required for `azimuth-time-grid` interpolation are not available when using bucket inputs (i.e. only on the cloud)
+* Allow for Hyp3 GUNW workflow with HRRR (i.e. specifying a gunw path in s3) to successfully exit if any of the HRRR model times required for `azimuth-time-grid` interpolation (which is default interpolatin method) are not available when using bucket inputs (i.e. only on the cloud)
+* For GUNW workflow, when model is HRRR, azimuth_time_grid interpolation used, and using a local GUNW, if requisite weather model files are not available for  raise a ValueError (before processing)
+* Raise a value error if non-unique dates are given 
 * Added metadata provenance for each delay layer that is included in GUNW and the cube workflow generally in `calcDelays` including:
    * `model_times_used` - the weather models used and interpolated for the delay calculation
    * `interpolation_method` - whether `none`, `center_time`, or `azimuth_time_grid` methods were used - see description in `calcDelayGUNW`

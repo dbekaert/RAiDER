@@ -451,3 +451,75 @@ def test_hyp3_exits_succesfully_when_hrrr_not_available(mocker):
     assert out is None
     # Ensure calcDelaysGUNW in raider.py ended after it saw HRRR was not available
     RAiDER.aria.prepFromGUNW.check_weather_model_availability.assert_not_called()
+
+
+def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_for_azimuth_time_test, mocker):
+    """Makes sure for azimuth-time-grid interpolation that an error is raised if one of the files fails to
+    download and does not do additional processing"""
+    # The first part is the same mock up as done in test_azimuth_timing_interp_against_center_time_interp
+    # Maybe better mocks could be done - but this is sufficient or simply a factory for this test given
+    # This is reused so many times.
+    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
+                 # Hyp3 Lib returns 2 values
+                 side_effect=[
+                              # For azimuth time
+                              (orbit_dict_for_azimuth_time_test['reference'], ''),
+                              (orbit_dict_for_azimuth_time_test['secondary'], ''),
+                              (orbit_dict_for_azimuth_time_test['secondary'], ''),
+                             ]
+                 )
+
+    # For prepGUNW
+    side_effect = [
+                    # center-time
+                    orbit_dict_for_azimuth_time_test['reference'],
+                    # azimuth-time
+                    orbit_dict_for_azimuth_time_test['reference'],
+                    ]
+    side_effect = list(map(str, side_effect))
+    mocker.patch('eof.download.download_eofs',
+                    side_effect=side_effect)
+
+    # These outputs are not needed since the orbits are specified above
+    mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
+                side_effect=[
+                                # Azimuth time
+                                ['reference_slc_id'],
+                                # using two "dummy" ids to mimic GUNW sec granules
+                                # See docstring
+                                ['secondary_slc_id', 'secondary_slc_id'],
+                                ])
+
+    # These are the important parts of this test
+    # Makes sure that a value error is raised if a download fails via a Runtime Error
+    # There are two weather model files required for this particular mock up. First, one fails.
+    mocker.patch('RAiDER.processWM.prepareWeatherModel', side_effect=[RuntimeError, 'weather_model.nc'])
+    mocker.patch('RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid')
+    iargs_1 = [
+               '--file', str(gunw_azimuth_test),
+               '--weather-model', 'HRRR',
+               '-interp', 'azimuth_time_grid'
+               ]
+
+    with pytest.raises(ValueError):
+        calcDelaysGUNW(iargs_1)
+    RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid.assert_not_called()
+
+
+def test_value_error_for_file_inputs_when_no_data_available(mocker):
+    """See test_hyp3_exits_succesfully_when_hrrr_not_available above
+
+    In this case if a bucket is specified rather than a file; the program exits successfully!
+    """
+    mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
+                 side_effect=[False])
+    mocker.patch('RAiDER.aria.prepFromGUNW.main')
+    iargs = [
+             '--file', 'foo.nc',
+             '--weather-model', 'HRRR',
+             '-interp', 'azimuth_time_grid'
+             ]
+
+    with pytest.raises(ValueError):
+        calcDelaysGUNW(iargs)
+    RAiDER.aria.prepFromGUNW.main.assert_not_called()
