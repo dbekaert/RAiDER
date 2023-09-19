@@ -606,7 +606,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         file_name = iargs.file.split('/')[-1]
         gunw_id = file_name.replace('.nc', '')
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-            raise ValueError('The required data for interpolation is not available; returning None and not modifying GUNW dataset')
+            raise ValueError('The required HRRR data for time-grid interpolation is not available')
 
     if not iargs.file and iargs.bucket:
         # only use GUNW ID for checking if HRRR available
@@ -614,7 +614,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
             gunw_nc_name = iargs.bucket_prefix.split('/')[-1]
             gunw_id = gunw_nc_name.replace('.nc', '')
             if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-                print('The required data for interpolation is not available; returning None and not modifying GUNW dataset')
+                print('The required HRRR data for time-grid interpolation is not available; returning None and not modifying GUNW dataset')
                 return
 
         # Download file to obtain metadata
