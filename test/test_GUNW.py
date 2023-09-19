@@ -38,17 +38,31 @@ def compute_transform(lats, lons):
 
 @pytest.mark.isce3
 @pytest.mark.parametrize('weather_model_name', ['GMAO'])
-def test_GUNW_update(test_dir_path, test_gunw_path_factory, weather_model_name):
+def test_GUNW_dataset_update(test_dir_path, test_gunw_path_factory, weather_model_name,
+                             weather_model_dict_for_gunw_integration_test, mocker):
+    """The GUNW from test gunw factor is:
+
+    S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc
+
+    Therefore relevant GMAO datetimes are
+    12 pm and 3 pm (in that order)
+    """
     scenario_dir = test_dir_path / 'GUNW'
     scenario_dir.mkdir(exist_ok=True, parents=True)
     orig_GUNW = test_gunw_path_factory()
     updated_GUNW = scenario_dir / orig_GUNW.name
     shutil.copy(orig_GUNW, updated_GUNW)
 
-    cmd = (f'raider.py ++process calcDelaysGUNW -f {updated_GUNW} -m {weather_model_name} '
-           f'-o {scenario_dir} -interp center_time')
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0
+    iargs = ['--weather-model', weather_model_name,
+             '--file', str(updated_GUNW),
+             '-interp', 'center_time']
+
+    side_effect = weather_model_dict_for_gunw_integration_test[weather_model_name]
+    # RAiDER needs strings for paths
+    side_effect = list(map(str, side_effect))
+    mocker.patch('RAiDER.processWM.prepareWeatherModel',
+                 side_effect=side_effect)
+    calcDelaysGUNW(iargs)
 
     # check the CRS and affine are written correctly
     epsg = 4326

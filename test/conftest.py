@@ -106,3 +106,30 @@ def orbit_paths_for_duplicate_orbit_xml_test():
                         'S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
                         'S1A_OPER_AUX_POEORB_OPOD_20230412T080821_V20230322T225942_20230324T005942.EOF']
     return [test_data / fn for fn in orbit_file_names]
+
+
+@pytest.fixture(scope='session')
+def weather_model_dict_for_gunw_integration_test():
+    """Order is important here; will be in chronological order with respect to closest date times.
+
+    Generate via:
+    ```
+    from RAiDER.processWM import prepareWeatherModel
+    from RAiDER.models import GMAO
+    import datetime
+
+    model = GMAO()
+    datetimes = [datetime.datetime(2020, 1, 30, 12, 0),
+                 datetime.datetime(2020, 1, 30, 15, 0),
+                 datetime.datetime(2020, 1, 24, 12, 0),
+                 datetime.datetime(2020, 1, 24, 15, 0)]
+    bounds = [32.5, 35.5, -119.8, -115.7]
+    wmfiles = [prepareWeatherModel(model, dt, bounds) for dt in datetimes]
+    ```
+    """
+    test_data = TEST_DIR / 'gunw_test_data' / 'weather_files'
+    return {'GMAO': [test_data / 'GMAO_2020_01_30_T12_00_00_32N_36N_121W_114W.nc',
+                     test_data / 'GMAO_2020_01_30_T15_00_00_32N_36N_121W_114W.nc',
+                     test_data / 'GMAO_2020_01_24_T12_00_00_32N_36N_121W_114W.nc',
+                     test_data / 'GMAO_2020_01_24_T15_00_00_32N_36N_121W_114W.nc']
+           }
