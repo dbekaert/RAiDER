@@ -93,7 +93,6 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
 
     # bookkeepping
     ds_out = ds_out.rename({'gh': 'z', coord: 'levels'})
-    ny, nx = ds_out['longitude'].shape
 
     # projection information
     ds_out["proj"] = int()

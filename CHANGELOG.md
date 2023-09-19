@@ -24,13 +24,14 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
    * `interpolation_method` - whether `none`, `center_time`, or `azimuth_time_grid` methods were used - see description in `calcDelayGUNW`
    * `scene_center_time` - the center time in which the associated SAR image was acquired
 * Stages GMAO data for GUNW testing of correct dataset update i.e. in the test `test_GUNW_dataset_update`.
+* Stages HRRR data for `test_HRRR_ztd` test.
 
 ## Changed
 * Get only 2 or 3 model times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement) - this ensures slightly less failures associated with HRRR availability. Importantly, if a acquisition time occurs during a model time, then we order by distance to the reference time and how early it occurs (so earlier times come first if two times are equidistant to the aquisition time).
 * Made test names in `test_GUNW.py` more descriptive
 * Numpy docstrings and general linting to modified function including removing variables that were not being accessed
 * hrrr_download to ensure that `hybrid` coordinate is obtained regardless how herbie returns datacubes and ensures test_HRRR_ztd passes consistently
-   * Remove the command line call in `test_HRRR_ztd.py` and call using the python mock up of CLI for better error handling and future data mocking.
+   * Remove the command line call in `test_HRRR_ztd.py` and call using the python mock up of CLI for better error handling and data mocking.
 * Return xarray.Dataset types for RAiDER.calcGUNW.tropo_gunw_slc and RAiDER.raider.calcDelayGUNW for easier inspection and testing
 
 ## [0.4.4]

@@ -133,3 +133,20 @@ def weather_model_dict_for_gunw_integration_test():
                      test_data / 'GMAO_2020_01_24_T12_00_00_32N_36N_121W_114W.nc',
                      test_data / 'GMAO_2020_01_24_T15_00_00_32N_36N_121W_114W.nc']
            }
+
+@pytest.fixture(scope='session')
+def data_for_hrrr_ztd():
+    '''Obtained via:
+    ```
+    from RAiDER.processWM import prepareWeatherModel
+    from RAiDER.models import HRRR
+    import datetime
+
+    model = HRRR()
+    datetimes = [datetime.datetime(2020, 1, 1, 12)]
+    bounds = [36, 37, -92, -91]
+    wmfiles = [prepareWeatherModel(model, dt, bounds) for dt in datetimes]
+    ```
+    '''
+    test_data_dir = TEST_DIR / 'scenario_1' / 'HRRR_ztd_test'
+    return test_data_dir / 'HRRR_2020_01_01_T12_00_00_35N_38N_93W_90W.nc'
