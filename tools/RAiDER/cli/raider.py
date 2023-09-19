@@ -589,12 +589,12 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         help='Directory to store results.'
     )
 
-    args = p.parse_args(iargs)
+    iargs = p.parse_args(iargs)
 
-    if args.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
+    if iargs.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
         raise ValueError('interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
 
-    if args.weather_model == 'None':
+    if iargs.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
         #       running processing steps. This allows HyP3 to always run this step but exit immediately
         #       and do nothing if tropospheric correction via RAiDER is not selected. This should not cause
@@ -602,39 +602,39 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         print('Nothing to do!')
         return
 
-    if args.file and (args.weather_model == 'HRRR') and (args.interpolate_time == 'azimuth_time_grid'):
-        file_name = args.file.split('/')[-1]
+    if iargs.file and (iargs.weather_model == 'HRRR') and (iargs.interpolate_time == 'azimuth_time_grid'):
+        file_name = iargs.file.split('/')[-1]
         gunw_id = file_name.replace('.nc', '')
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
             raise ValueError('The required data for interpolation is not available; returning None and not modifying GUNW dataset')
 
-    if not args.file and args.bucket:
+    if not iargs.file and iargs.bucket:
         # only use GUNW ID for checking if HRRR available
-        if args.weather_model == 'HRRR' and (args.interpolate_time == 'azimuth_time_grid'):
-            gunw_nc_name = args.bucket_prefix.split('/')[-1]
+        if iargs.weather_model == 'HRRR' and (iargs.interpolate_time == 'azimuth_time_grid'):
+            gunw_nc_name = iargs.bucket_prefix.split('/')[-1]
             gunw_id = gunw_nc_name.replace('.nc', '')
             if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
                 print('The required data for interpolation is not available; returning None and not modifying GUNW dataset')
                 return
 
         # Download file to obtain metadata
-        args.file = aws.get_s3_file(args.bucket, args.bucket_prefix, '.nc')
-        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
+        iargs.file = aws.get_s3_file(iargs.bucket, iargs.bucket_prefix, '.nc')
+        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(iargs.file, iargs.weather_model):
             # NOTE: We want to submit jobs that are outside of acceptable weather model range
             #       and still deliver these products to the DAAC without this layer. Therefore
             #       we include this within this portion of the control flow.
             print('Nothing to do because outside of weather model range')
             return
-        json_file_path = aws.get_s3_file(args.bucket, args.bucket_prefix, '.json')
+        json_file_path = aws.get_s3_file(iargs.bucket, iargs.bucket_prefix, '.json')
         json_data = json.load(open(json_file_path))
-        json_data['metadata'].setdefault('weather_model', []).append(args.weather_model)
+        json_data['metadata'].setdefault('weather_model', []).append(iargs.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
-    elif not args.file:
+    elif not iargs.file:
         raise ValueError('Either argument --file or --bucket must be provided')
 
     # prep the config needed for delay calcs
-    path_cfg, wavelength = RAiDER.aria.prepFromGUNW.main(args)
+    path_cfg, wavelength = RAiDER.aria.prepFromGUNW.main(iargs)
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
@@ -644,14 +644,14 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
     # calculate the interferometric phase and write it out
     ds = RAiDER.aria.calcGUNW.tropo_gunw_slc(cube_filenames,
-                                             args.file,
+                                             iargs.file,
                                              wavelength,
                                              )
 
     # upload to s3
-    if args.bucket:
-        aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
-        aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
+    if iargs.bucket:
+        aws.upload_file_to_s3(iargs.file, iargs.bucket, iargs.bucket_prefix)
+        aws.upload_file_to_s3(json_file_path, iargs.bucket, iargs.bucket_prefix)
     return ds
 
 
