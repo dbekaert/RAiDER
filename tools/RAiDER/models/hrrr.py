@@ -68,16 +68,14 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         raise ValueError
 
     ds_out = None
-
-    for ds in ds_list:
-        if 'isobaricInhPa' in ds._coord_names:
-            ds_out = ds
-            coord = 'isobaricInhPa'
+    for coord_name in ['hybrid', 'isobaricInhPa']:
+        for ds in ds_list:
+            if var in ds._coord_names:
+                ds_out = ds
+                coord = coord_name
             break
-        elif 'hybrid' in ds._coord_names:
-            ds_out = ds
-            coord = 'hybrid'
-            break
+    if ds_out is None:
+        raise RuntimeError('Herbie did not obtain an HRRR dataset with the expected layers and coordinates')
 
     # subset the full file by AOI
     x_min, x_max, y_min, y_max = get_bounds_indices(
@@ -269,7 +267,6 @@ class HRRR(WeatherModel):
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
 
-        self.checkValidBounds(bounds)
         download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
 
 
