@@ -9,8 +9,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.4.5]
 
 ## Fixes
-* Issue [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW stored in s3. If weather model files are unavailable, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. 
-* Issue [#587](https://github.com/dbekaert/RAiDER/issues/587): similar to 584 except added here to the mix is control flow in RAiDER.py passes over numerous exceptions in workflow. This is now also fixed by ensuring that when files are not available for HRRR weather model and GUNW either (a) a ValueError is raised for local files or (b) exits successfully without modification by being more explicit in control flow.
+* Issue [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW. If weather model files are unavailable and the GUNW is on s3, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. If weather model files are unavailable and the GUNW is on local disk, raise `ValueError`
+* Issue [#587](https://github.com/dbekaert/RAiDER/issues/587): similar to 584 except added here to the mix is control flow in RAiDER.py passes over numerous exceptions in workflow. This is fixed identically as above.
+
 
 ## Removed
 * Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied, i.e. previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
