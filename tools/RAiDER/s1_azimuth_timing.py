@@ -226,14 +226,16 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
 
     ts = pd.Timestamp(ref_time)
     for k in range(iterations):
-        ts_0 = pd.Timestamp(ref_time) - pd.Timedelta(hours=(time_step_hours * k))
-        ts_1 = pd.Timestamp(ref_time) + pd.Timedelta(hours=(time_step_hours * k))
+        ts_0 = ts - pd.Timedelta(hours=(time_step_hours * k))
+        ts_1 = ts + pd.Timedelta(hours=(time_step_hours * k))
 
         t_ceil = ts_0.floor(f'{time_step_hours}H')
         t_floor = ts_1.ceil(f'{time_step_hours}H')
         # In the event that t_floor == t_ceil for k = 0
         out_times = list(set([t_ceil, t_floor]))
+        print(out_times)
         closest_times.extend(out_times)
+        print(closest_times)
     closest_times = sorted(closest_times, key=lambda ts_rounded: abs(ts - ts_rounded))
     closest_times = [t.to_pydatetime() for t in closest_times]
     closest_times = closest_times[:n_target_times]
