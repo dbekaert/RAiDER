@@ -20,5 +20,5 @@ def test_scenario_1(data_for_hrrr_ztd, mocker):
     new_data1 = new_data.sel(x=-91.84, y=36.84, z=0, method='nearest')
     golden_data = 2.2622863, 0.0361021 # hydro|wet
 
-    np.testing.assert_almost_equal(golden_data[0], new_data1['hydro'].data, decimal=6)
-    np.testing.assert_almost_equal(golden_data[1], new_data1['wet'].data, decimal=6)
+    np.testing.assert_almost_equal(golden_data[0], new_data1['hydro'].data)
+    np.testing.assert_almost_equal(golden_data[1], new_data1['wet'].data)
