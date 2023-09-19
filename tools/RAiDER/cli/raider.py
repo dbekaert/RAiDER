@@ -77,7 +77,7 @@ def read_template_file(fname):
             params[key] = {}
 
     # Parse the user-provided arguments
-    template = DEFAULT_DICT
+    template = DEFAULT_DICT.copy()
     for key, value in params.items():
         if key == 'runtime_group':
             for k, v in value.items():
