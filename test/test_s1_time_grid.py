@@ -187,9 +187,11 @@ def test_n_closest_dts():
     dt = datetime.datetime(2023, 1, 2, 0, 0, 0)
     out = get_n_closest_datetimes(dt, n_target_datetimes, time_step)
     expected = [datetime.datetime(2023, 1, 2, 0, 0, 0),
+                # Note we order equal distance from ref time by how early it is
+                datetime.datetime(2023, 1, 1, 23, 0, 0),
                 datetime.datetime(2023, 1, 2, 1, 0, 0),
-                datetime.datetime(2023, 1, 1, 23, 0, 0)
-                ]
+               ]
+
     assert out == expected
 
     n_target_datetimes = 2
@@ -369,7 +371,8 @@ def test_get_times_for_az():
 
     # Similarly return 2 times if we nudge reference time away from buffer
     # When model time is 1 hour
-    dt = datetime.datetime(2023, 1, 1, 11, 30, 0)
+    # Note that if we chose 11:30 we would get 2 dates which would both be admissible
+    dt = datetime.datetime(2023, 1, 1, 11, 29, 0)
     out = get_times_for_azimuth_interpolation(dt, 1)
 
     out_expected = [datetime.datetime(2023, 1, 1, 11, 0, 0),

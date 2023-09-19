@@ -214,7 +214,8 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
     Returns
     -------
     list[datetime.datetime]
-        List of closest dates ordered by absolute proximity
+        List of closest dates ordered by absolute proximity. If two dates have same distance to ref_time,
+        choose earlier one (more likely to be available)
     """
     iterations = int(np.ceil(n_target_times / 2))
     closest_times = []
@@ -233,10 +234,9 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
         t_floor = ts_1.ceil(f'{time_step_hours}H')
         # In the event that t_floor == t_ceil for k = 0
         out_times = list(set([t_ceil, t_floor]))
-        print(out_times)
         closest_times.extend(out_times)
-        print(closest_times)
-    closest_times = sorted(closest_times, key=lambda ts_rounded: abs(ts - ts_rounded))
+    # if 2 times have same distance to ref_time, order times by occurence (earlier comes first)
+    closest_times = sorted(closest_times, key=lambda ts_rounded: (abs(ts - ts_rounded), ts_rounded))
     closest_times = [t.to_pydatetime() for t in closest_times]
     closest_times = closest_times[:n_target_times]
     return closest_times
