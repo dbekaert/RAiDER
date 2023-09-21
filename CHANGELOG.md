@@ -6,13 +6,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [0.4.5]
+## [0.4.5]
 
 ## Fixes
-* Resolves [#583](https://github.com/dbekaert/RAiDER/issues/583) - it appears that since these issues with geo2rdr cropped up, there has been a new release of ISCE3 that resolves these failures with `geo2rdr` and the time interpolation.
+* [#583](https://github.com/dbekaert/RAiDER/issues/583): it appears that since the issues with geo2rdr cropped up during our processing campaign, there has been a new release of ISCE3 that resolves these failures with `geo2rdr` and the time interpolation that uses this ISCE3 routine.
+* [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW. If weather model files are unavailable and the GUNW is on s3, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. If weather model files are unavailable and the GUNW is on local disk, raise `ValueError`
+* [#587](https://github.com/dbekaert/RAiDER/issues/587): similar to 584 except added here to the mix is control flow in RAiDER.py passes over numerous exceptions in workflow. This is fixed identically as above.
+
+## Removed
+* Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied, i.e. previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
 
 ## Added
+* Allow for Hyp3 GUNW workflow with HRRR (i.e. specifying a gunw path in s3) to successfully exit if any of the HRRR model times required for `azimuth-time-grid` interpolation (which is default interpolatin method) are not available when using bucket inputs (i.e. only on the cloud)
+* For GUNW workflow, when model is HRRR, azimuth_time_grid interpolation used, and using a local GUNW, if requisite weather model files are not available for  raise a ValueError (before processing)
+* Raise a value error if non-unique dates are given in the function `get_inverse_weights_for_dates` in `s1_azimuth_timing.py` 
+* Added metadata provenance for each delay layer that is included in GUNW and the cube workflow generally in `calcDelays` including:
+   * `model_times_used` - the weather models used and interpolated for the delay calculation
+   * `interpolation_method` - whether `none`, `center_time`, or `azimuth_time_grid` methods were used - see description in `calcDelayGUNW`
+   * `scene_center_time` - the center time in which the associated SAR image was acquired
+* Stages GMAO data for GUNW testing of correct dataset update i.e. in the test `test_GUNW_dataset_update`.
+* Stages HRRR data for `test_HRRR_ztd` test.
 * Ensures ISCE3 is `>=0.15.0`
+
+## Changed
+* Get only 2 or 3 model times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement) - this ensures slightly less failures associated with HRRR availability. Importantly, if a acquisition time occurs during a model time, then we order by distance to the reference time and how early it occurs (so earlier times come first if two times are equidistant to the aquisition time).
+* Made test names in `test_GUNW.py` more descriptive
+* Numpy docstrings and general linting to modified function including removing variables that were not being accessed
+* hrrr_download to ensure that `hybrid` coordinate is obtained regardless how herbie returns datacubes and ensures test_HRRR_ztd passes consistently
+   * Remove the command line call in `test_HRRR_ztd.py` and call using the python mock up of CLI for better error handling and data mocking.
+* Return xarray.Dataset types for RAiDER.calcGUNW.tropo_gunw_slc and RAiDER.raider.calcDelayGUNW for easier inspection and testing
 
 ## [0.4.4]
 

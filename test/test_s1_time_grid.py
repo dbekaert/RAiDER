@@ -10,7 +10,8 @@ import xarray as xr
 import RAiDER.s1_azimuth_timing
 from RAiDER.s1_azimuth_timing import (
     get_inverse_weights_for_dates, get_n_closest_datetimes,
-    get_s1_azimuth_time_grid, get_slc_id_from_point_and_time
+    get_s1_azimuth_time_grid, get_slc_id_from_point_and_time,
+    get_times_for_azimuth_interpolation
 )
 
 
@@ -180,6 +181,19 @@ def test_n_closest_dts():
                 datetime.datetime(2023, 1, 2, 0, 0, 0)]
     assert out == expected
 
+    # Make sure if ref_time occurs at model time then we get correct times
+    n_target_datetimes = 3
+    time_step = 1
+    dt = datetime.datetime(2023, 1, 2, 0, 0, 0)
+    out = get_n_closest_datetimes(dt, n_target_datetimes, time_step)
+    expected = [datetime.datetime(2023, 1, 2, 0, 0, 0),
+                # Note we order equal distance from ref time by how early it is
+                datetime.datetime(2023, 1, 1, 23, 0, 0),
+                datetime.datetime(2023, 1, 2, 1, 0, 0),
+               ]
+
+    assert out == expected
+
     n_target_datetimes = 2
     # Does not divide 24 hours so has period > 1 day.
     time_step = 5
@@ -335,3 +349,40 @@ def test_duplicate_orbits(mocker, orbit_paths_for_duplicate_orbit_xml_test):
 
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 1
     assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 4
+
+
+def test_get_times_for_az():
+
+    # Within 5 minutes of time-step (aka model time) so returns 3 times
+    dt = datetime.datetime(2023, 1, 1, 11, 1, 0)
+    out = get_times_for_azimuth_interpolation(dt, 1)
+
+    out_expected = [datetime.datetime(2023, 1, 1, 11, 0, 0),
+                    datetime.datetime(2023, 1, 1, 12, 0, 0),
+                    datetime.datetime(2023, 1, 1, 10, 0, 0)]
+
+    assert out == out_expected
+
+    # Since model time is now 3 hours, we are beyond buffer, so we get 2 times
+    out = get_times_for_azimuth_interpolation(dt, 3)
+    out_expected = [datetime.datetime(2023, 1, 1, 12, 0, 0),
+                    datetime.datetime(2023, 1, 1, 9, 0, 0)]
+    assert out == out_expected
+
+    # Similarly return 2 times if we nudge reference time away from buffer
+    # When model time is 1 hour
+    # Note that if we chose 11:30 we would get 2 dates which would both be admissible
+    dt = datetime.datetime(2023, 1, 1, 11, 29, 0)
+    out = get_times_for_azimuth_interpolation(dt, 1)
+
+    out_expected = [datetime.datetime(2023, 1, 1, 11, 0, 0),
+                    datetime.datetime(2023, 1, 1, 12, 0, 0)]
+
+    assert out == out_expected
+
+
+def test_error_for_weighting_when_dates_not_unique():
+    dates = [datetime.datetime(2023, 1, 1)] * 2
+    with pytest.raises(ValueError):
+        get_inverse_weights_for_dates(np.zeros((3, 3)),
+                                      dates)

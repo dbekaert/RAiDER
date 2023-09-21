@@ -24,6 +24,15 @@ HRRR_AK_PROJ = CRS.from_string('+proj=stere +ellps=sphere +a=6371229.0 +b=637122
 AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
 
 
+def check_hrrr_dataset_availability(dt: datetime) -> bool:
+    """Note a file could still be missing within the models valid range"""
+    H = Herbie(dt,
+               model='hrrr',
+               product='nat',
+               fxx=0)
+    avail = (H.grib_source is not None)
+    return avail
+
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False):
     '''
     Download a HRRR weather model using Herbie
@@ -59,16 +68,21 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         raise ValueError
 
     ds_out = None
-
-    for ds in ds_list:
-        if 'isobaricInhPa' in ds._coord_names:
-            ds_out = ds
-            coord = 'isobaricInhPa'
-            break
-        elif 'hybrid' in ds._coord_names:
-            ds_out = ds
-            coord = 'hybrid'
-            break
+    # Note order coord names are request for `test_HRRR_ztd` matters
+    # when both coord names are retreived by Herbie is ds_list possibly in
+    # Different orders on different machines; `hybrid` is what is expected for the test.
+    ds_list_filt_0 = [ds for ds in ds_list if 'hybrid' in ds._coord_names]
+    ds_list_filt_1 = [ds for ds in ds_list if 'isobaricInhPa' in ds._coord_names]
+    if ds_list_filt_0:
+        ds_out = ds_list_filt_0[0]
+        coord = 'hybrid'
+    #  I do not think that this coord name will result in successful processing nominally as variables are
+    #  gh,gribfile_projection for test_HRRR_ztd
+    elif ds_list_filt_1:
+        ds_out = ds_list_filt_1[0]
+        coord = 'isobaricInhPa'
+    else:
+        raise RuntimeError('Herbie did not obtain an HRRR dataset with the expected layers and coordinates')
 
     # subset the full file by AOI
     x_min, x_max, y_min, y_max = get_bounds_indices(
@@ -79,11 +93,10 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
 
     # bookkeepping
     ds_out = ds_out.rename({'gh': 'z', coord: 'levels'})
-    ny, nx = ds_out['longitude'].shape
 
     # projection information
     ds_out["proj"] = int()
-    for k, v in CRS.from_user_input(ds.herbie.crs).to_cf().items():
+    for k, v in CRS.from_user_input(ds_out.herbie.crs).to_cf().items():
         ds_out.proj.attrs[k] = v
     for var in ds_out.data_vars:
         ds_out[var].attrs['grid_mapping'] = 'proj'
@@ -102,7 +115,6 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
 
     ds_out['x'] = xs
     ds_out['y'] = ys
-
     ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
     ds_sub.to_netcdf(out, engine='netcdf4')
 
