@@ -57,7 +57,7 @@ class WeatherModel(ABC):
 
         self._classname = None
         self._dataset = None
-        self._name    = None
+        self._Name    = None
         self._wmLoc   = None
 
         self._model_level_type = 'ml'
@@ -748,6 +748,7 @@ class WeatherModel(ABC):
                 "datetime": datetime.datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"),
                 'date_created': datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
                 'title': 'Weather model data and delay calculations',
+                'model_name': self._Name
 
             }
 
