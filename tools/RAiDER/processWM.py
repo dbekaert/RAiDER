@@ -15,7 +15,7 @@ from typing import List
 from RAiDER.logger import logger
 from RAiDER.utilFcns import getTimeFromFile
 from RAiDER.models.weatherModel import make_raw_weather_data_filename, checkContainment_raw
-
+from RAiDER.models.customExceptions import *
 
 def prepareWeatherModel(
         weather_model,
@@ -67,10 +67,10 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     else:
-        E = weather_model.fetch(path_wm_raw, time)
-        if E:
-            logger.warning (E)
-            raise RuntimeError
+        try:
+            weather_model.fetch(path_wm_raw, time)
+        except DatetimeOutsideRange:
+            raise TryToKeepGoingError
 
     # If only downloading, exit now
     if download_only:
@@ -89,11 +89,9 @@ def prepareWeatherModel(
         )
 
         containment = weather_model.checkContainment(ll_bounds)
-        if not containment and weather_model.Model() in 'GMAO ERA5 ERA5T HRES'.split():
-            msg = 'The weather model passed does not cover all of the input ' \
-                'points; you may need to download a larger area.'
-            logger.error(msg)
-            raise RuntimeError(msg)
+        if not containment and weather_model.Model() not in 'HRRR'.split():
+            raise ExistingWeatherModelTooSmall
+        
         return f
 
     # Logging some basic info
@@ -131,17 +129,14 @@ def prepareWeatherModel(
     except Exception as e:
         logger.exception("Unable to save weathermodel to file")
         logger.exception(e)
-        raise RuntimeError("Unable to save weathermodel to file")
+        raise CriticalError
 
     finally:
         wm = weather_model.Model()
         del weather_model
 
-    if not containment and wm in 'GMAO ERA5 ERA5T HRES'.split():
-        msg = 'The weather model passed does not cover all of the input ' \
-            'points; you may need to download a larger area.'
-        logger.error(msg)
-        raise RuntimeError(msg)
+    if not containment and wm not in 'HRRR'.split():
+        raise ExistingWeatherModelTooSmall
     else:
         return f
 

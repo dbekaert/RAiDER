@@ -20,11 +20,14 @@ from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
+from RAiDER.models.customExceptions import *
 from RAiDER.utilFcns import get_dt
 from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_times_for_azimuth_interpolation
 
 
 import traceback
+
+TIME_INTERPOLATION_METHODS = ['none', 'center_time', 'azimuth_time_grid']
 
 
 HELP_MESSAGE = """
@@ -269,26 +272,31 @@ def calcDelays(iargs=None):
         wfiles = []
         for tt in times:
             try:
-                wfile = RAiDER.processWM.prepareWeatherModel(model,
-                                                             tt,
-                                                             aoi.bounds(),
-                                                             makePlots=params['verbose'])
+                wfile = RAiDER.processWM.prepareWeatherModel(
+                    model,
+                    tt,
+                    aoi.bounds(),
+                    makePlots=params['verbose']
+                )
                 wfiles.append(wfile)
 
-            # catch when requested datetime fails
-            except RuntimeError:
-                continue
+            except TryToKeepGoingError:
+                if interp_method in ['azimuth_time_grid', 'none']:
+                    raise DatetimeFailed(model.Model(), tt)
+                else:
+                    continue
 
-            # catch when something else within weather model class fails
+            # log when something else happens and then re-raise the error
             except Exception as e:
                 S, N, W, E = wm_bounds
                 logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
                 logger.info(f'Query datetime: {tt}')
                 msg = f'Downloading and/or preparation of {model._Name} failed.'
                 logger.error(e)
+                logger.error('Weather model files are: {}'.format(wfiles))
                 logger.error(msg)
-                if interp_method == 'azimuth_time_grid':
-                    break
+                raise
+
         # dont process the delays for download only
         if dl_only:
             continue
@@ -478,7 +486,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
     p.add_argument(
         '-interp', '--interpolate-time', default='azimuth_time_grid', type=str,
-        choices=['none', 'center_time', 'azimuth_time_grid'],
+        choices=TIME_INTERPOLATION_METHODS,
         help=('How to interpolate across model time steps. Possible options are: '
               '[\'none\', \'center_time\', \'azimuth_time_grid\'] '
               'None: means nearest model time; center_time: linearly across center time; '
@@ -595,13 +603,13 @@ def getWeatherFile(wfiles, times, t, interp_method='none'):
     ''' 
     
     # time interpolation method: number of expected files 
-    ALLOWED_METHODS = {'none': 1, 'center_time': 2, 'azimuth_time_grid': 3}
+    EXPECTED_NUM_FILES = {'none': 1, 'center_time': 2, 'azimuth_time_grid': 3}
 
     Nfiles = len(wfiles)
     Ntimes = len(times)
 
     try:
-        Nfiles_expected = ALLOWED_METHODS[interp_method]
+        Nfiles_expected = EXPECTED_NUM_FILES[interp_method]
     except KeyError:
         raise ValueError('getWeatherFile: interp_method {} is not known'.format(interp_method))
     

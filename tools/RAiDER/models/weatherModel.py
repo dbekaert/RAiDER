@@ -18,6 +18,7 @@ from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
+from RAiDER.models.customExceptions import *
 from RAiDER.utilFcns import (
     robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords, clip_bbox
 )
@@ -30,7 +31,6 @@ TIME_RES = {'GMAO': 3,
             'NCMR': 1,
             'HRRR-AK': 3,
             }
-
 
 class WeatherModel(ABC):
     '''
@@ -160,12 +160,9 @@ class WeatherModel(ABC):
         # write the error raised by the weather model API to the log
         try:
             self._fetch(out)
-            err = False
-
         except Exception as E:
-            err = E
-
-        return err
+            logger.exception(E)
+            raise
 
 
     @abstractmethod
@@ -308,22 +305,17 @@ class WeatherModel(ABC):
             self.Model(), self._valid_range[0].date(), end_time
         )
 
-        msg = f"Weather model {self.Model()} is not available at: {time}"
-
         if time < self._valid_range[0]:
-            logger.error(msg)
-            raise RuntimeError(msg)
+            raise DatetimeOutsideRange(self.Model(), time)
 
         if self._valid_range[1] is not None:
             if self._valid_range[1] == 'Present':
                 pass
             elif self._valid_range[1] < time:
-                logger.error(msg)
-                raise RuntimeError(msg)
+                raise DatetimeOutsideRange(self.Model(), time)
 
         if time > datetime.datetime.utcnow() - self._lag_time:
-            logger.error(msg)
-            raise RuntimeError(msg)
+            raise DatetimeOutsideRange(self.Model(), time)
 
 
     def setLevelType(self, levelType):
