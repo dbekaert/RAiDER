@@ -645,7 +645,7 @@ def getWeatherFile(wfiles, times, t, interp_method='none'):
     
     elif (interp_method) == 'azimuth_time_grid':
 
-        if Nmatch: # Case 6: all files downloaded
+        if Nmatch or Tmatch: # Case 6: all files downloaded
             weather_model_file = combine_weather_files(
                 wfiles, 
                 t, 
