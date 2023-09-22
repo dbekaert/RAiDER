@@ -439,7 +439,6 @@ def test_hrrr_availability_check_using_gunw_ids(mocker):
 
     # All dates in 2023 are available
     gunw_id = 'S1-GUNW-A-R-106-tops-20230108_20230101-225947-00078W_00041N-PP-4be8-v3_0_0'
-
     assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
 
     # 2016-08-09 16:00:00 is a missing date
@@ -454,10 +453,13 @@ def test_hyp3_exits_succesfully_when_hrrr_not_available(mocker):
     # 2016-08-09 16:00:00 is a missing date
     mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
                  side_effect=[False])
+    # The gunw id should not have a hyp3 file associated with it
+    # This call will still hit the HRRR s3 API as done in the previous test
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['weirdly-named-prefix_-3ad24/S1-GUNW-A-R-106-tops-20160809_20140101-160001-00078W_00041N-PP-4be8-v3_0_0'])
     mocker.patch('RAiDER.aria.prepFromGUNW.check_weather_model_availability')
     iargs = [
                '--bucket', 's3://foo',
-               '--bucket-prefix', 'bar.nc',
+               '--bucket-prefix', 'weirdly-named-prefix_-3ad24',
                '--weather-model', 'HRRR',
                '-interp', 'azimuth_time_grid'
                ]
