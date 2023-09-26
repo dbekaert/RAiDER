@@ -12,7 +12,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [#583](https://github.com/dbekaert/RAiDER/issues/583): it appears that since the issues with geo2rdr cropped up during our processing campaign, there has been a new release of ISCE3 that resolves these failures with `geo2rdr` and the time interpolation that uses this ISCE3 routine.
 * [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW. If weather model files are unavailable and the GUNW is on s3, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. If weather model files are unavailable and the GUNW is on local disk, raise `ValueError`
 * [#587](https://github.com/dbekaert/RAiDER/issues/587): similar to 584 except added here to the mix is control flow in RAiDER.py passes over numerous exceptions in workflow. This is fixed identically as above.
-* [#596](https://github.com/dbekaert/RAiDER/issues/596): the "prefix" for aws does not include the final netcdf file name, just the sub-directories in the bucket and therefore extra logic must be added to determine the GUNW netcdf file name (and the assocaited reference/secondary dates). We proceed by downloading the data which is needed regardless. Test are updated.
+* [#596](https://github.com/dbekaert/RAiDER/issues/596): the "prefix" for aws does not include the final netcdf file name, just the sub-directories in the bucket and therefore extra logic must be added to determine the GUNW netcdf file name (and the assocaited reference/secondary dates). We proceed by downloading the data which is needed regardless. Tests are updated.
 
 ## Removed
 * Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied, i.e. previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
@@ -28,6 +28,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Stages GMAO data for GUNW testing of correct dataset update i.e. in the test `test_GUNW_dataset_update`.
 * Stages HRRR data for `test_HRRR_ztd` test.
 * Ensures ISCE3 is `>=0.15.0`
+* Uses correct hyp3 prefix conventions and filename suffix for files within test patches to improve explanation of what tests are mocking.
 
 ## Changed
 * Get only 2 or 3 model times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement) - this ensures slightly less failures associated with HRRR availability. Importantly, if a acquisition time occurs during a model time, then we order by distance to the reference time and how early it occurs (so earlier times come first if two times are equidistant to the aquisition time).
