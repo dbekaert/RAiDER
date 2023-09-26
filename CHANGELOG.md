@@ -28,7 +28,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Stages GMAO data for GUNW testing of correct dataset update i.e. in the test `test_GUNW_dataset_update`.
 * Stages HRRR data for `test_HRRR_ztd` test.
 * Ensures ISCE3 is `>=0.15.0`
-* Uses correct hyp3 prefix conventions and filename suffix for files within test patches to improve explanation of what tests are mocking.
+* Uses correct HyP3 S3 prefix conventions and filename suffix within test patches to improve readability of what tests are mocking (see comments in #597).
 
 ## Changed
 * Get only 2 or 3 model times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement) - this ensures slightly less failures associated with HRRR availability. Importantly, if a acquisition time occurs during a model time, then we order by distance to the reference time and how early it occurs (so earlier times come first if two times are equidistant to the aquisition time).
