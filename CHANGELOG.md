@@ -12,6 +12,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [#583](https://github.com/dbekaert/RAiDER/issues/583): it appears that since the issues with geo2rdr cropped up during our processing campaign, there has been a new release of ISCE3 that resolves these failures with `geo2rdr` and the time interpolation that uses this ISCE3 routine.
 * [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW. If weather model files are unavailable and the GUNW is on s3, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. If weather model files are unavailable and the GUNW is on local disk, raise `ValueError`
 * [#587](https://github.com/dbekaert/RAiDER/issues/587): similar to 584 except added here to the mix is control flow in RAiDER.py passes over numerous exceptions in workflow. This is fixed identically as above.
+* [#596](https://github.com/dbekaert/RAiDER/issues/596): the "prefix" for aws does not include the final netcdf file name, just the sub-directories in the bucket and therefore extra logic must be added to determine the GUNW netcdf file name (and the assocaited reference/secondary dates). We proceed by downloading the data which is needed regardless. Test are updated.
 
 ## Removed
 * Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied, i.e. previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
@@ -35,6 +36,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * hrrr_download to ensure that `hybrid` coordinate is obtained regardless how herbie returns datacubes and ensures test_HRRR_ztd passes consistently
    * Remove the command line call in `test_HRRR_ztd.py` and call using the python mock up of CLI for better error handling and data mocking.
 * Return xarray.Dataset types for RAiDER.calcGUNW.tropo_gunw_slc and RAiDER.raider.calcDelayGUNW for easier inspection and testing
+* Fixes tests for checking availability of HRRR due Issue #596 (above).
 
 ## [0.4.4]
 
