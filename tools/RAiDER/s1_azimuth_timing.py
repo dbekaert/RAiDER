@@ -214,7 +214,8 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
     Returns
     -------
     list[datetime.datetime]
-        List of closest dates ordered by absolute proximity
+        List of closest dates ordered by absolute proximity. If two dates have same distance to ref_time,
+        choose earlier one (more likely to be available)
     """
     iterations = int(np.ceil(n_target_times / 2))
     closest_times = []
@@ -226,17 +227,72 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
 
     ts = pd.Timestamp(ref_time)
     for k in range(iterations):
-        ts_0 = pd.Timestamp(ref_time) - pd.Timedelta(hours=(time_step_hours * k))
-        ts_1 = pd.Timestamp(ref_time) + pd.Timedelta(hours=(time_step_hours * k))
+        ts_0 = ts - pd.Timedelta(hours=(time_step_hours * k))
+        ts_1 = ts + pd.Timedelta(hours=(time_step_hours * k))
 
         t_ceil = ts_0.floor(f'{time_step_hours}H')
         t_floor = ts_1.ceil(f'{time_step_hours}H')
-
-        closest_times.extend([t_ceil, t_floor])
-    closest_times = sorted(closest_times, key=lambda ts_rounded: abs(ts - ts_rounded))
+        # In the event that t_floor == t_ceil for k = 0
+        out_times = list(set([t_ceil, t_floor]))
+        closest_times.extend(out_times)
+    # if 2 times have same distance to ref_time, order times by occurence (earlier comes first)
+    closest_times = sorted(closest_times, key=lambda ts_rounded: (abs(ts - ts_rounded), ts_rounded))
     closest_times = [t.to_pydatetime() for t in closest_times]
     closest_times = closest_times[:n_target_times]
     return closest_times
+
+
+def get_times_for_azimuth_interpolation(ref_time: datetime.datetime,
+                                        time_step_hours: int,
+                                        buffer_in_seconds: int = 300) -> list[datetime.datetime]:
+    """Obtains times needed for azimuth interpolation. Filters 3 closests dates from ref_time
+    so that all returned dates are within `time_step_hours` + `buffer_in_seconds`.
+
+    This ensures we request dates that are really needed.
+    ```
+    dt = datetime.datetime(2023, 1, 1, 11, 1, 0)
+    get_times_for_azimuth_interpolation(dt, 1)
+    ```
+    yields
+    ```
+    [datetime.datetime(2023, 1, 1, 11, 0, 0),
+     datetime.datetime(2023, 1, 1, 12, 0, 0),
+     datetime.datetime(2023, 1, 1, 10, 0, 0)]
+    ```
+    whereas
+    ```
+    dt = datetime.datetime(2023, 1, 1, 11, 30, 0)
+    get_times_for_azimuth_interpolation(dt, 1)
+    ```
+    yields
+    ```
+    [datetime.datetime(2023, 1, 1, 11, 0, 0),
+     datetime.datetime(2023, 1, 1, 12, 0, 0)]
+    ```
+
+    Parameters
+    ----------
+    ref_time : datetime.datetime
+        A time of acquisition
+    time_step_hours : int
+        Weather model time step, should evenly divide 24 hours
+    buffer_in_seconds : int, optional
+        Buffer for filtering absolute times, by default 300 (or 5 minutes)
+
+    Returns
+    -------
+    list[datetime.datetime]
+        2 or 3 closest times within 1 time step (plust the buffer) and the reference time
+    """
+    # Get 3 closest times
+    closest_times = get_n_closest_datetimes(ref_time, 3, time_step_hours)
+
+    def filter_time(time: datetime.datetime):
+        absolute_time_difference_sec = abs((ref_time - time).total_seconds())
+        upper_bound_seconds = time_step_hours * 60 * 60 + buffer_in_seconds
+        return absolute_time_difference_sec < upper_bound_seconds
+    out_times = list(filter(filter_time, closest_times))
+    return out_times
 
 
 def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
@@ -247,7 +303,8 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
     azimuth timing array and dates. The output will be a list with length equal to that of dates and
     whose entries are arrays each whose shape matches the azimuth_timing_array.
 
-    Note: we do not do any checking of the dates provided so the inferred `temporal_window_hours` may be incorrect.
+    Note: we do not do any checking of the provided dates outside that they are unique so the inferred
+    `temporal_window_hours` may be incorrect.
 
     Parameters
     ----------
@@ -269,6 +326,11 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
     list[np.ndarray]
         Weighting per pixel with respect to each date
     """
+    n_unique_dates = len(set(dates))
+    n_dates = len(dates)
+    if n_unique_dates != n_dates:
+        raise ValueError('Dates provided must be unique')
+
     if not all([isinstance(date, datetime.datetime) for date in dates]):
         raise TypeError('dates must be all datetimes')
     if temporal_window_hours is None:

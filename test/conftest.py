@@ -81,10 +81,8 @@ def weather_model_dict_for_azimuth_time_test():
     test_data = TEST_DIR / 'gunw_azimuth_test_data' / 'weather_files'
     return {'HRRR': [test_data / 'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
                      test_data / 'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_23_T03_00_00_33N_36N_120W_115W.nc',
                      test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
                      test_data / 'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_11_T03_00_00_33N_36N_120W_115W.nc'
                      ]}
 
 
@@ -108,3 +106,47 @@ def orbit_paths_for_duplicate_orbit_xml_test():
                         'S1A_OPER_AUX_POEORB_OPOD_20230413T080643_V20230323T225942_20230325T005942.EOF',
                         'S1A_OPER_AUX_POEORB_OPOD_20230412T080821_V20230322T225942_20230324T005942.EOF']
     return [test_data / fn for fn in orbit_file_names]
+
+
+@pytest.fixture(scope='session')
+def weather_model_dict_for_gunw_integration_test():
+    """Order is important here; will be in chronological order with respect to closest date times.
+
+    Generate via:
+    ```
+    from RAiDER.processWM import prepareWeatherModel
+    from RAiDER.models import GMAO
+    import datetime
+
+    model = GMAO()
+    datetimes = [datetime.datetime(2020, 1, 30, 12, 0),
+                 datetime.datetime(2020, 1, 30, 15, 0),
+                 datetime.datetime(2020, 1, 24, 12, 0),
+                 datetime.datetime(2020, 1, 24, 15, 0)]
+    bounds = [32.5, 35.5, -119.8, -115.7]
+    wmfiles = [prepareWeatherModel(model, dt, bounds) for dt in datetimes]
+    ```
+    """
+    test_data = TEST_DIR / 'gunw_test_data' / 'weather_files'
+    return {'GMAO': [test_data / 'GMAO_2020_01_30_T12_00_00_32N_36N_121W_114W.nc',
+                     test_data / 'GMAO_2020_01_30_T15_00_00_32N_36N_121W_114W.nc',
+                     test_data / 'GMAO_2020_01_24_T12_00_00_32N_36N_121W_114W.nc',
+                     test_data / 'GMAO_2020_01_24_T15_00_00_32N_36N_121W_114W.nc']
+           }
+
+@pytest.fixture(scope='session')
+def data_for_hrrr_ztd():
+    '''Obtained via:
+    ```
+    from RAiDER.processWM import prepareWeatherModel
+    from RAiDER.models import HRRR
+    import datetime
+
+    model = HRRR()
+    datetimes = [datetime.datetime(2020, 1, 1, 12)]
+    bounds = [36, 37, -92, -91]
+    wmfiles = [prepareWeatherModel(model, dt, bounds) for dt in datetimes]
+    ```
+    '''
+    test_data_dir = TEST_DIR / 'scenario_1' / 'HRRR_ztd_test'
+    return test_data_dir / 'HRRR_2020_01_01_T12_00_00_35N_38N_93W_90W.nc'

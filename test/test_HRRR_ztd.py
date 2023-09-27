@@ -7,13 +7,14 @@ from test import TEST_DIR
 
 import numpy as np
 import xarray as xr
+from RAiDER.cli.raider import calcDelays
 
-
-def test_scenario_1():
+def test_scenario_1(data_for_hrrr_ztd, mocker):
     SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
     test_path = os.path.join(SCENARIO_DIR, 'raider_example_1.yaml')
-    process = subprocess.run(['raider.py', test_path],stdout=subprocess.PIPE, universal_newlines=True,)
-    assert process.returncode == 0
+    mocker.patch('RAiDER.processWM.prepareWeatherModel',
+                 side_effect=[str(data_for_hrrr_ztd)])
+    calcDelays([test_path])
 
     new_data  = xr.load_dataset(os.path.join(SCENARIO_DIR, 'HRRR_tropo_20200101T120000_ztd.nc'))
     new_data1 = new_data.sel(x=-91.84, y=36.84, z=0, method='nearest')
@@ -21,8 +22,3 @@ def test_scenario_1():
 
     np.testing.assert_almost_equal(golden_data[0], new_data1['hydro'].data)
     np.testing.assert_almost_equal(golden_data[1], new_data1['wet'].data)
-
-    # Clean up files
-    for f in glob.glob(os.path.join(SCENARIO_DIR, 'HRRR*')):
-        os.remove(f)
-    shutil.rmtree(os.path.join(SCENARIO_DIR, 'weather_files'))
