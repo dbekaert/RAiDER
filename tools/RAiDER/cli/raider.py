@@ -302,7 +302,7 @@ def calcDelays(iargs=None):
             continue
 
         # Get the weather model file
-        weather_model_file = getWeatherFile(wfiles, params['date_list'], times, t, model._dataset, interp_method)
+        weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
 
         # Now process the delays
         try:
@@ -593,7 +593,7 @@ def combineZTDFiles():
         )
 
 
-def getWeatherFile(wfiles, times, t, interp_method='none'):
+def getWeatherFile(wfiles, times, t, model, interp_method='none'):
     '''
     # Time interpolation
     # 
@@ -632,6 +632,7 @@ def getWeatherFile(wfiles, times, t, interp_method='none'):
             weather_model_file = combine_weather_files(
                 wfiles, 
                 t, 
+                model,
                 interp_method='center_time'
             )
         elif Tmatch: # Case 4: Exact time is available without interpolation
@@ -648,7 +649,8 @@ def getWeatherFile(wfiles, times, t, interp_method='none'):
         if Nmatch or Tmatch: # Case 6: all files downloaded
             weather_model_file = combine_weather_files(
                 wfiles, 
-                t, 
+                t,
+                model,
                 interp_method='azimuth_time_grid'
             )
         else: 
@@ -667,7 +669,7 @@ def getWeatherFile(wfiles, times, t, interp_method='none'):
     return weather_model_file
 
 
-def combine_weather_files(wfiles, t, interp_method='center_time'):
+def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     '''Interpolate downloaded weather files and save to a single file'''
 
     STYLE = {'center_time': '_timeInterp_', 'azimuth_time_grid': '_timeInterpAziGrid_'}
@@ -679,8 +681,6 @@ def combine_weather_files(wfiles, t, interp_method='center_time'):
     times = []
     for ds in datasets:
         times.append(datetime.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
-    
-    model = datasets[0].attrs['model_name']
 
     # calculate relative weights of each dataset
     if interp_method == 'center_time':
