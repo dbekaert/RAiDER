@@ -157,12 +157,12 @@ def test_weatherModel_basic1(model: MockWeatherModel):
     wm.setTime('19720229', fmt='%Y%m%d')  # test a leap year
     assert wm._time == datetime.datetime(1972, 2, 29, 0, 0, 0)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime(1950, 1, 1))
 
     wm.checkTime(datetime.datetime(2000, 1, 1))
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime.now())
 
 
@@ -432,7 +432,7 @@ def test_hrrr_badloc(wm:hrrr=HRRR):
     with pytest.raises(ValueError):
         wm._fetch('dummy_filename')
 
-
+@pytest.mark.long
 def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK):
     wm = wm()
     d  = tmp_path / "files"
@@ -444,7 +444,7 @@ def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK):
     wm._fetch(fname)
     assert True
 
-
+@pytest.mark.long
 def test_hrrrak_dl2(tmp_path: Path, wm:hrrrak=HRRRAK):
     # test the international date line crossing
     wm = wm()

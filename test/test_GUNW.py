@@ -515,7 +515,7 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                '-interp', 'azimuth_time_grid'
                ]
 
-    with pytest.raises(WrongNumberOfFiles):
+    with pytest.raises(RuntimeError):
         calcDelaysGUNW(iargs_1)
     RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid.assert_not_called()
 
