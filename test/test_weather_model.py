@@ -23,6 +23,7 @@ from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
+from RAiDER.models.customExceptions import *
 
 
 _LON0 = 0
@@ -156,12 +157,12 @@ def test_weatherModel_basic1(model: MockWeatherModel):
     wm.setTime('19720229', fmt='%Y%m%d')  # test a leap year
     assert wm._time == datetime.datetime(1972, 2, 29, 0, 0, 0)
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime(1950, 1, 1))
 
     wm.checkTime(datetime.datetime(2000, 1, 1))
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime.now())
 
 
@@ -309,7 +310,7 @@ def test_hrrr(hrrr: HRRR):
     assert wm._Name == 'HRRR'
     assert wm._valid_range[0] == datetime.datetime(2016, 7, 15)
     assert wm._proj.to_epsg() is None
-    with pytest.raises(RuntimeError):
+    with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime(2010, 7, 15))
     wm.checkTime(datetime.datetime(2018, 7, 12))
 
@@ -329,7 +330,7 @@ def test_hrrrak(hrrrak: HRRRAK):
     with pytest.raises(ValueError):
         wm.checkValidBounds([15, 20, 265, 270])
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime(2018, 7, 12))
 
     wm.checkTime(datetime.datetime(2018, 7, 15))
@@ -431,7 +432,6 @@ def test_hrrr_badloc(wm:hrrr=HRRR):
     with pytest.raises(ValueError):
         wm._fetch('dummy_filename')
 
-
 def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK):
     wm = wm()
     d  = tmp_path / "files"
@@ -442,7 +442,6 @@ def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK):
 
     wm._fetch(fname)
     assert True
-
 
 def test_hrrrak_dl2(tmp_path: Path, wm:hrrrak=HRRRAK):
     # test the international date line crossing

@@ -147,7 +147,7 @@ def test_get_sv_3(svs):
 def test_get_sv_4(svs):
     true_svs = svs
     filename = os.path.join(ORB_DIR, 'no_exist.txt')
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(ValueError):
         get_sv(filename, true_svs[0][0], pad=3*60)
 
 
