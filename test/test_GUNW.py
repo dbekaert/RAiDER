@@ -2,7 +2,6 @@ import glob
 import json
 import os
 import shutil
-import subprocess
 import unittest
 from pathlib import Path
 
@@ -23,6 +22,7 @@ from RAiDER.aria.prepFromGUNW import (
     check_weather_model_availability
 )
 from RAiDER.cli.raider import calcDelaysGUNW
+from RAiDER.models.customExceptions import *
 
 
 def compute_transform(lats, lons):
@@ -515,7 +515,7 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                '-interp', 'azimuth_time_grid'
                ]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(WrongNumberOfFiles):
         calcDelaysGUNW(iargs_1)
     RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid.assert_not_called()
 
@@ -534,6 +534,6 @@ def test_value_error_for_file_inputs_when_no_data_available(mocker):
              '-interp', 'azimuth_time_grid'
              ]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(NoWeatherModelData):
         calcDelaysGUNW(iargs)
     RAiDER.aria.prepFromGUNW.main.assert_not_called()

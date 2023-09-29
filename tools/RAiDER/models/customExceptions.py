@@ -31,9 +31,23 @@ class TryToKeepGoingError(Exception):
             msg = 'I will try to keep going'
         super().__init__(msg)
     
-
 class CriticalError(Exception):
     def __init__(self):
         msg = 'I have experienced a critical error, please take a look at the log files'
         super().__init__(msg)
+
+class WrongNumberOfFiles(Exception):
+    def __init__(self, Nexp, Navail):
+        msg = 'The number of files downloaded does not match the requested, '
+        'I expected {} and got {}, aborting'.format(Nexp, Navail)
+        super().__init__(msg)
     
+
+class NoWeatherModelData(Exception):
+    def __init__(self, custom_msg=None):
+        if custom_msg is None:
+            msg = 'No weather model files were available to download, aborting'
+        else:
+            msg = custom_msg
+        super().__init__(msg)
+

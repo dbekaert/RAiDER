@@ -330,6 +330,8 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
     n_dates = len(dates)
     if n_unique_dates != n_dates:
         raise ValueError('Dates provided must be unique')
+    if n_dates == 0:
+        raise ValueError('No dates provided')
 
     if not all([isinstance(date, datetime.datetime) for date in dates]):
         raise TypeError('dates must be all datetimes')

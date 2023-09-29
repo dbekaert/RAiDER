@@ -256,7 +256,7 @@ def calcDelays(iargs=None):
             logger.warning('interp_method is not specified, defaulting to \'none\', i.e. nearest datetime for delay '
                            'calculation')
 
-        if (interp_method is not 'azimuth_time_grid'):
+        if (interp_method != 'azimuth_time_grid'):
             times = get_nearest_wmtimes(
                 t, [model.dtime() if model.dtime() is not None else 6][0]
             ) if interp_method == 'center_time' else [t]
@@ -516,7 +516,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         file_name = iargs.file.split('/')[-1]
         gunw_id = file_name.replace('.nc', '')
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-            raise ValueError('The required HRRR data for time-grid interpolation is not available')
+            raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
     if not iargs.file and iargs.bucket:
         # only use GUNW ID for checking if HRRR available
@@ -642,7 +642,7 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
             logger.warning('getWeatherFile: One datetime is not available to download, defaulting to nearest available date')
             weather_model_file = wfiles[0]
         else:
-            raise RuntimeError('getWeatherFile: the number of files downloaded does not match the requested')
+            raise WrongNumberOfFiles(Nfiles_expected, Nfiles)
     
     elif (interp_method) == 'azimuth_time_grid':
 
@@ -654,11 +654,7 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
                 interp_method='azimuth_time_grid'
             )
         else: 
-            raise RuntimeError(
-                'getWeatherFile: the number of files downloaded ({})'
-                ' does not match the requested ({}) using azimuth '
-                'time grid'.format(Nfiles, Nfiles_expected)
-                )
+            raise WrongNumberOfFiles(Nfiles_expected, Nfiles)
 
     # Case 7 - Anything else errors out
     else:
@@ -681,6 +677,9 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     times = []
     for ds in datasets:
         times.append(datetime.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+    
+    if len(times)==0:
+        raise NoWeatherModelData()
 
     # calculate relative weights of each dataset
     if interp_method == 'center_time':
