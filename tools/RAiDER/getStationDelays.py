@@ -24,28 +24,42 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
     at the closest times to to returnTime.
-    Inputs:
-         stationFile - a .gz station delay file
-         returnTime  - specified time of GPS delay
-    Outputs:
-         a dict and CSV file containing the times and delay information
-         (delay in mm, delay uncertainty, delay gradients)
-    *NOTE: Due to a formatting error in the tropo SINEX files, the two tropospheric gradient columns
-    (TGNTOT and TGETOT) are interchanged, as are the formal error columns (_SIG).
+    
+    Args:
+         stationFile: binary        - a .gz station delay file
+         filename: ?                - ? 
+         dateList: list of datetime - ?
+         returnTime: datetime       - specified time of GPS delay (default all times)
+
+    Returns:
+        None
+    
+    The function writes a CSV file containing the times and delay information
+    (delay in mm, delay uncertainty, delay gradients)
+
+    Refer to the following sites to interpret stationFile variable names:
+    ftp://igs.org/pub/data/format/sinex_tropo.txt
+    http://geodesy.unr.edu/gps_timeseries/README_trop2.txt
+    Wet and hydrostratic delays were derived as so:
+    Constants —> k1 = 0.704, k2 = 0.776, k3 = 3739.0, m = 18.0152/28.9644,
+    k2' = k2-(k1*m) = 0.33812796398337275, Rv = 461.5 J/(kg·K), ρl = 997 kg/m^3
+    
+    *NOTE: wet delays passed here are computed using 
+    PMV = precipitable water vapor, 
+    P = total atm pressure, 
+    Tm = mean temp of the column, as:
+
+        Wet zenith delay = 10^-6 ρlRv(k2' + k3/Tm) PMV
+        Hydrostatic zenith delay = Total zenith delay - wet zenith delay = k1*(P/Tm)
+    
+    Source —> Hanssen, R. F. (2001) eqns. 6.2.7-10
+
+    *NOTE: Due to a formatting error in the tropo SINEX files, the two 
+    tropospheric gradient columns (TGNTOT and TGETOT) are interchanged, 
+    as are the formal error columns (_SIG).
+
     Source  —> http://geodesy.unr.edu/gps_timeseries/README_trop2.txt)
     '''
-    # Refer to the following sites to interpret stationFile variable names:
-    # ftp://igs.org/pub/data/format/sinex_tropo.txt
-    # http://geodesy.unr.edu/gps_timeseries/README_trop2.txt
-    # Wet and hydrostratic delays were derived as so:
-    # Constants —> k1 = 0.704, k2 = 0.776, k3 = 3739.0, m = 18.0152/28.9644,
-    # k2' = k2-(k1*m) = 0.33812796398337275, Rv = 461.5 J/(kg·K), ρl = 997 kg/m^3
-    # Note wet delays passed here may be computed as so
-    # where PMV = precipitable water vapor, P = total atm pressure, Tm = mean temp of the column —>
-    # Wet zenith delay = 10^-6 ρlRv(k2' + k3/Tm) PMV
-    # Hydrostatic zenith delay = Total zenith delay - wet zenith delay = k1*(P/Tm)
-    # Source —> Hanssen, R. F. (2001) eqns. 6.2.7-10
-
     # sort through station zip files
     allstationTarfiles = []
     # if URL

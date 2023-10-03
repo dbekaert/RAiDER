@@ -10,10 +10,11 @@ import pandas as pd
 from test import TEST_DIR, pushd
 
 from RAiDER.cli import DEFAULT_DICT
-from RAiDER.checkArgs import checkArgs, makeDelayFileNames
+from RAiDER.checkArgs import checkArgs, makeDelayFileNames, get_raster_ext
 from RAiDER.llreader import BoundingBox, StationFile, RasterRDR
 from RAiDER.losreader import Zenith, Conventional, Raytracing
 from RAiDER.models.gmao import GMAO
+
 
 SCENARIO_1 = os.path.join(TEST_DIR, "scenario_1")
 SCENARIO_2 = os.path.join(TEST_DIR, "scenario_2")
@@ -180,4 +181,7 @@ def test_makeDelayFileNames_4():
     )
 
 
+def test_get_raster_ext():
+    with pytest.raises(ValueError):
+        get_raster_ext('dummy_format')
 
