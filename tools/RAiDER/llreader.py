@@ -335,6 +335,10 @@ class GeocodedFile(AOI):
         self._is_dem       = is_dem
         _, self._proj, self._geotransform = rio_stats(filename)
         self._type = 'geocoded_file'
+        try:
+            self.crs = self.p['crs']
+        except KeyError:
+            self.crs = None
 
 
     def readLL(self):
@@ -378,7 +382,6 @@ class Geocube(AOI):
             S, N = ds.latitude.min().item(), ds.latitude.max().item()
             W, E = ds.longitude.min().item(), ds.longitude.max().item()
         return [S, N, W, E]
-
 
     ## untested
     def readLL(self):

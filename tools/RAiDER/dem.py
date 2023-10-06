@@ -19,12 +19,12 @@ from RAiDER.utilFcns import rio_open
 
 
 def download_dem(
-    ll_bounds=None,
-    writeDEM=False,
-    outName='warpedDEM',
-    buf=0.02,
-    overwrite=False,
-):
+        ll_bounds=None,
+        writeDEM=False,
+        outName='warpedDEM',
+        buf=0.02,
+        overwrite=False,
+    ):
     """  
     Download a DEM if one is not already present. 
     Args:

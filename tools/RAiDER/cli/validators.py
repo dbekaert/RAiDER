@@ -165,7 +165,6 @@ def get_query_region(args):
         # TODO: Need to incorporate the cube
         raise ValueError('No valid query points or bounding box found in the configuration file')
 
-
     return query
 
 
