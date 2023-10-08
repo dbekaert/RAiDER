@@ -431,7 +431,5 @@ def bounds_from_csv(station_file):
     and "Lon" columns, which should be EPSG: 4326 projection (i.e WGS84)
     '''
     stats = pd.read_csv(station_file).drop_duplicates(subset=["Lat", "Lon"])
-    if 'Hgt_m' in stats.columns:
-        use_csv_heights = True
     snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
     return snwe

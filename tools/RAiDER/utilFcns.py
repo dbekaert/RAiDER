@@ -134,14 +134,7 @@ def rio_profile(fname):
 
     with rasterio.open(fname) as src:
         profile = src.profile
-        # if 'S1-GUNW' in fname:
-            # profile['length'] = profile['width']
-            # profile['width']  = profile['height']
 
-    if profile["crs"] is None:
-        raise AttributeError(
-            f"{fname} does not contain geotransform information"
-        )
     return profile
 
 
@@ -150,9 +143,6 @@ def rio_extents(profile):
     gt = profile["transform"].to_gdal()
     xSize = profile["width"]
     ySize = profile["height"]
-
-    if profile["crs"] is None or not gt:
-        raise AttributeError('Profile does not contain geotransform information')
     W, E = gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2]
     N, S = gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]
     return S, N, W, E
@@ -280,12 +270,15 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     # Geotransform
     trans = None
     if gt is not None:
-        trans = rasterio.Affine.from_gdal(*gt)
+        try:
+            trans = rasterio.Affine.from_gdal(*gt)
+        except TypeError:
+            trans = gt
 
     ## cant write netcdfs with rasterio in a simple way
     if fmt == 'nc':
         fmt = 'GTiff'
-        filename = filename.replace('.nc', '.GTiff')
+        filename = filename.replace('.nc', '.tif')
 
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
@@ -294,17 +287,6 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         dst.write(array, 1)
     logger.info('Wrote: %s', filename)
     return
-
-
-def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
-    '''
-    Write a single-dim array of values to a file
-    '''
-    array[np.isnan(array)] = noDataValue
-    with open(filename, 'w') as f:
-        f.write('Lat,Lon,Hgt_m\n')
-        for lat, lon, height in zip(lats, lons, array):
-            f.write('{},{},{}\n'.format(lat, lon, height))
 
 
 def round_date(date, precision):
