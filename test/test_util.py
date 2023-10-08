@@ -14,6 +14,8 @@ from RAiDER.utilFcns import (
     writeArrayToRaster, rio_profile,
     rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
     transform_bbox, clip_bbox, get_nearest_wmtimes,
+    robmax,robmin,padLower,convertLons,
+    projectDelays,floorish,
 )
 
 
@@ -547,3 +549,33 @@ def test_writeArrayToRaster_3(tmp_path):
         new_fname = os.path.join(tmp_path, 'tmp_file.tif')
         prof = rio_profile(new_fname)
         assert prof['driver'] == 'GTiff'
+
+
+def test_robs():
+    assert robmin([1, 2, 3, np.nan])==1
+    assert robmin([1,2,3])==1
+    assert robmax([1, 2, 3, np.nan])==3
+    assert robmax([1,2,3])==3
+    
+
+def test_floorish1():
+    assert np.isclose(floorish(5.6,0.2), 5.4)
+def test_floorish2():
+    assert np.isclose(floorish(5.71,0.2),5.6)
+def test_floorish3():
+    assert np.isclose(floorish(5.71,1),5)
+
+def test_projectDelays1():
+    assert np.allclose(projectDelays(10,45),14.1421312)
+
+
+def test_padLower():
+    test = np.random.randn(2,3,4)
+    val = test[1,2,1]
+    test[1,2,0] = np.nan
+    out = padLower(test)
+    assert out[1,2,0] == val
+
+
+def test_convertLons():
+    assert np.allclose(convertLons(np.array([0, 10, -10, 190, 360])), np.array([0, 10, -10, -170, 0]))

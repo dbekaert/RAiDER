@@ -324,20 +324,14 @@ def robmin(a):
     '''
     Get the minimum of an array, accounting for empty lists
     '''
-    try:
-        return np.nanmin(a)
-    except ValueError:
-        return 'N/A'
+    return np.nanmin(a)
 
 
 def robmax(a):
     '''
     Get the minimum of an array, accounting for empty lists
     '''
-    try:
-        return np.nanmax(a)
-    except ValueError:
-        return 'N/A'
+    return np.nanmax(a)
 
 
 def _get_g_ll(lats):
@@ -409,25 +403,6 @@ def padLower(invar):
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def checkShapes(los, lats, lons, hts):
-    '''
-    Make sure that by the time the code reaches here, we have a
-    consistent set of line-of-sight and position data.
-    '''
-    from RAiDER.losreader import Zenith
-    test1 = hts.shape == lats.shape == lons.shape
-    try:
-        test2 = los.shape[:-1] == hts.shape
-    except AttributeError:
-        test2 = los is Zenith
-
-    if not test1 and test2:
-        raise ValueError(
-            'I need lats, lons, heights, and los to all be the same shape. ' +
-            'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
-            'heights had shape {}, and los was not Zenith'.format(hts.shape))
-
-
 def round_time(dt, roundTo=60):
     '''
     Round a datetime object to any time lapse in seconds
@@ -453,11 +428,7 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
     # Do different things, depending on the type of input
     if aoi.type() == 'station_file':
-        #TODO: why is this a try/except?
-        try:
-            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
-        except ValueError:
-            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
+        df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
 
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
@@ -492,11 +463,9 @@ def getTimeFromFile(filename):
     '''
     fmt = '%Y_%m_%d_T%H_%M_%S'
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
-    try:
-        out = p.search(filename).group()
-        return datetime.strptime(out, fmt)
-    except BaseException:  # TODO: Which error(s)?
-        raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
+    out = p.search(filename).group()
+    return datetime.strptime(out, fmt)
+
 
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
