@@ -20,10 +20,10 @@ from RAiDER.utilFcns import rio_open
 
 def download_dem(
         ll_bounds=None,
-        writeDEM=False,
-        outName='warpedDEM',
-        buf=0.02,
+        demName='warpedDEM.dem',
         overwrite=False,
+        writeDEM=False,
+        buf=0.02,
     ):
     """  
     Download a DEM if one is not already present. 
@@ -37,11 +37,22 @@ def download_dem(
             zvals: np.array         -DEM heights
             metadata:               -metadata for the DEM
     """
-    if os.path.exists(outName) and not overwrite:
-        logger.info('Using existing DEM: %s', outName)
-        zvals, metadata = rio_open(outName, returnProj=True)
-
+    if os.path.exists(demName):
+        if overwrite:
+            download = True
+        else:
+            download = False
     else:
+        download = True
+
+    if download and (ll_bounds is None):
+        raise ValueError('download_dem: Either an existing file or lat/lon bounds must be passed')
+
+    if not download:
+        logger.info('Using existing DEM: %s', demName)
+        zvals, metadata = rio_open(demName, returnProj=True)    
+    else:
+        # download the dem
         # inExtent is SNWE
         # dem-stitcher wants WSEN
         bounds = [
@@ -56,9 +67,9 @@ def download_dem(
             dst_area_or_point='Area',
         )
         if writeDEM:
-            with rasterio.open(outName, 'w', **metadata) as ds:
+            with rasterio.open(demName, 'w', **metadata) as ds:
                 ds.write(zvals, 1)
                 ds.update_tags(AREA_OR_POINT='Point')
-            logger.info('Wrote DEM: %s', outName)
+            logger.info('Wrote DEM: %s', demName)
 
     return zvals, metadata
