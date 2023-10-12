@@ -67,6 +67,7 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     else:
+        os.makedirs(os.path.dirname(path_wm_raw), exist_ok=True)
         try:
             weather_model.fetch(path_wm_raw, time)
         except DatetimeOutsideRange:
@@ -91,7 +92,7 @@ def prepareWeatherModel(
         containment = weather_model.checkContainment(ll_bounds)
         if not containment and weather_model.Model() not in 'HRRR'.split():
             raise ExistingWeatherModelTooSmall
-        
+
         return f
 
     # Logging some basic info
