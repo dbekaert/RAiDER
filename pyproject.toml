@@ -58,7 +58,7 @@ zip-safe = false
 where = ["tools"]
 
 [tool.setuptools.package-data]
-"*" = ["*.yml", "*.yaml"]
+"*" = ["*.yml", "*.yaml", "*.zip"]
 
 [tool.isort]
 known_first_party = "RAiDER"
