@@ -80,7 +80,7 @@ def get_slc_id_from_point_and_time(lon: float,
 def get_azimuth_time_grid(lon_mesh: np.ndarray,
                           lat_mesh: np.ndarray,
                           hgt_mesh:  np.ndarray,
-                          orb: isce.core.Orbit) -> np.ndarray:
+                          orb) -> np.ndarray:
     '''
     Source: https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/losreader.py#L601C1-L674C22
 
