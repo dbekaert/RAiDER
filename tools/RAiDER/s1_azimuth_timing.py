@@ -3,10 +3,14 @@ import warnings
 
 import asf_search as asf
 import hyp3lib.get_orb
-import isce3.ext.isce3 as isce
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
+
+try:
+    import isce3.ext.isce3 as isce
+except ImportError:
+    isce = None
 
 from .losreader import get_orbit as get_isce_orbit
 
@@ -76,7 +80,7 @@ def get_slc_id_from_point_and_time(lon: float,
 def get_azimuth_time_grid(lon_mesh: np.ndarray,
                           lat_mesh: np.ndarray,
                           hgt_mesh:  np.ndarray,
-                          orb: isce.core.Orbit) -> np.ndarray:
+                          orb: 'isce.core.Orbit') -> np.ndarray:
     '''
     Source: https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/losreader.py#L601C1-L674C22
 
@@ -84,6 +88,8 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
 
     Technically, this is "sensor neutral" since it uses an orb object.
     '''
+    if isce is None:
+        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
 
     num_iteration = 100
     residual_threshold = 1.0e-7
