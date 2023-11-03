@@ -39,7 +39,7 @@ dependencies:
  - rioxarray
  - s3fs
  - scipy>1.10.0
- - sentineleof>=0.9.1
+ - sentineleof>=0.9.0
  - shapely
  - tqdm
  - xarray
