@@ -6,7 +6,10 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+import netrc
 from datetime import datetime
+from pathlib import Path
+from platform import system
 import numpy as np
 import eof.download
 import xarray as xr
@@ -29,6 +32,39 @@ from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
 
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
+
+ESA_CDSE_HOST = 'dataspace.copernicus.eu'
+
+
+def _ensure_orbit_credential() -> None | int:
+    """Ensure credentials exist for ESA's CDSE to download orbits
+
+    This method will prefer to use CDSE credentials from your `~/.netrc` file if they exist,
+    otherwise will look for ESA_CDSE_USERNAME and ESA_CDSE_PASSWORD environment variables and
+     update or create your `~/.netrc` file.
+
+     Returns `None` if the `~/.netrc` file did not need to be updated and the number of characters written if it did.
+    """
+    netrc_name = '_netrc' if system().lower() == 'windows' else '.netrc'
+    netrc_file = Path.home() / netrc_name
+
+    # netrc needs a netrc file; if missing create an empty one.
+    if not netrc_file.exists():
+        netrc_file.touch()
+
+    netrc_credentials = netrc.netrc(netrc_file)
+    if ESA_CDSE_HOST in netrc_credentials.hosts:
+        return
+
+    username = os.environ.get('ESA_CDSE_USERNAME')
+    password = os.environ.get('ESA_CDSE_PASSWORD')
+    if username is None and password is None:
+        raise ValueError('Credentials are required for fetching orbit data from dataspace.copernicus.eu!\n'
+                         'Either add your credentials to ~/.netrc or set the ESA_CDSE_USERNAME and ESA_CDSE_PASSWORD '
+                         'environment variables.')
+
+    netrc_credentials.hosts[ESA_CDSE_HOST] = (username, None, password)
+    return netrc_file.write_text(str(netrc_credentials))
 
 
 def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> datetime:
@@ -278,6 +314,7 @@ class GUNW:
         sat = slc.split('_')[0]
         dt  = datetime.strptime(f'{self.dates[0]}T{self.mid_time}', '%Y%m%dT%H:%M:%S')
 
+        _ensure_orbit_credential()
         path_orb = eof.download.download_eofs([dt], [sat], save_dir=orbit_dir)
 
         return path_orb
