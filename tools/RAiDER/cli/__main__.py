@@ -29,15 +29,6 @@ def main():
     
     sys.argv = [args.process, *unknowns]    
 
-    if args.process == 'calcDelays':
-        from RAiDER.cli.raider import calcDelays
-    elif args.process == 'downloadGNSS':
-        from RAiDER.cli.raider import downloadGNSS
-    elif args.process == 'calcDelaysGUNW':
-        from RAiDER.cli.raider import calcDelaysGUNW
-    else:
-        raise NotImplementedError(f'Process {args.process} has not been fully implemented')
-
     try:
         # python >=3.10 interface
         process_entry_point = entry_points(group='console_scripts', name=f'{args.process}.py')[0]
