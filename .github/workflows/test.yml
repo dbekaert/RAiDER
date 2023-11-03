@@ -4,11 +4,11 @@ on:
   push:
     branches:
       - main
-      - develop
+      - dev
   pull_request:
     branches:
       - main
-      - develop
+      - dev
 
 env:
   RAIDER_ECMWF_ERA5_UID = ${{ secrets.RAIDER_ECMWF_ERA5_UID }}
