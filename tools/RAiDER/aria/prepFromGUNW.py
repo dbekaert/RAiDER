@@ -317,7 +317,7 @@ class GUNW:
         _ensure_orbit_credential()
         path_orb = eof.download.download_eofs([dt], [sat], save_dir=orbit_dir)
 
-        return path_orb
+        return [str(o) for o in path_orb]
 
 
     ## ------ methods below are not used
@@ -418,7 +418,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {example_yaml}')
+            raise ValueError(f'Something is wrong with the yaml file {template_file}')
 
     params = {**params, **dct_cfg}
 
