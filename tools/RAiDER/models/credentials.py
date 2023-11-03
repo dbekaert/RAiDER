@@ -69,7 +69,7 @@ def _check_envs(model):
         key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
         host = API_URLS['cdsapirc']
 
-    elif model in ('HRES'):
+    elif model in ('HRES', 'ERAI'):
         uid = os.getenv('RAIDER_HRES_EMAIL') 
         key = os.getenv('RAIDER_HRES_API_KEY')
         host = os.getenv('RAIDER_HRES_URL')
@@ -145,3 +145,8 @@ def check_api(model: str,
                         f'{api_filename_path}, API ENVIRONMENTALS'
                         f' and API UID and KEY, do not exist !!'
                         f'\nGet API info from ' + '\033[1m' f'{help_url}' + '\033[0m, and add it!')
+
+
+def setup_from_env():
+    for model in API_FILENAME.keys():
+        check_api(model)
