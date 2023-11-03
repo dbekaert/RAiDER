@@ -222,11 +222,10 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # For prepGUNW
     side_effect = [
                    # center-time
-                   orbit_dict_for_azimuth_time_test['reference'],
+                   [Path(orbit_dict_for_azimuth_time_test['reference'])],
                    # azimuth-time
-                   orbit_dict_for_azimuth_time_test['reference'],
+                   [Path(orbit_dict_for_azimuth_time_test['reference'])],
                    ]
-    side_effect = list(map(str, side_effect))
     mocker.patch('eof.download.download_eofs',
                  side_effect=side_effect)
 
@@ -387,11 +386,10 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
         # For prepGUNW
         side_effect = [
                     # center-time
-                    orbit_dict_for_azimuth_time_test['reference'],
+                   [Path(orbit_dict_for_azimuth_time_test['reference'])],
                     # azimuth-time
-                    orbit_dict_for_azimuth_time_test['reference'],
+                   [Path(orbit_dict_for_azimuth_time_test['reference'])],
                     ]
-        side_effect = list(map(str, side_effect))
         mocker.patch('eof.download.download_eofs',
                      side_effect=side_effect)
 
@@ -491,11 +489,10 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
     # For prepGUNW
     side_effect = [
                     # center-time
-                    orbit_dict_for_azimuth_time_test['reference'],
+                   [Path(orbit_dict_for_azimuth_time_test['reference'])],
                     # azimuth-time
-                    orbit_dict_for_azimuth_time_test['reference'],
+                   [Path(orbit_dict_for_azimuth_time_test['reference'])],
                     ]
-    side_effect = list(map(str, side_effect))
     mocker.patch('eof.download.download_eofs',
                     side_effect=side_effect)
 
