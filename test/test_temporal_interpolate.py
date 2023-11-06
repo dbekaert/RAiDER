@@ -10,6 +10,7 @@ from RAiDER.logger import logger
 wm = 'ERA5' if WM == 'ERA-5' else WM
 
 
+@pytest.mark.long
 def test_cube_timemean():
     """ Test the mean interpolation by computing cube delays at 1:30PM vs mean of 12 PM / 3PM for GMAO """
     SCENARIO_DIR = os.path.join(TEST_DIR, "INTERP_TIME")
@@ -70,6 +71,7 @@ def test_cube_timemean():
     return
 
 
+@pytest.mark.long
 def test_cube_weighting():
     """ Test the weighting by comparing a small crop with numpy directly """
     from datetime import datetime
@@ -142,4 +144,3 @@ def test_cube_weighting():
     os.remove('temp.yaml')
 
     return
-
