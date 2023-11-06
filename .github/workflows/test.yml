@@ -67,6 +67,7 @@ jobs:
         if: matrix.python_version == matrix.coverage_report_version
         shell: bash -l {0}
         run: |
+          python -m pip install coveralls
           python .circleci/fix_coverage_paths.py .coverage ${PWD}/tools/RAiDER/
           coverage report -mi
           coveralls
