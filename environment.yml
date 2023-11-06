@@ -13,6 +13,7 @@ dependencies:
  # For running
  - asf_search
  - boto3
+ - cartopy
  - cdsapi
  - cfgrib
  - cmake

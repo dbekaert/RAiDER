@@ -51,3 +51,16 @@ class NoWeatherModelData(Exception):
             msg = custom_msg
         super().__init__(msg)
 
+
+class NoStationDataFoundError(Exception):
+    def __init__(self, station_list=None, years=None):
+        if (station_list is None) and (years is None):
+            msg = 'No GNSS station data was found'
+        elif (years is None):
+            msg = 'No data was found for GNSS stations {}'.format(station_list)
+        elif station_list is None:
+            msg = 'No data was found for years {}'.format(years)
+        else:
+            msg = 'No data was found for GNSS stations {} and years {}'.format(station_list, years)
+
+        super().__init__(msg)

@@ -15,8 +15,9 @@ from RAiDER.llreader import (
     bounds_from_latlon_rasters, bounds_from_csv
 )
 
-SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
+SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
 SCENARIO1_DIR = os.path.join(TEST_DIR, "scenario_1", "geom")
+SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
 
 
 @pytest.fixture
@@ -138,4 +139,13 @@ def test_bounds_from_csv(station_file):
 def test_readZ_sf(station_file):
     aoi = StationFile(station_file)
     assert np.allclose(aoi.readZ(), .1)
+
+
+def test_GeocodedFile():
+    aoi = GeocodedFile(os.path.join(SCENARIO0_DIR, 'small_dem.tif'), is_dem=True)
+    z = aoi.readZ()
+    x,y = aoi.readLL()
+    assert z.shape == (569,558)
+    assert x.shape == z.shape
+    assert True
 

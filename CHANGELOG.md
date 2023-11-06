@@ -13,6 +13,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * make weather file directory when it doesn't exist
 * Ensures the `models/data/alaska.geojson.zip` file is packaged when building from the source tarball
 * Make ISCE3 an optional dependency in `s1_azimuth_timing.py`
++ Added unit tests and removed unused and depracated functions
 
 ## [0.4.5]
 

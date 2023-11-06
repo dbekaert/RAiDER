@@ -234,7 +234,7 @@ class StationFile(AOI):
             _, _ = download_dem(
                 self._bounding_box,
                 writeDEM=True,
-                outName=demFile,
+                demName=demFile,
             )
             
             ## interpolate the DEM to the query points
@@ -307,7 +307,7 @@ class RasterRDR(AOI):
             _, _ = download_dem(
                 self._bounding_box,
                 writeDEM=True,
-                outName=demFile,
+                demName=demFile,
             )
             z_out = interpolateDEM(demFile, self.readLL())
 
@@ -335,6 +335,10 @@ class GeocodedFile(AOI):
         self._is_dem       = is_dem
         _, self._proj, self._geotransform = rio_stats(filename)
         self._type = 'geocoded_file'
+        try:
+            self.crs = self.p['crs']
+        except KeyError:
+            self.crs = None
 
 
     def readLL(self):
@@ -358,7 +362,7 @@ class GeocodedFile(AOI):
 
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox    = self._bounding_box
-        _, _ = download_dem(bbox, writeDEM=True, outName=demFile)
+        _, _ = download_dem(bbox, writeDEM=True, demName=demFile)
         z_out = interpolateDEM(demFile, self.readLL())
 
         return z_out
@@ -378,7 +382,6 @@ class Geocube(AOI):
             S, N = ds.latitude.min().item(), ds.latitude.max().item()
             W, E = ds.longitude.min().item(), ds.longitude.max().item()
         return [S, N, W, E]
-
 
     ## untested
     def readLL(self):
@@ -428,7 +431,5 @@ def bounds_from_csv(station_file):
     and "Lon" columns, which should be EPSG: 4326 projection (i.e WGS84)
     '''
     stats = pd.read_csv(station_file).drop_duplicates(subset=["Lat", "Lon"])
-    if 'Hgt_m' in stats.columns:
-        use_csv_heights = True
     snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
     return snwe

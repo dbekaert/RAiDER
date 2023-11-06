@@ -7,13 +7,15 @@ import numpy as np
 import pyproj
 import rasterio
 
-from test import TEST_DIR
+from test import TEST_DIR, pushd
 
 from RAiDER.utilFcns import (
     _least_nonzero, cosd, rio_open, sind,
     writeArrayToRaster, rio_profile,
     rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
     transform_bbox, clip_bbox, get_nearest_wmtimes,
+    robmax,robmin,padLower,convertLons,
+    projectDelays,floorish,
 )
 
 
@@ -227,11 +229,6 @@ def test_rio_extent():
     profile = rio_profile("test.tif")
     assert rio_extents(profile) == (17.0, 18.0, 17.0, 18.0)
     os.remove("test.tif")
-
-
-def test_rio_extent2():
-    with pytest.raises(AttributeError):
-        rio_profile(os.path.join(TEST_DIR, "test_geom", "lat.rdr"))
 
 
 def test_getTimeFromFile():
@@ -486,3 +483,99 @@ def test_get_nearest_wmtimes_4():
     test_out = get_nearest_wmtimes(t0, 1)
     true_out = [datetime.datetime(2020, 1, 1, 11, 0), datetime.datetime(2020, 1, 1, 12, 0)]
     assert [t == t0 for t, t0 in zip(test_out, true_out)]
+
+
+def test_rio():
+    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
+    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    profile = rio_profile(geotif)
+    assert profile['crs'] is not None
+
+
+def test_rio_2():
+    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
+    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    prof = rio_profile(geotif)
+    del prof['transform']
+    with pytest.raises(KeyError):
+        rio_extents(prof)
+
+
+def test_rio_3():
+    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
+    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    data = rio_open(geotif, returnProj=False, userNDV=None, band=1)
+    assert data.shape == (569,558)
+
+
+def test_rio_4():
+    SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_4")
+    los = os.path.join(SCENARIO_DIR, 'los.rdr')
+    inc, hd = rio_open(los, returnProj=False)
+    assert len(inc.shape) == 2
+    assert len(hd.shape) == 2
+
+
+def test_writeArrayToRaster_2():
+    test = np.random.randn(10,10,10)
+    with pytest.raises(RuntimeError):
+        writeArrayToRaster(test, 'dummy_file')
+
+
+def test_writeArrayToRaster_3(tmp_path):
+    test = np.random.randn(10,10)
+    test = test + test * 1j
+    with pushd(tmp_path):
+        fname = os.path.join(tmp_path, 'tmp_file.tif')
+        writeArrayToRaster(test, fname)
+        tmp = rio_profile(fname)
+        assert tmp['dtype'] == np.complex64
+
+
+def test_writeArrayToRaster_3(tmp_path):
+    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
+    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    profile = rio_profile(geotif)
+    data = rio_open(geotif)
+    with pushd(tmp_path):
+        fname = os.path.join(tmp_path, 'tmp_file.nc')
+        writeArrayToRaster(
+            data, 
+            fname, 
+            proj=profile['crs'], 
+            gt=profile['transform'], 
+            fmt='nc',
+        )
+        new_fname = os.path.join(tmp_path, 'tmp_file.tif')
+        prof = rio_profile(new_fname)
+        assert prof['driver'] == 'GTiff'
+
+
+def test_robs():
+    assert robmin([1, 2, 3, np.nan])==1
+    assert robmin([1,2,3])==1
+    assert robmax([1, 2, 3, np.nan])==3
+    assert robmax([1,2,3])==3
+    
+
+def test_floorish1():
+    assert np.isclose(floorish(5.6,0.2), 5.4)
+def test_floorish2():
+    assert np.isclose(floorish(5.71,0.2),5.6)
+def test_floorish3():
+    assert np.isclose(floorish(5.71,1),5)
+
+def test_projectDelays1():
+    assert np.allclose(projectDelays(10,45),14.1421312)
+
+
+def test_padLower():
+    test = np.random.randn(2,3,4)
+    val = test[1,2,1]
+    test[1,2,0] = np.nan
+    out = padLower(test)
+    assert out[1,2,0] == val
+
+
+def test_convertLons():
+    assert np.allclose(convertLons(np.array([0, 10, -10, 190, 360])), np.array([0, 10, -10, -170, 0]))

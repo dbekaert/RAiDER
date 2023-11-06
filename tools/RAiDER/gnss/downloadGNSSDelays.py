@@ -13,79 +13,99 @@ import pandas as pd
 from RAiDER.logger import logger, logging
 from RAiDER.getStationDelays import get_station_data
 from RAiDER.utilFcns import requests_retry_session
+from RAiDER.models.customExceptions import NoStationDataFoundError
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
 
 
 
-def get_station_list(bbox=None, writeLoc=None, userstatList=None, name_appendix=''):
+def get_station_list(
+        bbox=None, 
+        stationFile=None, 
+        userstatList=None, 
+        writeStationFile=True,
+        writeLoc=None, 
+        name_appendix=''
+    ):
     '''
     Creates a list of stations inside a lat/lon bounding box from a source
-    Inputs:
-        bbox    - length-4 list of floats that describes a bounding box. Format is
-                  S N W E
+    
+    Args:
+        bbox: list of float - length-4 list of floats that describes a bounding box. 
+                                Format is S N W E
+        writeLoc: string    - Directory to write data
+        userstatList: list  - list of specific IDs to access
+        name_appendix: str  - name to append to output file
+    
+    Returns:
+        stations: list of strings   - station IDs to access
+        output_file: string         - file to write delays
     '''
-    writeLoc = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox' + name_appendix + '.csv')
-
-    if userstatList:
-        userstatList = read_text_file(userstatList)
-
-    statList = get_stats_by_llh(llhBox=bbox, userstatList=userstatList)
+    if stationFile:
+        station_data = pd.read_csv(stationFile)
+    elif userstatList:
+        station_data = read_text_file(userstatList)
+    elif bbox:
+        station_data = get_stats_by_llh(llhBox=bbox)
 
     # write to file and pass final stations list
-    statList.to_csv(writeLoc, index=False)
-    stations = list(statList['ID'].values)
+    if writeStationFile:
+        output_file = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox' + name_appendix + '.csv')
+        station_data.to_csv(output_file, index=False)
 
-    return stations, writeLoc
+    return list(station_data['ID'].values), [output_file if writeStationFile else station_data][0]
 
 
-def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL, userstatList=None):
+def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
     '''
     Function to pull lat, lon, height, beginning date, end date, and number of solutions for stations inside the bounding box llhBox.
-    llhBox should be a tuple with format (lat1, lat2, lon1, lon2), where lat1, lon1 define the lower left-hand corner and lat2, lon2
-    define the upper right corner.
+    llhBox should be a tuple in SNWE format.
     '''
     if llhBox is None:
         llhBox = [-90, 90, 0, 360]
+    S,N,W,E = llhBox
+    if (W < 0) or (E < 0):
+        raise ValueError('get_stats_by_llh: bounding box must use 0 < lon < 360')
 
-    stationHoldings = '{}NGLStationPages/DataHoldings.txt'.format(baseURL)
+    stationHoldings = '{}NGLStationPages/llh.out'.format(baseURL)
     # it's a file like object and works just like a file
 
-    session = requests_retry_session()
-    data = session.get(stationHoldings)
-    stations = []
-    for ind, line in enumerate(data.text.splitlines()):  # files are iterable
-        if ind == 0:
-            continue
-        statID, lat, lon, height = get_ID(line)
-        # Only pass if in bbox
-        # And if user list of stations specified, only pass info for stations within list
-        if in_box(lat, lon, llhBox) and (not userstatList or statID in userstatList):
-            # convert lon into range [-180,180]
-            lon = fix_lons(lon)
-            stations.append({'ID': statID, 'Lat': lat, 'Lon': lon, 'Hgt_m': height})
+    stations = pd.read_csv(
+        stationHoldings, 
+        delim_whitespace=True, 
+        names=['ID', 'Lat', 'Lon', 'Hgt_m']
+    )
+    stations = filterToBBox(stations, llhBox)
+    stations['Lon'] = ((stations['Lon'].values + 180) % 360) - 180 # convert lons to -180 - 180
 
-    logger.info('%d stations were found in %s', len(stations), llhBox)
-    stations = pd.DataFrame(stations)
-    # Report stations from user's list that do not cover bbox
-    if userstatList:
-        userstatList = [
-            i for i in userstatList if i not in stations['ID'].to_list()]
-        if userstatList:
-            logger.warning(
-                "The following user-input stations are not covered by the input "
-                "bounding box %s: %s",
-                str(llhBox).strip('[]'), str(userstatList).strip('[]')
-            )
+    stations = filterToBBox(stations, llhBox)
 
     return stations
 
 
-def download_tropo_delays(stats, years, gps_repo=None, writeDir='.', numCPUs=8, download=False):
+def download_tropo_delays(
+        stats, years, 
+        gps_repo='UNR', 
+        writeDir='.', 
+        numCPUs=8, 
+        download=False,
+    ):
     '''
-    Check for and download GNSS tropospheric delays from an archive. If download is True then
-    files will be physically downloaded, which again is not necessary as data can be virtually accessed.
+    Check for and download GNSS tropospheric delays from an archive. If 
+    download is True then files will be physically downloaded, but this  
+    is not necessary as data can be virtually accessed.
+
+    Args:
+        stats: stations     - Stations to access
+        years: list of int  - A list of years to be downloaded
+        gps_repo: string    - SNWE bounds target area to ensure weather model contains them
+        writeDir: string    - False if preprocessing weather model data
+        numCPUs: int        - whether to write debug plots
+        download: bool      - True if you want to download even when the weather model exists
+
+    Returns:
+        None
     '''
 
     # argument checking
@@ -97,7 +117,9 @@ def download_tropo_delays(stats, years, gps_repo=None, writeDir='.', numCPUs=8, 
     # Iterate over stations and years and check or download data
     stat_year_tup = itertools.product(stats, years)
     stat_year_tup = ((*tup, writeDir, download) for tup in stat_year_tup)
+
     # Parallelize remote querying of station locations
+    results = []
     with multiprocessing.Pool(numCPUs) as multipool:
         # only record valid path
         if gps_repo == 'UNR':
@@ -105,8 +127,12 @@ def download_tropo_delays(stats, years, gps_repo=None, writeDir='.', numCPUs=8, 
                 fileurl for fileurl in multipool.starmap(download_UNR, stat_year_tup)
                 if fileurl['path']
             ]
+        else:
+            raise NotImplementedError('download_tropo_delays: gps_repo "{}" not yet implemented'.format(gps_repo))
 
     # Write results to file
+    if len(results)==0:
+        raise NoStationDataFoundError(station_list=stats['ID'].to_list(), years=years)
     statDF = pd.DataFrame(results).set_index('ID')
     statDF.to_csv(os.path.join(writeDir, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
 
@@ -224,52 +250,14 @@ def main(inps=None):
 
     # Setup bounding box
     if bounding_box:
-        if isinstance(bounding_box, str) and not os.path.isfile(bounding_box):
-            try:
-                bbox = [float(val) for val in bounding_box.split()]
-            except ValueError:
-                raise Exception(
-                    'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
-        elif isinstance(bounding_box, list):
-            bbox = bounding_box
-
-        else:
-            raise Exception('Passing a file with a bounding box not yet supported.')
-
-        long_cross_zero = 1 if bbox[2] * bbox[3] < 0 else 0
-
-        # if necessary, convert negative longitudes to positive
-        if bbox[2] < 0:
-            bbox[2] += 360
-
-        if bbox[3] < 0:
-            bbox[3] += 360
-
+        bbox, long_cross_zero = parse_bbox(bounding_box)
     # If bbox not specified, query stations across the entire globe
     else:
         bbox = [-90, 90, 0, 360]
         long_cross_zero = 1
 
     # Handle station query
-    if long_cross_zero == 1:
-        bbox1 = bbox.copy()
-        bbox2 = bbox.copy()
-        bbox1[3] = 360.0
-        bbox2[2] = 0.0
-        stats1, origstatsFile1 = get_station_list(bbox=bbox1, writeLoc=out, userstatList=station_file, name_appendix='_a')
-        stats2, origstatsFile2 = get_station_list(bbox=bbox2, writeLoc=out, userstatList=station_file, name_appendix='_b')
-        stats = stats1 + stats2
-        origstatsFile = origstatsFile1[:-6] + '.csv'
-        file_a = pd.read_csv(origstatsFile1)
-        file_b = pd.read_csv(origstatsFile2)
-        frames = [file_a, file_b]
-        result = pd.concat(frames, ignore_index=True)
-        result.to_csv(origstatsFile, index=False)
-    else:
-        if bbox[3] < bbox[2]:
-            bbox[3] = 360.0
-        stats, origstatsFile = get_station_list(
-            bbox=bbox, writeLoc=out, userstatList=station_file)
+    stats = get_stats(bbox, long_cross_zero, out, station_file)
 
     # iterate over years
     years = list(set([i.year for i in dateList]))
@@ -299,3 +287,100 @@ def main(inps=None):
     )
 
     logger.debug('Completed processing')
+
+
+def parse_bbox(bounding_box):
+    '''
+    Parse bounding box arguments
+    '''
+    if isinstance(bounding_box, str) and not os.path.isfile(bounding_box):
+        try:
+            bbox = [float(val) for val in bounding_box.split()]
+        except ValueError:
+            raise Exception(
+                'Cannot understand the --bbox argument. String input is incorrect or path does not exist.')
+    elif isinstance(bounding_box, list):
+        bbox = bounding_box
+
+    else:
+        raise Exception('Passing a file with a bounding box not yet supported.')
+
+    long_cross_zero = 1 if bbox[2] * bbox[3] < 0 else 0
+
+    # if necessary, convert negative longitudes to positive
+    if bbox[2] < 0:
+        bbox[2] += 360
+
+    if bbox[3] < 0:
+        bbox[3] += 360
+    
+    return bbox, long_cross_zero
+
+
+def get_stats(bbox, long_cross_zero, out, station_file):
+    '''
+    Pull the stations needed
+    '''
+    if long_cross_zero == 1:
+        bbox1 = bbox.copy()
+        bbox2 = bbox.copy()
+        bbox1[3] = 360.0
+        bbox2[2] = 0.0
+        stats1, origstatsFile1 = get_station_list(bbox=bbox1, writeLoc=out, stationFile=station_file, name_appendix='_a')
+        stats2, origstatsFile2 = get_station_list(bbox=bbox2, writeLoc=out, stationFile=station_file, name_appendix='_b')
+        stats = stats1 + stats2
+        origstatsFile = origstatsFile1[:-6] + '.csv'
+        file_a = pd.read_csv(origstatsFile1)
+        file_b = pd.read_csv(origstatsFile2)
+        frames = [file_a, file_b]
+        result = pd.concat(frames, ignore_index=True)
+        result.to_csv(origstatsFile, index=False)
+    else:
+        if bbox[3] < bbox[2]:
+            bbox[3] = 360.0
+        stats, origstatsFile = get_station_list(
+            bbox=bbox, 
+            writeLoc=out, 
+            stationFile=station_file
+        )
+    
+    return stats
+
+
+def filterToBBox(stations, llhBox):
+    '''
+    Filter a dataframe by lat/lon.
+    *NOTE: llhBox longitude format should be 0-360
+    
+    Args:
+        stations: DataFrame     - a pandas dataframe with "Lat" and "Lon" columns
+        llhBox: list of float   - 4-element list: [S, N, W, E]
+    
+    Returns:
+        a Pandas Dataframe with stations removed that are not inside llhBox
+    '''
+    S,N,W,E = llhBox
+    if (W<0) or (E<0):
+        raise ValueError('llhBox longitude format should 0-360')
+
+    # For a user-provided file, need to check the column names
+    keys = stations.columns
+    lat_keys = ['lat', 'latitude', 'Lat', 'Latitude']
+    lon_keys = ['lon', 'longitude', 'Lon', 'Longitude']
+    index = None
+    for k,key in enumerate(lat_keys):
+        if key in list(keys):
+            index = k
+            break
+    if index is None:
+        raise KeyError('filterToBBox: No valid column names found for latitude and longitude')
+    lon_key = lon_keys[k]
+    lat_key = lat_keys[k]
+
+    if stations[lon_key].min() < 0:
+        # convert lon format to -180 to 180
+        W,E = [((D+ 180) % 360) - 180 for D in [W,E]]
+        
+    mask = (stations[lat_key] > S) & (stations[lat_key] < N) & (stations[lon_key] < E) & (stations[lon_key] > W)
+    return stations[mask]
+
