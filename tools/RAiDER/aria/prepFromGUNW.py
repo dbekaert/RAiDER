@@ -10,6 +10,7 @@ import netrc
 from datetime import datetime
 from pathlib import Path
 from platform import system
+from typing import Optional
 import numpy as np
 import eof.download
 import xarray as xr
@@ -36,7 +37,7 @@ DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 
 ESA_CDSE_HOST = 'dataspace.copernicus.eu'
 
 
-def _ensure_orbit_credential() -> None | int:
+def _ensure_orbit_credential() -> Optional[int]:
     """Ensure credentials exist for ESA's CDSE to download orbits
 
     This method will prefer to use CDSE credentials from your `~/.netrc` file if they exist,

@@ -1,5 +1,6 @@
 import datetime
 from pathlib import Path
+from typing import Union
 
 import hyp3lib
 import numpy as np
@@ -216,7 +217,7 @@ expected_weights_list = [[.833, .167, 0],
 @pytest.mark.parametrize('input_time, temporal_window, expected_weights',
                          zip(input_times, windows, expected_weights_list))
 def test_inverse_weighting(input_time: np.datetime64,
-                           temporal_window: int | float,
+                           temporal_window: Union[int, float],
                            expected_weights: list[float]):
     """The test is designed to determine valid inverse weighting
 
