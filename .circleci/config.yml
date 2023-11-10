@@ -23,7 +23,7 @@ jobs:
             eval "$(${HOME}/bin/micromamba shell hook -s posix)"
 
             PYTHON_VERSION="<< parameters.python-version >>"
-            sed -i "s/python>=/c python=${PYTHON_VERSION}" environment.yml
+            sed -i "/python>=/c python=${PYTHON_VERSION}" environment.yml
             micromamba create -f environment.yml
 
       - run:
