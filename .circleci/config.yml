@@ -2,6 +2,9 @@ version: 2.1
 
 jobs:
   build:
+    parameters:
+      python-version:
+        type: string
     docker:
       - image: cimg/base:current
         user: root
