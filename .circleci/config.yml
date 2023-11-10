@@ -27,8 +27,7 @@ jobs:
           shell: /bin/bash -l
           command: |
             eval "$($HOME/bin/micromamba shell hook -s posix)"
-            micromamba activate RAiDER
-
+          
             PYTHON_VERSION="<< parameters.python-version >>"
             sed -i "/python>=/c python=${PYTHON_VERSION}" environment.yml
             micromamba create -f environment.yml
