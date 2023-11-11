@@ -26,17 +26,17 @@ jobs:
           name: Create RAiDER environment
           shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
           
             PYTHON_VERSION="<< parameters.python-version >>"
             sed -i "/python>=/c\ - python=${PYTHON_VERSION}" environment.yml
             micromamba create -f environment.yml
 
       - run:
-          name: Install raider and Check environment
+          name: Install raider and check environment
           shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
 
             python -m pip install --no-deps .
@@ -52,7 +52,7 @@ jobs:
           name: Setup data stores
           shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
 
             python -c 'from RAiDER.models.credentials import setup_from_env; setup_from_env()'
@@ -61,11 +61,11 @@ jobs:
           name: Run unit tests
           shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
 
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            pytest -m "not long" test/ $COV_OPTIONS --cov-report=
+            pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
 
       - run:
           name: Report coverage
@@ -73,11 +73,11 @@ jobs:
           command: |
             PYTHON_VERSION="<< parameters.python-version >>"
             if [ "${PYTHON_VERSION}" == "3.12" ]; then
-              eval "$($HOME/bin/micromamba shell hook -s posix)"
+              eval "$(${HOME}/bin/micromamba shell hook -s posix)"
               micromamba activate RAiDER
 
               python -m pip install coveralls
-              python .circleci/fix_coverage_paths.py .coverage $(pwd)/tools/RAiDER/
+              python .circleci/fix_coverage_paths.py .coverage ${PWD}/tools/RAiDER/
               coverage report -mi
               coveralls
             fi
