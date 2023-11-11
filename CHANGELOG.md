@@ -19,7 +19,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixes
 * RAiDER is now tested on Python version 3.9-3.12
 * All typehints are now Python 3.9 compatible
-* Python entrypoint loading is now compatible with Python 3.12
+* [607](https://github.com/dbekaert/RAiDER/issues/607): Python entrypoint loading is now compatible with Python 3.12
 * make weather file directory when it doesn't exist
 * Ensures the `models/data/alaska.geojson.zip` file is packaged when building from the source tarball
 * Make ISCE3 an optional dependency in `s1_azimuth_timing.py`
