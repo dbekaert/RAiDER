@@ -8,6 +8,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
 ## [Unreleased]
+
 ### Added
 * Adds an `ensure_orbit_credentials` function in `prepFromGUNW.py` to ensure ESA CDSE credentials are in `~/.netrc` or provided via environment variables
 * Adds a `setup_from_env` function to `models/credentials.py` which will pull *all* credentials needed for acquiring weather model data from environment variables and ensure the correct config file is written. This makes setting up credentials in CI pipelines significantly easier
