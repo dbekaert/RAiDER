@@ -14,7 +14,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Adds a `setup_from_env` function to `models/credentials.py` which will pull *all* credentials needed for acquiring weather model data from environment variables and ensure the correct config file is written. This makes setting up credentials in CI pipelines significantly easier
 
 ### Changed
-* `sentineleof` upgraded to version 9 or later to fetch orbits from ESA CDSE
+* `sentineleof` upgraded to version 0.9.5 or later to (a) fetch orbits from ESA CDSE and (b) ensure that if CDSE fetch fails, code resorts to ASF orbit repository
 
 ### Fixes
 * RAiDER is now tested on Python version 3.9-3.12
