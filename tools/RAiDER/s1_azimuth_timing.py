@@ -186,7 +186,6 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
 
     esa_credentials = get_esa_cdse_credentials()
     orb_files = [downloadSentinelOrbitFile(slc_id, esa_credentials=esa_credentials)[0] for slc_id in slc_ids]
-    # orb_files = list(map(lambda slc_id: hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id, esa_credentials=esa_credentials)[0], slc_ids))
     orb = get_isce_orbit(orb_files, dt, pad=600)
 
     az_arr = get_azimuth_time_grid(lon_mesh, lat_mesh, hgt_mesh, orb)

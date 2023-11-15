@@ -13,7 +13,7 @@ def _netrc_path() -> Path:
     return Path.home() / netrc_name
 
 
-def _ensure_orbit_credential() -> Optional[int]:
+def _ensure_orbit_credentials() -> Optional[int]:
     """Ensure credentials exist for ESA's CDSE to download orbits
 
     This method will prefer to use CDSE credentials from your `~/.netrc` file if they exist,
@@ -52,7 +52,7 @@ def get_esa_cdse_credentials() -> Tuple[str, str]:
 
     Returns `username` and `password` .
     """
-    _ = _ensure_orbit_credential()
+    _ = _ensure_orbit_credentials()
     netrc_file = _netrc_path()
     netrc_credentials = netrc.netrc(netrc_file)
     username, _, password = netrc_credentials.hosts[ESA_CDSE_HOST]
