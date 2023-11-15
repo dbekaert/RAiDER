@@ -1,13 +1,13 @@
 '''
-API credential information and help url for downloading weather model data 
-    saved in a hidden file in home directory 
+API credential information and help url for downloading weather model data
+    saved in a hidden file in home directory
 
 api filename      weather models          UID           KEY         URL
 _________________________________________________________________________________
 cdsapirc          ERA5, ERA5T             uid           key         https://cds.climate.copernicus.eu/api/v2
 ecmwfapirc        ERAI, HRES              email         key         https://api.ecmwf.int/v1
-netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov 
-<NAN>             HRRR [public access]    <NAN>         <NAN> 
+netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov
+<NAN>             HRRR [public access]    <NAN>         <NAN>
 '''
 
 import os
@@ -17,10 +17,11 @@ from platform import system
 # Filename for the hidden file per model
 API_FILENAME = {'ERA5'  : 'cdsapirc',
                 'ERA5T' : 'cdsapirc',
-                'ERAI'  : 'ecmwfapirc',
+                'ERAI'  : 'ecmwfapirc',  # FIXME: Drop
                 'HRES'  : 'ecmwfapirc',
                 'GMAO'  : 'netrc',
                 'HRRR'  :  None
+                # FIXME: Add HRRRAK...
                 }
 
 # API urls
@@ -70,7 +71,7 @@ def _check_envs(model):
         host = API_URLS['cdsapirc']
 
     elif model in ('HRES', 'ERAI'):
-        uid = os.getenv('RAIDER_HRES_EMAIL') 
+        uid = os.getenv('RAIDER_HRES_EMAIL')
         key = os.getenv('RAIDER_HRES_API_KEY')
         host = os.getenv('RAIDER_HRES_URL')
         if host is None:
@@ -107,19 +108,19 @@ def check_api(model: str,
     hidden_ext = '_' if system()=="Windows" else '.'
 
     # skip below if model is HRRR as it does not need API
-    if api_filename:    
+    if api_filename:
         # Check if the credential api file exists
         api_filename_path = Path(output_dir) / (hidden_ext + api_filename)
         api_filename_path = api_filename_path.expanduser()
 
-        # if update flag is on, overwrite existing file 
+        # if update flag is on, overwrite existing file
         if update_flag is True:
             api_filename_path.unlink(missing_ok=True)
-        
+
         # Check if API_RC file already exists
         if api_filename_path.exists():
             return None
-        
+
         # if it does not exist, put UID/KEY inserted, create it
         elif not api_filename_path.exists() and UID and KEY:
             # Create file with inputs, do it only once

@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 from typing import Union
 
-import hyp3lib
+import hyp3lib.get_orb
 import numpy as np
 import pandas as pd
 import pytest

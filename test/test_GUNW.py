@@ -7,7 +7,6 @@ import unittest
 from pathlib import Path
 
 import eof.download
-import hyp3lib
 import jsonschema
 import numpy as np
 import pandas as pd
@@ -17,13 +16,13 @@ import xarray as xr
 
 import RAiDER
 import RAiDER.cli.raider as raider
+import RAiDER.s1_azimuth_timing
 from RAiDER import aws
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
     check_weather_model_availability,
-    _ensure_orbit_credential,
-    ESA_CDSE_HOST,
 )
+from RAiDER.s1_orbits import _ensure_orbit_credential, ESA_CDSE_HOST
 from RAiDER.cli.raider import calcDelaysGUNW
 from RAiDER.models.customExceptions import *
 
@@ -209,7 +208,7 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # https://github.com/dbekaert/RAiDER/blob/
     # f77af9ce2d3875b00730603305c0e92d6c83adc2/tools/RAiDER/aria/prepFromGUNW.py#L151-L200
 
-    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
+    mocker.patch('RAiDER.s1_azimuth_timing.downloadSentinelOrbitFile',
                  # Hyp3 Lib returns 2 values
                  side_effect=[
                                # For azimuth time
@@ -263,7 +262,7 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     assert RAiDER.processWM.prepareWeatherModel.call_count == 8
     # Only calls for azimuth timing for reference and secondary;
     # There is 1 slc for ref and 2 for secondary, totalling 3 calls
-    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 3
+    assert RAiDER.s1_azimuth_timing.downloadSentinelOrbitFile.call_count == 3
     # Only calls for azimuth timing: once for ref and sec
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
     # Once for center-time and azimuth-time each
@@ -552,16 +551,16 @@ def test__ensure_orbit_credential(monkeypatch):
     # No .netrc, no ESA CDSE env variables
     with monkeypatch.context() as mp:
         mp.setattr(netrc, 'netrc', EmptyNetrc, raising=False)
-        mp.delenv('ESA_CDSE_USERNAME', raising=False)
-        mp.delenv('ESA_CDSE_PASSWORD', raising=False)
+        mp.delenv('ESA_USERNAME', raising=False)
+        mp.delenv('ESA_PASSWORD', raising=False)
         with pytest.raises(ValueError):
             _ensure_orbit_credential()
 
     # No .netrc, set ESA CDSE env variables
     with monkeypatch.context() as mp:
         mp.setattr(netrc, 'netrc', EmptyNetrc, raising=False)
-        mp.setenv('ESA_CDSE_USERNAME', 'foo')
-        mp.setenv('ESA_CDSE_PASSWORD', 'bar')
+        mp.setenv('ESA_USERNAME', 'foo')
+        mp.setenv('ESA_PASSWORD', 'bar')
         mp.setattr(Path, 'write_text', lambda self, write_text: write_text)
         written_credentials = _ensure_orbit_credential()
         assert written_credentials == str({ESA_CDSE_HOST: ('foo', None, 'bar')})
@@ -576,16 +575,16 @@ def test__ensure_orbit_credential(monkeypatch):
     # No CDSE in .netrc, no ESA CDSE env variables
     with monkeypatch.context() as mp:
         mp.setattr(netrc, 'netrc', NoCDSENetrc, raising=False)
-        mp.delenv('ESA_CDSE_USERNAME', raising=False)
-        mp.delenv('ESA_CDSE_PASSWORD', raising=False)
+        mp.delenv('ESA_USERNAME', raising=False)
+        mp.delenv('ESA_PASSWORD', raising=False)
         with pytest.raises(ValueError):
             _ensure_orbit_credential()
 
     # No CDSE in .netrc, set ESA CDSE env variables
     with monkeypatch.context() as mp:
         mp.setattr(netrc, 'netrc', NoCDSENetrc, raising=False)
-        mp.setenv('ESA_CDSE_USERNAME', 'foo')
-        mp.setenv('ESA_CDSE_PASSWORD', 'bar')
+        mp.setenv('ESA_USERNAME', 'foo')
+        mp.setenv('ESA_PASSWORD', 'bar')
         mp.setattr(Path, 'write_text', lambda self, write_text: write_text)
         written_credentials = _ensure_orbit_credential()
         assert written_credentials == str({'fizz.buzz.org': ('foo', None, 'bar'), ESA_CDSE_HOST: ('foo', None, 'bar')})
@@ -600,15 +599,15 @@ def test__ensure_orbit_credential(monkeypatch):
     # cdse in .netrc, no ESA CDSE env variables
     with monkeypatch.context() as mp:
         mp.setattr(netrc, 'netrc', CDSENetrc, raising=False)
-        mp.delenv('ESA_CDSE_USERNAME', raising=False)
-        mp.delenv('ESA_CDSE_PASSWORD', raising=False)
+        mp.delenv('ESA_USERNAME', raising=False)
+        mp.delenv('ESA_PASSWORD', raising=False)
         written_credentials = _ensure_orbit_credential()
         assert written_credentials is None
 
     # cdse in .netrc, set ESA CDSE env variables
     with monkeypatch.context() as mp:
         mp.setattr(netrc, 'netrc', CDSENetrc, raising=False)
-        mp.setenv('ESA_CDSE_USERNAME', 'foo')
-        mp.setenv('ESA_CDSE_PASSWORD', 'bar')
+        mp.setenv('ESA_USERNAME', 'foo')
+        mp.setenv('ESA_PASSWORD', 'bar')
         written_credentials = _ensure_orbit_credential()
         assert written_credentials is None
