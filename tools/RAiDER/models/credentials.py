@@ -17,11 +17,9 @@ from platform import system
 # Filename for the hidden file per model
 API_FILENAME = {'ERA5'  : 'cdsapirc',
                 'ERA5T' : 'cdsapirc',
-                'ERAI'  : 'ecmwfapirc',  # FIXME: Drop
                 'HRES'  : 'ecmwfapirc',
                 'GMAO'  : 'netrc',
                 'HRRR'  :  None
-                # FIXME: Add HRRRAK...
                 }
 
 # API urls
@@ -70,14 +68,14 @@ def _check_envs(model):
         key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
         host = API_URLS['cdsapirc']
 
-    elif model in ('HRES', 'ERAI'):
+    elif model in ('HRES',):
         uid = os.getenv('RAIDER_HRES_EMAIL')
         key = os.getenv('RAIDER_HRES_API_KEY')
         host = os.getenv('RAIDER_HRES_URL')
         if host is None:
             host = API_URLS['ecmwfapirc']
 
-    elif model in ('GMAO'):
+    elif model in ('GMAO',):
         uid = os.getenv('EARTHDATA_USERNAME') # same as in DockerizedTopsApp
         key = os.getenv('EARTHDATA_PASSWORD')
         host = API_URLS['netrc']
