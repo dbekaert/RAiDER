@@ -1,6 +1,5 @@
 import glob
 import json
-import netrc
 import os
 import shutil
 import unittest
