@@ -16,7 +16,7 @@ def _netrc_path() -> Path:
     return Path.home() / netrc_name
 
 
-def _ensure_orbit_credentials() -> Optional[int]:
+def ensure_orbit_credentials() -> Optional[int]:
     """Ensure credentials exist for ESA's CDSE to download orbits
 
     This method will prefer to use CDSE credentials from your `~/.netrc` file if they exist,
@@ -53,7 +53,7 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
 
     Returns a list of orbit file paths
     """
-    _ = _ensure_orbit_credentials()
+    _ = ensure_orbit_credentials()
 
     missions = {slc_id[0:3] for slc_id in slc_ids}
     start_times = {re.split(r'_+', slc_id)[4] for slc_id in slc_ids}

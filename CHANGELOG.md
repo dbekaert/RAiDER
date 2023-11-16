@@ -12,7 +12,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 * Adds an `s1_orbits.py` module which includes:
   * `get_orbits_from_slc_ids` to download the associated orbit files for a list of Sentinel-1 SLC IDs
-  * `_ensure_orbit_credentials` to ensure ESA CSDE credentials have been provides to download orbit files. This should be called before `sentineleof` is used to download orbits.
+  * `ensure_orbit_credentials` to ensure ESA CSDE credentials have been provides to download orbit files. This should be called before `sentineleof` is used to download orbits.
 * Adds a `setup_from_env` function to `models/credentials.py` which will pull *all* credentials needed for acquiring weather model data from environment variables and ensure the correct config file is written. This makes setting up credentials in CI pipelines significantly easier
 
 ### Changed
