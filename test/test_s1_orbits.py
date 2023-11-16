@@ -1,6 +1,7 @@
 import netrc
 from pathlib import Path
 
+import eof.download
 import pytest
 
 from RAiDER import s1_orbits
@@ -94,3 +95,33 @@ def test_get_esa_cse_credentials(monkeypatch):
 
     assert username == 'foo'
     assert password == 'bar'
+
+
+def test_get_orbits_from_slc_ids(mocker):
+    side_effect = [
+        [Path('foo.txt')],
+        [Path('bar.txt'), Path('fiz.txt')],
+    ]
+    mocker.patch('eof.download.download_eofs',
+                 side_effect=side_effect)
+
+    orbit_files = s1_orbits.get_orbits_from_slc_ids(
+        ['S1A_IW_SLC__1SSV_20150621T120220_20150621T120232_006471_008934_72D8']
+    )
+    assert orbit_files == [Path('foo.txt')]
+    assert eof.download.download_eofs.call_count == 1
+    eof.download.download_eofs.assert_called_with(
+        [ '20150621T120220', '20150621T120232'], ['S1A'], save_dir=str(Path.cwd())
+    )
+
+    orbit_files = s1_orbits.get_orbits_from_slc_ids(
+        ['S1B_IW_SLC__1SDV_20201115T162313_20201115T162340_024278_02E29D_5C54',
+         'S1A_IW_SLC__1SDV_20201203T162353_20201203T162420_035524_042744_6D5C']
+    )
+    assert orbit_files == [Path('bar.txt'), Path('fiz.txt')]
+    assert eof.download.download_eofs.call_count == 2
+    eof.download.download_eofs.assert_called_with(
+        ['20201115T162313', '20201115T162340', '20201203T162353', '20201203T162420'],
+        ['S1A', 'S1B'],
+        save_dir=str(Path.cwd())
+    )
