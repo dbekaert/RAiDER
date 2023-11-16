@@ -22,7 +22,6 @@ dependencies:
  - h5netcdf
  - h5py
  - herbie-data
- - hyp3lib>=2.0.2
  - isce3>=0.15.0
  - jsonschema==3.2.0  # this is for ASF DAAC ingest schema validation
  - lxml

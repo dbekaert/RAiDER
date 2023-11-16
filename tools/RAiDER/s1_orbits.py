@@ -1,8 +1,11 @@
 import netrc
 import os
+import re
 from pathlib import Path
 from platform import system
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
+
+import eof.download
 
 
 ESA_CDSE_HOST = 'dataspace.copernicus.eu'
@@ -57,3 +60,21 @@ def get_esa_cdse_credentials() -> Tuple[str, str]:
     netrc_credentials = netrc.netrc(netrc_file)
     username, _, password = netrc_credentials.hosts[ESA_CDSE_HOST]
     return username, password
+
+
+def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Path]:
+    """Download all orbit files for a set of SLCs
+
+    This method will ensure that the downloaded orbit files cover the entire acquisition start->stop time
+
+    Returns a list of orbit file paths
+    """
+    _ = _ensure_orbit_credentials()
+
+    missions = {slc_id[0:3] for slc_id in slc_ids}
+    start_times = {re.split(r'_+', slc_id)[4] for slc_id in slc_ids}
+    stop_times = {re.split(r'_+', slc_id)[5] for slc_id in slc_ids}
+
+    orb_files = eof.download.download_eofs(list(start_times | stop_times), list(missions), save_dir=str(directory))
+
+    return orb_files

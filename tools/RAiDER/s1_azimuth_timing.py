@@ -4,7 +4,6 @@ import warnings
 import asf_search as asf
 import numpy as np
 import pandas as pd
-from hyp3lib.get_orb import downloadSentinelOrbitFile
 from shapely.geometry import Point
 
 try:
@@ -12,8 +11,8 @@ try:
 except ImportError:
     isce = None
 
-from .s1_orbits import get_esa_cdse_credentials
-from .losreader import get_orbit as get_isce_orbit
+from RAiDER.losreader import get_orbit as get_isce_orbit
+from RAiDER.s1_orbits import get_orbits_from_slc_ids
 
 
 def _asf_query(point: Point,
@@ -184,11 +183,12 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
                          dtype='datetime64[ms]')
         return az_arr
 
-    esa_credentials = get_esa_cdse_credentials()
-    orb_files = [downloadSentinelOrbitFile(slc_id, esa_credentials=esa_credentials)[0] for slc_id in slc_ids]
-    orb = get_isce_orbit(orb_files, dt, pad=600)
+    orb_files = get_orbits_from_slc_ids(slc_ids)
+    orb_files = [str(of) for of in orb_files]
 
+    orb = get_isce_orbit(orb_files, dt, pad=600)
     az_arr = get_azimuth_time_grid(lon_mesh, lat_mesh, hgt_mesh, orb)
+
     return az_arr
 
 
