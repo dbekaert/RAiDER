@@ -80,23 +80,6 @@ def test__ensure_orbit_credentials(monkeypatch):
         assert written_credentials is None
 
 
-def test_get_esa_cse_credentials(monkeypatch):
-    class CDSENetrc():
-        def __init__(self, netrc_file):
-            self.netrc_file = netrc_file
-            self.hosts = {s1_orbits.ESA_CDSE_HOST: ('foo', None, 'bar')}
-        def __str__(self):
-            return str(self.hosts)
-
-    # cdse in .netrc, no ESA CDSE env variables
-    with monkeypatch.context() as mp:
-        mp.setattr(netrc, 'netrc', CDSENetrc, raising=False)
-        username, password = s1_orbits.get_esa_cdse_credentials()
-
-    assert username == 'foo'
-    assert password == 'bar'
-
-
 def test_get_orbits_from_slc_ids(mocker):
     side_effect = [
         [Path('foo.txt')],

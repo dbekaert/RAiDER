@@ -46,22 +46,6 @@ def _ensure_orbit_credentials() -> Optional[int]:
     return netrc_file.write_text(str(netrc_credentials))
 
 
-def get_esa_cdse_credentials() -> Tuple[str, str]:
-    """Retrieve credentials for ESA's CDSE to download orbits
-
-    This method will prefer to use CDSE credentials from your `~/.netrc` file if they exist,
-    otherwise will look for ESA_USERNAME and ESA_PASSWORD environment variables and
-    update or create your `~/.netrc` file.
-
-    Returns `username` and `password` .
-    """
-    _ = _ensure_orbit_credentials()
-    netrc_file = _netrc_path()
-    netrc_credentials = netrc.netrc(netrc_file)
-    username, _, password = netrc_credentials.hosts[ESA_CDSE_HOST]
-    return username, password
-
-
 def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Path]:
     """Download all orbit files for a set of SLCs
 
