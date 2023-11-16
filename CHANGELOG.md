@@ -10,7 +10,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
-* Adds an `ensure_orbit_credentials` function in `prepFromGUNW.py` to ensure ESA CDSE credentials are in `~/.netrc` or provided via environment variables
+* Adds an `s1_orbits.py` module which includes:
+  * `get_orbits_from_slc_ids` to download the associated orbit files for a list of Sentinel-1 SLC IDs
+  * `_ensure_orbit_credentials` to ensure ESA CSDE credentials have been provides to download orbit files. This should be called before `sentineleof` is used to download orbits.
 * Adds a `setup_from_env` function to `models/credentials.py` which will pull *all* credentials needed for acquiring weather model data from environment variables and ensure the correct config file is written. This makes setting up credentials in CI pipelines significantly easier
 
 ### Changed
@@ -20,10 +22,14 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * RAiDER is now tested on Python version 3.9-3.12
 * All typehints are now Python 3.9 compatible
 * [607](https://github.com/dbekaert/RAiDER/issues/607): Python entrypoint loading is now compatible with Python 3.12
+* [610](https://github.com/dbekaert/RAiDER/issues/610): Sentinel-1 orbit availability due to ESA migrating Sentinel-1 orbit files from Copernicus Open Access Hub (Scihub) to the new  Copernicus Data Space Ecosystem (CDSE)
 * make weather file directory when it doesn't exist
 * Ensures the `models/data/alaska.geojson.zip` file is packaged when building from the source tarball
 * Make ISCE3 an optional dependency in `s1_azimuth_timing.py`
 + Added unit tests and removed unused and depracated functions
+
+### Removed
+* `hyp3lib`, which was only used for downloading orbit fies, has been removed in favor of `sentineleof`
 
 ## [0.4.5]
 
