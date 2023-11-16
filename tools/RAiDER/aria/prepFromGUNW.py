@@ -11,21 +11,19 @@ import numpy as np
 import eof.download
 import xarray as xr
 import rasterio
-import geopandas as gpd
 import pandas as pd
 import yaml
 import shapely.wkt
 from dataclasses import dataclass
 import sys
 from shapely.geometry import box
-from rasterio.crs import CRS
 
 import RAiDER
-from RAiDER.utilFcns import rio_open, writeArrayToRaster
 from RAiDER.logger import logger
 from RAiDER.models import credentials
 from RAiDER.models.hrrr import HRRR_CONUS_COVERAGE_POLYGON, AK_GEO, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
+from RAiDER.s1_orbits import ensure_orbit_credentials
 
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
@@ -278,9 +276,10 @@ class GUNW:
         sat = slc.split('_')[0]
         dt  = datetime.strptime(f'{self.dates[0]}T{self.mid_time}', '%Y%m%dT%H:%M:%S')
 
+        ensure_orbit_credentials()
         path_orb = eof.download.download_eofs([dt], [sat], save_dir=orbit_dir)
 
-        return path_orb
+        return [str(o) for o in path_orb]
 
 
     ## ------ methods below are not used
@@ -381,7 +380,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {example_yaml}')
+            raise ValueError(f'Something is wrong with the yaml file {template_file}')
 
     params = {**params, **dct_cfg}
 

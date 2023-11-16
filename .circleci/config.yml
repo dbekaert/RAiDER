@@ -1,63 +1,91 @@
 version: 2.1
+
 jobs:
   build:
+    parameters:
+      python-version:
+        type: string
     docker:
       - image: cimg/base:current
         user: root
     steps:
       - checkout
+
       - run:
-          name: Setup micromamba
+          name: Install micromamba
+          shell: /bin/bash -l
           command: |
             apt update --yes && apt-get upgrade --yes
             apt install -y --no-install-recommends wget ca-certificates git
-            cd $HOME
+
+            cd ${HOME}
             curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
 
       - run:
-          name: Setup environment
+          name: Create RAiDER environment
+          shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
+          
+            PYTHON_VERSION="<< parameters.python-version >>"
+            sed -i "/python>=/c\ - python=${PYTHON_VERSION}" environment.yml
             micromamba create -f environment.yml
-            micromamba activate RAiDER
-            pip install coveralls
-            echo url: https://cds.climate.copernicus.eu/api/v2 > $HOME/.cdsapirc
-            echo key: $cdsak >> $HOME/.cdsapirc
-         
-            echo { > $HOME/.ecmwfapirc
-            echo '  "url": "https://api.ecmwf.int/v1",' >> $HOME/.ecmwfapirc
-            echo '  "email": "'$ecmwfu'",' >> $HOME/.ecmwfapirc
-            echo '  "key": "'$ecmwfk'"' >> $HOME/.ecmwfapirc
-            echo } >> $HOME/.ecmwfapirc
 
-            echo url: $NCUMloc > $HOME/.ncmrlogin
-            echo username: $NCUMu >> $HOME/.ncmrlogin
-            echo password: $NCUMp >> $HOME/.ncmrlogin
+      - run:
+          name: Install raider and check environment
+          shell: /bin/bash -l
+          command: |
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
+            micromamba activate RAiDER
+
+            python -m pip install --no-deps .
+
+            python -c "import RAiDER; from RAiDER.delay import tropo_delay"
+            python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis"
 
             python --version
             python -c "import numpy; print(numpy.__version__)"
             python -c "import pyproj; print(pyproj.__version__)"
+
       - run:
-          name: Install RAiDER and test the install
+          name: Setup data stores
+          shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
-            python -m pip install .
-            python -c "import RAiDER; from RAiDER.delay import tropo_delay"
-            python -c "import RAiDER; from RAiDER.interpolator import interp_along_axis"
+
+            python -c 'from RAiDER.models.credentials import setup_from_env; setup_from_env()'
+
       - run:
           name: Run unit tests
           shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
+            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
             micromamba activate RAiDER
+
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            pytest -m "not long" test/ $COV_OPTIONS --cov-report=
+            pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
+
       - run:
           name: Report coverage
+          shell: /bin/bash -l
           command: |
-            eval "$($HOME/bin/micromamba shell hook -s posix)"
-            micromamba activate RAiDER
-            python .circleci/fix_coverage_paths.py .coverage $(pwd)/tools/RAiDER/
-            coverage report -mi
-            coveralls
+            PYTHON_VERSION="<< parameters.python-version >>"
+            if [ "${PYTHON_VERSION}" == "3.12" ]; then
+              eval "$(${HOME}/bin/micromamba shell hook -s posix)"
+              micromamba activate RAiDER
+
+              python -m pip install coveralls
+              python .circleci/fix_coverage_paths.py .coverage ${PWD}/tools/RAiDER/
+              coverage report -mi
+              coveralls
+            fi
+
+workflows:
+  all-tests:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              python-version: ["3.9", "3.10", "3.11", "3.12"]
