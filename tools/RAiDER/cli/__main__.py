@@ -29,11 +29,9 @@ def main():
     
     sys.argv = [args.process, *unknowns]    
 
-    from RAiDER.cli.raider import calcDelays, downloadGNSS, calcDelaysGUNW
-
     try:
         # python >=3.10 interface
-        process_entry_point = entry_points(group='console_scripts', name=f'{args.process}.py')[0]
+        (process_entry_point,) = entry_points(group='console_scripts', name=f'{args.process}.py')
     except TypeError:
         # python 3.8 and 3.9 interface
         scripts = entry_points()['console_scripts']

@@ -9,6 +9,7 @@
 import os
 import datetime
 import shelve
+from abc import ABC
 from typing import Union
 from pathlib import PosixPath
 
@@ -17,8 +18,10 @@ try:
     import xml.etree.ElementTree as ET
 except ImportError:
     ET = None
-
-from abc import ABC
+try:
+    import isce3.ext.isce3 as isce
+except ImportError:
+    isce = None
 
 from RAiDER.constants import _ZREF
 from RAiDER.utilFcns import (
@@ -178,8 +181,12 @@ class Raytracing(LOS):
     >>> from RAiDER.losreader import Raytracing
     >>> import numpy as np
     """
+
     def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600):
         '''read in and parse a statevector file'''
+        if isce is None:
+            raise ImportError(f'isce3 is required for this class. Use conda to install isce3`')
+
         super().__init__()
         self._ray_trace = True
         self._file = filename
@@ -191,7 +198,6 @@ class Raytracing(LOS):
             raise NotImplementedError()
 
         # ISCE3 data structures
-        import isce3.ext.isce3 as isce
         if self._time is not None:
             # __call__ called in checkArgs; keep for modularity
             self._orbit = get_orbit(self._file, self._time, pad=pad)
@@ -231,13 +237,14 @@ class Raytracing(LOS):
         '''
         Calculate look vectors for raytracing
         '''
+        if isce is None:
+            raise ImportError(f'isce3 is required for this method. Use conda to install isce3`')
+
         # TODO - Modify when isce3 vectorization is available
         los = np.full(yy.shape + (3,), np.nan)
         llh = llh.copy()
         llh[0] = np.deg2rad(llh[0])
         llh[1] = np.deg2rad(llh[1])
-
-        import isce3.ext.isce3 as isce
 
         for ii in range(yy.shape[0]):
             for jj in range(yy.shape[1]):
@@ -373,6 +380,9 @@ def get_sv(los_file: Union[str, list, PosixPath],
                 raise ValueError(
                     'get_sv: I cannot parse the statevector file {}'.format(los_file)
                 )
+    except:
+        raise ValueError('get_sv: I cannot parse the statevector file {}'.format(los_file))        
+    
 
     if ref_time:
         idx = cut_times(svs[0], ref_time, pad=pad)
@@ -595,6 +605,9 @@ def state_to_los(svs, llh_targets):
     >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file)
     >>> LOS = losr.state_to_los(*svs, [lats, lons, heights], xyz)
     '''
+    if isce is None:
+        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
+
     # check the inputs
     if np.min(svs.shape) < 4:
         raise RuntimeError(
@@ -603,7 +616,6 @@ def state_to_los(svs, llh_targets):
         )
 
     # Convert svs to isce3 orbit
-    import isce3.ext.isce3 as isce
     orb = isce.core.Orbit([
         isce.core.StateVector(
             isce.core.DateTime(row[0]),
@@ -657,6 +669,8 @@ def get_radar_pos(llh, orb):
     los: ndarray  - Satellite incidence angle
     sr:  ndarray  - Slant range in meters
     '''
+    if isce is None:
+        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
 
     num_iteration = 30
     residual_threshold = 1.0e-7
@@ -667,7 +681,6 @@ def get_radar_pos(llh, orb):
     )
 
     # Get some isce3 constants for this inversion
-    import isce3.ext.isce3 as isce
     # TODO - Assuming right-looking for now
     elp = isce.core.Ellipsoid()
     dop = isce.core.LUT2d()
@@ -760,9 +773,10 @@ def get_orbit(orbit_file: Union[list, str],
                                  requested time (should be about 600 seconds)
 
     '''
-    # First load the state vectors into an isce orbit
-    import isce3.ext.isce3 as isce
+    if isce is None:
+        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
 
+    # First load the state vectors into an isce orbit
     svs = np.stack(get_sv(orbit_file, ref_time, pad), axis=-1)
     sv_objs = []
     # format for ISCE

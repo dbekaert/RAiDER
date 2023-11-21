@@ -134,14 +134,7 @@ def rio_profile(fname):
 
     with rasterio.open(fname) as src:
         profile = src.profile
-        # if 'S1-GUNW' in fname:
-            # profile['length'] = profile['width']
-            # profile['width']  = profile['height']
 
-    if profile["crs"] is None:
-        raise AttributeError(
-            f"{fname} does not contain geotransform information"
-        )
     return profile
 
 
@@ -150,9 +143,6 @@ def rio_extents(profile):
     gt = profile["transform"].to_gdal()
     xSize = profile["width"]
     ySize = profile["height"]
-
-    if profile["crs"] is None or not gt:
-        raise AttributeError('Profile does not contain geotransform information')
     W, E = gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2]
     N, S = gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]
     return S, N, W, E
@@ -280,12 +270,15 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
     # Geotransform
     trans = None
     if gt is not None:
-        trans = rasterio.Affine.from_gdal(*gt)
+        try:
+            trans = rasterio.Affine.from_gdal(*gt)
+        except TypeError:
+            trans = gt
 
     ## cant write netcdfs with rasterio in a simple way
     if fmt == 'nc':
         fmt = 'GTiff'
-        filename = filename.replace('.nc', '.GTiff')
+        filename = filename.replace('.nc', '.tif')
 
     with rasterio.open(filename, mode="w", count=1,
                        width=array_shp[1], height=array_shp[0],
@@ -294,17 +287,6 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         dst.write(array, 1)
     logger.info('Wrote: %s', filename)
     return
-
-
-def writeArrayToFile(lats, lons, array, filename, noDataValue=-9999):
-    '''
-    Write a single-dim array of values to a file
-    '''
-    array[np.isnan(array)] = noDataValue
-    with open(filename, 'w') as f:
-        f.write('Lat,Lon,Hgt_m\n')
-        for lat, lon, height in zip(lats, lons, array):
-            f.write('{},{},{}\n'.format(lat, lon, height))
 
 
 def round_date(date, precision):
@@ -342,20 +324,14 @@ def robmin(a):
     '''
     Get the minimum of an array, accounting for empty lists
     '''
-    try:
-        return np.nanmin(a)
-    except ValueError:
-        return 'N/A'
+    return np.nanmin(a)
 
 
 def robmax(a):
     '''
     Get the minimum of an array, accounting for empty lists
     '''
-    try:
-        return np.nanmax(a)
-    except ValueError:
-        return 'N/A'
+    return np.nanmax(a)
 
 
 def _get_g_ll(lats):
@@ -427,25 +403,6 @@ def padLower(invar):
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def checkShapes(los, lats, lons, hts):
-    '''
-    Make sure that by the time the code reaches here, we have a
-    consistent set of line-of-sight and position data.
-    '''
-    from RAiDER.losreader import Zenith
-    test1 = hts.shape == lats.shape == lons.shape
-    try:
-        test2 = los.shape[:-1] == hts.shape
-    except AttributeError:
-        test2 = los is Zenith
-
-    if not test1 and test2:
-        raise ValueError(
-            'I need lats, lons, heights, and los to all be the same shape. ' +
-            'lats had shape {}, lons had shape {}, '.format(lats.shape, lons.shape) +
-            'heights had shape {}, and los was not Zenith'.format(hts.shape))
-
-
 def round_time(dt, roundTo=60):
     '''
     Round a datetime object to any time lapse in seconds
@@ -471,11 +428,7 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
     # Do different things, depending on the type of input
     if aoi.type() == 'station_file':
-        #TODO: why is this a try/except?
-        try:
-            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
-        except ValueError:
-            df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
+        df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
 
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
@@ -510,11 +463,9 @@ def getTimeFromFile(filename):
     '''
     fmt = '%Y_%m_%d_T%H_%M_%S'
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
-    try:
-        out = p.search(filename).group()
-        return datetime.strptime(out, fmt)
-    except BaseException:  # TODO: Which error(s)?
-        raise RuntimeError('The filename for {} does not include a datetime in the correct format'.format(filename))
+    out = p.search(filename).group()
+    return datetime.strptime(out, fmt)
+
 
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500

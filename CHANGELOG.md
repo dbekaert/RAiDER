@@ -6,18 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.4.6]
+
+### Added
+* Adds an `s1_orbits.py` module which includes:
+  * `get_orbits_from_slc_ids` to download the associated orbit files for a list of Sentinel-1 SLC IDs
+  * `ensure_orbit_credentials` to ensure ESA CSDE credentials have been provides to download orbit files. This should be called before `sentineleof` is used to download orbits.
+* Adds a `setup_from_env` function to `models/credentials.py` which will pull *all* credentials needed for acquiring weather model data from environment variables and ensure the correct config file is written. This makes setting up credentials in CI pipelines significantly easier
+
+### Changed
+* `sentineleof` upgraded to version 0.9.5 or later to (a) fetch orbits from ESA CDSE and (b) ensure that if CDSE fetch fails, code resorts to ASF orbit repository
+
+### Fixes
+* RAiDER is now tested on Python version 3.9-3.12
+* All typehints are now Python 3.9 compatible
+* [607](https://github.com/dbekaert/RAiDER/issues/607): Python entrypoint loading is now compatible with Python 3.12
+* [610](https://github.com/dbekaert/RAiDER/issues/610): Sentinel-1 orbit availability due to ESA migrating Sentinel-1 orbit files from Copernicus Open Access Hub (Scihub) to the new  Copernicus Data Space Ecosystem (CDSE)
+* make weather file directory when it doesn't exist
+* Ensures the `models/data/alaska.geojson.zip` file is packaged when building from the source tarball
+* Make ISCE3 an optional dependency in `s1_azimuth_timing.py`
++ Added unit tests and removed unused and depracated functions
+
+### Removed
+* `hyp3lib`, which was only used for downloading orbit fies, has been removed in favor of `sentineleof`
+
 ## [0.4.5]
 
-## Fixes
+### Fixes
 * [#583](https://github.com/dbekaert/RAiDER/issues/583): it appears that since the issues with geo2rdr cropped up during our processing campaign, there has been a new release of ISCE3 that resolves these failures with `geo2rdr` and the time interpolation that uses this ISCE3 routine.
 * [#584](https://github.com/dbekaert/RAiDER/issues/584): failed Raider step function in hyp3 job submission when HRRR model times are not available (even within the valid model range) - to resolve, we check availability of files when delay workflow called with a) azimuth_grid_interpolation and b) input to workflow is GUNW. If weather model files are unavailable and the GUNW is on s3, do nothing to GUNW (i.e. do not add tropo delay) and exit successfully. If weather model files are unavailable and the GUNW is on local disk, raise `ValueError`
 * [#587](https://github.com/dbekaert/RAiDER/issues/587): similar to 584 except added here to the mix is control flow in RAiDER.py passes over numerous exceptions in workflow. This is fixed identically as above.
 * [#596](https://github.com/dbekaert/RAiDER/issues/596): the "prefix" for aws does not include the final netcdf file name, just the sub-directories in the bucket and therefore extra logic must be added to determine the GUNW netcdf file name (and the assocaited reference/secondary dates). We proceed by downloading the data which is needed regardless. Tests are updated.
 
-## Removed
+### Removed
 * Removes `update` option (either `True` or `False`) from calcGUNW workflow which asks whether the GUNW should be updated or not. In existing code, it was not being used/applied, i.e. previous workflow always updated GUNW. Removed input arguments related from respective functions so that it can be updated later.
 
-## Added
+### Added
 * Allow for Hyp3 GUNW workflow with HRRR (i.e. specifying a gunw path in s3) to successfully exit if any of the HRRR model times required for `azimuth-time-grid` interpolation (which is default interpolatin method) are not available when using bucket inputs (i.e. only on the cloud)
 * For GUNW workflow, when model is HRRR, azimuth_time_grid interpolation used, and using a local GUNW, if requisite weather model files are not available for  raise a ValueError (before processing)
 * Raise a value error if non-unique dates are given in the function `get_inverse_weights_for_dates` in `s1_azimuth_timing.py` 
@@ -30,7 +55,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Ensures ISCE3 is `>=0.15.0`
 * Uses correct HyP3 S3 prefix conventions and filename suffix within test patches to improve readability of what tests are mocking (see comments in #597).
 
-## Changed
+### Changed
 * Get only 2 or 3 model times required for azimuth-time-interpolation (previously obtained all 3 as it was easier to implement) - this ensures slightly less failures associated with HRRR availability. Importantly, if a acquisition time occurs during a model time, then we order by distance to the reference time and how early it occurs (so earlier times come first if two times are equidistant to the aquisition time).
 * Made test names in `test_GUNW.py` more descriptive
 * Numpy docstrings and general linting to modified function including removing variables that were not being accessed
@@ -40,11 +65,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Fixes tests for checking availability of HRRR due Issue #596 (above).
 
 ## [0.4.4]
-
-## Fixes
 * For s1-azimuth-time interpolation, overlapping orbits when one orbit does not cover entire GUNW product errors out. We now ensure state-vectors are both unique and in order before creating a orbit object in ISCE3.
 
 ## [0.4.3]
++ Bug fixes, unit tests, docstrings
 + Prevent ray tracing integration from occuring at exactly top of weather model
 + Properly expose z_ref (max integration height) parameter, and dont allow higher than weather model
 + Min version for sentineleof for obtaining restituted orbits.

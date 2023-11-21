@@ -2,12 +2,10 @@ import glob
 import json
 import os
 import shutil
-import subprocess
 import unittest
 from pathlib import Path
 
 import eof.download
-import hyp3lib
 import jsonschema
 import numpy as np
 import pandas as pd
@@ -17,12 +15,14 @@ import xarray as xr
 
 import RAiDER
 import RAiDER.cli.raider as raider
+import RAiDER.s1_azimuth_timing
 from RAiDER import aws
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
-    check_weather_model_availability
+    check_weather_model_availability,
 )
 from RAiDER.cli.raider import calcDelaysGUNW
+from RAiDER.models.customExceptions import *
 
 
 def compute_transform(lats, lons):
@@ -206,24 +206,13 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # https://github.com/dbekaert/RAiDER/blob/
     # f77af9ce2d3875b00730603305c0e92d6c83adc2/tools/RAiDER/aria/prepFromGUNW.py#L151-L200
 
-    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
-                 # Hyp3 Lib returns 2 values
-                 side_effect=[
-                               # For azimuth time
-                               (orbit_dict_for_azimuth_time_test['reference'], ''),
-                               (orbit_dict_for_azimuth_time_test['secondary'], ''),
-                               (orbit_dict_for_azimuth_time_test['secondary'], ''),
-                               ]
-                 )
-
     # For prepGUNW
     side_effect = [
-                   # center-time
-                   orbit_dict_for_azimuth_time_test['reference'],
-                   # azimuth-time
-                   orbit_dict_for_azimuth_time_test['reference'],
-                   ]
-    side_effect = list(map(str, side_effect))
+        # center-time
+        [Path(orbit_dict_for_azimuth_time_test['reference'])],
+        # azimuth-time
+        [Path(orbit_dict_for_azimuth_time_test['reference'])],
+    ]
     mocker.patch('eof.download.download_eofs',
                  side_effect=side_effect)
 
@@ -236,6 +225,15 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
                               # See docstring
                               ['secondary_slc_id', 'secondary_slc_id'],
                              ])
+
+    mocker.patch(
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        side_effect=[
+            # For azimuth time
+            [Path(orbit_dict_for_azimuth_time_test['reference'])],
+            [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+        ]
+    )
 
     side_effect = (weather_model_dict_for_center_time_test[weather_model_name] +
                    weather_model_dict_for_azimuth_time_test[weather_model_name])
@@ -259,9 +257,8 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
 
     # Calls 4 times for azimuth time and 4 times for center time
     assert RAiDER.processWM.prepareWeatherModel.call_count == 8
-    # Only calls for azimuth timing for reference and secondary;
-    # There is 1 slc for ref and 2 for secondary, totalling 3 calls
-    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 3
+    # Only calls once each ref and sec list of slcs
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 2
     # Only calls for azimuth timing: once for ref and sec
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
     # Once for center-time and azimuth-time each
@@ -371,24 +368,13 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
     out_path = shutil.copy(gunw_azimuth_test, tmp_path / out)
 
     if interp_method == 'azimuth_time_grid':
-        mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
-                     # Hyp3 Lib returns 2 values
-                     side_effect=[
-                                  # For azimuth time
-                                  (orbit_dict_for_azimuth_time_test['reference'], ''),
-                                  (orbit_dict_for_azimuth_time_test['secondary'], ''),
-                                  (orbit_dict_for_azimuth_time_test['secondary'], ''),
-                                 ]
-                     )
-
         # For prepGUNW
         side_effect = [
-                    # center-time
-                    orbit_dict_for_azimuth_time_test['reference'],
-                    # azimuth-time
-                    orbit_dict_for_azimuth_time_test['reference'],
-                    ]
-        side_effect = list(map(str, side_effect))
+             # center-time
+            [Path(orbit_dict_for_azimuth_time_test['reference'])],
+             # azimuth-time
+            [Path(orbit_dict_for_azimuth_time_test['reference'])],
+        ]
         mocker.patch('eof.download.download_eofs',
                      side_effect=side_effect)
 
@@ -402,6 +388,14 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
                                  ['secondary_slc_id', 'secondary_slc_id'],
                                  ])
 
+        mocker.patch(
+            'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+            side_effect=[
+                # For azimuth time
+                [Path(orbit_dict_for_azimuth_time_test['reference'])],
+                [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+            ]
+        )
     weather_model_path_dict = (weather_model_dict_for_center_time_test
                                if interp_method == 'center_time'
                                else weather_model_dict_for_azimuth_time_test)
@@ -475,24 +469,14 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
     # The first part is the same mock up as done in test_azimuth_timing_interp_against_center_time_interp
     # Maybe better mocks could be done - but this is sufficient or simply a factory for this test given
     # This is reused so many times.
-    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
-                 # Hyp3 Lib returns 2 values
-                 side_effect=[
-                              # For azimuth time
-                              (orbit_dict_for_azimuth_time_test['reference'], ''),
-                              (orbit_dict_for_azimuth_time_test['secondary'], ''),
-                              (orbit_dict_for_azimuth_time_test['secondary'], ''),
-                             ]
-                 )
 
     # For prepGUNW
     side_effect = [
-                    # center-time
-                    orbit_dict_for_azimuth_time_test['reference'],
-                    # azimuth-time
-                    orbit_dict_for_azimuth_time_test['reference'],
-                    ]
-    side_effect = list(map(str, side_effect))
+        # center-time
+        [Path(orbit_dict_for_azimuth_time_test['reference'])],
+        # azimuth-time
+        [Path(orbit_dict_for_azimuth_time_test['reference'])],
+    ]
     mocker.patch('eof.download.download_eofs',
                     side_effect=side_effect)
 
@@ -506,6 +490,15 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                                 ['secondary_slc_id', 'secondary_slc_id'],
                                 ])
 
+    mocker.patch(
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        side_effect=[
+            # For azimuth time
+            [Path(orbit_dict_for_azimuth_time_test['reference'])],
+            [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+        ]
+    )
+
     # These are the important parts of this test
     # Makes sure that a value error is raised if a download fails via a Runtime Error
     # There are two weather model files required for this particular mock up. First, one fails.
@@ -517,7 +510,7 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                '-interp', 'azimuth_time_grid'
                ]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(RuntimeError):
         calcDelaysGUNW(iargs_1)
     RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid.assert_not_called()
 
@@ -536,6 +529,6 @@ def test_value_error_for_file_inputs_when_no_data_available(mocker):
              '-interp', 'azimuth_time_grid'
              ]
 
-    with pytest.raises(ValueError):
+    with pytest.raises(NoWeatherModelData):
         calcDelaysGUNW(iargs)
     RAiDER.aria.prepFromGUNW.main.assert_not_called()

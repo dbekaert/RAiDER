@@ -13,6 +13,34 @@ If you get stuck at any point you can create an [issue on GitHub](https://github
 For more information on contributing to open source projects, [GitHub's own guide](https://guides.github.com/activities/contributing-to-open-source/)
 is a great starting point if you are new to version control.
 
+## Optional Dependencies
+
+In order to better support the NISAR SDS (see: [#533](https://github.com/dbekaert/RAiDER/issues/533)), RAiDER has some optional dependencies:
+
+* ISCE3
+* Pandas
+* Rasterio
+* Progressbar
+
+RAiDER distributes two conda packages, `raider-base` a lighter-weight package that does depend on the optional dependencies, and `raider` which includes all dependencies. When using, or adding new, optional dependenices in RAiDER, please follow this pattern:
+1. When you import the optional dependency, handle import errors like:
+   ```python
+   try:
+    import optional_dependency
+   except ImportError:
+    optional_dependency = None
+   ```
+   Note: you *do not* need to delay imports until use with this pattern.
+2. At the top of any function/method that uses the optional dependency, throw if it's missing like:
+   ```python
+   if optional_dependency is None:
+       raise ImportError('optional_dependency is required for this function. Use conda to install optional_dependency')
+   ```
+3. If you want to add type hints for objects in the optional_dependency, use a forward declaration like:
+   ```python
+   def function_that_uses_optional_dependency(obj: 'optional_dependency.obj'):
+   ```
+   Note: the typehint is a string here.
 
 ## Git workflows ##
 

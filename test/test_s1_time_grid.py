@@ -1,7 +1,7 @@
 import datetime
 from pathlib import Path
+from typing import Union
 
-import hyp3lib
 import numpy as np
 import pandas as pd
 import pytest
@@ -87,9 +87,13 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
     slc_start_time = get_start_time_from_slc_id(slc_ids[n // 2]).to_pydatetime()
 
     # Azimuth time grid
-    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
-                 # Hyp3 Lib returns 2 values
-                 return_value=(orbit_dict_for_azimuth_time_test[ifg_type], ''))
+    mocker.patch(
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        side_effect=[
+            [Path(orbit_dict_for_azimuth_time_test[ifg_type])],
+        ]
+    )
+
     mocker.patch('RAiDER.s1_azimuth_timing._asf_query',
                  return_value=slc_id_dict_for_azimuth_time_test[ifg_type])
     time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, slc_start_time)
@@ -101,9 +105,7 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
     assert np.all(abs_diff < 40)
 
     assert RAiDER.s1_azimuth_timing._asf_query.call_count == 1
-    # There are 2 slc ids so it downloads orbits twice
-    call_count = 1 if ifg_type == 'reference' else 2
-    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == call_count
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 1
 
 
 @pytest.mark.parametrize('ifg_type', ['reference', 'secondary'])
@@ -132,10 +134,13 @@ def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
     slc_start_time = get_start_time_from_slc_id(slc_ids[0]).to_pydatetime()
 
     # Azimuth time grid
-    # Azimuth time grid
-    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
-                 # Hyp3 Lib returns 2 values
-                 return_value=(orbit_dict_for_azimuth_time_test[ifg_type], ''))
+    mocker.patch(
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        side_effect=[
+            [Path(orbit_dict_for_azimuth_time_test[ifg_type])],
+        ]
+    )
+
     mocker.patch('RAiDER.s1_azimuth_timing._asf_query',
                  return_value=slc_id_dict_for_azimuth_time_test[ifg_type])
     X = get_s1_azimuth_time_grid(lon, lat, hgt, slc_start_time)
@@ -146,9 +151,7 @@ def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
     assert np.all(std_hgt < 2e-3)
 
     assert RAiDER.s1_azimuth_timing._asf_query.call_count == 1
-    # There are 2 slc ids so it downloads orbits twice
-    call_count = 1 if ifg_type == 'reference' else 2
-    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == call_count
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 1
 
 
 def test_n_closest_dts():
@@ -216,7 +219,7 @@ expected_weights_list = [[.833, .167, 0],
 @pytest.mark.parametrize('input_time, temporal_window, expected_weights',
                          zip(input_times, windows, expected_weights_list))
 def test_inverse_weighting(input_time: np.datetime64,
-                           temporal_window: int | float,
+                           temporal_window: Union[int, float],
                            expected_weights: list[float]):
     """The test is designed to determine valid inverse weighting
 
@@ -337,18 +340,19 @@ def test_duplicate_orbits(mocker, orbit_paths_for_duplicate_orbit_xml_test):
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                  side_effect=[['slc_id_0', 'slc_id_1', 'slc_id_2', 'slc_id_3']])
 
-    # Hyp3 Lib returns 2 values
-    side_effect = [(o_path, '') for o_path in orbit_paths_for_duplicate_orbit_xml_test]
-    mocker.patch('hyp3lib.get_orb.downloadSentinelOrbitFile',
-                 side_effect=side_effect
-                 )
+    mocker.patch(
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        side_effect=[
+            [Path(o_path) for o_path in orbit_paths_for_duplicate_orbit_xml_test],
+        ]
+    )
 
     time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, t)
 
     assert time_grid.shape == (len(hgt), len(lat), len(lon))
 
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 1
-    assert hyp3lib.get_orb.downloadSentinelOrbitFile.call_count == 4
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 1
 
 
 def test_get_times_for_az():

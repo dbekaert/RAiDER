@@ -2,13 +2,17 @@ import datetime
 import warnings
 
 import asf_search as asf
-import hyp3lib.get_orb
-import isce3.ext.isce3 as isce
 import numpy as np
 import pandas as pd
 from shapely.geometry import Point
 
-from .losreader import get_orbit as get_isce_orbit
+try:
+    import isce3.ext.isce3 as isce
+except ImportError:
+    isce = None
+
+from RAiDER.losreader import get_orbit as get_isce_orbit
+from RAiDER.s1_orbits import get_orbits_from_slc_ids
 
 
 def _asf_query(point: Point,
@@ -76,7 +80,7 @@ def get_slc_id_from_point_and_time(lon: float,
 def get_azimuth_time_grid(lon_mesh: np.ndarray,
                           lat_mesh: np.ndarray,
                           hgt_mesh:  np.ndarray,
-                          orb: isce.core.Orbit) -> np.ndarray:
+                          orb: 'isce.core.Orbit') -> np.ndarray:
     '''
     Source: https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/losreader.py#L601C1-L674C22
 
@@ -84,6 +88,8 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
 
     Technically, this is "sensor neutral" since it uses an orb object.
     '''
+    if isce is None:
+        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
 
     num_iteration = 100
     residual_threshold = 1.0e-7
@@ -176,10 +182,13 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
                          np.datetime64('NaT'),
                          dtype='datetime64[ms]')
         return az_arr
-    orb_files = list(map(lambda slc_id: hyp3lib.get_orb.downloadSentinelOrbitFile(slc_id)[0], slc_ids))
-    orb = get_isce_orbit(orb_files, dt, pad=600)
 
+    orb_files = get_orbits_from_slc_ids(slc_ids)
+    orb_files = [str(of) for of in orb_files]
+
+    orb = get_isce_orbit(orb_files, dt, pad=600)
     az_arr = get_azimuth_time_grid(lon_mesh, lat_mesh, hgt_mesh, orb)
+
     return az_arr
 
 
@@ -330,6 +339,8 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
     n_dates = len(dates)
     if n_unique_dates != n_dates:
         raise ValueError('Dates provided must be unique')
+    if n_dates == 0:
+        raise ValueError('No dates provided')
 
     if not all([isinstance(date, datetime.datetime) for date in dates]):
         raise TypeError('dates must be all datetimes')

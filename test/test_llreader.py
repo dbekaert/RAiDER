@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from test import GEOM_DIR, TEST_DIR
+from pyproj import CRS
 
 from RAiDER.cli.raider import calcDelays
 
@@ -14,8 +15,9 @@ from RAiDER.llreader import (
     bounds_from_latlon_rasters, bounds_from_csv
 )
 
-SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
+SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
 SCENARIO1_DIR = os.path.join(TEST_DIR, "scenario_1", "geom")
+SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
 
 
 @pytest.fixture
@@ -41,6 +43,31 @@ def test_latlon_reader_2():
         RasterRDR(lat_file='doesnotexist.rdr', lon_file='doesnotexist.rdr')
 
 
+def test_aoi_epsg():
+    bbox = [20, 27, -115, -104]
+    r = BoundingBox(bbox)
+    r.set_output_spacing(ll_res=0.05)
+    test = r.get_output_spacing(4978)
+    assert test == 0.05 * 1e5
+
+
+def test_set_output_dir():
+    bbox = [20, 27, -115, -104]
+    r = BoundingBox(bbox)
+    r.set_output_directory('dummy_directory')
+    assert r._output_directory == 'dummy_directory'
+
+
+def test_set_xygrid():
+    bbox = [20, 27, -115, -104]
+    crs = CRS.from_epsg(4326)
+    r = BoundingBox(bbox)
+    r.set_output_spacing(ll_res=0.1)
+    r.set_output_xygrid(dst_crs=4978)
+    r.set_output_xygrid(dst_crs=crs)
+    assert True
+
+
 def test_latlon_reader():
     latfile = os.path.join(GEOM_DIR, 'lat.rdr')
     lonfile = os.path.join(GEOM_DIR, 'lon.rdr')
@@ -59,6 +86,17 @@ def test_latlon_reader():
     bounds_true = [15.7637, 21.4936, -101.6384, -98.2418]
     assert all([np.allclose(b, t, rtol=1e-4) for b, t in zip(query.bounds(), bounds_true)])
 
+
+def test_badllfiles(station_file):
+    latfile = os.path.join(GEOM_DIR, 'lat.rdr')
+    lonfile = os.path.join(GEOM_DIR, 'lon_dummy.rdr')
+    station_file = station_file
+    with pytest.raises(ValueError):
+        RasterRDR(lat_file=latfile, lon_file=lonfile)
+    with pytest.raises(ValueError):
+        RasterRDR(lat_file=latfile, lon_file=station_file)
+    with pytest.raises(ValueError):
+        RasterRDR(lat_file=station_file, lon_file=lonfile)
 
 def test_read_bbox():
     bbox = [20, 27, -115, -104]
@@ -101,4 +139,13 @@ def test_bounds_from_csv(station_file):
 def test_readZ_sf(station_file):
     aoi = StationFile(station_file)
     assert np.allclose(aoi.readZ(), .1)
+
+
+def test_GeocodedFile():
+    aoi = GeocodedFile(os.path.join(SCENARIO0_DIR, 'small_dem.tif'), is_dem=True)
+    z = aoi.readZ()
+    x,y = aoi.readLL()
+    assert z.shape == (569,558)
+    assert x.shape == z.shape
+    assert True
 
