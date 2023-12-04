@@ -7,7 +7,7 @@ on:
 
 jobs:
   call-release-workflow:
-    uses: ASFHyP3/actions/.github/workflows/reusable-release.yml@v0.8.3
+    uses: ASFHyP3/actions/.github/workflows/reusable-release.yml@v0.9.0
     with:
       release_prefix: RAiDER
       develop_branch: dev
