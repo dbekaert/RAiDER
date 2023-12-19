@@ -29,7 +29,7 @@ def ensure_orbit_credentials() -> Optional[int]:
 
     # netrc needs a netrc file; if missing create an empty one.
     if not netrc_file.exists():
-        netrc_file.touch()
+        netrc_file.touch(mode=0o600)
 
     netrc_credentials = netrc.netrc(netrc_file)
     if ESA_CDSE_HOST in netrc_credentials.hosts:
