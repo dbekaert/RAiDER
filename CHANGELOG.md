@@ -7,6 +7,10 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.4.7]
+### Fixed
+* [617](https://github.com/dbekaert/RAiDER/issues/617) - RAiDER created `.netrc` is too permissive
+
 ## [0.4.6]
 
 ### Added
