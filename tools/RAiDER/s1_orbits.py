@@ -55,14 +55,8 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
     """
     _ = ensure_orbit_credentials()
 
-    missions = {slc_id[0:3] for slc_id in slc_ids}
-    start_times = {re.split(r'_+', slc_id)[4] for slc_id in slc_ids}
-    stop_times = {re.split(r'_+', slc_id)[5] for slc_id in slc_ids}
-
-    orb_files = eof.download.download_eofs(
-        sorted(list(start_times | stop_times)),
-        sorted(list(missions)),
-        save_dir=str(directory)
-    )
+    missions = [slc_id[0:3] for slc_id in slc_ids]
+    start_times = [re.split(r'_+', slc_id)[4] for slc_id in slc_ids]
+    orb_files = eof.download.download_eofs(start_times, missions, save_dir=str(directory))
 
     return orb_files
