@@ -121,9 +121,17 @@ class MERRA2(WeatherModel):
         ############# The MERRA-2 server changes the pydap data retrieval format frequently between these two formats; so better to retain both of them rather than only using either one of them #############
         try:
             q = ds['QV'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+            if len(q.shape)==2:
+                # something else
+                q = ds['QV'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]                
+            else:
+                p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+                t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+                h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+
         except IndexError:
             q = ds['QV'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
             p = ds['PL'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
