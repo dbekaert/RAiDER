@@ -71,7 +71,6 @@ def tropo_delay(
         wm_levels = ds.z.values
         toa       = wm_levels.max() - 1
 
-
     if height_levels is None:
         if aoi.type() == 'Geocube':
             height_levels = aoi.readZ()
@@ -128,6 +127,15 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
     raider cube generation function.
     """
     zpts = np.array(heights)
+
+    try:
+        aoi.xpts
+    except AttributeError:
+        with xarray.load_dataset(weather_model_file) as ds:
+            x_spacing = ds.x.diff(dim='x').values.mean()
+            y_spacing = ds.y.diff(dim='y').values.mean()
+        aoi.set_output_spacing(ll_res=np.min([x_spacing, y_spacing]))
+        aoi.set_output_xygrid(crs)
 
     # If no orbit is provided
     if los.is_Zenith() or los.is_Projected():
