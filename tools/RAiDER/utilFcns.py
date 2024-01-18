@@ -1,6 +1,7 @@
 """Geodesy-related utility functions."""
 import os
 import re
+import xarray
 
 from datetime import datetime, timedelta
 from numpy import ndarray
@@ -622,12 +623,15 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVarsXarray(lat, lon, h, q, p, t, outName=None, NoDataValue=None, chunk=(1, 91, 144), mapping_name='WGS84', datetime):
+def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144)):
     
     # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
     attrs_dict = {
-        'datetime': datetime.datetime.strftime("%Y_%m_%dT%H_%M_%S"),
+        'datetime': dt.strftime("%Y_%m_%dT%H_%M_%S"),
         'date_created': datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
+        'NoDataValue': NoDataValue,
+        'chunksize': chunk,
+        'mapping_name': mapping_name,
     }
     
     dimension_dict = {
@@ -642,200 +646,28 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, outName=None, NoDataValue=None,
         't': (('z', 'y', 'x'), t),
     }
 
-
-def writeWeatherVars2NETCDF4(self, lat, lon, h, q, p, t, outName=None, NoDataValue=None, chunk=(1, 91, 144), mapping_name='WGS84'):
-    '''
-    By calling the abstract/modular netcdf writer (RAiDER.utilFcns.write2NETCDF4core), write the OpenDAP/PyDAP-retrieved weather model data (GMAO and MERRA-2) to a NETCDF4 file
-    that can be accessed by external programs.
-
-    The point of doing this is to alleviate some of the memory load of keeping
-    the full model in memory and make it easier to scale up the program.
-    '''
-
-    import netCDF4
-
-    if outName is None:
-        outName = os.path.join(
-            os.getcwd() + '/weather_files',
-            self._Name + datetime.strftime(
-                self._time, '_%Y_%m_%d_T%H_%M_%S'
-            ) + '.nc'
+    ds = xarray.DataSet(
+            data_vars=dataset_dict,
+            coords=dimension_dict,
+            attrs=attrs_dict,
         )
+    
+    ds['h'].attrs['standard_name'] = 'mid_layer_heights'
+    ds['p'].attrs['standard_name'] = 'mid_level_pressure'
+    ds['q'].attrs['standard_name'] = 'specific_humidity'
+    ds['t'].attrs['standard_name'] = 'air_temperature'
+    
+    ds['h'].attrs['units'] = 'm'
+    ds['p'].attrs['units'] = 'Pa'
+    ds['q'].attrs['units'] = 'kg kg-1'
+    ds['t'].attrs['units'] = 'K'
 
-    if NoDataValue is None:
-        NoDataValue = -9999.
-
-    self._time = getTimeFromFile(outName)
-
-    dimidZ, dimidY, dimidX = t.shape
-    chunk_lines_Y = np.min([chunk[1], dimidY])
-    chunk_lines_X = np.min([chunk[2], dimidX])
-    ChunkSize = [1, chunk_lines_Y, chunk_lines_X]
-
-    nc_outfile = netCDF4.Dataset(outName, 'w', clobber=True, format='NETCDF4')
-    nc_outfile.setncattr('Conventions', 'CF-1.6')
-    nc_outfile.setncattr('datetime', datetime.strftime(self._time, "%Y_%m_%dT%H_%M_%S"))
-    nc_outfile.setncattr('date_created', datetime.now().strftime("%Y_%m_%dT%H_%M_%S"))
-    title = self._Name + ' weather model data'
-    nc_outfile.setncattr('title', title)
-
-    tran = [lon[0], lon[1] - lon[0], 0.0, lat[0], 0.0, lat[1] - lat[0]]
-
-    dimension_dict = {
-        'x': {'varname': 'x',
-              'datatype': np.dtype('float64'),
-              'dimensions': ('x'),
-              'length': dimidX,
-              'FillValue': None,
-              'standard_name': 'longitude',
-              'description': 'longitude',
-              'dataset': lon,
-              'units': 'degrees_east'},
-        'y': {'varname': 'y',
-              'datatype': np.dtype('float64'),
-              'dimensions': ('y'),
-              'length': dimidY,
-              'FillValue': None,
-              'standard_name': 'latitude',
-              'description': 'latitude',
-              'dataset': lat,
-              'units': 'degrees_north'},
-        'z': {'varname': 'z',
-              'datatype': np.dtype('float32'),
-              'dimensions': ('z'),
-              'length': dimidZ,
-              'FillValue': None,
-              'standard_name': 'model_layers',
-              'description': 'model layers',
-              'dataset': np.arange(dimidZ),
-              'units': 'layer'}
-    }
-
-    dataset_dict = {
-        'h': {'varname': 'H',
-              'datatype': np.dtype('float32'),
-              'dimensions': ('z', 'y', 'x'),
-              'grid_mapping': mapping_name,
-              'FillValue': NoDataValue,
-              'ChunkSize': ChunkSize,
-              'standard_name': 'mid_layer_heights',
-              'description': 'mid layer heights',
-              'dataset': h,
-              'units': 'm'},
-        'q': {'varname': 'QV',
-              'datatype': np.dtype('float32'),
-              'dimensions': ('z', 'y', 'x'),
-              'grid_mapping': mapping_name,
-              'FillValue': NoDataValue,
-              'ChunkSize': ChunkSize,
-              'standard_name': 'specific_humidity',
-              'description': 'specific humidity',
-              'dataset': q,
-              'units': 'kg kg-1'},
-        'p': {'varname': 'PL',
-              'datatype': np.dtype('float32'),
-              'dimensions': ('z', 'y', 'x'),
-              'grid_mapping': mapping_name,
-              'FillValue': NoDataValue,
-              'ChunkSize': ChunkSize,
-              'standard_name': 'mid_level_pressure',
-              'description': 'mid level pressure',
-              'dataset': p,
-              'units': 'Pa'},
-        't': {'varname': 'T',
-              'datatype': np.dtype('float32'),
-              'dimensions': ('z', 'y', 'x'),
-              'grid_mapping': mapping_name,
-              'FillValue': NoDataValue,
-              'ChunkSize': ChunkSize,
-              'standard_name': 'air_temperature',
-              'description': 'air temperature',
-              'dataset': t,
-              'units': 'K'}
-    }
-
-    nc_outfile = write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84')
-
-    nc_outfile.sync()  # flush data to disk
-    nc_outfile.close()
-
-
-def write2NETCDF4core(nc_outfile, dimension_dict, dataset_dict, tran, mapping_name='WGS84'):
-    '''
-    The abstract/modular netcdf writer that can be called by a wrapper function to write data to a NETCDF4 file
-    that can be accessed by external programs.
-
-    The point of doing this is to alleviate some of the memory load of keeping
-    the full model in memory and make it easier to scale up the program.
-    '''
-    from osgeo import osr
-
-    if mapping_name == 'WGS84':
-        epsg = 4326
-        crs = CRS.from_epsg(epsg)
-
-        grid_mapping = 'WGS84'  # need to set this as an attribute for the image variables
-    else:
-        crs = CRS.from_wkt(mapping_name)
-        grid_mapping = 'CRS'
-
-    datatype = np.dtype('S1')
-    dimensions = ()
-    var = nc_outfile.createVariable(
-        grid_mapping,
-        datatype,
-        dimensions,
-        fill_value=None
-    )
-
-    # variable made, now add attributes
+    ds["proj"] = int()
     for k, v in crs.to_cf().items():
-        var.setncattr(k, v)
-
-    var.setncattr('GeoTransform', ' '.join(str(x) for x in tran))  # note this has pixel size in it - set  explicitly above
-
-    for dim in dimension_dict:
-        nc_outfile.createDimension(dim, dimension_dict[dim]['length'])
-        varname = dimension_dict[dim]['varname']
-        datatype = dimension_dict[dim]['datatype']
-        dimensions = dimension_dict[dim]['dimensions']
-        FillValue = dimension_dict[dim]['FillValue']
-        var = nc_outfile.createVariable(varname, datatype, dimensions, fill_value=FillValue)
-        var.setncattr('standard_name', dimension_dict[dim]['standard_name'])
-        var.setncattr('description', dimension_dict[dim]['description'])
-        var.setncattr('units', dimension_dict[dim]['units'])
-        var[:] = dimension_dict[dim]['dataset'].astype(dimension_dict[dim]['datatype'])
-
-    for data in dataset_dict:
-        varname = dataset_dict[data]['varname']
-        datatype = dataset_dict[data]['datatype']
-        dimensions = dataset_dict[data]['dimensions']
-        FillValue = dataset_dict[data]['FillValue']
-        ChunkSize = dataset_dict[data]['ChunkSize']
-        var = nc_outfile.createVariable(
-            varname,
-            datatype,
-            dimensions,
-            fill_value=FillValue,
-            zlib=True,
-            complevel=2,
-            shuffle=True,
-            chunksizes=ChunkSize
-        )
-        # Override with correct name here
-        var.setncattr('grid_mapping', grid_mapping) # dataset_dict[data]['grid_mapping'])
-        var.setncattr('standard_name', dataset_dict[data]['standard_name'])
-        var.setncattr('description', dataset_dict[data]['description'])
-        if 'units' in dataset_dict[data]:
-            var.setncattr('units', dataset_dict[data]['units'])
-
-        ndmask = np.isnan(dataset_dict[data]['dataset'])
-        dataset_dict[data]['dataset'][ndmask] = FillValue
-
-        var[:] = dataset_dict[data]['dataset'].astype(datatype)
-
-    return nc_outfile
-
+        ds.proj.attrs[k] = v
+    for var in ds.data_vars:
+        ds[var].attrs['grid_mapping'] = 'proj'
+    
 
 def convertLons(inLons):
     '''Convert lons from 0-360 to -180-180'''
