@@ -86,8 +86,9 @@ def tropo_delay(
 
 
     #TODO: expose this as library function
-    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels,
-            los, crs, zref)
+    ds = _get_delays_on_cube(
+        dt, weather_model_file, wm_proj, aoi, height_levels, los, crs, zref
+    )
 
     if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
         return ds, None
