@@ -12,13 +12,13 @@ on:
 
 jobs:
   call-version-info-workflow:
-    uses: ASFHyP3/actions/.github/workflows/reusable-version-info.yml@v0.9.0
+    uses: ASFHyP3/actions/.github/workflows/reusable-version-info.yml@v0.11.0
     with:
       python_version: '3.10'
 
   call-docker-ghcr-workflow:
     needs: call-version-info-workflow
-    uses: ASFHyP3/actions/.github/workflows/reusable-docker-ghcr.yml@v0.9.0
+    uses: ASFHyP3/actions/.github/workflows/reusable-docker-ghcr.yml@v0.11.0
     with:
       version_tag: ${{ needs.call-version-info-workflow.outputs.version_tag }}
       release_branch: main
