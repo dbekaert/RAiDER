@@ -668,6 +668,8 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
     for var in ds.data_vars:
         ds[var].attrs['grid_mapping'] = 'proj'
     
+    ds.write_netcdf(outName)
+
 
 def convertLons(inLons):
     '''Convert lons from 0-360 to -180-180'''
