@@ -20,7 +20,7 @@ from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
 from RAiDER.models.customExceptions import *
 from RAiDER.utilFcns import (
-    robmax, robmin, write2NETCDF4core, calcgeoh, transform_coords, clip_bbox
+    robmax, robmin, writeWeatherVarsXarray, calcgeoh, transform_coords, clip_bbox
 )
 
 TIME_RES = {'GMAO': 3,
