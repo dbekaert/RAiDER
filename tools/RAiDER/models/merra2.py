@@ -1,4 +1,6 @@
 import os
+import xarray
+
 import datetime as dt
 import numpy as np
 import pydap.cas.urs
@@ -8,7 +10,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4, read_EarthData_loginInfo
+from RAiDER.utilFcns import writeWeatherVarsXarray, read_EarthData_loginInfo
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -114,40 +116,44 @@ class MERRA2(WeatherModel):
         earthdata_usr, earthdata_pwd = read_EarthData_loginInfo(EARTHDATA_RC)
 
         # open the dataset and pull the data
-        url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
-        session = pydap.cas.urs.setup_session(earthdata_usr, earthdata_pwd, check_url=url)
-        ds = pydap.client.open_url(url, session=session)
+        url = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/opendap/MERRA2/{}.{}/{}/{:0>2d}'.format('M2T1NXAER', '5.12.4', 2020, 2)
+        # url = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2I3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
+        files_month = ['{}/{}.{}.{}{:0>2d}{:0>2d}.nc4'.format(url,'MERRA2_400', 'tavg1_2d_aer_Nx', 2020, 2, 6) for days in range(6,6+1,1)]
 
-        ############# The MERRA-2 server changes the pydap data retrieval format frequently between these two formats; so better to retain both of them rather than only using either one of them #############
+        ds = xarray.open_mfdataset(files_month)
+        # session = pydap.cas.urs.setup_session(earthdata_usr, earthdata_pwd, check_url=url)
+        # ds = pydap.client.open_url(url, session=session)
+
+        # ############# The MERRA-2 server changes the pydap data retrieval format frequently between these two formats; so better to retain both of them rather than only using either one of them #############
+        # try:
+        #     q = ds['QV'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #     if len(q.shape)==2:
+        #         # something else
+        #         q = ds['QV'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+        #         p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+        #         t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+        #         h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]                
+        #     else:
+        #         p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #         t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #         h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+
+        # except IndexError:
+        #     q = ds['QV'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #     p = ds['PL'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #     t = ds['T'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #     h = ds['H'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        # except AttributeError:
+        #     q = ds['QV'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #     p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #     t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        #     h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
+        # except BaseException:
+        #     logger.exception("MERRA-2: Unable to read weathermodel data")
+        # ########################################################################################################################
+
         try:
-            q = ds['QV'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            if len(q.shape)==2:
-                # something else
-                q = ds['QV'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
-                p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
-                t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
-                h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]                
-            else:
-                p = ds['PL'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-                t = ds['T'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-                h = ds['H'].data[0][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-
-        except IndexError:
-            q = ds['QV'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            p = ds['PL'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            t = ds['T'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            h = ds['H'].data[time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        except AttributeError:
-            q = ds['QV'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            p = ds['PL'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            t = ds['T'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-            h = ds['H'][time_ind, ml_min:(ml_max + 1), lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)][0]
-        except BaseException:
-            logger.exception("MERRA-2: Unable to read weathermodel data")
-        ########################################################################################################################
-
-        try:
-            writeWeatherVars2NETCDF4(self, lats, lons, h, q, p, t, outName=out)
+            writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144))
         except Exception as e:
             logger.debug(e)
             logger.exception("MERRA-2: Unable to save weathermodel to file")
