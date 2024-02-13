@@ -631,7 +631,7 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
         'date_created': datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
         'NoDataValue': NoDataValue,
         'chunksize': chunk,
-        'mapping_name': mapping_name,
+        # 'mapping_name': mapping_name,
     }
     
     dimension_dict = {
