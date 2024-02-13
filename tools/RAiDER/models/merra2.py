@@ -1,3 +1,4 @@
+import io
 import os
 import xarray
 
@@ -26,12 +27,9 @@ def Model():
 
 
 class MERRA2(WeatherModel):
-    # I took this from MERRA-2 model level weblink
-    # https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/
     def __init__(self):
 
         import calendar
-
         # initialize a weather model
         WeatherModel.__init__(self)
 
