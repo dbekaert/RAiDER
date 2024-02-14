@@ -96,6 +96,8 @@ class MERRA2(WeatherModel):
             self._lon_res
         )
 
+        lon, lat = np.meshgrid(lons, lats)
+
         if time.year < 1992:
             url_sub = 100
         elif time.year < 2001:
@@ -113,8 +115,8 @@ class MERRA2(WeatherModel):
         earthdata_usr, earthdata_pwd = read_EarthData_loginInfo(EARTHDATA_RC)
 
         # open the dataset and pull the data
-        url = 'https://goldsmr4.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2I3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.inst3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
- 
+        url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2T3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.tavg3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
+
         session = pydap.cas.urs.setup_session(earthdata_usr, earthdata_pwd, check_url=url)
         stream = pydap.client.open_url(url, session=session)
 
@@ -124,7 +126,7 @@ class MERRA2(WeatherModel):
         h = stream['H'][0,:,lat_min_ind:lat_max_ind + 1, lon_min_ind:lon_max_ind + 1].data.squeeze()
 
         try:
-            writeWeatherVarsXarray(lats, lons, h, q, p, t, dt, self._proj, outName=out)
+            writeWeatherVarsXarray(lat, lon, h, q, p, t, time, self._proj, outName=out)
         except Exception as e:
             logger.debug(e)
             logger.exception("MERRA-2: Unable to save weathermodel to file")
@@ -146,26 +148,19 @@ class MERRA2(WeatherModel):
         '''
 
         # adding the import here should become absolute when transition to netcdf
-        from netCDF4 import Dataset
-        with Dataset(filename, mode='r') as f:
-            lons = np.array(f.variables['x'][:])
-            lats = np.array(f.variables['y'][:])
-            h = np.array(f.variables['H'][:])
-            q = np.array(f.variables['QV'][:])
-            p = np.array(f.variables['PL'][:])
-            t = np.array(f.variables['T'][:])
-
-        # restructure the 3-D lat/lon/h in regular grid
-        _lons = np.broadcast_to(lons[np.newaxis, np.newaxis, :], t.shape)
-        _lats = np.broadcast_to(lats[np.newaxis, :, np.newaxis], t.shape)
+        ds = xarray.load_dataset(filename)
+        lons = ds['longitude'].values
+        lats = ds['latitude'].values
+        h = ds['h'].values
+        q = ds['q'].values
+        p = ds['p'].values
+        t = ds['t'].values
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         p = np.transpose(p)
         q = np.transpose(q)
         t = np.transpose(t)
         h = np.transpose(h)
-        _lats = np.transpose(_lats)
-        _lons = np.transpose(_lons)
 
         # check this
         # data cube format should be lats,lons,heights
@@ -173,24 +168,19 @@ class MERRA2(WeatherModel):
         q = q.swapaxes(0, 1)
         t = t.swapaxes(0, 1)
         h = h.swapaxes(0, 1)
-        _lats = _lats.swapaxes(0, 1)
-        _lons = _lons.swapaxes(0, 1)
 
         # For some reason z is opposite the others
         p = np.flip(p, axis=2)
         q = np.flip(q, axis=2)
         t = np.flip(t, axis=2)
         h = np.flip(h, axis=2)
-        _lats = np.flip(_lats, axis=2)
-        _lons = np.flip(_lons, axis=2)
 
         # assign the regular-grid (lat/lon/h) variables
-
         self._p = p
         self._q = q
         self._t = t
-        self._lats = _lats
-        self._lons = _lons
-        self._xs = _lons
-        self._ys = _lats
+        self._lats = lats
+        self._lons = lons
+        self._xs = lons
+        self._ys = lats
         self._zs = h

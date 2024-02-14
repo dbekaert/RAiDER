@@ -623,12 +623,12 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144)):
+def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=-9999, chunk=(1, 91, 144)):
     
     # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
     attrs_dict = {
         'datetime': dt.strftime("%Y_%m_%dT%H_%M_%S"),
-        'date_created': datetime.datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
+        'date_created': datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
         'NoDataValue': NoDataValue,
         'chunksize': chunk,
         # 'mapping_name': mapping_name,
@@ -646,7 +646,7 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
         't': (('z', 'y', 'x'), t),
     }
 
-    ds = xarray.DataSet(
+    ds = xarray.Dataset(
             data_vars=dataset_dict,
             coords=dimension_dict,
             attrs=attrs_dict,
@@ -668,7 +668,8 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
     for var in ds.data_vars:
         ds[var].attrs['grid_mapping'] = 'proj'
     
-    ds.write_netcdf(outName)
+    ds.to_netcdf(outName)
+    del ds
     
 
 def convertLons(inLons):
