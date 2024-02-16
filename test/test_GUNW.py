@@ -277,7 +277,7 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
             assert np.nanmax(abs_diff_mm) < 1
 
 
-@pytest.mark.parametrize('weather_model_name', ['MERRA2', 'HRRR', 'HRES', 'ERA5', 'ERA5'])
+@pytest.mark.parametrize('weather_model_name', ['MERRA2', 'HRRR', 'HRES', 'ERA5', 'ERA5T'])
 def test_check_weather_model_availability(test_gunw_path_factory, weather_model_name, mocker):
     # Should be True for all weather models
     # S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc

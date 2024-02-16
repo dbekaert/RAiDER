@@ -4,4 +4,4 @@ from .gmao import GMAO
 from .hres import HRES
 from .hrrr import HRRR, HRRRAK
 
-__all__ = ['HRRR', 'HRRRAK', 'GMAO', 'ERA5', 'ERA5T', 'HRES']
+__all__ = ['HRRR', 'HRRRAK', 'GMAO', 'ERA5', 'ERA5T', 'HRES', 'MERRA2']
