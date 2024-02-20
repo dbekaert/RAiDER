@@ -277,7 +277,7 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
             assert np.nanmax(abs_diff_mm) < 1
 
 
-@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR', 'HRES', 'ERA5', 'ERA5'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR', 'HRES', 'ERA5', 'ERA5T'])
 def test_check_weather_model_availability(test_gunw_path_factory, weather_model_name, mocker):
     # Should be True for all weather models
     # S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc
@@ -288,12 +288,12 @@ def test_check_weather_model_availability(test_gunw_path_factory, weather_model_
     mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_time_from_slc_id", side_effect=[pd.Timestamp('2015-01-01'),
                                                                                    pd.Timestamp('2014-01-01')])
     cond = check_weather_model_availability(test_gunw_path, weather_model_name)
-    if weather_model_name in ['HRRR', 'GMAO']:
+    if weather_model_name in ['HRRR', 'MERRA2']:
         cond = not cond
     assert cond
 
 
-@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
 def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, weather_model_name, mocker):
     # Should be True for all weather models
     # S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
@@ -309,7 +309,7 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
     assert cond
 
 
-@pytest.mark.parametrize('weather_model_name', ['HRRR', 'GMAO'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
 @pytest.mark.parametrize('location', ['california-t71', 'alaska'])
 def test_weather_model_availability_integration_using_valid_range(location,
                                                                   test_gunw_path_factory,

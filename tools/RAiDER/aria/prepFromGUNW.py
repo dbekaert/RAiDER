@@ -26,7 +26,7 @@ from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
 from RAiDER.s1_orbits import ensure_orbit_credentials
 
 ## cube spacing in degrees for each model
-DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10}
+DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
 
 
 def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> datetime:
@@ -95,7 +95,7 @@ def check_weather_model_availability(gunw_path: str,
     ----------
     gunw_path : str
     weather_model_name : str
-        Should be one of 'HRRR', 'HRES', 'ERA5', 'ERA5T', 'GMAO'.
+        Should be one of 'HRRR', 'HRES', 'ERA5', 'ERA5T', 'GMAO', 'MERRA2'.
     Returns
     -------
     bool:

@@ -9,7 +9,7 @@ from pyproj import CRS
 
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVars2NETCDF4, round_date, requests_retry_session
+from RAiDER.utilFcns import writeWeatherVarsXarray, round_date, requests_retry_session
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
@@ -145,7 +145,7 @@ class GMAO(WeatherModel):
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVars2NETCDF4(self, lats, lons, h, qv, p, t, outName=out)
+            writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144))
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

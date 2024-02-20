@@ -16,7 +16,7 @@ GEOM_DIR = os.path.join(TEST_DIR, 'test_geom')
 WM_DIR   = os.path.join(TEST_DIR, 'weather_files')
 ORB_DIR  = os.path.join(TEST_DIR, 'orbit_files')
 
-WM = 'GMAO'
+WM = 'MERRA2'
 
 @contextmanager
 def pushd(dir):
