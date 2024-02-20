@@ -8,12 +8,12 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest Changes
 ### Fixed
+* [630](https://github.com/dbekaert/RAiDER/pull/630) - use correct model name so (hrrr-ak) in azimuth_timing_grid
 * [620](https://github.com/dbekaert/RAiDER/issues/620) - Fix MERRA-2 access because API was updated
 
 
 ## [0.4.7]
 ### Fixed
-* [630](https://github.com/dbekaert/RAiDER/pull/630) - use correct model name so (hrrr-ak) in azimuth_timing_grid
 * [617](https://github.com/dbekaert/RAiDER/issues/617) - RAiDER created `.netrc` is too permissive
 * [622](https://github.com/dbekaert/RAiDER/issues/617) - RAiDER's call to sentineleof needs to have missions and times have same length.
 
