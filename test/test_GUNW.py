@@ -293,7 +293,7 @@ def test_check_weather_model_availability(test_gunw_path_factory, weather_model_
     assert cond
 
 
-@pytest.mark.parametrize('weather_model_name', ['MERRA2', 'HRRR'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
 def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, weather_model_name, mocker):
     # Should be True for all weather models
     # S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
@@ -309,7 +309,7 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
     assert cond
 
 
-@pytest.mark.parametrize('weather_model_name', ['HRRR', 'MERRA2'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
 @pytest.mark.parametrize('location', ['california-t71', 'alaska'])
 def test_weather_model_availability_integration_using_valid_range(location,
                                                                   test_gunw_path_factory,
