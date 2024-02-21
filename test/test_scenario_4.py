@@ -16,7 +16,6 @@ from test import TEST_DIR
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_4")
 
 
-@pytest.mark.long
 def test_aoi_without_xpts():
     los = Zenith()
     latfile = os.path.join(SCENARIO_DIR, 'lat.rdr')
