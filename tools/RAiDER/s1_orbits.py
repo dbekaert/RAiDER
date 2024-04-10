@@ -4,8 +4,8 @@ import re
 from pathlib import Path
 from platform import system
 from typing import List, Optional, Tuple
+from RAiDER.logger import logger, logging
 
-import eof.download
 
 
 ESA_CDSE_HOST = 'dataspace.copernicus.eu'
@@ -58,7 +58,19 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
     missions = [slc_id[0:3] for slc_id in slc_ids]
     start_times = [re.split(r'_+', slc_id)[4] for slc_id in slc_ids]
     stop_times = [re.split(r'_+', slc_id)[5] for slc_id in slc_ids]
-    
-    orb_files = eof.download.download_eofs(start_times + stop_times, missions * 2, save_dir=str(directory))
+
+    orb_files = download_eofs(start_times + stop_times, missions * 2, str(directory))
+
+    return orb_files
+
+
+def download_eofs(dts:list, missions:list, save_dir:str):
+    """ Wrapper to first try downloading from ASF """
+    import eof.download
+    try:
+        orb_files = eof.download.download_eofs(dts, missions, save_dir=save_dir, force_asf=True)
+    except:
+        logger.warning('Could not download orbit from ASF, trying ESA...'
+        orb_files = eof.download.download_eofs(dts, missions, save_dir=save_dir, force_asf=False)
 
     return orb_files
