@@ -94,9 +94,10 @@ def test_get_orbits_from_slc_ids(mocker):
     assert orbit_files == [Path('foo.txt')]
     assert eof.download.download_eofs.call_count == 1
     eof.download.download_eofs.assert_called_with(
-        [ '20150621T120220', '20150621T120232'],
+        ['20150621T120220', '20150621T120232'],
         ['S1A'] * 2,
-        save_dir=str(Path.cwd())
+        save_dir=str(Path.cwd()),
+        force_asf=True
     )
 
     orbit_files = s1_orbits.get_orbits_from_slc_ids(
@@ -108,5 +109,6 @@ def test_get_orbits_from_slc_ids(mocker):
     eof.download.download_eofs.assert_called_with(
         ['20201115T162313', '20201203T162353', '20201115T162340', '20201203T162420'],
         ['S1B', 'S1A'] * 2,
-        save_dir=str(Path.cwd())
+        save_dir=str(Path.cwd()),
+        force_asf=True
     )
