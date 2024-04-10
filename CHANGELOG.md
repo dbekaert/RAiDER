@@ -8,6 +8,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest Changes
 ### Fixed
+* [631](https://github.com/dbekaert/RAiDER/issues/634) - download orbits from ASF before trying ESA
 * [630](https://github.com/dbekaert/RAiDER/pull/630) - use correct model name so (hrrr-ak) in azimuth_timing_grid
 * [620](https://github.com/dbekaert/RAiDER/issues/620) - Fix MERRA-2 access because API was updated
 

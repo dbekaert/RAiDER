@@ -70,7 +70,7 @@ def download_eofs(dts:list, missions:list, save_dir:str):
     try:
         orb_files = eof.download.download_eofs(dts, missions, save_dir=save_dir, force_asf=True)
     except:
-        logger.warning('Could not download orbit from ASF, trying ESA...'
+        logger.warning('Could not download orbit from ASF, trying ESA...')
         orb_files = eof.download.download_eofs(dts, missions, save_dir=save_dir, force_asf=False)
 
     return orb_files
