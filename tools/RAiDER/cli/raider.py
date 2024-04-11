@@ -510,7 +510,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     iargs = p.parse_args(iargs)
 
     if not iargs.input_bucket_prefix:
-        iargs.input_bucket_prefix = iargs.input_bucket_prefix
+        iargs.input_bucket_prefix = iargs.bucket_prefix
 
     if iargs.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
         raise ValueError('interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
@@ -547,7 +547,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
             #       we include this within this portion of the control flow.
             print('Nothing to do because outside of weather model range')
             return
-        json_file_path = aws.get_s3_file(iargs.bucket, iargs.bucket_prefix, '.json')
+        json_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.json')
         json_data = json.load(open(json_file_path))
         json_data['metadata'].setdefault('weather_model', []).append(iargs.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
