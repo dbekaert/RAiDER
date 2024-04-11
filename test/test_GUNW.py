@@ -111,7 +111,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
 
     iargs = ['--weather-model', 'HRES',
              '--bucket', 'myBucket',
-             '--bucket-prefix', 'myPrefix']
+             '--bucket-prefix', 'myPrefix',]
     calcDelaysGUNW(iargs)
 
     metadata = json.loads(temp_json_path.read_text())
@@ -138,6 +138,57 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
     assert aws.upload_file_to_s3.mock_calls == [
         unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
+    ]
+
+
+def test_GUNW_hyp3_metadata_update_different_prefix(test_gunw_json_path, test_gunw_json_schema_path, tmp_path, mocker):
+    """This test performs the GUNW entrypoint using a different input bucket/prefix than the output bucket/prefix.
+    Only updates the json. Monkey patches the upload/download to/from s3 and the actual computation.
+    """
+    temp_json_path = tmp_path / 'temp.json'
+    shutil.copy(test_gunw_json_path, temp_json_path)
+
+    # We only need to make sure the json file is passed, the netcdf file name will not have
+    # any impact on subsequent testing
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
+    mocker.patch("RAiDER.aws.upload_file_to_s3")
+    mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
+    mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
+                 side_effect=[True])
+    mocker.patch("RAiDER.aria.prepFromGUNW.check_weather_model_availability", return_value=True)
+    mocker.patch("RAiDER.cli.raider.calcDelays", return_value=['file1', 'file2'])
+    mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
+
+    iargs = ['--weather-model', 'HRES',
+             '--bucket', 'myBucket',
+             '--bucket-prefix', 'myOutputPrefix',
+             '--input-bucket-prefix', 'myInputPrefix',]
+    calcDelaysGUNW(iargs)
+
+    metadata = json.loads(temp_json_path.read_text())
+    schema = json.loads(test_gunw_json_schema_path.read_text())
+
+    assert metadata['metadata']['weather_model'] == ['HRES']
+    assert (jsonschema.validate(instance=metadata, schema=schema) is None)
+
+    assert aws.get_s3_file.mock_calls == [
+        unittest.mock.call('myBucket', 'myInputPrefix', '.nc'),
+        unittest.mock.call('myBucket', 'myInputPrefix', '.json'),
+    ]
+
+    RAiDER.aria.prepFromGUNW.main.assert_called_once()
+
+    raider.calcDelays.assert_called_once_with(['my_path_cfg'])
+
+    RAiDER.aria.calcGUNW.tropo_gunw_slc.assert_called_once_with(
+        ['file1', 'file2'],
+        'foo.nc',
+        'my_wavelength',
+    )
+
+    assert aws.upload_file_to_s3.mock_calls == [
+        unittest.mock.call('foo.nc', 'myBucket', 'myOutputPrefix'),
+        unittest.mock.call(temp_json_path, 'myBucket', 'myOutputPrefix'),
     ]
 
 
