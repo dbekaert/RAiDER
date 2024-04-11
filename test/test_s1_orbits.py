@@ -118,5 +118,3 @@ def test_get_orbits_from_slc_ids(mocker):
             save_dir=str(Path.cwd()),
             force_asf=True
         )
-        break
-
