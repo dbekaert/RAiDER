@@ -7,6 +7,8 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Latest Changes
+### Added
+* A `--input-bucket-prefix` argument to `calcDelaysGUNW` which will allow RAiDER to process ARIA GUNW products under one prefix and upload the final products to another prefix provided by the `--bucket-prefix` argument.
 ### Fixed
 * [630](https://github.com/dbekaert/RAiDER/pull/630) - use correct model name so (hrrr-ak) in azimuth_timing_grid
 * [620](https://github.com/dbekaert/RAiDER/issues/620) - Fix MERRA-2 access because API was updated

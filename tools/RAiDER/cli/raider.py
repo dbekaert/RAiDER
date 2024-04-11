@@ -461,7 +461,15 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
     p.add_argument(
         '--bucket-prefix', default='',
-        help='S3 bucket prefix containing ARIA GUNW NetCDF file. Will be ignored if the --file argument is provided.'
+        help='S3 bucket prefix which may contain an ARIA GUNW NetCDF file to calculate delays for and which the final '
+             'ARIA GUNW NetCDF file will be upload to. Will be ignored if the --file argument is provided.'
+    )
+
+    p.add_argument(
+        '--input-bucket-prefix',
+        help='S3 bucket prefix that contains an ARIA GUNW NetCDF file to calculate delays for. '
+             'If not provided, will look in --bucket-prefix for an ARIA GUNW NetCDF file. '
+             'Will be ignored if the --file argument is provided.'
     )
 
     p.add_argument(
@@ -501,6 +509,9 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
     iargs = p.parse_args(iargs)
 
+    if not iargs.input_bucket_prefix:
+        iargs.input_bucket_prefix = iargs.input_bucket_prefix
+
     if iargs.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
         raise ValueError('interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
 
@@ -520,7 +531,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
     if not iargs.file and iargs.bucket:
         # only use GUNW ID for checking if HRRR available
-        iargs.file = aws.get_s3_file(iargs.bucket, iargs.bucket_prefix, '.nc')
+        iargs.file = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.nc')
         if iargs.weather_model == 'HRRR' and (iargs.interpolate_time == 'azimuth_time_grid'):
             file_name_str = str(iargs.file)
             gunw_nc_name = file_name_str.split('/')[-1]
