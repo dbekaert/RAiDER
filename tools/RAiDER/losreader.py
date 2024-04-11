@@ -378,11 +378,11 @@ def get_sv(los_file: Union[str, list, PosixPath],
                 svs = read_shelve(los_file)
             except BaseException:
                 raise ValueError(
-                    'get_sv: I cannot parse the statevector file {}'.format(los_file)
+                    f'get_sv: I cannot parse the statevector file {los_file}'
                 )
     except:
-        raise ValueError('get_sv: I cannot parse the statevector file {}'.format(los_file))        
-    
+        raise ValueError(f'get_sv: I cannot parse the statevector file {los_file}')
+
 
     if ref_time:
         idx = cut_times(svs[0], ref_time, pad=pad)

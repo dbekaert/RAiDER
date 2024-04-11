@@ -58,9 +58,6 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
     missions = [slc_id[0:3] for slc_id in slc_ids]
     start_times = [re.split(r'_+', slc_id)[4] for slc_id in slc_ids]
     stop_times = [re.split(r'_+', slc_id)[5] for slc_id in slc_ids]
-    # logger.warning('st+stop %s', start_times+stop_times)
-    # logger.warning('missions %s', missions)
-
     orb_files = download_eofs(start_times + stop_times, missions * 2, str(directory))
 
     return orb_files
@@ -75,11 +72,11 @@ def download_eofs(dts:list, missions:list, save_dir:str):
         mission = mission if isinstance(mission, list) else [mission]
         try:
             orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=True)
-            orb_files.append(orb_file)
+            orb_files.append(orb_file[0])
         except:
             logger.error(f'Could not download orbit from ASF, trying ESA...')
             orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=False)
-            orb_files.append(orb_file)
+            orb_files.append(orb_file[0])
 
     if not len(orb_files) == len(dts):
         raise Exception(f'Missing {len(dts) - len(orb_files)} orbit files! dts={dts}, orb_files={len(orb_files)}')
