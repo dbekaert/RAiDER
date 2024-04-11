@@ -111,10 +111,12 @@ def test_get_orbits_from_slc_ids(mocker):
     )
     assert orbit_files == side_effect[1]
     assert eof.download.download_eofs.call_count == 4
-    for dt in '20201115T162313 20201115T162340 20201203T162353 20201203T162420'.split():
+    missions = 'S1B S1B S1A S1A'.split()
+    dts = '20201115T162313 20201115T162340 20201203T162353 20201203T162420'.split()
+    for dt, mission in zip(dts, missions):
         eof.download.download_eofs.assert_any_call(
             [dt],
-            ['S1B'],
+            [mission],
             save_dir=str(Path.cwd()),
             force_asf=True
         )

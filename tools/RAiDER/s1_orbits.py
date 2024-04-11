@@ -72,11 +72,13 @@ def download_eofs(dts:list, missions:list, save_dir:str):
         mission = mission if isinstance(mission, list) else [mission]
         try:
             orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=True)
-            orb_files.append(orb_file[0])
+            orb_file = orb_file[0] if isinstance(orb_file, list) else orb_file
+            orb_files.append(orb_file)
         except:
             logger.error(f'Could not download orbit from ASF, trying ESA...')
             orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=False)
-            orb_files.append(orb_file[0])
+            orb_file = orb_file[0] if isinstance(orb_file, list) else orb_file
+            orb_files.append(orb_file)
 
     if not len(orb_files) == len(dts):
         raise Exception(f'Missing {len(dts) - len(orb_files)} orbit files! dts={dts}, orb_files={len(orb_files)}')
