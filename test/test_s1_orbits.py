@@ -82,31 +82,41 @@ def test_ensure_orbit_credentials(monkeypatch):
 
 def test_get_orbits_from_slc_ids(mocker):
     side_effect = [
-        [Path('foo.txt')],
-        [Path('bar.txt'), Path('fiz.txt')],
+        [Path('foo_start.txt'), Path('foo_stop.txt')],
+        [Path('bar_start.txt'), Path('bar_end.txt'),
+         Path('fiz_start.txt'), Path('fiz_end')],
     ]
     mocker.patch('eof.download.download_eofs',
-                 side_effect=side_effect)
+                 side_effect=side_effect[0])
 
     orbit_files = s1_orbits.get_orbits_from_slc_ids(
         ['S1A_IW_SLC__1SSV_20150621T120220_20150621T120232_006471_008934_72D8']
     )
-    assert orbit_files == [Path('foo.txt')]
-    assert eof.download.download_eofs.call_count == 1
-    eof.download.download_eofs.assert_called_with(
-        [ '20150621T120220', '20150621T120232'],
-        ['S1A'] * 2,
-        save_dir=str(Path.cwd())
-    )
+    assert orbit_files == side_effect[0]
+    assert eof.download.download_eofs.call_count == 2
+    for dt in '20150621T120220 20150621T120232'.split():
+        eof.download.download_eofs.assert_any_call(
+            [dt],
+            ['S1A'],
+            save_dir=str(Path.cwd()),
+            force_asf=True
+        )
+
+    mocker.patch('eof.download.download_eofs',
+                 side_effect=side_effect[1])
 
     orbit_files = s1_orbits.get_orbits_from_slc_ids(
         ['S1B_IW_SLC__1SDV_20201115T162313_20201115T162340_024278_02E29D_5C54',
          'S1A_IW_SLC__1SDV_20201203T162353_20201203T162420_035524_042744_6D5C']
     )
-    assert orbit_files == [Path('bar.txt'), Path('fiz.txt')]
-    assert eof.download.download_eofs.call_count == 2
-    eof.download.download_eofs.assert_called_with(
-        ['20201115T162313', '20201203T162353', '20201115T162340', '20201203T162420'],
-        ['S1B', 'S1A'] * 2,
-        save_dir=str(Path.cwd())
-    )
+    assert orbit_files == side_effect[1]
+    assert eof.download.download_eofs.call_count == 4
+    missions = 'S1B S1B S1A S1A'.split()
+    dts = '20201115T162313 20201115T162340 20201203T162353 20201203T162420'.split()
+    for dt, mission in zip(dts, missions):
+        eof.download.download_eofs.assert_any_call(
+            [dt],
+            [mission],
+            save_dir=str(Path.cwd()),
+            force_asf=True
+        )
