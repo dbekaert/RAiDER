@@ -12,6 +12,7 @@ from RAiDER.logger import logger
 ESA_CDSE_HOST = 'dataspace.copernicus.eu'
 NASA_EDL_HOST = 'urs.earthdata.nasa.gov'
 
+
 def _netrc_path() -> Path:
     netrc_name = '_netrc' if system().lower() == 'windows' else '.netrc'
     return Path.home() / netrc_name
