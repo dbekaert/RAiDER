@@ -552,6 +552,11 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         json_data['metadata'].setdefault('weather_model', []).append(iargs.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
+        # also get browse image -- if RAiDER is running in its own HyP3 job, the browse image will be needed for ingest
+        browse_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.png')
+
+
+
     elif not iargs.file:
         raise ValueError('Either argument --file or --bucket must be provided')
 
@@ -574,6 +579,7 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     if iargs.bucket:
         aws.upload_file_to_s3(iargs.file, iargs.bucket, iargs.bucket_prefix)
         aws.upload_file_to_s3(json_file_path, iargs.bucket, iargs.bucket_prefix)
+        aws.upload_file_to_s3(browse_file_path, iargs.bucket, iargs.bucket_prefix)
     return ds
 
 
