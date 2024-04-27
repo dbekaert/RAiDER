@@ -100,7 +100,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
 
     # We only need to make sure the json file is passed, the netcdf file name will not have
     # any impact on subsequent testing
-    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path, 'foo.png'])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
     mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
     mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
@@ -123,6 +123,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
     assert aws.get_s3_file.mock_calls == [
         unittest.mock.call('myBucket', 'myPrefix', '.nc'),
         unittest.mock.call('myBucket', 'myPrefix', '.json'),
+        unittest.mock.call('myBucket', 'myPrefix', '.png'),
     ]
 
     RAiDER.aria.prepFromGUNW.main.assert_called_once()
@@ -138,6 +139,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
     assert aws.upload_file_to_s3.mock_calls == [
         unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
+        unittest.mock.call('foo.png', 'myBucket', 'myPrefix'),
     ]
 
 
@@ -150,7 +152,7 @@ def test_GUNW_hyp3_metadata_update_different_prefix(test_gunw_json_path, test_gu
 
     # We only need to make sure the json file is passed, the netcdf file name will not have
     # any impact on subsequent testing
-    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path, 'foo.png'])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
     mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
     mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
@@ -174,6 +176,7 @@ def test_GUNW_hyp3_metadata_update_different_prefix(test_gunw_json_path, test_gu
     assert aws.get_s3_file.mock_calls == [
         unittest.mock.call('myBucket', 'myInputPrefix', '.nc'),
         unittest.mock.call('myBucket', 'myInputPrefix', '.json'),
+        unittest.mock.call('myBucket', 'myInputPrefix', '.png'),
     ]
 
     RAiDER.aria.prepFromGUNW.main.assert_called_once()
@@ -189,6 +192,7 @@ def test_GUNW_hyp3_metadata_update_different_prefix(test_gunw_json_path, test_gu
     assert aws.upload_file_to_s3.mock_calls == [
         unittest.mock.call('foo.nc', 'myBucket', 'myOutputPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myOutputPrefix'),
+        unittest.mock.call('foo.png', 'myBucket', 'myOutputPrefix'),
     ]
 
 
