@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Latest Changes
+## [0.5.0]
 ### Added
 * A `--input-bucket-prefix` argument to `calcDelaysGUNW` which will allow RAiDER to process ARIA GUNW products under one prefix and upload the final products to another prefix provided by the `--bucket-prefix` argument.
 ### Fixed
