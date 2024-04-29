@@ -100,7 +100,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
 
     # We only need to make sure the json file is passed, the netcdf file name will not have
     # any impact on subsequent testing
-    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path])
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path, 'foo.png'])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
     mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
     mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
@@ -111,7 +111,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
 
     iargs = ['--weather-model', 'HRES',
              '--bucket', 'myBucket',
-             '--bucket-prefix', 'myPrefix']
+             '--bucket-prefix', 'myPrefix',]
     calcDelaysGUNW(iargs)
 
     metadata = json.loads(temp_json_path.read_text())
@@ -123,6 +123,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
     assert aws.get_s3_file.mock_calls == [
         unittest.mock.call('myBucket', 'myPrefix', '.nc'),
         unittest.mock.call('myBucket', 'myPrefix', '.json'),
+        unittest.mock.call('myBucket', 'myPrefix', '.png'),
     ]
 
     RAiDER.aria.prepFromGUNW.main.assert_called_once()
@@ -138,6 +139,60 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
     assert aws.upload_file_to_s3.mock_calls == [
         unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
+        unittest.mock.call('foo.png', 'myBucket', 'myPrefix'),
+    ]
+
+
+def test_GUNW_hyp3_metadata_update_different_prefix(test_gunw_json_path, test_gunw_json_schema_path, tmp_path, mocker):
+    """This test performs the GUNW entrypoint using a different input bucket/prefix than the output bucket/prefix.
+    Only updates the json. Monkey patches the upload/download to/from s3 and the actual computation.
+    """
+    temp_json_path = tmp_path / 'temp.json'
+    shutil.copy(test_gunw_json_path, temp_json_path)
+
+    # We only need to make sure the json file is passed, the netcdf file name will not have
+    # any impact on subsequent testing
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path, 'foo.png'])
+    mocker.patch("RAiDER.aws.upload_file_to_s3")
+    mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
+    mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
+                 side_effect=[True])
+    mocker.patch("RAiDER.aria.prepFromGUNW.check_weather_model_availability", return_value=True)
+    mocker.patch("RAiDER.cli.raider.calcDelays", return_value=['file1', 'file2'])
+    mocker.patch("RAiDER.aria.calcGUNW.tropo_gunw_slc")
+
+    iargs = ['--weather-model', 'HRES',
+             '--bucket', 'myBucket',
+             '--bucket-prefix', 'myOutputPrefix',
+             '--input-bucket-prefix', 'myInputPrefix',]
+    calcDelaysGUNW(iargs)
+
+    metadata = json.loads(temp_json_path.read_text())
+    schema = json.loads(test_gunw_json_schema_path.read_text())
+
+    assert metadata['metadata']['weather_model'] == ['HRES']
+    assert (jsonschema.validate(instance=metadata, schema=schema) is None)
+
+    assert aws.get_s3_file.mock_calls == [
+        unittest.mock.call('myBucket', 'myInputPrefix', '.nc'),
+        unittest.mock.call('myBucket', 'myInputPrefix', '.json'),
+        unittest.mock.call('myBucket', 'myInputPrefix', '.png'),
+    ]
+
+    RAiDER.aria.prepFromGUNW.main.assert_called_once()
+
+    raider.calcDelays.assert_called_once_with(['my_path_cfg'])
+
+    RAiDER.aria.calcGUNW.tropo_gunw_slc.assert_called_once_with(
+        ['file1', 'file2'],
+        'foo.nc',
+        'my_wavelength',
+    )
+
+    assert aws.upload_file_to_s3.mock_calls == [
+        unittest.mock.call('foo.nc', 'myBucket', 'myOutputPrefix'),
+        unittest.mock.call(temp_json_path, 'myBucket', 'myOutputPrefix'),
+        unittest.mock.call('foo.png', 'myBucket', 'myOutputPrefix'),
     ]
 
 
@@ -277,7 +332,7 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
             assert np.nanmax(abs_diff_mm) < 1
 
 
-@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR', 'HRES', 'ERA5', 'ERA5'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR', 'HRES', 'ERA5', 'ERA5T'])
 def test_check_weather_model_availability(test_gunw_path_factory, weather_model_name, mocker):
     # Should be True for all weather models
     # S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc
@@ -288,12 +343,12 @@ def test_check_weather_model_availability(test_gunw_path_factory, weather_model_
     mocker.patch("RAiDER.aria.prepFromGUNW.get_acq_time_from_slc_id", side_effect=[pd.Timestamp('2015-01-01'),
                                                                                    pd.Timestamp('2014-01-01')])
     cond = check_weather_model_availability(test_gunw_path, weather_model_name)
-    if weather_model_name in ['HRRR', 'GMAO']:
+    if weather_model_name in ['HRRR', 'MERRA2']:
         cond = not cond
     assert cond
 
 
-@pytest.mark.parametrize('weather_model_name', ['GMAO', 'HRRR'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
 def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, weather_model_name, mocker):
     # Should be True for all weather models
     # S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
@@ -309,7 +364,7 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
     assert cond
 
 
-@pytest.mark.parametrize('weather_model_name', ['HRRR', 'GMAO'])
+@pytest.mark.parametrize('weather_model_name', ['HRRR'])
 @pytest.mark.parametrize('location', ['california-t71', 'alaska'])
 def test_weather_model_availability_integration_using_valid_range(location,
                                                                   test_gunw_path_factory,

@@ -13,9 +13,9 @@ from pyproj import CRS
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.logger import logger
 from RAiDER.utilFcns import (
-    writeWeatherVars2NETCDF4,
     read_NCMR_loginInfo,
-    show_progress
+    show_progress,
+    writeWeatherVarsXarray,
 )
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
@@ -174,7 +174,7 @@ class NCMR(WeatherModel):
         ########################################################################################################################
 
         try:
-            writeWeatherVars2NETCDF4(self, lats, lons, hgt, q, p, t, outName=out)
+            writeWeatherVarsXarray(lats, lons, hgt, q, p, t, self._time, self._proj, outName=out)
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

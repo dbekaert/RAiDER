@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0]
+### Added
+* A `--input-bucket-prefix` argument to `calcDelaysGUNW` which will allow RAiDER to process ARIA GUNW products under one prefix and upload the final products to another prefix provided by the `--bucket-prefix` argument.
+### Fixed
+* [613](https://github.com/dbekaert/RAiDER/issues/613) - ensure NASA Earthdata credentials for downloading orbits from ASF
+* [634](https://github.com/dbekaert/RAiDER/issues/634) - download orbits from ASF before trying ESA
+* [630](https://github.com/dbekaert/RAiDER/pull/630) - use correct model name so (hrrr-ak) in azimuth_timing_grid
+* [620](https://github.com/dbekaert/RAiDER/issues/620) - Fix MERRA-2 access because API was updated
+
 
 ## [0.4.7]
 ### Fixed
