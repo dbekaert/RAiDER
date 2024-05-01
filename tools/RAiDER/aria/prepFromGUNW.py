@@ -267,7 +267,6 @@ class GUNW:
         # Remove .zip from the granule ids included in this field
         slcs_lst = list(map(lambda slc: slc.replace('.zip', ''), slcs_lst))
 
-        breakpoint()
         path_orb = get_orbits_from_slc_ids_hyp3lib(slcs_lst)
 
         return [str(o) for o in path_orb]
