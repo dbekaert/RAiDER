@@ -22,7 +22,7 @@ from RAiDER.logger import logger
 from RAiDER.models import credentials
 from RAiDER.models.hrrr import HRRR_CONUS_COVERAGE_POLYGON, AK_GEO, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
-from RAiDER.s1_orbits import download_eofs
+from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
 
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
@@ -262,20 +262,13 @@ class GUNW:
 
         ds   = xr.open_dataset(self.path_gunw, group=f'{group}')
         slcs = ds['L1InputGranules']
-        nslcs = slcs.count().item()
+        # Convert to list of strings
+        slcs_lst = [slc for slc in slcs.data.tolist() if slc]
+        # Remove .zip from the granule ids included in this field
+        slcs_lst = list(map(lambda slc: slc.replace('.zip', ''), slcs_lst))
 
-        if nslcs == 1:
-            slc    = slcs.item()
-        else:
-            for j in range(nslcs):
-                slc = slcs.data[j]
-                if slc:
-                    break
-
-        sat = slc.split('_')[0]
-        dt  = datetime.strptime(f'{self.dates[0]}T{self.mid_time}', '%Y%m%dT%H:%M:%S')
-
-        path_orb = download_eofs([dt], [sat], str(orbit_dir))
+        breakpoint()
+        path_orb = get_orbits_from_slc_ids_hyp3lib(slcs_lst)
 
         return [str(o) for o in path_orb]
 

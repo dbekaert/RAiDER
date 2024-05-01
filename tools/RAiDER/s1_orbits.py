@@ -6,6 +6,7 @@ from platform import system
 from typing import List, Optional
 
 import eof.download
+from hyp3lib import get_orb
 from RAiDER.logger import logger
 
 
@@ -76,6 +77,32 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
     orb_files = download_eofs(start_times + stop_times, missions * 2, str(directory))
 
     return orb_files
+
+
+def get_orbits_from_slc_ids_hyp3lib(
+    slc_ids: list, orbit_directory: str = None
+) -> dict:
+    """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23"""
+
+    # Populates env variables to netrc as required for sentineleof
+    _ = ensure_orbit_credentials()
+    esa_username, _, esa_password = netrc.netrc().authenticators(ESA_CDSE_HOST)
+    esa_credentials = esa_username, esa_password
+
+    orbit_directory = orbit_directory or 'orbits'
+    orbit_dir = Path(orbit_directory)
+    orbit_dir.mkdir(exist_ok=True)
+
+    orbit_fetcher =  get_orb.downloadSentinelOrbitFile
+
+    orbits = []
+    for scene in slc_ids:
+        orbit_file, _ = orbit_fetcher(scene, str(orbit_dir), esa_credentials=esa_credentials, providers=('ASF', 'ESA'))
+        orbits.append(orbit_file)
+
+    orbits = sorted(list(set(orbits)))
+
+    return orbits
 
 
 def download_eofs(dts: list, missions: list, save_dir: str):
