@@ -344,9 +344,6 @@ class GUNW:
         lats = np.arange(lat_st, lat_en, DCT_POSTING[self.wmodel])
         lons = np.arange(lon_st, lon_en, DCT_POSTING[self.wmodel])
 
-        S, N = lats.min(), lats.max()
-        W, E = lons.min(), lons.max()
-
         ds = xr.Dataset(coords={'latitude': lats, 'longitude': lons, 'heights': self.heights})
         dst_cube = os.path.join(self.out_dir, f'GeoCube_{self.name}.nc')
         ds.to_netcdf(dst_cube)

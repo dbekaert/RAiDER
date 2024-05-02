@@ -5,7 +5,6 @@ import shutil
 import unittest
 from pathlib import Path
 
-import eof.download
 import jsonschema
 import numpy as np
 import pandas as pd
@@ -22,7 +21,7 @@ from RAiDER.aria.prepFromGUNW import (
     check_weather_model_availability,
 )
 from RAiDER.cli.raider import calcDelaysGUNW
-from RAiDER.models.customExceptions import *
+from RAiDER.models.customExceptions import NoWeatherModelData
 
 
 def compute_transform(lats, lons):

@@ -89,7 +89,7 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
     Technically, this is "sensor neutral" since it uses an orb object.
     '''
     if isce is None:
-        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
+        raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
     num_iteration = 100
     residual_threshold = 1.0e-7
