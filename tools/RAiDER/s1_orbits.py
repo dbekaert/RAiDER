@@ -97,7 +97,7 @@ def get_orbits_from_slc_ids_hyp3lib(
 
     orbits = []
     for scene in slc_ids:
-        orbit_file, _ = orbit_fetcher(scene, str(orbit_dir), esa_credentials=esa_credentials, providers=('ASF', 'ESA'))
+        orbit_file, _ = orbit_fetcher(scene, str(orbit_dir), esa_credentials=esa_credentials, providers=('ESA', 'ASF'))
         orbits.append(orbit_file)
 
     orbits = sorted(list(set(orbits)))
