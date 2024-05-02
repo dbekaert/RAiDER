@@ -93,7 +93,7 @@ def get_orbits_from_slc_ids_hyp3lib(
     orbit_dir = Path(orbit_directory)
     orbit_dir.mkdir(exist_ok=True)
 
-    orbit_fetcher =  get_orb.downloadSentinelOrbitFile
+    orbit_fetcher = get_orb.downloadSentinelOrbitFile
 
     orbits = []
     for scene in slc_ids:
