@@ -316,8 +316,9 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib.call_count == 2
     # Only calls for azimuth timing: once for ref and sec
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
+    ## When we return to sentineleof
     # Once for center-time and azimuth-time each
-    assert eof.download.download_eofs.call_count == 2
+    # assert eof.download.download_eofs.call_count == 2
 
     for ifg_type in ['reference', 'secondary']:
         for var in ['troposphereHydrostatic', 'troposphereWet']:
@@ -430,7 +431,7 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
              # azimuth-time
             [Path(orbit_dict_for_azimuth_time_test['reference'])],
         ]
-        mocker.patch('eof.download.download_eofs',
+        mocker.patch('RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
                      side_effect=side_effect)
 
         # These outputs are not needed since the orbits are specified above
