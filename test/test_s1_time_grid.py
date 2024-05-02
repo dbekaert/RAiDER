@@ -88,7 +88,7 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
 
     # Azimuth time grid
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
         side_effect=[
             [Path(orbit_dict_for_azimuth_time_test[ifg_type])],
         ]
@@ -105,7 +105,7 @@ def test_s1_timing_array_wrt_slc_center_time(gunw_azimuth_test: Path,
     assert np.all(abs_diff < 40)
 
     assert RAiDER.s1_azimuth_timing._asf_query.call_count == 1
-    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 1
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib.call_count == 1
 
 
 @pytest.mark.parametrize('ifg_type', ['reference', 'secondary'])
@@ -135,7 +135,7 @@ def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
 
     # Azimuth time grid
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
         side_effect=[
             [Path(orbit_dict_for_azimuth_time_test[ifg_type])],
         ]
@@ -151,7 +151,7 @@ def test_s1_timing_array_wrt_variance(gunw_azimuth_test: Path,
     assert np.all(std_hgt < 2e-3)
 
     assert RAiDER.s1_azimuth_timing._asf_query.call_count == 1
-    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 1
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib.call_count == 1
 
 
 def test_n_closest_dts():
@@ -341,7 +341,7 @@ def test_duplicate_orbits(mocker, orbit_paths_for_duplicate_orbit_xml_test):
                  side_effect=[['slc_id_0', 'slc_id_1', 'slc_id_2', 'slc_id_3']])
 
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
         side_effect=[
             [Path(o_path) for o_path in orbit_paths_for_duplicate_orbit_xml_test],
         ]
@@ -352,7 +352,7 @@ def test_duplicate_orbits(mocker, orbit_paths_for_duplicate_orbit_xml_test):
     assert time_grid.shape == (len(hgt), len(lat), len(lon))
 
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 1
-    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 1
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib.call_count == 1
 
 
 def test_get_times_for_az():
