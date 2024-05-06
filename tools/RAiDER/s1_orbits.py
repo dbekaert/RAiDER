@@ -6,6 +6,7 @@ from platform import system
 from typing import List, Optional
 
 import eof.download
+from hyp3lib import get_orb
 from RAiDER.logger import logger
 
 
@@ -53,7 +54,7 @@ def ensure_orbit_credentials() -> Optional[int]:
         username = os.environ.get('EARTHDATA_USERNAME')
         password = os.environ.get('EARTHDATA_PASSWORD')
         if username is None or password is None:
-            raise ValueError(f'Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!\n'
+            raise ValueError('Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!\n'
                              'Either add your credentials to ~/.netrc or set the EARTHDATA_USERNAME and'
                              ' EARTHDATA_PASSWORD environment variables.')
 
@@ -78,6 +79,32 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
     return orb_files
 
 
+def get_orbits_from_slc_ids_hyp3lib(
+    slc_ids: list, orbit_directory: str = None
+) -> dict:
+    """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23"""
+
+    # Populates env variables to netrc as required for sentineleof
+    _ = ensure_orbit_credentials()
+    esa_username, _, esa_password = netrc.netrc().authenticators(ESA_CDSE_HOST)
+    esa_credentials = esa_username, esa_password
+
+    orbit_directory = orbit_directory or 'orbits'
+    orbit_dir = Path(orbit_directory)
+    orbit_dir.mkdir(exist_ok=True)
+
+    orbit_fetcher = get_orb.downloadSentinelOrbitFile
+
+    orbits = []
+    for scene in slc_ids:
+        orbit_file, _ = orbit_fetcher(scene, str(orbit_dir), esa_credentials=esa_credentials, providers=('ASF', 'ESA'))
+        orbits.append(orbit_file)
+
+    orbits = sorted(list(set(orbits)))
+
+    return orbits
+
+
 def download_eofs(dts: list, missions: list, save_dir: str):
     """Wrapper around sentineleof to first try downloading from ASF and fall back to CDSE"""
     _ = ensure_orbit_credentials()
@@ -90,7 +117,7 @@ def download_eofs(dts: list, missions: list, save_dir: str):
         try:
             orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=True)
         except:
-            logger.error(f'Could not download orbit from ASF, trying ESA...')
+            logger.error('Could not download orbit from ASF, trying ESA...')
             orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=False)
 
         orb_file = orb_file[0] if isinstance(orb_file, list) else orb_file

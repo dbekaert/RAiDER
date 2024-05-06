@@ -5,7 +5,6 @@ import shutil
 import unittest
 from pathlib import Path
 
-import eof.download
 import jsonschema
 import numpy as np
 import pandas as pd
@@ -22,7 +21,7 @@ from RAiDER.aria.prepFromGUNW import (
     check_weather_model_availability,
 )
 from RAiDER.cli.raider import calcDelaysGUNW
-from RAiDER.models.customExceptions import *
+from RAiDER.models.customExceptions import NoWeatherModelData
 
 
 def compute_transform(lats, lons):
@@ -282,7 +281,7 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
                              ])
 
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
         side_effect=[
             # For azimuth time
             [Path(orbit_dict_for_azimuth_time_test['reference'])],
@@ -313,11 +312,12 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # Calls 4 times for azimuth time and 4 times for center time
     assert RAiDER.processWM.prepareWeatherModel.call_count == 8
     # Only calls once each ref and sec list of slcs
-    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 2
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib.call_count == 2
     # Only calls for azimuth timing: once for ref and sec
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
+    ## When we return to sentineleof
     # Once for center-time and azimuth-time each
-    assert eof.download.download_eofs.call_count == 2
+    # assert eof.download.download_eofs.call_count == 2
 
     for ifg_type in ['reference', 'secondary']:
         for var in ['troposphereHydrostatic', 'troposphereWet']:
@@ -430,7 +430,7 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
              # azimuth-time
             [Path(orbit_dict_for_azimuth_time_test['reference'])],
         ]
-        mocker.patch('eof.download.download_eofs',
+        mocker.patch('RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
                      side_effect=side_effect)
 
         # These outputs are not needed since the orbits are specified above
@@ -444,7 +444,7 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
                                  ])
 
         mocker.patch(
-            'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+            'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
             side_effect=[
                 # For azimuth time
                 [Path(orbit_dict_for_azimuth_time_test['reference'])],
@@ -546,7 +546,7 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                                 ])
 
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
         side_effect=[
             # For azimuth time
             [Path(orbit_dict_for_azimuth_time_test['reference'])],

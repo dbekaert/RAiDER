@@ -12,7 +12,7 @@ except ImportError:
     isce = None
 
 from RAiDER.losreader import get_orbit as get_isce_orbit
-from RAiDER.s1_orbits import get_orbits_from_slc_ids
+from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
 
 
 def _asf_query(point: Point,
@@ -89,7 +89,7 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
     Technically, this is "sensor neutral" since it uses an orb object.
     '''
     if isce is None:
-        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
+        raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
     num_iteration = 100
     residual_threshold = 1.0e-7
@@ -183,7 +183,7 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
                          dtype='datetime64[ms]')
         return az_arr
 
-    orb_files = get_orbits_from_slc_ids(slc_ids)
+    orb_files = get_orbits_from_slc_ids_hyp3lib(slc_ids)
     orb_files = [str(of) for of in orb_files]
 
     orb = get_isce_orbit(orb_files, dt, pad=600)
