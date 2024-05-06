@@ -14,7 +14,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.20">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.21">
     
     
       
@@ -62,7 +62,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#raider-v050-api-reference" class="md-skip">
+        <a href="#raider-v051-api-reference" class="md-skip">
           Skip to content
         </a>
       
@@ -3879,6 +3879,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#RAiDER.s1_orbits.get_orbits_from_slc_ids_hyp3lib" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_orbits_from_slc_ids_hyp3lib
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -7657,6 +7666,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#RAiDER.s1_orbits.get_orbits_from_slc_ids_hyp3lib" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_orbits_from_slc_ids_hyp3lib
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -8028,7 +8046,7 @@
   
 
 
-<h1 id="raider-v050-api-reference">RAiDER <em>v0.5.0</em> API Reference</h1>
+<h1 id="raider-v051-api-reference">RAiDER <em>v0.5.1</em> API Reference</h1>
 
 
 <div class="doc doc-object doc-module">
@@ -8835,18 +8853,7 @@ wavelength : float
 <span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
-<span class="normal">352</span>
-<span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
-<span class="normal">356</span>
-<span class="normal">357</span>
-<span class="normal">358</span>
-<span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">352</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span> <span class="nc">GUNW</span><span class="p">:</span>
     <span class="n">path_gunw</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">wm</span><span class="p">:</span> <span class="nb">str</span>
@@ -8962,20 +8969,12 @@ wavelength : float
 
         <span class="n">ds</span>   <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_gunw</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
         <span class="n">slcs</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="s1">&#39;L1InputGranules&#39;</span><span class="p">]</span>
-        <span class="n">nslcs</span> <span class="o">=</span> <span class="n">slcs</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        <span class="c1"># Convert to list of strings</span>
+        <span class="n">slcs_lst</span> <span class="o">=</span> <span class="p">[</span><span class="n">slc</span> <span class="k">for</span> <span class="n">slc</span> <span class="ow">in</span> <span class="n">slcs</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">if</span> <span class="n">slc</span><span class="p">]</span>
+        <span class="c1"># Remove .zip from the granule ids included in this field</span>
+        <span class="n">slcs_lst</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">slc</span><span class="p">:</span> <span class="n">slc</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.zip&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span> <span class="n">slcs_lst</span><span class="p">))</span>
 
-        <span class="k">if</span> <span class="n">nslcs</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">slc</span>    <span class="o">=</span> <span class="n">slcs</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nslcs</span><span class="p">):</span>
-                <span class="n">slc</span> <span class="o">=</span> <span class="n">slcs</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
-                <span class="k">if</span> <span class="n">slc</span><span class="p">:</span>
-                    <span class="k">break</span>
-
-        <span class="n">sat</span> <span class="o">=</span> <span class="n">slc</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">dt</span>  <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">T</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mid_time</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">T%H:%M:%S&#39;</span><span class="p">)</span>
-
-        <span class="n">path_orb</span> <span class="o">=</span> <span class="n">download_eofs</span><span class="p">([</span><span class="n">dt</span><span class="p">],</span> <span class="p">[</span><span class="n">sat</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">orbit_dir</span><span class="p">))</span>
+        <span class="n">path_orb</span> <span class="o">=</span> <span class="n">get_orbits_from_slc_ids_hyp3lib</span><span class="p">(</span><span class="n">slcs_lst</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">path_orb</span><span class="p">]</span>
 
@@ -9052,9 +9051,6 @@ wavelength : float
         <span class="n">lats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">lat_st</span><span class="p">,</span> <span class="n">lat_en</span><span class="p">,</span> <span class="n">DCT_POSTING</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">wmodel</span><span class="p">])</span>
         <span class="n">lons</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">lon_st</span><span class="p">,</span> <span class="n">lon_en</span><span class="p">,</span> <span class="n">DCT_POSTING</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">wmodel</span><span class="p">])</span>
 
-        <span class="n">S</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">lats</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">lats</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-        <span class="n">W</span><span class="p">,</span> <span class="n">E</span> <span class="o">=</span> <span class="n">lons</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">lons</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-
         <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">coords</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;latitude&#39;</span><span class="p">:</span> <span class="n">lats</span><span class="p">,</span> <span class="s1">&#39;longitude&#39;</span><span class="p">:</span> <span class="n">lons</span><span class="p">,</span> <span class="s1">&#39;heights&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">heights</span><span class="p">})</span>
         <span class="n">dst_cube</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;GeoCube_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">.nc&#39;</span><span class="p">)</span>
         <span class="n">ds</span><span class="o">.</span><span class="n">to_netcdf</span><span class="p">(</span><span class="n">dst_cube</span><span class="p">)</span>
@@ -9094,7 +9090,15 @@ wavelength : float
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/aria/prepFromGUNW.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">298</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
 <span class="normal">299</span>
 <span class="normal">300</span>
 <span class="normal">301</span>
@@ -9103,15 +9107,7 @@ wavelength : float
 <span class="normal">304</span>
 <span class="normal">305</span>
 <span class="normal">306</span>
-<span class="normal">307</span>
-<span class="normal">308</span>
-<span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
-<span class="normal">313</span>
-<span class="normal">314</span>
-<span class="normal">315</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">calc_spacing_UTM</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">posting</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
+<span class="normal">307</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">calc_spacing_UTM</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">posting</span><span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.01</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Convert desired horizontal posting in degrees to meters</span>
 
 <span class="sd">    Want to calculate delays close to native model resolution (3 km for HRR)</span>
@@ -9152,12 +9148,12 @@ wavelength : float
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/aria/prepFromGUNW.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
-<span class="normal">294</span>
-<span class="normal">295</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">getHeights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">getHeights</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Get the 4 height levels within a GUNW &quot;&quot;&quot;</span>
     <span class="n">group</span> <span class="o">=</span><span class="s1">&#39;science/grids/imagingGeometry&#39;</span>
     <span class="k">with</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_gunw</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">)</span> <span class="k">as</span> <span class="n">ds</span><span class="p">:</span>
@@ -9285,15 +9281,7 @@ wavelength : float
 <span class="normal">269</span>
 <span class="normal">270</span>
 <span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_orbit_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">272</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_orbit_file</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Get orbit file for reference (GUNW: first &amp; later date)&quot;&quot;&quot;</span>
     <span class="n">orbit_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">,</span> <span class="s1">&#39;orbits&#39;</span><span class="p">)</span>
     <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">orbit_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -9303,20 +9291,12 @@ wavelength : float
 
     <span class="n">ds</span>   <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_gunw</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="n">group</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
     <span class="n">slcs</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="s1">&#39;L1InputGranules&#39;</span><span class="p">]</span>
-    <span class="n">nslcs</span> <span class="o">=</span> <span class="n">slcs</span><span class="o">.</span><span class="n">count</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+    <span class="c1"># Convert to list of strings</span>
+    <span class="n">slcs_lst</span> <span class="o">=</span> <span class="p">[</span><span class="n">slc</span> <span class="k">for</span> <span class="n">slc</span> <span class="ow">in</span> <span class="n">slcs</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">if</span> <span class="n">slc</span><span class="p">]</span>
+    <span class="c1"># Remove .zip from the granule ids included in this field</span>
+    <span class="n">slcs_lst</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">slc</span><span class="p">:</span> <span class="n">slc</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.zip&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span> <span class="n">slcs_lst</span><span class="p">))</span>
 
-    <span class="k">if</span> <span class="n">nslcs</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="n">slc</span>    <span class="o">=</span> <span class="n">slcs</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">nslcs</span><span class="p">):</span>
-            <span class="n">slc</span> <span class="o">=</span> <span class="n">slcs</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
-            <span class="k">if</span> <span class="n">slc</span><span class="p">:</span>
-                <span class="k">break</span>
-
-    <span class="n">sat</span> <span class="o">=</span> <span class="n">slc</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">dt</span>  <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dates</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s1">T</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mid_time</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">T%H:%M:%S&#39;</span><span class="p">)</span>
-
-    <span class="n">path_orb</span> <span class="o">=</span> <span class="n">download_eofs</span><span class="p">([</span><span class="n">dt</span><span class="p">],</span> <span class="p">[</span><span class="n">sat</span><span class="p">],</span> <span class="nb">str</span><span class="p">(</span><span class="n">orbit_dir</span><span class="p">))</span>
+    <span class="n">path_orb</span> <span class="o">=</span> <span class="n">get_orbits_from_slc_ids_hyp3lib</span><span class="p">(</span><span class="n">slcs_lst</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">o</span><span class="p">)</span> <span class="k">for</span> <span class="n">o</span> <span class="ow">in</span> <span class="n">path_orb</span><span class="p">]</span>
 </code></pre></div></td></tr></table></div>
@@ -9440,7 +9420,15 @@ wavelength : float
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/aria/prepFromGUNW.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">318</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
 <span class="normal">319</span>
 <span class="normal">320</span>
 <span class="normal">321</span>
@@ -9453,15 +9441,7 @@ wavelength : float
 <span class="normal">328</span>
 <span class="normal">329</span>
 <span class="normal">330</span>
-<span class="normal">331</span>
-<span class="normal">332</span>
-<span class="normal">333</span>
-<span class="normal">334</span>
-<span class="normal">335</span>
-<span class="normal">336</span>
-<span class="normal">337</span>
-<span class="normal">338</span>
-<span class="normal">339</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">makeLatLonGrid_native</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">331</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">makeLatLonGrid_native</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Make LatLonGrid at GUNW spacing (90m = 0.00083333º) &quot;&quot;&quot;</span>
     <span class="n">group</span> <span class="o">=</span> <span class="s1">&#39;science/grids/data&#39;</span>
     <span class="k">with</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_gunw</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">)</span> <span class="k">as</span> <span class="n">ds0</span><span class="p">:</span>
@@ -9506,7 +9486,15 @@ wavelength : float
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/aria/prepFromGUNW.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">342</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
 <span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
@@ -9516,18 +9504,7 @@ wavelength : float
 <span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
-<span class="normal">352</span>
-<span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
-<span class="normal">356</span>
-<span class="normal">357</span>
-<span class="normal">358</span>
-<span class="normal">359</span>
-<span class="normal">360</span>
-<span class="normal">361</span>
-<span class="normal">362</span>
-<span class="normal">363</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">make_cube</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">352</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">make_cube</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Make LatLonGrid at GUNW spacing (90m = 0.00083333º) &quot;&quot;&quot;</span>
     <span class="n">group</span> <span class="o">=</span> <span class="s1">&#39;science/grids/data&#39;</span>
     <span class="k">with</span> <span class="n">xr</span><span class="o">.</span><span class="n">open_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">path_gunw</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="n">group</span><span class="p">)</span> <span class="k">as</span> <span class="n">ds0</span><span class="p">:</span>
@@ -9539,9 +9516,6 @@ wavelength : float
 
     <span class="n">lats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">lat_st</span><span class="p">,</span> <span class="n">lat_en</span><span class="p">,</span> <span class="n">DCT_POSTING</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">wmodel</span><span class="p">])</span>
     <span class="n">lons</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">lon_st</span><span class="p">,</span> <span class="n">lon_en</span><span class="p">,</span> <span class="n">DCT_POSTING</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">wmodel</span><span class="p">])</span>
-
-    <span class="n">S</span><span class="p">,</span> <span class="n">N</span> <span class="o">=</span> <span class="n">lats</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">lats</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
-    <span class="n">W</span><span class="p">,</span> <span class="n">E</span> <span class="o">=</span> <span class="n">lons</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">lons</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
 
     <span class="n">ds</span> <span class="o">=</span> <span class="n">xr</span><span class="o">.</span><span class="n">Dataset</span><span class="p">(</span><span class="n">coords</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;latitude&#39;</span><span class="p">:</span> <span class="n">lats</span><span class="p">,</span> <span class="s1">&#39;longitude&#39;</span><span class="p">:</span> <span class="n">lons</span><span class="p">,</span> <span class="s1">&#39;heights&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">heights</span><span class="p">})</span>
     <span class="n">dst_cube</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">out_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s1">&#39;GeoCube_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s1">.nc&#39;</span><span class="p">)</span>
@@ -9839,7 +9813,18 @@ Returns</p>
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/aria/prepFromGUNW.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">392</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span>
+<span class="normal">390</span>
+<span class="normal">391</span>
+<span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
 <span class="normal">395</span>
@@ -9858,18 +9843,7 @@ Returns</p>
 <span class="normal">408</span>
 <span class="normal">409</span>
 <span class="normal">410</span>
-<span class="normal">411</span>
-<span class="normal">412</span>
-<span class="normal">413</span>
-<span class="normal">414</span>
-<span class="normal">415</span>
-<span class="normal">416</span>
-<span class="normal">417</span>
-<span class="normal">418</span>
-<span class="normal">419</span>
-<span class="normal">420</span>
-<span class="normal">421</span>
-<span class="normal">422</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="normal">411</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">main</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Read parameters needed for RAiDER from ARIA Standard Products (GUNW) &quot;&quot;&quot;</span>
 
     <span class="c1"># Check if WEATHER MODEL API credentials hidden file exists, if not create it or raise ERROR</span>
@@ -9925,7 +9899,18 @@ Each key:value pair will in 'dct_cfg' will overwrite that in the default</p>
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/aria/prepFromGUNW.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">366</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
+<span class="normal">359</span>
+<span class="normal">360</span>
+<span class="normal">361</span>
+<span class="normal">362</span>
+<span class="normal">363</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
 <span class="normal">369</span>
@@ -9937,18 +9922,7 @@ Each key:value pair will in 'dct_cfg' will overwrite that in the default</p>
 <span class="normal">375</span>
 <span class="normal">376</span>
 <span class="normal">377</span>
-<span class="normal">378</span>
-<span class="normal">379</span>
-<span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
-<span class="normal">385</span>
-<span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">update_yaml</span><span class="p">(</span><span class="n">dct_cfg</span><span class="p">:</span><span class="nb">dict</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">&#39;GUNW.yaml&#39;</span><span class="p">):</span>
+<span class="normal">378</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">update_yaml</span><span class="p">(</span><span class="n">dct_cfg</span><span class="p">:</span><span class="nb">dict</span><span class="p">,</span> <span class="n">dst</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">&#39;GUNW.yaml&#39;</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot; Write a new yaml file from a dictionary.</span>
 
 <span class="sd">    Updates parameters in the default &#39;raider.yaml&#39; file.</span>
@@ -39939,7 +39913,7 @@ error messages for units</p>
 <span class="sd">    Technically, this is &quot;sensor neutral&quot; since it uses an orb object.</span>
 <span class="sd">    &#39;&#39;&#39;</span>
     <span class="k">if</span> <span class="n">isce</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;isce3 is required for this function. Use conda to install isce3`&#39;</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s1">&#39;isce3 is required for this function. Use conda to install isce3`&#39;</span><span class="p">)</span>
 
     <span class="n">num_iteration</span> <span class="o">=</span> <span class="mi">100</span>
     <span class="n">residual_threshold</span> <span class="o">=</span> <span class="mf">1.0e-7</span>
@@ -40449,7 +40423,7 @@ dt : datetime.datetime</p>
                          <span class="n">dtype</span><span class="o">=</span><span class="s1">&#39;datetime64[ms]&#39;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">az_arr</span>
 
-    <span class="n">orb_files</span> <span class="o">=</span> <span class="n">get_orbits_from_slc_ids</span><span class="p">(</span><span class="n">slc_ids</span><span class="p">)</span>
+    <span class="n">orb_files</span> <span class="o">=</span> <span class="n">get_orbits_from_slc_ids_hyp3lib</span><span class="p">(</span><span class="n">slc_ids</span><span class="p">)</span>
     <span class="n">orb_files</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">of</span><span class="p">)</span> <span class="k">for</span> <span class="n">of</span> <span class="ow">in</span> <span class="n">orb_files</span><span class="p">]</span>
 
     <span class="n">orb</span> <span class="o">=</span> <span class="n">get_isce_orbit</span><span class="p">(</span><span class="n">orb_files</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
@@ -40761,28 +40735,28 @@ buffer_in_seconds : int, optional
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/s1_orbits.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 81</span>
-<span class="normal"> 82</span>
-<span class="normal"> 83</span>
-<span class="normal"> 84</span>
-<span class="normal"> 85</span>
-<span class="normal"> 86</span>
-<span class="normal"> 87</span>
-<span class="normal"> 88</span>
-<span class="normal"> 89</span>
-<span class="normal"> 90</span>
-<span class="normal"> 91</span>
-<span class="normal"> 92</span>
-<span class="normal"> 93</span>
-<span class="normal"> 94</span>
-<span class="normal"> 95</span>
-<span class="normal"> 96</span>
-<span class="normal"> 97</span>
-<span class="normal"> 98</span>
-<span class="normal"> 99</span>
-<span class="normal">100</span>
-<span class="normal">101</span>
-<span class="normal">102</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">download_eofs</span><span class="p">(</span><span class="n">dts</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">missions</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span>
+<span class="normal">120</span>
+<span class="normal">121</span>
+<span class="normal">122</span>
+<span class="normal">123</span>
+<span class="normal">124</span>
+<span class="normal">125</span>
+<span class="normal">126</span>
+<span class="normal">127</span>
+<span class="normal">128</span>
+<span class="normal">129</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">download_eofs</span><span class="p">(</span><span class="n">dts</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">missions</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">save_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper around sentineleof to first try downloading from ASF and fall back to CDSE&quot;&quot;&quot;</span>
     <span class="n">_</span> <span class="o">=</span> <span class="n">ensure_orbit_credentials</span><span class="p">()</span>
 
@@ -40794,7 +40768,7 @@ buffer_in_seconds : int, optional
         <span class="k">try</span><span class="p">:</span>
             <span class="n">orb_file</span> <span class="o">=</span> <span class="n">eof</span><span class="o">.</span><span class="n">download</span><span class="o">.</span><span class="n">download_eofs</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">mission</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="n">save_dir</span><span class="p">,</span> <span class="n">force_asf</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">except</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Could not download orbit from ASF, trying ESA...&#39;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="s1">&#39;Could not download orbit from ASF, trying ESA...&#39;</span><span class="p">)</span>
             <span class="n">orb_file</span> <span class="o">=</span> <span class="n">eof</span><span class="o">.</span><span class="n">download</span><span class="o">.</span><span class="n">download_eofs</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">mission</span><span class="p">,</span> <span class="n">save_dir</span><span class="o">=</span><span class="n">save_dir</span><span class="p">,</span> <span class="n">force_asf</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="n">orb_file</span> <span class="o">=</span> <span class="n">orb_file</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">orb_file</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="n">orb_file</span>
@@ -40833,8 +40807,7 @@ used are:
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/s1_orbits.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">21</span>
-<span class="normal">22</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">22</span>
 <span class="normal">23</span>
 <span class="normal">24</span>
 <span class="normal">25</span>
@@ -40874,7 +40847,8 @@ used are:
 <span class="normal">59</span>
 <span class="normal">60</span>
 <span class="normal">61</span>
-<span class="normal">62</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">ensure_orbit_credentials</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="normal">62</span>
+<span class="normal">63</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">ensure_orbit_credentials</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Ensure credentials exist for ESA&#39;s CDSE and ASF&#39;s S1QC to download orbits</span>
 
 <span class="sd">    This method will prefer to use CDSE and NASA Earthdata credentials from your `~/.netrc` file if they exist,</span>
@@ -40909,7 +40883,7 @@ used are:
         <span class="n">username</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;EARTHDATA_USERNAME&#39;</span><span class="p">)</span>
         <span class="n">password</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;EARTHDATA_PASSWORD&#39;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">username</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">password</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!</span><span class="se">\n</span><span class="s1">&#39;</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!</span><span class="se">\n</span><span class="s1">&#39;</span>
                              <span class="s1">&#39;Either add your credentials to ~/.netrc or set the EARTHDATA_USERNAME and&#39;</span>
                              <span class="s1">&#39; EARTHDATA_PASSWORD environment variables.&#39;</span><span class="p">)</span>
 
@@ -40941,8 +40915,7 @@ used are:
 
           <details class="quote">
             <summary>Source code in <code>RAiDER/s1_orbits.py</code></summary>
-            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">65</span>
-<span class="normal">66</span>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">66</span>
 <span class="normal">67</span>
 <span class="normal">68</span>
 <span class="normal">69</span>
@@ -40954,7 +40927,8 @@ used are:
 <span class="normal">75</span>
 <span class="normal">76</span>
 <span class="normal">77</span>
-<span class="normal">78</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_orbits_from_slc_ids</span><span class="p">(</span><span class="n">slc_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">directory</span><span class="o">=</span><span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
+<span class="normal">78</span>
+<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_orbits_from_slc_ids</span><span class="p">(</span><span class="n">slc_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">directory</span><span class="o">=</span><span class="n">Path</span><span class="o">.</span><span class="n">cwd</span><span class="p">())</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Path</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Download all orbit files for a set of SLCs</span>
 
 <span class="sd">    This method will ensure that the downloaded orbit files cover the entire acquisition start-&gt;stop time</span>
@@ -40968,6 +40942,76 @@ used are:
     <span class="n">orb_files</span> <span class="o">=</span> <span class="n">download_eofs</span><span class="p">(</span><span class="n">start_times</span> <span class="o">+</span> <span class="n">stop_times</span><span class="p">,</span> <span class="n">missions</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">directory</span><span class="p">))</span>
 
     <span class="k">return</span> <span class="n">orb_files</span>
+</code></pre></div></td></tr></table></div>
+          </details>
+  </div>
+
+</div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="RAiDER.s1_orbits.get_orbits_from_slc_ids_hyp3lib" class="doc doc-heading">
+          <code class="highlight language-python"><span class="n">get_orbits_from_slc_ids_hyp3lib</span><span class="p">(</span><span class="n">slc_ids</span><span class="p">,</span> <span class="n">orbit_directory</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span></code>
+
+</h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23</p>
+
+          <details class="quote">
+            <summary>Source code in <code>RAiDER/s1_orbits.py</code></summary>
+            <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">get_orbits_from_slc_ids_hyp3lib</span><span class="p">(</span>
+    <span class="n">slc_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">orbit_directory</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23&quot;&quot;&quot;</span>
+
+    <span class="c1"># Populates env variables to netrc as required for sentineleof</span>
+    <span class="n">_</span> <span class="o">=</span> <span class="n">ensure_orbit_credentials</span><span class="p">()</span>
+    <span class="n">esa_username</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">esa_password</span> <span class="o">=</span> <span class="n">netrc</span><span class="o">.</span><span class="n">netrc</span><span class="p">()</span><span class="o">.</span><span class="n">authenticators</span><span class="p">(</span><span class="n">ESA_CDSE_HOST</span><span class="p">)</span>
+    <span class="n">esa_credentials</span> <span class="o">=</span> <span class="n">esa_username</span><span class="p">,</span> <span class="n">esa_password</span>
+
+    <span class="n">orbit_directory</span> <span class="o">=</span> <span class="n">orbit_directory</span> <span class="ow">or</span> <span class="s1">&#39;orbits&#39;</span>
+    <span class="n">orbit_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">orbit_directory</span><span class="p">)</span>
+    <span class="n">orbit_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">orbit_fetcher</span> <span class="o">=</span> <span class="n">get_orb</span><span class="o">.</span><span class="n">downloadSentinelOrbitFile</span>
+
+    <span class="n">orbits</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">scene</span> <span class="ow">in</span> <span class="n">slc_ids</span><span class="p">:</span>
+        <span class="n">orbit_file</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">orbit_fetcher</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">orbit_dir</span><span class="p">),</span> <span class="n">esa_credentials</span><span class="o">=</span><span class="n">esa_credentials</span><span class="p">,</span> <span class="n">providers</span><span class="o">=</span><span class="p">(</span><span class="s1">&#39;ASF&#39;</span><span class="p">,</span> <span class="s1">&#39;ESA&#39;</span><span class="p">))</span>
+        <span class="n">orbits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">orbit_file</span><span class="p">)</span>
+
+    <span class="n">orbits</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">orbits</span><span class="p">)))</span>
+
+    <span class="k">return</span> <span class="n">orbits</span>
 </code></pre></div></td></tr></table></div>
           </details>
   </div>
@@ -43112,7 +43156,7 @@ e.g. x, y = transform_coords(4326, 4087, lon, lat)</p>
     <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.dd8806f2.min.js"></script>
+      <script src="../assets/javascripts/bundle.a7c05c9e.min.js"></script>
       
     
   </body>
