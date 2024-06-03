@@ -23,7 +23,7 @@ jobs:
       run: pip install autopep8
 
     - name: Run autopep8
-      run: autopep8 --in-place --recursive .
+      run: autopep8 --in-place --recursive --ignore=E5 .
 
     - name: Check for uncommitted changes
       run: |
