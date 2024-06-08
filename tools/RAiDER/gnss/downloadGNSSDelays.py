@@ -74,7 +74,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
 
     stations = pd.read_csv(
         stationHoldings,
-        delim_whitespace=True,
+        sep='\s+',
         names=['ID', 'Lat', 'Lon', 'Hgt_m']
     )
     stations = filterToBBox(stations, llhBox)
