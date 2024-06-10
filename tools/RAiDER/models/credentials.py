@@ -15,8 +15,8 @@ from pathlib import Path
 from platform import system
 from typing import Dict, Optional, Tuple
 
-# Filename for the hidden file per model
-API_FILENAME: Dict[str, Optional[str]] = {
+# Filename for the rc file for each model
+RC_FILENAMES: Dict[str, Optional[str]] = {
     'ERA5': 'cdsapirc',
     'ERA5T': 'cdsapirc',
     'HRES': 'ecmwfapirc',
@@ -24,14 +24,12 @@ API_FILENAME: Dict[str, Optional[str]] = {
     'HRRR':  None
 }
 
-# API urls
 API_URLS = {
     'cdsapirc': 'https://cds.climate.copernicus.eu/api/v2',
     'ecmwfapirc': 'https://api.ecmwf.int/v1',
     'netrc': 'urs.earthdata.nasa.gov'
 }
 
-# api credentials dict
 API_CREDENTIALS_DICT = {
     'cdsapirc': {
         'api': """\
@@ -68,99 +66,96 @@ ecmwfapir [ecmwfapirc] : 'ECMWF_API_KEY', 'ECMWF_API_EMAIL','ECMWF_API_URL'
 
 '''
 
-# Check if API enviroments exists
-
-
+# Check if the user has the environment variables for a given weather model API
 def _check_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    if model in ('ERA5', 'ERA5T'):
-        uid = os.getenv('RAIDER_ECMWF_ERA5_UID')
-        key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
-        host = API_URLS['cdsapirc']
-
-    elif model in ('HRES',):
-        uid = os.getenv('RAIDER_HRES_EMAIL')
-        key = os.getenv('RAIDER_HRES_API_KEY')
-        host = os.getenv('RAIDER_HRES_URL')
-        if host is None:
-            host = API_URLS['ecmwfapirc']
-
-    elif model in ('GMAO',):
-        uid = os.getenv('EARTHDATA_USERNAME')  # same as in DockerizedTopsApp
-        key = os.getenv('EARTHDATA_PASSWORD')
-        host = API_URLS['netrc']
-
-    else:  # for HRRR
-        uid, key, host = None, None, None
+    match model:
+        case 'ERA5' | 'ERA5T':
+            uid = os.getenv('RAIDER_ECMWF_ERA5_UID')
+            key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
+            host = API_URLS['cdsapirc']
+        case 'HRES':
+            uid = os.getenv('RAIDER_HRES_EMAIL')
+            key = os.getenv('RAIDER_HRES_API_KEY')
+            host = os.getenv('RAIDER_HRES_URL')
+            if host is None:
+                host = API_URLS['ecmwfapirc']
+        case 'GMAO':
+            # same as in DockerizedTopsApp
+            uid = os.getenv('EARTHDATA_USERNAME')
+            key = os.getenv('EARTHDATA_PASSWORD')
+            host = API_URLS['netrc']
+        case _:  # for HRRR
+            uid, key, host = None, None, None
 
     return uid, key, host
 
 
-# Check and write MODEL API_RC_FILE for downloading weather model data
+# Check if the user has the rc file necessary for a given weather model API
 def check_api(model: str,
-              UID: str = None,
-              KEY: str = None,
+              uid: Optional[str] = None,
+              key: Optional[str] = None,
               output_dir: str = '~/',
-              update_flag: bool = False) -> None:
+              update_rc_file: bool = False) -> None:
 
-    # Weather model API filename
-    # typically stored in home dir as hidden file
-    api_filename = API_FILENAME[model]
+    # Weather model API RC filename
+    # Typically stored in home dir as a hidden file
+    rc_filename = RC_FILENAMES[model]
 
-    # Get API credential from os.env if UID/KEY are not inserted
-    if UID is None and KEY is None:
-        UID, KEY, URL = _check_envs(model)
+    # If the given API does not require an rc file, return (nothing to do)
+    if rc_filename is None:
+        return
+
+    # Get credentials from env vars if uid/key is not passed in
+    if uid is None and key is None:
+        uid, key, url = _check_envs(model)
     else:
-        URL = API_URLS[api_filename]
+        url = API_URLS[rc_filename]
 
     # Get hidden ext for Windows
     hidden_ext = '_' if system() == "Windows" else '.'
 
-    # skip below if model is HRRR as it does not need API
-    if api_filename is None:
-        return
-
-    # Check if the credential api file exists
-    api_filename_path = Path(output_dir) / (hidden_ext + api_filename)
-    api_filename_path = api_filename_path.expanduser()
+    # Get the target rc file's path
+    rc_path = Path(output_dir) / (hidden_ext + rc_filename)
+    rc_path = rc_path.expanduser()
 
     # if update flag is on, overwrite existing file
-    if update_flag is True:
-        api_filename_path.unlink(missing_ok=True)
+    if update_rc_file:
+        rc_path.unlink(missing_ok=True)
 
     # Check if API_RC file already exists
-    if api_filename_path.exists():
+    if rc_path.exists():
         return
-    # if it does not exist, put UID/KEY inserted, create it
-    elif not api_filename_path.exists() and UID and KEY:
+    # if it does not exist, put uid/key inserted, create it
+    elif not rc_path.exists() and uid and key:
         # Create file with inputs, do it only once
-        print(f'Writing {api_filename_path} locally!')
-        api_filename_path.write_text(
-            API_CREDENTIALS_DICT[api_filename]['api'].format(
-                uid=UID,
-                key=KEY,
-                host=URL
+        print(f'Writing {rc_path} locally!')
+        rc_path.write_text(
+            API_CREDENTIALS_DICT[rc_filename]['api'].format(
+                uid=uid,
+                key=key,
+                host=url
             )
         )
-        api_filename_path.chmod(0o000600)
+        rc_path.chmod(0o000600)
     # Raise ERROR message
     else:
-        help_url = API_CREDENTIALS_DICT[api_filename]['help_url']
+        help_url = API_CREDENTIALS_DICT[rc_filename]['help_url']
 
-        # Raise ERROR in case only UID or KEY is inserted
-        if UID is not None and KEY is None:
-            raise ValueError(f'ERROR: API UID not inserted'
-                                f' or does not exist in ENVIRONMENTALS!')
-        elif UID is None and KEY is not None:
-            raise ValueError(f'ERROR: API KEY not inserted'
-                                f' or does not exist in ENVIRONMENTALS!')
+        # Raise ERROR in case only username or password is present
+        if uid is None and key is not None:
+            raise ValueError('ERROR: API uid not inserted'
+                             ' or does not exist in ENVIRONMENTALS!')
+        elif uid is not None and key is None:
+            raise ValueError('ERROR: API key not inserted'
+                             ' or does not exist in ENVIRONMENTALS!')
         else:
-            # Raise ERROR is both UID/KEY are none
+            # Raise ERROR if both UID/KEY are none
             raise ValueError(
-                f'{api_filename_path}, API ENVIRONMENTALS'
-                f' and API UID and KEY, do not exist !!'
+                f'{rc_path}, API ENVIRONMENTALS'
+                ' and API UID and KEY, do not exist !!'
                 f'\nGet API info from ' + '\033[1m' f'{help_url}' + '\033[0m, and add it!')
 
 
 def setup_from_env():
-    for model in API_FILENAME.keys():
+    for model in RC_FILENAMES.keys():
         check_api(model)
