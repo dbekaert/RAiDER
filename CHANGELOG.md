@@ -8,8 +8,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 ### Changed
-* Changed the behavior of `RAiDER.models.credentials.check_api` to not overwrite
-  the user's API credential files
+* [652](https://github.com/dbekaert/RAiDER/pull/652) Changed the behavior of
+  `RAiDER.models.credentials.check_api` to not overwrite the user's API
+   credential files.
 
 ## [0.5.1]
 ### Changed
