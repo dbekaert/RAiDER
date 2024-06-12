@@ -7,13 +7,17 @@ ________________________________________________________________________________
 cdsapirc          ERA5, ERA5T             uid           key         https://cds.climate.copernicus.eu/api/v2
 ecmwfapirc        HRES                    email         key         https://api.ecmwf.int/v1
 netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov
-<NAN>             HRRR [public access]    <NAN>         <NAN>
+<N/A>             HRRR [public access]    <N/A>         <N/A>       <N/A>
 '''
 
 import os
+import re
 from pathlib import Path
 from platform import system
 from typing import Dict, Optional, Tuple
+
+from tools.RAiDER import logger
+
 
 # Filename for the rc file for each model
 RC_FILENAMES: Dict[str, Optional[str]] = {
@@ -24,136 +28,136 @@ RC_FILENAMES: Dict[str, Optional[str]] = {
     'HRRR':  None
 }
 
-API_URLS = {
-    'cdsapirc': 'https://cds.climate.copernicus.eu/api/v2',
-    'ecmwfapirc': 'https://api.ecmwf.int/v1',
-    'netrc': 'urs.earthdata.nasa.gov'
-}
-
-API_CREDENTIALS_DICT = {
+APIS = {
     'cdsapirc': {
         'api': """\
-                                \nurl: {host}\
-                                \nkey: {uid}:{key}
+url: {host}\n\
+key: {uid}:{key}\n\
         """,
-        'help_url': 'https://cds.climate.copernicus.eu/api-how-to'
+        'help_url': 'https://cds.climate.copernicus.eu/api-how-to',
+        'default_host': 'https://cds.climate.copernicus.eu/api/v2'
     },
     'ecmwfapirc': {
-        'api': """{{\
-                                 \n"url"   : "{host}",\
-                                 \n"key"   : "{key}",\
-                                 \n"email" : "{uid}"\
-                                 \n}}
+        'api': """\
+{\n\
+    "url"   : "{host}",\n\
+    "key"   : "{key}",\n\
+    "email" : "{uid}"\n\
+}\n\
         """,
-        'help_url': 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key'
+        'help_url': 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key',
+        'default_host': 'https://api.ecmwf.int/v1'
     },
     'netrc': {
         'api': """\
-                                \nmachine {host}\
-                                \n        login {uid}\
-                                \n        password {key}\
+machine {host}\n\
+        login {uid}\n\
+        password {key}\n\
         """,
-        'help_url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget'
+        'help_url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget',
+        'default_host': 'urs.earthdata.nasa.gov'
     }
 }
 
-# system environmental variables for API credentials
-'''
-ENV variables in cdsapi and ecmwapir
 
-cdsapi ['cdsapirc'] : CDSAPI_KEY [UID:KEY], 'CDSAPI_URL'
-ecmwfapir [ecmwfapirc] : 'ECMWF_API_KEY', 'ECMWF_API_EMAIL','ECMWF_API_URL'  
-
-'''
-
-# Check if the user has the environment variables for a given weather model API
-def _check_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+# Get the environment variables for a given weather model API
+def _get_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     match model:
         case 'ERA5' | 'ERA5T':
             uid = os.getenv('RAIDER_ECMWF_ERA5_UID')
             key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
-            host = API_URLS['cdsapirc']
+            host = APIS['cdsapirc']['default_host']
         case 'HRES':
             uid = os.getenv('RAIDER_HRES_EMAIL')
             key = os.getenv('RAIDER_HRES_API_KEY')
-            host = os.getenv('RAIDER_HRES_URL')
-            if host is None:
-                host = API_URLS['ecmwfapirc']
+            host = os.getenv('RAIDER_HRES_URL',
+                             APIS['ecmwfapirc']['default_host'])
         case 'GMAO':
             # same as in DockerizedTopsApp
             uid = os.getenv('EARTHDATA_USERNAME')
             key = os.getenv('EARTHDATA_PASSWORD')
-            host = API_URLS['netrc']
+            host = APIS['netrc']['default_host']
         case _:  # for HRRR
             uid, key, host = None, None, None
-
     return uid, key, host
 
 
-# Check if the user has the rc file necessary for a given weather model API
 def check_api(model: str,
               uid: Optional[str] = None,
               key: Optional[str] = None,
               output_dir: str = '~/',
               update_rc_file: bool = False) -> None:
-
     # Weather model API RC filename
     # Typically stored in home dir as a hidden file
     rc_filename = RC_FILENAMES[model]
 
-    # If the given API does not require an rc file, return (nothing to do)
+    # If the given API does not require an rc file, then there is nothing to do
+    # (e.g., HRRR)
     if rc_filename is None:
         return
 
-    # Get credentials from env vars if uid/key is not passed in
-    if uid is None and key is None:
-        uid, key, url = _check_envs(model)
-    else:
-        url = API_URLS[rc_filename]
-
-    # Get hidden ext for Windows
-    hidden_ext = '_' if system() == "Windows" else '.'
-
     # Get the target rc file's path
+    hidden_ext = '_' if system() == "Windows" else '.'
     rc_path = Path(output_dir) / (hidden_ext + rc_filename)
     rc_path = rc_path.expanduser()
 
-    # if update flag is on, overwrite existing file
-    if update_rc_file:
-        rc_path.unlink(missing_ok=True)
-
-    # Check if API_RC file already exists
-    if rc_path.exists():
+    # If the RC file doesn't exist, then create it.
+    # But if it does exist, only update it if the user requests.
+    if rc_path.exists() and not update_rc_file:
         return
-    # if it does not exist, put uid/key inserted, create it
-    elif not rc_path.exists() and uid and key:
-        # Create file with inputs, do it only once
-        print(f'Writing {rc_path} locally!')
-        rc_path.write_text(
-            API_CREDENTIALS_DICT[rc_filename]['api'].format(
-                uid=uid,
-                key=key,
-                host=url
-            )
-        )
-        rc_path.chmod(0o000600)
-    # Raise ERROR message
-    else:
-        help_url = API_CREDENTIALS_DICT[rc_filename]['help_url']
 
-        # Raise ERROR in case only username or password is present
+    # Get credentials from env vars if uid and key are not passed in
+    if uid is None and key is None:
+        uid, key, url = _get_envs(model)
+    else:
+        url = APIS[rc_filename]['default_host']
+
+    # Check for invalid inputs
+    if uid is None or key is None:
+        help_url = APIS[rc_filename]['help_url']
         if uid is None and key is not None:
-            raise ValueError('ERROR: API uid not inserted'
-                             ' or does not exist in ENVIRONMENTALS!')
-        elif uid is not None and key is None:
-            raise ValueError('ERROR: API key not inserted'
-                             ' or does not exist in ENVIRONMENTALS!')
-        else:
-            # Raise ERROR if both UID/KEY are none
             raise ValueError(
-                f'{rc_path}, API ENVIRONMENTALS'
-                ' and API UID and KEY, do not exist !!'
-                f'\nGet API info from ' + '\033[1m' f'{help_url}' + '\033[0m, and add it!')
+                f'ERROR: {model} API UID not provided in RAiDER arguments and '
+                'not present in environment variables.\n'
+                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+            )
+        elif uid is not None and key is None:
+            raise ValueError(
+                f'ERROR: {model} API key not provided in RAiDER arguments and '
+                'not present in environment variables.\n'
+                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+            )
+        else:
+            raise ValueError(
+                f'ERROR: {model} API credentials not provided in RAiDER '
+                'arguments and not present in environment variables.\n'
+                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+            )
+
+    # Create file with the API credentials
+    logger.warn(f'{model} API credentials not found in {rc_path}')
+    entry = APIS[rc_filename]['api'].format(uid=uid, key=key, host=url)
+    match model:
+        case 'ERA5' | 'ERA5T' | 'HRES':
+            # These RC files only ever contain one set of credentials, so
+            # it can just be overwritten when updating
+            rc_path.write_text(entry)
+        case 'GMAO':
+            # This RC file may contain more than one set of credentials, so
+            # extra care needs to be taken to make sure we only touch the
+            # credentials that belong to this URL:
+            # If an entry for this URL already exists, replace it, otherwise
+            # add a new one to the end of the file
+            rc_contents = rc_path.read_text().replace('\r\n', '\n')
+            if rc_contents[-1] != '\n':
+                rc_contents += '\n'
+            rc_contents = re.sub(
+                f'(machine ({url})\\n\\s*login \\w+\\n\\s*password \\w+\\n?)|$',
+                entry,
+                rc_contents
+            )
+            rc_path.write_text(rc_contents)
+    rc_path.chmod(0o000600)
 
 
 def setup_from_env():
