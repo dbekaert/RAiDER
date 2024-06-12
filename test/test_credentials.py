@@ -2,9 +2,7 @@ import os
 from platform import system
 from RAiDER.models import credentials
 
-# Test checking/creating ECMWF_RC CAPI file
-
-
+# Test checking/creating ECMWF_RC API file
 def test_ecmwfApi_createFile():
     import ecmwfapi
 
@@ -35,8 +33,7 @@ def test_ecmwfApi_createFile():
     assert key == 'dummy', f'{ecmwf_file}: KEY was not written correctly'
 
 
-# Test checking/creating Copernicus Climate Data Store
-#   CDS_RC CAPI file
+# Test checking/creating Copernicus Climate Data Store CDS_RC API file
 def test_cdsApi_createFile():
     import cdsapi
 
@@ -82,3 +79,8 @@ def test_netrcApi_createFile():
 
     assert uid == 'dummy', f'{netrc_file}: UID was not written correctly'
     assert key == 'dummy', f'{netrc_file}: KEY was not written correctly'
+
+# TODO(garlic-os): Tests for check_api() update=False:
+# - Check if the file is not updated if it already exists
+# - Check if the file is created if it does not exist
+# - Check that environment variables are picked up when present
