@@ -2,6 +2,8 @@ import os
 import pytest
 import subprocess
 import shutil
+import string
+import random
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -78,3 +80,10 @@ def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
 def make_delay_name(weather_model_name, date, time, kind='ztd'):
     assert kind in 'ztd std ray'.split(), 'Incorrect type of delays.'
     return f'{weather_model_name}_tropo_{date}T{time.replace(":", "")}_{kind}.nc'
+
+
+def random_string(
+    length: int = 32,
+    alphabet: str = string.ascii_letters + string.digits
+) -> str:
+    return ''.join(random.choices(alphabet, k=length))
