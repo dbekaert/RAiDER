@@ -11,12 +11,11 @@ netrc             GMAO, MERRA2            username      password    urs.earthdat
 '''
 
 import os
-import re
 from pathlib import Path
 from platform import system
 from typing import Dict, Optional, Tuple
 
-from tools.RAiDER import logger
+from RAiDER.logger import logger
 
 
 # Filename for the rc file for each model
@@ -25,35 +24,36 @@ RC_FILENAMES: Dict[str, Optional[str]] = {
     'ERA5T': 'cdsapirc',
     'HRES': 'ecmwfapirc',
     'GMAO': 'netrc',
+    'MERRA2': 'netrc',
     'HRRR':  None
 }
 
 APIS = {
     'cdsapirc': {
-        'api': """\
-url: {host}\n\
-key: {uid}:{key}\n\
-        """,
+        'template': (
+            'url: {host}\n'
+            'key: {uid}:{key}\n'
+        ),
         'help_url': 'https://cds.climate.copernicus.eu/api-how-to',
         'default_host': 'https://cds.climate.copernicus.eu/api/v2'
     },
     'ecmwfapirc': {
-        'api': """\
-{\n\
-    "url"   : "{host}",\n\
-    "key"   : "{key}",\n\
-    "email" : "{uid}"\n\
-}\n\
-        """,
+        'template': (
+            '{{\n'
+            '    "url"   : "{host}",\n'
+            '    "key"   : "{key}",\n'
+            '    "email" : "{uid}"\n'
+            '}}\n'
+        ),
         'help_url': 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key',
         'default_host': 'https://api.ecmwf.int/v1'
     },
     'netrc': {
-        'api': """\
-machine {host}\n\
-        login {uid}\n\
-        password {key}\n\
-        """,
+        'template': (
+            'machine {host}\n'
+            '	login {uid}\n'
+            '	password {key}\n'
+        ),
         'help_url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget',
         'default_host': 'urs.earthdata.nasa.gov'
     }
@@ -72,7 +72,7 @@ def _get_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
             key = os.getenv('RAIDER_HRES_API_KEY')
             host = os.getenv('RAIDER_HRES_URL',
                              APIS['ecmwfapirc']['default_host'])
-        case 'GMAO':
+        case 'GMAO' | 'MERRA2':
             # same as in DockerizedTopsApp
             uid = os.getenv('EARTHDATA_USERNAME')
             key = os.getenv('EARTHDATA_PASSWORD')
@@ -135,28 +135,27 @@ def check_api(model: str,
             )
 
     # Create file with the API credentials
-    logger.warn(f'{model} API credentials not found in {rc_path}')
-    entry = APIS[rc_filename]['api'].format(uid=uid, key=key, host=url)
-    match model:
-        case 'ERA5' | 'ERA5T' | 'HRES':
+    if update_rc_file:
+        logger.info(f'Updating {model} API credentials in {rc_path}')
+    else:
+        logger.warning(f'{model} API credentials not found in {rc_path}; creating')
+    rc_type = RC_FILENAMES[model]
+    match rc_type:
+        case 'cdsapirc' | 'ecmwfapirc':
             # These RC files only ever contain one set of credentials, so
-            # it can just be overwritten when updating
+            # they can just be overwritten when updating.
+            template = APIS[rc_filename]['template']
+            entry = template.format(host=url, uid=uid, key=key)
             rc_path.write_text(entry)
-        case 'GMAO':
-            # This RC file may contain more than one set of credentials, so
-            # extra care needs to be taken to make sure we only touch the
-            # credentials that belong to this URL:
-            # If an entry for this URL already exists, replace it, otherwise
-            # add a new one to the end of the file
-            rc_contents = rc_path.read_text().replace('\r\n', '\n')
-            if rc_contents[-1] != '\n':
-                rc_contents += '\n'
-            rc_contents = re.sub(
-                f'(machine ({url})\\n\\s*login \\w+\\n\\s*password \\w+\\n?)|$',
-                entry,
-                rc_contents
-            )
-            rc_path.write_text(rc_contents)
+        case 'netrc':
+            # This type of RC file may contain more than one set of credentials,
+            # so extra care needs to be taken to make sure we only touch the
+            # one that belongs to this URL.
+            import netrc
+            rc_path.touch()
+            netrc_credentials = netrc.netrc(rc_path)
+            netrc_credentials.hosts[url] = (uid, None, key)
+            rc_path.write_text(str(netrc_credentials))
     rc_path.chmod(0o000600)
 
 
