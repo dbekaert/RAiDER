@@ -30,7 +30,7 @@ def prepareWeatherModel(
     Args:
         weather_model: WeatherModel   - instantiated weather model object
         time: datetime                - Python datetime to request. Will be rounded to nearest available time
-        ll_bounds: list/array        - SNWE bounds target area to ensure weather model contains them
+        ll_bounds: list/array         - SNWE bounds target area to ensure weather model contains them
         download_only: bool           - False if preprocessing weather model data
         makePlots: bool               - whether to write debug plots
         force_download: bool          - True if you want to download even when the weather model exists
