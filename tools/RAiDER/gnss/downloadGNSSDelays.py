@@ -262,7 +262,7 @@ def main(inps=None):
         long_cross_zero = 1
 
     # Handle station query
-    stats = get_stats(bbox, long_cross_zero, out, station_file)
+    stats, origstatsFile = get_stats(bbox, long_cross_zero, out, station_file)
 
     # iterate over years
     years = list(set([i.year for i in dateList]))
@@ -352,8 +352,7 @@ def get_stats(bbox, long_cross_zero, out, station_file):
             writeLoc=out,
             stationFile=station_file
         )
-
-    return stats
+    return stats, origstatsFile
 
 
 def filterToBBox(stations, llhBox):
