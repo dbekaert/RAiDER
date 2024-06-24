@@ -1,5 +1,5 @@
 # vim: set filetype=yaml:
-##------------------------ raiderDelay.yaml ------------------------##
+##------------------------------ raider.yaml ---------------------------------##
 ##
 ##  There are three basic options for calculating tropospheric delays:
 ##  1. Calculate Zenith delays (ZTD; Default option if nothing else is passed)
@@ -104,7 +104,7 @@ height_group:
 ## STD calculation:
 los_group:
   ray_trace: False  # Use projected slant delay by default
-  zref: # Maximum integration height. Only used in raytracing. Default: top of weather model.
+  zref:  # Maximum integration height. Only used in raytracing. Default: top of weather model.
 
   # raster file in radar or geocoordinates
   los_file:
@@ -122,9 +122,9 @@ los_group:
 ##
 runtime_group:
   verbose: True
-  file_format: GTiff # Can be any rasterio-compatible format
-  output_directory: . # uses the runtime directory by default
-  weather_model_directory: # Defaults to <output directory>/weather_files/
+  file_format: GTiff  # Can be any rasterio-compatible format
+  output_directory: .  # uses the runtime directory by default
+  weather_model_directory:  # Defaults to <output directory>/weather_files/
   output_projection:  # Specify the PROJ-compatible projection of the output delays as an EPSG code
   cube_spacing_in_m:  # Specify the horizontal cube spacing in m (Default: 2000)
-  download_only: # Only download the weather model (Default: False)
+  download_only:  # Only download the weather model (Default: False)
