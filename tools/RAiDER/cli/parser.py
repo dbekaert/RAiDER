@@ -9,7 +9,7 @@ def add_cpus(parser: argparse.ArgumentParser):
         help='The number of cpus to be used for multiprocessing or "all" for '
              'all available cpus.',
         type=IntegerMappingType(0, all=os.cpu_count()),
-        default=8,
+        default='all',
     )
 
 
