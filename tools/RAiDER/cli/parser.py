@@ -1,8 +1,9 @@
+import argparse
 import os
 
 from RAiDER.cli.validators import BBoxAction, IntegerMappingType
 
-def add_cpus(parser):
+def add_cpus(parser: argparse.ArgumentParser):
     parser.add_argument(
         '--cpus',
         help='The number of cpus to be used for multiprocessing or "all" for '
@@ -12,7 +13,7 @@ def add_cpus(parser):
     )
 
 
-def add_verbose(parser):
+def add_verbose(parser: argparse.ArgumentParser):
     parser.add_argument(
         '--verbose', '-v',
         help='Run in verbose mode',
@@ -21,7 +22,7 @@ def add_verbose(parser):
     )
 
 
-def add_out(parser):
+def add_out(parser: argparse.ArgumentParser):
     parser.add_argument(
         '--out',
         help='Output directory',
@@ -29,7 +30,7 @@ def add_out(parser):
     )
 
 
-def add_bbox(parser):
+def add_bbox(parser: argparse.ArgumentParser):
     parser.add_argument(
         '--bbox', '-b',
         help="Bounding box",
