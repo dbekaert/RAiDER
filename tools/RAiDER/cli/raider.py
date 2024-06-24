@@ -44,20 +44,20 @@ Program to calculate troposphere total delays using a weather model
 EXAMPLES = """
 Usage examples:
 raider.py -g
-raider.py customTemplatefile.cfg
+raider.py run_config_file.yaml
 """
 
 
-def read_template_file(fname):
+def read_run_config_file(fname):
     """
-    Read the template file into a dictionary structure.
+    Read the run config file into a dictionary structure.
     Args:
-        fname (str): full path to the template file
+        fname (str): full path to the run config file
     Returns:
         dict: arguments to pass to RAiDER functions
 
     Examples:
-    >>> template = read_template_file('raider.yaml')
+    >>> run_config = read_run_config_file('raider.yaml')
 
     """
     from RAiDER.cli.validators import (
@@ -80,51 +80,51 @@ def read_template_file(fname):
             params[key] = {}
 
     # Parse the user-provided arguments
-    template = DEFAULT_DICT.copy()
+    run_config = DEFAULT_DICT.copy()
     for key, value in params.items():
         if key == 'runtime_group':
             for k, v in value.items():
                 if v is not None:
-                    template[k] = v
+                    run_config[k] = v
         if key == 'time_group':
-            template.update(enforce_time(AttributeDict(value)))
+            run_config.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
-            template['date_list'] = parse_dates(AttributeDict(value))
+            run_config['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
             ## in case a DEM is passed and should be used
             dct_temp = {**AttributeDict(value),
                         **AttributeDict(params['height_group'])}
-            template['aoi'] = get_query_region(AttributeDict(dct_temp))
+            run_config['aoi'] = get_query_region(AttributeDict(dct_temp))
 
         if key == 'los_group':
-            template['los']  = get_los(AttributeDict(value))
-            template['zref'] = AttributeDict(value).get('zref')
+            run_config['los']  = get_los(AttributeDict(value))
+            run_config['zref'] = AttributeDict(value).get('zref')
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
-            template['look_dir'] = value.lower()
+            run_config['look_dir'] = value.lower()
         if key == 'cube_spacing_in_m':
-            template[key] = float(value) if isinstance(value, str) else value
+            run_config[key] = float(value) if isinstance(value, str) else value
         if key == 'download_only':
-            template[key] = bool(value)
+            run_config[key] = bool(value)
 
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
         if key == 'height_group':
-            template.update(
+            run_config.update(
                 get_heights(
                     AttributeDict(value),
-                    template['output_directory'],
-                    template['station_file'],
-                    template['bounding_box'],
+                    run_config['output_directory'],
+                    run_config['station_file'],
+                    run_config['bounding_box'],
                 )
             )
 
         if key == 'weather_model':
-            template[key]= enforce_wm(value, template['aoi'])
+            run_config[key]= enforce_wm(value, run_config['aoi'])
 
-    template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
-    return AttributeDict(template)
+    run_config['aoi']._cube_spacing_m = run_config['cube_spacing_in_m']
+    return AttributeDict(run_config)
 
 
 def drop_nans(d):
@@ -171,7 +171,7 @@ def calcDelays(iargs=None):
         help='only download a weather model.'
     )
 
-    ## if not None, will replace first argument (customTemplateFile)
+    ## if not None, will replace first argument (run_config_file)
     args = p.parse_args(args=iargs)
 
     # default input file
@@ -180,7 +180,7 @@ def calcDelays(iargs=None):
 
     if args.generate_template:
         dst = os.path.join(os.getcwd(), 'raider.yaml')
-        shutil.copyfile(template_file, dst)
+        shutil.copyfile(example_run_config_path, dst)
         logger.info('Wrote: %s', dst)
         sys.exit()
 
@@ -197,21 +197,21 @@ def calcDelays(iargs=None):
         print(examples)
         raise SystemExit(f'ERROR: {msg}')
 
-    if  args.customTemplateFile:
+    if  args.run_config_file:
         # check the existence
-        if not os.path.isfile(args.customTemplateFile):
-            raise FileNotFoundError(args.customTemplateFile)
+        if not os.path.isfile(args.run_config_file):
+            raise FileNotFoundError(args.run_config_file)
 
-        args.customTemplateFile = os.path.abspath(args.customTemplateFile)
+        args.run_config_file = os.path.abspath(args.run_config_file)
     else:
-        args.customTemplateFile = template_file
+        args.run_config_file = example_run_config_path
 
-    # Read the template file
-    params = read_template_file(args.customTemplateFile)
+    # Read the run config file
+    params = read_run_config_file(args.run_config_file)
 
     # Argument checking
     params  = checkArgs(params)
-    dl_only = True if params['download_only'] or args.download_only else False
+    dl_only = params['download_only'] or args.download_only
 
     if not params.verbose:
         logger.setLevel(logging.INFO)

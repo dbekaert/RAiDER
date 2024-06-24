@@ -2,7 +2,7 @@ import datetime
 import os
 import shutil
 from test import TEST_DIR, WM, update_yaml
-from RAiDER.cli.raider import read_template_file
+from RAiDER.cli.raider import read_run_config_file
 
 def test_datelist():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'datelist')
@@ -25,7 +25,7 @@ def test_datelist():
       }
     
     cfg  = update_yaml(dct_group, 'temp.yaml')
-    param_dict = read_template_file(cfg)
+    param_dict = read_run_config_file(cfg)
     assert param_dict['date_list'] == true_dates
 
 
@@ -46,5 +46,5 @@ def test_datestep():
       }
     
     cfg  = update_yaml(dct_group, 'temp.yaml')
-    param_dict = read_template_file(cfg)
+    param_dict = read_run_config_file(cfg)
     assert param_dict['date_list'] == true_dates
