@@ -29,7 +29,7 @@ look_dir: right
 ## ERA-5, ERA-5T, HRES, ERA-I, NCMR, HRRR, GMAO, MERRA-2
 ## See https://github.com/dbekaert/RAiDER/blob/10686ee3f3533a33ca0788d866003c363f58fd5e/WeatherModels.md
 ## for more details and information on licensing
-weather_model: GMAO
+weather_model: ERA5
 
 
 ########## 2. Date
@@ -39,7 +39,7 @@ weather_model: GMAO
 ## Dates can be a single date, two dates that define a set of dates every day, or two dates with an interval
 ## These will be ignored in the case that date_list is specified
 date_group:
-  date_start: 20200103
+  date_start: 20211102
   date_end:
   date_step:   # date interval to download. Default is 1, i.e. every day between date_start and date_end
 
@@ -56,7 +56,7 @@ date_group:
 ## end_time will be the end time of the acquition, if not supplied it will be assumed to be 30 seconds post start time
 ## For downloading weather models, RAiDER currently rounds to the nearest hour rather than interpolating
 time_group:
-  time: "00:00:00"
+  time: "06:21:59"
   end_time:
   interpolate_time: 'center_time' # possible options are string values with 'none', 'center_time', 'azimuth_time_grid'
 
@@ -71,11 +71,11 @@ time_group:
 ## 3/4. lat/lon raster files (such as those produced by the ISCE software)
 ## 5. A comma-delimited file (station_file) containing at least the columns Lat and Lon, and optionally Hgt_m
 aoi_group:
-  bounding_box:
+  bounding_box: 53.0 56.0 -4.0 -1.0
   geocoded_file:
   lat_file:
   lon_file:
-  station_file: ./data/LA_GNSS.csv
+  station_file:
 
 
 ########## 5. Height info
@@ -93,7 +93,6 @@ height_group:
   dem:
   use_dem_latlon: False
   height_file_rdr:
-  # Return only these specific height levels
   height_levels: 0 50 100 500 1000
 
 
@@ -104,7 +103,7 @@ height_group:
 ## ZTD calculation: No additional inputs required
 ## STD calculation:
 los_group:
-  ray_trace: False  # Use projected slant delay by default
+  ray_trace: True
   zref:  # Maximum integration height. Only used in raytracing. Default: top of weather model.
 
   # raster file in radar or geocoordinates
@@ -115,7 +114,7 @@ los_group:
   los_cube:
 
   # File containing orbit statevectors, see *** for details
-  orbit_file:
+  orbit_file: ./UYk-isce-S1B_OPER_AUX_POEORB_OPOD_20211122T112354_V20211101T225942_20211103T005942.eof
 
 
 ########## 7. Run-time parameters
