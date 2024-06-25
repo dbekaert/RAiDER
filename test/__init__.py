@@ -41,6 +41,7 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
         os.path.dirname(RAiDER.__file__),
         'cli',
         'examples',
+        'template',
         'template.yaml'
     )
 

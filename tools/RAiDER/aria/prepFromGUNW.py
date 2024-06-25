@@ -363,6 +363,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
         os.path.dirname(RAiDER.__file__),
         'cli',
         'examples',
+        'template',
         'template.yaml'
     )
 
