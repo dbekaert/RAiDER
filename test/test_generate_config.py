@@ -46,7 +46,8 @@ def test_example_uk_isce():
     with cd_to_temp_dir():
         subprocess.run(['raider.py', '--generate_config', 'example_UK_isce'])
         assert os.path.exists('example_UK_isce.yaml')
-        assert os.path.exists('example_UK_isce-S1B_OPER_AUX_POEORB_OPOD_20211122T112354_V20211101T225942_20211103T005942.EOF')
+        assert os.path.exists(
+            'example_UK_isce-S1B_OPER_AUX_POEORB_OPOD_20211122T112354_V20211101T225942_20211103T005942.EOF')
 
 
 def test_confirm_overwrite_yes():
