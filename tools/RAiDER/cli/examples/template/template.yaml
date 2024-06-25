@@ -1,5 +1,5 @@
 # vim: set filetype=yaml:
-##------------------------------ raider.yaml ---------------------------------##
+##----------------------------- template.yaml --------------------------------##
 ##
 ##  There are three basic options for calculating tropospheric delays:
 ##  1. Calculate Zenith delays (ZTD; Default option if nothing else is passed)
