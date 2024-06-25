@@ -19,25 +19,24 @@ from RAiDER.models.customExceptions import NoStationDataFoundError
 _UNR_URL = "http://geodesy.unr.edu/"
 
 
-
 def get_station_list(
-        bbox=None, 
-        stationFile=None, 
-        userstatList=None, 
-        writeStationFile=True,
-        writeLoc=None, 
-        name_appendix=''
-    ):
+    bbox=None,
+    stationFile=None,
+    userstatList=None,
+    writeStationFile=True,
+    writeLoc=None,
+    name_appendix=''
+):
     '''
     Creates a list of stations inside a lat/lon bounding box from a source
-    
+
     Args:
         bbox: list of float - length-4 list of floats that describes a bounding box. 
                                 Format is S N W E
         writeLoc: string    - Directory to write data
         userstatList: list  - list of specific IDs to access
         name_appendix: str  - name to append to output file
-    
+
     Returns:
         stations: list of strings   - station IDs to access
         output_file: string         - file to write delays
@@ -51,7 +50,8 @@ def get_station_list(
 
     # write to file and pass final stations list
     if writeStationFile:
-        output_file = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox' + name_appendix + '.csv')
+        output_file = os.path.join(writeLoc or os.getcwd(
+        ), 'gnssStationList_overbbox' + name_appendix + '.csv')
         station_data.to_csv(output_file, index=False)
 
     return list(station_data['ID'].values), [output_file if writeStationFile else station_data][0]
@@ -64,20 +64,22 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
     '''
     if llhBox is None:
         llhBox = [-90, 90, 0, 360]
-    S,N,W,E = llhBox
+    S, N, W, E = llhBox
     if (W < 0) or (E < 0):
-        raise ValueError('get_stats_by_llh: bounding box must use 0 < lon < 360')
+        raise ValueError(
+            'get_stats_by_llh: bounding box must be on lon range [0, 360]')
 
     stationHoldings = '{}NGLStationPages/llh.out'.format(baseURL)
     # it's a file like object and works just like a file
 
     stations = pd.read_csv(
-        stationHoldings, 
-        delim_whitespace=True, 
+        stationHoldings,
+        sep=r'\s+',
         names=['ID', 'Lat', 'Lon', 'Hgt_m']
     )
     stations = filterToBBox(stations, llhBox)
-    stations['Lon'] = ((stations['Lon'].values + 180) % 360) - 180 # convert lons to -180 - 180
+    # convert lons from [0, 360] to [-180, 180]
+    stations['Lon'] = ((stations['Lon'].values + 180) % 360) - 180
 
     stations = filterToBBox(stations, llhBox)
 
@@ -85,12 +87,12 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
 
 
 def download_tropo_delays(
-        stats, years, 
-        gps_repo='UNR', 
-        writeDir='.', 
-        numCPUs=8, 
-        download=False,
-    ):
+    stats, years,
+    gps_repo='UNR',
+    writeDir='.',
+    numCPUs=8,
+    download=False,
+):
     '''
     Check for and download GNSS tropospheric delays from an archive. If 
     download is True then files will be physically downloaded, but this  
@@ -128,13 +130,16 @@ def download_tropo_delays(
                 if fileurl['path']
             ]
         else:
-            raise NotImplementedError('download_tropo_delays: gps_repo "{}" not yet implemented'.format(gps_repo))
+            raise NotImplementedError(
+                'download_tropo_delays: gps_repo "{}" not yet implemented'.format(gps_repo))
 
     # Write results to file
-    if len(results)==0:
-        raise NoStationDataFoundError(station_list=stats['ID'].to_list(), years=years)
+    if len(results) == 0:
+        raise NoStationDataFoundError(
+            station_list=stats['ID'].to_list(), years=years)
     statDF = pd.DataFrame(results).set_index('ID')
-    statDF.to_csv(os.path.join(writeDir, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
+    statDF.to_csv(os.path.join(
+        writeDir, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
 
 
 def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
@@ -205,7 +210,7 @@ def in_box(lat, lon, llhbox):
 
 def fix_lons(lon):
     """
-    Fix the given longitudes into the range ``[-180, 180]``.
+    Fix the given longitudes into the range `[-180, 180]`.
     """
     fixed_lon = ((lon + 180) % 360) - 180
     # Make the positive 180s positive again.
@@ -227,19 +232,19 @@ def main(inps=None):
     Main workflow for querying supported GPS repositories for zenith delay information.
     """
     try:
-        dateList     = inps.date_list
-        returnTime   = inps.time
+        dateList = inps.date_list
+        returnTime = inps.time
     except:
-        dateList     = inps.dateList
-        returnTime   = inps.returnTime
+        dateList = inps.dateList
+        returnTime = inps.returnTime
 
     station_file = inps.station_file
     bounding_box = inps.bounding_box
-    gps_repo     = inps.gps_repo
-    out          = inps.out
-    download     = inps.download
-    cpus         = inps.cpus
-    verbose      = inps.verbose
+    gps_repo = inps.gps_repo
+    out = inps.out
+    download = inps.download
+    cpus = inps.cpus
+    verbose = inps.verbose
 
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -278,7 +283,8 @@ def main(inps=None):
     # Extract delays for each station
     dateList = [k.strftime('%Y-%m-%d') for k in dateList]
     get_station_data(
-        os.path.join(out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)),
+        os.path.join(
+            out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)),
         dateList,
         gps_repo=gps_repo,
         numCPUs=cpus,
@@ -303,7 +309,8 @@ def parse_bbox(bounding_box):
         bbox = bounding_box
 
     else:
-        raise Exception('Passing a file with a bounding box not yet supported.')
+        raise Exception(
+            'Passing a file with a bounding box not yet supported.')
 
     long_cross_zero = 1 if bbox[2] * bbox[3] < 0 else 0
 
@@ -313,7 +320,7 @@ def parse_bbox(bounding_box):
 
     if bbox[3] < 0:
         bbox[3] += 360
-    
+
     return bbox, long_cross_zero
 
 
@@ -326,8 +333,10 @@ def get_stats(bbox, long_cross_zero, out, station_file):
         bbox2 = bbox.copy()
         bbox1[3] = 360.0
         bbox2[2] = 0.0
-        stats1, origstatsFile1 = get_station_list(bbox=bbox1, writeLoc=out, stationFile=station_file, name_appendix='_a')
-        stats2, origstatsFile2 = get_station_list(bbox=bbox2, writeLoc=out, stationFile=station_file, name_appendix='_b')
+        stats1, origstatsFile1 = get_station_list(
+            bbox=bbox1, writeLoc=out, stationFile=station_file, name_appendix='_a')
+        stats2, origstatsFile2 = get_station_list(
+            bbox=bbox2, writeLoc=out, stationFile=station_file, name_appendix='_b')
         stats = stats1 + stats2
         origstatsFile = origstatsFile1[:-6] + '.csv'
         file_a = pd.read_csv(origstatsFile1)
@@ -339,28 +348,28 @@ def get_stats(bbox, long_cross_zero, out, station_file):
         if bbox[3] < bbox[2]:
             bbox[3] = 360.0
         stats, origstatsFile = get_station_list(
-            bbox=bbox, 
-            writeLoc=out, 
+            bbox=bbox,
+            writeLoc=out,
             stationFile=station_file
         )
-    
+
     return stats
 
 
 def filterToBBox(stations, llhBox):
     '''
     Filter a dataframe by lat/lon.
-    *NOTE: llhBox longitude format should be 0-360
-    
+    *NOTE: llhBox longitude format should be [0, 360]
+
     Args:
         stations: DataFrame     - a pandas dataframe with "Lat" and "Lon" columns
         llhBox: list of float   - 4-element list: [S, N, W, E]
-    
+
     Returns:
         a Pandas Dataframe with stations removed that are not inside llhBox
     '''
-    S,N,W,E = llhBox
-    if (W<0) or (E<0):
+    S, N, W, E = llhBox
+    if (W < 0) or (E < 0):
         raise ValueError('llhBox longitude format should 0-360')
 
     # For a user-provided file, need to check the column names
@@ -368,19 +377,20 @@ def filterToBBox(stations, llhBox):
     lat_keys = ['lat', 'latitude', 'Lat', 'Latitude']
     lon_keys = ['lon', 'longitude', 'Lon', 'Longitude']
     index = None
-    for k,key in enumerate(lat_keys):
+    for k, key in enumerate(lat_keys):
         if key in list(keys):
             index = k
             break
     if index is None:
-        raise KeyError('filterToBBox: No valid column names found for latitude and longitude')
+        raise KeyError(
+            'filterToBBox: No valid column names found for latitude and longitude')
     lon_key = lon_keys[k]
     lat_key = lat_keys[k]
 
     if stations[lon_key].min() < 0:
         # convert lon format to -180 to 180
-        W,E = [((D+ 180) % 360) - 180 for D in [W,E]]
-        
-    mask = (stations[lat_key] > S) & (stations[lat_key] < N) & (stations[lon_key] < E) & (stations[lon_key] > W)
-    return stations[mask]
+        W, E = [((D + 180) % 360) - 180 for D in [W, E]]
 
+    mask = (stations[lat_key] > S) & (stations[lat_key] < N) & (
+        stations[lon_key] < E) & (stations[lon_key] > W)
+    return stations[mask]

@@ -9,6 +9,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 ### Added
 * [656](https://github.com/dbekaert/RAiDER/pull/656) - example run configuration files available through `raider.py --generate_config <example_name>`.
+### Changed
+* [651](https://github.com/dbekaert/RAiDER/pull/651) Removed use of deprecated argument to `pandas.read_csv`.
 
 ## [0.5.1]
 ### Changed
