@@ -63,7 +63,8 @@ class WeatherModel(ABC):
         self._model_level_type = 'ml'
 
         self._valid_range = (
-            datetime.date(1900, 1, 1),
+            datetime.datetime(1900, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+            datetime.datetime.now(datetime.timezone.utc).date(),
         )  # Tuple of min/max years where data is available.
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
         self._time = None
@@ -156,6 +157,7 @@ class WeatherModel(ABC):
         time = UTC datetime
         '''
         self.checkTime(time)
+        self.setTime(time)
 
         # write the error raised by the weather model API to the log
         try:
@@ -296,25 +298,36 @@ class WeatherModel(ABC):
     def checkTime(self, time):
         '''
         Checks the time against the lag time and valid date range for the given model type
+
+        Parameters:
+            time    - Python datetime object
+
+        Raises: 
+            Different errors depending on the issue
         '''
+        start_time = self._valid_range[0]
         end_time = self._valid_range[1]
-        end_time = end_time if isinstance(end_time, str) else end_time.date()
+
+        if not isinstance(time, datetime.datetime):
+            raise ValueError('"time" should be a Python datetime object, instead it is {}'.format(time))
+        
+        # This is needed because Python now gets angry if you try to compare non-timezone-aware 
+        # objects with time-zone aware objects. 
+        time = time.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
         logger.info(
             'Weather model %s is available from %s to %s',
-            self.Model(), self._valid_range[0].date(), end_time
+            self.Model(), start_time, end_time
         )
-
-        if time < self._valid_range[0]:
+        if time < start_time:
             raise DatetimeOutsideRange(self.Model(), time)
 
-        if self._valid_range[1] is not None:
-            if self._valid_range[1] == 'Present':
-                pass
-            elif self._valid_range[1] < time:
-                raise DatetimeOutsideRange(self.Model(), time)
+        if end_time < time:
+            raise DatetimeOutsideRange(self.Model(), time)
 
-        if time > datetime.datetime.utcnow() - self._lag_time:
+        # datetime.datetime.utcnow() is deprecated because Python developers 
+        # want everyone to use timezone-aware datetimes. 
+        if time > datetime.datetime.now(datetime.timezone.utc) - self._lag_time:
             raise DatetimeOutsideRange(self.Model(), time)
 
 

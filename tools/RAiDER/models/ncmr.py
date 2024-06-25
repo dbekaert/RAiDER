@@ -39,7 +39,8 @@ class NCMR(WeatherModel):
         self._time_res = TIME_RES[self._dataset.upper()]
 
         # Tuple of min/max years where data is available.
-        self._valid_range = (datetime.datetime(2015, 12, 1), "Present")
+        self._valid_range = (datetime.datetime(2015, 12, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+                             datetime.datetime.now(datetime.timezone.utc))
         # Availability lag time in days/hours
         self._lag_time = datetime.timedelta(hours=6)
 

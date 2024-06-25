@@ -205,7 +205,8 @@ class HRRR(WeatherModel):
         self._time_res = TIME_RES[self._dataset.upper()]
 
         # Tuple of min/max years where data is available.
-        self._valid_range = (datetime.datetime(2016, 7, 15), "Present")
+        self._valid_range = (datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())).date(), 
+                             datetime.datetime.now(datetime.timezone.utc).date())
         self._lag_time = datetime.timedelta(hours=3)  # Availability lag time in days
 
         # model constants
@@ -361,7 +362,10 @@ class HRRRAK(WeatherModel):
         self._dataset = 'hrrrak'
         self._Name = "HRRR-AK"
         self._time_res = TIME_RES['HRRR-AK']
-        self._valid_range = (datetime.datetime(2018, 7, 13), "Present")
+        self._valid_range = (
+            datetime.datetime(2018, 7, 13).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+            datetime.datetime.now(datetime.timezone.utc)
+        )
         self._lag_time = datetime.timedelta(hours=3)
         self._valid_bounds = HRRR_AK_COVERAGE_POLYGON
         # The projection information gets read directly from the  weather model file but we
