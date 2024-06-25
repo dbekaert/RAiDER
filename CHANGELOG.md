@@ -9,6 +9,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 ### Added
 * [650](https://github.com/dbekaert/RAiDER/pull/650) - add automatic code formatting
+### Changed
+* [651](https://github.com/dbekaert/RAiDER/pull/651) - Removed use of deprecated argument to `pandas.read_csv`.
 
 ## [0.5.1]
 ### Changed
