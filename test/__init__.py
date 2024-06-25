@@ -32,13 +32,17 @@ def pushd(dir):
 def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
     """ Write a new yaml file from a dictionary.
 
-    Updates parameters in the default 'raider.yaml' file.
+    Updates parameters in the default 'template.yaml' file.
     Each key:value pair will in 'dct_cfg' will overwrite that in the default
     """
     import RAiDER, yaml
 
     run_config_path = os.path.join(
-                      os.path.dirname(RAiDER.__file__), 'cli', 'raider.yaml')
+        os.path.dirname(RAiDER.__file__),
+        'cli',
+        'examples',
+        'template.yaml'
+    )
 
     with open(run_config_path, 'r') as f:
         try:
