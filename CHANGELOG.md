@@ -9,6 +9,8 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 ### Changed
 * [651](https://github.com/dbekaert/RAiDER/pull/651) Removed use of deprecated argument to `pandas.read_csv`.
+### Fixed
+* [648](https://github.com/dbekaert/RAiDER/issues/648) - Fixed opaque error message if a GUNW file is not produced while HyP3 independently against a previous INSAR_ISCE.
 
 ## [0.5.1]
 ### Changed
