@@ -85,7 +85,7 @@ RAiDER has the ability to download weather models from third-parties; some of wh
 ## 3. Running RAiDER and Documentation
 
 For detailed documentation, examples, and Jupyter notebooks see the [RAiDER-docs repository](https://github.com/dbekaert/RAiDER-docs).
-We welcome contributions of other examples on how to leverage the RAiDER  (see [here](https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md) for instructions).
+We welcome contributions of other examples on how to leverage the RAiDER (see [here](https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md) for instructions).
 ``` raiderDelay.py -h ``` provides a help menu and list of example commands to get started.
 The RAiDER scripts are highly modularized in Python and allows for building your own processing workflow.
 
