@@ -8,7 +8,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 ### Changed
-* [651](https://github.com/dbekaert/RAiDER/pull/651) Removed use of deprecated argument to `pandas.read_csv`.
+* [651](https://github.com/dbekaert/RAiDER/pull/651) - Removed use of deprecated argument to `pandas.read_csv`.
+### Fixed
+* [657](https://github.com/dbekaert/RAiDER/pull/657) - Fixed a few typos in `README.md`.
 
 ## [0.5.1]
 ### Changed
