@@ -542,8 +542,10 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         iargs.file = aws.get_s3_file(
             iargs.bucket, iargs.input_bucket_prefix, '.nc')
         if iargs.file is None:
-            raise ValueError(f'GUNW product file could not be found at s3://{
-                             iargs.bucket}/{iargs.input_bucket_prefix}')
+            raise ValueError(
+                'GUNW product file could not be found at'
+                f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+            )
         if iargs.weather_model == 'HRRR' and (iargs.interpolate_time == 'azimuth_time_grid'):
             file_name_str = str(iargs.file)
             gunw_nc_name = file_name_str.split('/')[-1]
@@ -562,8 +564,10 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         json_file_path = aws.get_s3_file(
             iargs.bucket, iargs.input_bucket_prefix, '.json')
         if json_file_path is None:
-            raise ValueError(f'GUNW metadata file could not be found at s3://{
-                             iargs.bucket}/{iargs.input_bucket_prefix}')
+            raise ValueError(
+                'GUNW metadata file could not be found at'
+                f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+            )
         json_data = json.load(open(json_file_path))
         json_data['metadata'].setdefault(
             'weather_model', []).append(iargs.weather_model)
@@ -573,8 +577,10 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         browse_file_path = aws.get_s3_file(
             iargs.bucket, iargs.input_bucket_prefix, '.png')
         if browse_file_path is None:
-            raise ValueError(f'GUNW browse image could not be found at s3://{
-                             iargs.bucket}/{iargs.input_bucket_prefix}')
+            raise ValueError(
+                'GUNW browse image could not be found at'
+                f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+            )
 
     elif not iargs.file:
         raise ValueError('Either argument --file or --bucket must be provided')
