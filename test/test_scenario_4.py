@@ -22,7 +22,7 @@ def test_aoi_without_xpts():
     lonfile = os.path.join(SCENARIO_DIR, 'lon.rdr')
     hgtfile = os.path.join(SCENARIO_DIR, 'hgt.rdr')
     aoi = RasterRDR(latfile, lonfile, hgtfile)
-    dt = datetime.datetime(2020,1,1)
+    dt = datetime.datetime(2020,1,1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
     wm = MERRA2()
     wm.set_latlon_bounds(aoi.bounds())
@@ -44,7 +44,7 @@ def test_get_delays_on_cube():
     lonfile = os.path.join(SCENARIO_DIR, 'lon.rdr')
     hgtfile = os.path.join(SCENARIO_DIR, 'hgt.rdr')
     aoi = RasterRDR(latfile, lonfile, hgtfile)
-    dt = datetime.datetime(2020,1,1)
+    dt = datetime.datetime(2020,1,1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
     wm = MERRA2()
     wm.set_latlon_bounds(aoi.bounds())

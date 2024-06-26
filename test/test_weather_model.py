@@ -150,21 +150,21 @@ def test_weatherModel_basic1(model: MockWeatherModel):
     assert wm._humidityType == 'q'
 
     wm.setTime(datetime.datetime(2020, 1, 1, 6, 0, 0))
-    assert wm._time == datetime.datetime(2020, 1, 1, 6, 0, 0)
+    assert wm._time == datetime.datetime(2020, 1, 1, 6, 0, 0).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
     wm.setTime('2020-01-01T00:00:00')
-    assert wm._time == datetime.datetime(2020, 1, 1, 0, 0, 0)
+    assert wm._time == datetime.datetime(2020, 1, 1, 0, 0, 0).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
     wm.setTime('19720229', fmt='%Y%m%d')  # test a leap year
-    assert wm._time == datetime.datetime(1972, 2, 29, 0, 0, 0)
+    assert wm._time == datetime.datetime(1972, 2, 29, 0, 0, 0).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
     with pytest.raises(DatetimeOutsideRange):
-        wm.checkTime(datetime.datetime(1950, 1, 1))
+        wm.checkTime(datetime.datetime(1950, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
 
-    wm.checkTime(datetime.datetime(2000, 1, 1))
+    wm.checkTime(datetime.datetime(2000, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
 
     with pytest.raises(DatetimeOutsideRange):
-        wm.checkTime(datetime.datetime.now())
+        wm.checkTime(datetime.datetime.now().replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
 
 
 def test_uniform_in_z_small(model: MockWeatherModel):
@@ -256,8 +256,8 @@ def test_erai(erai: ERAI):
     wm = erai
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-I'
-    assert wm._valid_range[0] == datetime.datetime(1979, 1, 1)
-    assert wm._valid_range[1] == datetime.datetime(2019, 8, 31)
+    assert wm._valid_range[0] == datetime.datetime(1979, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
+    assert wm._valid_range[1] == datetime.datetime(2019, 8, 31).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     assert wm._proj.to_epsg() == 4326
 
 
@@ -265,7 +265,7 @@ def test_era5(era5: ERA5):
     wm = era5
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-5'
-    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1)
+    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     assert wm._proj.to_epsg() == 4326
 
 
@@ -273,7 +273,7 @@ def test_era5t(era5t: ERA5T):
     wm = era5t
     assert wm._humidityType == 'q'
     assert wm._Name == 'ERA-5T'
-    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1)
+    assert wm._valid_range[0] == datetime.datetime(1950, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     assert wm._proj.to_epsg() == 4326
 
 
@@ -281,7 +281,7 @@ def test_hres(hres: HRES):
     wm = hres
     assert wm._humidityType == 'q'
     assert wm._Name == 'HRES'
-    assert wm._valid_range[0] == datetime.datetime(1983, 4, 20)
+    assert wm._valid_range[0] == datetime.datetime(1983, 4, 20).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     assert wm._proj.to_epsg() == 4326
     assert wm._levels == 137
 
@@ -293,7 +293,7 @@ def test_gmao(gmao: GMAO):
     wm = gmao
     assert wm._humidityType == 'q'
     assert wm._Name == 'GMAO'
-    assert wm._valid_range[0] == datetime.datetime(2014, 2, 20)
+    assert wm._valid_range[0] == datetime.datetime(2014, 2, 20).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     assert wm._proj.to_epsg() == 4326
 
 
@@ -301,7 +301,7 @@ def test_merra2(merra2: MERRA2):
     wm = merra2
     assert wm._humidityType == 'q'
     assert wm._Name == 'MERRA2'
-    assert wm._valid_range[0] == datetime.datetime(1980, 1, 1)
+    assert wm._valid_range[0] == datetime.datetime(1980, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     assert wm._proj.to_epsg() == 4326
 
 
@@ -309,11 +309,11 @@ def test_hrrr(hrrr: HRRR):
     wm = hrrr
     assert wm._humidityType == 'q'
     assert wm._Name == 'HRRR'
-    assert wm._valid_range[0] == datetime.datetime(2016, 7, 15)
+    assert wm._valid_range[0] == datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     assert wm._proj.to_epsg() is None
     with pytest.raises(DatetimeOutsideRange):
-        wm.checkTime(datetime.datetime(2010, 7, 15))
-    wm.checkTime(datetime.datetime(2018, 7, 12))
+        wm.checkTime(datetime.datetime(2010, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
+    wm.checkTime(datetime.datetime(2018, 7, 12).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
 
     assert isinstance(wm.checkValidBounds([35, 40, -95, -90]), HRRR)
 
@@ -324,7 +324,7 @@ def test_hrrr(hrrr: HRRR):
 def test_hrrrak(hrrrak: HRRRAK):
     wm = hrrrak
     assert wm._Name == 'HRRR-AK'
-    assert wm._valid_range[0] == datetime.datetime(2018, 7, 13)
+    assert wm._valid_range[0] == datetime.datetime(2018, 7, 13).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
     assert isinstance(wm.checkValidBounds([45, 47, 200, 210]), HRRRAK)
 
@@ -332,16 +332,16 @@ def test_hrrrak(hrrrak: HRRRAK):
         wm.checkValidBounds([15, 20, 265, 270])
 
     with pytest.raises(DatetimeOutsideRange):
-        wm.checkTime(datetime.datetime(2018, 7, 12))
+        wm.checkTime(datetime.datetime(2018, 7, 12).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
 
-    wm.checkTime(datetime.datetime(2018, 7, 15))
+    wm.checkTime(datetime.datetime(2018, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
 
 
 def test_ncmr(ncmr: NCMR):
     wm = ncmr
     assert wm._humidityType == 'q'
     assert wm._Name == 'NCMR'
-    assert wm._valid_range[0] == datetime.datetime(2015, 12, 1)
+    assert wm._valid_range[0] == datetime.datetime(2015, 12, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
 
 def test_find_svp():

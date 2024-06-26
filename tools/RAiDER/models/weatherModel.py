@@ -20,7 +20,7 @@ from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
 from RAiDER.models.customExceptions import *
 from RAiDER.utilFcns import (
-    robmax, robmin, writeWeatherVarsXarray, calcgeoh, transform_coords, clip_bbox
+    robmax, robmin, calcgeoh, transform_coords, clip_bbox
 )
 
 TIME_RES = {'GMAO': 3,
@@ -187,6 +187,8 @@ class WeatherModel(ABC):
             self._time = time
         else:
             raise ValueError('"time" must be a string or a datetime object')
+        if self._time.tzinfo is None:
+            self._time = self._time.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
 
     def get_latlon_bounds(self):

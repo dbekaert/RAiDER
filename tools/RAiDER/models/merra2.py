@@ -45,7 +45,7 @@ class MERRA2(WeatherModel):
         enddate = datetime.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month)[1])
         self._valid_range = (datetime.datetime(1980, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
                              datetime.datetime.now(datetime.timezone.utc))
-        lag_time = utcnow - enddate
+        lag_time = utcnow - enddate.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
         self._lag_time = datetime.timedelta(days=lag_time.days)  # Availability lag time in days
         self._time_res = 1
         

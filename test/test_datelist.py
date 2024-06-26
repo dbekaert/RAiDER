@@ -11,7 +11,8 @@ def test_datelist():
     os.makedirs(SCENARIO_DIR, exist_ok=False)
 
     dates = ['20200124', '20200130']
-    true_dates = [datetime.datetime(2020,1,24), datetime.datetime(2020,1,30)]
+    true_dates = [datetime.datetime(2020,1,24).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+                  datetime.datetime(2020,1,30).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))]
 
     dct_group = {
        'aoi_group': {'bounding_box': [28, 28.3, -116.3, -116]},
@@ -32,7 +33,9 @@ def test_datelist():
 def test_datestep():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'scenario_5')
     st, en, step = '20200124', '20200130', 3
-    true_dates = [datetime.datetime(2020,1,24), datetime.datetime(2020,1,27), datetime.datetime(2020,1,30)]
+    true_dates = [datetime.datetime(2020,1,24).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+                  datetime.datetime(2020,1,27).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+                  datetime.datetime(2020,1,30).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))]
 
     dct_group = {
        'aoi_group': {'bounding_box': [28, 39, -123, -112]},

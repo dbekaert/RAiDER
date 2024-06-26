@@ -17,7 +17,7 @@ def test_era5():
     wm.set_latlon_bounds(np.array([10, 10.2, -72, -72]))
     wm.fetch(
         os.path.join(TEST_DIR, 'test_geom', 'test_era5.nc'),
-        datetime(2020, 1, 1, 0, 0, 0)
+        datetime(2020, 1, 1, 0, 0, 0).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     )
 
 
@@ -27,7 +27,7 @@ def test_era5t():
     wm.set_latlon_bounds(np.array([10, 10.2, -72, -72]))
     wm.fetch(
         os.path.join(TEST_DIR, 'test_geom', 'test_era5t.nc'),
-        datetime(2020, 1, 1, 0, 0, 0)
+        datetime(2020, 1, 1, 0, 0, 0).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     )
 
 
@@ -37,5 +37,5 @@ def test_erai():
     wm.set_latlon_bounds(np.array([10, 10.2, -72, -72]))
     wm.fetch(
         os.path.join(TEST_DIR, 'test_geom', 'test_erai.nc'),
-        datetime(2017, 1, 1, 0, 0, 0)
+        datetime(2017, 1, 1, 0, 0, 0).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
     )

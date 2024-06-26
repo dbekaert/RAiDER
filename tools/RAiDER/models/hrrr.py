@@ -205,8 +205,10 @@ class HRRR(WeatherModel):
         self._time_res = TIME_RES[self._dataset.upper()]
 
         # Tuple of min/max years where data is available.
-        self._valid_range = (datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())).date(), 
-                             datetime.datetime.now(datetime.timezone.utc).date())
+        self._valid_range = (
+            datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+            datetime.datetime.now(datetime.timezone.utc)
+        )
         self._lag_time = datetime.timedelta(hours=3)  # Availability lag time in days
 
         # model constants
