@@ -6,7 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import numpy as np
 import xarray as xr
 import rasterio
@@ -85,6 +85,7 @@ def get_acq_time_from_slc_id(slc_id: str) -> pd.Timestamp:
     return pd.Timestamp(ts_str)
 
 
+
 def check_weather_model_availability(gunw_path: str,
                                      weather_model_name: str) -> bool:
     """Checks weather reference and secondary dates of GUNW occur within
@@ -110,8 +111,8 @@ def check_weather_model_availability(gunw_path: str,
     ref_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='reference')
     sec_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='secondary')
 
-    ref_ts = get_acq_time_from_slc_id(ref_slc_ids[0])
-    sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0])
+    ref_ts = get_acq_time_from_slc_id(ref_slc_ids[0]).replace(tzinfo=timezone(offset=timedelta()))
+    sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0]).replace(tzinfo=timezone(offset=timedelta()))
 
     if weather_model_name == 'HRRR':
         group = '/science/grids/data/'
@@ -137,9 +138,7 @@ def check_weather_model_availability(gunw_path: str,
     weather_model = weather_model_cls()
 
     wm_start_date, wm_end_date = weather_model._valid_range
-    if isinstance(wm_end_date, str) and wm_end_date == 'Present':
-        wm_end_date = datetime.today() - weather_model._lag_time
-    elif not isinstance(wm_end_date, datetime):
+    if not isinstance(wm_end_date, datetime):
         raise ValueError(f'the weather model\'s end date is not valid: {wm_end_date}')
     ref_cond = ref_ts <= wm_end_date
     sec_cond = sec_ts >= wm_start_date
