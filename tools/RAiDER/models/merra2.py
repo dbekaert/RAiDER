@@ -106,10 +106,6 @@ class MERRA2(WeatherModel):
         else:
             url_sub = 400
 
-        T0 = datetime.datetime(time.year, time.month, time.day, 0, 0, 0)
-        DT = time - T0
-        time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
-
         # Earthdata credentials
         earthdata_usr, earthdata_pwd = read_EarthData_loginInfo(EARTHDATA_RC)
 
