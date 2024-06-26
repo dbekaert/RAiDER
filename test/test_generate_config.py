@@ -6,6 +6,8 @@ corresponding data files.
 If such a file already exists, the script should prompt the user to
 confirm overwriting the file.
 '''
+import pytest
+
 import os
 import subprocess
 import tempfile
@@ -22,32 +24,21 @@ def cd_to_temp_dir():
     finally:
         os.chdir(old_pwd)
 
-
-def test_template():
+@pytest.mark.parametrize(
+    'name,data_files',
+    [
+        ('template', []),
+        ('example_LA_bbox', []),
+        ('example_LA_GNSS', ['example_LA_GNSS.csv']),
+        ('example_UK_isce', ['example_UK_isce-S1B_OPER_AUX_POEORB_OPOD_20211122T112354_V20211101T225942_20211103T005942.EOF']),
+    ]
+)
+def test_generate_config(name, data_files):
     with cd_to_temp_dir():
-        subprocess.run(['raider.py', '--generate_config', 'template'])
-        assert os.path.exists('template.yaml')
-
-
-def test_example_la_bbox():
-    with cd_to_temp_dir():
-        subprocess.run(['raider.py', '--generate_config', 'example_LA_bbox'])
-        assert os.path.exists('example_LA_bbox.yaml')
-
-
-def test_example_la_gnss():
-    with cd_to_temp_dir():
-        subprocess.run(['raider.py', '--generate_config', 'example_LA_GNSS'])
-        assert os.path.exists('example_LA_GNSS.yaml')
-        assert os.path.exists('example_LA_GNSS.csv')
-
-
-def test_example_uk_isce():
-    with cd_to_temp_dir():
-        subprocess.run(['raider.py', '--generate_config', 'example_UK_isce'])
-        assert os.path.exists('example_UK_isce.yaml')
-        assert os.path.exists(
-            'example_UK_isce-S1B_OPER_AUX_POEORB_OPOD_20211122T112354_V20211101T225942_20211103T005942.EOF')
+        subprocess.run(['raider.py', '--generate_config', name])
+        assert os.path.exists(f'{name}.yaml')
+        for data_file_name in data_files:
+            assert os.path.exists(data_file_name)
 
 
 def test_confirm_overwrite_yes():
