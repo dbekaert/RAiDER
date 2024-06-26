@@ -532,6 +532,8 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     if not iargs.file and iargs.bucket:
         # only use GUNW ID for checking if HRRR available
         iargs.file = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.nc')
+        if iargs.file is None:
+            raise ValueError(f'GUNW product file could not be found at s3://{iargs.bucket}/{iargs.input_bucket_prefix}')
         if iargs.weather_model == 'HRRR' and (iargs.interpolate_time == 'azimuth_time_grid'):
             file_name_str = str(iargs.file)
             gunw_nc_name = file_name_str.split('/')[-1]
@@ -548,12 +550,16 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
             print('Nothing to do because outside of weather model range')
             return
         json_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.json')
+        if json_file_path is None:
+            raise ValueError(f'GUNW metadata file could not be found at s3://{iargs.bucket}/{iargs.input_bucket_prefix}')
         json_data = json.load(open(json_file_path))
         json_data['metadata'].setdefault('weather_model', []).append(iargs.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
         # also get browse image -- if RAiDER is running in its own HyP3 job, the browse image will be needed for ingest
         browse_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.png')
+        if browse_file_path is None:
+            raise ValueError(f'GUNW browse image could not be found at s3://{iargs.bucket}/{iargs.input_bucket_prefix}')
 
 
 
