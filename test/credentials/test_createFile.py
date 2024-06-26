@@ -12,10 +12,12 @@ from test import random_string
 def test_cds():
     import cdsapi
 
+    model_name = 'ERA5'
+
     # Check extension for hidden files
     hidden_ext = '_' if system() == "Windows" else '.'
 
-    rc_path = Path('./') / (hidden_ext + credentials.RC_FILENAMES['ERA5'])
+    rc_path = Path('./') / (hidden_ext + credentials.RC_FILENAMES[model_name])
     rc_path = rc_path.expanduser()
     rc_path.unlink(missing_ok=True)
 
@@ -23,7 +25,7 @@ def test_cds():
     test_key = random_string()
 
     # Test creation of .cdsapirc file in current dir
-    credentials.check_api('ERA5', test_uid, test_key, './', update_rc_file=False)
+    credentials.check_api(model_name, test_uid, test_key, './', update_rc_file=False)
     assert rc_path.exists(), f'{rc_path} was not created'
 
     # Check the content
@@ -40,10 +42,12 @@ def test_cds():
 def test_ecmwf():
     import ecmwfapi
 
+    model_name = 'HRES'
+
     # Check extension for hidden files
     hidden_ext = '_' if system() == "Windows" else '.'
 
-    rc_path = Path('./') / (hidden_ext + credentials.RC_FILENAMES['HRES'])
+    rc_path = Path('./') / (hidden_ext + credentials.RC_FILENAMES[model_name])
     rc_path = rc_path.expanduser()
     rc_path.unlink(missing_ok=True)
 
@@ -51,7 +55,7 @@ def test_ecmwf():
     test_key = random_string()
 
     # Test creation of .ecmwfapirc file
-    credentials.check_api('HRES', test_uid, test_key, './', update_rc_file=False)
+    credentials.check_api(model_name, test_uid, test_key, './', update_rc_file=False)
     assert rc_path.exists(), f'{rc_path} does not exist'
 
     # Get current ECMWF API RC file path
@@ -73,10 +77,12 @@ def test_ecmwf():
 def test_netrc():
     import netrc
 
+    model_name = 'GMAO'
+
     # Check extension for hidden files
     hidden_ext = '_' if system() == "Windows" else '.'
 
-    rc_path = Path('./') / (hidden_ext + credentials.RC_FILENAMES['GMAO'])
+    rc_path = Path('./') / (hidden_ext + credentials.RC_FILENAMES[model_name])
     rc_path = rc_path.expanduser()
     rc_path.unlink(missing_ok=True)
 
@@ -84,7 +90,7 @@ def test_netrc():
     test_key = random_string()
 
     # Test creation of .netrc file
-    credentials.check_api('GMAO', test_uid, test_key, './', update_rc_file=False)
+    credentials.check_api(model_name, test_uid, test_key, './', update_rc_file=False)
     assert os.path.exists(rc_path), f'{rc_path} does not exist'
 
     # Check the content
