@@ -57,6 +57,10 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
     Returns
     -------
     bool
+
+    Example: 
+    check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0)
+    should return True
     """
     ref_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'reference')
     sec_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'secondary')
@@ -72,6 +76,7 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
 
 def get_slc_ids_from_gunw(gunw_path: str,
                           reference_or_secondary: str = 'reference') -> list[str]:
+    #Example input: test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
     if reference_or_secondary not in ['reference', 'secondary']:
         raise ValueError('"reference_or_secondary" must be either "reference" or "secondary"')
     group = f'science/radarMetaData/inputSLC/{reference_or_secondary}'
@@ -81,6 +86,7 @@ def get_slc_ids_from_gunw(gunw_path: str,
 
 
 def get_acq_time_from_slc_id(slc_id: str) -> pd.Timestamp:
+    # Example input input: test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF
     ts_str = slc_id.split('_')[5]
     return pd.Timestamp(ts_str)
 
