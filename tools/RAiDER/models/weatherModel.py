@@ -765,7 +765,7 @@ class WeatherModel(ABC):
             'z': ('z', self._zs),
             'latitude': (('y', 'x'), self._lats),
             'longitude': (('y', 'x'), self._lons),
-            'datetime': self._time,
+            'datetime_utc': self._time.replace(tzinfo=None),
         }
 
         dataset_dict = {
