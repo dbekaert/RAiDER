@@ -10,7 +10,7 @@ from RAiDER.delay import tropo_delay, _get_delays_on_cube
 from RAiDER.llreader import RasterRDR
 from RAiDER.losreader import Zenith
 from RAiDER.processWM import prepareWeatherModel
-from RAiDER.models.merra2 import MERRA2
+from RAiDER.models.era5 import ERA5
 
 from test import TEST_DIR
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_4")
@@ -24,7 +24,7 @@ def test_aoi_without_xpts():
     aoi = RasterRDR(latfile, lonfile, hgtfile)
     dt = datetime.datetime(2020,1,1)
 
-    wm = MERRA2()
+    wm = ERA5()
     wm.set_latlon_bounds(aoi.bounds())
     wm.setTime(dt)
     f = prepareWeatherModel(wm, dt, aoi.bounds())
