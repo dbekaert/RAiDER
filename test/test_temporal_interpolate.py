@@ -33,7 +33,7 @@ def test_cube_timemean():
     ## run raider without interpolation for two exact weather model times
     for hr in [hr1, hr2]:
         grp['time_group'].update({'time': f'{hr}:00:00'})
-        ## generate the default template file and overwrite it with new parms
+        ## generate the default run config file and overwrite it with new parms
         cfg  = update_yaml(grp)
 
         ## run raider for the default date
@@ -95,7 +95,7 @@ def test_cube_weighting():
     ## run raider without interpolation for two exact weather model times
     for hr in [hr1, hr2]:
         grp['time_group'].update({'time': f'{hr}:00:00'})
-        ## generate the default template file and overwrite it with new parms
+        ## generate the default run config file and overwrite it with new parms
         cfg  = update_yaml(grp)
 
         ## run raider for the default date
