@@ -271,7 +271,7 @@ def main(inps=None):
     )
 
     # Add lat/lon info
-    origstatsFile = pd.read_csv(origstatsFile)
+    origstatsFile = pd.read_csv(station_file)
     statsFile = pd.read_csv(os.path.join(
         out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
     statsFile = pd.merge(left=statsFile, right=origstatsFile,
