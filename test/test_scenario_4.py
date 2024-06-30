@@ -16,7 +16,7 @@ from RAiDER.models.merra2 import MERRA2
 from test import TEST_DIR, pushd
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_4")
 
-
+@pytest.mark.long
 def test_aoi_without_xpts(tmp_path):
     with pushd(tmp_path):
         los = Zenith()
@@ -37,7 +37,7 @@ def test_aoi_without_xpts(tmp_path):
         assert np.nanmean(zen_wet) > 0
         assert np.nanmean(zen_hydro) > 0
 
-
+@pytest.mark.long
 def test_get_delays_on_cube(tmp_path):
     with pushd(tmp_path):
         los = Zenith()
