@@ -16,7 +16,7 @@ import os
 import pyproj
 import xarray
 
-from datetime import datetime
+from datetime import datetime, UTC
 from pyproj import CRS, Transformer
 from typing import List, Union
 
@@ -363,7 +363,7 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
             Conventions="CF-1.7",
             title="RAiDER geo cube",
             source=os.path.basename(weather_model_file),
-            history=str(datetime.utcnow()) + " RAiDER",
+            history=str(datetime.now(UTC)) + " RAiDER",
             description=f"RAiDER geo cube - {out_type}",
             reference_time=dt.strftime("%Y%m%dT%H:%M:%S"),
         ),
