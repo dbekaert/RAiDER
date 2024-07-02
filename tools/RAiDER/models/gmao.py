@@ -1,5 +1,5 @@
 import os
-import datetime as dt
+import datetime
 import numpy as np
 import shutil
 import h5py
@@ -29,8 +29,9 @@ class GMAO(WeatherModel):
         self._dataset = 'gmao'
 
         # Tuple of min/max years where data is available.
-        self._valid_range = (dt.datetime(2014, 2, 20), "Present")
-        self._lag_time = dt.timedelta(hours=24.0)  # Availability lag time in hours
+        self._valid_range = (datetime.datetime(2014, 2, 20).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+                             datetime.datetime.now(datetime.timezone.utc))
+        self._lag_time = datetime.timedelta(hours=24.0)  # Availability lag time in hours
 
         # model constants
         self._k1 = 0.776  # [K/Pa]
@@ -68,9 +69,9 @@ class GMAO(WeatherModel):
         lon_min_ind = int((self._ll_bounds[2] - (-180.0)) / self._lon_res)
         lon_max_ind = int((self._ll_bounds[3] - (-180.0)) / self._lon_res)
 
-        T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
+        T0 = datetime.datetime(2017, 12, 1, 0, 0, 0)
         # round time to nearest third hour
-        corrected_DT = round_date(acqTime, dt.timedelta(hours=self._time_res))
+        corrected_DT = round_date(acqTime, datetime.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
 
@@ -145,7 +146,7 @@ class GMAO(WeatherModel):
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144))
+            writeWeatherVarsXarray(lats, lons, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144))
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 

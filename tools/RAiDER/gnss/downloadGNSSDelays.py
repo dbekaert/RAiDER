@@ -74,7 +74,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
 
     stations = pd.read_csv(
         stationHoldings,
-        sep='\s+',
+        sep=r'\s+',
         names=['ID', 'Lat', 'Lon', 'Hgt_m']
     )
     stations = filterToBBox(stations, llhBox)
@@ -271,7 +271,7 @@ def main(inps=None):
     )
 
     # Add lat/lon info
-    origstatsFile = pd.read_csv(origstatsFile)
+    origstatsFile = pd.read_csv(station_file)
     statsFile = pd.read_csv(os.path.join(
         out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
     statsFile = pd.merge(left=statsFile, right=origstatsFile,

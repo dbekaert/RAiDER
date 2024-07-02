@@ -17,8 +17,8 @@ class ERAI(ECMWF):
 
         # Tuple of min/max years where data is available.
         self._valid_range = (
-            datetime.datetime(1979, 1, 1),
-            datetime.datetime(2019, 8, 31)
+            datetime.datetime(1979, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+            datetime.datetime(2019, 8, 31).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
         )
 
         self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
