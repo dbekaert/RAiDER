@@ -15,7 +15,7 @@ from RAiDER.utilFcns import (
     rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
     transform_bbox, clip_bbox, get_nearest_wmtimes,
     robmax,robmin,padLower,convertLons,
-    projectDelays,floorish,
+    projectDelays,floorish,round_date,
 )
 
 
@@ -579,3 +579,139 @@ def test_padLower():
 
 def test_convertLons():
     assert np.allclose(convertLons(np.array([0, 10, -10, 190, 360])), np.array([0, 10, -10, -170, 0]))
+
+
+def test_projectDelays_zero_inc():
+  """Tests projectDelays with zero inclination"""
+  delay = 10.0
+  inc = 90.0
+  # Division by zero will raise an error, so we expect an exception
+  with pytest.raises(ZeroDivisionError):
+    projectDelays(delay, inc)
+
+def test_projectDelays_positive():
+  """Tests projectDelays with positive delay and inclination"""
+  delay = 10.0
+  inc = 30.0
+  expected_result = delay / np.cos(np.radians(inc))
+  assert projectDelays(delay, inc) == expected_result
+
+def test_projectDelays_negative():
+  """Tests projectDelays with negative delay and inclination"""
+  delay = -5.0
+  inc = -45.0
+  expected_result = delay / np.cos(np.radians(inc))
+  assert projectDelays(delay, inc) == expected_result
+
+def test_floorish_round_down():
+  """Tests floorish to round a value down to nearest integer"""
+  val = 12.34
+  frac = 1.0
+  expected_result = val - (val % frac)
+  assert floorish(val, frac) == expected_result
+
+def test_floorish_round_up_edgecase():
+  """Tests floorish to round up at a specific edge case"""
+  val = 9.99
+  frac = 0.1
+  expected_result = val - (val % frac)
+  assert floorish(val, frac) == expected_result
+
+def test_floorish_no_change():
+  """Tests floorish with value already an integer"""
+  val = 10
+  frac = 1.0
+  assert floorish(val, frac) == val
+
+def test_sind_zero():
+  """Tests sind with zero input"""
+  x = 0.0
+  expected_result = np.sin(np.radians(x))
+  assert sind(x) == expected_result
+
+def test_sind_positive():
+  """Tests sind with positive input"""
+  x = 30.0
+  expected_result = np.sin(np.radians(x))
+  assert sind(x) == expected_result
+
+def test_sind_negative():
+  """Tests sind with negative input"""
+  x = -45.0
+  expected_result = np.sin(np.radians(x))
+  assert sind(x) == expected_result
+
+def test_cosd_zero():
+  """Tests cosd with zero input"""
+  x = 0.0
+  expected_result = np.cos(np.radians(x))
+  assert cosd(x) == expected_result
+
+def test_cosd_positive():
+  """Tests cosd with positive input"""
+  x = 60.0
+  expected_result = np.cos(np.radians(x))
+  assert cosd(x) == expected_result
+
+def test_cosd_negative():
+  """Tests cosd with negative input"""
+  x = -90.0
+  expected_result = np.cos(np.radians(x))
+  assert cosd(x) == expected_result
+
+
+def test_round_date_up_second():
+  """Tests round_date to round up to nearest second"""
+  date = datetime.datetime(2024, 6, 25, 12, 30, 59)
+  precision = datetime.timedelta(seconds=1)
+  expected_result = datetime.datetime(2024, 6, 25, 12, 30, 59)
+  assert round_date(date, precision) == expected_result
+
+def test_round_date_down_second():
+  """Tests round_date to round down to nearest second"""
+  date = datetime.datetime(2024, 6, 25, 12, 30, 0)
+  precision = datetime.timedelta(seconds=1)
+  expected_result = datetime.datetime(2024, 6, 25, 12, 30, 0)
+  assert round_date(date, precision) == expected_result
+
+def test_round_date_up_minute():
+  """Tests round_date to round up to nearest minute"""
+  date = datetime.datetime(2024, 6, 25, 12, 30, 59)
+  precision = datetime.timedelta(minutes=1)
+  expected_result = datetime.datetime(2024, 6, 25, 12, 31, 0)
+  assert round_date(date, precision) == expected_result
+
+def test_round_date_down_minute():
+  """Tests round_date to round down to nearest minute"""
+  date = datetime.datetime(2024, 6, 25, 13, 31, 10)
+  precision = datetime.timedelta(minutes=1)
+  expected_result = datetime.datetime(2024, 6, 25, 13, 31)
+  assert round_date(date, precision) == expected_result
+
+def test_round_date_up_hour():
+  """Tests round_date down to nearest hour"""
+  date = datetime.datetime(2024, 6, 25, 23, 30)
+  precision = datetime.timedelta(hours=1)
+  expected_result = datetime.datetime(2024, 6, 25, 23, 0)
+  assert round_date(date, precision) == expected_result
+
+def test_round_date_down_hour():
+  """Tests round_date to round up to nearest hour"""
+  date = datetime.datetime(2024, 6, 24, 23, 45)
+  precision = datetime.timedelta(hours=1)
+  expected_result = datetime.datetime(2024, 6, 25, 0, 0)
+  assert round_date(date, precision) == expected_result
+
+def test_round_date_edge_case_beginning_of_day():
+  """Tests round_date on edge case: beginning of day"""
+  date = datetime.datetime(2024, 6, 25, 0, 0, 0)
+  precision = datetime.timedelta(hours=1)
+  expected_result = datetime.datetime(2024, 6, 25, 0, 0, 0)
+  assert round_date(date, precision) == expected_result
+
+def test_round_date_edge_case_end_of_day():
+  """Tests round_date on edge case: end of day"""
+  date = datetime.datetime(2024, 6, 25, 23, 59, 59)
+  precision = datetime.timedelta(hours=1)
+  expected_result = datetime.datetime(2024, 6, 26, 0, 0, 0)
+  assert round_date(date, precision) == expected_result
