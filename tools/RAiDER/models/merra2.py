@@ -1,7 +1,8 @@
+import io
 import os
 import xarray
 
-import datetime as dt
+import datetime
 import numpy as np
 import pydap.cas.urs
 import pydap.client
@@ -26,12 +27,9 @@ def Model():
 
 
 class MERRA2(WeatherModel):
-    # I took this from MERRA-2 model level weblink
-    # https://goldsmr5.gesdisc.eosdis.nasa.gov:443/opendap/MERRA2/M2I3NVASM.5.12.4/
     def __init__(self):
 
         import calendar
-
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -42,12 +40,13 @@ class MERRA2(WeatherModel):
         self._dataset = 'merra2'
 
         # Tuple of min/max years where data is available.
-        utcnow = dt.datetime.utcnow()
-        enddate = dt.datetime(utcnow.year, utcnow.month, 15) - dt.timedelta(days=60)
-        enddate = dt.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month)[1])
-        self._valid_range = (dt.datetime(1980, 1, 1), "Present")
-        lag_time = utcnow - enddate
-        self._lag_time = dt.timedelta(days=lag_time.days)  # Availability lag time in days
+        utcnow = datetime.datetime.now(datetime.timezone.utc)
+        enddate = datetime.datetime(utcnow.year, utcnow.month, 15) - datetime.timedelta(days=60)
+        enddate = datetime.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month)[1])
+        self._valid_range = (datetime.datetime(1980, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
+                             datetime.datetime.now(datetime.timezone.utc))
+        lag_time = utcnow - enddate.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
+        self._lag_time = datetime.timedelta(days=lag_time.days)  # Availability lag time in days
         self._time_res = 1
         
         # model constants
@@ -106,10 +105,6 @@ class MERRA2(WeatherModel):
             url_sub = 300
         else:
             url_sub = 400
-
-        T0 = dt.datetime(time.year, time.month, time.day, 0, 0, 0)
-        DT = time - T0
-        time_ind = int(DT.total_seconds() / 3600.0 / 3.0)
 
         # Earthdata credentials
         earthdata_usr, earthdata_pwd = read_EarthData_loginInfo(EARTHDATA_RC)
