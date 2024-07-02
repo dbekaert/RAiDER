@@ -262,7 +262,7 @@ def main(inps=None):
         long_cross_zero = 1
 
     # Handle station query
-    stats, origstatsFile = get_stats(bbox, long_cross_zero, out, station_file)
+    stats, station_file = get_stats(bbox, long_cross_zero, out, station_file)
 
     # iterate over years
     years = list(set([i.year for i in dateList]))
@@ -271,14 +271,14 @@ def main(inps=None):
     )
 
     # Add lat/lon info
-    origstatsFile = pd.read_csv(station_file)
-    statsFile = pd.read_csv(os.path.join(
+    statdf = pd.read_csv(station_file)
+    pathsdf = pd.read_csv(os.path.join(
         out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
-    statsFile = pd.merge(left=statsFile, right=origstatsFile,
+    pathsdf = pd.merge(left=pathsdf, right=statdf,
                          how='left', left_on='ID', right_on='ID')
-    statsFile.to_csv(os.path.join(
+    pathsdf.to_csv(os.path.join(
         out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)), index=False)
-    del origstatsFile, statsFile
+    del statdf, pathsdf
 
     # Extract delays for each station
     dateList = [k.strftime('%Y-%m-%d') for k in dateList]
