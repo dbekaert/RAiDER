@@ -12,7 +12,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 * [657](https://github.com/dbekaert/RAiDER/pull/657) - Fixed a few typos in `README.md`.
 * [651](https://github.com/dbekaert/RAiDER/pull/651) - Removed use of deprecated argument to `pandas.read_csv`.
-* [627](https://github.com/dbekaert/RAiDER/pull/627) - Make Python datetimes timezone-aware and add unit tests and bug fixes
+* [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and add unit tests and bug fixes.
 
 ## [0.5.1]
 ### Changed
