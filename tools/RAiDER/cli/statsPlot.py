@@ -375,7 +375,7 @@ class VariogramAnalysis():
             y = y[mask]
 
         # deramp
-        temp1, temp2, x, y = WGS84_to_UTM(x, y, common_center=True)
+        _, _, x, y = WGS84_to_UTM(x, y, common_center=True)
         A = np.array([x, y, np.ones(len(x))]).T
         ramp = np.linalg.lstsq(A, data.T, rcond=None)[0]
         data = data - (np.matmul(A, ramp))
@@ -2067,57 +2067,6 @@ def main():
         inps.seasonalinterval,
         inps.obs_errlimit,
         inps.figdpi,
-        inps.plot_fmt,
-        inps.cbounds,
-        inps.colorpercentile,
-        inps.usr_colormap,
-        inps.densitythreshold,
-        inps.stationsongrids,
-        inps.drawgridlines,
-        inps.time_lines,
-        inps.plotall,
-        inps.station_distribution,
-        inps.station_delay_mean,
-        inps.station_delay_median,
-        inps.station_delay_stdev,
-        inps.station_seasonal_phase,
-        inps.phaseamp_per_station,
-        inps.grid_heatmap,
-        inps.grid_delay_mean,
-        inps.grid_delay_median,
-        inps.grid_delay_stdev,
-        inps.grid_seasonal_phase,
-        inps.grid_delay_absolute_mean,
-        inps.grid_delay_absolute_median,
-        inps.grid_delay_absolute_stdev,
-        inps.grid_seasonal_absolute_phase,
-        inps.grid_to_raster,
-        inps.min_span,
-        inps.period_limit,
-        inps.variogramplot,
-        inps.binnedvariogram,
-        inps.variogram_per_timeslice,
-        inps.variogram_errlimit
-    )
-
-
-def main():
-    inps = cmd_line_parse()
-
-    stats_analyses(
-        inps.fname,
-        inps.col_name,
-        inps.unit,
-        inps.workdir,
-        inps.cpus,
-        inps.verbose,
-        inps.bounding_box,
-        inps.spacing,
-        inps.timeinterval,
-        inps.seasonalinterval,
-        inps.obs_errlimit,
-        inps.figdpi,
-        inps.user_title,
         inps.plot_fmt,
         inps.cbounds,
         inps.colorpercentile,
