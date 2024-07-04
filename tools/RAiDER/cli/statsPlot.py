@@ -10,7 +10,6 @@ from RAiDER.cli.parser import add_cpus
 from RAiDER.utilFcns import WGS84_to_UTM
 from rasterio.transform import Affine
 from scipy import optimize
-from scipy import sum as scipy_sum
 from scipy.optimize import OptimizeWarning
 from shapely.strtree import STRtree
 from shapely.geometry import Point, Polygon
@@ -183,12 +182,12 @@ def convert_SI(val, unit_in, unit_out):
         # e.g. sigZTD filter, already extracted datetime object
         try:
             return eval('val.apply(pd.to_datetime).dt.{}.astype(float).astype("Int32")'.format(unit_out))
-        except BaseException:  # TODO: Which error(s)?
+        except AttributeError:
             return val
 
     # check if output spatial unit is supported
     if unit_out not in SI:
-        raise Exception("User-specified output unit {} not recognized.".format(unit_out))
+        raise ValueError("User-specified output unit {} not recognized.".format(unit_out))
 
     return val * SI[unit_in] / SI[unit_out]
 
@@ -198,6 +197,9 @@ def midpoint(p1, p2):
         Calculate central longitude for '--time_lines' option
     '''
     import math
+
+    if p1[1] == p2[1]:
+        return p1[1]
 
     lat1, lon1, lat2, lon2 = map(math.radians, (p1[0], p1[1], p2[0], p2[1]))
     dlon = lon2 - lon1
@@ -243,7 +245,7 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
         dst.update_tags(0, **metadata_dict)
         dst.write(df, 1)
 
-    return
+    return metadata_dict
 
 
 def load_gridfile(fname, unit):
@@ -251,11 +253,14 @@ def load_gridfile(fname, unit):
         Function to load gridded-arrays saved from previous runs.
     '''
 
-    with rasterio.open(fname) as src:
-        grid_array = src.read(1).astype(float)
+    try:
+        with rasterio.open(fname) as src:
+            grid_array = src.read(1).astype(float)
+    except TypeError:
+        raise ValueError('fname is not a valid file')
 
-        # Read metadata variables needed for plotting
-        metadata_dict = src.tags()
+    # Read metadata variables needed for plotting
+    metadata_dict = src.tags()
 
     # Initiate no-data array to mask data
     nodat_arr = [0, np.nan, np.inf]
@@ -1487,7 +1492,7 @@ class RaiderStats(object):
                     phsfit_c[station] = pcov[2, 2]**0.5
                     # pass RMSE of fit
                     seasonalfit_rmse[station] = yy - custom_sine_function_base(tt, *popt)
-                    seasonalfit_rmse[station] = (scipy_sum(seasonalfit_rmse[station]**2) /
+                    seasonalfit_rmse[station] = (np.sum(seasonalfit_rmse[station]**2) /
                                                  (seasonalfit_rmse[station].size - 2))**0.5
                 except FloatingPointError:
                     pass
