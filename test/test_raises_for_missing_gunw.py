@@ -10,15 +10,16 @@ from contextlib import contextmanager
 from typing import List
 
 import pytest
+from test import TEST_DIR
+
 import shutil
 from tempfile import TemporaryDirectory
 from pathlib import Path
 import RAiDER.aws
 import RAiDER.cli.raider
 
-
-EXAMPLE_GUNW_PATH = 'test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
-EXAMPLE_JSON_DATA_PATH = 'test/gunw_test_data/S1-GUNW-A-R-064-tops-20210723_20210711-015001-35393N_33512N-PP-6267-v2_0_4.json'
+EXAMPLE_GUNW_PATH = Path(TEST_DIR) / 'gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
+EXAMPLE_JSON_DATA_PATH = Path(TEST_DIR) / 'gunw_test_data/S1-GUNW-A-R-064-tops-20210723_20210711-015001-35393N_33512N-PP-6267-v2_0_4.json'
 
 
 @pytest.fixture
