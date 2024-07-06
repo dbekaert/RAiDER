@@ -11,11 +11,12 @@ from RAiDER.models import credentials
 
 @pytest.mark.parametrize('model_name', 'ERA5 ERA5T HRES GMAO MERRA2'.split())
 def test_updateFalse(model_name):
-    # Get extension for hidden files
+    # Get the rc file's path
     hidden_ext = '_' if system() == "Windows" else '.'
-
-    # Get the target rc file's path
-    rc_path = Path('./') / (hidden_ext + credentials.RC_FILENAMES[model_name])
+    rc_filename = credentials.RC_FILENAMES[model_name]
+    if rc_filename is None:
+        return
+    rc_path = Path('./') / (hidden_ext + rc_filename)
     rc_path = rc_path.expanduser()
 
     # Write some example text to test for
