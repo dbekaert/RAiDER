@@ -8,11 +8,12 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 ### Changed
-* [652](https://github.com/dbekaert/RAiDER/pull/652) - Changed the behavior of
-  `RAiDER.models.credentials.check_api` to not overwrite the user's API
-   credential files.
+* [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and added unit tests and bug fixes.
 * [651](https://github.com/dbekaert/RAiDER/pull/651) - Removed use of deprecated argument to `pandas.read_csv`.
-* [627](https://github.com/dbekaert/RAiDER/pull/627) - Make Python datetimes timezone-aware and add unit tests and bug fixes
+* [652](https://github.com/dbekaert/RAiDER/pull/652) - Changed the behavior of `RAiDER.models.credentials.check_api` to not overwrite the user's API credential files.
+* [657](https://github.com/dbekaert/RAiDER/pull/657) - Fixed a few typos in `README.md`.
+* [661](https://github.com/dbekaert/RAiDER/pull/661) - Fixed bug in raiderDownloadGNSS, removed call to scipy.sum, and added unit tests.
+* [662](https://github.com/dbekaert/RAiDER/pull/662) - Bumped dem-stitcher to >= v2.5.6, which updates the URL for reading the Geoid EGM 2008.
 
 ## [0.5.1]
 ### Changed
