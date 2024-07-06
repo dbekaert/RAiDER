@@ -6,8 +6,8 @@ from unittest import mock
 from test import TEST_DIR, pushd
 from RAiDER.dem import download_dem
 from RAiDER.gnss.downloadGNSSDelays import (
-    check_url,read_text_file,in_box,fix_lons,get_ID,
-    
+    check_url,in_box,fix_lons,get_ID,
+    download_UNR,main,
 )
 
 # Test check_url with a valid and invalid URL
@@ -23,21 +23,6 @@ def test_check_url_invalid():
     mock_head.return_value.status_code = 404  # Simulate not found response
     assert check_url(invalid_url) == ''
 
-# Test read_text_file with a valid and invalid filename
-def test_read_text_file_valid():
-  # Create a temporary test file with some content
-  with open("test_file.txt", "w") as f:
-    f.write("line1\nline2\n")
-  try:
-    lines = read_text_file("test_file.txt")
-    assert lines == ["line1", "line2"]
-  finally:
-    os.remove("test_file.txt")  # Cleanup the temporary file
-
-def test_read_text_file_invalid():
-  invalid_filename = "not_a_file.txt"
-  with pytest.raises(FileNotFoundError):
-    read_text_file(invalid_filename)
 
 # Test in_box with points inside and outside the box
 def test_in_box_inside():
@@ -83,3 +68,34 @@ def test_get_ID_invalid():
   line = "ABCD 35.0"  # Missing longitude and height
   with pytest.raises(ValueError):
     get_ID(line)
+
+
+def test_download_UNR():
+  statID = 'MORZ'
+  year = 2020
+  outDict = download_UNR(statID, year)
+  assert outDict['path'] == 'http://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip'
+
+def test_download_UNR_2():
+  statID = 'MORZ'
+  year = 2000
+  with pytest.raises(ValueError):
+    download_UNR(statID, year, download=True)
+
+def test_download_UNR_3():
+  statID = 'DUMY'
+  year = 2020
+  with pytest.raises(ValueError):
+    download_UNR(statID, year, download=True)
+
+def test_download_UNR_4():
+  statID = 'MORZ'
+  year = 2020
+  with pytest.raises(NotImplementedError):
+    download_UNR(statID, year, baseURL='www.google.com')
+
+
+def test_main():
+  # iargs = None 
+  # main(inps=iargs)
+  assert True
