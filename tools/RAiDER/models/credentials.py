@@ -62,23 +62,22 @@ APIS = {
 
 # Get the environment variables for a given weather model API
 def _get_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    match model:
-        case 'ERA5' | 'ERA5T':
-            uid = os.getenv('RAIDER_ECMWF_ERA5_UID')
-            key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
-            host = APIS['cdsapirc']['default_host']
-        case 'HRES':
-            uid = os.getenv('RAIDER_HRES_EMAIL')
-            key = os.getenv('RAIDER_HRES_API_KEY')
-            host = os.getenv('RAIDER_HRES_URL',
-                             APIS['ecmwfapirc']['default_host'])
-        case 'GMAO' | 'MERRA2':
-            # same as in DockerizedTopsApp
-            uid = os.getenv('EARTHDATA_USERNAME')
-            key = os.getenv('EARTHDATA_PASSWORD')
-            host = APIS['netrc']['default_host']
-        case _:  # for HRRR
-            uid, key, host = None, None, None
+    if model in ('ERA5', 'ERA5T'):
+        uid = os.getenv('RAIDER_ECMWF_ERA5_UID')
+        key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
+        host = APIS['cdsapirc']['default_host']
+    elif model == 'HRES':
+        uid = os.getenv('RAIDER_HRES_EMAIL')
+        key = os.getenv('RAIDER_HRES_API_KEY')
+        host = os.getenv('RAIDER_HRES_URL',
+                            APIS['ecmwfapirc']['default_host'])
+    elif model in ('GMAO', 'MERRA2'):
+        # same as in DockerizedTopsApp
+        uid = os.getenv('EARTHDATA_USERNAME')
+        key = os.getenv('EARTHDATA_PASSWORD')
+        host = APIS['netrc']['default_host']
+    else:  # for HRRR
+        uid, key, host = None, None, None
     return uid, key, host
 
 
@@ -140,22 +139,21 @@ def check_api(model: str,
     else:
         logger.warning(f'{model} API credentials not found in {rc_path}; creating')
     rc_type = RC_FILENAMES[model]
-    match rc_type:
-        case 'cdsapirc' | 'ecmwfapirc':
-            # These RC files only ever contain one set of credentials, so
-            # they can just be overwritten when updating.
-            template = APIS[rc_filename]['template']
-            entry = template.format(host=url, uid=uid, key=key)
-            rc_path.write_text(entry)
-        case 'netrc':
-            # This type of RC file may contain more than one set of credentials,
-            # so extra care needs to be taken to make sure we only touch the
-            # one that belongs to this URL.
-            import netrc
-            rc_path.touch()
-            netrc_credentials = netrc.netrc(rc_path)
-            netrc_credentials.hosts[url] = (uid, None, key)
-            rc_path.write_text(str(netrc_credentials))
+    if rc_type in ('cdsapirc', 'ecmwfapirc'):
+        # These RC files only ever contain one set of credentials, so
+        # they can just be overwritten when updating.
+        template = APIS[rc_filename]['template']
+        entry = template.format(host=url, uid=uid, key=key)
+        rc_path.write_text(entry)
+    elif rc_type == 'netrc':
+        # This type of RC file may contain more than one set of credentials,
+        # so extra care needs to be taken to make sure we only touch the
+        # one that belongs to this URL.
+        import netrc
+        rc_path.touch()
+        netrc_credentials = netrc.netrc(rc_path)
+        netrc_credentials.hosts[url] = (uid, None, key)
+        rc_path.write_text(str(netrc_credentials))
     rc_path.chmod(0o000600)
 
 
