@@ -24,7 +24,9 @@ from RAiDER.aria.prepFromGUNW import (
     get_slc_ids_from_gunw,get_acq_time_from_slc_id
 )
 from RAiDER.cli.raider import calcDelaysGUNW
-from RAiDER.models.customExceptions import NoWeatherModelData
+from RAiDER.models.customExceptions import (
+     NoWeatherModelData, WrongNumberOfFiles,
+) 
 
 
 def compute_transform(lats, lons):
@@ -568,7 +570,7 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                '-interp', 'azimuth_time_grid'
                ]
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(WrongNumberOfFiles):
         calcDelaysGUNW(iargs_1)
     RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid.assert_not_called()
 

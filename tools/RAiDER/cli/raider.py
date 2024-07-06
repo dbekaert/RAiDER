@@ -295,7 +295,7 @@ def calcDelays(iargs=None):
                 logger.error(e)
                 logger.error('Weather model files are: {}'.format(wfiles))
                 logger.error(msg)
-                raise
+                continue
 
         # dont process the delays for download only
         if dl_only:
