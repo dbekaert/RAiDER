@@ -2,6 +2,8 @@
 When update_rc_file is either True or False, the relevant API RC file should be
 created if it doesn't exist.
 '''
+from typing import Tuple
+
 import pytest
 import os
 from pathlib import Path
@@ -10,14 +12,14 @@ from RAiDER.models import credentials
 from test import random_string
 
 
-def get_creds_cds(rc_path):
+def get_creds_cds(rc_path: Path) -> Tuple[str, str]:
     import cdsapi
     cds_credentials = cdsapi.api.read_config(rc_path)
     uid, key = cds_credentials['key'].split(':')
     return uid, key
 
 
-def get_creds_ecmwf(rc_path):
+def get_creds_ecmwf(rc_path: Path) -> Tuple[str, str]:
     import ecmwfapi
     # Get current ECMWF API RC file path
     old_rc_path = os.getenv("ECMWF_API_RC_FILE", ecmwfapi.api.DEFAULT_RCFILE_PATH)
@@ -31,7 +33,7 @@ def get_creds_ecmwf(rc_path):
     return uid, key
 
 
-def get_creds_netrc(rc_path):
+def get_creds_netrc(rc_path: Path) -> Tuple[str, str]:
     import netrc
     host = 'urs.earthdata.nasa.gov'
     netrc_credentials = netrc.netrc(rc_path)
