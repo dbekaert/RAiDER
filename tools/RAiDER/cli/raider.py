@@ -294,11 +294,11 @@ def calcDelays(iargs=None):
                     f'{S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}'
                 )
                 logger.info(f'Query datetime: {tt}')
-                msg = f'Downloading and/or preparation of {
-                    model._Name} failed.'
                 logger.error(e)
                 logger.error('Weather model files are: {}'.format(wfiles))
-                logger.error(msg)
+                logger.error(
+                    f'Downloading and/or preparation of {model._Name} failed.'
+                )
                 continue
 
         # dont process the delays for download only
