@@ -1,5 +1,4 @@
 from typing import Optional, Union
-from boto3_type_annotations.s3 import Client
 from mimetypes import guess_type
 from pathlib import Path
 
@@ -7,10 +6,10 @@ import boto3
 
 from RAiDER.logger import logger
 
-S3_CLIENT: Client = boto3.client('s3')
+S3_CLIENT = boto3.client('s3')
 
 
-def get_tag_set() -> dict:
+def get_tag_set():
     tag_set = {
         'TagSet': [
             {

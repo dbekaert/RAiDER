@@ -68,4 +68,4 @@ dependencies:
  - jupyterlab
  - wand
  # For development
- - boto3-type-annotations
+ - boto3-stubs
