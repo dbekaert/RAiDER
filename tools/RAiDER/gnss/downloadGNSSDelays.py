@@ -20,38 +20,48 @@ _UNR_URL = "http://geodesy.unr.edu/"
 
 
 def get_station_list(
-    bbox=None,
-    stationFile=None,
-    userstatList=None,
-    writeStationFile=True,
-    writeLoc=None,
-    name_appendix=''
-):
+        bbox=None,
+        stationFile=None,
+        writeLoc=None,
+        name_appendix='',
+        writeStationFile=True,
+    ):
     '''
     Creates a list of stations inside a lat/lon bounding box from a source
 
     Args:
-        bbox: list of float - length-4 list of floats that describes a bounding box. 
-                                Format is S N W E
+        bbox: list of float     - length-4 list of floats that describes a bounding box. 
+                                  Format is S N W E
+        station_file: str       - Name of a .csv or .txt file to read containing station IDs
+        writeStationFile: bool  - Whether to write out the station dataframe to a .csv file
         writeLoc: string    - Directory to write data
-        userstatList: list  - list of specific IDs to access
         name_appendix: str  - name to append to output file
 
     Returns:
-        stations: list of strings   - station IDs to access
-        output_file: string         - file to write delays
+        stations: list of strings        - station IDs to access
+        output_file: string or dataframe - file to write delays
     '''
-    if stationFile:
-        station_data = pd.read_csv(stationFile)
-    elif userstatList:
-        station_data = read_text_file(userstatList)
-    elif bbox:
+    if bbox is not None:
         station_data = get_stats_by_llh(llhBox=bbox)
+    else:
+        try:
+            station_data = pd.read_csv(stationFile)
+        except:
+            stations = []
+            with open(stationFile, 'r') as f:
+                for k, line in enumerate(f):
+                    if k ==0:
+                        names = line.strip().split()
+                    else:
+                        stations.append([line.strip().split()])
+            station_data = pd.DataFrame(stations, columns=names)
 
     # write to file and pass final stations list
     if writeStationFile:
-        output_file = os.path.join(writeLoc or os.getcwd(
-        ), 'gnssStationList_overbbox' + name_appendix + '.csv')
+        output_file = os.path.join(
+            writeLoc or os.getcwd(), 
+            'gnssStationList_overbbox' + name_appendix + '.csv'
+        )
         station_data.to_csv(output_file, index=False)
 
     return list(station_data['ID'].values), [output_file if writeStationFile else station_data][0]
@@ -77,7 +87,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
         sep=r'\s+',
         names=['ID', 'Lat', 'Lon', 'Hgt_m']
     )
-    stations = filterToBBox(stations, llhBox)
+
     # convert lons from [0, 360] to [-180, 180]
     stations['Lon'] = ((stations['Lon'].values + 180) % 360) - 180
 
@@ -150,13 +160,17 @@ def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
         statID   - 4-character station identifier
         year     - 4-numeral year
     '''
+    if baseURL not in [_UNR_URL]:
+        raise NotImplementedError('Data repository {} has not yet been implemented'.format(baseURL))
+    
     URL = "{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip".format(
         baseURL, statID.upper(), year)
     logger.debug('Currently checking station %s in %s', statID, year)
     if download:
-        saveLoc = os.path.abspath(os.path.join(
-            writeDir, '{0}.{1}.trop.zip'.format(statID.upper(), year)))
+        saveLoc = os.path.abspath(os.path.join(writeDir, '{0}.{1}.trop.zip'.format(statID.upper(), year)))
         filepath = download_url(URL, saveLoc)
+        if filepath == '':
+            raise ValueError('Year or station ID does not exist')
     else:
         filepath = check_url(URL)
     return {'ID': statID, 'year': year, 'path': filepath}
@@ -191,14 +205,6 @@ def check_url(url):
     if r.status_code == 404:
         url = ''
     return url
-
-
-def read_text_file(filename):
-    '''
-    Read a list of GNSS station names from a plain text file
-    '''
-    with open(filename, 'r') as f:
-        return [line.strip() for line in f]
 
 
 def in_box(lat, lon, llhbox):
@@ -262,7 +268,7 @@ def main(inps=None):
         long_cross_zero = 1
 
     # Handle station query
-    stats = get_stats(bbox, long_cross_zero, out, station_file)
+    stats, statdf = get_stats(bbox, long_cross_zero, out, station_file)
 
     # iterate over years
     years = list(set([i.year for i in dateList]))
@@ -270,15 +276,11 @@ def main(inps=None):
         stats, years, gps_repo=gps_repo, writeDir=out, download=download
     )
 
-    # Add lat/lon info
-    origstatsFile = pd.read_csv(origstatsFile)
-    statsFile = pd.read_csv(os.path.join(
-        out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
-    statsFile = pd.merge(left=statsFile, right=origstatsFile,
-                         how='left', left_on='ID', right_on='ID')
-    statsFile.to_csv(os.path.join(
-        out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)), index=False)
-    del origstatsFile, statsFile
+    # Combine station data with URL info
+    pathsdf = pd.read_csv(os.path.join(out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
+    pathsdf = pd.merge(left=pathsdf, right=statdf, how='left', left_on='ID', right_on='ID')
+    pathsdf.to_csv(os.path.join(out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)), index=False)
+    del statdf, pathsdf
 
     # Extract delays for each station
     dateList = [k.strftime('%Y-%m-%d') for k in dateList]
@@ -333,27 +335,24 @@ def get_stats(bbox, long_cross_zero, out, station_file):
         bbox2 = bbox.copy()
         bbox1[3] = 360.0
         bbox2[2] = 0.0
-        stats1, origstatsFile1 = get_station_list(
-            bbox=bbox1, writeLoc=out, stationFile=station_file, name_appendix='_a')
-        stats2, origstatsFile2 = get_station_list(
-            bbox=bbox2, writeLoc=out, stationFile=station_file, name_appendix='_b')
+        stats1, statdata1 = get_station_list(
+            bbox=bbox1, stationFile=station_file, name_appendix='_a', writeStationFile=False
+        )
+        stats2, statdata2 = get_station_list(
+            bbox=bbox2, stationFile=station_file, name_appendix='_b', writeStationFile=False
+        )
         stats = stats1 + stats2
-        origstatsFile = origstatsFile1[:-6] + '.csv'
-        file_a = pd.read_csv(origstatsFile1)
-        file_b = pd.read_csv(origstatsFile2)
-        frames = [file_a, file_b]
-        result = pd.concat(frames, ignore_index=True)
-        result.to_csv(origstatsFile, index=False)
+        frames = [statdata1, statdata2]
+        statdata = pd.concat(frames, ignore_index=True)
     else:
         if bbox[3] < bbox[2]:
             bbox[3] = 360.0
-        stats, origstatsFile = get_station_list(
-            bbox=bbox,
-            writeLoc=out,
-            stationFile=station_file
+        stats, statdata = get_station_list(
+            bbox=bbox, stationFile=station_file, writeStationFile=False
         )
-
-    return stats
+    
+    statdata.to_csv(station_file, index=False)
+    return stats, statdata
 
 
 def filterToBBox(stations, llhBox):

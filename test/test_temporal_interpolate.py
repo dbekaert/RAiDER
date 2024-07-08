@@ -18,7 +18,7 @@ def test_cube_timemean():
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
     date       = 20200130
-    dct_hrs    = {'GMAO': [12, 15, '13:30:00'], 'ERA5': [13, 14, '13:30:00']}
+    dct_hrs    = {'GMAO': [12, 15, '13:30:00'], 'MERRA2': [12, 15, '13:30:00'], 'ERA5': [13, 14, '13:30:00']}
     hr1, hr2, ti = dct_hrs[wm]
 
     grp = {
@@ -80,7 +80,7 @@ def test_cube_weighting():
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
     date       = 20200130
-    dct_hrs    = {'GMAO': [12, 15, '12:05:00'], 'ERA5': [13, 14, '13:05:00']}
+    dct_hrs    = {'GMAO': [12, 15, '12:05:00'], 'MERRA2': [12, 15, '13:30:00'], 'ERA5': [13, 14, '13:05:00']}
     hr1, hr2, ti = dct_hrs[WM]
 
     grp = {

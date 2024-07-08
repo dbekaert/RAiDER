@@ -10,7 +10,11 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 * [656](https://github.com/dbekaert/RAiDER/pull/656) - example run configuration files available through `raider.py --generate_config <example_name>`.
 ### Changed
-* [651](https://github.com/dbekaert/RAiDER/pull/651) Removed use of deprecated argument to `pandas.read_csv`.
+* [657](https://github.com/dbekaert/RAiDER/pull/657) - Fixed a few typos in `README.md`.
+* [651](https://github.com/dbekaert/RAiDER/pull/651) - Removed use of deprecated argument to `pandas.read_csv`.
+* [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and add unit tests and bug fixes.
+* [662](https://github.com/dbekaert/RAiDER/pull/662) - Ensures dem-stitcher to be >= v2.5.6, which updates the url for reading the Geoid EGM 2008.
+* [661](https://github.com/dbekaert/RAiDER/pull/661) - Fix bug in raiderDownloadGNSS, remove call to scipy.sum, and add unit tests
 
 ## [0.5.1]
 ### Changed
@@ -34,6 +38,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.4.6]
 
 ### Added
+* Added check for intermediate grid creation in _get_delays_on_cube
 * Adds an `s1_orbits.py` module which includes:
   * `get_orbits_from_slc_ids` to download the associated orbit files for a list of Sentinel-1 SLC IDs
   * `ensure_orbit_credentials` to ensure ESA CSDE credentials have been provides to download orbit files. This should be called before `sentineleof` is used to download orbits.

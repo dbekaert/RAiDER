@@ -17,7 +17,7 @@ dependencies:
  - cdsapi
  - cfgrib
  - dask
- - dem_stitcher>=2.3.1
+ - dem_stitcher>=2.5.6
  - ecmwf-api-client
  - h5netcdf
  - h5py

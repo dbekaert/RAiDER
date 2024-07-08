@@ -295,7 +295,7 @@ def calcDelays(iargs=None):
                 else:
                     continue
 
-            # log when something else happens and then re-raise the error
+            # log when something else happens and then continue with the next time
             except Exception as e:
                 S, N, W, E = wm_bounds
                 logger.info(
@@ -308,7 +308,7 @@ def calcDelays(iargs=None):
                 logger.error(
                     f'Downloading and/or preparation of {model._Name} failed.'
                 )
-                raise
+                continue
 
         # dont process the delays for download only
         if dl_only:

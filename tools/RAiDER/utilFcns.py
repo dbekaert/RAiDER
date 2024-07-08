@@ -3,7 +3,7 @@ import os
 import re
 import xarray
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from numpy import ndarray
 from pyproj import Transformer, CRS, Proj
 
@@ -43,6 +43,8 @@ pbar = None
 
 def projectDelays(delay, inc):
     '''Project zenith delays to LOS'''
+    if inc==90:
+        raise ZeroDivisionError
     return delay / cosd(inc)
 
 
@@ -293,14 +295,26 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
 def round_date(date, precision):
     # First try rounding up
     # Timedelta since the beginning of time
-    datedelta = datetime.min - date
+    T0 = datetime.min
+
+    try:
+        datedelta = T0 - date
+    except TypeError:
+        T0 = T0.replace(tzinfo=timezone(offset=timedelta()))
+        datedelta = T0 - date
+    
     # Round that timedelta to the specified precision
     rem = datedelta % precision
     # Add back to get date rounded up
     round_up = date + rem
 
     # Next try rounding down
-    datedelta = date - datetime.min
+    try:
+        datedelta = date - T0
+    except TypeError:
+        T0 = T0.replace(tzinfo=timezone(offset=timedelta()))
+        datedelta = date - T0
+    
     rem = datedelta % precision
     round_down = date - rem
 

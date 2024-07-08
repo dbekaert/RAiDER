@@ -3,6 +3,8 @@ import json
 import os
 import shutil
 import unittest
+
+from datetime import datetime
 from pathlib import Path
 
 import jsonschema
@@ -18,10 +20,13 @@ import RAiDER.s1_azimuth_timing
 from RAiDER import aws
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
-    check_weather_model_availability,
+    check_weather_model_availability,_get_acq_time_from_gunw_id,
+    get_slc_ids_from_gunw,get_acq_time_from_slc_id
 )
 from RAiDER.cli.raider import calcDelaysGUNW
-from RAiDER.models.customExceptions import NoWeatherModelData
+from RAiDER.models.customExceptions import (
+     NoWeatherModelData, WrongNumberOfFiles,
+) 
 
 
 def compute_transform(lats, lons):
@@ -565,7 +570,7 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                '-interp', 'azimuth_time_grid'
                ]
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(WrongNumberOfFiles):
         calcDelaysGUNW(iargs_1)
     RAiDER.s1_azimuth_timing.get_s1_azimuth_time_grid.assert_not_called()
 
@@ -587,3 +592,81 @@ def test_value_error_for_file_inputs_when_no_data_available(mocker):
     with pytest.raises(NoWeatherModelData):
         calcDelaysGUNW(iargs)
     RAiDER.aria.prepFromGUNW.main.assert_not_called()
+
+
+def test_get_acq_time_reference():
+  """Tests if function extracts acquisition time for reference"""
+  gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
+  expected_time = datetime(2022, 1, 15, 22, 59, 47)
+  result = _get_acq_time_from_gunw_id(gunw_id, "reference")
+  assert result == expected_time
+
+def test_get_acq_time_secondary():
+  """Tests if function extracts acquisition time for secondary"""
+  gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
+  expected_time = datetime(2021, 12, 22, 22, 59, 47)
+  result = _get_acq_time_from_gunw_id(gunw_id, "secondary")
+  assert result == expected_time
+
+def test_invalid_reference_or_secondary():
+  """Tests if function raises error for invalid reference_or_secondary value"""
+  gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
+  with pytest.raises(ValueError):
+    _get_acq_time_from_gunw_id(gunw_id, "invalid")
+
+
+def test_check_hrrr_availability_all_true():
+    """Tests if check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation returns True 
+    when all check_hrrr_dataset_availability return True"""
+    
+    gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
+    
+    # Mock _get_acq_time_from_gunw_id to return expected times
+    result = check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
+    assert result == True
+
+def test_get_slc_ids_from_gunw():
+    test_path = 'test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
+    assert get_slc_ids_from_gunw(test_path, 'reference') == 'S1A_IW_SLC__1SDV_20230320T180251_20230320T180309_047731_05BBDB_DCA0.zip'
+    assert get_slc_ids_from_gunw(test_path, 'secondary') == 'S1A_IW_SLC__1SDV_20220418T180246_20220418T180305_042831_051CC3_3C47.zip'
+
+    with pytest.raises(FileNotFoundError):
+        get_slc_ids_from_gunw('dummy.nc')
+    
+    with pytest.raises(ValueError):
+        get_slc_ids_from_gunw(test_path, 'tertiary')
+    
+    with pytest.raises(OSError):
+        get_slc_ids_from_gunw('test/weather_files/ERA-5_2020_01_30_T13_52_45_32N_35N_120W_115W.nc')
+
+
+def test_get_acq_time_valid_slc_id():
+  """Tests if function extracts acquisition time for a valid slc_id"""
+  slc_id = "S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
+  expected_time = pd.Timestamp("20210731T111940")
+  result = get_acq_time_from_slc_id(slc_id)
+  assert result == expected_time
+
+
+def test_get_acq_time_invalid_slc_id():
+  """Tests if function raises error for an invalid slc_id format"""
+  invalid_slc_id = "test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
+  with pytest.raises(ValueError):
+    get_acq_time_from_slc_id(invalid_slc_id)
+
+
+def test_check_weather_model_availability():
+    gunw_id = "test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc"
+    weather_models = ['ERA5', 'GMAO', 'MERRA2', 'HRRR']
+    for wm in weather_models:
+        assert check_weather_model_availability(gunw_id, wm)
+    
+    with pytest.raises(ValueError):
+        check_weather_model_availability(gunw_id, 'NotAModel')
+
+def test_check_weather_model_availability_2():
+    gunw_id = "test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc"
+    weather_models = ['ERA5', 'GMAO', 'MERRA2', 'HRRR']
+    fail_check = [True, True, True, True]
+    for wm, check in zip(weather_models, fail_check):
+        assert check_weather_model_availability(gunw_id, wm)==check
