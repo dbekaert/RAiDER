@@ -298,14 +298,16 @@ def calcDelays(iargs=None):
             # log when something else happens and then re-raise the error
             except Exception as e:
                 S, N, W, E = wm_bounds
-                logger.info(f'Weather model point bounds are {
-                            S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+                logger.info(
+                    'Weather model point bounds are '
+                    f'{S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}'
+                )
                 logger.info(f'Query datetime: {tt}')
-                msg = f'Downloading and/or preparation of {
-                    model._Name} failed.'
                 logger.error(e)
                 logger.error('Weather model files are: {}'.format(wfiles))
-                logger.error(msg)
+                logger.error(
+                    f'Downloading and/or preparation of {model._Name} failed.'
+                )
                 raise
 
         # dont process the delays for download only
