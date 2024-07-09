@@ -360,19 +360,24 @@ class GUNW:
 def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
     """ Write a new yaml file from a dictionary.
 
-    Updates parameters in the default 'raider.yaml' file.
+    Updates parameters in the default 'template.yaml' file.
     Each key:value pair will in 'dct_cfg' will overwrite that in the default
     """
 
-    template_file = os.path.join(
-                    os.path.dirname(RAiDER.__file__), 'cli', 'raider.yaml')
+    run_config_path = os.path.join(
+        os.path.dirname(RAiDER.__file__),
+        'cli',
+        'examples',
+        'template',
+        'template.yaml'
+    )
 
-    with open(template_file, 'r') as f:
+    with open(run_config_path, 'r') as f:
         try:
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {template_file}')
+            raise ValueError(f'Something is wrong with the yaml file {run_config_path}')
 
     params = {**params, **dct_cfg}
 

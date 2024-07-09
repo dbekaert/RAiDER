@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import glob
 import os
 import json
 import shutil
@@ -10,11 +11,11 @@ import numpy as np
 import xarray as xr
 
 from textwrap import dedent
+from pathlib import Path
 
 import RAiDER.aria.prepFromGUNW
 import RAiDER.aria.calcGUNW
 from RAiDER import aws
-from RAiDER.constants import _ZREF
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
@@ -24,8 +25,6 @@ from RAiDER.models.customExceptions import *
 from RAiDER.utilFcns import get_dt
 from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_times_for_azimuth_interpolation
 
-
-import traceback
 
 TIME_INTERPOLATION_METHODS = ['none', 'center_time', 'azimuth_time_grid']
 
@@ -37,27 +36,25 @@ raider.py --generate_config
 Download a weather model and calculate tropospheric delays
 """
 
-SHORT_MESSAGE = """
-Program to calculate troposphere total delays using a weather model
-"""
-
 EXAMPLES = """
 Usage examples:
 raider.py -g
-raider.py customTemplatefile.cfg
+raider.py run_config_file.yaml
 """
 
+DEFAULT_RUN_CONFIG_PATH = os.path.abspath("./raider.yaml")
 
-def read_template_file(fname):
+
+def read_run_config_file(fname):
     """
-    Read the template file into a dictionary structure.
+    Read the run config file into a dictionary structure.
     Args:
-        fname (str): full path to the template file
+        fname (str): full path to the run config file
     Returns:
         dict: arguments to pass to RAiDER functions
 
     Examples:
-    >>> template = read_template_file('raider.yaml')
+    >>> run_config = read_run_config_file('raider.yaml')
 
     """
     from RAiDER.cli.validators import (
@@ -82,51 +79,51 @@ def read_template_file(fname):
             params[key] = {}
 
     # Parse the user-provided arguments
-    template = DEFAULT_DICT.copy()
+    run_config = DEFAULT_DICT.copy()
     for key, value in params.items():
         if key == 'runtime_group':
             for k, v in value.items():
                 if v is not None:
-                    template[k] = v
+                    run_config[k] = v
         if key == 'time_group':
-            template.update(enforce_time(AttributeDict(value)))
+            run_config.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
-            template['date_list'] = parse_dates(AttributeDict(value))
+            run_config['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
             # in case a DEM is passed and should be used
             dct_temp = {**AttributeDict(value),
                         **AttributeDict(params['height_group'])}
-            template['aoi'] = get_query_region(AttributeDict(dct_temp))
+            run_config['aoi'] = get_query_region(AttributeDict(dct_temp))
 
         if key == 'los_group':
-            template['los'] = get_los(AttributeDict(value))
-            template['zref'] = AttributeDict(value).get('zref')
+            run_config['los'] = get_los(AttributeDict(value))
+            run_config['zref'] = AttributeDict(value).get('zref')
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
-            template['look_dir'] = value.lower()
+            run_config['look_dir'] = value.lower()
         if key == 'cube_spacing_in_m':
-            template[key] = float(value) if isinstance(value, str) else value
+            run_config[key] = float(value) if isinstance(value, str) else value
         if key == 'download_only':
-            template[key] = bool(value)
+            run_config[key] = bool(value)
 
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
         if key == 'height_group':
-            template.update(
+            run_config.update(
                 get_heights(
                     AttributeDict(value),
-                    template['output_directory'],
-                    template['station_file'],
-                    template['bounding_box'],
+                    run_config['output_directory'],
+                    run_config['station_file'],
+                    run_config['bounding_box'],
                 )
             )
 
         if key == 'weather_model':
-            template[key] = enforce_wm(value, template['aoi'])
+            run_config[key] = enforce_wm(value, run_config['aoi'])
 
-    template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
-    return AttributeDict(template)
+    run_config['aoi']._cube_spacing_m = run_config['cube_spacing_in_m']
+    return AttributeDict(run_config)
 
 
 def drop_nans(d):
@@ -148,70 +145,82 @@ def calcDelays(iargs=None):
     from RAiDER.checkArgs import checkArgs
     from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
-        '\n\t raider.py customTemplatefile.cfg' \
-        '\n\t raider.py -g'
+        '\n\t raider.py run_config_file.yaml' \
+        '\n\t raider.py --generate_config template'
 
     p = argparse.ArgumentParser(
-        description='Command line interface for RAiDER processing with a configure file.'
-        'Default options can be found by running: raider.py --generate_config',
+        description=HELP_MESSAGE,
         epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
 
     p.add_argument(
-        'customTemplateFile', nargs='?',
-        help='custom template with option settings.\n' +
-        "ignored if the default smallbaselineApp.cfg is input."
-    )
-
-    p.add_argument(
-        '-g', '--generate_template', action='store_true',
-        help='generate default template (if it does not exist) and exit.'
-    )
-
-    p.add_argument(
-        '--download_only', action='store_true',
+        '--download_only',
+        action='store_true',
         help='only download a weather model.'
     )
 
-    # if not None, will replace first argument (customTemplateFile)
+    # Generate an example configuration file, OR
+    # run with a configuration file.
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        '--generate_config', '-g',
+        nargs='?',
+        choices=[
+            'template',
+            'example_LA_bbox',
+            'example_LA_GNSS',
+            'example_UK_isce',
+        ],
+        help='Generate an example run configuration and exit'
+    )
+    group.add_argument(
+        'run_config_file',
+        nargs='?',
+        help='a YAML file with arguments to RAiDER'
+    )
+
+    # if not None, will replace first argument (run_config_file)
     args = p.parse_args(args=iargs)
 
-    # default input file
-    template_file = os.path.join(os.path.dirname(RAiDER.__file__),
-                                 'cli', 'raider.yaml')
+    # Default example run configuration file
+    ex_run_config_name = args.generate_config or 'template'
+    ex_run_config_dir = (
+        Path(RAiDER.__file__).parent /
+        'cli/examples' / ex_run_config_name
+    )
 
-    if args.generate_template:
-        dst = os.path.join(os.getcwd(), 'raider.yaml')
-        shutil.copyfile(template_file, dst)
-        logger.info('Wrote: %s', dst)
+    if args.generate_config is not None:
+        for filename in ex_run_config_dir.glob('*'):
+            dest_path = Path(os.getcwd()) / filename.name
+            if dest_path.exists():
+                print(f'File {dest_path} already exists. Overwrite? [y/n]')
+                if input().lower() != 'y':
+                    continue
+            shutil.copy(filename, os.getcwd())
+            logger.info('Wrote: %s', filename)
         sys.exit()
+    # args.generate_config now guaranteed to be None
 
-    # check: existence of input template files
-    if (not args.customTemplateFile
-            and not os.path.isfile(os.path.basename(template_file))
-            and not args.generate_template):
-        msg = "No template file found! It requires that either:"
-        msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raider.yaml' exists in current directory."
-
-        p.print_usage()
-        print(examples)
-        raise SystemExit(f'ERROR: {msg}')
-
-    if args.customTemplateFile:
-        # check the existence
-        if not os.path.isfile(args.customTemplateFile):
-            raise FileNotFoundError(args.customTemplateFile)
-
-        args.customTemplateFile = os.path.abspath(args.customTemplateFile)
+    # If no run configuration file is provided, look for a ./raider.yaml
+    if args.run_config_file is not None:
+        if not os.path.isfile(args.run_config_file):
+            raise FileNotFoundError(args.run_config_file)
     else:
-        args.customTemplateFile = template_file
+        if not os.path.isfile(DEFAULT_RUN_CONFIG_PATH):
+            msg = (
+                "No run configuration file provided! Specify a run configuration "
+                "file or have a 'raider.yaml' file in the current directory."
+            )
+            p.print_usage()
+            print(examples)
+            raise SystemExit(f'ERROR: {msg}')
+        args.run_config_file = DEFAULT_RUN_CONFIG_PATH
 
-    # Read the template file
-    params = read_template_file(args.customTemplateFile)
+    # Read the run config file
+    params = read_run_config_file(args.run_config_file)
 
-    # Argument checking
+    # Verify the run config file's parameters
     params = checkArgs(params)
-    dl_only = True if params['download_only'] or args.download_only else False
+    dl_only = params['download_only'] or args.download_only
 
     if not params.verbose:
         logger.setLevel(logging.INFO)
@@ -286,11 +295,11 @@ def calcDelays(iargs=None):
                 else:
                     continue
 
-            # log when something else happens and then re-raise the error
+            # log when something else happens and then continue with the next time
             except Exception as e:
                 S, N, W, E = wm_bounds
                 logger.info(
-                    'Weather model point bounds are'
+                    'Weather model point bounds are '
                     f'{S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}'
                 )
                 logger.info(f'Query datetime: {tt}')
