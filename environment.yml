@@ -67,3 +67,5 @@ dependencies:
  - jupyter_contrib_nbextensions
  - jupyterlab
  - wand
+ # For development
+ - boto3-stubs
