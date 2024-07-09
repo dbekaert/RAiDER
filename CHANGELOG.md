@@ -7,12 +7,13 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-### Changed
-* [657](https://github.com/dbekaert/RAiDER/pull/657) - Fixed a few typos in `README.md`.
+### Fixed
+* [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and added unit tests and bug fixes.
 * [651](https://github.com/dbekaert/RAiDER/pull/651) - Removed use of deprecated argument to `pandas.read_csv`.
-* [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and add unit tests and bug fixes.
+* [657](https://github.com/dbekaert/RAiDER/pull/657) - Fixed a few typos in `README.md`.
+* [658](https://github.com/dbekaert/RAiDER/pull/658) - Fixed opaque error message if a GUNW file is not produced while HyP3 independently against a previous INSAR_ISCE.
+* [661](https://github.com/dbekaert/RAiDER/pull/661) - Fixed bug in raiderDownloadGNSS, removed call to scipy.sum, and added unit tests.
 * [662](https://github.com/dbekaert/RAiDER/pull/662) - Ensures dem-stitcher to be >= v2.5.6, which updates the url for reading the Geoid EGM 2008.
-* [661](https://github.com/dbekaert/RAiDER/pull/661) - Fix bug in raiderDownloadGNSS, remove call to scipy.sum, and add unit tests
 
 ## [0.5.1]
 ### Changed
