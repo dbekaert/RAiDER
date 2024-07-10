@@ -15,7 +15,7 @@ def test_slant_proj(weather_model_name):
     date       = 20200130
     time       ='13:52:45'
 
-    ## make the template file
+    ## make the run config file
     grp = {
             'date_group': {'date_start': date},
             'height_group': {'height_levels': [0, 100, 500, 1000]},
@@ -32,7 +32,7 @@ def test_slant_proj(weather_model_name):
            }
         }
 
-    ## generate the default template file and overwrite it with new parms
+    ## generate the default run config file and overwrite it with new parms
     cfg  = update_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
@@ -66,7 +66,7 @@ def test_ray_tracing(weather_model_name):
     date       = 20200130
     time       ='13:52:45'
 
-    ## make the template file
+    ## make the run config file
     grp = {
             'date_group': {'date_start': date},
             'height_group': {'height_levels': [0, 100, 500, 1000]},
@@ -83,7 +83,7 @@ def test_ray_tracing(weather_model_name):
            }
         }
 
-    ## generate the default template file and overwrite it with new parms
+    ## generate the default run config file and overwrite it with new parms
     cfg  = update_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
