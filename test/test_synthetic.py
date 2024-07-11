@@ -1,6 +1,13 @@
+import pytest
+
 import os.path as op
 from dataclasses import dataclass
 from datetime import datetime
+
+import os
+import numpy as np
+import xarray as xr
+import subprocess
 
 from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
@@ -8,7 +15,9 @@ from RAiDER.losreader import Raytracing, build_ray
 from RAiDER.utilFcns import lla2ecef
 from RAiDER.cli.validators import modelName2Module
 
-from test import *
+from test import (
+    TEST_DIR, ORB_DIR, WM_DIR, update_yaml
+)
 
 
 def update_model(wm_file:str, wm_eq_type:str, wm_dir:str='weather_files_synth'):

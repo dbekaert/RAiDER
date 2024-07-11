@@ -1,4 +1,3 @@
-import os
 from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
 
 class AttributeDict(dict):

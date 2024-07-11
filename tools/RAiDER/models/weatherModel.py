@@ -16,7 +16,9 @@ from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots, weatherModel
-from RAiDER.models.customExceptions import *
+from RAiDER.models.customExceptions import (
+    DatetimeOutsideRange
+)
 from RAiDER.utilFcns import (
     robmax, robmin, calcgeoh, transform_coords, clip_bbox
 )

@@ -20,7 +20,9 @@ from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.models.allowed import ALLOWED_MODELS
-from RAiDER.models.customExceptions import *
+from RAiDER.models.customExceptions import (
+    NoWeatherModelData, DatetimeFailed, TryToKeepGoingError, WrongNumberOfFiles
+)
 from RAiDER.utilFcns import get_dt
 from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_times_for_azimuth_interpolation
 

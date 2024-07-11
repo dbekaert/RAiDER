@@ -1,3 +1,5 @@
+import pytest
+import os
 import datetime
 import numpy as np
 import RAiDER
@@ -12,7 +14,7 @@ from RAiDER.losreader import (
     Zenith,
 )
 
-from test import *
+from test import ORB_DIR
 
 
 @pytest.fixture

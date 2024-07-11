@@ -23,7 +23,7 @@ from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
-from RAiDER.models.customExceptions import *
+from RAiDER.models.customExceptions import DatetimeOutsideRange
 
 
 _LON0 = 0

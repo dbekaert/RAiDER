@@ -1,10 +1,13 @@
+import pytest
+import os
 import pandas as pd
-# import rasterio
+import subprocess
+import numpy as np
 
 from scipy.interpolate import griddata
 import rasterio
 
-from test import *
+from test import TEST_DIR, WM_DIR, update_yaml
 
 
 @pytest.mark.parametrize('wm', 'ERA5'.split())

@@ -7,17 +7,15 @@ import pytest
 import numpy as np
 
 from test import TEST_DIR
-SCENARIO = os.path.join(TEST_DIR, "scenario_4")
 
 from RAiDER.cli import AttributeDict
-
-
 from RAiDER.cli.validators import (
     getBufferedExtent, isOutside, isInside,
     enforce_valid_dates as date_type, convert_time as time_type,
     enforce_bbox, parse_dates, enforce_wm, get_los
 )
 
+SCENARIO = os.path.join(TEST_DIR, "scenario_4")
 
 @pytest.fixture
 def parser():

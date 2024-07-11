@@ -1,7 +1,4 @@
 import os
-import pytest
-import subprocess
-import shutil
 import string
 import random
 from contextlib import contextmanager

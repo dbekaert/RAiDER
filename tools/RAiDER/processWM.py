@@ -10,10 +10,11 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-
 from RAiDER.logger import logger
-from RAiDER.models.weatherModel import make_raw_weather_data_filename, checkContainment_raw
-from RAiDER.models.customExceptions import *
+from RAiDER.models.weatherModel import make_raw_weather_data_filename, checkContainment_raw, make_weather_model_filename
+from RAiDER.models.customExceptions import (
+    ExistingWeatherModelTooSmall, DatetimeOutsideRange, TryToKeepGoingError, CriticalError
+)
 
 def prepareWeatherModel(
         weather_model,
