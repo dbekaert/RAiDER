@@ -154,7 +154,7 @@ def test_writeArrayToRaster_3(tmp_path):
         fname = os.path.join(tmp_path, 'tmp_file.tif')
         writeArrayToRaster(test, fname)
         tmp = rio_profile(fname)
-        assert tmp['dtype'] == np.complex64
+        assert tmp['dtype'] == 'complex64'
 
 
 def test_writeArrayToRaster_4(tmp_path):
