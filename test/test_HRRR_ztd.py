@@ -1,7 +1,4 @@
 import os
-import subprocess
-import shutil
-import glob
 
 from test import TEST_DIR
 

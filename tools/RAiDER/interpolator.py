@@ -8,7 +8,7 @@
 import numpy as np
 import pandas as pd
 
-from scipy.interpolate import interp1d, RegularGridInterpolator as rgi
+from scipy.interpolate import interp1d
 
 from RAiDER.interpolate import interpolate
 

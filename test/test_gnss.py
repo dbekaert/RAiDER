@@ -15,7 +15,6 @@ import pytest
 import pandas as pd
 
 from test import pushd, TEST_DIR
-from unittest import mock
 SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
 
 

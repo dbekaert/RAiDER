@@ -4,7 +4,6 @@ from dateutil.relativedelta import relativedelta
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.logger import logger
 
 
 class ERA5(ECMWF):

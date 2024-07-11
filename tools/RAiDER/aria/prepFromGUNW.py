@@ -384,7 +384,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
     with open(dst, 'w') as fh:
         yaml.safe_dump(params, fh,  default_flow_style=False)
 
-    logger.info (f'Wrote new cfg file: %s', dst)
+    logger.info ('Wrote new cfg file: %s', dst)
     return dst
 
 

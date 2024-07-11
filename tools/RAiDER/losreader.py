@@ -185,7 +185,7 @@ class Raytracing(LOS):
     def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600):
         '''read in and parse a statevector file'''
         if isce is None:
-            raise ImportError(f'isce3 is required for this class. Use conda to install isce3`')
+            raise ImportError('isce3 is required for this class. Use conda to install isce3`')
 
         super().__init__()
         self._ray_trace = True
@@ -238,7 +238,7 @@ class Raytracing(LOS):
         Calculate look vectors for raytracing
         '''
         if isce is None:
-            raise ImportError(f'isce3 is required for this method. Use conda to install isce3`')
+            raise ImportError('isce3 is required for this method. Use conda to install isce3`')
 
         # TODO - Modify when isce3 vectorization is available
         los = np.full(yy.shape + (3,), np.nan)
@@ -263,7 +263,7 @@ class Raytracing(LOS):
                         delta_range=10.0)
                     sat_xyz, _ = self._orbit.interpolate(aztime)
                     los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
-                except Exception as e:
+                except Exception:
                     los[ii, jj, :] = np.nan
         return los
 
@@ -606,7 +606,7 @@ def state_to_los(svs, llh_targets):
     >>> LOS = losr.state_to_los(*svs, [lats, lons, heights], xyz)
     '''
     if isce is None:
-        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
+        raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
     # check the inputs
     if np.min(svs.shape) < 4:
@@ -670,7 +670,7 @@ def get_radar_pos(llh, orb):
     sr:  ndarray  - Slant range in meters
     '''
     if isce is None:
-        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
+        raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
     num_iteration = 30
     residual_threshold = 1.0e-7
@@ -774,7 +774,7 @@ def get_orbit(orbit_file: Union[list, str],
 
     '''
     if isce is None:
-        raise ImportError(f'isce3 is required for this function. Use conda to install isce3`')
+        raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
     # First load the state vectors into an isce orbit
     svs = np.stack(get_sv(orbit_file, ref_time, pad), axis=-1)

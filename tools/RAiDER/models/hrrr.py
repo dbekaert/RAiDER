@@ -1,6 +1,5 @@
 import datetime
 import os
-import rioxarray
 import xarray
 
 import numpy as np
@@ -11,9 +10,9 @@ from pathlib import Path
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
 
-from RAiDER.utilFcns import round_date, transform_coords, rio_profile, rio_stats
+from RAiDER.utilFcns import round_date
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
-from RAiDER.models.model_levels import LEVELS_50_HEIGHTS, LEVELS_137_HEIGHTS
+from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
 from RAiDER.logger import logger
 
 HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))

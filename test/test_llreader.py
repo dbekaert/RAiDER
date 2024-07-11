@@ -11,8 +11,7 @@ from RAiDER.cli.raider import calcDelays
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
-    StationFile, RasterRDR, BoundingBox, GeocodedFile, Geocube,
-    bounds_from_latlon_rasters, bounds_from_csv
+    StationFile, RasterRDR, BoundingBox, GeocodedFile, bounds_from_latlon_rasters, bounds_from_csv
 )
 
 SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")

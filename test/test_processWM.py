@@ -1,7 +1,6 @@
 import os
 import pytest
 
-import numpy as np
 
 from test import TEST_DIR
 

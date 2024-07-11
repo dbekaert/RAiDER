@@ -3,8 +3,6 @@ import os
 import shutil
 import pytest
 
-import multiprocessing as mp
-import numpy as np
 import pandas as pd
 
 from test import TEST_DIR, pushd
@@ -12,7 +10,7 @@ from test import TEST_DIR, pushd
 from RAiDER.cli import DEFAULT_DICT
 from RAiDER.checkArgs import checkArgs, makeDelayFileNames, get_raster_ext
 from RAiDER.llreader import BoundingBox, StationFile, RasterRDR
-from RAiDER.losreader import Zenith, Conventional, Raytracing
+from RAiDER.losreader import Zenith
 from RAiDER.models.gmao import GMAO
 
 

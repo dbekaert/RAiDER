@@ -14,7 +14,6 @@ from datetime import datetime
 
 
 from RAiDER.losreader import Zenith
-from RAiDER.llreader import BoundingBox
 from RAiDER.logger import logger
 
 

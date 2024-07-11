@@ -369,7 +369,7 @@ def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName
     dfr = dfr.drop(columns=[col for col in dfr if col not in
                             expected_data_columns])
     dfz = pd.read_csv(ztdFile, parse_dates=['Date'])
-    if not 'Datetime' in dfz.keys():
+    if 'Datetime' not in dfz.keys():
         dfz.rename(columns={'Date': 'Datetime'}, inplace=True)
     # drop extra columns
     expected_data_columns = ['ID', 'Datetime', 'wet_delay', 'hydrostatic_delay',

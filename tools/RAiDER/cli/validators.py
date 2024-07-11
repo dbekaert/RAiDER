@@ -12,7 +12,7 @@ from datetime import time, timedelta, datetime, date
 from textwrap import dedent
 from time import strptime
 
-from RAiDER.llreader import BoundingBox, Geocube, RasterRDR, StationFile, GeocodedFile, Geocube
+from RAiDER.llreader import BoundingBox, RasterRDR, StationFile, GeocodedFile, Geocube
 from RAiDER.losreader import Zenith, Conventional
 from RAiDER.utilFcns import rio_extents, rio_profile
 from RAiDER.logger import logger
@@ -302,7 +302,7 @@ def convert_time(inp):
 
     raise ValueError(
                 'Unable to coerce {} to a time.'+
-                'Try T%H:%M:%S'.format(inp)
+                'Try T%H:%M:%S'.format()
         )
 
 
@@ -343,7 +343,7 @@ def getBufferedExtent(lats, lons=None, buf=0.):
     except AttributeError:
         if (isinstance(lats, tuple) or isinstance(lats, list)) and len(lats) == 2:
             out = [min(lats) - buf, max(lats) + buf, min(lons) - buf, max(lons) + buf]
-    except Exception as e:
+    except Exception:
         raise RuntimeError('Not a valid lat/lon shape or variable')
 
     return np.array(out)

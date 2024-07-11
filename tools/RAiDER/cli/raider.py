@@ -1,6 +1,5 @@
 import argparse
 import datetime
-import glob
 import os
 import json
 import shutil
@@ -75,7 +74,7 @@ def read_run_config_file(fname):
     group_keys = ['date_group', 'time_group', 'aoi_group',
                   'height_group', 'los_group', 'runtime_group']
     for key in group_keys:
-        if not key in params.keys():
+        if key not in params.keys():
             params[key] = {}
 
     # Parse the user-provided arguments

@@ -8,7 +8,6 @@ from RAiDER.models.ecmwf import ECMWF
 from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.models.model_levels import (
     LEVELS_91_HEIGHTS,
-    LEVELS_25_HEIGHTS,
     A_91_HRES,
     B_91_HRES,
 )

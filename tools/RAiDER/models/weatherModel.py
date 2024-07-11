@@ -3,8 +3,6 @@ import os
 from abc import ABC, abstractmethod
 
 import numpy as np
-import netCDF4
-import rioxarray
 import xarray
 
 from pyproj import CRS

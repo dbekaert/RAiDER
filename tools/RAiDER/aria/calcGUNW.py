@@ -6,7 +6,6 @@ import os
 import xarray as xr
 import numpy as np
 import RAiDER
-from RAiDER.utilFcns import rio_open
 from RAiDER.logger import logger
 from datetime import datetime
 import h5py

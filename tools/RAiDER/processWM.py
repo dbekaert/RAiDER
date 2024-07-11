@@ -10,10 +10,8 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-from typing import List
 
 from RAiDER.logger import logger
-from RAiDER.utilFcns import getTimeFromFile
 from RAiDER.models.weatherModel import make_raw_weather_data_filename, checkContainment_raw
 from RAiDER.models.customExceptions import *
 

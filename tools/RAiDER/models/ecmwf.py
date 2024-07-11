@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import datetime
 
 import numpy as np
@@ -234,7 +233,7 @@ class ECMWF(WeatherModel):
 
         try:
             c.retrieve('reanalysis-era5-complete', dataDict, outname)
-        except Exception as e:
+        except Exception:
             raise Exception
 
 

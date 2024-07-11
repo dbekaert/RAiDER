@@ -1,13 +1,10 @@
-import os
 import pytest
 import requests
 from unittest import mock
 
-from test import TEST_DIR, pushd
-from RAiDER.dem import download_dem
 from RAiDER.gnss.downloadGNSSDelays import (
     check_url,in_box,fix_lons,get_ID,
-    download_UNR,main,
+    download_UNR,
 )
 
 # Test check_url with a valid and invalid URL

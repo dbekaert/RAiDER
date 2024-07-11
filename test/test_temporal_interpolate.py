@@ -1,7 +1,6 @@
 import glob
 import shutil
 
-import pandas as pd
 
 from test import *
 

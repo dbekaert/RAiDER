@@ -43,7 +43,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     hydro = np.array(hydro).transpose(1, 2, 0)
 
     if np.any(np.isnan(wet)) or np.any(np.isnan(hydro)):
-        logger.critical(f'Weather model contains NaNs!')
+        logger.critical('Weather model contains NaNs!')
 
     # If shared interpolators are requested
     # The arrays are not modified - so turning off lock for performance

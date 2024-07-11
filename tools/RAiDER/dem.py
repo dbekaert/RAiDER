@@ -5,11 +5,9 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-from logging import warn
 import os
 
 import numpy as np
-import pandas as pd
 
 import rasterio
 from dem_stitcher.stitcher import stitch_dem

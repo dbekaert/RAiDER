@@ -37,7 +37,8 @@ def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
     Updates parameters in the default 'template.yaml' file.
     Each key:value pair will in 'dct_cfg' will overwrite that in the default
     """
-    import RAiDER, yaml
+    import RAiDER
+    import yaml
 
     run_config_path = os.path.join(
         os.path.dirname(RAiDER.__file__),
