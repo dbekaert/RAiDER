@@ -970,24 +970,24 @@ class RaiderStats(object):
             # e.g. month/day: 03/01 to 06/01
             if self.seasonalinterval[0] < self.seasonalinterval[1]:
                 # non leap-year
-                filtered_self = self.df[(self.df['Date'].dt.is_leap_year == False) & (
+                filtered_self = self.df[(not self.df['Date'].dt.is_leap_year) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])]
                 # leap-year
                 self.seasonalinterval = [i + 1 if i >
                                          59 else i for i in self.seasonalinterval]
-                filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year == True) & (
+                filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[0]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])]
                 self.df = pd.concat([filtered_self, filtered_self_ly], ignore_index=True)
                 del filtered_self
             # e.g. month/day: 12/01 to 03/01
             if self.seasonalinterval[0] > self.seasonalinterval[1]:
                 # non leap-year
-                filtered_self = self.df[(self.df['Date'].dt.is_leap_year == False) & (
+                filtered_self = self.df[(not self.df['Date'].dt.is_leap_year) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[-1]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[0])]
                 # leap-year
                 self.seasonalinterval = [i + 1 if i >
                                          59 else i for i in self.seasonalinterval]
-                filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year == True) & (
+                filtered_self_ly = self.df[(self.df['Date'].dt.is_leap_year) & (
                     self.df['Date'].dt.dayofyear >= self.seasonalinterval[-1]) & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[0])]
                 self.df = pd.concat([filtered_self, filtered_self_ly], ignore_index=True)
                 del filtered_self

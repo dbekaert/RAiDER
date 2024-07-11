@@ -26,13 +26,13 @@ def test_in_box_inside():
   lat = 38.0
   lon = -97.0
   llbox = [30, 40, -100, -90]  # Sample bounding box
-  assert in_box(lat, lon, llbox) == True
+  assert in_box(lat, lon, llbox)
 
 def test_in_box_outside():
   lat = 50.0
   lon = -80.0
   llbox = [30, 40, -100, -90]  # Sample bounding box
-  assert in_box(lat, lon, llbox) == False
+  assert not in_box(lat, lon, llbox)
 
 # Test fix_lons with various longitudes
 def test_fix_lons_positive():

@@ -622,8 +622,7 @@ def test_check_hrrr_availability_all_true():
     gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
     
     # Mock _get_acq_time_from_gunw_id to return expected times
-    result = check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
-    assert result == True
+    assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
 
 def test_get_slc_ids_from_gunw():
     test_path = 'test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
