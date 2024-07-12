@@ -70,11 +70,12 @@ def test_get_ID_invalid():
     get_ID(line)
 
 
-def test_download_UNR():
-  statID = 'MORZ'
-  year = 2020
-  outDict = download_UNR(statID, year)
-  assert outDict['path'] == 'http://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip'
+def test_download_UNR(tmp_path):
+  with pushd (tmp_path):
+    statID = 'MORZ'
+    year = 2020
+    outDict = download_UNR(statID, year)
+    assert outDict['path'] == 'http://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip'
 
 def test_download_UNR_2():
   statID = 'MORZ'
