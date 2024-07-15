@@ -626,7 +626,6 @@ def state_to_los(svs, llh_targets):
     # Flatten the input array for convenience
     in_shape   = llh_targets[0].shape
     target_llh = np.stack([x.flatten() for x in llh_targets], axis=-1)
-    Npts       = len(target_llh)
 
     # Iterate through targets and compute LOS
     los_ang, _ = get_radar_pos(target_llh, orb)

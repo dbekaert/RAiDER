@@ -85,12 +85,6 @@ class GMAO(WeatherModel):
             url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
             session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
             ds = pydap.client.open_url(url, session=session)
-            qv = ds['qv'].array[
-                time_ind,
-                ml_min:(ml_max + 1),
-                lat_min_ind:(lat_max_ind + 1),
-                lon_min_ind:(lon_max_ind + 1)
-            ].data[0]
 
             p = ds['pl'].array[
                 time_ind,

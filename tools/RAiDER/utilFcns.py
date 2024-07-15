@@ -171,7 +171,7 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
         if band is not None:
             ndv = nodata[band - 1]
             data = src.read(band).squeeze()
-            nodataToNan(data, [userNDV, nodata[band - 1]])
+            nodataToNan(data, [userNDV, ndv])
 
         else:
             data = src.read().squeeze()
@@ -536,7 +536,7 @@ def WGS84_to_UTM(lon, lat, common_center=False):
     if common_center:
         lon0 = np.median(lon)
         lat0 = np.median(lat)
-        z0, l0, x0, y0 = project((lon0, lat0))
+        z0, l0, _, _ = project((lon0, lat0))
     Z = lon.copy()
     L = np.zeros(lon.shape, dtype='<U1')
     X = lon.copy()

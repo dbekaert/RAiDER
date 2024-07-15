@@ -167,7 +167,6 @@ def load_weather_hrrr(filename):
     # read data from the netcdf file
     ds = xarray.open_dataset(filename, engine='netcdf4')
     # Pull the relevant data from the file
-    pl = ds.levels.values
     pres = ds['pres'].values.transpose(1, 2, 0)
     xArr = ds['x'].values
     yArr = ds['y'].values
