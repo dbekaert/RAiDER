@@ -19,7 +19,7 @@ def test_cube_intersect(wm):
     time       ='13:52:45'
     # f_lat, f_lon = makeLatLonGrid([S, N, W, E], 'LA', SCENARIO_DIR, 0.25)
 
-    ## make the template file
+    ## make the run config file
     grp = {
             'date_group': {'date_start': date},
             'time_group': {'time': time, 'interpolate_time': 'none'},
@@ -35,7 +35,7 @@ def test_cube_intersect(wm):
             'verbose': False,
         }
 
-    ## generate the default template file and overwrite it with new parms
+    ## generate the default run config file and overwrite it with new parms
     cfg  = update_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
@@ -68,7 +68,7 @@ def test_gnss_intersect(wm):
     date       = 20200130
     time       ='13:52:45'
 
-    ## make the template file
+    ## make the run config file
     grp = {
             'date_group': {'date_start': date},
             'time_group': {'time': time, 'interpolate_time': 'none'},
@@ -81,7 +81,7 @@ def test_gnss_intersect(wm):
             'verbose': False,
         }
 
-    ## generate the default template file and overwrite it with new parms
+    ## generate the default run config file and overwrite it with new parms
     cfg  = update_yaml(grp)
 
     ## run raider and intersect

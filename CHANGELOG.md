@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2]
+### Changed
+* [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and added unit tests and bug fixes.
+* [651](https://github.com/dbekaert/RAiDER/pull/651) - Removed use of deprecated argument to `pandas.read_csv`.
+* [652](https://github.com/dbekaert/RAiDER/pull/652) - Changed the behavior of `RAiDER.models.credentials.check_api` to not overwrite the user's API credential files.
+* [656](https://github.com/dbekaert/RAiDER/pull/656) - Example run configuration files available through `raider.py --generate_config <example_name>`.
+* [657](https://github.com/dbekaert/RAiDER/pull/657) - Fixed a few typos in `README.md`.
+* [658](https://github.com/dbekaert/RAiDER/pull/658) - Fixed opaque error message if a GUNW file is not produced while HyP3 independently against a previous INSAR_ISCE.
+* [661](https://github.com/dbekaert/RAiDER/pull/661) - Fixed bug in raiderDownloadGNSS, removed call to scipy.sum, and added unit tests.
+* [662](https://github.com/dbekaert/RAiDER/pull/662) - Bumped dem-stitcher to >= v2.5.6, which updates the URL for reading the Geoid EGM 2008.
+
 ## [0.5.1]
 ### Changed
 * Use hyp3-lib v3* to download orbits to be able to distribute load across ESA and ASF. Can be easily swapped out for `sentineleof` in future release.
@@ -28,6 +39,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.4.6]
 
 ### Added
+* Added check for intermediate grid creation in _get_delays_on_cube
 * Adds an `s1_orbits.py` module which includes:
   * `get_orbits_from_slc_ids` to download the associated orbit files for a list of Sentinel-1 SLC IDs
   * `ensure_orbit_credentials` to ensure ESA CSDE credentials have been provides to download orbit files. This should be called before `sentineleof` is used to download orbits.

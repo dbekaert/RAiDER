@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import glob
 import os
 import json
 import shutil
@@ -10,11 +11,11 @@ import numpy as np
 import xarray as xr
 
 from textwrap import dedent
+from pathlib import Path
 
 import RAiDER.aria.prepFromGUNW
 import RAiDER.aria.calcGUNW
 from RAiDER import aws
-from RAiDER.constants import _ZREF
 from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_out, add_cpus, add_verbose
@@ -24,8 +25,6 @@ from RAiDER.models.customExceptions import *
 from RAiDER.utilFcns import get_dt
 from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_times_for_azimuth_interpolation
 
-
-import traceback
 
 TIME_INTERPOLATION_METHODS = ['none', 'center_time', 'azimuth_time_grid']
 
@@ -37,27 +36,25 @@ raider.py --generate_config
 Download a weather model and calculate tropospheric delays
 """
 
-SHORT_MESSAGE = """
-Program to calculate troposphere total delays using a weather model
-"""
-
 EXAMPLES = """
 Usage examples:
 raider.py -g
-raider.py customTemplatefile.cfg
+raider.py run_config_file.yaml
 """
 
+DEFAULT_RUN_CONFIG_PATH = os.path.abspath("./raider.yaml")
 
-def read_template_file(fname):
+
+def read_run_config_file(fname):
     """
-    Read the template file into a dictionary structure.
+    Read the run config file into a dictionary structure.
     Args:
-        fname (str): full path to the template file
+        fname (str): full path to the run config file
     Returns:
         dict: arguments to pass to RAiDER functions
 
     Examples:
-    >>> template = read_template_file('raider.yaml')
+    >>> run_config = read_run_config_file('raider.yaml')
 
     """
     from RAiDER.cli.validators import (
@@ -68,63 +65,65 @@ def read_template_file(fname):
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-            raise ValueError('Something is wrong with the yaml file {}'.format(fname))
+            raise ValueError(
+                'Something is wrong with the yaml file {}'.format(fname))
 
     # Drop any values not specified
     params = drop_nans(params)
 
     # Need to ensure that all the groups exist, even if they are not specified by the user
-    group_keys = ['date_group', 'time_group', 'aoi_group', 'height_group', 'los_group', 'runtime_group']
+    group_keys = ['date_group', 'time_group', 'aoi_group',
+                  'height_group', 'los_group', 'runtime_group']
     for key in group_keys:
         if not key in params.keys():
             params[key] = {}
 
     # Parse the user-provided arguments
-    template = DEFAULT_DICT.copy()
+    run_config = DEFAULT_DICT.copy()
     for key, value in params.items():
         if key == 'runtime_group':
             for k, v in value.items():
                 if v is not None:
-                    template[k] = v
+                    run_config[k] = v
         if key == 'time_group':
-            template.update(enforce_time(AttributeDict(value)))
+            run_config.update(enforce_time(AttributeDict(value)))
         if key == 'date_group':
-            template['date_list'] = parse_dates(AttributeDict(value))
+            run_config['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
-            ## in case a DEM is passed and should be used
+            # in case a DEM is passed and should be used
             dct_temp = {**AttributeDict(value),
                         **AttributeDict(params['height_group'])}
-            template['aoi'] = get_query_region(AttributeDict(dct_temp))
+            run_config['aoi'] = get_query_region(AttributeDict(dct_temp))
 
         if key == 'los_group':
-            template['los']  = get_los(AttributeDict(value))
-            template['zref'] = AttributeDict(value).get('zref')
+            run_config['los'] = get_los(AttributeDict(value))
+            run_config['zref'] = AttributeDict(value).get('zref')
         if key == 'look_dir':
             if value.lower() not in ['right', 'left']:
                 raise ValueError(f"Unknown look direction {value}")
-            template['look_dir'] = value.lower()
+            run_config['look_dir'] = value.lower()
         if key == 'cube_spacing_in_m':
-            template[key] = float(value) if isinstance(value, str) else value
+            run_config[key] = float(value) if isinstance(value, str) else value
         if key == 'download_only':
-            template[key] = bool(value)
+            run_config[key] = bool(value)
 
     # Have to guarantee that certain variables exist prior to looking at heights
     for key, value in params.items():
         if key == 'height_group':
-            template.update(
+            run_config.update(
                 get_heights(
                     AttributeDict(value),
-                    template['output_directory'],
-                    template['station_file'],
-                    template['bounding_box'],
+                    run_config['output_directory'],
+                    run_config['station_file'],
+                    run_config['bounding_box'],
                 )
             )
 
         if key == 'weather_model':
-            template[key]= enforce_wm(value, template['aoi'])
+            run_config[key] = enforce_wm(value, run_config['aoi'])
 
-    template['aoi']._cube_spacing_m = template['cube_spacing_in_m']
-    return AttributeDict(template)
+    run_config['aoi']._cube_spacing_m = run_config['cube_spacing_in_m']
+    return AttributeDict(run_config)
 
 
 def drop_nans(d):
@@ -146,72 +145,82 @@ def calcDelays(iargs=None):
     from RAiDER.checkArgs import checkArgs
     from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
     examples = 'Examples of use:' \
-        '\n\t raider.py customTemplatefile.cfg' \
-        '\n\t raider.py -g'
+        '\n\t raider.py run_config_file.yaml' \
+        '\n\t raider.py --generate_config template'
 
     p = argparse.ArgumentParser(
-        description =
-            'Command line interface for RAiDER processing with a configure file.'
-            'Default options can be found by running: raider.py --generate_config',
+        description=HELP_MESSAGE,
         epilog=examples, formatter_class=argparse.RawDescriptionHelpFormatter)
 
     p.add_argument(
-        'customTemplateFile', nargs='?',
-        help='custom template with option settings.\n' +
-        "ignored if the default smallbaselineApp.cfg is input."
-    )
-
-    p.add_argument(
-        '-g', '--generate_template', action='store_true',
-        help='generate default template (if it does not exist) and exit.'
-    )
-
-    p.add_argument(
-        '--download_only', action='store_true',
+        '--download_only',
+        action='store_true',
         help='only download a weather model.'
     )
 
-    ## if not None, will replace first argument (customTemplateFile)
+    # Generate an example configuration file, OR
+    # run with a configuration file.
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        '--generate_config', '-g',
+        nargs='?',
+        choices=[
+            'template',
+            'example_LA_bbox',
+            'example_LA_GNSS',
+            'example_UK_isce',
+        ],
+        help='Generate an example run configuration and exit'
+    )
+    group.add_argument(
+        'run_config_file',
+        nargs='?',
+        help='a YAML file with arguments to RAiDER'
+    )
+
+    # if not None, will replace first argument (run_config_file)
     args = p.parse_args(args=iargs)
 
-    # default input file
-    template_file = os.path.join(os.path.dirname(RAiDER.__file__),
-                                                        'cli', 'raider.yaml')
+    # Default example run configuration file
+    ex_run_config_name = args.generate_config or 'template'
+    ex_run_config_dir = (
+        Path(RAiDER.__file__).parent /
+        'cli/examples' / ex_run_config_name
+    )
 
-    if args.generate_template:
-        dst = os.path.join(os.getcwd(), 'raider.yaml')
-        shutil.copyfile(template_file, dst)
-        logger.info('Wrote: %s', dst)
+    if args.generate_config is not None:
+        for filename in ex_run_config_dir.glob('*'):
+            dest_path = Path(os.getcwd()) / filename.name
+            if dest_path.exists():
+                print(f'File {dest_path} already exists. Overwrite? [y/n]')
+                if input().lower() != 'y':
+                    continue
+            shutil.copy(filename, os.getcwd())
+            logger.info('Wrote: %s', filename)
         sys.exit()
+    # args.generate_config now guaranteed to be None
 
-
-    # check: existence of input template files
-    if (not args.customTemplateFile
-            and not os.path.isfile(os.path.basename(template_file))
-            and not args.generate_template):
-        msg = "No template file found! It requires that either:"
-        msg += "\n  a custom template file, OR the default template "
-        msg += "\n  file 'raider.yaml' exists in current directory."
-
-        p.print_usage()
-        print(examples)
-        raise SystemExit(f'ERROR: {msg}')
-
-    if  args.customTemplateFile:
-        # check the existence
-        if not os.path.isfile(args.customTemplateFile):
-            raise FileNotFoundError(args.customTemplateFile)
-
-        args.customTemplateFile = os.path.abspath(args.customTemplateFile)
+    # If no run configuration file is provided, look for a ./raider.yaml
+    if args.run_config_file is not None:
+        if not os.path.isfile(args.run_config_file):
+            raise FileNotFoundError(args.run_config_file)
     else:
-        args.customTemplateFile = template_file
+        if not os.path.isfile(DEFAULT_RUN_CONFIG_PATH):
+            msg = (
+                "No run configuration file provided! Specify a run configuration "
+                "file or have a 'raider.yaml' file in the current directory."
+            )
+            p.print_usage()
+            print(examples)
+            raise SystemExit(f'ERROR: {msg}')
+        args.run_config_file = DEFAULT_RUN_CONFIG_PATH
 
-    # Read the template file
-    params = read_template_file(args.customTemplateFile)
+    # Read the run config file
+    params = read_run_config_file(args.run_config_file)
 
-    # Argument checking
-    params  = checkArgs(params)
-    dl_only = True if params['download_only'] or args.download_only else False
+    # Verify the run config file's parameters
+    params = checkArgs(params)
+    dl_only = params['download_only'] or args.download_only
 
     if not params.verbose:
         logger.setLevel(logging.INFO)
@@ -230,7 +239,7 @@ def calcDelays(iargs=None):
     # add a buffer determined by latitude for ray tracing
     if los.ray_trace():
         wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(),
-                                lookDir=los.getLookDirection(), incAngle=30)
+                                        lookDir=los.getLookDirection(), incAngle=30)
     else:
         wm_bounds = aoi.bounds()
 
@@ -286,30 +295,35 @@ def calcDelays(iargs=None):
                 else:
                     continue
 
-            # log when something else happens and then re-raise the error
+            # log when something else happens and then continue with the next time
             except Exception as e:
                 S, N, W, E = wm_bounds
-                logger.info(f'Weather model point bounds are {S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}')
+                logger.info(
+                    'Weather model point bounds are '
+                    f'{S:.2f}/{N:.2f}/{W:.2f}/{E:.2f}'
+                )
                 logger.info(f'Query datetime: {tt}')
-                msg = f'Downloading and/or preparation of {model._Name} failed.'
                 logger.error(e)
                 logger.error('Weather model files are: {}'.format(wfiles))
-                logger.error(msg)
-                raise
+                logger.error(
+                    f'Downloading and/or preparation of {model._Name} failed.'
+                )
+                continue
 
         # dont process the delays for download only
         if dl_only:
             continue
 
         # Get the weather model file
-        weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
+        weather_model_file = getWeatherFile(
+            wfiles, times, t, model._Name, interp_method)
 
         # Now process the delays
         try:
             wet_delay, hydro_delay = tropo_delay(
                 t, weather_model_file, aoi, los,
-                height_levels = params['height_levels'],
-                out_proj = params['output_projection'],
+                height_levels=params['height_levels'],
+                out_proj=params['output_projection'],
                 zref=params['zref']
             )
         except RuntimeError:
@@ -344,23 +358,26 @@ def calcDelays(iargs=None):
             if out_filename.endswith(".nc"):
                 ds.to_netcdf(out_filename, mode="w")
             elif out_filename.endswith(".h5"):
-                ds.to_netcdf(out_filename, engine="h5netcdf", invalid_netcdf=True)
+                ds.to_netcdf(out_filename, engine="h5netcdf",
+                             invalid_netcdf=True)
 
-            logger.info('\nSuccessfully wrote delay cube to: %s\n', out_filename)
+            logger.info(
+                '\nSuccessfully wrote delay cube to: %s\n', out_filename)
         # Dataset returned: station files, radar_raster, geocoded_file
         else:
             if aoi.type() == 'station_file':
                 out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
 
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
-                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
+                writeDelays(aoi, wet_delay, hydro_delay, out_filename,
+                            f, outformat=params['raster_format'])
 
         wet_filenames.append(out_filename)
 
     return wet_filenames
 
 
-## ------------------------------------------------------ downloadGNSSDelays.py
+# ------------------------------------------------------ downloadGNSSDelays.py
 def downloadGNSS():
     """Parse command line arguments using argparse."""
     from RAiDER.gnss.downloadGNSSDelays import main as dlGNSS
@@ -441,13 +458,13 @@ def downloadGNSS():
     add_cpus(misc)
     add_verbose(misc)
 
-    args =  p.parse_args()
+    args = p.parse_args()
 
     dlGNSS(args)
     return
 
 
-## ------------------------------------------------------------ prepFromGUNW.py
+# ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
     p = argparse.ArgumentParser(
@@ -513,7 +530,8 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         iargs.input_bucket_prefix = iargs.bucket_prefix
 
     if iargs.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
-        raise ValueError('interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
+        raise ValueError(
+            'interpolate_time arg must be in [\'none\', \'center_time\', \'azimuth_time_grid\']')
 
     if iargs.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
@@ -527,11 +545,18 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         file_name = iargs.file.split('/')[-1]
         gunw_id = file_name.replace('.nc', '')
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-            raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
+            raise NoWeatherModelData(
+                'The required HRRR data for time-grid interpolation is not available')
 
     if not iargs.file and iargs.bucket:
         # only use GUNW ID for checking if HRRR available
-        iargs.file = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.nc')
+        iargs.file = aws.get_s3_file(
+            iargs.bucket, iargs.input_bucket_prefix, '.nc')
+        if iargs.file is None:
+            raise ValueError(
+                'GUNW product file could not be found at'
+                f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+            )
         if iargs.weather_model == 'HRRR' and (iargs.interpolate_time == 'azimuth_time_grid'):
             file_name_str = str(iargs.file)
             gunw_nc_name = file_name_str.split('/')[-1]
@@ -547,15 +572,26 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
             #       we include this within this portion of the control flow.
             print('Nothing to do because outside of weather model range')
             return
-        json_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.json')
+        json_file_path = aws.get_s3_file(
+            iargs.bucket, iargs.input_bucket_prefix, '.json')
+        if json_file_path is None:
+            raise ValueError(
+                'GUNW metadata file could not be found at'
+                f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+            )
         json_data = json.load(open(json_file_path))
-        json_data['metadata'].setdefault('weather_model', []).append(iargs.weather_model)
+        json_data['metadata'].setdefault(
+            'weather_model', []).append(iargs.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
         # also get browse image -- if RAiDER is running in its own HyP3 job, the browse image will be needed for ingest
-        browse_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.png')
-
-
+        browse_file_path = aws.get_s3_file(
+            iargs.bucket, iargs.input_bucket_prefix, '.png')
+        if browse_file_path is None:
+            raise ValueError(
+                'GUNW browse image could not be found at'
+                f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+            )
 
     elif not iargs.file:
         raise ValueError('Either argument --file or --bucket must be provided')
@@ -578,12 +614,14 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     # upload to s3
     if iargs.bucket:
         aws.upload_file_to_s3(iargs.file, iargs.bucket, iargs.bucket_prefix)
-        aws.upload_file_to_s3(json_file_path, iargs.bucket, iargs.bucket_prefix)
-        aws.upload_file_to_s3(browse_file_path, iargs.bucket, iargs.bucket_prefix)
+        aws.upload_file_to_s3(
+            json_file_path, iargs.bucket, iargs.bucket_prefix)
+        aws.upload_file_to_s3(
+            browse_file_path, iargs.bucket, iargs.bucket_prefix)
     return ds
 
 
-## ------------------------------------------------------------ processDelays.py
+# ------------------------------------------------------------ processDelays.py
 def combineZTDFiles():
     '''
     Command-line program to process delay files from RAiDER and GNSS into a single file.
@@ -629,13 +667,14 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
     try:
         Nfiles_expected = EXPECTED_NUM_FILES[interp_method]
     except KeyError:
-        raise ValueError('getWeatherFile: interp_method {} is not known'.format(interp_method))
+        raise ValueError(
+            'getWeatherFile: interp_method {} is not known'.format(interp_method))
 
     Nmatch = (Nfiles_expected == Nfiles)
     Tmatch = (Nfiles == Ntimes)
 
     # Case 1: no files downloaded
-    if Nfiles==0:
+    if Nfiles == 0:
         logger.error('No weather model data was successfully processed.')
         return None
 
@@ -643,28 +682,29 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
     if (interp_method == 'none'):
         weather_model_file = wfiles[0]
 
-
     elif (interp_method == 'center_time'):
 
-        if Nmatch: # Case 3: two weather files downloaded
+        if Nmatch:  # Case 3: two weather files downloaded
             weather_model_file = combine_weather_files(
                 wfiles,
                 t,
                 model,
                 interp_method='center_time'
             )
-        elif Tmatch: # Case 4: Exact time is available without interpolation
-            logger.warning('Time interpolation is not needed as exact time is available')
+        elif Tmatch:  # Case 4: Exact time is available without interpolation
+            logger.warning(
+                'Time interpolation is not needed as exact time is available')
             weather_model_file = wfiles[0]
-        elif Nfiles == 1: # Case 5: one file does not download for some reason
-            logger.warning('getWeatherFile: One datetime is not available to download, defaulting to nearest available date')
+        elif Nfiles == 1:  # Case 5: one file does not download for some reason
+            logger.warning(
+                'getWeatherFile: One datetime is not available to download, defaulting to nearest available date')
             weather_model_file = wfiles[0]
         else:
             raise WrongNumberOfFiles(Nfiles_expected, Nfiles)
 
     elif (interp_method) == 'azimuth_time_grid':
 
-        if Nmatch or Tmatch: # Case 6: all files downloaded
+        if Nmatch or Tmatch:  # Case 6: all files downloaded
             weather_model_file = combine_weather_files(
                 wfiles,
                 t,
@@ -678,7 +718,7 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
     else:
         N = len(wfiles)
         raise NotImplementedError(f'The {interp_method} with {N} retrieved weather model files was not well posed '
-                                    'for the current workflow.')
+                                  'for the current workflow.')
 
     return weather_model_file
 
@@ -686,7 +726,8 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
 def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     '''Interpolate downloaded weather files and save to a single file'''
 
-    STYLE = {'center_time': '_timeInterp_', 'azimuth_time_grid': '_timeInterpAziGrid_'}
+    STYLE = {'center_time': '_timeInterp_',
+             'azimuth_time_grid': '_timeInterpAziGrid_'}
 
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
@@ -694,9 +735,10 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     # Pull the datetimes from the datasets
     times = []
     for ds in datasets:
-        times.append(datetime.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+        times.append(datetime.datetime.strptime(
+            ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
-    if len(times)==0:
+    if len(times) == 0:
         raise NoWeatherModelData()
 
     # calculate relative weights of each dataset
@@ -717,8 +759,8 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     weather_model_file = os.path.join(
         os.path.dirname(wfiles[0]),
         os.path.basename(wfiles[0]).split('_')[0] + '_' +
-            t.strftime('%Y_%m_%dT%H_%M_%S') + STYLE[interp_method] +
-            '_'.join(wfiles[0].split('_')[-4:]),
+        t.strftime('%Y_%m_%dT%H_%M_%S') + STYLE[interp_method] +
+        '_'.join(wfiles[0].split('_')[-4:]),
     )
 
     # write the combined results to disk
@@ -736,7 +778,8 @@ def combine_files_using_azimuth_time(wfiles, t, times):
     # Pull the datetimes from the datasets
     times = []
     for ds in datasets:
-        times.append(datetime.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+        times.append(datetime.datetime.strptime(
+            ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
     model = datasets[0].attrs['model_name']
 
@@ -754,7 +797,8 @@ def combine_files_using_azimuth_time(wfiles, t, times):
     # Give the weighted combination a new file name
     weather_model_file = os.path.join(
         os.path.dirname(wfiles[0]),
-        os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime('%Y_%m_%dT%H_%M_%S') + '_timeInterpAziGrid_' + '_'.join(wfiles[0].split('_')[-4:]),
+        os.path.basename(wfiles[0]).split('_')[0] + '_' + t.strftime(
+            '%Y_%m_%dT%H_%M_%S') + '_timeInterpAziGrid_' + '_'.join(wfiles[0].split('_')[-4:]),
     )
 
     # write the combined results to disk
@@ -765,13 +809,15 @@ def combine_files_using_azimuth_time(wfiles, t, times):
 
 def get_weights_time_interp(times, t):
     '''Calculate weights for time interpolation using simple inverse linear weighting'''
-    date1,date2 = times
-    wgts  = [ 1 - get_dt(t, date1) / get_dt(date2, date1), 1 - get_dt(date2, t) / get_dt(date2, date1)]
+    date1, date2 = times
+    wgts = [1 - get_dt(t, date1) / get_dt(date2, date1), 1 -
+            get_dt(date2, t) / get_dt(date2, date1)]
 
     try:
         assert np.isclose(np.sum(wgts), 1)
     except AssertionError:
-        logger.error('Time interpolation weights do not sum to one; something is off with query datetime: %s', t)
+        logger.error(
+            'Time interpolation weights do not sum to one; something is off with query datetime: %s', t)
         return None
 
     return wgts
@@ -797,10 +843,13 @@ def get_time_grid_for_aztime_interp(datasets, t, model):
         hgt = np.broadcast_to(z_1d[:, None, None], (m, n, p))
 
     else:
-        raise NotImplementedError('Azimuth Time is currently only implemented for HRRR')
+        raise NotImplementedError(
+            'Azimuth Time is currently only implemented for HRRR')
 
-    time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, t) # This is the acq time from loop
+    time_grid = get_s1_azimuth_time_grid(
+        lon, lat, hgt, t)  # This is the acq time from loop
     if np.any(np.isnan(time_grid)):
-        raise ValueError('The Time Grid return nans meaning no orbit was downloaded.')
+        raise ValueError(
+            'The Time Grid return nans meaning no orbit was downloaded.')
 
     return time_grid

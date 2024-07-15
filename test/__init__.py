@@ -2,6 +2,8 @@ import os
 import pytest
 import subprocess
 import shutil
+import string
+import random
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -32,25 +34,30 @@ def pushd(dir):
 def update_yaml(dct_cfg:dict, dst:str='temp.yaml'):
     """ Write a new yaml file from a dictionary.
 
-    Updates parameters in the default 'raider.yaml' file.
+    Updates parameters in the default 'template.yaml' file.
     Each key:value pair will in 'dct_cfg' will overwrite that in the default
     """
     import RAiDER, yaml
 
-    template_file = os.path.join(
-                    os.path.dirname(RAiDER.__file__), 'cli', 'raider.yaml')
+    run_config_path = os.path.join(
+        os.path.dirname(RAiDER.__file__),
+        'cli',
+        'examples',
+        'template',
+        'template.yaml'
+    )
 
-    with open(template_file, 'r') as f:
+    with open(run_config_path, 'r') as f:
         try:
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {template_file}')
+            raise ValueError(f'Something is wrong with the yaml file {run_config_path}')
 
     params = {**params, **dct_cfg}
 
     with open(dst, 'w') as fh:
-        yaml.safe_dump(params, fh,  default_flow_style=False)
+        yaml.safe_dump(params, fh, default_flow_style=False)
 
     return dst
 
@@ -78,3 +85,10 @@ def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):
 def make_delay_name(weather_model_name, date, time, kind='ztd'):
     assert kind in 'ztd std ray'.split(), 'Incorrect type of delays.'
     return f'{weather_model_name}_tropo_{date}T{time.replace(":", "")}_{kind}.nc'
+
+
+def random_string(
+    length: int = 32,
+    alphabet: str = string.ascii_letters + string.digits
+) -> str:
+    return ''.join(random.choices(alphabet, k=length))

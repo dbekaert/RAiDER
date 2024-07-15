@@ -36,7 +36,7 @@ RAiDER does **not** currently run on arm64 processors on Mac. We will update thi
 
 ### Installing With Conda
 
-RAiDER is available on [conda-forge](https://anaconda.org/conda-forge/raider). __[Conda](https://docs.conda.io/en/latest/index.html)__ is a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. We recommend using [Miniforge](https://github.com/conda-forge/miniforge), a conda environment manager that uses conda-forge as its default code repo. Alternatively,see __[here](https://docs.anaconda.com/anaconda/install/)__ for help installing Anaconda and __[here](https://docs.conda.io/en/latest/miniconda.html)__ for installing Miniconda.
+RAiDER is available on [conda-forge](https://anaconda.org/conda-forge/raider). __[Conda](https://docs.conda.io/en/latest/index.html)__ is a cross-platform way to use Python that allows you to setup and use "virtual environments." These can help to keep dependencies for different sets of code separate. We recommend using [Miniforge](https://github.com/conda-forge/miniforge), a conda environment manager that uses conda-forge as its default code repo. Alternatively, see __[here](https://docs.anaconda.com/anaconda/install/)__ for help installing Anaconda and __[here](https://docs.conda.io/en/latest/miniconda.html)__ for installing Miniconda.
 
 Installing RAiDER:
 ```
@@ -85,8 +85,8 @@ RAiDER has the ability to download weather models from third-parties; some of wh
 ## 3. Running RAiDER and Documentation
 
 For detailed documentation, examples, and Jupyter notebooks see the [RAiDER-docs repository](https://github.com/dbekaert/RAiDER-docs).
-We welcome contributions of other examples on how to leverage the RAiDER  (see [here](https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md) for instructions).
-``` raiderDelay.py -h ``` provides a help menu and list of example commands to get started.
+We welcome contributions of other examples on how to leverage the RAiDER (see [here](https://github.com/dbekaert/RAiDER/blob/dev/CONTRIBUTING.md) for instructions).  
+``` raider.py -h ``` provides a help menu and set of example run configurations to get started.
 The RAiDER scripts are highly modularized in Python and allows for building your own processing workflow.
 
 ------

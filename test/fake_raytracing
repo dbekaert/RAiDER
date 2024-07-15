@@ -26,7 +26,8 @@ class MockWeatherModel(WeatherModel):
         self._k3 = 1
 
         self._Name = "MOCK"
-        self._valid_range = (datetime.datetime(1970, 1, 1), "Present")
+        self._valid_range = (datetime.datetime(1970, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+                             datetime.datetime.now(datetime.timezone.utc))
         self._lag_time = datetime.timedelta(days=15)
 
     def _fetch(self, ll_bounds, time, out):
