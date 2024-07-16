@@ -3,13 +3,16 @@ Calculate the interferometric phase from the 4 delays files of a GUNW
 Write it to disk
 """
 import os
-import xarray as xr
+from datetime import datetime
+
+import h5py
 import numpy as np
+import xarray as xr
+from netCDF4 import Dataset
+
 import RAiDER
 from RAiDER.logger import logger
-from datetime import datetime
-import h5py
-from netCDF4 import Dataset
+
 
 ## ToDo:
     # Check difference direction
@@ -30,7 +33,7 @@ def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
     wavelength : float
         Depends on sensor, e.g. for Sentinel-1 it is ~.05
 
-    Returns
+    Returns:
     -------
     xr.Dataset
         Formatted dataset for GUNW
@@ -105,7 +108,7 @@ def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
 
 
 def update_gunw_slc(path_gunw:str, ds_slc):
-    """ Update the path_gunw file using the slc delays in ds_slc """
+    """Update the path_gunw file using the slc delays in ds_slc"""
     ## first need to delete the variable; only can seem to with h5
     with h5py.File(path_gunw, 'a') as h5:
         for k in TROPO_GROUP.split():
@@ -175,7 +178,7 @@ def update_gunw_slc(path_gunw:str, ds_slc):
 
 
 def update_gunw_version(path_gunw):
-    """ temporary hack for updating version to test aria-tools """
+    """Temporary hack for updating version to test aria-tools"""
     with Dataset(path_gunw, mode='a') as ds:
         ds.version = '1c'
     return
@@ -196,7 +199,7 @@ def tropo_gunw_slc(cube_filenames: list,
     wavelength : float
         Wavelength of SAR
 
-    Returns
+    Returns:
     -------
     xr.Dataset
         Output cube that will be included in GUNW

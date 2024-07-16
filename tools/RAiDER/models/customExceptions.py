@@ -39,7 +39,7 @@ class CriticalError(Exception):
 class WrongNumberOfFiles(Exception):
     def __init__(self, Nexp, Navail):
         msg = 'The number of files downloaded does not match the requested, '
-        'I expected {} and got {}, aborting'.format(Nexp, Navail)
+        f'I expected {Nexp} and got {Navail}, aborting'
         super().__init__(msg)
     
 
@@ -57,10 +57,10 @@ class NoStationDataFoundError(Exception):
         if (station_list is None) and (years is None):
             msg = 'No GNSS station data was found'
         elif (years is None):
-            msg = 'No data was found for GNSS stations {}'.format(station_list)
+            msg = f'No data was found for GNSS stations {station_list}'
         elif station_list is None:
-            msg = 'No data was found for years {}'.format(years)
+            msg = f'No data was found for years {years}'
         else:
-            msg = 'No data was found for GNSS stations {} and years {}'.format(station_list, years)
+            msg = f'No data was found for GNSS stations {station_list} and years {years}'
 
         super().__init__(msg)

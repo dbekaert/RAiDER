@@ -1,10 +1,11 @@
-from typing import Optional, Union
 from mimetypes import guess_type
 from pathlib import Path
+from typing import Optional, Union
 
 import boto3
 
 from RAiDER.logger import logger
+
 
 S3_CLIENT = boto3.client('s3')
 

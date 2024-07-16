@@ -1,19 +1,19 @@
 import datetime
 import os
-import xarray
-
-import numpy as np
-
-from herbie import Herbie
-import geopandas as gpd
 from pathlib import Path
+
+import geopandas as gpd
+import numpy as np
+import xarray
+from herbie import Herbie
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
 
-from RAiDER.utilFcns import round_date
-from RAiDER.models.weatherModel import WeatherModel, TIME_RES
-from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
 from RAiDER.logger import logger
+from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
+from RAiDER.models.weatherModel import TIME_RES, WeatherModel
+from RAiDER.utilFcns import round_date
+
 
 HRRR_CONUS_COVERAGE_POLYGON = Polygon(((-125, 21), (-133, 49), (-60, 49), (-72, 21)))
 HRRR_AK_COVERAGE_POLYGON = Polygon(((195, 40), (157, 55), (175, 70), (260, 77), (232, 52)))
@@ -33,7 +33,7 @@ def check_hrrr_dataset_availability(dt: datetime) -> bool:
     return avail
 
 def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False):
-    '''
+    """
     Download a HRRR weather model using Herbie
 
     Args:
@@ -47,7 +47,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
 
     Returns:
         None, writes data to a netcdf file
-    '''
+    """
     H = Herbie(
         DATE.strftime('%Y-%m-%d %H:%M'),
         model=model,
@@ -94,7 +94,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
     ds_out = ds_out.rename({'gh': 'z', coord: 'levels'})
 
     # projection information
-    ds_out["proj"] = int()
+    ds_out["proj"] = 0
     for k, v in CRS.from_user_input(ds_out.herbie.crs).to_cf().items():
         ds_out.proj.attrs[k] = v
     for var in ds_out.data_vars:
@@ -121,9 +121,9 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
 
 
 def get_bounds_indices(SNWE, lats, lons):
-    '''
+    """
     Convert SNWE lat/lon bounds to index bounds
-    '''
+    """
     # Unpack the bounds and find the relevent indices
     S, N, W, E = SNWE
 
@@ -161,9 +161,9 @@ def get_bounds_indices(SNWE, lats, lons):
 
 
 def load_weather_hrrr(filename):
-    '''
+    """
     Loads a weather model from a HRRR file
-    '''
+    """
     # read data from the netcdf file
     ds = xarray.open_dataset(filename, engine='netcdf4')
     # Pull the relevant data from the file
@@ -260,9 +260,9 @@ class HRRR(WeatherModel):
 
 
     def _fetch(self,  out):
-        '''
+        """
         Fetch weather model data from HRRR
-        '''
+        """
         self._files = out
         corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
         self.checkTime(corrected_DT)
@@ -277,10 +277,10 @@ class HRRR(WeatherModel):
 
 
     def load_weather(self, f=None, *args, **kwargs):
-        '''
+        """
         Load a weather model into a python weatherModel object, from self.files if no
         filename is passed.
-        '''
+        """
         if f is None:
             f = self.files[0] if isinstance(self.files, list) else self.files
 
@@ -301,7 +301,7 @@ class HRRR(WeatherModel):
 
 
     def checkValidBounds(self: WeatherModel, ll_bounds: np.ndarray):
-        '''
+        """
         Checks whether the given bounding box is valid for the HRRR or HRRRAK
         (i.e., intersects with the model domain at all)
 
@@ -310,7 +310,7 @@ class HRRR(WeatherModel):
 
         Returns:
             The weather model object
-        '''
+        """
         S, N, W, E = ll_bounds
         aoi = box(W, S, E, N)
         if self._valid_bounds.contains(aoi):
@@ -389,7 +389,7 @@ class HRRRAK(WeatherModel):
         corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
         self.checkTime(corrected_DT)
         if not corrected_DT == self._time:
-            logger.info('Rounded given datetime from {} to {}'.format(self._time, corrected_DT))
+            logger.info(f'Rounded given datetime from {self._time} to {corrected_DT}')
 
         download_hrrr_file(bounds, corrected_DT, out, 'hrrrak', self._model_level_type)
 

@@ -6,23 +6,20 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+from datetime import datetime
 
 import pandas as pd
 import rasterio.drivers as rd
 
-from datetime import datetime
-
-
-from RAiDER.losreader import Zenith
 from RAiDER.logger import logger
+from RAiDER.losreader import Zenith
 
 
 def checkArgs(args):
-    '''
+    """
     Helper fcn for checking argument compatibility and returns the
     correct variables
-    '''
-
+    """
     #########################################################################################################################
     # Directories
     if args.weather_model_directory is None:
@@ -111,11 +108,11 @@ def get_raster_ext(fmt):
     try:
         return extensions[fmt.upper()]
     except KeyError:
-        raise ValueError('{} is not a valid gdal/rasterio file format for rasters'.format(fmt))
+        raise ValueError(f'{fmt} is not a valid gdal/rasterio file format for rasters')
 
 
 def makeDelayFileNames(time, los, outformat, weather_model_name, out):
-    '''
+    """
     return names for the wet and hydrostatic delays.
 
     # Examples:
@@ -123,7 +120,7 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
     >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
     ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
-    '''
+    """
     format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
         model_name=weather_model_name,
         time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",

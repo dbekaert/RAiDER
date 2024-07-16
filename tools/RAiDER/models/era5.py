@@ -1,6 +1,6 @@
 import datetime
-from dateutil.relativedelta import relativedelta
 
+from dateutil.relativedelta import relativedelta
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
@@ -35,9 +35,9 @@ class ERA5(ECMWF):
 
 
     def _fetch(self, out):
-        '''
+        """
         Fetch a weather model from ECMWF
-        '''
+        """
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time
@@ -47,7 +47,7 @@ class ERA5(ECMWF):
 
 
     def load_weather(self, f=None, *args, **kwargs):
-        '''Load either pressure or model level data'''
+        """Load either pressure or model level data"""
         f = self.files[0] if f is None else f
         if self._model_level_type == 'pl':
             self._load_pressure_level(f, *args, **kwargs)

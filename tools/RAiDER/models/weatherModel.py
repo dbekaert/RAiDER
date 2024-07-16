@@ -4,24 +4,21 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import xarray
-
 from pyproj import CRS
-from shapely.geometry import box
 from shapely.affinity import translate
+from shapely.geometry import box
 from shapely.ops import unary_union
 
-from RAiDER.constants import _ZREF, _ZMIN, _g0
 from RAiDER import utilFcns as util
+from RAiDER.constants import _ZMIN, _ZREF, _g0
 from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
-from RAiDER.models import plotWeather as plots, weatherModel
-from RAiDER.models.customExceptions import (
-    DatetimeOutsideRange
-)
-from RAiDER.utilFcns import (
-    robmax, robmin, calcgeoh, transform_coords, clip_bbox
-)
+from RAiDER.models import plotWeather as plots
+from RAiDER.models import weatherModel
+from RAiDER.models.customExceptions import DatetimeOutsideRange
+from RAiDER.utilFcns import calcgeoh, clip_bbox, robmax, robmin, transform_coords
+
 
 TIME_RES = {'GMAO': 3,
             'ECMWF': 1,
@@ -33,9 +30,9 @@ TIME_RES = {'GMAO': 3,
             }
 
 class WeatherModel(ABC):
-    '''
+    """
     Implement a generic weather model for getting estimated SAR delays
-    '''
+    """
 
     def __init__(self):
         # Initialize model-specific constants/parameters
@@ -103,32 +100,32 @@ class WeatherModel(ABC):
     def __str__(self):
         string = '\n'
         string += '======Weather Model class object=====\n'
-        string += 'Weather model time: {}\n'.format(self._time)
-        string += 'Latitude resolution: {}\n'.format(self._lat_res)
-        string += 'Longitude resolution: {}\n'.format(self._lon_res)
-        string += 'Native projection: {}\n'.format(self._proj)
-        string += 'ZMIN: {}\n'.format(self._zmin)
-        string += 'ZMAX: {}\n'.format(self._zmax)
-        string += 'k1 = {}\n'.format(self._k1)
-        string += 'k2 = {}\n'.format(self._k2)
-        string += 'k3 = {}\n'.format(self._k3)
-        string += 'Humidity type = {}\n'.format(self._humidityType)
+        string += f'Weather model time: {self._time}\n'
+        string += f'Latitude resolution: {self._lat_res}\n'
+        string += f'Longitude resolution: {self._lon_res}\n'
+        string += f'Native projection: {self._proj}\n'
+        string += f'ZMIN: {self._zmin}\n'
+        string += f'ZMAX: {self._zmax}\n'
+        string += f'k1 = {self._k1}\n'
+        string += f'k2 = {self._k2}\n'
+        string += f'k3 = {self._k3}\n'
+        string += f'Humidity type = {self._humidityType}\n'
         string += '=====================================\n'
-        string += 'Class name: {}\n'.format(self._classname)
-        string += 'Dataset: {}\n'.format(self._dataset)
+        string += f'Class name: {self._classname}\n'
+        string += f'Dataset: {self._dataset}\n'
         string += '=====================================\n'
-        string += 'A: {}\n'.format(self._a)
-        string += 'B: {}\n'.format(self._b)
+        string += f'A: {self._a}\n'
+        string += f'B: {self._b}\n'
         if self._p is not None:
             string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
-            string += 'Total number of grid points (3D): {}\n'.format(np.prod(self._p.shape))
+            string += f'Total number of grid points (3D): {np.prod(self._p.shape)}\n'
         if self._xs.size == 0:
-            string += 'Minimum/Maximum y: {: 4.2f}/{: 4.2f}\n'\
-                      .format(robmin(self._ys), robmax(self._ys))
-            string += 'Minimum/Maximum x: {: 4.2f}/{: 4.2f}\n'\
-                      .format(robmin(self._xs), robmax(self._xs))
-            string += 'Minimum/Maximum zs/heights: {: 10.2f}/{: 10.2f}\n'\
-                      .format(robmin(self._zs), robmax(self._zs))
+            string += f'Minimum/Maximum y: {robmin(self._ys): 4.2f}/{robmax(self._ys): 4.2f}\n'\
+                      
+            string += f'Minimum/Maximum x: {robmin(self._xs): 4.2f}/{robmax(self._xs): 4.2f}\n'\
+                      
+            string += f'Minimum/Maximum zs/heights: {robmin(self._zs): 10.2f}/{robmax(self._zs): 10.2f}\n'\
+                      
         string += '=====================================\n'
         return str(string)
 
@@ -146,7 +143,7 @@ class WeatherModel(ABC):
 
 
     def fetch(self, out, time):
-        '''
+        """
         Checks the input datetime against the valid date range for the model and then
         calls the model _fetch routine
 
@@ -155,7 +152,7 @@ class WeatherModel(ABC):
         out -
         ll_bounds - 4 x 1 array, SNWE
         time = UTC datetime
-        '''
+        """
         self.checkTime(time)
         self.setTime(time)
 
@@ -169,9 +166,9 @@ class WeatherModel(ABC):
 
     @abstractmethod
     def _fetch(self, out):
-        '''
+        """
         Placeholder method. Should be implemented in each weather model type class
-        '''
+        """
         pass
 
 
@@ -180,7 +177,7 @@ class WeatherModel(ABC):
 
 
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
-        ''' Set the time for a weather model '''
+        """Set the time for a weather model"""
         if isinstance(time, str):
             self._time = datetime.datetime.strptime(time, fmt)
         elif isinstance(time, datetime.datetime):
@@ -196,14 +193,14 @@ class WeatherModel(ABC):
 
 
     def set_latlon_bounds(self, ll_bounds, Nextra=2, output_spacing=None):
-        '''
+        """
         Need to correct lat/lon bounds because not all of the weather models have valid
         data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
         need to adjust the longitude higher end with an extra buffer; for other models,
         the exact bounds are close to -90/90 (lats) and -180/180 (lons) and thus can be
         rounded to the above regions (either in the downloading-file API or subsetting-
         data API) without problems.
-        '''
+        """
         ex_buffer_lon_max = 0.0
 
         if self._Name in 'HRRR HRRR-AK HRES'.split():
@@ -229,7 +226,7 @@ class WeatherModel(ABC):
 
 
     def get_wmLoc(self):
-        """ Get the path to the direct with the weather model files """
+        """Get the path to the direct with the weather model files"""
         if self._wmLoc is None:
             wmLoc = os.path.join(os.getcwd(), 'weather_files')
         else:
@@ -238,7 +235,7 @@ class WeatherModel(ABC):
 
 
     def set_wmLoc(self, weather_model_directory:str):
-        """ Set the path to the directory with the weather model files """
+        """Set the path to the directory with the weather model files"""
         self._wmLoc = weather_model_directory
 
 
@@ -248,10 +245,10 @@ class WeatherModel(ABC):
         _zlevels=None,
         **kwargs
     ):
-        '''
+        """
         Calls the load_weather method. Each model class should define a load_weather
         method appropriate for that class. 'args' should be one or more filenames.
-        '''
+        """
         # If the weather file has already been processed, do nothing
         outLoc = self.get_wmLoc()
         path_wm_raw    = make_raw_weather_data_filename(outLoc, self.Model(), self.getTime())
@@ -278,40 +275,40 @@ class WeatherModel(ABC):
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
-        '''
+        """
         Placeholder method. Should be implemented in each weather model type class
-        '''
+        """
         pass
 
 
     def plot(self, plotType='pqt', savefig=True):
-        '''
+        """
         Plotting method. Valid plot types are 'pqt'
-        '''
+        """
         if plotType == 'pqt':
             plot = plots.plot_pqt(self, savefig)
         elif plotType == 'wh':
             plot = plots.plot_wh(self, savefig)
         else:
-            raise RuntimeError('WeatherModel.plot: No plotType named {}'.format(plotType))
+            raise RuntimeError(f'WeatherModel.plot: No plotType named {plotType}')
         return plot
 
 
     def checkTime(self, time):
-        '''
+        """
         Checks the time against the lag time and valid date range for the given model type
 
         Parameters:
             time    - Python datetime object
 
-        Raises: 
+        Raises:
             Different errors depending on the issue
-        '''
+        """
         start_time = self._valid_range[0]
         end_time = self._valid_range[1]
 
         if not isinstance(time, datetime.datetime):
-            raise ValueError('"time" should be a Python datetime object, instead it is {}'.format(time))
+            raise ValueError(f'"time" should be a Python datetime object, instead it is {time}')
         
         # This is needed because Python now gets angry if you try to compare non-timezone-aware 
         # objects with time-zone aware objects. 
@@ -334,7 +331,7 @@ class WeatherModel(ABC):
 
 
     def setLevelType(self, levelType):
-        '''Set the level type to model levels or pressure levels'''
+        """Set the level type to model levels or pressure levels"""
         if levelType in 'ml pl nat prs'.split():
             self._model_level_type = levelType
         else:
@@ -347,16 +344,16 @@ class WeatherModel(ABC):
 
 
     def _convertmb2Pa(self, pres):
-        '''
+        """
         Convert pressure in millibars to Pascals
-        '''
+        """
         return 100 * pres
 
 
     def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan):
-        '''
+        """
         Transform geo heights to WGS84 ellipsoidal heights
-        '''
+        """
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
         lats_full  = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
         self._zs   = util.geo_to_ht(lats_full, geo_ht_fix)
@@ -389,16 +386,16 @@ class WeatherModel(ABC):
 
 
     def _get_wet_refractivity(self):
-        '''
+        """
         Calculate the wet delay from pressure, temperature, and e
-        '''
+        """
         self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
 
     def _get_hydro_refractivity(self):
-        '''
+        """
         Calculate the hydrostatic delay from pressure and temperature
-        '''
+        """
         self._hydrostatic_refractivity = self._k1 * self._p / self._t
 
 
@@ -411,13 +408,12 @@ class WeatherModel(ABC):
 
 
     def _adjust_grid(self, ll_bounds=None):
-        '''
+        """
         This function pads the weather grid with a level at self._zmin, if
         it does not already go that low.
         <<The functionality below has been removed.>>
         <<It also removes levels that are above self._zmax, since they are not needed.>>
-        '''
-
+        """
         if self._zmin < np.nanmin(self._zs):
             # first add in a new layer at zmin
             self._zs = np.insert(self._zs, 0, self._zmin)
@@ -432,10 +428,10 @@ class WeatherModel(ABC):
 
 
     def _getZTD(self):
-        '''
+        """
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
         height zref
-        '''
+        """
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 
@@ -453,9 +449,9 @@ class WeatherModel(ABC):
 
 
     def _getExtent(self, lats, lons):
-        '''
+        """
         get the bounding box around a set of lats/lons
-        '''
+        """
         if (lats.size == 1) & (lons.size == 1):
             return [lats - self._lat_res, lats + self._lat_res, lons - self._lon_res, lons + self._lon_res]
         elif (lats.size > 1) & (lons.size > 1):
@@ -478,12 +474,11 @@ class WeatherModel(ABC):
         list
             xmin, ymin, xmax, ymax
 
-        Raises
+        Raises:
         ------
         ValueError
            When `self.files` is None.
         """
-
         if self._bbox is None:
             path_weather_model = self.out_file(self.get_wmLoc())
             if not os.path.exists(path_weather_model):
@@ -514,7 +509,7 @@ class WeatherModel(ABC):
             self: weatherModel,
             ll_bounds: np.ndarray,
                          ):
-        '''
+        """
         Checks whether the given bounding box is valid for the model
         (i.e., intersects with the model domain at all)
 
@@ -523,7 +518,7 @@ class WeatherModel(ABC):
 
         Returns:
             The weather model object
-        '''
+        """
         S, N, W, E = ll_bounds
         if box(W, S, E, N).intersects(self._valid_bounds):
             Mod = self
@@ -592,10 +587,10 @@ class WeatherModel(ABC):
 
 
     def _isOutside(self, extent1, extent2):
-        '''
+        """
         Determine whether any of extent1  lies outside extent2
         extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
-        '''
+        """
         t1 = extent1[0] < extent2[0]
         t2 = extent1[1] > extent2[1]
         t3 = extent1[2] < extent2[2]
@@ -606,9 +601,9 @@ class WeatherModel(ABC):
 
 
     def _trimExtent(self, extent):
-        '''
+        """
         get the bounding box around a set of lats/lons
-        '''
+        """
         lat = self._lats.copy()
         lon = self._lons.copy()
         lat[np.isnan(lat)] = np.nanmean(lat)
@@ -642,7 +637,7 @@ class WeatherModel(ABC):
 
 
     def _calculategeoh(self, z, lnsp):
-        '''
+        """
         Function to calculate pressure, geopotential, and geopotential height
         from the surface pressure and model levels provided by a weather model.
         The model levels are numbered from the highest eleveation to the lowest.
@@ -655,14 +650,14 @@ class WeatherModel(ABC):
             pressurelvs  - The pressure at each of the model levels for each of
                            the input points
             geoheight    - The geopotential heights
-        '''
+        """
         return calcgeoh(lnsp, self._t, self._q, z, self._a, self._b, self._R_d, self._levels)
 
 
     def getProjection(self):
-        '''
+        """
         Returns: the native weather projection, which should be a pyproj object
-        '''
+        """
         return self._proj
 
 
@@ -671,9 +666,9 @@ class WeatherModel(ABC):
 
 
     def _uniform_in_z(self, _zlevels=None):
-        '''
+        """
         Interpolate all variables to a regular grid in z
-        '''
+        """
         nx, ny = self._p.shape[:2]
 
         # new regular z-spacing
@@ -702,9 +697,9 @@ class WeatherModel(ABC):
 
 
     def _checkForNans(self):
-        '''
+        """
         Fill in NaN-values
-        '''
+        """
         self._p = fillna3D(self._p)
         self._t = fillna3D(self._t, fill_value=1e16) # to avoid division by zero later on
         self._e = fillna3D(self._e)
@@ -720,9 +715,9 @@ class WeatherModel(ABC):
 
 
     def filename(self, time=None, outLoc='weather_files'):
-        '''
+        """
         Create a filename to store the weather model
-        '''
+        """
         os.makedirs(outLoc, exist_ok=True)
 
         if time is None:
@@ -742,11 +737,11 @@ class WeatherModel(ABC):
 
 
     def write(self):
-        '''
+        """
         By calling the abstract/modular netcdf writer
         (RAiDER.utilFcns.write2NETCDF4core), write the weather model data
         and refractivity to an NETCDF4 file that can be accessed by external programs.
-        '''
+        """
         # Generate the filename
         f = self._out_name
 
@@ -799,7 +794,7 @@ class WeatherModel(ABC):
         ds['hydro_total'].attrs['standard_name'] = 'total_hydrostatic_refractivity'
 
         # projection information
-        ds["proj"] = int()
+        ds["proj"] = 0
         for k, v in self._proj.to_cf().items():
             ds.proj.attrs[k] = v
         for var in ds.data_vars:
@@ -826,7 +821,7 @@ def make_weather_model_filename(name, time, ll_bounds):
 
 
 def make_raw_weather_data_filename(outLoc, name, time):
-    ''' Filename generator for the raw downloaded weather model data '''
+    """Filename generator for the raw downloaded weather model data"""
     f = os.path.join(
         outLoc,
         '{}_{}.{}'.format(
@@ -874,7 +869,7 @@ def find_svp(t):
 
 
 def get_mapping(proj):
-    '''Get CF-complient projection information from a proj'''
+    """Get CF-complient projection information from a proj"""
     # In case of WGS-84 lat/lon, keep it simple
     if proj.to_epsg()==4326:
         return 'WGS84'

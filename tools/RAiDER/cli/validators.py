@@ -1,21 +1,20 @@
-from argparse import Action, ArgumentError, ArgumentTypeError
-
 import importlib
 import itertools
 import os
 import re
-
-import pandas as pd
-import numpy as np
-
-from datetime import time, timedelta, datetime, date
+from argparse import Action, ArgumentError, ArgumentTypeError
+from datetime import date, datetime, time, timedelta
 from textwrap import dedent
 from time import strptime
 
-from RAiDER.llreader import BoundingBox, RasterRDR, StationFile, GeocodedFile, Geocube
-from RAiDER.losreader import Zenith, Conventional
-from RAiDER.utilFcns import rio_extents, rio_profile
+import numpy as np
+import pandas as pd
+
+from RAiDER.llreader import BoundingBox, GeocodedFile, Geocube, RasterRDR, StationFile
 from RAiDER.logger import logger
+from RAiDER.losreader import Conventional, Zenith
+from RAiDER.utilFcns import rio_extents, rio_profile
+
 
 _BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees
 
@@ -25,10 +24,10 @@ def enforce_wm(value, aoi):
         _, model_obj = modelName2Module(model)
     except ModuleNotFoundError:
         raise NotImplementedError(
-            dedent('''
-                Model {} is not yet fully implemented,
+            dedent(f'''
+                Model {model} is not yet fully implemented,
                 please contribute!
-                '''.format(model))
+                ''')
         )
 
     ## check the user requsted bounding box is within the weather model domain
@@ -64,9 +63,9 @@ def get_los(args):
 
 
 def get_heights(args, out, station_file, bounding_box=None):
-    '''
+    """
     Parse the Height info and download a DEM if needed
-    '''
+    """
     dem_path = out
 
     out = {
@@ -125,9 +124,9 @@ def get_heights(args, out, station_file, bounding_box=None):
 
 
 def get_query_region(args):
-    '''
+    """
     Parse the query region from inputs
-    '''
+    """
     # Get bounds from the inputs
     # make sure this is first
     if args.get('use_dem_latlon'):
@@ -197,10 +196,9 @@ def enforce_bbox(bbox):
 
 
 def parse_dates(arg_dict):
-    '''
+    """
     Determine the requested dates from the input parameters
-    '''
-
+    """
     if arg_dict.get('date_list'):
         l = arg_dict['date_list']
         if isinstance(l, str):
@@ -251,14 +249,14 @@ def enforce_valid_dates(arg):
 
 
     raise ValueError(
-        'Unable to coerce {} to a date. Try %Y-%m-%d'.format(arg)
+        f'Unable to coerce {arg} to a date. Try %Y-%m-%d'
     )
 
 
 def enforce_time(arg_dict):
-    '''
+    """
     Parse an input time (required to be ISO 8601)
-    '''
+    """
     try:
         arg_dict['time'] = convert_time(arg_dict['time'])
     except KeyError:
@@ -325,9 +323,9 @@ def modelName2Module(model_name):
 
 
 def getBufferedExtent(lats, lons=None, buf=0.):
-    '''
+    """
     get the bounding box around a set of lats/lons
-    '''
+    """
     if lons is None:
         lats, lons = lats[..., 0], lons[..., 1]
 
@@ -350,11 +348,11 @@ def getBufferedExtent(lats, lons=None, buf=0.):
 
 
 def isOutside(extent1, extent2):
-    '''
+    """
     Determine whether any of extent1  lies outside extent2
     extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
     Equal extents are considered "inside"
-    '''
+    """
     t1 = extent1[0] < extent2[0]
     t2 = extent1[1] > extent2[1]
     t3 = extent1[2] < extent2[2]
@@ -365,11 +363,11 @@ def isOutside(extent1, extent2):
 
 
 def isInside(extent1, extent2):
-    '''
+    """
     Determine whether all of extent1 lies inside extent2
     extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon].
     Equal extents are considered "inside"
-    '''
+    """
     t1 = extent1[0] <= extent2[0]
     t2 = extent1[1] >= extent2[1]
     t3 = extent1[2] <= extent2[2]
@@ -398,11 +396,11 @@ def date_type(arg):
             pass
 
     raise ArgumentTypeError(
-        'Unable to coerce {} to a date. Try %Y-%m-%d'.format(arg)
+        f'Unable to coerce {arg} to a date. Try %Y-%m-%d'
     )
 
 
-class MappingType(object):
+class MappingType:
     """
     A type that maps arguments to constants.
 
@@ -431,15 +429,13 @@ class MappingType(object):
 
         if self._default is self.UNSET:
             raise KeyError(
-                "Invalid choice '{}', must be one of {}".format(
-                    arg, list(self.mapping.keys())
-                )
+                f"Invalid choice '{arg}', must be one of {list(self.mapping.keys())}"
             )
 
         return self._default
 
 
-class IntegerType(object):
+class IntegerType:
     """
     A type that converts arguments to integers.
 
@@ -460,9 +456,9 @@ class IntegerType(object):
         integer = int(arg)
 
         if self.lo is not None and integer < self.lo:
-            raise ArgumentTypeError("Must be greater than {}".format(self.lo))
+            raise ArgumentTypeError(f"Must be greater than {self.lo}")
         if self.hi is not None and integer > self.hi:
-            raise ArgumentTypeError("Must be less than {}".format(self.hi))
+            raise ArgumentTypeError(f"Must be less than {self.hi}")
 
         return integer
 

@@ -6,14 +6,16 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-import os
 import datetime
+import os
 import shelve
 from abc import ABC
-from typing import Union
 from pathlib import PosixPath
+from typing import Union
 
 import numpy as np
+
+
 try:
     import xml.etree.ElementTree as ET
 except ImportError:
@@ -24,15 +26,13 @@ except ImportError:
     isce = None
 
 from RAiDER.constants import _ZREF
-from RAiDER.utilFcns import (
-    cosd, sind, rio_open, lla2ecef, ecef2lla
-)
+from RAiDER.utilFcns import cosd, ecef2lla, lla2ecef, rio_open, sind
 
 
 class LOS(ABC):
-    '''
+    """
     LOS Class definition for handling look vectors
-    '''
+    """
     def __init__(self):
         self._lats, self._lons, self._heights = None, None, None
         self._look_vecs = None
@@ -42,7 +42,7 @@ class LOS(ABC):
 
 
     def setPoints(self, lats, lons=None, heights=None):
-        '''Set the pixel locations'''
+        """Set the pixel locations"""
         if (lats is None) and (self._lats is None):
             raise RuntimeError("You haven't given any point locations yet")
 
@@ -88,7 +88,7 @@ class Zenith(LOS):
 
 
     def setLookVectors(self):
-        '''Set point locations and calculate Zenith look vectors'''
+        """Set point locations and calculate Zenith look vectors"""
         if self._lats is None:
             raise ValueError('Target points not set')
         if self._look_vecs is None:
@@ -96,7 +96,7 @@ class Zenith(LOS):
 
 
     def __call__(self, delays):
-        '''Placeholder method for consistency with the other classes'''
+        """Placeholder method for consistency with the other classes"""
         return delays
 
 
@@ -117,9 +117,9 @@ class Conventional(LOS):
 
 
     def __call__(self, delays):
-        '''
+        """
         Read the LOS file and convert it to look vectors
-        '''
+        """
         if self._lats is None:
             raise ValueError('Target points not set')
         if self._file is None:
@@ -183,7 +183,7 @@ class Raytracing(LOS):
     """
 
     def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600):
-        '''read in and parse a statevector file'''
+        """Read in and parse a statevector file"""
         if isce is None:
             raise ImportError('isce3 is required for this class. Use conda to install isce3`')
 
@@ -234,9 +234,9 @@ class Raytracing(LOS):
 
 
     def getLookVectors(self, ht, llh, xyz, yy):
-        '''
+        """
         Calculate look vectors for raytracing
-        '''
+        """
         if isce is None:
             raise ImportError('isce3 is required for this method. Use conda to install isce3`')
 
@@ -304,10 +304,10 @@ class Raytracing(LOS):
 
 
     def calculateDelays(self, delays):
-        '''
+        """
         Here "delays" is point-wise delays (i.e. refractivities), not
         integrated ZTD/STD.
-        '''
+        """
         # Create rays  (Use getIntersectionWithLevels above)
         # Interpolate delays to rays
         # Integrate along rays
@@ -316,7 +316,7 @@ class Raytracing(LOS):
 
 
 def getZenithLookVecs(lats, lons, heights):
-    '''
+    """
     Returns look vectors when Zenith is used.
 
     Args:
@@ -324,7 +324,7 @@ def getZenithLookVecs(lats, lons, heights):
 
     Returns:
         zenLookVecs (ndarray):        - (in_shape) x 3 unit look vectors in an ECEF reference frame
-    '''
+    """
     x = np.cos(np.radians(lats)) * np.cos(np.radians(lons))
     y = np.cos(np.radians(lats)) * np.sin(np.radians(lons))
     z = np.sin(np.radians(lats))
@@ -392,7 +392,7 @@ def get_sv(los_file: Union[str, list, PosixPath],
 
 
 def inc_hd_to_enu(incidence, heading):
-    '''
+    """
     Convert incidence and heading to line-of-sight vectors from the ground to the top of
     the troposphere.
 
@@ -405,7 +405,7 @@ def inc_hd_to_enu(incidence, heading):
         LOS: ndarray  - (input_shape) x 3 array of unit look vectors in local ENU
 
     Algorithm referenced from http://earthdef.caltech.edu/boards/4/topics/327
-    '''
+    """
     if np.any(incidence < 0):
         raise ValueError('inc_hd_to_enu: Incidence angle cannot be less than 0')
 
@@ -447,7 +447,7 @@ def read_shelve(filename):
 
 
 def read_txt_file(filename):
-    '''
+    """
     Read a 7-column text file containing orbit statevectors. Time
     should be denoted as integer time in seconds since the reference
     epoch (user-requested time).
@@ -461,7 +461,7 @@ def read_txt_file(filename):
     Returns:
         svs (list):     - a length-7 list of numpy vectors containing the above
                         variables
-    '''
+    """
     t = list()
     x = list()
     y = list()
@@ -469,17 +469,17 @@ def read_txt_file(filename):
     vx = list()
     vy = list()
     vz = list()
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         for line in f:
             try:
                 parts = line.strip().split()
                 t_ = datetime.datetime.fromisoformat(parts[0])
-                x_, y_, z_, vx_, vy_, vz_ = [float(t) for t in parts[1:]]
+                x_, y_, z_, vx_, vy_, vz_ = (float(t) for t in parts[1:])
             except ValueError:
                 raise ValueError(
-                    "I need {} to be a 7 column text file, with ".format(filename) +
+                    f"I need {filename} to be a 7 column text file, with " +
                     "columns t, x, y, z, vx, vy, vz (Couldn't parse line " +
-                    "{})".format(repr(line)))
+                    f"{repr(line)})")
             t.append(t_)
             x.append(x_)
             y.append(y_)
@@ -489,13 +489,13 @@ def read_txt_file(filename):
             vz.append(vz_)
 
     if len(t) < 4:
-        raise ValueError('read_txt_file: File {} does not have enough statevectors'.format(filename))
+        raise ValueError(f'read_txt_file: File {filename} does not have enough statevectors')
 
     return [np.array(a) for a in [t, x, y, z, vx, vy, vz]]
 
 
 def read_ESA_Orbit_file(filename):
-    '''
+    """
     Read orbit data from an orbit file supplied by ESA
 
     Args:
@@ -508,7 +508,7 @@ def read_ESA_Orbit_file(filename):
                           in python datetime
     x, y, z: Nt x 1 ndarrays    - x/y/z positions of the sensor at the times t
     vx, vy, vz: Nt x 1 ndarrays - x/y/z velocities of the sensor at the times t
-    '''
+    """
     if ET is None:
         raise ImportError('read_ESA_Orbit_file: cannot import xml.etree.ElementTree')
     tree = ET.parse(filename)
@@ -543,7 +543,7 @@ def read_ESA_Orbit_file(filename):
 
 
 def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
-    """ From list of .EOF orbit files, pick the one that contains 'ref_time' """
+    """From list of .EOF orbit files, pick the one that contains 'ref_time'"""
     orb_file = None
     for path in list_files:
         f  = os.path.basename(path)
@@ -568,7 +568,7 @@ def filter_ESA_orbit_file(orbit_xml: str,
         ESA orbit xml
     ref_time : datetime.datetime
 
-    Returns
+    Returns:
     -------
     bool
         True if ref time is within orbit_xml
@@ -581,10 +581,11 @@ def filter_ESA_orbit_file(orbit_xml: str,
 
 ############################
 def state_to_los(svs, llh_targets):
-    '''
+    """
     Converts information from a state vector for a satellite orbit, given in terms of
     position and velocity, to line-of-sight information at each (lon,lat, height)
     coordinate requested by the user.
+
     Args:
     ----------
     svs            - t, x, y, z, vx, vy, vz - time, position, and velocity in ECEF of the sensor
@@ -593,6 +594,7 @@ def state_to_los(svs, llh_targets):
     Returns:
     -------
     LOS 			- * x 3 matrix of LOS unit vectors in ECEF (*not* ENU)
+
     Example:
     >>> import datetime
     >>> import numpy
@@ -604,7 +606,7 @@ def state_to_los(svs, llh_targets):
     >>> esa_orbit_file = 'S1A_OPER_AUX_POEORB_OPOD_20181203T120749_V20181112T225942_20181114T005942.EOF'
     >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file)
     >>> LOS = losr.state_to_los(*svs, [lats, lons, heights], xyz)
-    '''
+    """
     if isce is None:
         raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
@@ -638,11 +640,13 @@ def cut_times(times, ref_time, pad):
     Slice the orbit file around the reference aquisition time. This is done
     by default using a three-hour window, which for Sentinel-1 empirically
     works out to be roughly the largest window allowed by the orbit time.
+
     Args:
     ----------
     times: Nt x 1 ndarray     - Vector of orbit times as datetime
     ref_time: datetime        - Reference time
     pad: int                  - integer time in seconds to use as padding
+
     Returns:
     -------
     idx: Nt x 1 logical ndarray - a mask of times within the padded request time.
@@ -654,7 +658,7 @@ def cut_times(times, ref_time, pad):
 
 
 def get_radar_pos(llh, orb):
-    '''
+    """
     Calculate the coordinate of the sensor in ECEF at the time corresponding to ***.
 
     Args:
@@ -667,7 +671,7 @@ def get_radar_pos(llh, orb):
     -------
     los: ndarray  - Satellite incidence angle
     sr:  ndarray  - Slant range in meters
-    '''
+    """
     if isce is None:
         raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
@@ -763,7 +767,7 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
 def get_orbit(orbit_file: Union[list, str],
               ref_time: datetime.datetime,
               pad: int):
-    '''
+    """
     Returns state vectors from an orbit file; state vectors are unique and ordered in terms of time
     orbit file (str | list):   - user-passed file(s) containing statevectors
                                  for the sensor (can be download with sentineleof libray). Lists of files
@@ -771,7 +775,7 @@ def get_orbit(orbit_file: Union[list, str],
     pad (int):                 - number of seconds to keep around the
                                  requested time (should be about 600 seconds)
 
-    '''
+    """
     if isce is None:
         raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 

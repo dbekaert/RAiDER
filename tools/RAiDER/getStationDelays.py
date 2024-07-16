@@ -20,7 +20,7 @@ from RAiDER.logger import logger
 
 
 def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
-    '''
+    """
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
     at the closest times to to returnTime.
@@ -59,7 +59,7 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
     as are the formal error columns (_SIG).
 
     Source  —> http://geodesy.unr.edu/gps_timeseries/README_trop2.txt)
-    '''
+    """
     # sort through station zip files
     allstationTarfiles = []
     # if URL
@@ -98,12 +98,12 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
                     split_lines = line.split()
                     # units: mm, mm, mm, deg, deg, deg, deg, mm, mm, K
                     trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = \
-                        [float(t) for t in split_lines[2:]]
+                        (float(t) for t in split_lines[2:])
                 except BaseException:  # TODO: What error(s)?
                     continue
                 site = split_lines[0]
-                year, doy, seconds = [int(n)
-                                      for n in split_lines[1].split(':')]
+                year, doy, seconds = (int(n)
+                                      for n in split_lines[1].split(':'))
                 # Break iteration if time from line in file does not match date reported in filename
                 if doy != doyFromFile:
                     logger.warning(
@@ -175,9 +175,9 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
 
 
 def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, returnTime=None):
-    '''
+    """
     Pull tropospheric delay data for a given station name
-    '''
+    """
     if outDir is None:
         outDir = os.getcwd()
 
@@ -222,7 +222,7 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
     # Consolidate all CSV files into one object
     if outputfiles == []:
         raise Exception('No valid delays found for specified time/region.')
-    name = os.path.join(outDir, '{}combinedGPS_ztd.csv'.format(gps_repo))
+    name = os.path.join(outDir, f'{gps_repo}combinedGPS_ztd.csv')
     statsFile = pd.concat([pd.read_csv(i) for i in outputfiles])
     # drop all duplicate lines
     statsFile.drop_duplicates(inplace=True)
@@ -244,10 +244,9 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
 
 
 def get_date(stationFile):
-    '''
+    """
     extract the date from a station delay file
-    '''
-
+    """
     # find the date info
     year = int(stationFile[1])
     doy = int(stationFile[2])
@@ -257,9 +256,9 @@ def get_date(stationFile):
 
 
 def seconds_of_day(returnTime):
-    '''
+    """
     Convert HH:MM:SS format time-tag to seconds of day.
-    '''
+    """
     if isinstance(returnTime, dt.time):
         h, m, s = returnTime.hour, returnTime.minute, returnTime.second
     else:

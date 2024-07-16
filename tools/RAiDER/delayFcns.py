@@ -10,22 +10,20 @@ try:
 except ImportError:
     mp = None
 
-import xarray
-
 import numpy as np
-
+import xarray
 from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 from RAiDER.logger import logger
 
 
 def getInterpolators(wm_file, kind='pointwise', shared=False):
-    '''
+    """
     Read 3D gridded data from a processed weather model file and wrap it with
     the scipy RegularGridInterpolator
 
     The interpolator grid is (y, x, z)
-    '''
+    """
     # Get the weather model data
     try:
         ds = xarray.load_dataset(wm_file)

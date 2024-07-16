@@ -1,4 +1,5 @@
-from RAiDER.constants import _ZREF, _CUBE_SPACING_IN_M
+from RAiDER.constants import _CUBE_SPACING_IN_M, _ZREF
+
 
 class AttributeDict(dict):
     __getattr__ = dict.__getitem__

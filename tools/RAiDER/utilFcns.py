@@ -1,13 +1,13 @@
 """Geodesy-related utility functions."""
 import os
 import re
-import xarray
-
 from datetime import datetime, timedelta, timezone
-from numpy import ndarray
-from pyproj import Transformer, CRS, Proj
 
 import numpy as np
+import xarray
+from numpy import ndarray
+from pyproj import CRS, Proj, Transformer
+
 
 # Optional imports
 try:
@@ -42,14 +42,14 @@ pbar = None
 
 
 def projectDelays(delay, inc):
-    '''Project zenith delays to LOS'''
+    """Project zenith delays to LOS"""
     if inc==90:
         raise ZeroDivisionError
     return delay / cosd(inc)
 
 
 def floorish(val, frac):
-    '''Round a value to the lower fractional part'''
+    """Round a value to the lower fractional part"""
     return val - (val % frac)
 
 
@@ -108,7 +108,7 @@ def enu2ecef(
 
 
 def ecef2enu(xyz, lat, lon, height):
-    '''Convert ECEF xyz to ENU'''
+    """Convert ECEF xyz to ENU"""
     x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
 
     t = cosd(lon) * x + sind(lon) * y
@@ -120,9 +120,9 @@ def ecef2enu(xyz, lat, lon, height):
 
 
 def rio_profile(fname):
-    '''
+    """
     Reads the profile of a rasterio file
-    '''
+    """
     if rasterio is None:
         raise ImportError('RAiDER.utilFcns: rio_profile - rasterio is not installed')
     
@@ -142,7 +142,7 @@ def rio_profile(fname):
 
 
 def rio_extents(profile):
-    """ Get a bounding box in SNWE from a rasterio profile """
+    """Get a bounding box in SNWE from a rasterio profile"""
     gt = profile["transform"].to_gdal()
     xSize = profile["width"]
     ySize = profile["height"]
@@ -152,9 +152,9 @@ def rio_extents(profile):
 
 
 def rio_open(fname, returnProj=False, userNDV=None, band=None):
-    '''
+    """
     Reads a rasterio-compatible raster file and returns the data and profile
-    '''
+    """
     if rasterio is None:
         raise ImportError('RAiDER.utilFcns: rio_open - rasterio is not installed')
 
@@ -207,7 +207,7 @@ def nodataToNan(inarr, listofvals):
 
 
 def rio_stats(fname, band=1):
-    '''
+    """
     Read a rasterio-compatible file and pull the metadata.
 
     Args:
@@ -218,7 +218,7 @@ def rio_stats(fname, band=1):
         stats   - a list of stats for the specified band
         proj    - CRS/projection information for the file
         gt      - geotransform for the data
-    '''
+    """
     if rasterio is None:
         raise ImportError('RAiDER.utilFcns: rio_stats - rasterio is not installed')
 
@@ -255,12 +255,12 @@ def get_file_and_band(filestr):
         )
 
 def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
-    '''
+    """
     write a numpy array to a GDAL-readable raster
-    '''
+    """
     array_shp = np.shape(array)
     if array.ndim != 2:
-        raise RuntimeError('writeArrayToRaster: cannot write an array of shape {} to a raster image'.format(array_shp))
+        raise RuntimeError(f'writeArrayToRaster: cannot write an array of shape {array_shp} to a raster image')
 
     # Data type
     if "complex" in str(array.dtype):
@@ -336,28 +336,28 @@ def _least_nonzero(a):
 
 
 def robmin(a):
-    '''
+    """
     Get the minimum of an array, accounting for empty lists
-    '''
+    """
     return np.nanmin(a)
 
 
 def robmax(a):
-    '''
+    """
     Get the minimum of an array, accounting for empty lists
-    '''
+    """
     return np.nanmax(a)
 
 
 def _get_g_ll(lats):
-    '''
+    """
     Compute the variation in gravity constant with latitude
-    '''
+    """
     return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
 
 
 def get_Re(lats):
-    '''
+    """
     Returns earth radius as a function of latitude for WGS84
 
     Args:
@@ -374,7 +374,7 @@ def get_Re(lats):
      array([6378137., 6372770.5219805, 6367417.56705189, 6362078.07851428, 6356752.])
     >>> assert output[0] == 6378137 # (Rmax)
     >>> assert output[-1] == 6356752 # (Rmin)
-    '''
+    """
     return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
 
 
@@ -411,20 +411,20 @@ def geo_to_ht(lats, hts):
 
 
 def padLower(invar):
-    '''
+    """
     add a layer of data below the lowest current z-level at height zmin
-    '''
+    """
     new_var = _least_nonzero(invar)
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
 def round_time(dt, roundTo=60):
-    '''
+    """
     Round a datetime object to any time lapse in seconds
     dt: datetime.datetime object
     roundTo: Closest number of seconds to round to, default 1 minute.
     Source: https://stackoverflow.com/questions/3463930/how-to-round-the-minute-of-a-datetime-object/10854034#10854034
-    '''
+    """
     seconds = (dt.replace(tzinfo=None) - dt.min).seconds
     rounding = (seconds + roundTo / 2) // roundTo * roundTo
     return dt + timedelta(0, rounding - seconds, -dt.microsecond)
@@ -433,7 +433,7 @@ def round_time(dt, roundTo=60):
 def writeDelays(aoi, wetDelay, hydroDelay,
                 wetFilename, hydroFilename=None,
                 outformat=None, ndv=0.):
-    """ Write the delay numpy arrays to files in the format specified """
+    """Write the delay numpy arrays to files in the format specified"""
     if pd is None:
         raise ImportError('pandas is required to write GNSS delays to a file')
 
@@ -473,9 +473,9 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
 
 def getTimeFromFile(filename):
-    '''
+    """
     Parse a filename to get a date-time
-    '''
+    """
     fmt = '%Y_%m_%d_T%H_%M_%S'
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
     out = p.search(filename).group()
@@ -623,7 +623,7 @@ def clip_bbox(bbox, spacing):
 
 
 def requests_retry_session(retries=10, session=None):
-    """ https://www.peterbe.com/plog/best-practice-with-retries-with-requests """
+    """https://www.peterbe.com/plog/best-practice-with-retries-with-requests"""
     import requests
     from requests.adapters import HTTPAdapter
     from requests.packages.urllib3.util.retry import Retry
@@ -676,7 +676,7 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
     ds['q'].attrs['units'] = 'kg kg-1'
     ds['t'].attrs['units'] = 'K'
 
-    ds["proj"] = int()
+    ds["proj"] = 0
     for k, v in crs.to_cf().items():
         ds.proj.attrs[k] = v
     for var in ds.data_vars:
@@ -687,7 +687,7 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
     
 
 def convertLons(inLons):
-    '''Convert lons from 0-360 to -180-180'''
+    """Convert lons from 0-360 to -180-180"""
     mask = inLons > 180
     outLons = inLons
     outLons[mask] = outLons[mask] - 360
@@ -701,7 +701,7 @@ def read_NCMR_loginInfo(filepath=None):
     if filepath is None:
         filepath = str(Path.home()) + '/.ncmrlogin'
 
-    f = open(filepath, 'r')
+    f = open(filepath)
     lines = f.readlines()
     url = lines[0].strip().split(': ')[1]
     username = lines[1].strip().split(': ')[1]
@@ -719,7 +719,7 @@ def read_EarthData_loginInfo(filepath=None):
 
 
 def show_progress(block_num, block_size, total_size):
-    '''Show download progress'''
+    """Show download progress"""
     if progressbar is None:
         raise ImportError('RAiDER.utilFcns: show_progress - progressbar is not available')
     
@@ -737,7 +737,7 @@ def show_progress(block_num, block_size, total_size):
 
 
 def getChunkSize(in_shape):
-    '''Create a reasonable chunk size'''
+    """Create a reasonable chunk size"""
     if mp is None:
         raise ImportError('RAiDER.utilFcns: getChunkSize - multiprocessing is not available')
     minChunkSize = 100
@@ -753,10 +753,11 @@ def getChunkSize(in_shape):
 
 
 def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
-    '''
+    """
     Calculate pressure, geopotential, and geopotential height
     from the surface pressure and model levels provided by a weather model.
     The model levels are numbered from the highest eleveation to the lowest.
+
     Args:
     ----------
         lnsp: ndarray         - [y, x] array of log surface pressure
@@ -766,13 +767,14 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         a: ndarray            - [z] vector of a values
         b: ndarray            - [z] vector of b values
         num_levels: int       - integer number of model levels
+
     Returns:
     -------
         geopotential - The geopotential in units of height times acceleration
         pressurelvs  - The pressure at each of the model levels for each of
                        the input points
         geoheight    - The geopotential heights
-    '''
+    """
     geopotential = np.zeros_like(t)
     pressurelvs = np.zeros_like(geopotential)
     geoheight = np.zeros_like(geopotential)
@@ -783,8 +785,8 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
 
     if len(a) != num_levels + 1 or len(b) != num_levels + 1:
         raise ValueError(
-            'I have here a model with {} levels, but parameters a '.format(num_levels) +
-            'and b have lengths {} and {} respectively. Of '.format(len(a), len(b)) +
+            f'I have here a model with {num_levels} levels, but parameters a ' +
+            f'and b have lengths {len(a)} and {len(b)} respectively. Of ' +
             'course, these three numbers should be equal.')
 
     # Integrate up into the atmosphere from *lowest level*
@@ -879,7 +881,7 @@ def get_nearest_wmtimes(t0, time_delta):
 
 
 def get_dt(t1,t2):
-    '''
+    """
     Helper function for getting the absolute difference in seconds between
     two python datetimes
 
@@ -894,7 +896,7 @@ def get_dt(t1,t2):
     >>> from RAiDER.utilFcns import get_dt
     >>> get_dt(datetime.datetime(2020,1,1,5,0,0), datetime.datetime(2020,1,1,0,0,0))
      18000.0
-    '''
+    """
     return np.abs((t1 - t2).total_seconds())
 
 

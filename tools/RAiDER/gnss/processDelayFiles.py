@@ -1,14 +1,15 @@
-from textwrap import dedent
 import argparse
 import datetime
 import glob
+import math
 import os
 import re
-import math
-
-from tqdm import tqdm
+from textwrap import dedent
 
 import pandas as pd
+from tqdm import tqdm
+
+
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
@@ -33,7 +34,7 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
             files.to_csv(outName, index=False)
         return
 
-    print('Combining {} delay files'.format(source))
+    print(f'Combining {source} delay files')
     try:
         concatDelayFiles(
             files,
@@ -53,8 +54,7 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
 
 
 def addDateTimeToFiles(fileList, force=False, verbose=False):
-    ''' Run through a list of files and add the datetime of each file as a column '''
-
+    """Run through a list of files and add the datetime of each file as a column"""
     print('Adding Datetime to delay files')
 
     for f in tqdm(fileList):
@@ -63,9 +63,9 @@ def addDateTimeToFiles(fileList, force=False, verbose=False):
         if 'Datetime' in data.columns and not force:
             if verbose:
                 print(
-                    'File {} already has a "Datetime" column, pass'
+                    f'File {f} already has a "Datetime" column, pass'
                     '"force = True" if you want to override and '
-                    're-process'.format(f)
+                    're-process'
                 )
         else:
             try:
@@ -78,14 +78,14 @@ def addDateTimeToFiles(fileList, force=False, verbose=False):
                 data.to_csv(f, index=False)
             except (AttributeError, ValueError):
                 print(
-                    'File {} does not contain datetime info, skipping'
-                    .format(f)
+                    f'File {f} does not contain datetime info, skipping'
+                    
                 )
         del data
 
 
 def getDateTime(filename):
-    ''' Parse a datetime from a RAiDER delay filename '''
+    """Parse a datetime from a RAiDER delay filename"""
     filename = os.path.basename(filename)
     dtr = re.compile(r'\d{8}T\d{6}')
     dt = dtr.search(filename)
@@ -96,7 +96,7 @@ def getDateTime(filename):
 
 
 def update_time(row, localTime_hrs):
-    '''Update with local origin time'''
+    """Update with local origin time"""
     localTime_estimate = row['Datetime'].replace(hour=localTime_hrs,
                                                  minute=0, second=0)
     # determine if you need to shift days
@@ -121,7 +121,7 @@ def update_time(row, localTime_hrs):
 
 
 def pass_common_obs(reference, target, localtime=None):
-    '''Pass only observations in target spatiotemporally common to reference'''
+    """Pass only observations in target spatiotemporally common to reference"""
     if isinstance(target['Datetime'].iloc[0], str):
         target['Datetime'] = target['Datetime'].apply(lambda x:
                           datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
@@ -145,10 +145,10 @@ def concatDelayFiles(
     ref=None,
     col_name='ZTD'
 ):
-    '''
+    """
     Read a list of .csv files containing the same columns and append them
     together, sorting by specified columns
-    '''
+    """
     dfList = []
 
     print('Concatenating delay files')
@@ -171,10 +171,8 @@ def concatDelayFiles(
     ).drop_duplicates().reset_index(drop=True)
     df_c.sort_values(by=sort_list, inplace=True)
 
-    print('Total number of rows in the concatenated file: {}'.format(df_c.shape[0]))
-    print('Total number of rows containing NaNs: {}'.format(
-        df_c[df_c.isna().any(axis=1)].shape[0]
-    )
+    print(f'Total number of rows in the concatenated file: {df_c.shape[0]}')
+    print(f'Total number of rows containing NaNs: {df_c[df_c.isna().any(axis=1)].shape[0]}'
     )
 
     if return_df or outName is None:
@@ -188,9 +186,9 @@ def concatDelayFiles(
 
 
 def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
-    '''
+    """
     Convert to local-time reference frame WRT 0 longitude
-    '''
+    """
     localTime_hrs = int(localTime.split(' ')[0])
     localTime_hrthreshold = int(localTime.split(' ')[1])
     # with rotation rate and distance to 0 lon, get localtime shift WRT 00 UTC at 0 lon
@@ -245,9 +243,9 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
 
 
 def readZTDFile(filename, col_name='ZTD'):
-    '''
+    """
     Read and parse a GPS zenith delay file
-    '''
+    """
     try:
         data = pd.read_csv(filename, parse_dates=['Date'])
         times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
@@ -358,10 +356,10 @@ def create_parser():
 
 
 def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName=None, localTime=None):
-    '''
+    """
     Merge a combined RAiDER delays file with a GPS ZTD delay file
-    '''
-    print('Merging delay files {} and {}'.format(raiderFile, ztdFile))
+    """
+    print(f'Merging delay files {raiderFile} and {ztdFile}')
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
     # drop extra columns
     expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay',
@@ -419,10 +417,8 @@ def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName
     dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
 
     print('Total number of rows in the concatenated file: '
-          '{}'.format(dfc.shape[0]))
-    print('Total number of rows containing NaNs: {}'.format(
-        dfc[dfc.isna().any(axis=1)].shape[0]
-    )
+          f'{dfc.shape[0]}')
+    print(f'Total number of rows containing NaNs: {dfc[dfc.isna().any(axis=1)].shape[0]}'
     )
     print('Merge finished')
     

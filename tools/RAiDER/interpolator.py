@@ -7,13 +7,12 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import numpy as np
 import pandas as pd
-
 from scipy.interpolate import interp1d
 
 from RAiDER.interpolate import interpolate
 
 
-class RegularGridInterpolator(object):
+class RegularGridInterpolator:
     """
     Provides a wrapper around RAiDER.interpolate.interpolate with a similar
     interface to scipy.interpolate.RegularGridInterpolator.
@@ -59,14 +58,14 @@ class RegularGridInterpolator(object):
 
 
 def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
-    '''
+    """
     DEPRECATED: Use RAiDER.interpolate.interpolate_along_axis instead (it is
     much faster). This function now primarily exists to verify the behavior of
     the new one.
 
     Interpolate an array of 3-D data along one axis. This function
     assumes that the x-coordinate increases monotonically.
-    '''
+    """
     if oldCoord.ndim > 1:
         stackedData = np.concatenate([oldCoord, data, newCoord], axis=axis)
         out = np.apply_along_axis(interpVector, axis=axis, arr=stackedData, Nx=oldCoord.shape[axis])
@@ -78,18 +77,18 @@ def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
 
 
 def interpV(y, old_x, new_x, left=None, right=None, period=None):
-    '''
+    """
     Rearrange np.interp's arguments
-    '''
+    """
     return np.interp(new_x, old_x, y, left=left, right=right, period=period)
 
 
 def interpVector(vec, Nx):
-    '''
+    """
     Interpolate data from a single vector containing the original
     x, the original y, and the new x, in that order. Nx tells the
     number of original x-points.
-    '''
+    """
     x = vec[:Nx]
     y = vec[Nx:2 * Nx]
     xnew = vec[2 * Nx:]
@@ -98,17 +97,16 @@ def interpVector(vec, Nx):
 
 
 def fillna3D(array, axis=-1, fill_value=0.):
-    '''
+    """
     This function fills in NaNs in 3D arrays, specifically using the nearest non-nan value
     for "low" NaNs and 0s for "high" NaNs. 
 
-    Arguments: 
+    Arguments:
         array   - 3D array, where the last axis is the "z" dimension
     
-    Returns: 
+    Returns:
         3D array with low NaNs filled as nearest neighbors and high NaNs filled as 0s
-    '''
-
+    """
     # fill lower NaNs with nearest neighbor
     narr = np.moveaxis(array, axis, -1)
     nars = narr.reshape((np.prod(narr.shape[:-1]),) + (narr.shape[-1],))
@@ -122,7 +120,7 @@ def fillna3D(array, axis=-1, fill_value=0.):
 
 
 def interpolateDEM(demFile, outLL, method='nearest'):
-    """ Interpolate a DEM raster to a set of lat/lon query points using rioxarray
+    """Interpolate a DEM raster to a set of lat/lon query points using rioxarray
 
     outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
         For now will only use first row/col of 2D

@@ -1,18 +1,19 @@
-import os
 import datetime
-import numpy as np
+import os
 import shutil
+
 import h5py
+import numpy as np
 import pydap.cas.urs
 import pydap.client
 from pyproj import CRS
 
-from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVarsXarray, round_date, requests_retry_session
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
+from RAiDER.models.weatherModel import TIME_RES, WeatherModel
+from RAiDER.utilFcns import requests_retry_session, round_date, writeWeatherVarsXarray
 
 
 class GMAO(WeatherModel):
@@ -58,9 +59,9 @@ class GMAO(WeatherModel):
 
 
     def _fetch(self, out):
-        '''
+        """
         Fetch weather model data from GMAO
-        '''
+        """
         acqTime = self._time
 
         # calculate the array indices for slicing the GMAO variable arrays
@@ -146,21 +147,20 @@ class GMAO(WeatherModel):
 
 
     def load_weather(self, f=None):
-        '''
+        """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
-        '''
+        """
         f = self.files[0] if f is None else f
         self._load_model_level(f)
 
 
     def _load_model_level(self, filename):
-        '''
+        """
         Get the variables from the GMAO link using OpenDAP
-        '''
-
+        """
         # adding the import here should become absolute when transition to netcdf
         from netCDF4 import Dataset
         with Dataset(filename, mode='r') as f:

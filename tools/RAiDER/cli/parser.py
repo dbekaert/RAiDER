@@ -3,6 +3,7 @@ import os
 
 from RAiDER.cli.validators import BBoxAction, IntegerMappingType
 
+
 def add_cpus(parser: argparse.ArgumentParser):
     parser.add_argument(
         '--cpus',

@@ -8,12 +8,14 @@
 import itertools
 import multiprocessing
 import os
+
 import pandas as pd
 
-from RAiDER.logger import logger, logging
 from RAiDER.getStationDelays import get_station_data
-from RAiDER.utilFcns import requests_retry_session
+from RAiDER.logger import logger, logging
 from RAiDER.models.customExceptions import NoStationDataFoundError
+from RAiDER.utilFcns import requests_retry_session
+
 
 # base URL for UNR repository
 _UNR_URL = "http://geodesy.unr.edu/"
@@ -26,7 +28,7 @@ def get_station_list(
         name_appendix='',
         writeStationFile=True,
     ):
-    '''
+    """
     Creates a list of stations inside a lat/lon bounding box from a source
 
     Args:
@@ -40,7 +42,7 @@ def get_station_list(
     Returns:
         stations: list of strings        - station IDs to access
         output_file: string or dataframe - file to write delays
-    '''
+    """
     if bbox is not None:
         station_data = get_stats_by_llh(llhBox=bbox)
     else:
@@ -48,7 +50,7 @@ def get_station_list(
             station_data = pd.read_csv(stationFile)
         except:
             stations = []
-            with open(stationFile, 'r') as f:
+            with open(stationFile) as f:
                 for k, line in enumerate(f):
                     if k ==0:
                         names = line.strip().split()
@@ -68,10 +70,10 @@ def get_station_list(
 
 
 def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
-    '''
+    """
     Function to pull lat, lon, height, beginning date, end date, and number of solutions for stations inside the bounding box llhBox.
     llhBox should be a tuple in SNWE format.
-    '''
+    """
     if llhBox is None:
         llhBox = [-90, 90, 0, 360]
     S, N, W, E = llhBox
@@ -79,7 +81,7 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
         raise ValueError(
             'get_stats_by_llh: bounding box must be on lon range [0, 360]')
 
-    stationHoldings = '{}NGLStationPages/llh.out'.format(baseURL)
+    stationHoldings = f'{baseURL}NGLStationPages/llh.out'
     # it's a file like object and works just like a file
 
     stations = pd.read_csv(
@@ -103,7 +105,7 @@ def download_tropo_delays(
     numCPUs=8,
     download=False,
 ):
-    '''
+    """
     Check for and download GNSS tropospheric delays from an archive. If 
     download is True then files will be physically downloaded, but this  
     is not necessary as data can be virtually accessed.
@@ -118,8 +120,7 @@ def download_tropo_delays(
 
     Returns:
         None
-    '''
-
+    """
     # argument checking
     if not isinstance(stats, (list, str)):
         raise TypeError('stats should be a string or a list of strings')
@@ -141,7 +142,7 @@ def download_tropo_delays(
             ]
         else:
             raise NotImplementedError(
-                'download_tropo_delays: gps_repo "{}" not yet implemented'.format(gps_repo))
+                f'download_tropo_delays: gps_repo "{gps_repo}" not yet implemented')
 
     # Write results to file
     if len(results) == 0:
@@ -149,25 +150,25 @@ def download_tropo_delays(
             station_list=stats['ID'].to_list(), years=years)
     statDF = pd.DataFrame(results).set_index('ID')
     statDF.to_csv(os.path.join(
-        writeDir, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
+        writeDir, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'))
 
 
 def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
-    '''
+    """
     Download a zip file containing tropospheric delays for a given station and year
     The URL format is http://geodesy.unr.edu/gps_timeseries/trop/<ssss>/<ssss>.<yyyy>.trop.zip
     Inputs:
         statID   - 4-character station identifier
         year     - 4-numeral year
-    '''
+    """
     if baseURL not in [_UNR_URL]:
-        raise NotImplementedError('Data repository {} has not yet been implemented'.format(baseURL))
+        raise NotImplementedError(f'Data repository {baseURL} has not yet been implemented')
     
     URL = "{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip".format(
         baseURL, statID.upper(), year)
     logger.debug('Currently checking station %s in %s', statID, year)
     if download:
-        saveLoc = os.path.abspath(os.path.join(writeDir, '{0}.{1}.trop.zip'.format(statID.upper(), year)))
+        saveLoc = os.path.abspath(os.path.join(writeDir, f'{statID.upper()}.{year}.trop.zip'))
         filepath = download_url(URL, saveLoc)
         if filepath == '':
             raise ValueError('Year or station ID does not exist')
@@ -177,10 +178,10 @@ def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
 
 
 def download_url(url, save_path, chunk_size=2048):
-    '''
+    """
     Download a file from a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
-    '''
+    """
     session = requests_retry_session()
     r = session.get(url, stream=True)
 
@@ -196,10 +197,10 @@ def download_url(url, save_path, chunk_size=2048):
 
 
 def check_url(url):
-    '''
+    """
     Check whether a file exists at a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
-    '''
+    """
     session = requests_retry_session()
     r = session.head(url)
     if r.status_code == 404:
@@ -208,9 +209,9 @@ def check_url(url):
 
 
 def in_box(lat, lon, llhbox):
-    '''
+    """
     Checks whether the given lat, lon pair are inside the bounding box llhbox
-    '''
+    """
     return lat < llhbox[1] and lat > llhbox[0] and lon < llhbox[3] and lon > llhbox[2]
 
 
@@ -226,9 +227,9 @@ def fix_lons(lon):
 
 
 def get_ID(line):
-    '''
+    """
     Pulls the station ID, lat, lon, and height for a given entry in the UNR text file
-    '''
+    """
     stat_id, lat, lon, height = line.split()[:4]
     return stat_id, float(lat), float(lon), float(height)
 
@@ -277,16 +278,16 @@ def main(inps=None):
     )
 
     # Combine station data with URL info
-    pathsdf = pd.read_csv(os.path.join(out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)))
+    pathsdf = pd.read_csv(os.path.join(out, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'))
     pathsdf = pd.merge(left=pathsdf, right=statdf, how='left', left_on='ID', right_on='ID')
-    pathsdf.to_csv(os.path.join(out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)), index=False)
+    pathsdf.to_csv(os.path.join(out, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'), index=False)
     del statdf, pathsdf
 
     # Extract delays for each station
     dateList = [k.strftime('%Y-%m-%d') for k in dateList]
     get_station_data(
         os.path.join(
-            out, '{}gnssStationList_overbbox_withpaths.csv'.format(gps_repo)),
+            out, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'),
         dateList,
         gps_repo=gps_repo,
         numCPUs=cpus,
@@ -298,9 +299,9 @@ def main(inps=None):
 
 
 def parse_bbox(bounding_box):
-    '''
+    """
     Parse bounding box arguments
-    '''
+    """
     if isinstance(bounding_box, str) and not os.path.isfile(bounding_box):
         try:
             bbox = [float(val) for val in bounding_box.split()]
@@ -327,9 +328,9 @@ def parse_bbox(bounding_box):
 
 
 def get_stats(bbox, long_cross_zero, out, station_file):
-    '''
+    """
     Pull the stations needed
-    '''
+    """
     if long_cross_zero == 1:
         bbox1 = bbox.copy()
         bbox2 = bbox.copy()
@@ -356,7 +357,7 @@ def get_stats(bbox, long_cross_zero, out, station_file):
 
 
 def filterToBBox(stations, llhBox):
-    '''
+    """
     Filter a dataframe by lat/lon.
     *NOTE: llhBox longitude format should be [0, 360]
 
@@ -366,7 +367,7 @@ def filterToBBox(stations, llhBox):
 
     Returns:
         a Pandas Dataframe with stations removed that are not inside llhBox
-    '''
+    """
     S, N, W, E = llhBox
     if (W < 0) or (E < 0):
         raise ValueError('llhBox longitude format should 0-360')
@@ -388,7 +389,7 @@ def filterToBBox(stations, llhBox):
 
     if stations[lon_key].min() < 0:
         # convert lon format to -180 to 180
-        W, E = [((D + 180) % 360) - 180 for D in [W, E]]
+        W, E = (((D + 180) % 360) - 180 for D in [W, E])
 
     mask = (stations[lat_key] > S) & (stations[lat_key] < N) & (
         stations[lon_key] < E) & (stations[lon_key] > W)

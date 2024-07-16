@@ -1,30 +1,31 @@
 import argparse
 import datetime
-import os
 import json
+import os
 import shutil
 import sys
-import yaml
+from pathlib import Path
+from textwrap import dedent
 
 import numpy as np
 import xarray as xr
+import yaml
 
-from textwrap import dedent
-from pathlib import Path
-
-import RAiDER.aria.prepFromGUNW
 import RAiDER.aria.calcGUNW
+import RAiDER.aria.prepFromGUNW
 from RAiDER import aws
-from RAiDER.logger import logger, logging
 from RAiDER.cli import DEFAULT_DICT, AttributeDict
-from RAiDER.cli.parser import add_out, add_cpus, add_verbose
+from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.logger import logger, logging
 from RAiDER.models.allowed import ALLOWED_MODELS
-from RAiDER.models.customExceptions import (
-    NoWeatherModelData, DatetimeFailed, TryToKeepGoingError, WrongNumberOfFiles
+from RAiDER.models.customExceptions import DatetimeFailed, NoWeatherModelData, TryToKeepGoingError, WrongNumberOfFiles
+from RAiDER.s1_azimuth_timing import (
+    get_inverse_weights_for_dates,
+    get_s1_azimuth_time_grid,
+    get_times_for_azimuth_interpolation,
 )
 from RAiDER.utilFcns import get_dt
-from RAiDER.s1_azimuth_timing import get_s1_azimuth_time_grid, get_inverse_weights_for_dates, get_times_for_azimuth_interpolation
 
 
 TIME_INTERPOLATION_METHODS = ['none', 'center_time', 'azimuth_time_grid']
@@ -49,6 +50,7 @@ DEFAULT_RUN_CONFIG_PATH = os.path.abspath("./raider.yaml")
 def read_run_config_file(fname):
     """
     Read the run config file into a dictionary structure.
+
     Args:
         fname (str): full path to the run config file
     Returns:
@@ -58,16 +60,14 @@ def read_run_config_file(fname):
     >>> run_config = read_run_config_file('raider.yaml')
 
     """
-    from RAiDER.cli.validators import (
-        enforce_time, parse_dates, get_query_region, get_heights, get_los, enforce_wm
-    )
-    with open(fname, 'r') as f:
+    from RAiDER.cli.validators import enforce_time, enforce_wm, get_heights, get_los, get_query_region, parse_dates
+    with open(fname) as f:
         try:
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
             raise ValueError(
-                'Something is wrong with the yaml file {}'.format(fname))
+                f'Something is wrong with the yaml file {fname}')
 
     # Drop any values not specified
     params = drop_nans(params)
@@ -139,12 +139,12 @@ def drop_nans(d):
 
 
 def calcDelays(iargs=None):
-    """ Parse command line arguments using argparse. """
+    """Parse command line arguments using argparse."""
     import RAiDER
     import RAiDER.processWM
-    from RAiDER.delay import tropo_delay
     from RAiDER.checkArgs import checkArgs
-    from RAiDER.utilFcns import writeDelays, get_nearest_wmtimes
+    from RAiDER.delay import tropo_delay
+    from RAiDER.utilFcns import get_nearest_wmtimes, writeDelays
     examples = 'Examples of use:' \
         '\n\t raider.py run_config_file.yaml' \
         '\n\t raider.py --generate_config template'
@@ -305,7 +305,7 @@ def calcDelays(iargs=None):
                 )
                 logger.info(f'Query datetime: {tt}')
                 logger.error(e)
-                logger.error('Weather model files are: {}'.format(wfiles))
+                logger.error(f'Weather model files are: {wfiles}')
                 logger.error(
                     f'Downloading and/or preparation of {model._Name} failed.'
                 )
@@ -624,10 +624,10 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
 # ------------------------------------------------------------ processDelays.py
 def combineZTDFiles():
-    '''
+    """
     Command-line program to process delay files from RAiDER and GNSS into a single file.
-    '''
-    from RAiDER.gnss.processDelayFiles import main, combineDelayFiles, create_parser
+    """
+    from RAiDER.gnss.processDelayFiles import combineDelayFiles, create_parser, main
 
     p = create_parser()
     args = p.parse_args()
@@ -651,14 +651,13 @@ def combineZTDFiles():
 
 
 def getWeatherFile(wfiles, times, t, model, interp_method='none'):
-    '''
+    """
     # Time interpolation
     #
     # Need to handle various cases, including if the exact weather model time is
     # requested, or if one or more datetimes are not available from the weather
     # model data provider
-    '''
-
+    """
     # time interpolation method: number of expected files
     EXPECTED_NUM_FILES = {'none': 1, 'center_time': 2, 'azimuth_time_grid': 3}
 
@@ -669,7 +668,7 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
         Nfiles_expected = EXPECTED_NUM_FILES[interp_method]
     except KeyError:
         raise ValueError(
-            'getWeatherFile: interp_method {} is not known'.format(interp_method))
+            f'getWeatherFile: interp_method {interp_method} is not known')
 
     Nmatch = (Nfiles_expected == Nfiles)
     Tmatch = (Nfiles == Ntimes)
@@ -725,8 +724,7 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
 
 
 def combine_weather_files(wfiles, t, model, interp_method='center_time'):
-    '''Interpolate downloaded weather files and save to a single file'''
-
+    """Interpolate downloaded weather files and save to a single file"""
     STYLE = {'center_time': '_timeInterp_',
              'azimuth_time_grid': '_timeInterpAziGrid_'}
 
@@ -771,8 +769,7 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
 
 
 def combine_files_using_azimuth_time(wfiles, t, times):
-    '''Combine files using azimuth time interpolation'''
-
+    """Combine files using azimuth time interpolation"""
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
 
@@ -809,7 +806,7 @@ def combine_files_using_azimuth_time(wfiles, t, times):
 
 
 def get_weights_time_interp(times, t):
-    '''Calculate weights for time interpolation using simple inverse linear weighting'''
+    """Calculate weights for time interpolation using simple inverse linear weighting"""
     date1, date2 = times
     wgts = [1 - get_dt(t, date1) / get_dt(date2, date1), 1 -
             get_dt(date2, t) / get_dt(date2, date1)]
@@ -825,8 +822,7 @@ def get_weights_time_interp(times, t):
 
 
 def get_time_grid_for_aztime_interp(datasets, t, model):
-    '''Calculate the time-varying grid for use with azimuth time interpolation'''
-
+    """Calculate the time-varying grid for use with azimuth time interpolation"""
     # Each model will require some inspection here
     # the subsequent s1 azimuth time grid requires dimension
     # inputs to all have same dimensions and either be

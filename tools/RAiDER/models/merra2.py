@@ -1,19 +1,18 @@
-import os
-import xarray
-
 import datetime
+import os
+
 import numpy as np
 import pydap.cas.urs
 import pydap.client
-
+import xarray
 from pyproj import CRS
 
-from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVarsXarray, read_EarthData_loginInfo
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
+from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.utilFcns import read_EarthData_loginInfo, writeWeatherVarsXarray
 
 
 # Path to Netrc file, can be controlled by env var
@@ -68,9 +67,9 @@ class MERRA2(WeatherModel):
         self._proj = CRS.from_epsg(4326)
 
     def _fetch(self, out):
-        '''
+        """
         Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP
-        '''
+        """
         time = self._time 
         
         # check whether the file already exists
@@ -124,23 +123,22 @@ class MERRA2(WeatherModel):
         except Exception as e:
             logger.debug(e)
             logger.exception("MERRA-2: Unable to save weathermodel to file")
-            raise RuntimeError('MERRA-2 failed with the following error: {}'.format(e))
+            raise RuntimeError(f'MERRA-2 failed with the following error: {e}')
 
     def load_weather(self,  f=None, *args, **kwargs):
-        '''
+        """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
-        '''
+        """
         f = self.files[0] if f is None else f
         self._load_model_level(f)
 
     def _load_model_level(self, filename):
-        '''
+        """
         Get the variables from the GMAO link using OpenDAP
-        '''
-
+        """
         # adding the import here should become absolute when transition to netcdf
         ds = xarray.load_dataset(filename)
         lons = ds['longitude'].values

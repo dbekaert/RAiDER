@@ -5,18 +5,6 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-from RAiDER.logger import logger, logging
-from RAiDER.cli.parser import add_cpus
-from RAiDER.utilFcns import WGS84_to_UTM
-from rasterio.transform import Affine
-from scipy import optimize
-from scipy.optimize import OptimizeWarning
-from shapely.strtree import STRtree
-from shapely.geometry import Point, Polygon
-from matplotlib import pyplot as plt
-import pandas as pd
-import numpy as np
-import rasterio
 import argparse
 import copy
 import datetime as dt
@@ -26,6 +14,21 @@ import os
 import warnings
 
 import matplotlib as mpl
+import numpy as np
+import pandas as pd
+import rasterio
+from matplotlib import pyplot as plt
+from rasterio.transform import Affine
+from scipy import optimize
+from scipy.optimize import OptimizeWarning
+from shapely.geometry import Point, Polygon
+from shapely.strtree import STRtree
+
+from RAiDER.cli.parser import add_cpus
+from RAiDER.logger import logger, logging
+from RAiDER.utilFcns import WGS84_to_UTM
+
+
 # must switch to Agg to avoid multiprocessing crashes
 mpl.use('Agg')
 
@@ -169,10 +172,9 @@ def cmd_line_parse(iargs=None):
 
 
 def convert_SI(val, unit_in, unit_out):
-    '''
-        Convert input to desired units
-    '''
-
+    """
+    Convert input to desired units
+    """
     SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.,
           'mm^2': 1e-6, 'cm^2': 1e-4, 'm^2': 1.0, 'km^2': 1e+6}
 
@@ -181,21 +183,21 @@ def convert_SI(val, unit_in, unit_out):
         # adjust if input isn't datetime, and assume it to be part of workflow
         # e.g. sigZTD filter, already extracted datetime object
         try:
-            return eval('val.apply(pd.to_datetime).dt.{}.astype(float).astype("Int32")'.format(unit_out))
+            return eval(f'val.apply(pd.to_datetime).dt.{unit_out}.astype(float).astype("Int32")')
         except AttributeError:
             return val
 
     # check if output spatial unit is supported
     if unit_out not in SI:
-        raise ValueError("User-specified output unit {} not recognized.".format(unit_out))
+        raise ValueError(f"User-specified output unit {unit_out} not recognized.")
 
     return val * SI[unit_in] / SI[unit_out]
 
 
 def midpoint(p1, p2):
-    '''
-        Calculate central longitude for '--time_lines' option
-    '''
+    """
+    Calculate central longitude for '--time_lines' option
+    """
     import math
 
     if p1[1] == p2[1]:
@@ -213,9 +215,9 @@ def midpoint(p1, p2):
 def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
                   colorbarfmt='%.2f', stationsongrids=False, time_lines=False,
                   dtype="float32", noData=np.nan):
-    '''
-        Function to save gridded-arrays as GDAL-readable file.
-    '''
+    """
+    Function to save gridded-arrays as GDAL-readable file.
+    """
     # Pass metadata
     metadata_dict = {}
     metadata_dict['gridfile_type'] = gridfile_type
@@ -249,10 +251,9 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
 
 
 def load_gridfile(fname, unit):
-    '''
-        Function to load gridded-arrays saved from previous runs.
-    '''
-
+    """
+    Function to load gridded-arrays saved from previous runs.
+    """
     try:
         with rasterio.open(fname) as src:
             grid_array = src.read(1).astype(float)
@@ -305,10 +306,10 @@ def load_gridfile(fname, unit):
     return grid_array, plotbbox, spacing, colorbarfmt, stationsongrids, time_lines
 
 
-class VariogramAnalysis():
-    '''
-        Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis.
-    '''
+class VariogramAnalysis:
+    """
+    Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis.
+    """
 
     def __init__(self, filearg, gridpoints, col_name, unit='m', workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, variogram_per_timeslice=False, variogram_errlimit='inf'):
         self.df = filearg
@@ -324,9 +325,9 @@ class VariogramAnalysis():
         self.variogram_errlimit = float(variogram_errlimit)
 
     def _get_samples(self, data, Nsamp=1000):
-        '''
+        """
         pull samples from a 2D image for variogram analysis
-        '''
+        """
         import random
         if len(data) < self.densitythreshold:
             logger.warning('Less than {} points for this gridcell', self.densitythreshold)
@@ -346,32 +347,32 @@ class VariogramAnalysis():
         return d, indpars
 
     def _get_XY(self, x2d, y2d, indpars):
-        '''
+        """
         Given a list of indices, return the x,y locations
         from two matrices
-        '''
+        """
         x = np.array([[x2d[r[0]], x2d[r[1]]] for r in indpars])
         y = np.array([[y2d[r[0]], y2d[r[1]]] for r in indpars])
 
         return x, y
 
     def _get_distances(self, XY):
-        '''
+        """
         Return the distances between each point in a list of points
-        '''
+        """
         from scipy.spatial.distance import cdist
         return np.diag(cdist(XY[:, :, 0], XY[:, :, 1], metric='euclidean'))
 
     def _get_variogram(self, XY, xy=None):
-        '''
+        """
         Return variograms
-        '''
+        """
         return 0.5 * np.square(XY - xy)  # XY = 1st col xy= 2nd col
 
     def _emp_vario(self, x, y, data, Nsamp=1000):
-        '''
+        """
         Compute empirical semivariance
-        '''
+        """
         # remove NaNs if possible
         mask = ~np.isnan(data)
         if False in mask:
@@ -394,9 +395,9 @@ class VariogramAnalysis():
         return dists, vario
 
     def _binned_vario(self, hEff, rawVario, xBin=None):
-        '''
+        """
         return a binned empirical variogram
-        '''
+        """
         if xBin is None:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="All-NaN slice encountered")
@@ -424,9 +425,9 @@ class VariogramAnalysis():
         return np.array(hExp), np.array(expVario)
 
     def _fit_vario(self, dists, vario, model=None, x0=None, Nparm=None, ub=None):
-        '''
+        """
         Fit a variogram model to data
-        '''
+        """
         from scipy.optimize import least_squares
 
         def resid(x, d, v, m):
@@ -466,10 +467,10 @@ class VariogramAnalysis():
 
     # this would be expontential plus nugget
     def __exponential__(self, parms, h, nugget=False):
-        '''
+        """
         returns a variogram model given a set of arguments and
         key-word arguments
-        '''
+        """
         # a = range, b = sill, c = nugget model
         a, b, c = parms
         with warnings.catch_warnings():
@@ -481,16 +482,16 @@ class VariogramAnalysis():
 
     # this would be gaussian plus nugget
     def __gaussian__(self, parms, h):
-        '''
+        """
         returns a Gaussian variogram model
-        '''
+        """
         a, b, c = parms
         return b * (1 - np.exp(-np.square(h) / (a**2))) + c
 
     def _append_variogram(self, grid_ind, grid_subset):
-        '''
+        """
         For a given grid-cell, iterate through time slices to generate/append empirical variogram(s)
-        '''
+        """
         # Comprehensive arrays recording data across all time epochs for given station
         dists_arr = []
         vario_arr = []
@@ -505,9 +506,7 @@ class VariogramAnalysis():
                 # Record skipped [gridnode, timeslice]
                 self.skipped_slices.append([grid_ind, j.strftime("%Y-%m-%d")])
             else:
-                self.gridcenterlist.append(['grid{} '.format(
-                    grid_ind) + 'Lat:{} Lon:{}'.format(
-                    str(self.gridpoints[grid_ind][1]), str(self.gridpoints[grid_ind][0]))])
+                self.gridcenterlist.append([f'grid{grid_ind} ' + f'Lat:{str(self.gridpoints[grid_ind][1])} Lon:{str(self.gridpoints[grid_ind][0])}'])
                 lonarr = np.array(
                     grid_subset[grid_subset['Date'] == j]['Lon'])
                 latarr = np.array(
@@ -522,18 +521,18 @@ class VariogramAnalysis():
                 res_robust, d_test, v_test = self._fit_vario(
                     dists_binned, vario_binned, model=self.__exponential__, x0=None, Nparm=3)
                 # Plot empirical + experimental variogram for this gridnode and timeslice
-                if not os.path.exists(os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind))):
+                if not os.path.exists(os.path.join(self.workdir, f'variograms/grid{grid_ind}')):
                     os.makedirs(os.path.join(
-                        self.workdir, 'variograms/grid{}'.format(grid_ind)))
+                        self.workdir, f'variograms/grid{grid_ind}'))
                 # Make variogram plots for each time-slice
                 if self.variogram_per_timeslice:
                     # Plot empirical variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists, vario=vario,
+                                        workdir=os.path.join(self.workdir, f'variograms/grid{grid_ind}'), dists=dists, vario=vario,
                                         dists_binned=dists_binned, vario_binned=vario_binned)
                     # Plot experimental variogram for this gridnode and timeslice
                     self.plot_variogram(grid_ind, j.strftime("%Y%m%d"), [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                                        workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=d_test, v_test=v_test,
+                                        workdir=os.path.join(self.workdir, f'variograms/grid{grid_ind}'), d_test=d_test, v_test=v_test,
                                         res_robust=res_robust.x, dists_binned=dists_binned, vario_binned=vario_binned)
                 # append for plotting
                 self.good_slices.append([grid_ind, j.strftime("%Y%m%d")])
@@ -571,11 +570,11 @@ class VariogramAnalysis():
                 self.TOT_res_robust_rmse.append(np.array(np.nan))
             # Plot empirical variogram for this gridnode
             self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), dists=dists_arr, vario=vario_arr,
+                                workdir=os.path.join(self.workdir, f'variograms/grid{grid_ind}'), dists=dists_arr, vario=vario_arr,
                                 dists_binned=dists_binned_arr, vario_binned=vario_binned_arr, seasonalinterval=self.seasonalinterval)
             # Plot experimental variogram for this gridnode
             self.plot_variogram(grid_ind, tot_timetag, [self.gridpoints[grid_ind][1], self.gridpoints[grid_ind][0]],
-                                workdir=os.path.join(self.workdir, 'variograms/grid{}'.format(grid_ind)), d_test=TOT_d_test, v_test=TOT_v_test,
+                                workdir=os.path.join(self.workdir, f'variograms/grid{grid_ind}'), d_test=TOT_d_test, v_test=TOT_v_test,
                                 res_robust=TOT_res_robust.x, seasonalinterval=self.seasonalinterval, dists_binned=dists_binned_arr, vario_binned=vario_binned_arr)
         # Record sparse grids which didn't have sufficient sample size of data through any of the timeslices
         else:
@@ -584,9 +583,9 @@ class VariogramAnalysis():
         return self.TOT_good_slices, self.TOT_res_robust_arr, self.TOT_res_robust_rmse, self.gridcenterlist
 
     def create_variograms(self):
-        '''
+        """
         Iterate through grid-cells and time slices to generate empirical variogram(s)
-        '''
+        """
         # track data for plotting
         self.TOT_good_slices = []
         self.TOT_res_robust_arr = []
@@ -627,16 +626,15 @@ class VariogramAnalysis():
         return TOT_grids, self.TOT_res_robust_arr, self.TOT_res_robust_rmse
 
     def plot_variogram(self, gridID, timeslice, coords, workdir='./', d_test=None, v_test=None, res_robust=None, dists=None, vario=None, dists_binned=None, vario_binned=None, seasonalinterval=None):
-        '''
+        """
         Make empirical and/or experimental variogram fit plots
-        '''
+        """
         # If specified workdir doesn't exist, create it
         if not os.path.exists(workdir):
             os.mkdir(workdir)
 
         # make plot title
-        title_str = ' \nLat:{:.2f} Lon:{:.2f}\nTime:{}'.format(
-            coords[1], coords[0], str(timeslice))
+        title_str = f' \nLat:{coords[1]:.2f} Lon:{coords[0]:.2f}\nTime:{str(timeslice)}'
         if seasonalinterval:
             title_str += ' Season(mm/dd): {}/{} – {}/{}'.format(int(timeslice[4:6]), int(
                 timeslice[6:8]), int(timeslice[-4:-2]), int(timeslice[-2:]))
@@ -651,17 +649,17 @@ class VariogramAnalysis():
             plt.plot(dists_binned, vario_binned, 'bo', label='binned')
         if res_robust is not None:
             plt.axhline(y=res_robust[1], color='g',
-                        linestyle='--', label='ɣ\u0332\u00b2({}\u00b2)'.format(self.unit))
+                        linestyle='--', label=f'ɣ\u0332\u00b2({self.unit}\u00b2)')
             # scale from m to user-defined units
             res_robust[0] = convert_SI(res_robust[0], 'm', self.unit)
             plt.axvline(x=res_robust[0], color='c',
-                        linestyle='--', label='h ({})'.format(self.unit))
+                        linestyle='--', label=f'h ({self.unit})')
         if d_test is not None and v_test is not None:
             # scale from m to user-defined units
             d_test = [convert_SI(i, 'm', self.unit) for i in d_test]
             plt.plot(d_test, v_test, 'r-', label='experimental fit')
-        plt.xlabel('Distance ({})'.format(self.unit))
-        plt.ylabel('Dissimilarity ({}\u00b2)'.format(self.unit))
+        plt.xlabel(f'Distance ({self.unit})')
+        plt.ylabel(f'Dissimilarity ({self.unit}\u00b2)')
         plt.legend(bbox_to_anchor=(1.02, 1),
                    loc='upper left', borderaxespad=0., framealpha=1.)
         # Plot empirical variogram
@@ -669,22 +667,22 @@ class VariogramAnalysis():
             plt.title('Empirical variogram' + title_str)
             plt.tight_layout()
             plt.savefig(os.path.join(
-                workdir, 'grid{}_timeslice{}_justEMPvariogram.eps'.format(gridID, timeslice)))
+                workdir, f'grid{gridID}_timeslice{timeslice}_justEMPvariogram.eps'))
         # Plot just experimental variogram
         else:
             plt.title('Experimental variogram' + title_str)
             plt.tight_layout()
             plt.savefig(os.path.join(
-                workdir, 'grid{}_timeslice{}_justEXPvariogram.eps'.format(gridID, timeslice)))
+                workdir, f'grid{gridID}_timeslice{timeslice}_justEXPvariogram.eps'))
         plt.close()
 
         return
 
 
-class RaiderStats(object):
-    '''
-        Class which loads standard weather model/GPS delay files and generates a series of user-requested statistics and graphics.
-    '''
+class RaiderStats:
+    """
+    Class which loads standard weather model/GPS delay files and generates a series of user-requested statistics and graphics.
+    """
 
     # import dependencies
     import glob
@@ -752,8 +750,7 @@ class RaiderStats(object):
         if self.colorpercentile is None:
             self.colorpercentile = [25, 95]
         if self.colorpercentile[0] > self.colorpercentile[1]:
-            raise Exception('Input colorpercentile lower threshold {} higher than upper threshold {}'.format(
-                self.colorpercentile[0], self.colorpercentile[1]))
+            raise Exception(f'Input colorpercentile lower threshold {self.colorpercentile[0]} higher than upper threshold {self.colorpercentile[1]}')
 
         # load dataframe directly if previously generated TIF grid-file
         if self.fname.endswith('.tif'):
@@ -834,7 +831,7 @@ class RaiderStats(object):
             self.create_DF()
 
     def _get_extent(self):  # dataset, spacing=1, userbbox=None
-        """ Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees """
+        """Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees"""
         extent = [np.floor(min(self.df['Lon'])), np.ceil(max(self.df['Lon'])),
                   np.floor(min(self.df['Lat'])), np.ceil(max(self.df['Lat']))]
         if self.bbox is not None:
@@ -891,10 +888,10 @@ class RaiderStats(object):
         return extent, grid_dim, gridpoints
 
     def _check_stationgrid_intersection(self, stat_ID):
-        '''
+        """
         Return index of grid cell which intersects with station
         Note: Fast, but assumes station locations don't change
-        '''
+        """
         coord = Point((self.unique_points[1][self.unique_points[0].index(
             stat_ID)], self.unique_points[2][self.unique_points[0].index(stat_ID)]))
         # Get grid cell polygon which intersect with station coordinate
@@ -906,9 +903,9 @@ class RaiderStats(object):
             return 'NaN'
 
     def _reader(self):
-        '''
+        """
         Read a input file
-        '''
+        """
         try:
             data = pd.read_csv(self.fname, parse_dates=['Datetime'])
             data['Date'] = data['Datetime'].apply(lambda x: x.date())
@@ -919,11 +916,11 @@ class RaiderStats(object):
         # check if user-specified key is valid
         if self.col_name not in data.keys():
             raise Exception(
-                'User-specified key {} not found in input file {}. Must specify valid key.' .format(self.col_name, self.fname))
+                f'User-specified key {self.col_name} not found in input file {self.fname}. Must specify valid key.' )
 
         # if user-specified key is the same as the 'Date' field, rename
         if self.col_name == 'Date':
-            logger.warning('Input key {} same as "Date" field name, rename the former'.format(self.col_name))
+            logger.warning(f'Input key {self.col_name} same as "Date" field name, rename the former')
             self.col_name += '_plot'
             data[self.col_name] = data['Date']
 
@@ -941,9 +938,9 @@ class RaiderStats(object):
         return data
 
     def create_DF(self):
-        '''
-            Create dataframe.
-        '''
+        """
+        Create dataframe.
+        """
         # Open file
         self.df = self._reader()
 
@@ -1196,8 +1193,7 @@ class RaiderStats(object):
             self.df['phsfit'] = self.df['ID'].map(self.phsfit)
             # check if there are any valid data values
             if self.df['phsfit'].isnull().values.all(axis=0):
-                raise Exception("No valid data values, adjust --min_span inputs for time span in years {} and/or fractional obs. {}".
-                                format(self.min_span[0], self.min_span[1]))
+                raise Exception(f"No valid data values, adjust --min_span inputs for time span in years {self.min_span[0]} and/or fractional obs. {self.min_span[1]}")
             self.df['ampfit'] = self.df['ID'].map(self.ampfit)
             self.df['periodfit'] = self.df['ID'].map(self.periodfit)
             self.phsfit_c = {k: v for d in self.phsfit_c for k, v in d.items()}
@@ -1394,13 +1390,13 @@ class RaiderStats(object):
                                   time_lines=self.time_lines, dtype='float32')
 
     def _amplitude_and_phase(self, station, tt, yy, min_span=2, min_frac=0.6, period_limit=0.):
-        '''
+        """
         Fit sin to the input time sequence, and return fitting parameters:
             "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc".
         Minimum time span in years (min_span), minimum fractional observations in span (min_frac),
             and period limit (period_limit) enforced for statistical analysis.
         Source: https://stackoverflow.com/questions/16716302/how-do-i-fit-a-sine-curve-to-my-data-with-pylab-and-numpy
-        '''
+        """
         ampfit = {}
         phsfit = {}
         periodfit = {}
@@ -1460,7 +1456,7 @@ class RaiderStats(object):
                     warnings.simplefilter("ignore", OptimizeWarning)
                     popt, pcov = optimize.curve_fit(custom_sine_function_base, tt, yy, p0=guess, maxfev=int(1e6))
                     print('OptimizeWarning: Covariance for station {} could not be estimated. Refer to debug figure here {} \
-                          '.format(station, os.path.join(self.workdir, 'phaseamp_per_station', 'station{}.png'.format(station))))
+                          '.format(station, os.path.join(self.workdir, 'phaseamp_per_station', f'station{station}.png')))
                     pass
             # Adjust expected output to reflect fixed period, if specified
             if period_limit != 0.:
@@ -1504,7 +1500,7 @@ class RaiderStats(object):
                 tt_plot /= 31556952
                 plt.plot(tt_plot, yy, "ok", label="input")
                 plt.xlabel("time (years)")
-                plt.ylabel("data ({})".format(self.unit))
+                plt.ylabel(f"data ({self.unit})")
                 num_testpoints = len(tt) * 10
                 if num_testpoints > 1000:
                     num_testpoints = 1000
@@ -1517,7 +1513,7 @@ class RaiderStats(object):
                 plt.legend(loc="best")
                 if not os.path.exists(os.path.join(self.workdir, 'phaseamp_per_station')):
                     os.mkdir(os.path.join(self.workdir, 'phaseamp_per_station'))
-                plt.savefig(os.path.join(self.workdir, 'phaseamp_per_station', 'station{}.png'.format(station)),
+                plt.savefig(os.path.join(self.workdir, 'phaseamp_per_station', f'station{station}.png'),
                             format='png', bbox_inches='tight')
                 plt.close()
                 optimize_warning = False
@@ -1534,15 +1530,15 @@ class RaiderStats(object):
             self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
 
     def _sine_function_base(self, t, A, w, p, c):
-        '''
+        """
         Base function for modeling sinusoidal amplitude/phase fits.
-        '''
+        """
         return A * np.sin(w * t + p) + c
 
     def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
-        '''
-            Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
-        '''
+        """
+        Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
+        """
         from cartopy import crs as ccrs
         from cartopy import feature as cfeature
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
@@ -1701,7 +1697,7 @@ class RaiderStats(object):
         if 'cbar_ax' in locals():
             # experimental variogram fit sill heatmap
             if plottype == "grid_variance":
-                cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({}\u00b2)'.format(self.unit),
+                cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + f' ({self.unit}\u00b2)',
                                   rotation=-90, labelpad=10)
             # specify appropriate units for mean/median/std/amplitude/experimental variogram fit heatmap
             elif plottype == "grid_delay_mean" or plottype == "grid_delay_median" or plottype == "grid_delay_stdev" or  \
@@ -1715,10 +1711,10 @@ class RaiderStats(object):
                 # update label if sigZTD
                 if 'sig' in self.col_name:
                     cbar_ax.set_label("sig ZTD " + " ".join(plottype.replace('grid_',
-                                      '').replace('delay_', '').split('_')).title() + ' ({})'.format(self.unit),
+                                      '').replace('delay_', '').split('_')).title() + f' ({self.unit})',
                                       rotation=-90, labelpad=10)
                 else:
-                    cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + ' ({})'.format(self.unit),
+                    cbar_ax.set_label(" ".join(plottype.replace('grid_', '').split('_')).title() + f' ({self.unit})',
                                       rotation=-90, labelpad=10)
             # specify appropriate units for phase heatmap (days)
             elif plottype == "station_seasonal_phase" or plottype == "grid_seasonal_phase" or plottype == "grid_seasonal_absolute_phase" or \
@@ -1795,10 +1791,10 @@ def stats_analyses(
     variogram_per_timeslice,
     variogram_errlimit
 ):
-    '''
+    """
     Main workflow for generating a suite of plots to illustrate spatiotemporal distribution
     and/or character of zenith delays
-    '''
+    """
     if verbose:
         logger.setLevel(logging.DEBUG)
 
@@ -2002,7 +1998,7 @@ def stats_analyses(
         if unit in ['minute', 'hour', 'day', 'year']:
             unit = 'm'
             df_stats.unit = 'm'
-            logger.warning("Output unit {} specified for Variogram analysis. Reverted to meters".format(unit))
+            logger.warning(f"Output unit {unit} specified for Variogram analysis. Reverted to meters")
         make_variograms = VariogramAnalysis(df_stats.df, df_stats.gridpoints, col_name, unit, workdir,
                                             df_stats.seasonalinterval, densitythreshold, binnedvariogram,
                                             numCPUs, variogram_per_timeslice, variogram_errlimit)

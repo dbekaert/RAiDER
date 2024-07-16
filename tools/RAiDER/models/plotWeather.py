@@ -5,19 +5,22 @@ from this class.
 """
 
 import os
-from RAiDER.interpolator import RegularGridInterpolator as Interpolator
-from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
-import numpy as np
-import matplotlib.pyplot as plt
+
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.axes_grid1 import make_axes_locatable as mal
+
+from RAiDER.interpolator import RegularGridInterpolator as Interpolator
+
+
 mpl.use('Agg')
 
 
 def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
-    '''
+    """
     Create a plot with pressure, temp, and humidity at two heights
-    '''
-
+    """
     # Get the interpolator
 
     intFcn_p = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._p.swapaxes(0, 1))
@@ -65,9 +68,9 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
         plt.colorbar(im, cax=cax)
         sp.set_title(title)
         if ind == 0:
-            sp.set_ylabel('{} m\n'.format(z1))
+            sp.set_ylabel(f'{z1} m\n')
         if ind == 3:
-            sp.set_ylabel('{} m\n'.format(z2))
+            sp.set_ylabel(f'{z2} m\n')
 
     # add plots that show each variable with height
     zdata = weatherObj._zs[:] / 1000
@@ -95,11 +98,10 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
 
 
 def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
-    '''
+    """
     Create a plot with wet refractivity and hydrostatic refractivity,
     at two different heights
-    '''
-
+    """
     # Get the interpolator
     intFcn_w = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._wet_refractivity.swapaxes(0, 1))
     intFcn_h = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._hydrostatic_refractivity.swapaxes(0, 1))
@@ -122,10 +124,10 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     plots = [w1, h1, w2, h2]
 
     # titles
-    titles = ('Wet refractivity {}'.format(z1),
-              'Hydrostatic refractivity {}'.format(z1),
-              '{}'.format(z2),
-              '{}'.format(z2))
+    titles = (f'Wet refractivity {z1}',
+              f'Hydrostatic refractivity {z1}',
+              f'{z2}',
+              f'{z2}')
 
     # setup the plot
     f = plt.figure(figsize=(14, 10))
@@ -141,9 +143,9 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
         plt.colorbar(im, cax=cax)
         sp.set_title(title)
         if ind == 0:
-            sp.set_ylabel('{} m\n'.format(z1))
+            sp.set_ylabel(f'{z1} m\n')
         if ind == 2:
-            sp.set_ylabel('{} m\n'.format(z2))
+            sp.set_ylabel(f'{z2} m\n')
 
     if savefig:
         wd   = os.path.dirname(os.path.dirname(weatherObj._out_name))

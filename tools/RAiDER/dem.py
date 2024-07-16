@@ -8,7 +8,6 @@
 import os
 
 import numpy as np
-
 import rasterio
 from dem_stitcher.stitcher import stitch_dem
 
@@ -25,6 +24,7 @@ def download_dem(
     ):
     """  
     Download a DEM if one is not already present. 
+
     Args:
             llbounds: list/ndarry of floats   -lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]
             writeDEM: boolean                 -write the DEM to file

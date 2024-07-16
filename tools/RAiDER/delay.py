@@ -13,19 +13,19 @@ models are accessed as NETCDF files and should have "wet" "hydro"
 "wet_total" and "hydro_total" fields specified.
 """
 import os
-import pyproj
-import xarray
-
 from datetime import datetime, timezone
-from pyproj import CRS, Transformer
 from typing import List, Union
 
 import numpy as np
+import pyproj
+import xarray
+from pyproj import CRS, Transformer
 
 from RAiDER.constants import _ZREF
 from RAiDER.delayFcns import getInterpolators
 from RAiDER.logger import logger
 from RAiDER.losreader import build_ray
+
 
 ###############################################################################
 def tropo_delay(
@@ -332,9 +332,9 @@ def _build_cube_ray(
 
 
 def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type):
-    '''
+    """
     write a 1-D array to a NETCDF5 file
-    '''
+    """
        # Modify this as needed for NISAR / other projects
     ds = xarray.Dataset(
         data_vars=dict(
@@ -370,7 +370,7 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
     )
 
     # Write projection system mapping
-    ds["crs"] = int(-2147483647) # dummy placeholder
+    ds["crs"] = -2147483647 # dummy placeholder
     for k, v in crs.to_cf().items():
         ds.crs.attrs[k] = v
 
@@ -405,7 +405,7 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
 
 
 def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
-    '''
+    """
     Transform lat/lon/hgt data to an array of points in a new
     projection
 
@@ -418,7 +418,7 @@ def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_pr
 
     Returns:
         ndarray: the array of query points in the weather model coordinate system (YX)
-    '''
+    """
     # Flags for flipping inputs or outputs
     if not isinstance(new_proj, CRS):
         new_proj = CRS.from_epsg(new_proj.lstrip('EPSG:'))

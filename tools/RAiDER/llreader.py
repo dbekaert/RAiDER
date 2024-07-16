@@ -6,10 +6,11 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+
+import numpy as np
 import pyproj
 import xarray
 
-import numpy as np
 
 try:
     import pandas as pd
@@ -18,19 +19,19 @@ except ImportError:
 
 from pyproj import CRS
 
-from RAiDER.utilFcns import rio_open, rio_stats
 from RAiDER.logger import logger
+from RAiDER.utilFcns import rio_open, rio_stats
 
 
-class AOI(object):
-    '''
+class AOI:
+    """
     This instantiates a generic AOI class object.
 
     Attributes:
        _bounding_box    - S N W E bounding box
        _proj            - pyproj-compatible CRS
        _type            - Type of AOI
-    '''
+    """
     def __init__(self):
         self._output_directory = os.getcwd()
         self._bounding_box   = None
@@ -56,7 +57,7 @@ class AOI(object):
 
 
     def get_output_spacing(self, crs=4326):
-        """ Return the output spacing in desired units """
+        """Return the output spacing in desired units"""
         output_spacing_deg = self._output_spacing
         if not isinstance(crs, CRS):
             crs = CRS.from_epsg(crs)
@@ -71,7 +72,7 @@ class AOI(object):
 
 
     def set_output_spacing(self, ll_res=None):
-        """ Calculate the spacing for the output grid and weather model
+        """Calculate the spacing for the output grid and weather model
 
         Use the requested spacing if exists or the weather model grid itself
 
@@ -178,7 +179,7 @@ class AOI(object):
 
 
     def set_output_xygrid(self, dst_crs=4326):
-        """ Define the locations where the delays will be returned """
+        """Define the locations where the delays will be returned"""
         from RAiDER.utilFcns import transform_bbox
 
         try:
@@ -201,7 +202,7 @@ class AOI(object):
 
 
 class StationFile(AOI):
-    '''Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns'''
+    """Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns"""
     def __init__(self, station_file, demFile=None):
         super().__init__()
         self._filename = station_file
@@ -211,15 +212,15 @@ class StationFile(AOI):
 
 
     def readLL(self):
-        '''Read the station lat/lons from the csv file'''
+        """Read the station lat/lons from the csv file"""
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         return df['Lat'].values, df['Lon'].values
 
 
     def readZ(self):
-        '''
+        """
         Read the station heights from the file, or download a DEM if not present
-        '''
+        """
         df = pd.read_csv(self._filename).drop_duplicates(subset=["Lat", "Lon"])
         if 'Hgt_m' in df.columns:
             return df['Hgt_m'].values
@@ -251,9 +252,9 @@ class StationFile(AOI):
 
 
 class RasterRDR(AOI):
-    '''
+    """
     Use a 2-band raster file containing lat/lon coordinates. 
-    '''    
+    """    
     def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce'):
         super().__init__()
         self._type = 'radar_rasters'
@@ -289,9 +290,9 @@ class RasterRDR(AOI):
 
 
     def readZ(self):
-        '''
+        """
         Read the heights from the raster file, or download a DEM if not present
-        '''
+        """
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             return rio_open(self._hgtfile)
@@ -315,7 +316,7 @@ class RasterRDR(AOI):
 
 
 class BoundingBox(AOI):
-    '''Parse a bounding box AOI'''
+    """Parse a bounding box AOI"""
     def __init__(self, bbox):
         AOI.__init__(self)
         self._bounding_box = bbox
@@ -323,11 +324,11 @@ class BoundingBox(AOI):
 
 
 class GeocodedFile(AOI):
-    '''Parse a Geocoded file for coordinates'''
+    """Parse a Geocoded file for coordinates"""
     def __init__(self, filename, is_dem=False):
         super().__init__()
 
-        from RAiDER.utilFcns import rio_profile, rio_extents
+        from RAiDER.utilFcns import rio_extents, rio_profile
 
         self._filename     = filename
         self.p             = rio_profile(filename)
@@ -354,9 +355,9 @@ class GeocodedFile(AOI):
 
 
     def readZ(self):
-        '''
+        """
         Download a DEM for the file
-        '''
+        """
         from RAiDER.dem import download_dem
         from RAiDER.interpolator import interpolateDEM
 
@@ -369,7 +370,7 @@ class GeocodedFile(AOI):
 
 
 class Geocube(AOI):
-    """ Pull lat/lon/height from a georeferenced data cube """
+    """Pull lat/lon/height from a georeferenced data cube"""
     def __init__(self, path_cube):
         super().__init__()
         self.path  = path_cube
@@ -398,10 +399,10 @@ class Geocube(AOI):
 
 
 def bounds_from_latlon_rasters(latfile, lonfile):
-    '''
+    """
     Parse lat/lon/height inputs and return
     the appropriate outputs
-    '''
+    """
     from RAiDER.utilFcns import get_file_and_band
     latinfo = get_file_and_band(latfile)
     loninfo = get_file_and_band(lonfile)
@@ -426,10 +427,10 @@ def bounds_from_latlon_rasters(latfile, lonfile):
 
 
 def bounds_from_csv(station_file):
-    '''
+    """
     station_file should be a comma-delimited file with at least "Lat"
     and "Lon" columns, which should be EPSG: 4326 projection (i.e WGS84)
-    '''
+    """
     stats = pd.read_csv(station_file).drop_duplicates(subset=["Lat", "Lon"])
     snwe = [stats['Lat'].min(), stats['Lat'].max(), stats['Lon'].min(), stats['Lon'].max()]
     return snwe

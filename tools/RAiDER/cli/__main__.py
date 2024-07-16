@@ -1,6 +1,5 @@
 import argparse
 import sys
-
 from importlib.metadata import entry_points
 
 import RAiDER.cli.conf as conf

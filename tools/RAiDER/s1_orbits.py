@@ -7,6 +7,7 @@ from typing import List, Optional
 
 import eof.download
 from hyp3lib import get_orb
+
 from RAiDER.logger import logger
 
 
@@ -83,7 +84,6 @@ def get_orbits_from_slc_ids_hyp3lib(
     slc_ids: list, orbit_directory: str = None
 ) -> dict:
     """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23"""
-
     # Populates env variables to netrc as required for sentineleof
     _ = ensure_orbit_credentials()
     esa_username, _, esa_password = netrc.netrc().authenticators(ESA_CDSE_HOST)

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from shapely.geometry import Point
 
+
 try:
     import isce3.ext.isce3 as isce
 except ImportError:
@@ -28,7 +29,7 @@ def _asf_query(point: Point,
     end : datetime.datetime
     buffer_degrees : float, optional
 
-    Returns
+    Returns:
     -------
     list[str]
     """
@@ -58,7 +59,7 @@ def get_slc_id_from_point_and_time(lon: float,
     buffer_seconds : int, optional
         Do not recommend adjusting this, by default 600, to ensure enough padding for multiple orbit files
 
-    Returns
+    Returns:
     -------
     list
         All slc_ids returned by asf_search
@@ -81,13 +82,13 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
                           lat_mesh: np.ndarray,
                           hgt_mesh:  np.ndarray,
                           orb: 'isce.core.Orbit') -> np.ndarray:
-    '''
+    """
     Source: https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/losreader.py#L601C1-L674C22
 
     lon_mesh, lat_mesh, hgt_mesh are coordinate arrays (this routine makes a mesh to comute azimuth timing grid)
 
     Technically, this is "sensor neutral" since it uses an orb object.
-    '''
+    """
     if isce is None:
         raise ImportError('isce3 is required for this function. Use conda to install isce3`')
 
@@ -148,7 +149,7 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
         1 dimensional coordinate array or 3d mesh of coordinates
     dt : datetime.datetime
 
-    Returns
+    Returns:
     -------
     np.ndarray
         Cube whose coordinates are hgt x lat x lon with each pixel
@@ -220,7 +221,7 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
         nearest 0, 2, 4, etc. times. Must be divisible by 24 otherwise is
         not consistent across all days.
 
-    Returns
+    Returns:
     -------
     list[datetime.datetime]
         List of closest dates ordered by absolute proximity. If two dates have same distance to ref_time,
@@ -288,7 +289,7 @@ def get_times_for_azimuth_interpolation(ref_time: datetime.datetime,
     buffer_in_seconds : int, optional
         Buffer for filtering absolute times, by default 300 (or 5 minutes)
 
-    Returns
+    Returns:
     -------
     list[datetime.datetime]
         2 or 3 closest times within 1 time step (plust the buffer) and the reference time
@@ -330,7 +331,7 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
         No check of equi-spaced dates are done so not specifying temporal window hours requires dates to be derived
         from valid model time steps
 
-    Returns
+    Returns:
     -------
     list[np.ndarray]
         Weighting per pixel with respect to each date

@@ -5,6 +5,7 @@ Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rig
 """
 from importlib.metadata import version
 
+
 __version__ = version(__name__)
 __copyright__ = 'Copyright (c) 2019-2022, California Institute of Technology ("Caltech"). All rights reserved.'
 

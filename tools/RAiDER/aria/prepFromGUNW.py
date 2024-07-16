@@ -6,23 +6,25 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
-from datetime import datetime, timezone, timedelta
-import numpy as np
-import xarray as xr
-import rasterio
-import pandas as pd
-import yaml
-import shapely.wkt
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+
+import numpy as np
+import pandas as pd
+import rasterio
+import shapely.wkt
+import xarray as xr
+import yaml
 from shapely.geometry import box
 
 import RAiDER
 from RAiDER.logger import logger
 from RAiDER.models import credentials
-from RAiDER.models.hrrr import HRRR_CONUS_COVERAGE_POLYGON, AK_GEO, check_hrrr_dataset_availability
+from RAiDER.models.hrrr import AK_GEO, HRRR_CONUS_COVERAGE_POLYGON, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
 from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
+
 
 ## cube spacing in degrees for each model
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
@@ -54,11 +56,11 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
     ----------
     gunw_id : str
 
-    Returns
+    Returns:
     -------
     bool
 
-    Example: 
+    Example:
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0)
     should return True
     """
@@ -102,13 +104,14 @@ def check_weather_model_availability(gunw_path: str,
     gunw_path : str
     weather_model_name : str
         Should be one of 'HRRR', 'HRES', 'ERA5', 'ERA5T', 'GMAO', 'MERRA2'.
-    Returns
+
+    Returns:
     -------
     bool:
         True if both reference and secondary acquisitions are within the valid range. We assume that
         reference_date > secondary_date (i.e. reference scenes are most recent)
 
-    Raises
+    Raises:
     ------
     ValueError
         - If weather model is not correctly referencing the Class from RAiDER.models
@@ -176,7 +179,7 @@ class GUNW:
 
 
     def get_bbox(self):
-        """ Get the bounding box (SNWE) from an ARIA GUNW product """
+        """Get the bounding box (SNWE) from an ARIA GUNW product"""
         with xr.open_dataset(self.path_gunw) as ds:
             poly_str = ds['productBoundingBox'].data[0].decode('utf-8')
 
@@ -187,14 +190,14 @@ class GUNW:
 
 
     def make_fname(self):
-        """ Match the ref/sec filename (SLC dates may be different around edge cases) """
+        """Match the ref/sec filename (SLC dates may be different around edge cases)"""
         ref, sec = os.path.basename(self.path_gunw).split('-')[6].split('_')
         mid_time = os.path.basename(self.path_gunw).split('-')[7]
         return f'{ref}-{sec}_{mid_time}'
 
 
     def get_datetimes(self):
-        """ Get the datetimes and set the satellite for orbit """
+        """Get the datetimes and set the satellite for orbit"""
         ref_sec  = self.get_slc_dt()
         middates = []
         for aq in ref_sec:
@@ -206,7 +209,7 @@ class GUNW:
 
 
     def get_slc_dt(self):
-        """ Grab the SLC start date and time from the GUNW """
+        """Grab the SLC start date and time from the GUNW"""
         group    = 'science/radarMetaData/inputSLC'
         lst_sten = []
         for i, key in enumerate('reference secondary'.split()):
@@ -258,7 +261,7 @@ class GUNW:
 
 
     def get_orbit_file(self):
-        """ Get orbit file for reference (GUNW: first & later date)"""
+        """Get orbit file for reference (GUNW: first & later date)"""
         orbit_dir = os.path.join(self.out_dir, 'orbits')
         os.makedirs(orbit_dir, exist_ok=True)
 
@@ -285,7 +288,7 @@ class GUNW:
 
 
     def getHeights(self):
-        """ Get the 4 height levels within a GUNW """
+        """Get the 4 height levels within a GUNW"""
         group ='science/grids/imagingGeometry'
         with xr.open_dataset(self.path_gunw, group=group) as ds:
             hgts = ds.heightsMeta.data.tolist()
@@ -293,7 +296,7 @@ class GUNW:
 
 
     def calc_spacing_UTM(self, posting:float=0.01):
-        """ Convert desired horizontal posting in degrees to meters
+        """Convert desired horizontal posting in degrees to meters
 
         Want to calculate delays close to native model resolution (3 km for HRR)
         """
@@ -313,7 +316,7 @@ class GUNW:
 
 
     def makeLatLonGrid_native(self):
-        """ Make LatLonGrid at GUNW spacing (90m = 0.00083333º) """
+        """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)"""
         group = 'science/grids/data'
         with xr.open_dataset(self.path_gunw, group=group) as ds0:
             lats = ds0.latitude.data
@@ -337,7 +340,7 @@ class GUNW:
 
 
     def make_cube(self):
-        """ Make LatLonGrid at GUNW spacing (90m = 0.00083333º) """
+        """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)"""
         group = 'science/grids/data'
         with xr.open_dataset(self.path_gunw, group=group) as ds0:
             lats0 = ds0.latitude.data
@@ -358,12 +361,11 @@ class GUNW:
 
 
 def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
-    """ Write a new yaml file from a dictionary.
+    """Write a new yaml file from a dictionary.
 
     Updates parameters in the default 'template.yaml' file.
     Each key:value pair will in 'dct_cfg' will overwrite that in the default
     """
-
     run_config_path = os.path.join(
         os.path.dirname(RAiDER.__file__),
         'cli',
@@ -372,7 +374,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
         'template.yaml'
     )
 
-    with open(run_config_path, 'r') as f:
+    with open(run_config_path) as f:
         try:
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
@@ -389,8 +391,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 
 
 def main(args):
-    """ Read parameters needed for RAiDER from ARIA Standard Products (GUNW) """
-
+    """Read parameters needed for RAiDER from ARIA Standard Products (GUNW)"""
     # Check if WEATHER MODEL API credentials hidden file exists, if not create it or raise ERROR
     credentials.check_api(args.weather_model, args.api_uid, args.api_key)
 

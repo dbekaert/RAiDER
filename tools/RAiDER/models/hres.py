@@ -1,22 +1,21 @@
 import datetime
 
 import numpy as np
-
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.models.model_levels import (
-    LEVELS_91_HEIGHTS,
     A_91_HRES,
     B_91_HRES,
+    LEVELS_91_HEIGHTS,
 )
+from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 
 
 class HRES(ECMWF):
-    '''
+    """
     Implement ECMWF models
-    '''
+    """
 
     def __init__(self, level_type='ml'):
         # initialize a weather model
@@ -60,12 +59,12 @@ class HRES(ECMWF):
         self._b = B_91_HRES
 
     def load_weather(self, f=None):
-        '''
+        """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
-        '''
+        """
         f = self.files[0] if f is None else f
 
         if self._model_level_type == 'ml':
@@ -76,9 +75,9 @@ class HRES(ECMWF):
             self._load_pressure_levels(f)
 
     def _fetch(self,out):
-        '''
+        """
         Fetch a weather model from ECMWF
-        '''
+        """
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time

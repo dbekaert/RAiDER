@@ -2,25 +2,23 @@ import datetime
 
 import numpy as np
 import xarray as xr
-
 from pyproj import CRS
 
-from RAiDER.logger import logger
 from RAiDER import utilFcns as util
+from RAiDER.logger import logger
 from RAiDER.models.model_levels import (
-    LEVELS_137_HEIGHTS,
-    LEVELS_25_HEIGHTS,
     A_137_HRES,
     B_137_HRES,
+    LEVELS_25_HEIGHTS,
+    LEVELS_137_HEIGHTS,
 )
-
-from RAiDER.models.weatherModel import WeatherModel, TIME_RES
+from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 
 
 class ECMWF(WeatherModel):
-    '''
+    """
     Implement ECMWF models
-    '''
+    """
 
     def __init__(self):
         # initialize a weather model
@@ -53,12 +51,12 @@ class ECMWF(WeatherModel):
 
 
     def load_weather(self, f=None, *args, **kwargs):
-        '''
+        """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
-        '''
+        """
         f = self.files[0] if f is None else f
         self._load_model_level(f)
 
@@ -123,9 +121,9 @@ class ECMWF(WeatherModel):
 
 
     def _fetch(self, out):
-        '''
+        """
         Fetch a weather model from ECMWF
-        '''
+        """
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
 
@@ -156,7 +154,7 @@ class ECMWF(WeatherModel):
         server.retrieve({
             "class": self._classname,  # ERA-Interim
             'dataset': self._dataset,
-            "expver": "{}".format(self._expver),
+            "expver": f"{self._expver}",
             # They warn me against all, but it works well
             "levelist": 'all',
             "levtype": "ml",  # Model levels
@@ -176,8 +174,8 @@ class ECMWF(WeatherModel):
             # be any of "3/6/9/12".
             "step": "0",
             # grid: Only regular lat/lon grids are supported.
-            "grid": '{}/{}'.format(lat_step, lon_step),
-            "area": '{}/{}/{}/{}'.format(lat_max, lon_min, lat_min, lon_max),  # area: N/W/S/E
+            "grid": f'{lat_step}/{lon_step}',
+            "area": f'{lat_max}/{lon_min}/{lat_min}/{lon_max}',  # area: N/W/S/E
             "format": "netcdf",
             "resol": "av",
             "target": out,    # target: the name of the output file.
@@ -193,7 +191,7 @@ class ECMWF(WeatherModel):
         acqTime,
         outname
     ):
-        """ Used for ERA5 """
+        """Used for ERA5"""
         import cdsapi
         c = cdsapi.Client(verify=0)
 
@@ -216,7 +214,7 @@ class ECMWF(WeatherModel):
             "class": "ea",
             "expver": "1",
             "levelist": 'all',
-            "levtype": "{}".format(self._model_level_type),  # 'ml' for model levels or 'pl' for pressure levels
+            "levtype": f"{self._model_level_type}",  # 'ml' for model levels or 'pl' for pressure levels
             'param': var,
             "stream": "oper",
             "type": "an",
@@ -236,7 +234,7 @@ class ECMWF(WeatherModel):
 
 
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
-        """ Used for HRES """
+        """Used for HRES"""
         from ecmwfapi import ECMWFService
 
         server = ECMWFService("mars")
@@ -255,18 +253,18 @@ class ECMWF(WeatherModel):
             {
                 'class': self._classname,
                 'dataset': self._dataset,
-                'expver': "{}".format(self._expver),
+                'expver': f"{self._expver}",
                 'resol': "av",
                 'stream': "oper",
                 'type': "an",
                 'levelist': "all",
-                'levtype': "{}".format(self._model_level_type),
+                'levtype': f"{self._model_level_type}",
                 'param': param,
                 'date': datetime.datetime.strftime(corrected_DT, "%Y-%m-%d"),
                 'time': "{}".format(datetime.time.strftime(corrected_DT.time(), '%H:%M')),
                 'step': "0",
-                'grid': "{}/{}".format(lon_step, lat_step),
-                'area': "{}/{}/{}/{}".format(lat_max, util.floorish(lon_min, 0.1), util.floorish(lat_min, 0.1), lon_max),
+                'grid': f"{lon_step}/{lat_step}",
+                'area': f"{lat_max}/{util.floorish(lon_min, 0.1)}/{util.floorish(lat_min, 0.1)}/{lon_max}",
                 'format': "netcdf",
             },
             out
@@ -329,10 +327,10 @@ class ECMWF(WeatherModel):
 
 
     def _makeDataCubes(self, fname, verbose=False):
-        '''
+        """
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels
-        '''
+        """
         # get ll_bounds
         S, N, W, E = self._ll_bounds
 

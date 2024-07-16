@@ -1,4 +1,4 @@
-'''
+"""
 API credential information and help url for downloading weather model data
     saved in a hidden file in home directory
 
@@ -8,7 +8,7 @@ cdsapirc          ERA5, ERA5T             uid           key         https://cds.
 ecmwfapirc        HRES                    email         key         https://api.ecmwf.int/v1
 netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov
 <N/A>             HRRR [public access]    <N/A>         <N/A>       <N/A>
-'''
+"""
 
 import os
 from pathlib import Path

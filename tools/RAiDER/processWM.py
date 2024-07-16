@@ -11,19 +11,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from RAiDER.logger import logger
-from RAiDER.models.weatherModel import make_raw_weather_data_filename, checkContainment_raw, make_weather_model_filename
 from RAiDER.models.customExceptions import (
-    ExistingWeatherModelTooSmall, DatetimeOutsideRange, TryToKeepGoingError, CriticalError
+    CriticalError,
+    DatetimeOutsideRange,
+    ExistingWeatherModelTooSmall,
+    TryToKeepGoingError,
 )
+from RAiDER.models.weatherModel import checkContainment_raw, make_raw_weather_data_filename, make_weather_model_filename
+
 
 def prepareWeatherModel(
-        weather_model,
-        time,
-        ll_bounds,
-        download_only: bool=False,
-        makePlots: bool=False,
-        force_download: bool=False,
-    ) -> str:
+    weather_model,
+    time,
+    ll_bounds,
+    download_only: bool=False,
+    makePlots: bool=False,
+    force_download: bool=False,
+) -> str:
     """Parse inputs to download and prepare a weather model grid for interpolation
 
     Args:
@@ -142,20 +146,19 @@ def prepareWeatherModel(
 
 
 def _weather_model_debug(
-        los,
-        lats,
-        lons,
-        ll_bounds,
-        weather_model,
-        wmLoc,
-        time,
-        out,
-        download_only
-    ):
+    los,
+    lats,
+    lons,
+    ll_bounds,
+    weather_model,
+    wmLoc,
+    time,
+    out,
+    download_only
+):
     """
     raiderWeatherModelDebug main function.
     """
-
     logger.debug('Starting to run the weather model calculation with debugging plots')
     logger.debug('Time type: %s', type(time))
     logger.debug('Time: %s', time.strftime('%Y%m%d'))

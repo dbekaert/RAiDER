@@ -2,7 +2,7 @@ import numpy as np
 import scipy.io.netcdf as netcdf
 from pyproj import CRS, Transformer
 
-from RAiDER.models.weatherModel import WeatherModel, TIME_RES
+from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 
 
 # Need to incorporate this snippet into this part of the code.
@@ -15,9 +15,9 @@ from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 #        lats, lons = wrf.wm_nodes(*weather_files)
 #
 class WRF(WeatherModel):
-    '''
+    """
     WRF class definition, based on the WeatherModel base class.
-    '''
+    """
     # TODO: finish implementing
 
     def __init__(self):
@@ -37,9 +37,9 @@ class WRF(WeatherModel):
         pass
 
     def load_weather(self, file1, file2, *args, **kwargs):
-        '''
+        """
         Consistent class method to be implemented across all weather model types
-        '''
+        """
         try:
             lons, lats = self._get_wm_nodes(file1)
             self._read_netcdf(file2)
@@ -162,29 +162,29 @@ class WRF(WeatherModel):
 
 
 class UnitTypeError(Exception):
-    '''
+    """
     Define a unit type exception for easily formatting
     error messages for units
-    '''
+    """
 
     def __init___(self, varName, unittype):
-        msg = "Unknown units for {}: '{}'".format(varName, unittype)
+        msg = f"Unknown units for {varName}: '{unittype}'"
         Exception.__init__(self, msg)
 
 
 def checkUnits(unitCheck, varName):
-    '''
+    """
     Implement a check that the units are as expected
-    '''
+    """
     unitDict = {'pressure': 'Pa', 'temperature': 'K', 'relative humidity': '%', 'geopotential': 'm'}
     if unitCheck != unitDict[varName]:
         raise UnitTypeError(varName, unitCheck)
 
 
 def getNullValue(var):
-    '''
+    """
     Get the null (or fill) value if it exists, otherwise set the null value to defNullValue
-    '''
+    """
     # NetCDF files have the ability to record their nodata value, but in the
     # particular NetCDF files that I'm reading, this field is left
     # unspecified and a nodata value of -999 is used. The solution I'm using
