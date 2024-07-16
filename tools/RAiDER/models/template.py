@@ -10,7 +10,7 @@ from RAiDER.models.weatherModel import WeatherModel
 
 
 class customModelReader(WeatherModel):
-    def __init__(self):
+    def __init__(self) -> None:
         WeatherModel.__init__(self)
         self._humidityType = 'q'  # can be "q" (specific humidity) or "rh" (relative humidity)
         self._model_level_type = 'pl'  # Default, pressure levels are "pl", and model levels are "ml"
@@ -59,7 +59,7 @@ class customModelReader(WeatherModel):
         p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} +b={earth_radius} +units=m +no_defs')
         self._proj = p1
 
-    def _fetch(self, out):
+    def _fetch(self, out) -> None:
         """
         Fetch weather model data from the custom weather model "ABCD"
         Inputs (no need to change in the custom weather model reader):
@@ -67,7 +67,7 @@ class customModelReader(WeatherModel):
         lons - longitude
         time - datatime object (year,month,day,hour,minute,second)
         out - name of downloaded dataset file from the custom weather model server
-        Nextra - buffer of latitude/longitude for determining the bounding box
+        Nextra - buffer of latitude/longitude for determining the bounding box.
         """
         # Auxilliary function:
         # download dataset of the custom weather model "ABCD" from a server and then save it to a file named out.
@@ -77,11 +77,11 @@ class customModelReader(WeatherModel):
         # retrieval to the following "load_weather" function.
         self._files = self._download_abcd_file(out, 'abcd', self._time, self._ll_bounds)
 
-    def load_weather(self, filename):
+    def load_weather(self, filename) -> None:
         """
         Load weather model variables from the downloaded file named filename
         Inputs:
-        filename - filename of the downloaded weather model file
+        filename - filename of the downloaded weather model file.
         """
         # Auxilliary function:
         # read individual variables (in 3-D cube format with exactly the same dimension) from downloaded file
@@ -132,7 +132,7 @@ class customModelReader(WeatherModel):
 
         ###########
 
-    def _download_abcd_file(self, out, model_name, date_time, bounding_box):
+    def _download_abcd_file(self, out, model_name, date_time, bounding_box) -> None:
         """
         Auxilliary function:
         Download weather model data from a server
@@ -142,11 +142,11 @@ class customModelReader(WeatherModel):
         date_time - datatime object (year,month,day,hour,minute,second)
         bounding_box - lat/lon bounding box for the region of interest
         Output:
-        out - returned filename from input
+        out - returned filename from input.
         """
         pass
 
-    def _makeDataCubes(self, filename):
+    def _makeDataCubes(self, filename) -> None:
         """
         Auxilliary function:
         Read 3-D data cubes from downloaded file or directly from weather model weblink (in which case, there is no
@@ -161,6 +161,6 @@ class customModelReader(WeatherModel):
         t - temperature (3-D data cube)
         q - humidity (3-D data cube; could be relative humidity or specific humidity)
         p - pressure level (3-D data cube; could be pressure level (preferred) or surface pressure)
-        hgt - height (3-D data cube; could be geopotential height or topographic height (preferred))
+        hgt - height (3-D data cube; could be geopotential height or topographic height (preferred)).
         """
         pass

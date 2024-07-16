@@ -22,11 +22,9 @@ from RAiDER.utilFcns import (
 
 
 class NCMR(WeatherModel):
-    """
-    Implement NCMRWF NCUM (named as NCMR) model in future
-    """
+    """Implement NCMRWF NCUM (named as NCMR) model in future."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -62,10 +60,10 @@ class NCMR(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, out):
+    def _fetch(self, out) -> None:
         """
         Fetch weather model data from NCMR: note we only extract the lat/lon bounds for this weather model;
-        fetching data is not needed here as we don't actually download data , data exist in same system
+        fetching data is not needed here as we don't actually download data , data exist in same system.
         """
         time = self._time
 
@@ -75,10 +73,8 @@ class NCMR(WeatherModel):
         '''
         self._files = self._download_ncmr_file(out, time, self._ll_bounds)
 
-    def load_weather(self, f=None, *args, **kwargs):
-        """
-        Load NCMR model variables from existing file
-        """
+    def load_weather(self, f=None, *args, **kwargs) -> None:
+        """Load NCMR model variables from existing file."""
         f = self.files[0] if f is None else f
 
         # bounding box plus a buffer
@@ -87,10 +83,10 @@ class NCMR(WeatherModel):
 
         self._makeDataCubes(f)
 
-    def _download_ncmr_file(self, out, date_time, bounding_box):
+    def _download_ncmr_file(self, out, date_time, bounding_box) -> None:
         """
         Download weather model data (whole globe) from NCMR weblink, crop it to the region of interest, and save the cropped data as a standard .nc file of RAiDER (e.g. "NCMR_YYYY_MM_DD_THH_MM_SS.nc");
-        Temporarily download data from NCMR ftp 'https://ftp.ncmrwf.gov.in/pub/outgoing/SAC/NCUM_OSF/' and copied in weather_models folder
+        Temporarily download data from NCMR ftp 'https://ftp.ncmrwf.gov.in/pub/outgoing/SAC/NCUM_OSF/' and copied in weather_models folder.
         """
         from netCDF4 import Dataset
 
@@ -177,10 +173,8 @@ class NCMR(WeatherModel):
         except Exception:
             logger.exception("Unable to save weathermodel to file")
 
-    def _makeDataCubes(self, filename):
-        """
-        Get the variables from the saved .nc file (named as "NCMR_YYYY_MM_DD_THH_MM_SS.nc")
-        """
+    def _makeDataCubes(self, filename) -> None:
+        """Get the variables from the saved .nc file (named as "NCMR_YYYY_MM_DD_THH_MM_SS.nc")."""
         from netCDF4 import Dataset
 
         # adding the import here should become absolute when transition to netcdf

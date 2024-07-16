@@ -1,6 +1,6 @@
 """
-Calculate the interferometric phase from the 4 delays files of a GUNW
-Write it to disk
+Calculate the interferometric phase from the 4 delays files of a GUNW and
+write it to disk.
 """
 import os
 from datetime import datetime
@@ -23,7 +23,8 @@ DIM_NAMES   = ['heightsMeta', 'latitudeMeta', 'longitudeMeta']
 
 
 def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
-    """Get delays from standard RAiDER output formatting ouput including radian
+    """
+    Get delays from standard RAiDER output formatting ouput including radian
     conversion and metadata.
 
     Parameters
@@ -107,9 +108,9 @@ def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
     return ds_slc.rename(z=DIM_NAMES[0], y=DIM_NAMES[1], x=DIM_NAMES[2])
 
 
-def update_gunw_slc(path_gunw:str, ds_slc):
-    """Update the path_gunw file using the slc delays in ds_slc"""
     ## first need to delete the variable; only can seem to with h5
+def update_gunw_slc(path_gunw:str, ds_slc) -> None:
+    """Update the path_gunw file using the slc delays in ds_slc."""
     with h5py.File(path_gunw, 'a') as h5:
         for k in TROPO_GROUP.split():
             h5 = h5[k]
@@ -177,8 +178,8 @@ def update_gunw_slc(path_gunw:str, ds_slc):
     return
 
 
-def update_gunw_version(path_gunw):
-    """Temporary hack for updating version to test aria-tools"""
+def update_gunw_version(path_gunw) -> None:
+    """Temporary hack for updating version to test aria-tools."""
     with Dataset(path_gunw, mode='a') as ds:
         ds.version = '1c'
     return
@@ -188,7 +189,7 @@ def tropo_gunw_slc(cube_filenames: list,
                    path_gunw: str,
                    wavelength: float) -> xr.Dataset:
     """
-    Computes and formats the troposphere phase delay for GUNW from RAiDER outputs.
+    Compute and format the troposphere phase delay for GUNW from RAiDER outputs.
 
     Parameters
     ----------

@@ -29,7 +29,7 @@ def get_station_list(
         writeStationFile=True,
     ):
     """
-    Creates a list of stations inside a lat/lon bounding box from a source
+    Creates a list of stations inside a lat/lon bounding box from a source.
 
     Args:
         bbox: list of float     - length-4 list of floats that describes a bounding box. 
@@ -104,7 +104,7 @@ def download_tropo_delays(
     writeDir='.',
     numCPUs=8,
     download=False,
-):
+) -> None:
     """
     Check for and download GNSS tropospheric delays from an archive. If 
     download is True then files will be physically downloaded, but this  
@@ -155,7 +155,7 @@ def download_tropo_delays(
 
 def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
     """
-    Download a zip file containing tropospheric delays for a given station and year
+    Download a zip file containing tropospheric delays for a given station and year.
     The URL format is http://geodesy.unr.edu/gps_timeseries/trop/<ssss>/<ssss>.<yyyy>.trop.zip
     Inputs:
         statID   - 4-character station identifier
@@ -180,7 +180,7 @@ def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
 def download_url(url, save_path, chunk_size=2048):
     """
     Download a file from a URL. Modified from
-    https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
+    https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url.
     """
     session = requests_retry_session()
     r = session.get(url, stream=True)
@@ -199,7 +199,7 @@ def download_url(url, save_path, chunk_size=2048):
 def check_url(url):
     """
     Check whether a file exists at a URL. Modified from
-    https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url
+    https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url.
     """
     session = requests_retry_session()
     r = session.head(url)
@@ -209,16 +209,12 @@ def check_url(url):
 
 
 def in_box(lat, lon, llhbox):
-    """
-    Checks whether the given lat, lon pair are inside the bounding box llhbox
-    """
+    """Checks whether the given lat, lon pair are inside the bounding box llhbox."""
     return lat < llhbox[1] and lat > llhbox[0] and lon < llhbox[3] and lon > llhbox[2]
 
 
 def fix_lons(lon):
-    """
-    Fix the given longitudes into the range `[-180, 180]`.
-    """
+    """Fix the given longitudes into the range `[-180, 180]`."""
     fixed_lon = ((lon + 180) % 360) - 180
     # Make the positive 180s positive again.
     if fixed_lon == -180 and lon > 0:
@@ -227,17 +223,13 @@ def fix_lons(lon):
 
 
 def get_ID(line):
-    """
-    Pulls the station ID, lat, lon, and height for a given entry in the UNR text file
-    """
+    """Pulls the station ID, lat, lon, and height for a given entry in the UNR text file."""
     stat_id, lat, lon, height = line.split()[:4]
     return stat_id, float(lat), float(lon), float(height)
 
 
-def main(inps=None):
-    """
-    Main workflow for querying supported GPS repositories for zenith delay information.
-    """
+def main(inps=None) -> None:
+    """Main workflow for querying supported GPS repositories for zenith delay information."""
     try:
         dateList = inps.date_list
         returnTime = inps.time
@@ -299,9 +291,7 @@ def main(inps=None):
 
 
 def parse_bbox(bounding_box):
-    """
-    Parse bounding box arguments
-    """
+    """Parse bounding box arguments."""
     if isinstance(bounding_box, str) and not os.path.isfile(bounding_box):
         try:
             bbox = [float(val) for val in bounding_box.split()]
@@ -328,9 +318,7 @@ def parse_bbox(bounding_box):
 
 
 def get_stats(bbox, long_cross_zero, out, station_file):
-    """
-    Pull the stations needed
-    """
+    """Pull the stations needed."""
     if long_cross_zero == 1:
         bbox1 = bbox.copy()
         bbox2 = bbox.copy()
@@ -359,7 +347,7 @@ def get_stats(bbox, long_cross_zero, out, station_file):
 def filterToBBox(stations, llhBox):
     """
     Filter a dataframe by lat/lon.
-    *NOTE: llhBox longitude format should be [0, 360]
+    *NOTE: llhBox longitude format should be [0, 360].
 
     Args:
         stations: DataFrame     - a pandas dataframe with "Lat" and "Lon" columns

@@ -28,7 +28,7 @@ def prepareWeatherModel(
     makePlots: bool=False,
     force_download: bool=False,
 ) -> str:
-    """Parse inputs to download and prepare a weather model grid for interpolation
+    """Parse inputs to download and prepare a weather model grid for interpolation.
 
     Args:
         weather_model: WeatherModel   - instantiated weather model object
@@ -155,10 +155,8 @@ def _weather_model_debug(
     time,
     out,
     download_only
-):
-    """
-    raiderWeatherModelDebug main function.
-    """
+) -> None:
+    """RaiderWeatherModelDebug main function."""
     logger.debug('Starting to run the weather model calculation with debugging plots')
     logger.debug('Time type: %s', type(time))
     logger.debug('Time: %s', time.strftime('%Y%m%d'))

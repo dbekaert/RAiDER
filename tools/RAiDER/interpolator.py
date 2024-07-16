@@ -25,7 +25,7 @@ class RegularGridInterpolator:
         fill_value=None,
         assume_sorted=False,
         max_threads=8
-    ):
+    ) -> None:
         self.grid = grid
         self.values = values
         self.fill_value = fill_value
@@ -77,9 +77,7 @@ def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
 
 
 def interpV(y, old_x, new_x, left=None, right=None, period=None):
-    """
-    Rearrange np.interp's arguments
-    """
+    """Rearrange np.interp's arguments."""
     return np.interp(new_x, old_x, y, left=left, right=right, period=period)
 
 
@@ -120,7 +118,7 @@ def fillna3D(array, axis=-1, fill_value=0.):
 
 
 def interpolateDEM(demFile, outLL, method='nearest'):
-    """Interpolate a DEM raster to a set of lat/lon query points using rioxarray
+    """Interpolate a DEM raster to a set of lat/lon query points using rioxarray.
 
     outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
         For now will only use first row/col of 2D

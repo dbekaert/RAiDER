@@ -9,7 +9,7 @@ from RAiDER.models.ecmwf import ECMWF
 class ERA5(ECMWF):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
-    def __init__(self):
+    def __init__(self) -> None:
         ECMWF.__init__(self)
 
         self._humidityType = 'q'
@@ -34,10 +34,8 @@ class ERA5(ECMWF):
         self.setLevelType('ml')
 
 
-    def _fetch(self, out):
-        """
-        Fetch a weather model from ECMWF
-        """
+    def _fetch(self, out) -> None:
+        """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time
@@ -46,8 +44,8 @@ class ERA5(ECMWF):
         self._get_from_cds(lat_min, lat_max, lon_min, lon_max, time, out)
 
 
-    def load_weather(self, f=None, *args, **kwargs):
-        """Load either pressure or model level data"""
+    def load_weather(self, f=None, *args, **kwargs) -> None:
+        """Load either pressure or model level data."""
         f = self.files[0] if f is None else f
         if self._model_level_type == 'pl':
             self._load_pressure_level(f, *args, **kwargs)

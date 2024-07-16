@@ -15,12 +15,10 @@ from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 #        lats, lons = wrf.wm_nodes(*weather_files)
 #
 class WRF(WeatherModel):
-    """
-    WRF class definition, based on the WeatherModel base class.
-    """
+    """WRF class definition, based on the WeatherModel base class."""
     # TODO: finish implementing
 
-    def __init__(self):
+    def __init__(self) -> None:
         WeatherModel.__init__(self)
 
         self._k1 = 0.776  # K/Pa
@@ -33,13 +31,11 @@ class WRF(WeatherModel):
         self._Name = 'WRF'
         self._time_res = TIME_RES[self._Name]
 
-    def _fetch(self):
+    def _fetch(self) -> None:
         pass
 
-    def load_weather(self, file1, file2, *args, **kwargs):
-        """
-        Consistent class method to be implemented across all weather model types
-        """
+    def load_weather(self, file1, file2, *args, **kwargs) -> None:
+        """Consistent class method to be implemented across all weather model types."""
         try:
             lons, lats = self._get_wm_nodes(file1)
             self._read_netcdf(file2)
@@ -85,10 +81,8 @@ class WRF(WeatherModel):
 
         return lons, lats
 
-    def _read_netcdf(self, weatherFile, defNul=None):
-        """
-        Read weather variables from a netCDF file
-        """
+    def _read_netcdf(self, weatherFile, defNul=None) -> None:
+        """Read weather variables from a netCDF file."""
         if defNul is None:
             defNul = np.nan
 
@@ -162,29 +156,21 @@ class WRF(WeatherModel):
 
 
 class UnitTypeError(Exception):
-    """
-    Define a unit type exception for easily formatting
-    error messages for units
-    """
-
+    """Define a unit type exception for easily formatting error messages for units."""
     def __init___(self, varName, unittype):
         msg = f"Unknown units for {varName}: '{unittype}'"
         Exception.__init__(self, msg)
 
 
-def checkUnits(unitCheck, varName):
-    """
-    Implement a check that the units are as expected
-    """
+def checkUnits(unitCheck, varName) -> None:
+    """Implement a check that the units are as expected."""
     unitDict = {'pressure': 'Pa', 'temperature': 'K', 'relative humidity': '%', 'geopotential': 'm'}
     if unitCheck != unitDict[varName]:
         raise UnitTypeError(varName, unitCheck)
 
 
 def getNullValue(var):
-    """
-    Get the null (or fill) value if it exists, otherwise set the null value to defNullValue
-    """
+    """Get the null (or fill) value if it exists, otherwise set the null value to defNullValue."""
     # NetCDF files have the ability to record their nodata value, but in the
     # particular NetCDF files that I'm reading, this field is left
     # unspecified and a nodata value of -999 is used. The solution I'm using

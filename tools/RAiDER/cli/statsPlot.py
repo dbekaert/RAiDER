@@ -172,9 +172,7 @@ def cmd_line_parse(iargs=None):
 
 
 def convert_SI(val, unit_in, unit_out):
-    """
-    Convert input to desired units
-    """
+    """Convert input to desired units."""
     SI = {'mm': 0.001, 'cm': 0.01, 'm': 1.0, 'km': 1000.,
           'mm^2': 1e-6, 'cm^2': 1e-4, 'm^2': 1.0, 'km^2': 1e+6}
 
@@ -195,9 +193,7 @@ def convert_SI(val, unit_in, unit_out):
 
 
 def midpoint(p1, p2):
-    """
-    Calculate central longitude for '--time_lines' option
-    """
+    """Calculate central longitude for '--time_lines' option."""
     import math
 
     if p1[1] == p2[1]:
@@ -215,9 +211,7 @@ def midpoint(p1, p2):
 def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
                   colorbarfmt='%.2f', stationsongrids=False, time_lines=False,
                   dtype="float32", noData=np.nan):
-    """
-    Function to save gridded-arrays as GDAL-readable file.
-    """
+    """Function to save gridded-arrays as GDAL-readable file."""
     # Pass metadata
     metadata_dict = {}
     metadata_dict['gridfile_type'] = gridfile_type
@@ -251,9 +245,7 @@ def save_gridfile(df, gridfile_type, fname, plotbbox, spacing, unit,
 
 
 def load_gridfile(fname, unit):
-    """
-    Function to load gridded-arrays saved from previous runs.
-    """
+    """Function to load gridded-arrays saved from previous runs."""
     try:
         with rasterio.open(fname) as src:
             grid_array = src.read(1).astype(float)
@@ -307,11 +299,9 @@ def load_gridfile(fname, unit):
 
 
 class VariogramAnalysis:
-    """
-    Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis.
-    """
+    """Class which ingests dataframe output from 'RaiderStats' class and performs variogram analysis."""
 
-    def __init__(self, filearg, gridpoints, col_name, unit='m', workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, variogram_per_timeslice=False, variogram_errlimit='inf'):
+    def __init__(self, filearg, gridpoints, col_name, unit='m', workdir='./', seasonalinterval=None, densitythreshold=10, binnedvariogram=False, numCPUs=8, variogram_per_timeslice=False, variogram_errlimit='inf') -> None:
         self.df = filearg
         self.col_name = col_name
         self.unit = unit
@@ -325,9 +315,7 @@ class VariogramAnalysis:
         self.variogram_errlimit = float(variogram_errlimit)
 
     def _get_samples(self, data, Nsamp=1000):
-        """
-        pull samples from a 2D image for variogram analysis
-        """
+        """Pull samples from a 2D image for variogram analysis."""
         import random
         if len(data) < self.densitythreshold:
             logger.warning('Less than {} points for this gridcell', self.densitythreshold)
@@ -347,32 +335,23 @@ class VariogramAnalysis:
         return d, indpars
 
     def _get_XY(self, x2d, y2d, indpars):
-        """
-        Given a list of indices, return the x,y locations
-        from two matrices
-        """
+        """Given a list of indices, return the x,y locations from two matrices."""
         x = np.array([[x2d[r[0]], x2d[r[1]]] for r in indpars])
         y = np.array([[y2d[r[0]], y2d[r[1]]] for r in indpars])
 
         return x, y
 
     def _get_distances(self, XY):
-        """
-        Return the distances between each point in a list of points
-        """
+        """Return the distances between each point in a list of points."""
         from scipy.spatial.distance import cdist
         return np.diag(cdist(XY[:, :, 0], XY[:, :, 1], metric='euclidean'))
 
     def _get_variogram(self, XY, xy=None):
-        """
-        Return variograms
-        """
+        """Return variograms."""
         return 0.5 * np.square(XY - xy)  # XY = 1st col xy= 2nd col
 
     def _emp_vario(self, x, y, data, Nsamp=1000):
-        """
-        Compute empirical semivariance
-        """
+        """Compute empirical semivariance."""
         # remove NaNs if possible
         mask = ~np.isnan(data)
         if False in mask:
@@ -395,9 +374,7 @@ class VariogramAnalysis:
         return dists, vario
 
     def _binned_vario(self, hEff, rawVario, xBin=None):
-        """
-        return a binned empirical variogram
-        """
+        """Return a binned empirical variogram."""
         if xBin is None:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", message="All-NaN slice encountered")
@@ -425,9 +402,7 @@ class VariogramAnalysis:
         return np.array(hExp), np.array(expVario)
 
     def _fit_vario(self, dists, vario, model=None, x0=None, Nparm=None, ub=None):
-        """
-        Fit a variogram model to data
-        """
+        """Fit a variogram model to data."""
         from scipy.optimize import least_squares
 
         def resid(x, d, v, m):
@@ -465,12 +440,9 @@ class VariogramAnalysis:
 
         return res_robust, d_test, v_test
 
-    # this would be expontential plus nugget
+    # this would be exponential plus nugget
     def __exponential__(self, parms, h, nugget=False):
-        """
-        returns a variogram model given a set of arguments and
-        key-word arguments
-        """
+        """Return variogram model given a set of arguments and keyword arguments."""
         # a = range, b = sill, c = nugget model
         a, b, c = parms
         with warnings.catch_warnings():
@@ -482,16 +454,12 @@ class VariogramAnalysis:
 
     # this would be gaussian plus nugget
     def __gaussian__(self, parms, h):
-        """
-        returns a Gaussian variogram model
-        """
+        """Returns a Gaussian variogram model."""
         a, b, c = parms
         return b * (1 - np.exp(-np.square(h) / (a**2))) + c
 
     def _append_variogram(self, grid_ind, grid_subset):
-        """
-        For a given grid-cell, iterate through time slices to generate/append empirical variogram(s)
-        """
+        """For a given grid-cell, iterate through time slices to generate/append empirical variogram(s)."""
         # Comprehensive arrays recording data across all time epochs for given station
         dists_arr = []
         vario_arr = []
@@ -583,9 +551,7 @@ class VariogramAnalysis:
         return self.TOT_good_slices, self.TOT_res_robust_arr, self.TOT_res_robust_rmse, self.gridcenterlist
 
     def create_variograms(self):
-        """
-        Iterate through grid-cells and time slices to generate empirical variogram(s)
-        """
+        """Iterate through grid-cells and time slices to generate empirical variogram(s)."""
         # track data for plotting
         self.TOT_good_slices = []
         self.TOT_res_robust_arr = []
@@ -625,10 +591,8 @@ class VariogramAnalysis:
 
         return TOT_grids, self.TOT_res_robust_arr, self.TOT_res_robust_rmse
 
-    def plot_variogram(self, gridID, timeslice, coords, workdir='./', d_test=None, v_test=None, res_robust=None, dists=None, vario=None, dists_binned=None, vario_binned=None, seasonalinterval=None):
-        """
-        Make empirical and/or experimental variogram fit plots
-        """
+    def plot_variogram(self, gridID, timeslice, coords, workdir='./', d_test=None, v_test=None, res_robust=None, dists=None, vario=None, dists_binned=None, vario_binned=None, seasonalinterval=None) -> None:
+        """Make empirical and/or experimental variogram fit plots."""
         # If specified workdir doesn't exist, create it
         if not os.path.exists(workdir):
             os.mkdir(workdir)
@@ -680,9 +644,7 @@ class VariogramAnalysis:
 
 
 class RaiderStats:
-    """
-    Class which loads standard weather model/GPS delay files and generates a series of user-requested statistics and graphics.
-    """
+    """Class which loads standard weather model/GPS delay files and generates a series of user-requested statistics and graphics."""
 
     # import dependencies
     import glob
@@ -692,7 +654,7 @@ class RaiderStats:
                  usr_colormap='hot_r', grid_heatmap=False, grid_delay_mean=False, grid_delay_median=False, grid_delay_stdev=False,
                  grid_seasonal_phase=False, grid_delay_absolute_mean=False, grid_delay_absolute_median=False,
                  grid_delay_absolute_stdev=False, grid_seasonal_absolute_phase=False, grid_to_raster=False, min_span=[2, 0.6],
-                 period_limit=0., numCPUs=8, phaseamp_per_station=False):
+                 period_limit=0., numCPUs=8, phaseamp_per_station=False) -> None:
         self.fname = filearg
         self.col_name = col_name
         self.unit = unit
@@ -831,7 +793,7 @@ class RaiderStats:
             self.create_DF()
 
     def _get_extent(self):  # dataset, spacing=1, userbbox=None
-        """Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees"""
+        """Get the bbox, spacing in deg (by default 1deg), optionally pass user-specified bbox. Output array in WESN degrees."""
         extent = [np.floor(min(self.df['Lon'])), np.ceil(max(self.df['Lon'])),
                   np.floor(min(self.df['Lat'])), np.ceil(max(self.df['Lat']))]
         if self.bbox is not None:
@@ -890,7 +852,7 @@ class RaiderStats:
     def _check_stationgrid_intersection(self, stat_ID):
         """
         Return index of grid cell which intersects with station
-        Note: Fast, but assumes station locations don't change
+        Note: Fast, but assumes station locations don't change.
         """
         coord = Point((self.unique_points[1][self.unique_points[0].index(
             stat_ID)], self.unique_points[2][self.unique_points[0].index(stat_ID)]))
@@ -903,9 +865,7 @@ class RaiderStats:
             return 'NaN'
 
     def _reader(self):
-        """
-        Read a input file
-        """
+        """Read a input file."""
         try:
             data = pd.read_csv(self.fname, parse_dates=['Datetime'])
             data['Date'] = data['Datetime'].apply(lambda x: x.date())
@@ -937,10 +897,8 @@ class RaiderStats:
 
         return data
 
-    def create_DF(self):
-        """
-        Create dataframe.
-        """
+    def create_DF(self) -> None:
+        """Create dataframe."""
         # Open file
         self.df = self._reader()
 
@@ -1395,7 +1353,7 @@ class RaiderStats:
             "amp", "omega", "phase", "offset", "freq", "period" and "fitfunc".
         Minimum time span in years (min_span), minimum fractional observations in span (min_frac),
             and period limit (period_limit) enforced for statistical analysis.
-        Source: https://stackoverflow.com/questions/16716302/how-do-i-fit-a-sine-curve-to-my-data-with-pylab-and-numpy
+        Source: https://stackoverflow.com/questions/16716302/how-do-i-fit-a-sine-curve-to-my-data-with-pylab-and-numpy.
         """
         ampfit = {}
         phsfit = {}
@@ -1530,15 +1488,11 @@ class RaiderStats:
             self.phsfit_c, self.periodfit_c, self.seasonalfit_rmse
 
     def _sine_function_base(self, t, A, w, p, c):
-        """
-        Base function for modeling sinusoidal amplitude/phase fits.
-        """
+        """Base function for modeling sinusoidal amplitude/phase fits."""
         return A * np.sin(w * t + p) + c
 
     def __call__(self, gridarr, plottype, workdir='./', drawgridlines=False, colorbarfmt='%.2f', stationsongrids=None, resValue=5, plotFormat='pdf', userTitle=None):
-        """
-        Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument.
-        """
+        """Visualize a suite of statistics w.r.t. stations. Pass either a list of points or a gridded array as the first argument. Alternatively, you may superimpose your gridded array with a supplementary list of points by passing the latter through the stationsongrids argument."""
         from cartopy import crs as ccrs
         from cartopy import feature as cfeature
         from cartopy.mpl.ticker import LatitudeFormatter, LongitudeFormatter
@@ -1790,10 +1744,10 @@ def stats_analyses(
     binnedvariogram,
     variogram_per_timeslice,
     variogram_errlimit
-):
+) -> None:
     """
     Main workflow for generating a suite of plots to illustrate spatiotemporal distribution
-    and/or character of zenith delays
+    and/or character of zenith delays.
     """
     if verbose:
         logger.setLevel(logging.DEBUG)
@@ -2052,7 +2006,7 @@ def stats_analyses(
         df_stats(df_stats.grid_variogram_rmse, 'grid_variogram_rmse', workdir=os.path.join(workdir, 'figures'), drawgridlines=drawgridlines,
                  colorbarfmt='%.2e', stationsongrids=stationsongrids, plotFormat=plot_fmt, userTitle=user_title)
 
-def main():
+def main() -> None:
     inps = cmd_line_parse()
 
     stats_analyses(

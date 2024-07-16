@@ -13,11 +13,9 @@ from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 
 
 class HRES(ECMWF):
-    """
-    Implement ECMWF models
-    """
+    """Implement ECMWF models."""
 
-    def __init__(self, level_type='ml'):
+    def __init__(self, level_type='ml') -> None:
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -50,7 +48,7 @@ class HRES(ECMWF):
 
         self.setLevelType('ml')
 
-    def update_a_b(self):
+    def update_a_b(self) -> None:
         # Before 2013-06-26, there were only 91 model levels. The mapping coefficients below are extracted
         # based on https://www.ecmwf.int/en/forecasts/documentation-and-support/91-model-levels
         self._levels = 91
@@ -58,7 +56,7 @@ class HRES(ECMWF):
         self._a = A_91_HRES
         self._b = B_91_HRES
 
-    def load_weather(self, f=None):
+    def load_weather(self, f=None) -> None:
         """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -74,10 +72,8 @@ class HRES(ECMWF):
         elif self._model_level_type == 'pl':
             self._load_pressure_levels(f)
 
-    def _fetch(self,out):
-        """
-        Fetch a weather model from ECMWF
-        """
+    def _fetch(self,out) -> None:
+        """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time

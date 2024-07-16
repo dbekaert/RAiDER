@@ -7,7 +7,7 @@ from RAiDER.models.model_levels import A_ERAI, B_ERAI
 class ERAI(ECMWF):
     # A and B parameters to calculate pressures for model levels,
     #  extracted from an ECMWF ERA-Interim GRIB file and then hardcoded here
-    def __init__(self):
+    def __init__(self) -> None:
         ECMWF.__init__(self)
         self._classname = 'ei'
         self._expver = '0001'

@@ -24,7 +24,7 @@ AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').ge
 
 
 def check_hrrr_dataset_availability(dt: datetime) -> bool:
-    """Note a file could still be missing within the models valid range"""
+    """Note a file could still be missing within the models valid range."""
     H = Herbie(dt,
                model='hrrr',
                product='nat',
@@ -32,9 +32,9 @@ def check_hrrr_dataset_availability(dt: datetime) -> bool:
     avail = (H.grib_source is not None)
     return avail
 
-def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False):
+def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False) -> None:
     """
-    Download a HRRR weather model using Herbie
+    Download a HRRR weather model using Herbie.
 
     Args:
         DATE (Python datetime)  - Datetime as a Python datetime. Herbie will automatically return the closest valid time,
@@ -121,9 +121,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
 
 
 def get_bounds_indices(SNWE, lats, lons):
-    """
-    Convert SNWE lat/lon bounds to index bounds
-    """
+    """Convert SNWE lat/lon bounds to index bounds."""
     # Unpack the bounds and find the relevent indices
     S, N, W, E = SNWE
 
@@ -161,9 +159,7 @@ def get_bounds_indices(SNWE, lats, lons):
 
 
 def load_weather_hrrr(filename):
-    """
-    Loads a weather model from a HRRR file
-    """
+    """Loads a weather model from a HRRR file."""
     # read data from the netcdf file
     ds = xarray.open_dataset(filename, engine='netcdf4')
     # Pull the relevant data from the file
@@ -190,7 +186,7 @@ def load_weather_hrrr(filename):
 
 
 class HRRR(WeatherModel):
-    def __init__(self):
+    def __init__(self) -> None:
         # initialize a weather model
         super().__init__()
 
@@ -259,10 +255,8 @@ class HRRR(WeatherModel):
         raise NotImplementedError('Pressure levels do not go high enough for HRRR.')
 
 
-    def _fetch(self,  out):
-        """
-        Fetch weather model data from HRRR
-        """
+    def _fetch(self,  out) -> None:
+        """Fetch weather model data from HRRR."""
         self._files = out
         corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
         self.checkTime(corrected_DT)
@@ -276,7 +270,7 @@ class HRRR(WeatherModel):
         download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
 
 
-    def load_weather(self, f=None, *args, **kwargs):
+    def load_weather(self, f=None, *args, **kwargs) -> None:
         """
         Load a weather model into a python weatherModel object, from self.files if no
         filename is passed.
@@ -303,7 +297,7 @@ class HRRR(WeatherModel):
     def checkValidBounds(self: WeatherModel, ll_bounds: np.ndarray):
         """
         Checks whether the given bounding box is valid for the HRRR or HRRRAK
-        (i.e., intersects with the model domain at all)
+        (i.e., intersects with the model domain at all).
 
         Args:
         ll_bounds : np.ndarray
@@ -337,7 +331,7 @@ class HRRR(WeatherModel):
 
 
 class HRRRAK(WeatherModel):
-    def __init__(self):
+    def __init__(self) -> None:
         # The HRRR-AK model has a few different parameters than HRRR-CONUS.
         # These will get used if a user requests a bounding box in Alaska
         super().__init__()
@@ -383,7 +377,7 @@ class HRRRAK(WeatherModel):
         raise NotImplementedError('hrrr.py: Revisit whether or not pressure levels from HRRR can be used for delay calculations; they do not go high enough compared to native model levels.')
 
 
-    def _fetch(self, out):
+    def _fetch(self, out) -> None:
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
         corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
@@ -394,7 +388,7 @@ class HRRRAK(WeatherModel):
         download_hrrr_file(bounds, corrected_DT, out, 'hrrrak', self._model_level_type)
 
 
-    def load_weather(self, f=None, *args, **kwargs):
+    def load_weather(self, f=None, *args, **kwargs) -> None:
         if f is None:
             f = self.files[0] if isinstance(self.files, list) else self.files
         _xs, _ys, _lons, _lats, qs, temps, pres, geo_hgt, proj = load_weather_hrrr(f)

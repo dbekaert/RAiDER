@@ -42,14 +42,14 @@ pbar = None
 
 
 def projectDelays(delay, inc):
-    """Project zenith delays to LOS"""
+    """Project zenith delays to LOS."""
     if inc==90:
         raise ZeroDivisionError
     return delay / cosd(inc)
 
 
 def floorish(val, frac):
-    """Round a value to the lower fractional part"""
+    """Round a value to the lower fractional part."""
     return val - (val % frac)
 
 
@@ -108,7 +108,7 @@ def enu2ecef(
 
 
 def ecef2enu(xyz, lat, lon, height):
-    """Convert ECEF xyz to ENU"""
+    """Convert ECEF xyz to ENU."""
     x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
 
     t = cosd(lon) * x + sind(lon) * y
@@ -120,9 +120,7 @@ def ecef2enu(xyz, lat, lon, height):
 
 
 def rio_profile(fname):
-    """
-    Reads the profile of a rasterio file
-    """
+    """Reads the profile of a rasterio file."""
     if rasterio is None:
         raise ImportError('RAiDER.utilFcns: rio_profile - rasterio is not installed')
     
@@ -142,7 +140,7 @@ def rio_profile(fname):
 
 
 def rio_extents(profile):
-    """Get a bounding box in SNWE from a rasterio profile"""
+    """Get a bounding box in SNWE from a rasterio profile."""
     gt = profile["transform"].to_gdal()
     xSize = profile["width"]
     ySize = profile["height"]
@@ -152,9 +150,7 @@ def rio_extents(profile):
 
 
 def rio_open(fname, returnProj=False, userNDV=None, band=None):
-    """
-    Reads a rasterio-compatible raster file and returns the data and profile
-    """
+    """Reads a rasterio-compatible raster file and returns the data and profile."""
     if rasterio is None:
         raise ImportError('RAiDER.utilFcns: rio_open - rasterio is not installed')
 
@@ -196,10 +192,8 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
         return data, profile
 
 
-def nodataToNan(inarr, listofvals):
-    """
-    Setting values to nan as needed
-    """
+def nodataToNan(inarr, listofvals) -> None:
+    """Setting values to nan as needed."""
     inarr = inarr.astype(float) # nans cannot be integers (i.e. in DEM)
     for val in listofvals:
         if val is not None:
@@ -239,9 +233,7 @@ def rio_stats(fname, band=1):
 
 
 def get_file_and_band(filestr):
-    """
-    Support file;bandnum as input for filename strings
-    """
+    """Support file;bandnum as input for filename strings."""
     parts = filestr.split(";")
 
     # Defaults to first band if no bandnum is provided
@@ -254,10 +246,8 @@ def get_file_and_band(filestr):
             f"Cannot interpret {filestr} as valid filename"
         )
 
-def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None):
-    """
-    write a numpy array to a GDAL-readable raster
-    """
+def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None) -> None:
+    """Write a numpy array to a GDAL-readable raster."""
     array_shp = np.shape(array)
     if array.ndim != 2:
         raise RuntimeError(f'writeArrayToRaster: cannot write an array of shape {array_shp} to a raster image')
@@ -336,29 +326,23 @@ def _least_nonzero(a):
 
 
 def robmin(a):
-    """
-    Get the minimum of an array, accounting for empty lists
-    """
+    """Get the minimum of an array, accounting for empty lists."""
     return np.nanmin(a)
 
 
 def robmax(a):
-    """
-    Get the minimum of an array, accounting for empty lists
-    """
+    """Get the minimum of an array, accounting for empty lists."""
     return np.nanmax(a)
 
 
 def _get_g_ll(lats):
-    """
-    Compute the variation in gravity constant with latitude
-    """
+    """Compute the variation in gravity constant with latitude."""
     return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
 
 
 def get_Re(lats):
     """
-    Returns earth radius as a function of latitude for WGS84
+    Returns earth radius as a function of latitude for WGS84.
 
     Args:
         lats    - ndarray of geodetic latitudes in degrees
@@ -411,9 +395,7 @@ def geo_to_ht(lats, hts):
 
 
 def padLower(invar):
-    """
-    add a layer of data below the lowest current z-level at height zmin
-    """
+    """Add a layer of data below the lowest current z-level at height zmin."""
     new_var = _least_nonzero(invar)
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
@@ -432,8 +414,8 @@ def round_time(dt, roundTo=60):
 
 def writeDelays(aoi, wetDelay, hydroDelay,
                 wetFilename, hydroFilename=None,
-                outformat=None, ndv=0.):
-    """Write the delay numpy arrays to files in the format specified"""
+                outformat=None, ndv=0.) -> None:
+    """Write the delay numpy arrays to files in the format specified."""
     if pd is None:
         raise ImportError('pandas is required to write GNSS delays to a file')
 
@@ -473,9 +455,7 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
 
 def getTimeFromFile(filename):
-    """
-    Parse a filename to get a date-time
-    """
+    """Parse a filename to get a date-time."""
     fmt = '%Y_%m_%d_T%H_%M_%S'
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
     out = p.search(filename).group()
@@ -576,7 +556,7 @@ def UTM_to_WGS84(z, l, x, y):
 
 def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
     """
-    Transform bbox to lat/lon or another CRS for use with rest of workflow
+    Transform bbox to lat/lon or another CRS for use with rest of workflow.
     Returns: SNWE
     """
     # TODO - Handle dateline crossing
@@ -613,9 +593,7 @@ def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
 
 
 def clip_bbox(bbox, spacing):
-    """
-    Clip box to multiple of spacing
-    """
+    """Clip box to multiple of spacing."""
     return [np.floor(bbox[0] / spacing) * spacing,
             np.ceil(bbox[1] / spacing) * spacing,
             np.floor(bbox[2] / spacing) * spacing,
@@ -637,8 +615,8 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=-9999, chunk=(1, 91, 144)):
-    
+def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=-9999, chunk=(1, 91, 144)) -> None:
+
     # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
     attrs_dict = {
         'datetime': dt.strftime("%Y_%m_%dT%H_%M_%S"),
@@ -687,7 +665,7 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
     
 
 def convertLons(inLons):
-    """Convert lons from 0-360 to -180-180"""
+    """Convert lons from 0-360 to -180-180."""
     mask = inLons > 180
     outLons = inLons
     outLons[mask] = outLons[mask] - 360
@@ -718,8 +696,8 @@ def read_EarthData_loginInfo(filepath=None):
     return urs_usr, urs_pwd
 
 
-def show_progress(block_num, block_size, total_size):
-    """Show download progress"""
+def show_progress(block_num, block_size, total_size) -> None:
+    """Show download progress."""
     if progressbar is None:
         raise ImportError('RAiDER.utilFcns: show_progress - progressbar is not available')
     
@@ -737,7 +715,7 @@ def show_progress(block_num, block_size, total_size):
 
 
 def getChunkSize(in_shape):
-    """Create a reasonable chunk size"""
+    """Create a reasonable chunk size."""
     if mp is None:
         raise ImportError('RAiDER.utilFcns: getChunkSize - multiprocessing is not available')
     minChunkSize = 100
@@ -837,7 +815,7 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
 def transform_coords(proj1, proj2, x, y):
     """
     Transform coordinates from proj1 to proj2 (can be EPSG or crs from proj).
-    e.g. x, y = transform_coords(4326, 4087, lon, lat)
+    e.g. x, y = transform_coords(4326, 4087, lon, lat).
     """
     transformer = Transformer.from_crs(proj1, proj2, always_xy=True)
     return transformer.transform(x, y)
@@ -845,7 +823,7 @@ def transform_coords(proj1, proj2, x, y):
 
 def get_nearest_wmtimes(t0, time_delta):
     """"
-    Get the nearest two available times to the requested time given a time step
+    Get the nearest two available times to the requested time given a time step.
 
     Args:
         t0         - user-requested Python datetime
@@ -883,7 +861,7 @@ def get_nearest_wmtimes(t0, time_delta):
 def get_dt(t1,t2):
     """
     Helper function for getting the absolute difference in seconds between
-    two python datetimes
+    two python datetimes.
 
     Args:
         t1, t2  - Python datetimes

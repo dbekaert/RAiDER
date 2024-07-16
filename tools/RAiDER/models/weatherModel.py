@@ -30,11 +30,9 @@ TIME_RES = {'GMAO': 3,
             }
 
 class WeatherModel(ABC):
-    """
-    Implement a generic weather model for getting estimated SAR delays
-    """
+    """Implement a generic weather model for getting estimated SAR delays."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Initialize model-specific constants/parameters
         self._k1 = None
         self._k2 = None
@@ -97,7 +95,7 @@ class WeatherModel(ABC):
         self._hydrostatic_ztd = None
 
 
-    def __str__(self):
+    def __str__(self) -> str:
         string = '\n'
         string += '======Weather Model class object=====\n'
         string += f'Weather model time: {self._time}\n'
@@ -127,7 +125,7 @@ class WeatherModel(ABC):
             string += f'Minimum/Maximum zs/heights: {robmin(self._zs): 10.2f}/{robmax(self._zs): 10.2f}\n'\
                       
         string += '=====================================\n'
-        return str(string)
+        return string
 
 
     def Model(self):
@@ -142,10 +140,10 @@ class WeatherModel(ABC):
         return np.max([self._lat_res, self._lon_res])
 
 
-    def fetch(self, out, time):
+    def fetch(self, out, time) -> None:
         """
         Checks the input datetime against the valid date range for the model and then
-        calls the model _fetch routine
+        calls the model _fetch routine.
 
         Args:
         ----------
@@ -166,9 +164,7 @@ class WeatherModel(ABC):
 
     @abstractmethod
     def _fetch(self, out):
-        """
-        Placeholder method. Should be implemented in each weather model type class
-        """
+        """Placeholder method. Should be implemented in each weather model type class."""
         pass
 
 
@@ -176,8 +172,8 @@ class WeatherModel(ABC):
         return self._time
 
 
-    def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S'):
-        """Set the time for a weather model"""
+    def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S') -> None:
+        """Set the time for a weather model."""
         if isinstance(time, str):
             self._time = datetime.datetime.strptime(time, fmt)
         elif isinstance(time, datetime.datetime):
@@ -192,7 +188,7 @@ class WeatherModel(ABC):
         return self._ll_bounds
 
 
-    def set_latlon_bounds(self, ll_bounds, Nextra=2, output_spacing=None):
+    def set_latlon_bounds(self, ll_bounds, Nextra=2, output_spacing=None) -> None:
         """
         Need to correct lat/lon bounds because not all of the weather models have valid
         data exactly bounded by -90/90 (lats) and -180/180 (lons); for GMAO and MERRA2,
@@ -226,7 +222,7 @@ class WeatherModel(ABC):
 
 
     def get_wmLoc(self):
-        """Get the path to the direct with the weather model files"""
+        """Get the path to the direct with the weather model files."""
         if self._wmLoc is None:
             wmLoc = os.path.join(os.getcwd(), 'weather_files')
         else:
@@ -234,8 +230,8 @@ class WeatherModel(ABC):
         return wmLoc
 
 
-    def set_wmLoc(self, weather_model_directory:str):
-        """Set the path to the directory with the weather model files"""
+    def set_wmLoc(self, weather_model_directory:str) -> None:
+        """Set the path to the directory with the weather model files."""
         self._wmLoc = weather_model_directory
 
 
@@ -275,16 +271,12 @@ class WeatherModel(ABC):
 
     @abstractmethod
     def load_weather(self, *args, **kwargs):
-        """
-        Placeholder method. Should be implemented in each weather model type class
-        """
+        """Placeholder method. Should be implemented in each weather model type class."""
         pass
 
 
     def plot(self, plotType='pqt', savefig=True):
-        """
-        Plotting method. Valid plot types are 'pqt'
-        """
+        """Plotting method. Valid plot types are 'pqt'."""
         if plotType == 'pqt':
             plot = plots.plot_pqt(self, savefig)
         elif plotType == 'wh':
@@ -294,9 +286,9 @@ class WeatherModel(ABC):
         return plot
 
 
-    def checkTime(self, time):
+    def checkTime(self, time) -> None:
         """
-        Checks the time against the lag time and valid date range for the given model type
+        Checks the time against the lag time and valid date range for the given model type.
 
         Parameters:
             time    - Python datetime object
@@ -330,8 +322,8 @@ class WeatherModel(ABC):
             raise DatetimeOutsideRange(self.Model(), time)
 
 
-    def setLevelType(self, levelType):
-        """Set the level type to model levels or pressure levels"""
+    def setLevelType(self, levelType) -> None:
+        """Set the level type to model levels or pressure levels."""
         if levelType in 'ml pl nat prs'.split():
             self._model_level_type = levelType
         else:
@@ -344,23 +336,19 @@ class WeatherModel(ABC):
 
 
     def _convertmb2Pa(self, pres):
-        """
-        Convert pressure in millibars to Pascals
-        """
+        """Convert pressure in millibars to Pascals."""
         return 100 * pres
 
 
-    def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan):
-        """
-        Transform geo heights to WGS84 ellipsoidal heights
-        """
+    def _get_heights(self, lats, geo_hgt, geo_ht_fill=np.nan) -> None:
+        """Transform geo heights to WGS84 ellipsoidal heights."""
         geo_ht_fix = np.where(geo_hgt != geo_ht_fill, geo_hgt, np.nan)
         lats_full  = np.broadcast_to(lats[...,np.newaxis], geo_ht_fix.shape)
         self._zs   = util.geo_to_ht(lats_full, geo_ht_fix)
 
 
-    def _find_e(self):
-        """Check the type of e-calculation needed"""
+    def _find_e(self) -> None:
+        """Check the type of e-calculation needed."""
         if self._humidityType == 'rh':
             self._find_e_from_rh()
         elif self._humidityType == 'q':
@@ -371,7 +359,7 @@ class WeatherModel(ABC):
         self._q = None
 
 
-    def _find_e_from_q(self):
+    def _find_e_from_q(self) -> None:
         """Calculate e, partial pressure of water vapor."""
         svp = find_svp(self._t)
         # We have q = w/(w + 1), so w = q/(1 - q)
@@ -379,23 +367,19 @@ class WeatherModel(ABC):
         self._e = w * self._R_v * (self._p - svp) / self._R_d
 
 
-    def _find_e_from_rh(self):
+    def _find_e_from_rh(self) -> None:
         """Calculate partial pressure of water vapor."""
         svp = find_svp(self._t)
         self._e = self._rh / 100 * svp
 
 
-    def _get_wet_refractivity(self):
-        """
-        Calculate the wet delay from pressure, temperature, and e
-        """
+    def _get_wet_refractivity(self) -> None:
+        """Calculate the wet delay from pressure, temperature, and e."""
         self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
 
-    def _get_hydro_refractivity(self):
-        """
-        Calculate the hydrostatic delay from pressure and temperature
-        """
+    def _get_hydro_refractivity(self) -> None:
+        """Calculate the hydrostatic delay from pressure and temperature."""
         self._hydrostatic_refractivity = self._k1 * self._p / self._t
 
 
@@ -407,7 +391,7 @@ class WeatherModel(ABC):
         return self._hydrostatic_refractivity
 
 
-    def _adjust_grid(self, ll_bounds=None):
+    def _adjust_grid(self, ll_bounds=None) -> None:
         """
         This function pads the weather grid with a level at self._zmin, if
         it does not already go that low.
@@ -427,10 +411,10 @@ class WeatherModel(ABC):
                 self._trimExtent(ll_bounds)
 
 
-    def _getZTD(self):
+    def _getZTD(self) -> None:
         """
         Compute the full slant tropospheric delay for each weather model grid node, using the reference
-        height zref
+        height zref.
         """
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
@@ -449,9 +433,7 @@ class WeatherModel(ABC):
 
 
     def _getExtent(self, lats, lons):
-        """
-        get the bounding box around a set of lats/lons
-        """
+        """Get the bounding box around a set of lats/lons."""
         if (lats.size == 1) & (lons.size == 1):
             return [lats - self._lat_res, lats + self._lat_res, lons - self._lon_res, lons + self._lon_res]
         elif (lats.size > 1) & (lons.size > 1):
@@ -511,7 +493,7 @@ class WeatherModel(ABC):
                          ):
         """
         Checks whether the given bounding box is valid for the model
-        (i.e., intersects with the model domain at all)
+        (i.e., intersects with the model domain at all).
 
         Args:
         ll_bounds : np.ndarray
@@ -586,24 +568,20 @@ class WeatherModel(ABC):
         return weather_model_box.contains(input_box)
 
 
-    def _isOutside(self, extent1, extent2):
+    def _isOutside(self, extent1, extent2) -> bool:
         """
-        Determine whether any of extent1  lies outside extent2
-        extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
+        Determine whether any of extent1 lies outside extent2.
+        extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon].
         """
         t1 = extent1[0] < extent2[0]
         t2 = extent1[1] > extent2[1]
         t3 = extent1[2] < extent2[2]
         t4 = extent1[3] > extent2[3]
-        if np.any([t1, t2, t3, t4]):
-            return True
-        return False
+        return np.any([t1, t2, t3, t4])
 
 
-    def _trimExtent(self, extent):
-        """
-        get the bounding box around a set of lats/lons
-        """
+    def _trimExtent(self, extent) -> None:
+        """Get the bounding box around a set of lats/lons."""
         lat = self._lats.copy()
         lon = self._lons.copy()
         lat[np.isnan(lat)] = np.nanmean(lat)
@@ -655,9 +633,7 @@ class WeatherModel(ABC):
 
 
     def getProjection(self):
-        """
-        Returns: the native weather projection, which should be a pyproj object
-        """
+        """Returns: the native weather projection, which should be a pyproj object."""
         return self._proj
 
 
@@ -665,10 +641,8 @@ class WeatherModel(ABC):
         return self._xs.copy(), self._ys.copy(), self._zs.copy()
 
 
-    def _uniform_in_z(self, _zlevels=None):
-        """
-        Interpolate all variables to a regular grid in z
-        """
+    def _uniform_in_z(self, _zlevels=None) -> None:
+        """Interpolate all variables to a regular grid in z."""
         nx, ny = self._p.shape[:2]
 
         # new regular z-spacing
@@ -696,10 +670,8 @@ class WeatherModel(ABC):
         self._ys = np.unique(self._ys)
 
 
-    def _checkForNans(self):
-        """
-        Fill in NaN-values
-        """
+    def _checkForNans(self) -> None:
+        """Fill in NaN-values."""
         self._p = fillna3D(self._p)
         self._t = fillna3D(self._t, fill_value=1e16) # to avoid division by zero later on
         self._e = fillna3D(self._e)
@@ -715,9 +687,7 @@ class WeatherModel(ABC):
 
 
     def filename(self, time=None, outLoc='weather_files'):
-        """
-        Create a filename to store the weather model
-        """
+        """Create a filename to store the weather model."""
         os.makedirs(outLoc, exist_ok=True)
 
         if time is None:
@@ -805,7 +775,7 @@ class WeatherModel(ABC):
         return f
 
 
-def make_weather_model_filename(name, time, ll_bounds):
+def make_weather_model_filename(name, time, ll_bounds) -> str:
     s = np.floor(ll_bounds[0])
     S = f'{np.abs(s):.0f}S' if s <0 else f'{s:.0f}N'
 
@@ -821,7 +791,7 @@ def make_weather_model_filename(name, time, ll_bounds):
 
 
 def make_raw_weather_data_filename(outLoc, name, time):
-    """Filename generator for the raw downloaded weather model data"""
+    """Filename generator for the raw downloaded weather model data."""
     f = os.path.join(
         outLoc,
         '{}_{}.{}'.format(
@@ -834,9 +804,7 @@ def make_raw_weather_data_filename(outLoc, name, time):
 
 
 def find_svp(t):
-    """
-    Calculate standard vapor presure. Should be model-specific
-    """
+    """Calculate standard vapor presure. Should be model-specific."""
     # From TRAIN:
     # Could not find the wrf used equation as they appear to be
     # mixed with latent heat etc. Istead I used the equations used
@@ -869,7 +837,7 @@ def find_svp(t):
 
 
 def get_mapping(proj):
-    """Get CF-complient projection information from a proj"""
+    """Get CF-complient projection information from a proj."""
     # In case of WGS-84 lat/lon, keep it simple
     if proj.to_epsg()==4326:
         return 'WGS84'
@@ -882,7 +850,7 @@ def checkContainment_raw(path_wm_raw,
                         buffer_deg: float = 1e-5) -> bool:
     """"
     Checks if existing raw weather model contains
-    requested ll_bounds
+    requested ll_bounds.
 
     Args:
     ----------

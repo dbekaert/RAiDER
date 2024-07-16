@@ -21,7 +21,7 @@ def _netrc_path() -> Path:
 
 
 def ensure_orbit_credentials() -> Optional[int]:
-    """Ensure credentials exist for ESA's CDSE and ASF's S1QC to download orbits
+    """Ensure credentials exist for ESA's CDSE and ASF's S1QC to download orbits.
 
     This method will prefer to use CDSE and NASA Earthdata credentials from your `~/.netrc` file if they exist,
     otherwise will look for environment variables and update or create your `~/.netrc` file. The environment variables
@@ -65,7 +65,7 @@ def ensure_orbit_credentials() -> Optional[int]:
 
 
 def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Path]:
-    """Download all orbit files for a set of SLCs
+    """Download all orbit files for a set of SLCs.
 
     This method will ensure that the downloaded orbit files cover the entire acquisition start->stop time
 
@@ -83,7 +83,7 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
 def get_orbits_from_slc_ids_hyp3lib(
     slc_ids: list, orbit_directory: str = None
 ) -> dict:
-    """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23"""
+    """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23."""
     # Populates env variables to netrc as required for sentineleof
     _ = ensure_orbit_credentials()
     esa_username, _, esa_password = netrc.netrc().authenticators(ESA_CDSE_HOST)
@@ -106,7 +106,7 @@ def get_orbits_from_slc_ids_hyp3lib(
 
 
 def download_eofs(dts: list, missions: list, save_dir: str):
-    """Wrapper around sentineleof to first try downloading from ASF and fall back to CDSE"""
+    """Wrapper around sentineleof to first try downloading from ASF and fall back to CDSE."""
     _ = ensure_orbit_credentials()
 
     orb_files = []

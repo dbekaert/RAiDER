@@ -18,9 +18,7 @@ mpl.use('Agg')
 
 
 def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
-    """
-    Create a plot with pressure, temp, and humidity at two heights
-    """
+    """Create a plot with pressure, temp, and humidity at two heights."""
     # Get the interpolator
 
     intFcn_p = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._p.swapaxes(0, 1))
@@ -100,7 +98,7 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
 def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     """
     Create a plot with wet refractivity and hydrostatic refractivity,
-    at two different heights
+    at two different heights.
     """
     # Get the interpolator
     intFcn_w = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._wet_refractivity.swapaxes(0, 1))

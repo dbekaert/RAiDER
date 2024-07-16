@@ -6,7 +6,7 @@ from RAiDER.models.era5 import ERA5
 class ERA5T(ERA5):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
-    def __init__(self):
+    def __init__(self) -> None:
         ERA5.__init__(self)
 
         self._expver = '0005'

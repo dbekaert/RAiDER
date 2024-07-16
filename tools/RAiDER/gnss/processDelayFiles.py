@@ -13,7 +13,7 @@ from tqdm import tqdm
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
-def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=None, col_name='ZTD'):
+def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=None, col_name='ZTD') -> None:
     files = glob.glob(os.path.join(loc, '*' + ext))
 
     if source == 'model':
@@ -53,8 +53,8 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
         )
 
 
-def addDateTimeToFiles(fileList, force=False, verbose=False):
-    """Run through a list of files and add the datetime of each file as a column"""
+def addDateTimeToFiles(fileList, force=False, verbose=False) -> None:
+    """Run through a list of files and add the datetime of each file as a column."""
     print('Adding Datetime to delay files')
 
     for f in tqdm(fileList):
@@ -85,7 +85,7 @@ def addDateTimeToFiles(fileList, force=False, verbose=False):
 
 
 def getDateTime(filename):
-    """Parse a datetime from a RAiDER delay filename"""
+    """Parse a datetime from a RAiDER delay filename."""
     filename = os.path.basename(filename)
     dtr = re.compile(r'\d{8}T\d{6}')
     dt = dtr.search(filename)
@@ -96,7 +96,7 @@ def getDateTime(filename):
 
 
 def update_time(row, localTime_hrs):
-    """Update with local origin time"""
+    """Update with local origin time."""
     localTime_estimate = row['Datetime'].replace(hour=localTime_hrs,
                                                  minute=0, second=0)
     # determine if you need to shift days
@@ -121,7 +121,7 @@ def update_time(row, localTime_hrs):
 
 
 def pass_common_obs(reference, target, localtime=None):
-    """Pass only observations in target spatiotemporally common to reference"""
+    """Pass only observations in target spatiotemporally common to reference."""
     if isinstance(target['Datetime'].iloc[0], str):
         target['Datetime'] = target['Datetime'].apply(lambda x:
                           datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S'))
@@ -147,7 +147,7 @@ def concatDelayFiles(
 ):
     """
     Read a list of .csv files containing the same columns and append them
-    together, sorting by specified columns
+    together, sorting by specified columns.
     """
     dfList = []
 
@@ -186,9 +186,7 @@ def concatDelayFiles(
 
 
 def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
-    """
-    Convert to local-time reference frame WRT 0 longitude
-    """
+    """Convert to local-time reference frame WRT 0 longitude."""
     localTime_hrs = int(localTime.split(' ')[0])
     localTime_hrthreshold = int(localTime.split(' ')[1])
     # with rotation rate and distance to 0 lon, get localtime shift WRT 00 UTC at 0 lon
@@ -243,9 +241,7 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
 
 
 def readZTDFile(filename, col_name='ZTD'):
-    """
-    Read and parse a GPS zenith delay file
-    """
+    """Read and parse a GPS zenith delay file."""
     try:
         data = pd.read_csv(filename, parse_dates=['Date'])
         times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
@@ -356,9 +352,7 @@ def create_parser():
 
 
 def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName=None, localTime=None):
-    """
-    Merge a combined RAiDER delays file with a GPS ZTD delay file
-    """
+    """Merge a combined RAiDER delays file with a GPS ZTD delay file."""
     print(f'Merging delay files {raiderFile} and {ztdFile}')
     dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
     # drop extra columns

@@ -25,7 +25,7 @@ def Model():
 
 
 class MERRA2(WeatherModel):
-    def __init__(self):
+    def __init__(self) -> None:
 
         import calendar
         # initialize a weather model
@@ -66,10 +66,8 @@ class MERRA2(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, out):
-        """
-        Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP
-        """
+    def _fetch(self, out) -> None:
+        """Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP."""
         time = self._time 
         
         # check whether the file already exists
@@ -125,7 +123,7 @@ class MERRA2(WeatherModel):
             logger.exception("MERRA-2: Unable to save weathermodel to file")
             raise RuntimeError(f'MERRA-2 failed with the following error: {e}')
 
-    def load_weather(self,  f=None, *args, **kwargs):
+    def load_weather(self,  f=None, *args, **kwargs) -> None:
         """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -135,10 +133,8 @@ class MERRA2(WeatherModel):
         f = self.files[0] if f is None else f
         self._load_model_level(f)
 
-    def _load_model_level(self, filename):
-        """
-        Get the variables from the GMAO link using OpenDAP
-        """
+    def _load_model_level(self, filename) -> None:
+        """Get the variables from the GMAO link using OpenDAP."""
         # adding the import here should become absolute when transition to netcdf
         ds = xarray.load_dataset(filename)
         lons = ds['longitude'].values

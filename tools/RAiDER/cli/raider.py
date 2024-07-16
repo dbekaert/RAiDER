@@ -379,7 +379,7 @@ def calcDelays(iargs=None):
 
 
 # ------------------------------------------------------ downloadGNSSDelays.py
-def downloadGNSS():
+def downloadGNSS() -> None:
     """Parse command line arguments using argparse."""
     from RAiDER.gnss.downloadGNSSDelays import main as dlGNSS
     p = argparse.ArgumentParser(
@@ -623,10 +623,8 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
 
 
 # ------------------------------------------------------------ processDelays.py
-def combineZTDFiles():
-    """
-    Command-line program to process delay files from RAiDER and GNSS into a single file.
-    """
+def combineZTDFiles() -> None:
+    """Command-line program to process delay files from RAiDER and GNSS into a single file."""
     from RAiDER.gnss.processDelayFiles import combineDelayFiles, create_parser, main
 
     p = create_parser()
@@ -652,7 +650,7 @@ def combineZTDFiles():
 
 def getWeatherFile(wfiles, times, t, model, interp_method='none'):
     """
-    # Time interpolation
+    # Time interpolation.
     #
     # Need to handle various cases, including if the exact weather model time is
     # requested, or if one or more datetimes are not available from the weather
@@ -724,7 +722,7 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
 
 
 def combine_weather_files(wfiles, t, model, interp_method='center_time'):
-    """Interpolate downloaded weather files and save to a single file"""
+    """Interpolate downloaded weather files and save to a single file."""
     STYLE = {'center_time': '_timeInterp_',
              'azimuth_time_grid': '_timeInterpAziGrid_'}
 
@@ -769,7 +767,7 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
 
 
 def combine_files_using_azimuth_time(wfiles, t, times):
-    """Combine files using azimuth time interpolation"""
+    """Combine files using azimuth time interpolation."""
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
 
@@ -806,7 +804,7 @@ def combine_files_using_azimuth_time(wfiles, t, times):
 
 
 def get_weights_time_interp(times, t):
-    """Calculate weights for time interpolation using simple inverse linear weighting"""
+    """Calculate weights for time interpolation using simple inverse linear weighting."""
     date1, date2 = times
     wgts = [1 - get_dt(t, date1) / get_dt(date2, date1), 1 -
             get_dt(date2, t) / get_dt(date2, date1)]
@@ -822,7 +820,7 @@ def get_weights_time_interp(times, t):
 
 
 def get_time_grid_for_aztime_interp(datasets, t, model):
-    """Calculate the time-varying grid for use with azimuth time interpolation"""
+    """Calculate the time-varying grid for use with azimuth time interpolation."""
     # Each model will require some inspection here
     # the subsequent s1 azimuth time grid requires dimension
     # inputs to all have same dimensions and either be

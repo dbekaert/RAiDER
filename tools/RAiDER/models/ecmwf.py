@@ -16,11 +16,9 @@ from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 
 
 class ECMWF(WeatherModel):
-    """
-    Implement ECMWF models
-    """
+    """Implement ECMWF models."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -50,7 +48,7 @@ class ECMWF(WeatherModel):
         self._b = B_137_HRES
 
 
-    def load_weather(self, f=None, *args, **kwargs):
+    def load_weather(self, f=None, *args, **kwargs) -> None:
         """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -61,7 +59,7 @@ class ECMWF(WeatherModel):
         self._load_model_level(f)
 
 
-    def _load_model_level(self, fname):
+    def _load_model_level(self, fname) -> None:
         # read data from netcdf file
         lats, lons, xs, ys, t, q, lnsp, z = self._makeDataCubes(
             fname,
@@ -120,10 +118,8 @@ class ECMWF(WeatherModel):
         self._zs = np.flip(h, axis=2)
 
 
-    def _fetch(self, out):
-        """
-        Fetch a weather model from ECMWF
-        """
+    def _fetch(self, out) -> None:
+        """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
 
@@ -142,7 +138,7 @@ class ECMWF(WeatherModel):
 
 
     def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max,
-                        lon_step, time, out):
+                        lon_step, time, out) -> None:
         import ecmwfapi
 
         server = ecmwfapi.ECMWFDataServer()
@@ -190,8 +186,8 @@ class ECMWF(WeatherModel):
         lon_max,
         acqTime,
         outname
-    ):
-        """Used for ERA5"""
+    ) -> None:
+        """Used for ERA5."""
         import cdsapi
         c = cdsapi.Client(verify=0)
 
@@ -233,8 +229,8 @@ class ECMWF(WeatherModel):
             raise Exception
 
 
-    def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out):
-        """Used for HRES"""
+    def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out) -> None:
+        """Used for HRES."""
         from ecmwfapi import ECMWFService
 
         server = ECMWFService("mars")
@@ -271,7 +267,7 @@ class ECMWF(WeatherModel):
         )
 
 
-    def _load_pressure_level(self, filename, *args, **kwargs):
+    def _load_pressure_level(self, filename, *args, **kwargs) -> None:
         with xr.open_dataset(filename) as block:
             # Pull the data
             z = np.squeeze(block['z'].values)
@@ -329,7 +325,7 @@ class ECMWF(WeatherModel):
     def _makeDataCubes(self, fname, verbose=False):
         """
         Create a cube of data representing temperature and relative humidity
-        at specified pressure levels
+        at specified pressure levels.
         """
         # get ll_bounds
         S, N, W, E = self._ll_bounds

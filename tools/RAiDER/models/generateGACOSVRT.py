@@ -3,19 +3,15 @@
 # Copyright 2018
 
 
-def makeVRT(filename, dtype='Float32'):
-    """
-    Use an RSC file to create a GDAL-compatible VRT file for opening GACOS weather model files
-    """
+def makeVRT(filename, dtype='Float32') -> None:
+    """Use an RSC file to create a GDAL-compatible VRT file for opening GACOS weather model files."""
     fields = readRSC(filename)
     string = vrtStr(fields['XMAX'], fields['YMAX'], fields['X_FIRST'], fields['Y_FIRST'], fields['X_STEP'], fields['Y_STEP'], filename.replace('.rsc', ''), dtype=dtype)
     writeStringToFile(string, filename.replace('.rsc', '').replace('.ztd', '') + '.vrt')
 
 
 def writeStringToFile(string, filename):
-    """
-    Write a string to a VRT file
-    """
+    """Write a string to a VRT file."""
     with open(filename, 'w') as f:
         f.write(string)
 
@@ -42,17 +38,15 @@ def vrtStr(xSize, ySize, lon1, lat1, lonStep, latStep, filename, dtype='Float32'
     return string
 
 
-def convertAllFiles(dirLoc):
-    """
-    convert all RSC files to VRT files contained in dirLoc
-    """
+def convertAllFiles(dirLoc) -> None:
+    """Convert all RSC files to VRT files contained in dirLoc."""
     import glob
     files = glob.glob('*.rsc')
     for f in files:
         makeVRT(f)
 
 
-def main():
+def main() -> None:
     import sys
     if len(sys.argv) == 2:
         makeVRT(sys.argv[1])

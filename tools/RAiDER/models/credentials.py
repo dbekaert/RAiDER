@@ -1,6 +1,6 @@
 """
 API credential information and help url for downloading weather model data
-    saved in a hidden file in home directory
+    saved in a hidden file in home directory.
 
 api filename      weather models          UID           KEY         URL
 _________________________________________________________________________________
@@ -157,6 +157,6 @@ def check_api(model: str,
     rc_path.chmod(0o000600)
 
 
-def setup_from_env():
+def setup_from_env() -> None:
     for model in RC_FILENAMES.keys():
         check_api(model)

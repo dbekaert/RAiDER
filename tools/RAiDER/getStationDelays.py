@@ -19,7 +19,7 @@ import requests
 from RAiDER.logger import logger
 
 
-def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
+def get_delays_UNR(stationFile, filename, dateList, returnTime=None) -> None:
     """
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
@@ -174,10 +174,8 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None):
     return
 
 
-def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, returnTime=None):
-    """
-    Pull tropospheric delay data for a given station name
-    """
+def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, returnTime=None) -> None:
+    """Pull tropospheric delay data for a given station name."""
     if outDir is None:
         outDir = os.getcwd()
 
@@ -244,24 +242,18 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
 
 
 def get_date(stationFile):
-    """
-    extract the date from a station delay file
-    """
+    """Extract the date from a station delay file."""
     # find the date info
     year = int(stationFile[1])
     doy = int(stationFile[2])
     date = dt.datetime(year, 1, 1) + dt.timedelta(doy - 1)
-
     return date, year, doy
 
 
 def seconds_of_day(returnTime):
-    """
-    Convert HH:MM:SS format time-tag to seconds of day.
-    """
+    """Convert HH:MM:SS format time-tag to seconds of day."""
     if isinstance(returnTime, dt.time):
         h, m, s = returnTime.hour, returnTime.minute, returnTime.second
     else:
         h, m, s = map(int, returnTime.split(":"))
-
     return  h * 3600 + m * 60 + s

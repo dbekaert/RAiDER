@@ -11,7 +11,7 @@ import os
 import shelve
 from abc import ABC
 from pathlib import PosixPath
-from typing import Union
+from typing import Literal, NoReturn, Union
 
 import numpy as np
 
@@ -30,10 +30,8 @@ from RAiDER.utilFcns import cosd, ecef2lla, lla2ecef, rio_open, sind
 
 
 class LOS(ABC):
-    """
-    LOS Class definition for handling look vectors
-    """
-    def __init__(self):
+    """LOS Class definition for handling look vectors."""
+    def __init__(self) -> None:
         self._lats, self._lons, self._heights = None, None, None
         self._look_vecs = None
         self._ray_trace = False
@@ -41,8 +39,8 @@ class LOS(ABC):
         self._is_projected = False
 
 
-    def setPoints(self, lats, lons=None, heights=None):
-        """Set the pixel locations"""
+    def setPoints(self, lats, lons=None, heights=None) -> None:
+        """Set the pixel locations."""
         if (lats is None) and (self._lats is None):
             raise RuntimeError("You haven't given any point locations yet")
 
@@ -62,7 +60,7 @@ class LOS(ABC):
             self._heights = heights
 
 
-    def setTime(self, dt):
+    def setTime(self, dt) -> None:
         self._time = dt
 
 
@@ -79,16 +77,14 @@ class LOS(ABC):
 
 
 class Zenith(LOS):
-    """
-    Class definition for a "Zenith" object.
-    """
-    def __init__(self):
+    """Class definition for a "Zenith" object."""
+    def __init__(self) -> None:
         super().__init__()
         self._is_zenith = True
 
 
-    def setLookVectors(self):
-        """Set point locations and calculate Zenith look vectors"""
+    def setLookVectors(self) -> None:
+        """Set point locations and calculate Zenith look vectors."""
         if self._lats is None:
             raise ValueError('Target points not set')
         if self._look_vecs is None:
@@ -96,7 +92,7 @@ class Zenith(LOS):
 
 
     def __call__(self, delays):
-        """Placeholder method for consistency with the other classes"""
+        """Placeholder method for consistency with the other classes."""
         return delays
 
 
@@ -105,7 +101,7 @@ class Conventional(LOS):
     Special value indicating that the zenith delay will
     be projected using the standard cos(inc) scaling.
     """
-    def __init__(self, filename=None, los_convention='isce', time=None, pad=600):
+    def __init__(self, filename=None, los_convention='isce', time=None, pad=600) -> None:
         super().__init__()
         self._file = filename
         self._time = time
@@ -117,9 +113,7 @@ class Conventional(LOS):
 
 
     def __call__(self, delays):
-        """
-        Read the LOS file and convert it to look vectors
-        """
+        """Read the LOS file and convert it to look vectors."""
         if self._lats is None:
             raise ValueError('Target points not set')
         if self._file is None:
@@ -182,8 +176,8 @@ class Raytracing(LOS):
     >>> import numpy as np
     """
 
-    def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600):
-        """Read in and parse a statevector file"""
+    def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600) -> None:
+        """Read in and parse a statevector file."""
         if isce is None:
             raise ImportError('isce3 is required for this class. Use conda to install isce3`')
 
@@ -211,7 +205,7 @@ class Raytracing(LOS):
             raise RuntimeError(f"Unknown look direction: {look_dir}")
 
 
-    def getSensorDirection(self):
+    def getSensorDirection(self) -> Literal['desc', 'asc']:
         if self._orbit is None:
             raise ValueError('The orbit has not been set')
         z = self._orbit.position[:,2]
@@ -228,15 +222,13 @@ class Raytracing(LOS):
         return self._look_dir
 
     # Called in checkArgs
-    def setTime(self, time, pad=600):
+    def setTime(self, time, pad=600) -> None:
         self._time = time
         self._orbit = get_orbit(self._file, self._time, pad=pad)
 
 
     def getLookVectors(self, ht, llh, xyz, yy):
-        """
-        Calculate look vectors for raytracing
-        """
+        """Calculate look vectors for raytracing."""
         if isce is None:
             raise ImportError('isce3 is required for this method. Use conda to install isce3`')
 
@@ -271,7 +263,7 @@ class Raytracing(LOS):
     def getIntersectionWithHeight(self, height):
         """
         This function computes the intersection point of a ray at a height
-        level
+        level.
         """
         # We just leverage the same code as finding top of atmosphere here
         return getTopOfAtmosphere(self._xyz, self._look_vecs, height)
@@ -303,7 +295,7 @@ class Raytracing(LOS):
         return rays
 
 
-    def calculateDelays(self, delays):
+    def calculateDelays(self, delays) -> NoReturn:
         """
         Here "delays" is point-wise delays (i.e. refractivities), not
         integrated ZTD/STD.
@@ -336,7 +328,7 @@ def get_sv(los_file: Union[str, list, PosixPath],
            ref_time: datetime.datetime,
            pad: int):
     """
-    Read an LOS file and return orbital state vectors
+    Read an LOS file and return orbital state vectors.
 
     Args:
         los_file (str, Path, list):     - user-passed file containing either look
@@ -496,7 +488,7 @@ def read_txt_file(filename):
 
 def read_ESA_Orbit_file(filename):
     """
-    Read orbit data from an orbit file supplied by ESA
+    Read orbit data from an orbit file supplied by ESA.
 
     Args:
     ----------
@@ -543,7 +535,7 @@ def read_ESA_Orbit_file(filename):
 
 
 def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
-    """From list of .EOF orbit files, pick the one that contains 'ref_time'"""
+    """From list of .EOF orbit files, pick the one that contains 'ref_time'."""
     orb_file = None
     for path in list_files:
         f  = os.path.basename(path)
@@ -560,7 +552,7 @@ def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
 
 def filter_ESA_orbit_file(orbit_xml: str,
                           ref_time: datetime.datetime) -> bool:
-    """Returns true or false depending on whether orbit file contains ref time
+    """Returns true or false depending on whether orbit file contains ref time.
 
     Parameters
     ----------
@@ -773,7 +765,7 @@ def get_orbit(orbit_file: Union[list, str],
                                  for the sensor (can be download with sentineleof libray). Lists of files
                                  are only accepted for Sentinel-1 EOF files.
     pad (int):                 - number of seconds to keep around the
-                                 requested time (should be about 600 seconds)
+                                 requested time (should be about 600 seconds).
 
     """
     if isce is None:
@@ -804,7 +796,7 @@ def get_orbit(orbit_file: Union[list, str],
 
 def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
     """
-    Compute the ray length in ECEF between each  weather model layers
+    Compute the ray length in ECEF between each  weather model layers.
 
     Only heights up to MAX_TROPO_HEIGHT are considered
     Assumption: model_zs (model) are assumed to be sorted in height

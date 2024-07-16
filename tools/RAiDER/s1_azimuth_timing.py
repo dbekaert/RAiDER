@@ -20,7 +20,8 @@ def _asf_query(point: Point,
                start: datetime.datetime,
                end: datetime.datetime,
                buffer_degrees: float = 2) -> list[str]:
-    """Using a buffer to get as many SLCs covering a given request as
+    """
+    Using a buffer to get as many SLCs covering a given request as.
 
     Parameters
     ----------
@@ -48,7 +49,8 @@ def get_slc_id_from_point_and_time(lon: float,
                                    dt: datetime.datetime,
                                    buffer_seconds: int = 600,
                                    buffer_deg: float = 2) -> list:
-    """Obtains a (non-unique) SLC id from the lon/lat and datetime of inputs. The buffere ensures that
+    """
+    Obtains a (non-unique) SLC id from the lon/lat and datetime of inputs. The buffere ensures that
     an SLC id is within the queried start/end times. Note an S1 scene takes roughly 30 seconds to acquire.
 
     Parameters
@@ -196,7 +198,8 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
 def get_n_closest_datetimes(ref_time: datetime.datetime,
                             n_target_times: int,
                             time_step_hours: int) -> list[datetime.datetime]:
-    """Gets n closes times relative to the `round_to_hour_delta` and the
+    """
+    Gets n closest times relative to the `round_to_hour_delta` and the
     `ref_time`. Specifically, if one is interetsted in getting 3 closest times
     to say 0, 6, 12, 18 UTC times of a ref time `dt`, then:
     ```

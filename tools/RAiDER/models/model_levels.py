@@ -1,5 +1,5 @@
 """
-Pre-defined model levels and a, b constants for the different weather models
+Pre-defined model levels and a, b constants for the different weather models.
 
 **NOTE**: The fixed heights used here are from ECMWF's _geometric_ altitudes
 (https://confluence.ecmwf.int/display/UDOC/L137+model+level+definitions),

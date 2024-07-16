@@ -63,9 +63,7 @@ def get_los(args):
 
 
 def get_heights(args, out, station_file, bounding_box=None):
-    """
-    Parse the Height info and download a DEM if needed
-    """
+    """Parse the Height info and download a DEM if needed."""
     dem_path = out
 
     out = {
@@ -124,9 +122,7 @@ def get_heights(args, out, station_file, bounding_box=None):
 
 
 def get_query_region(args):
-    """
-    Parse the query region from inputs
-    """
+    """Parse the query region from inputs."""
     # Get bounds from the inputs
     # make sure this is first
     if args.get('use_dem_latlon'):
@@ -168,9 +164,7 @@ def get_query_region(args):
 
 
 def enforce_bbox(bbox):
-    """
-    Enforce a valid bounding box
-    """
+    """Enforce a valid bounding box."""
     if isinstance(bbox, str):
         bbox = [float(d) for d in bbox.strip().split()]
     else:
@@ -196,9 +190,7 @@ def enforce_bbox(bbox):
 
 
 def parse_dates(arg_dict):
-    """
-    Determine the requested dates from the input parameters
-    """
+    """Determine the requested dates from the input parameters."""
     if arg_dict.get('date_list'):
         l = arg_dict['date_list']
         if isinstance(l, str):
@@ -231,9 +223,7 @@ def parse_dates(arg_dict):
 
 
 def enforce_valid_dates(arg):
-    """
-    Parse a date from a string in pseudo-ISO 8601 format.
-    """
+    """Parse a date from a string in pseudo-ISO 8601 format."""
     year_formats = (
         '%Y-%m-%d',
         '%Y%m%d',
@@ -254,9 +244,7 @@ def enforce_valid_dates(arg):
 
 
 def enforce_time(arg_dict):
-    """
-    Parse an input time (required to be ISO 8601)
-    """
+    """Parse an input time (required to be ISO 8601)."""
     try:
         arg_dict['time'] = convert_time(arg_dict['time'])
     except KeyError:
@@ -305,7 +293,9 @@ def convert_time(inp):
 
 
 def modelName2Module(model_name):
-    """Turn an arbitrary string into a module name.
+    """
+    Turn an arbitrary string into a module name.
+
     Takes as input a model name, which hopefully looks like ERA-I, and
     converts it to a module name, which will look like erai. I doesn't
     always produce a valid module name, but that's not the goal. The
@@ -314,7 +304,7 @@ def modelName2Module(model_name):
        model_name  - Name of an allowed weather model (e.g., 'era-5')
     Outputs:
        module_name - Name of the module
-       wmObject    - callable, weather model object
+       wmObject    - callable, weather model object.
     """
     module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
     model_module = importlib.import_module(module_name)
@@ -323,9 +313,7 @@ def modelName2Module(model_name):
 
 
 def getBufferedExtent(lats, lons=None, buf=0.):
-    """
-    get the bounding box around a set of lats/lons
-    """
+    """Get the bounding box around a set of lats/lons."""
     if lons is None:
         lats, lons = lats[..., 0], lons[..., 1]
 
@@ -347,41 +335,35 @@ def getBufferedExtent(lats, lons=None, buf=0.):
     return np.array(out)
 
 
-def isOutside(extent1, extent2):
+def isOutside(extent1, extent2) -> bool:
     """
-    Determine whether any of extent1  lies outside extent2
-    extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon]
-    Equal extents are considered "inside"
+    Determine whether any of extent1 lies outside extent2.
+    extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon].
+    Equal extents are considered "inside".
     """
     t1 = extent1[0] < extent2[0]
     t2 = extent1[1] > extent2[1]
     t3 = extent1[2] < extent2[2]
     t4 = extent1[3] > extent2[3]
-    if np.any([t1, t2, t3, t4]):
-        return True
-    return False
+    return np.any([t1, t2, t3, t4])
 
 
-def isInside(extent1, extent2):
+def isInside(extent1, extent2) -> bool:
     """
-    Determine whether all of extent1 lies inside extent2
+    Determine whether all of extent1 lies inside extent2.
     extent1/2 should be a list containing [lower_lat, upper_lat, left_lon, right_lon].
-    Equal extents are considered "inside"
+    Equal extents are considered "inside".
     """
     t1 = extent1[0] <= extent2[0]
     t2 = extent1[1] >= extent2[1]
     t3 = extent1[2] <= extent2[2]
     t4 = extent1[3] >= extent2[3]
-    if np.all([t1, t2, t3, t4]):
-        return True
-    return False
+    return np.all([t1, t2, t3, t4])
 
 
 ## below are for downloadGNSSDelays
 def date_type(arg):
-    """
-    Parse a date from a string in pseudo-ISO 8601 format.
-    """
+    """Parse a date from a string in pseudo-ISO 8601 format."""
     year_formats = (
         '%Y-%m-%d',
         '%Y%m%d',
@@ -414,12 +396,12 @@ class MappingType:
     """
     UNSET = object()
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         self.mapping = kwargs
         self._default = self.UNSET
 
     def default(self, default):
-        """Set a default value if no mapping is found"""
+        """Set a default value if no mapping is found."""
         self._default = default
         return self
 
@@ -448,7 +430,7 @@ class IntegerType:
     ```
     """
 
-    def __init__(self, lo=None, hi=None):
+    def __init__(self, lo=None, hi=None) -> None:
         self.lo = lo
         self.hi = hi
 
@@ -476,7 +458,7 @@ class IntegerMappingType(MappingType, IntegerType):
     ```
     """
 
-    def __init__(self, lo=None, hi=None, mapping={}, **kwargs):
+    def __init__(self, lo=None, hi=None, mapping={}, **kwargs) -> None:
         IntegerType.__init__(self, lo, hi)
         kwargs.update(mapping)
         MappingType.__init__(self, **kwargs)
@@ -489,7 +471,7 @@ class IntegerMappingType(MappingType, IntegerType):
 
 
 class DateListAction(Action):
-    """An Action that parses and stores a list of dates"""
+    """An Action that parses and stores a list of dates."""
 
     def __init__(
         self,
@@ -503,7 +485,7 @@ class DateListAction(Action):
         required=False,
         help=None,
         metavar=None
-    ):
+    ) -> None:
         if type is not date_type:
             raise ValueError("type must be `date_type`!")
 
@@ -543,7 +525,7 @@ class DateListAction(Action):
 
 
 class BBoxAction(Action):
-    """An Action that parses and stores a valid bounding box"""
+    """An Action that parses and stores a valid bounding box."""
 
     def __init__(
         self,
@@ -557,7 +539,7 @@ class BBoxAction(Action):
         required=False,
         help=None,
         metavar=None
-    ):
+    ) -> None:
         if nargs != 4:
             raise ValueError("nargs must be 4!")
 

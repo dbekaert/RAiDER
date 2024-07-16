@@ -5,9 +5,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-"""
-Global logging configuration
-"""
+"""Global logging configuration."""
 import logging
 import os
 import sys
@@ -30,7 +28,7 @@ class UnixColorFormatter(Formatter):
         logging.CRITICAL: bold_red
     }
 
-    def __init__(self, fmt=None, datefmt=None, style="%", use_color=True):
+    def __init__(self, fmt=None, datefmt=None, style="%", use_color=True) -> None:
         super().__init__(fmt, datefmt, style)
         # Save the old function so we can call it later
         self.__formatMessage = self.formatMessage

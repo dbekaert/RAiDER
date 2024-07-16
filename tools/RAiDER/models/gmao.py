@@ -19,7 +19,7 @@ from RAiDER.utilFcns import requests_retry_session, round_date, writeWeatherVars
 class GMAO(WeatherModel):
     # I took this from GMAO model level weblink
     # https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv
-    def __init__(self):
+    def __init__(self) -> None:
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -58,10 +58,8 @@ class GMAO(WeatherModel):
         self._proj = CRS.from_epsg(4326)
 
 
-    def _fetch(self, out):
-        """
-        Fetch weather model data from GMAO
-        """
+    def _fetch(self, out) -> None:
+        """Fetch weather model data from GMAO."""
         acqTime = self._time
 
         # calculate the array indices for slicing the GMAO variable arrays
@@ -146,7 +144,7 @@ class GMAO(WeatherModel):
             logger.exception("Unable to save weathermodel to file")
 
 
-    def load_weather(self, f=None):
+    def load_weather(self, f=None) -> None:
         """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
@@ -157,10 +155,8 @@ class GMAO(WeatherModel):
         self._load_model_level(f)
 
 
-    def _load_model_level(self, filename):
-        """
-        Get the variables from the GMAO link using OpenDAP
-        """
+    def _load_model_level(self, filename) -> None:
+        """Get the variables from the GMAO link using OpenDAP."""
         # adding the import here should become absolute when transition to netcdf
         from netCDF4 import Dataset
         with Dataset(filename, mode='r') as f:

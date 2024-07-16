@@ -17,8 +17,7 @@ from RAiDER.losreader import Zenith
 
 def checkArgs(args):
     """
-    Helper fcn for checking argument compatibility and returns the
-    correct variables
+    Check argument compatibility and return the correct variables.
     """
     #########################################################################################################################
     # Directories
@@ -34,9 +33,9 @@ def checkArgs(args):
     args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
     if (len(args.date_list) > 1) & (args.orbit_file is not None):
         logger.warning('Only one orbit file is being used to get the '
-                        'look vectors for all requested times, if you '
-                        'want to use separate orbit files you will '
-                        'need to run raider separately for each time.')
+                       'look vectors for all requested times, if you '
+                       'want to use separate orbit files you will '
+                       'need to run raider separately for each time.')
 
     args.los.setTime(args.date_list[0])
 

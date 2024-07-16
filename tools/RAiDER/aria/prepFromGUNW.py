@@ -9,6 +9,7 @@ import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Literal
 
 import numpy as np
 import pandas as pd
@@ -49,8 +50,10 @@ def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dat
 
 
 def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: str) -> bool:
-    """Determines if all the times for azimuth interpolation are available using Herbie; note that not all 1 hour times
-    are available within the said date range of HRRR.
+    """
+    Determine if all the times for azimuth interpolation are available using
+    Herbie. Note that not all 1 hour times are available within the said date
+    range of HRRR.
 
     Parameters
     ----------
@@ -78,7 +81,7 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
 
 def get_slc_ids_from_gunw(gunw_path: str,
                           reference_or_secondary: str = 'reference') -> list[str]:
-    #Example input: test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
+    # Example input: test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
     if reference_or_secondary not in ['reference', 'secondary']:
         raise ValueError('"reference_or_secondary" must be either "reference" or "secondary"')
     group = f'science/radarMetaData/inputSLC/{reference_or_secondary}'
@@ -96,8 +99,9 @@ def get_acq_time_from_slc_id(slc_id: str) -> pd.Timestamp:
 
 def check_weather_model_availability(gunw_path: str,
                                      weather_model_name: str) -> bool:
-    """Checks weather reference and secondary dates of GUNW occur within
-    weather model valid range
+    """
+    Check weather reference and secondary dates of GUNW occur within
+    weather model valid range.
 
     Parameters
     ----------
@@ -179,7 +183,7 @@ class GUNW:
 
 
     def get_bbox(self):
-        """Get the bounding box (SNWE) from an ARIA GUNW product"""
+        """Get the bounding box (SNWE) from an ARIA GUNW product."""
         with xr.open_dataset(self.path_gunw) as ds:
             poly_str = ds['productBoundingBox'].data[0].decode('utf-8')
 
@@ -189,15 +193,15 @@ class GUNW:
         return [S, N, W, E]
 
 
-    def make_fname(self):
-        """Match the ref/sec filename (SLC dates may be different around edge cases)"""
+    def make_fname(self) -> str:
+        """Match the ref/sec filename (SLC dates may be different around edge cases)."""
         ref, sec = os.path.basename(self.path_gunw).split('-')[6].split('_')
         mid_time = os.path.basename(self.path_gunw).split('-')[7]
         return f'{ref}-{sec}_{mid_time}'
 
 
     def get_datetimes(self):
-        """Get the datetimes and set the satellite for orbit"""
+        """Get the datetimes and set the satellite for orbit."""
         ref_sec  = self.get_slc_dt()
         middates = []
         for aq in ref_sec:
@@ -209,7 +213,7 @@ class GUNW:
 
 
     def get_slc_dt(self):
-        """Grab the SLC start date and time from the GUNW"""
+        """Grab the SLC start date and time from the GUNW."""
         group    = 'science/radarMetaData/inputSLC'
         lst_sten = []
         for i, key in enumerate('reference secondary'.split()):
@@ -248,7 +252,7 @@ class GUNW:
         return lst_sten
 
 
-    def get_look_dir(self):
+    def get_look_dir(self) -> Literal['right', 'left']:
         look_dir = os.path.basename(self.path_gunw).split('-')[3].lower()
         return 'right' if look_dir == 'r' else 'left'
 
@@ -261,7 +265,7 @@ class GUNW:
 
 
     def get_orbit_file(self):
-        """Get orbit file for reference (GUNW: first & later date)"""
+        """Get orbit file for reference (GUNW: first & later date)."""
         orbit_dir = os.path.join(self.out_dir, 'orbits')
         os.makedirs(orbit_dir, exist_ok=True)
 
@@ -288,7 +292,7 @@ class GUNW:
 
 
     def getHeights(self):
-        """Get the 4 height levels within a GUNW"""
+        """Get the 4 height levels within a GUNW."""
         group ='science/grids/imagingGeometry'
         with xr.open_dataset(self.path_gunw, group=group) as ds:
             hgts = ds.heightsMeta.data.tolist()
@@ -296,7 +300,7 @@ class GUNW:
 
 
     def calc_spacing_UTM(self, posting:float=0.01):
-        """Convert desired horizontal posting in degrees to meters
+        """Convert desired horizontal posting in degrees to meters.
 
         Want to calculate delays close to native model resolution (3 km for HRR)
         """
@@ -316,7 +320,7 @@ class GUNW:
 
 
     def makeLatLonGrid_native(self):
-        """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)"""
+        """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)."""
         group = 'science/grids/data'
         with xr.open_dataset(self.path_gunw, group=group) as ds0:
             lats = ds0.latitude.data
@@ -340,7 +344,7 @@ class GUNW:
 
 
     def make_cube(self):
-        """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)"""
+        """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)."""
         group = 'science/grids/data'
         with xr.open_dataset(self.path_gunw, group=group) as ds0:
             lats0 = ds0.latitude.data
@@ -391,7 +395,7 @@ def update_yaml(dct_cfg:dict, dst:str='GUNW.yaml'):
 
 
 def main(args):
-    """Read parameters needed for RAiDER from ARIA Standard Products (GUNW)"""
+    """Read parameters needed for RAiDER from ARIA Standard Products (GUNW)."""
     # Check if WEATHER MODEL API credentials hidden file exists, if not create it or raise ERROR
     credentials.check_api(args.weather_model, args.api_uid, args.api_key)
 

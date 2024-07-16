@@ -124,9 +124,7 @@ def tropo_delay(
 
 
 def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, zref, nproc=1):
-    """
-    raider cube generation function.
-    """
+    """Raider cube generation function."""
     zpts = np.array(heights)
 
     try:
@@ -194,9 +192,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
 
 
 def _build_cube(xpts, ypts, zpts, model_crs, pts_crs, interpolators):
-    """
-    Iterate over interpolators and build a cube using Zenith
-    """
+    """Iterate over interpolators and build a cube using Zenith."""
     # Create a regular 2D grid
     xx, yy = np.meshgrid(xpts, ypts)
 
@@ -228,7 +224,7 @@ def _build_cube_ray(
         MAX_TROPO_HEIGHT=_ZREF,
     ):
     """
-    Iterate over interpolators and build a cube using raytracing
+    Iterate over interpolators and build a cube using raytracing.
 
     MAX_TROPO_HEIGHT should not extend above the top of the weather model
     """
@@ -332,9 +328,7 @@ def _build_cube_ray(
 
 
 def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type):
-    """
-    write a 1-D array to a NETCDF5 file
-    """
+    """Write a 1-D array to a NETCDF5 file."""
        # Modify this as needed for NISAR / other projects
     ds = xarray.Dataset(
         data_vars=dict(
@@ -406,8 +400,7 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
 
 def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
     """
-    Transform lat/lon/hgt data to an array of points in a new
-    projection
+    Transform lat/lon/hgt data to an array of points in a new projection.
 
     Args:
         lats: ndarray   - WGS-84 latitude (EPSG: 4326)

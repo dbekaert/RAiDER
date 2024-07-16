@@ -20,7 +20,7 @@ from RAiDER.logger import logger
 def getInterpolators(wm_file, kind='pointwise', shared=False):
     """
     Read 3D gridded data from a processed weather model file and wrap it with
-    the scipy RegularGridInterpolator
+    the scipy RegularGridInterpolator.
 
     The interpolator grid is (y, x, z)
     """
@@ -60,9 +60,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
 
 
 def make_shared_raw(inarr):
-    """
-    Make numpy view array of mp.Array
-    """
+    """Make numpy view array of mp.Array."""
     # Create flat shared array
     if mp is None:
         raise ImportError('multiprocessing is not available')

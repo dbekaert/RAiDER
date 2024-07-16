@@ -5,7 +5,7 @@ from importlib.metadata import entry_points
 import RAiDER.cli.conf as conf
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(
         prefix_chars='+',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
