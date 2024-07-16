@@ -97,12 +97,12 @@ class StudyArea(object):
         LA (Los Angeles, California; mid latitude)
         Fort (Fortaleza, Brazil; equator)
     """
-    region:str
-    wmName:str
-    wd = op.join(TEST_DIR, 'synthetic_test')
-    orb_dir = ORB_DIR
+    def __init__(self, region: str, wmName: str, path: str):
+        self.region = region
+        self.wmName = wmName
+        self.wd = op.join(path, 'synthetic_test')
+        self.orb_dir = ORB_DIR
 
-    def __post_init__(self):
         self.setup_region()
 
         self.dts   = self.dt.strftime('%Y_%m_%d_T%H_%M_%S')
@@ -172,28 +172,29 @@ class StudyArea(object):
 
 @pytest.mark.skip()
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
-def test_dl_real(region, mod='ERA5'):
+def test_dl_real(tmp_path, region, mod='ERA5'):
     """ Download the real weather model to overwrite
 
     This 'golden dataset' shouldnt be changed
     """
-    SAobj = StudyArea(region, mod)
-    dct_cfg = SAobj.make_config_dict()
-    # set the real weather model path and download only
-    dct_cfg['runtime_group']['weather_model_directory'] = \
-            op.dirname(SAobj.path_wm_real)
-    dct_cfg['download_only'] = True
+    with pushd(tmp_path):
+        SAobj = StudyArea(region, mod, tmp_path)
+        dct_cfg = SAobj.make_config_dict()
+        # set the real weather model path and download only
+        dct_cfg['runtime_group']['weather_model_directory'] = \
+                op.dirname(SAobj.path_wm_real)
+        dct_cfg['download_only'] = True
 
-    cfg = update_yaml(dct_cfg)
-    ## run raider to download the real weather model
-    cmd  = f'raider.py {cfg}'
+        cfg = update_yaml(dct_cfg)
+        ## run raider to download the real weather model
+        cmd  = f'raider.py {cfg}'
 
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER did not complete successfully'
+        proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+        assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
 
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
-def test_hydrostatic_eq(region, mod='ERA-5'):
+def test_hydrostatic_eq(tmp_path, region, mod='ERA-5'):
     """ Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp)
 
     The hydrostatic delay reduces to an integral along the ray path when P=T.
@@ -209,57 +210,57 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     Ensure that normalized residual is not significantly different from 0
         significantly different = 6 decimal places
     """
+    with pushd (tmp_path):
+        ## setup the config files
+        SAobj = StudyArea(region, mod, tmp_path)
+        dct_cfg      = SAobj.make_config_dict()
+        dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
+        dct_cfg['download_only'] = False
 
-    ## setup the config files
-    SAobj = StudyArea(region, mod)
-    dct_cfg      = SAobj.make_config_dict()
-    dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
-    dct_cfg['download_only'] = False
+        ## update the weather model; t = p for hydrostatic
+        path_synth = update_model(SAobj.path_wm_real, 'hydro', SAobj.wm_dir_synth)
 
-    ## update the weather model; t = p for hydrostatic
-    path_synth = update_model(SAobj.path_wm_real, 'hydro', SAobj.wm_dir_synth)
+        cfg = update_yaml(dct_cfg)
 
-    cfg = update_yaml(dct_cfg)
+        ## run raider with the synthetic model
+        cmd  = f'raider.py {cfg}'
+        proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+        assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
-    ## run raider with the synthetic model
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER did not complete successfully'
-
-    # get the just created synthetic delays
-    wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
-    ds = xr.open_dataset(
-        f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
-    da = ds['hydro']
-    ds.close()
-    del ds
+        # get the just created synthetic delays
+        wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
+        ds = xr.open_dataset(
+            f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
+        da = ds['hydro']
+        ds.close()
+        del ds
 
 
-    # now build the rays at the unbuffered wm nodes
-    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
-    targ_xyz   = [da.x.data, da.y.data, da.z.data]
-    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
+        # now build the rays at the unbuffered wm nodes
+        max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+        targ_xyz   = [da.x.data, da.y.data, da.z.data]
+        ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
 
-    # scale by constant (units K/Pa) to match raider (m K / Pa)
-    ray_data  = ray_length * SAobj.wmObj._k1
+        # scale by constant (units K/Pa) to match raider (m K / Pa)
+        ray_data  = ray_length * SAobj.wmObj._k1
 
-    # actual raider data
-    # undo scaling of ppm;  units are  meters * K/Pa
-    raid_data = da.data * 1e6
+        # actual raider data
+        # undo scaling of ppm;  units are  meters * K/Pa
+        raid_data = da.data * 1e6
 
-    assert np.all(np.abs(ray_data) > 1)
-    assert np.all(np.abs(raid_data) > 1)
+        assert np.all(np.abs(ray_data) > 1)
+        assert np.all(np.abs(raid_data) > 1)
 
-    # normalize with the theoretical data and compare difference with 0
-    resid     = (ray_data - raid_data) / ray_data
-    np.testing.assert_almost_equal(0, resid, decimal=6)
+        # normalize with the theoretical data and compare difference with 0
+        resid     = (ray_data - raid_data) / ray_data
+        np.testing.assert_almost_equal(0, resid, decimal=6)
 
-    da.close()
-    del da
+        da.close()
+        del da
 
 
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
-def test_wet_eq_linear(region, mod='ERA-5'):
+def test_wet_eq_linear(tmp_path, region, mod='ERA-5'):
     """ Test linear part of wet equation.
 
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
@@ -279,55 +280,66 @@ def test_wet_eq_linear(region, mod='ERA-5'):
         significantly different = 7 decimal places
     """
 
-    ## setup the config files
-    SAobj = StudyArea(region, mod)
-    dct_cfg      = SAobj.make_config_dict()
-    dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
-    dct_cfg['download_only'] = False
+    with pushd(tmp_path):
+        # create temp directory for file that is created
+        dir_to_del = 'tmp_dir'
+        if not os.path.exists(dir_to_del):
+            os.mkdir(dir_to_del)
+        
+        ## setup the config files
+        SAobj = StudyArea(region, mod, dir_to_del)
+        dct_cfg      = SAobj.make_config_dict()
+        dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
+        dct_cfg['download_only'] = False
 
-    ## update the weather model; t = e for wet1
-    path_synth = update_model(SAobj.path_wm_real, 'wet_linear', SAobj.wm_dir_synth)
+        ## update the weather model; t = e for wet1
+        path_synth = update_model(SAobj.path_wm_real, 'wet_linear', SAobj.wm_dir_synth)
 
-    cfg = update_yaml(dct_cfg)
+        cfg = update_yaml(dct_cfg)
 
-    ## run raider with the synthetic model
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER did not complete successfully'
+        ## run raider with the synthetic model
+        cmd  = f'raider.py {cfg}'
+        proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
 
-    # get the just created synthetic delays
-    wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
-    ds = xr.open_dataset(
-        f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
-    da = ds['wet']
-    ds.close()
-    del ds
+        assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
-    # now build the rays at the unbuffered wm nodes
-    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
-    targ_xyz   = [da.x.data, da.y.data, da.z.data]
-    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
+        # get the just created synthetic delays
+        wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
+        ds = xr.open_dataset(
+            f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
+        da = ds['wet']
+        ds.close()
+        del ds
 
-    # scale by constant (units K/Pa) to match raider (m K / Pa)
-    ray_data  = ray_length * SAobj.wmObj._k2
+        # now build the rays at the unbuffered wm nodes
+        max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+        targ_xyz   = [da.x.data, da.y.data, da.z.data]
+        ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
 
-    # actual raider data
-    # undo scaling of ppm;  units are  meters * K/Pa
-    raid_data = da.data * 1e6
+        # scale by constant (units K/Pa) to match raider (m K / Pa)
+        ray_data  = ray_length * SAobj.wmObj._k2
 
-    assert np.all(np.abs(ray_data) > 1)
-    assert np.all(np.abs(raid_data) > 1)
+        # actual raider data
+        # undo scaling of ppm;  units are  meters * K/Pa
+        raid_data = da.data * 1e6
 
-    # normalize with the theoretical data and compare difference with 0
-    resid     = (ray_data - raid_data) / ray_data
-    np.testing.assert_almost_equal(0, resid, decimal=6)
+        assert np.all(np.abs(ray_data) > 1)
+        assert np.all(np.abs(raid_data) > 1)
 
-    da.close()
-    del da
+        # normalize with the theoretical data and compare difference with 0
+        resid     = (ray_data - raid_data) / ray_data
+        np.testing.assert_almost_equal(0, resid, decimal=6)
+
+        da.close()
+        del da
+
+        # delete temp directory
+        if os.path.exists(dir_to_del):
+            shutil.rmtree(dir_to_del)
 
 
 @pytest.mark.parametrize('region', 'AK LA Fort'.split())
-def test_wet_eq_nonlinear(region, mod='ERA-5'):
+def test_wet_eq_nonlinear(tmp_path, region, mod='ERA-5'):
     """ Test the nonlinear part of the wet equation.
 
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
@@ -346,50 +358,60 @@ def test_wet_eq_nonlinear(region, mod='ERA-5'):
         significantly different = 6 decimal places
     """
 
-    ## setup the config files
-    SAobj = StudyArea(region, mod)
-    dct_cfg      = SAobj.make_config_dict()
-    dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
-    dct_cfg['download_only'] = False
+    with pushd(tmp_path):
+        # create temporary directory for files created in function
+        dir_to_del = 'tmp_dir'
+        if not os.path.exists(dir_to_del):
+            os.mkdir(dir_to_del)
 
-    ## update the weather model; t = e for wet1
-    path_synth = update_model(SAobj.path_wm_real, 'wet_nonlinear', SAobj.wm_dir_synth)
+        ## setup the config files
+        SAobj = StudyArea(region, mod, dir_to_del)
+        dct_cfg      = SAobj.make_config_dict()
+        dct_cfg['runtime_group']['weather_model_directory'] = SAobj.wm_dir_synth
+        dct_cfg['download_only'] = False
 
-    cfg = update_yaml(dct_cfg)
+        ## update the weather model; t = e for wet1
+        path_synth = update_model(SAobj.path_wm_real, 'wet_nonlinear', SAobj.wm_dir_synth)
 
-    ## run raider with the synthetic model
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER did not complete successfully'
+        cfg = update_yaml(dct_cfg)
 
-    # get the just created synthetic delays
-    wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
-    ds = xr.open_dataset(
-        f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
-    da = ds['wet']
-    ds.close()
-    del ds
+        ## run raider with the synthetic model
+        cmd  = f'raider.py {cfg}'
+        proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+        assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
-    # now build the rays at the unbuffered wm nodes
-    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
-    targ_xyz   = [da.x.data, da.y.data, da.z.data]
-    ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
-    # scale by constant (units K/Pa) to match raider (m K^2 / Pa)
-    ray_data  = ray_length * SAobj.wmObj._k3
+        # get the just created synthetic delays
+        wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
+        ds = xr.open_dataset(
+            f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc')
+        da = ds['wet']
+        ds.close()
+        del ds
 
-    # actual raider data
-    # undo scaling of ppm;  units are  meters * K^2 /Pa
-    raid_data = da.data * 1e6
+        # now build the rays at the unbuffered wm nodes
+        max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+        targ_xyz   = [da.x.data, da.y.data, da.z.data]
+        ray_length = length_of_ray(targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height)
+        # scale by constant (units K/Pa) to match raider (m K^2 / Pa)
+        ray_data  = ray_length * SAobj.wmObj._k3
 
-    assert np.all(np.abs(ray_data) > 1)
-    assert np.all(np.abs(raid_data) > 1)
+        # actual raider data
+        # undo scaling of ppm;  units are  meters * K^2 /Pa
+        raid_data = da.data * 1e6
 
-    # normalize with the theoretical data and compare difference with 0
-    resid     = (ray_data - raid_data) / ray_data
-    np.testing.assert_almost_equal(0, resid, decimal=6)
+        assert np.all(np.abs(ray_data) > 1)
+        assert np.all(np.abs(raid_data) > 1)
 
-    da.close()
-    os.remove('./temp.yaml')
-    os.remove('./error.log')
-    os.remove('./debug.log')
-    del da
+        # normalize with the theoretical data and compare difference with 0
+        resid     = (ray_data - raid_data) / ray_data
+        np.testing.assert_almost_equal(0, resid, decimal=6)
+
+        da.close()
+        os.remove('./temp.yaml')
+        os.remove('./error.log')
+        os.remove('./debug.log')
+        del da
+
+        # delete temp directory
+        if os.path.exists(dir_to_del):
+            shutil.rmtree(dir_to_del)
