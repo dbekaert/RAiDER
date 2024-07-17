@@ -17,7 +17,7 @@ from RAiDER.utilFcns import read_EarthData_loginInfo, writeWeatherVarsXarray
 
 # Path to Netrc file, can be controlled by env var
 # Useful for containers - similar to CDSAPI_RC
-EARTHDATA_RC = os.environ.get("EARTHDATA_RC", None)
+EARTHDATA_RC = os.environ.get('EARTHDATA_RC', None)
 
 
 def Model():
@@ -26,8 +26,8 @@ def Model():
 
 class MERRA2(WeatherModel):
     def __init__(self) -> None:
-
         import calendar
+
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -41,12 +41,14 @@ class MERRA2(WeatherModel):
         utcnow = datetime.datetime.now(datetime.timezone.utc)
         enddate = datetime.datetime(utcnow.year, utcnow.month, 15) - datetime.timedelta(days=60)
         enddate = datetime.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month)[1])
-        self._valid_range = (datetime.datetime(1980, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
-                             datetime.datetime.now(datetime.timezone.utc))
+        self._valid_range = (
+            datetime.datetime(1980, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+            datetime.datetime.now(datetime.timezone.utc),
+        )
         lag_time = utcnow - enddate.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
         self._lag_time = datetime.timedelta(days=lag_time.days)  # Availability lag time in days
         self._time_res = 1
-        
+
         # model constants
         self._k1 = 0.776  # [K/Pa]
         self._k2 = 0.233  # [K/Pa]
@@ -68,8 +70,8 @@ class MERRA2(WeatherModel):
 
     def _fetch(self, out) -> None:
         """Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP."""
-        time = self._time 
-        
+        time = self._time
+
         # check whether the file already exists
         if os.path.exists(out):
             return
@@ -80,15 +82,9 @@ class MERRA2(WeatherModel):
         lon_min_ind = int((self._ll_bounds[2] - (-180.0)) / self._lon_res)
         lon_max_ind = int((self._ll_bounds[3] - (-180.0)) / self._lon_res)
 
-        lats = np.arange(
-            (-90 + lat_min_ind * self._lat_res),
-            (-90 + (lat_max_ind + 1) * self._lat_res),
-            self._lat_res
-        )
+        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
         lons = np.arange(
-            (-180 + lon_min_ind * self._lon_res),
-            (-180 + (lon_max_ind + 1) * self._lon_res),
-            self._lon_res
+            (-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res
         )
 
         lon, lat = np.meshgrid(lons, lats)
@@ -106,24 +102,32 @@ class MERRA2(WeatherModel):
         earthdata_usr, earthdata_pwd = read_EarthData_loginInfo(EARTHDATA_RC)
 
         # open the dataset and pull the data
-        url = 'https://goldsmr5.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2T3NVASM.5.12.4/' + time.strftime('%Y/%m') + '/MERRA2_' + str(url_sub) + '.tavg3_3d_asm_Nv.' + time.strftime('%Y%m%d') + '.nc4'
+        url = (
+            'https://goldsmr5.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2T3NVASM.5.12.4/'
+            + time.strftime('%Y/%m')
+            + '/MERRA2_'
+            + str(url_sub)
+            + '.tavg3_3d_asm_Nv.'
+            + time.strftime('%Y%m%d')
+            + '.nc4'
+        )
 
         session = pydap.cas.urs.setup_session(earthdata_usr, earthdata_pwd, check_url=url)
         stream = pydap.client.open_url(url, session=session)
 
-        q = stream['QV'][0,:,lat_min_ind:lat_max_ind + 1, lon_min_ind:lon_max_ind + 1].data.squeeze()
-        p = stream['PL'][0,:,lat_min_ind:lat_max_ind + 1, lon_min_ind:lon_max_ind + 1].data.squeeze()
-        t = stream['T'][0,:,lat_min_ind:lat_max_ind + 1, lon_min_ind:lon_max_ind + 1].data.squeeze()
-        h = stream['H'][0,:,lat_min_ind:lat_max_ind + 1, lon_min_ind:lon_max_ind + 1].data.squeeze()
+        q = stream['QV'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
+        p = stream['PL'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
+        t = stream['T'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
+        h = stream['H'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
 
         try:
             writeWeatherVarsXarray(lat, lon, h, q, p, t, time, self._proj, outName=out)
         except Exception as e:
             logger.debug(e)
-            logger.exception("MERRA-2: Unable to save weathermodel to file")
+            logger.exception('MERRA-2: Unable to save weathermodel to file')
             raise RuntimeError(f'MERRA-2 failed with the following error: {e}')
 
-    def load_weather(self,  f=None, *args, **kwargs) -> None:
+    def load_weather(self, f=None, *args, **kwargs) -> None:
         """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,

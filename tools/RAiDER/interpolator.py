@@ -17,14 +17,13 @@ class RegularGridInterpolator:
     Provides a wrapper around RAiDER.interpolate.interpolate with a similar
     interface to scipy.interpolate.RegularGridInterpolator.
     """
-
     def __init__(
         self,
         grid,
         values,
         fill_value=None,
         assume_sorted=False,
-        max_threads=8
+        max_threads=8,
     ) -> None:
         self.grid = grid
         self.values = values
@@ -36,7 +35,7 @@ class RegularGridInterpolator:
         if isinstance(points, tuple):
             shape = points[0].shape
             for arr in points:
-                assert arr.shape == shape, "All dimensions must contain the same number of points!"
+                assert arr.shape == shape, 'All dimensions must contain the same number of points!'
             interp_points = np.stack(points, axis=-1)
             in_shape = interp_points.shape
         elif points.ndim > 2:
@@ -52,7 +51,7 @@ class RegularGridInterpolator:
             interp_points,
             fill_value=self.fill_value,
             assume_sorted=self.assume_sorted,
-            max_threads=self.max_threads
+            max_threads=self.max_threads,
         )
         return out.reshape(in_shape[:-1])
 
@@ -70,8 +69,9 @@ def interp_along_axis(oldCoord, newCoord, data, axis=2, pad=False):
         stackedData = np.concatenate([oldCoord, data, newCoord], axis=axis)
         out = np.apply_along_axis(interpVector, axis=axis, arr=stackedData, Nx=oldCoord.shape[axis])
     else:
-        out = np.apply_along_axis(interpV, axis=axis, arr=data, old_x=oldCoord, new_x=newCoord,
-                                  left=np.nan, right=np.nan)
+        out = np.apply_along_axis(
+            interpV, axis=axis, arr=data, old_x=oldCoord, new_x=newCoord, left=np.nan, right=np.nan
+        )
 
     return out
 
@@ -88,20 +88,20 @@ def interpVector(vec, Nx):
     number of original x-points.
     """
     x = vec[:Nx]
-    y = vec[Nx:2 * Nx]
-    xnew = vec[2 * Nx:]
+    y = vec[Nx : 2 * Nx]
+    xnew = vec[2 * Nx :]
     f = interp1d(x, y, bounds_error=False, copy=False, assume_sorted=True)
     return f(xnew)
 
 
-def fillna3D(array, axis=-1, fill_value=0.):
+def fillna3D(array, axis=-1, fill_value=0.0):
     """
     This function fills in NaNs in 3D arrays, specifically using the nearest non-nan value
-    for "low" NaNs and 0s for "high" NaNs. 
+    for "low" NaNs and 0s for "high" NaNs.
 
     Arguments:
         array   - 3D array, where the last axis is the "z" dimension
-    
+
     Returns:
         3D array with low NaNs filled as nearest neighbors and high NaNs filled as 0s
     """
@@ -124,9 +124,10 @@ def interpolateDEM(demFile, outLL, method='nearest'):
         For now will only use first row/col of 2D
     """
     import rioxarray as xrr
-    da_dem     = xrr.open_rasterio(demFile, band_as_variable=True)['band_1']
+
+    da_dem = xrr.open_rasterio(demFile, band_as_variable=True)['band_1']
     lats, lons = outLL
-    lats  = lats[:, 0] if lats.ndim==2 else lats
-    lons  = lons[0, :] if lons.ndim==2 else lons
+    lats = lats[:, 0] if lats.ndim == 2 else lats
+    lons = lons[0, :] if lons.ndim == 2 else lons
     z_out = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
     return z_out

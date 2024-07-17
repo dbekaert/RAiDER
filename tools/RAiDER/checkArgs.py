@@ -32,10 +32,10 @@ def checkArgs(args):
     # Date and Time parsing
     args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
     if (len(args.date_list) > 1) & (args.orbit_file is not None):
-        logger.warning('Only one orbit file is being used to get the '
-                       'look vectors for all requested times, if you '
-                       'want to use separate orbit files you will '
-                       'need to run raider separately for each time.')
+        logger.warning(
+            'Only one orbit file is being used to get the look vectors for all requested times, if you want to use '
+            'separate orbit files you will need to run raider separately for each time.'
+        )
 
     args.los.setTime(args.date_list[0])
 
@@ -43,20 +43,18 @@ def checkArgs(args):
     # filenames
     wetNames, hydroNames = [], []
     for d in args.date_list:
-        if (args.aoi.type() != 'bounding_box'):
-
+        if args.aoi.type() != 'bounding_box':
             # Handle the GNSS station file
-            if (args.aoi.type()=='station_file'):
+            if args.aoi.type() == 'station_file':
                 wetFilename = os.path.join(
                     args.output_directory,
-                    f'{args.weather_model._dataset.upper()}_Delay'\
-                    f'_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv'
+                    f'{args.weather_model._dataset.upper()}_Delay' f'_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv',
                 )
 
-                hydroFilename = '' # only the 'wetFilename' is used for the station_file
+                hydroFilename = ''  # only the 'wetFilename' is used for the station_file
 
                 # copy the input station file to the output location for editing
-                indf = pd.read_csv(args.aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
+                indf = pd.read_csv(args.aoi._filename).drop_duplicates(subset=['Lat', 'Lon'])
                 indf.to_csv(wetFilename, index=False)
 
             else:
@@ -69,7 +67,6 @@ def checkArgs(args):
                     args.weather_model._dataset.upper(),
                     args.output_directory,
                 )
-
 
         else:
             # In this case a cube file format is needed
@@ -98,7 +95,7 @@ def checkArgs(args):
 
 def get_raster_ext(fmt):
     drivers = rd.raster_driver_extensions()
-    extensions = {value.upper():key for key, value in drivers.items()}
+    extensions = {value.upper(): key for key, value in drivers.items()}
 
     # add in ENVI/ISCE formats with generic extension
     extensions['ENVI'] = '.dat'
@@ -120,15 +117,13 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
     ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')
     """
-    format_string = "{model_name}_{{}}_{time}{los}.{ext}".format(
+    format_string = '{model_name}_{{}}_{time}{los}.{ext}'.format(
         model_name=weather_model_name,
-        time=time.strftime("%Y%m%dT%H%M%S_") if time is not None else "",
-        los="ztd" if (isinstance(los, Zenith) or los is None) else "std",
-        ext=outformat
+        time=time.strftime('%Y%m%dT%H%M%S_') if time is not None else '',
+        los='ztd' if (isinstance(los, Zenith) or los is None) else 'std',
+        ext=outformat,
     )
-    hydroname, wetname = (
-        format_string.format(dtyp) for dtyp in ('hydro', 'wet')
-    )
+    hydroname, wetname = (format_string.format(dtyp) for dtyp in ('hydro', 'wet'))
 
     hydro_file_name = os.path.join(out, hydroname)
     wet_file_name = os.path.join(out, wetname)

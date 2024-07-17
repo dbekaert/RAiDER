@@ -31,13 +31,13 @@ from RAiDER.utilFcns import cosd, ecef2lla, lla2ecef, rio_open, sind
 
 class LOS(ABC):
     """LOS Class definition for handling look vectors."""
+
     def __init__(self) -> None:
         self._lats, self._lons, self._heights = None, None, None
         self._look_vecs = None
         self._ray_trace = False
         self._is_zenith = False
         self._is_projected = False
-
 
     def setPoints(self, lats, lons=None, heights=None) -> None:
         """Set the pixel locations."""
@@ -59,18 +59,14 @@ class LOS(ABC):
             self._lons = lons
             self._heights = heights
 
-
     def setTime(self, dt) -> None:
         self._time = dt
-
 
     def is_Zenith(self):
         return self._is_zenith
 
-
     def is_Projected(self):
         return self._is_projected
-
 
     def ray_trace(self):
         return self._ray_trace
@@ -78,10 +74,10 @@ class LOS(ABC):
 
 class Zenith(LOS):
     """Class definition for a "Zenith" object."""
+
     def __init__(self) -> None:
         super().__init__()
         self._is_zenith = True
-
 
     def setLookVectors(self) -> None:
         """Set point locations and calculate Zenith look vectors."""
@@ -89,7 +85,6 @@ class Zenith(LOS):
             raise ValueError('Target points not set')
         if self._look_vecs is None:
             self._look_vecs = getZenithLookVecs(self._lats, self._lons, self._heights)
-
 
     def __call__(self, delays):
         """Placeholder method for consistency with the other classes."""
@@ -101,16 +96,16 @@ class Conventional(LOS):
     Special value indicating that the zenith delay will
     be projected using the standard cos(inc) scaling.
     """
+
     def __init__(self, filename=None, los_convention='isce', time=None, pad=600) -> None:
         super().__init__()
         self._file = filename
         self._time = time
-        self._pad  = pad
+        self._pad = pad
         self._is_projected = True
-        self._convention   = los_convention
+        self._convention = los_convention
         if self._convention.lower() != 'isce':
             raise NotImplementedError()
-
 
     def __call__(self, delays):
         """Read the LOS file and convert it to look vectors."""
@@ -125,12 +120,11 @@ class Conventional(LOS):
 
         except (OSError, TypeError):
             # Otherwise, treat it as an orbit / statevector file
-            svs = np.stack(
-                get_sv(self._file, self._time, self._pad), axis=-1
+            svs = np.stack(get_sv(self._file, self._time, self._pad), axis=-1)
+            LOS_enu = state_to_los(
+                svs,
+                [self._lats, self._lons, self._heights],
             )
-            LOS_enu = state_to_los(svs,
-                                   [self._lats, self._lons, self._heights],
-                                   )
 
         if delays.shape == LOS_enu.shape:
             return delays / LOS_enu
@@ -176,7 +170,7 @@ class Raytracing(LOS):
     >>> import numpy as np
     """
 
-    def __init__(self, filename=None, los_convention='isce', time=None, look_dir = 'right', pad=600) -> None:
+    def __init__(self, filename=None, los_convention='isce', time=None, look_dir='right', pad=600) -> None:
         """Read in and parse a statevector file."""
         if isce is None:
             raise ImportError('isce3 is required for this class. Use conda to install isce3`')
@@ -185,7 +179,7 @@ class Raytracing(LOS):
         self._ray_trace = True
         self._file = filename
         self._time = time
-        self._pad  = pad
+        self._pad = pad
         self._convention = los_convention
         self._orbit = None
         if self._convention.lower() != 'isce':
@@ -197,26 +191,21 @@ class Raytracing(LOS):
             self._orbit = get_orbit(self._file, self._time, pad=pad)
         self._elp = isce.core.Ellipsoid()
         self._dop = isce.core.LUT2d()
-        if look_dir.lower() == "right":
+        if look_dir.lower() == 'right':
             self._look_dir = isce.core.LookSide.Right
-        elif look_dir.lower() == "left":
+        elif look_dir.lower() == 'left':
             self._look_dir = isce.core.LookSide.Left
         else:
-            raise RuntimeError(f"Unknown look direction: {look_dir}")
-
+            raise RuntimeError(f'Unknown look direction: {look_dir}')
 
     def getSensorDirection(self) -> Literal['desc', 'asc']:
         if self._orbit is None:
             raise ValueError('The orbit has not been set')
-        z = self._orbit.position[:,2]
+        z = self._orbit.position[:, 2]
         t = self._orbit.time
         start = np.argmin(t)
         end = np.argmax(t)
-        if z[start] > z[end]:
-            return 'desc'
-        else:
-            return 'asc'
-
+        return 'desc' if z[start] > z[end] else 'asc'
 
     def getLookDirection(self):
         return self._look_dir
@@ -225,7 +214,6 @@ class Raytracing(LOS):
     def setTime(self, time, pad=600) -> None:
         self._time = time
         self._orbit = get_orbit(self._file, self._time, pad=pad)
-
 
     def getLookVectors(self, ht, llh, xyz, yy):
         """Calculate look vectors for raytracing."""
@@ -249,16 +237,21 @@ class Raytracing(LOS):
                 # Wavelength does not matter for
                 try:
                     aztime, slant_range = isce.geometry.geo2rdr(
-                        inp, self._elp, self._orbit, self._dop, 0.06, self._look_dir,
+                        inp,
+                        self._elp,
+                        self._orbit,
+                        self._dop,
+                        0.06,
+                        self._look_dir,
                         threshold=1.0e-7,
                         maxiter=30,
-                        delta_range=10.0)
+                        delta_range=10.0,
+                    )
                     sat_xyz, _ = self._orbit.interpolate(aztime)
                     los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
                 except Exception:
                     los[ii, jj, :] = np.nan
         return los
-
 
     def getIntersectionWithHeight(self, height):
         """
@@ -267,7 +260,6 @@ class Raytracing(LOS):
         """
         # We just leverage the same code as finding top of atmosphere here
         return getTopOfAtmosphere(self._xyz, self._look_vecs, height)
-
 
     def getIntersectionWithLevels(self, levels):
         """
@@ -293,7 +285,6 @@ class Raytracing(LOS):
             value[self._heights > z, :] = np.nan
 
         return rays
-
 
     def calculateDelays(self, delays) -> NoReturn:
         """
@@ -324,9 +315,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-def get_sv(los_file: Union[str, list, PosixPath],
-           ref_time: datetime.datetime,
-           pad: int):
+def get_sv(los_file: Union[str, list, PosixPath], ref_time: datetime.datetime, pad: int):
     """
     Read an LOS file and return orbital state vectors.
 
@@ -358,6 +347,7 @@ def get_sv(los_file: Union[str, list, PosixPath],
 
             def filter_ESA_orbit_file_p(path: str) -> bool:
                 return filter_ESA_orbit_file(path, ref_time)
+
             los_files = list(filter(filter_ESA_orbit_file_p, los_files))
             if not los_files:
                 raise ValueError('There are no valid orbit files provided')
@@ -369,12 +359,9 @@ def get_sv(los_file: Union[str, list, PosixPath],
             try:
                 svs = read_shelve(los_file)
             except BaseException:
-                raise ValueError(
-                    f'get_sv: I cannot parse the statevector file {los_file}'
-                )
+                raise ValueError(f'get_sv: I cannot parse the statevector file {los_file}')
     except:
         raise ValueError(f'get_sv: I cannot parse the statevector file {los_file}')
-
 
     if ref_time:
         idx = cut_times(svs[0], ref_time, pad=pad)
@@ -469,9 +456,10 @@ def read_txt_file(filename):
                 x_, y_, z_, vx_, vy_, vz_ = (float(t) for t in parts[1:])
             except ValueError:
                 raise ValueError(
-                    f"I need {filename} to be a 7 column text file, with " +
-                    "columns t, x, y, z, vx, vy, vz (Couldn't parse line " +
-                    f"{repr(line)})")
+                    f'I need {filename} to be a 7 column text file, with '
+                    + "columns t, x, y, z, vx, vy, vz (Couldn't parse line "
+                    + f'{repr(line)})'
+                )
             t.append(t_)
             x.append(x_)
             y.append(y_)
@@ -517,12 +505,7 @@ def read_ESA_Orbit_file(filename):
     vz = np.ones(numOSV)
 
     for i, st in enumerate(data_block[0]):
-        t.append(
-            datetime.datetime.strptime(
-                st[1].text,
-                'UTC=%Y-%m-%dT%H:%M:%S.%f'
-            )
-        )
+        t.append(datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
 
         x[i] = float(st[4].text)
         y[i] = float(st[5].text)
@@ -534,11 +517,11 @@ def read_ESA_Orbit_file(filename):
     return [t, x, y, z, vx, vy, vz]
 
 
-def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
+def pick_ESA_orbit_file(list_files: list, ref_time: datetime.datetime):
     """From list of .EOF orbit files, pick the one that contains 'ref_time'."""
     orb_file = None
     for path in list_files:
-        f  = os.path.basename(path)
+        f = os.path.basename(path)
         t0 = datetime.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
         t1 = datetime.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
         if t0 < ref_time < t1:
@@ -550,8 +533,7 @@ def pick_ESA_orbit_file(list_files:list, ref_time:datetime.datetime):
     return path
 
 
-def filter_ESA_orbit_file(orbit_xml: str,
-                          ref_time: datetime.datetime) -> bool:
+def filter_ESA_orbit_file(orbit_xml: str, ref_time: datetime.datetime) -> bool:
     """Returns true or false depending on whether orbit file contains ref time.
 
     Parameters
@@ -568,7 +550,7 @@ def filter_ESA_orbit_file(orbit_xml: str,
     f = os.path.basename(orbit_xml)
     t0 = datetime.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
     t1 = datetime.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
-    return (t0 < ref_time < t1)
+    return t0 < ref_time < t1
 
 
 ############################
@@ -604,10 +586,7 @@ def state_to_los(svs, llh_targets):
 
     # check the inputs
     if np.min(svs.shape) < 4:
-        raise RuntimeError(
-            'state_to_los: At least 4 state vectors are required'
-            ' for orbit interpolation'
-        )
+        raise RuntimeError('state_to_los: At least 4 state vectors are required for orbit interpolation')
 
     # Convert svs to isce3 orbit
     orb = isce.core.Orbit([
@@ -618,7 +597,7 @@ def state_to_los(svs, llh_targets):
     ])
 
     # Flatten the input array for convenience
-    in_shape   = llh_targets[0].shape
+    in_shape = llh_targets[0].shape
     target_llh = np.stack([x.flatten() for x in llh_targets], axis=-1)
 
     # Iterate through targets and compute LOS
@@ -643,9 +622,7 @@ def cut_times(times, ref_time, pad):
     -------
     idx: Nt x 1 logical ndarray - a mask of times within the padded request time.
     """
-    diff = np.array(
-        [(x - ref_time).total_seconds() for x in times]
-    )
+    diff = np.array([(x - ref_time).total_seconds() for x in times])
     return np.abs(diff) < pad
 
 
@@ -671,9 +648,7 @@ def get_radar_pos(llh, orb):
     residual_threshold = 1.0e-7
 
     # Get xyz positions of targets here from lat/lon/height
-    targ_xyz = np.stack(
-        lla2ecef(llh[:, 0], llh[:, 1], llh[:, 2]), axis=-1
-    )
+    targ_xyz = np.stack(lla2ecef(llh[:, 0], llh[:, 1], llh[:, 2]), axis=-1)
 
     # Get some isce3 constants for this inversion
     # TODO - Assuming right-looking for now
@@ -689,31 +664,32 @@ def get_radar_pos(llh, orb):
     for ind, pt in enumerate(llh):
         if not any(np.isnan(pt)):
             # ISCE3 always uses xy convention
-            inp = np.array([np.deg2rad(pt[1]),
-                            np.deg2rad(pt[0]),
-                            pt[2]])
+            inp = np.array([np.deg2rad(pt[1]), np.deg2rad(pt[0]), pt[2]])
             # Local normal vector
             nv = elp.n_vector(inp[0], inp[1])
 
             # Wavelength does not matter  for zero doppler
             try:
                 aztime, slant_range = isce.geometry.geo2rdr(
-                    inp, elp, orb, dop, 0.06, look,
+                    inp,
+                    elp,
+                    orb,
+                    dop,
+                    0.06,
+                    look,
                     threshold=residual_threshold,
                     maxiter=num_iteration,
-                    delta_range=10.0)
+                    delta_range=10.0,
+                )
                 sat_xyz, _ = orb.interpolate(aztime)
                 sr[ind] = slant_range
-
 
                 delta = sat_xyz - targ_xyz[ind, :]
 
                 # TODO - if we only ever need cos(lookang),
                 # skip the arccos here and cos above
                 delta = delta / np.linalg.norm(delta)
-                output[ind] = np.rad2deg(
-                    np.arccos(np.dot(delta, nv))
-                )
+                output[ind] = np.rad2deg(np.arccos(np.dot(delta, nv)))
 
             except Exception as e:
                 raise e
@@ -744,21 +720,19 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
         maxIter = 3
     else:
         maxIter = 10
-        factor = 1.
+        factor = 1.0
 
     # Guess top point
     pos = xyz + toaheight * look_vecs
 
     for _ in range(maxIter):
         pos_llh = ecef2lla(pos[..., 0], pos[..., 1], pos[..., 2])
-        pos = pos + look_vecs * ((toaheight - pos_llh[2])/factor)[..., None]
+        pos = pos + look_vecs * ((toaheight - pos_llh[2]) / factor)[..., None]
 
     return pos
 
 
-def get_orbit(orbit_file: Union[list, str],
-              ref_time: datetime.datetime,
-              pad: int):
+def get_orbit(orbit_file: Union[list, str], ref_time: datetime.datetime, pad: int):
     """
     Returns state vectors from an orbit file; state vectors are unique and ordered in terms of time
     orbit file (str | list):   - user-passed file(s) containing statevectors
@@ -807,7 +781,7 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
     cos_factor = None
 
     ray_lengths, low_xyzs, high_xyzs = [], [], []
-    for zz in range(model_zs.size-1):
+    for zz in range(model_zs.size - 1):
         # Low and High for model interval
         low_ht = model_zs[zz]
         high_ht = model_zs[zz + 1]
@@ -843,7 +817,7 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
         high_xyz = getTopOfAtmosphere(xyz, LOS, high_ht, factor=cos_factor)
 
         # Compute ray length
-        ray_length =  np.linalg.norm(high_xyz - low_xyz, axis=-1)
+        ray_length = np.linalg.norm(high_xyz - low_xyz, axis=-1)
 
         # Compute cos_factor for first iteration
         if cos_factor is None:
@@ -853,7 +827,7 @@ def build_ray(model_zs, ht, xyz, LOS, MAX_TROPO_HEIGHT=_ZREF):
         low_xyzs.append(low_xyz)
         high_xyzs.append(high_xyz)
 
-    ## if all weather model levels are requested the top most layer might not contribute anything
+    # if all weather model levels are requested the top most layer might not contribute anything
     if not ray_lengths:
         return None, None, None
     else:

@@ -48,7 +48,9 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
 
     # setup the plot
     f = plt.figure(figsize=(18, 14))
-    f.suptitle(f'{weatherObj._Name} Pressure/Humidity/Temperature at height {z1}m and {z2}m (values should drop as elevation increases)')
+    f.suptitle(
+        f'{weatherObj._Name} Pressure/Humidity/Temperature at height {z1}m and {z2}m (values should drop as elevation increases)'
+    )
 
     xind = int(np.floor(weatherObj._xs.shape[0] / 2))
     yind = int(np.floor(weatherObj._ys.shape[0] / 2))
@@ -56,13 +58,15 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(3, 3, ind + 1)
-        im = sp.imshow(np.reshape(plot, x.shape),
-                       cmap='viridis',
-                       extent=[np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)],
-                       origin='lower')
+        im = sp.imshow(
+            np.reshape(plot, x.shape),
+            cmap='viridis',
+            extent=[np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)],
+            origin='lower',
+        )
         sp.plot(x[yind, xind], y[yind, xind], 'ko')
         divider = mal(sp)
-        cax = divider.append_axes("right", size="4%", pad=0.05)
+        cax = divider.append_axes('right', size='4%', pad=0.05)
         plt.colorbar(im, cax=cax)
         sp.set_title(title)
         if ind == 0:
@@ -85,12 +89,11 @@ def plot_pqt(weatherObj, savefig=True, z1=500, z2=15000):
     sp.plot(weatherObj._t[yind, xind, :] - 273.15, zdata)
     sp.set_xlabel('Temp (C)')
 
-    plt.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=0.2,
-                        wspace=0.3)
+    plt.subplots_adjust(top=0.95, bottom=0.1, left=0.1, right=0.95, hspace=0.2, wspace=0.3)
 
     if savefig:
-        wd   = os.path.dirname(os.path.dirname(weatherObj._out_name))
-        f    = f'{weatherObj._Name}_weather_hgt{z1}_and_{z2}m.pdf'
+        wd = os.path.dirname(os.path.dirname(weatherObj._out_name))
+        f = f'{weatherObj._Name}_weather_hgt{z1}_and_{z2}m.pdf'
         plt.savefig(os.path.join(wd, f))
     return f
 
@@ -101,8 +104,12 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     at two different heights.
     """
     # Get the interpolator
-    intFcn_w = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._wet_refractivity.swapaxes(0, 1))
-    intFcn_h = Interpolator((weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._hydrostatic_refractivity.swapaxes(0, 1))
+    intFcn_w = Interpolator(
+        (weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._wet_refractivity.swapaxes(0, 1)
+    )
+    intFcn_h = Interpolator(
+        (weatherObj._xs, weatherObj._ys, weatherObj._zs), weatherObj._hydrostatic_refractivity.swapaxes(0, 1)
+    )
 
     # get the points needed
     XY = np.meshgrid(weatherObj._xs, weatherObj._ys)
@@ -122,10 +129,7 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     plots = [w1, h1, w2, h2]
 
     # titles
-    titles = (f'Wet refractivity {z1}',
-              f'Hydrostatic refractivity {z1}',
-              f'{z2}',
-              f'{z2}')
+    titles = (f'Wet refractivity {z1}', f'Hydrostatic refractivity {z1}', f'{z2}', f'{z2}')
 
     # setup the plot
     f = plt.figure(figsize=(14, 10))
@@ -134,10 +138,14 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
     # loop over each plot
     for ind, plot, title in zip(range(len(plots)), plots, titles):
         sp = f.add_subplot(2, 2, ind + 1)
-        im = sp.imshow(np.reshape(plot, x.shape), cmap='viridis',
-                       extent=[np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)], origin='lower')
+        im = sp.imshow(
+            np.reshape(plot, x.shape),
+            cmap='viridis',
+            extent=[np.nanmin(x), np.nanmax(x), np.nanmin(y), np.nanmax(y)],
+            origin='lower',
+        )
         divider = mal(sp)
-        cax = divider.append_axes("right", size="4%", pad=0.05)
+        cax = divider.append_axes('right', size='4%', pad=0.05)
         plt.colorbar(im, cax=cax)
         sp.set_title(title)
         if ind == 0:
@@ -146,7 +154,7 @@ def plot_wh(weatherObj, savefig=True, z1=500, z2=15000):
             sp.set_ylabel(f'{z2} m\n')
 
     if savefig:
-        wd   = os.path.dirname(os.path.dirname(weatherObj._out_name))
-        f    = f'{weatherObj._Name}_refractivity_hgt{z1}_and_{z2}m.pdf'
+        wd = os.path.dirname(os.path.dirname(weatherObj._out_name))
+        f = f'{weatherObj._Name}_refractivity_hgt{z1}_and_{z2}m.pdf'
         plt.savefig(os.path.join(wd, f))
     return f

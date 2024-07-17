@@ -19,8 +19,10 @@ class customModelReader(WeatherModel):
 
         # Tuple of min/max years where data is available.
         #  valid range of the dataset. Users need to specify the start date and end date (can be "present")
-        self._valid_range = (datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-                             datetime.datetime.now(datetime.timezone.utc))
+        self._valid_range = (
+            datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+            datetime.datetime.now(datetime.timezone.utc),
+        )
         #  Availability lag time. Can be specified in hours "hours=3" or in days "days=3"
         self._lag_time = datetime.timedelta(hours=3)
         # Availabile time resolution; i.e. minimum rate model is available in hours. 1 is hourly
@@ -33,11 +35,11 @@ class customModelReader(WeatherModel):
         self._k3 = 3.75e3  # [K^2/Pa]
 
         # horizontal grid spacing
-        self._lat_res = 3. / 111  # grid spacing in latitude
-        self._lon_res = 3. / 111  # grid spacing in longitude
-        self._x_res = 3.  # x-direction grid spacing in the native weather model projection
+        self._lat_res = 3.0 / 111  # grid spacing in latitude
+        self._lon_res = 3.0 / 111  # grid spacing in longitude
+        self._x_res = 3.0  # x-direction grid spacing in the native weather model projection
         #  (if the projection is in lat/lon, it is the same as "self._lon_res")
-        self._y_res = 3.  # y-direction grid spacing in the weather model native projection
+        self._y_res = 3.0  # y-direction grid spacing in the weather model native projection
         #  (if the projection is in lat/lon, it is the same as "self._lat_res")
 
         # zlevels specify fixed heights at which to interpolate the weather model variables
@@ -56,7 +58,9 @@ class customModelReader(WeatherModel):
         x0 = 0
         y0 = 0
         earth_radius = 6371229
-        p1 = CRS(f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} +b={earth_radius} +units=m +no_defs')
+        p1 = CRS(
+            f'+proj=lcc +lat_1={lat1} +lat_2={lat2} +lat_0={lat0} +lon_0={lon0} +x_0={x0} +y_0={y0} +a={earth_radius} +b={earth_radius} +units=m +no_defs'
+        )
         self._proj = p1
 
     def _fetch(self, out) -> None:

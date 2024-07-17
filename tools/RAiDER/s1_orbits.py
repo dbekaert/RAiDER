@@ -45,9 +45,11 @@ def ensure_orbit_credentials() -> Optional[int]:
         username = os.environ.get('ESA_USERNAME')
         password = os.environ.get('ESA_PASSWORD')
         if username is None or password is None:
-            raise ValueError('Credentials are required for fetching orbit data from dataspace.copernicus.eu!\n'
-                             'Either add your credentials to ~/.netrc or set the ESA_USERNAME and ESA_PASSWORD '
-                             'environment variables.')
+            raise ValueError(
+                'Credentials are required for fetching orbit data from dataspace.copernicus.eu!\n'
+                'Either add your credentials to ~/.netrc or set the ESA_USERNAME and ESA_PASSWORD '
+                'environment variables.'
+            )
 
         netrc_credentials.hosts[ESA_CDSE_HOST] = (username, None, password)
 
@@ -55,9 +57,11 @@ def ensure_orbit_credentials() -> Optional[int]:
         username = os.environ.get('EARTHDATA_USERNAME')
         password = os.environ.get('EARTHDATA_PASSWORD')
         if username is None or password is None:
-            raise ValueError('Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!\n'
-                             'Either add your credentials to ~/.netrc or set the EARTHDATA_USERNAME and'
-                             ' EARTHDATA_PASSWORD environment variables.')
+            raise ValueError(
+                'Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!\n'
+                'Either add your credentials to ~/.netrc or set the EARTHDATA_USERNAME and'
+                ' EARTHDATA_PASSWORD environment variables.'
+            )
 
         netrc_credentials.hosts[NASA_EDL_HOST] = (username, None, password)
 
@@ -80,9 +84,7 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
     return orb_files
 
 
-def get_orbits_from_slc_ids_hyp3lib(
-    slc_ids: list, orbit_directory: str = None
-) -> dict:
+def get_orbits_from_slc_ids_hyp3lib(slc_ids: list, orbit_directory: str = None) -> dict:
     """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23."""
     # Populates env variables to netrc as required for sentineleof
     _ = ensure_orbit_credentials()

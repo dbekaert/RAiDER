@@ -16,21 +16,22 @@ from RAiDER.losreader import Conventional, Zenith
 from RAiDER.utilFcns import rio_extents, rio_profile
 
 
-_BUFFER_SIZE = 0.2 # default buffer size in lat/lon degrees
+_BUFFER_SIZE = 0.2  # default buffer size in lat/lon degrees
+
 
 def enforce_wm(value, aoi):
-    model = value.upper().replace("-", "")
+    model = value.upper().replace('-', '')
     try:
         _, model_obj = modelName2Module(model)
     except ModuleNotFoundError:
         raise NotImplementedError(
-            dedent(f'''
+            dedent(f"""
                 Model {model} is not yet fully implemented,
                 please contribute!
-                ''')
+                """)
         )
 
-    ## check the user requsted bounding box is within the weather model domain
+    # check the user requsted bounding box is within the weather model domain
     modObj = model_obj().checkValidBounds(aoi.bounds())
 
     return modObj
@@ -40,22 +41,24 @@ def get_los(args):
     if args.get('orbit_file'):
         if args.get('ray_trace'):
             from RAiDER.losreader import Raytracing
+
             los = Raytracing(args.orbit_file)
         else:
             los = Conventional(args.orbit_file)
     elif args.get('los_file'):
         if args.ray_trace:
             from RAiDER.losreader import Raytracing
+
             los = Raytracing(args.los_file, args.los_convention)
         else:
             los = Conventional(args.los_file, args.los_convention)
 
     elif args.get('los_cube'):
         raise NotImplementedError('LOS_cube is not yet implemented')
-#        if args.ray_trace:
-#            los = Raytracing(args.los_cube)
-#        else:
-#            los = Conventional(args.los_cube)
+    #        if args.ray_trace:
+    #            los = Raytracing(args.los_cube)
+    #        else:
+    #            los = Conventional(args.los_cube)
     else:
         los = Zenith()
 
@@ -67,13 +70,13 @@ def get_heights(args, out, station_file, bounding_box=None):
     dem_path = out
 
     out = {
-            'dem': args.get('dem'),
-            'height_file_rdr': None,
-            'height_levels': None,
-        }
+        'dem': args.get('dem'),
+        'height_file_rdr': None,
+        'height_levels': None,
+    }
 
     if args.get('dem'):
-        if (station_file is not None):
+        if station_file is not None:
             if 'Hgt_m' not in pd.read_csv(station_file):
                 out['dem'] = os.path.join(dem_path, 'GLO30.dem')
         elif os.path.exists(args.dem):
@@ -89,15 +92,14 @@ def get_heights(args, out, station_file, bounding_box=None):
                         lats,
                         lons,
                         buf=_BUFFER_SIZE,
-                    )
+                    ),
                 ):
                     raise ValueError(
-                                'Existing DEM does not cover the area of the input lat/lon '
-                                'points; either move the DEM, delete it, or change the input '
-                                'points.'
-                            )
+                        'Existing DEM does not cover the area of the input lat/lon points; either move the DEM, delete '
+                        'it, or change the input points.'
+                    )
         else:
-            pass # will download the dem later
+            pass  # will download the dem later
 
     elif args.get('height_file_rdr'):
         out['height_file_rdr'] = args.height_file_rdr
@@ -114,9 +116,10 @@ def get_heights(args, out, station_file, bounding_box=None):
 
         out['height_levels'] = np.array([float(ll) for ll in l])
         if np.any(out['height_levels'] < 0):
-            logger.warning('Weather model only extends to the surface topography; '
-            'height levels below the topography will be interpolated from the surface '
-            'and may be inaccurate.')
+            logger.warning(
+                'Weather model only extends to the surface topography; '
+                'height levels below the topography will be interpolated from the surface and may be inaccurate.'
+            )
 
     return out
 
@@ -129,9 +132,9 @@ def get_query_region(args):
         query = GeocodedFile(args.dem, is_dem=True)
 
     elif args.get('lat_file'):
-        hgt_file = args.get('height_file_rdr') # only get it if exists
+        hgt_file = args.get('height_file_rdr')  # only get it if exists
         dem_file = args.get('dem')
-        query    = RasterRDR(args.lat_file, args.lon_file, hgt_file, dem_file)
+        query = RasterRDR(args.lat_file, args.lon_file, hgt_file, dem_file)
 
     elif args.get('station_file'):
         query = StationFile(args.station_file)
@@ -143,16 +146,16 @@ def get_query_region(args):
         query = BoundingBox(bbox)
 
     elif args.get('geocoded_file'):
-        gfile  = os.path.basename(args.geocoded_file).upper()
-        if (gfile.startswith('SRTM') or gfile.startswith('GLO')):
+        gfile = os.path.basename(args.geocoded_file).upper()
+        if gfile.startswith('SRTM') or gfile.startswith('GLO'):
             logger.debug('Using user DEM: %s', gfile)
             is_dem = True
         else:
             is_dem = False
 
-        query  = GeocodedFile(args.geocoded_file, is_dem=is_dem)
+        query = GeocodedFile(args.geocoded_file, is_dem=is_dem)
 
-    ## untested
+    # untested
     elif args.get('geo_cube'):
         query = Geocube(args.geo_cube)
 
@@ -172,7 +175,7 @@ def enforce_bbox(bbox):
 
     # Check the bbox
     if len(bbox) != 4:
-        raise ValueError("bounding box must have 4 elements!")
+        raise ValueError('bounding box must have 4 elements!')
     S, N, W, E = bbox
 
     if N <= S or E <= W:
@@ -184,7 +187,9 @@ def enforce_bbox(bbox):
 
     for we in (W, E):
         if we < -180 or we > 180:
-            raise ValueError('Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.')
+            raise ValueError(
+                'Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.'
+            )
 
     return bbox
 
@@ -210,7 +215,7 @@ def parse_dates(arg_dict):
             end = arg_dict['date_end']
             end = enforce_valid_dates(end)
         else:
-           end = start
+            end = start
 
         if arg_dict.get('date_step'):
             step = int(arg_dict['date_step'])
@@ -237,10 +242,7 @@ def enforce_valid_dates(arg):
         except ValueError:
             pass
 
-
-    raise ValueError(
-        f'Unable to coerce {arg} to a date. Try %Y-%m-%d'
-    )
+    raise ValueError(f'Unable to coerce {arg} to a date. Try %Y-%m-%d')
 
 
 def enforce_time(arg_dict):
@@ -275,10 +277,7 @@ def convert_time(inp):
         'Z',
         '%z',
     )
-    all_formats = map(
-        ''.join,
-        itertools.product(time_formats, timezone_formats)
-    )
+    all_formats = map(''.join, itertools.product(time_formats, timezone_formats))
 
     for tf in all_formats:
         try:
@@ -286,10 +285,7 @@ def convert_time(inp):
         except ValueError:
             pass
 
-    raise ValueError(
-                'Unable to coerce {} to a time.'+
-                'Try T%H:%M:%S'.format()
-        )
+    raise ValueError(f'Unable to coerce "{inp}" to a time. Try T%H:%M:%S')
 
 
 def modelName2Module(model_name):
@@ -312,7 +308,7 @@ def modelName2Module(model_name):
     return module_name, wmObject
 
 
-def getBufferedExtent(lats, lons=None, buf=0.):
+def getBufferedExtent(lats, lons=None, buf=0.0):
     """Get the bounding box around a set of lats/lons."""
     if lons is None:
         lats, lons = lats[..., 0], lons[..., 1]
@@ -361,7 +357,7 @@ def isInside(extent1, extent2) -> bool:
     return np.all([t1, t2, t3, t4])
 
 
-## below are for downloadGNSSDelays
+# below are for downloadGNSSDelays
 def date_type(arg):
     """Parse a date from a string in pseudo-ISO 8601 format."""
     year_formats = (
@@ -377,9 +373,7 @@ def date_type(arg):
         except ValueError:
             pass
 
-    raise ArgumentTypeError(
-        f'Unable to coerce {arg} to a date. Try %Y-%m-%d'
-    )
+    raise ArgumentTypeError(f'Unable to coerce {arg} to a date. Try %Y-%m-%d')
 
 
 class MappingType:
@@ -394,6 +388,7 @@ class MappingType:
     assert mapping("hello") is None
     ```
     """
+
     UNSET = object()
 
     def __init__(self, **kwargs) -> None:
@@ -410,9 +405,7 @@ class MappingType:
             return self.mapping[arg]
 
         if self._default is self.UNSET:
-            raise KeyError(
-                f"Invalid choice '{arg}', must be one of {list(self.mapping.keys())}"
-            )
+            raise KeyError(f"Invalid choice '{arg}', must be one of {list(self.mapping.keys())}")
 
         return self._default
 
@@ -438,9 +431,9 @@ class IntegerType:
         integer = int(arg)
 
         if self.lo is not None and integer < self.lo:
-            raise ArgumentTypeError(f"Must be greater than {self.lo}")
+            raise ArgumentTypeError(f'Must be greater than {self.lo}')
         if self.hi is not None and integer > self.hi:
-            raise ArgumentTypeError(f"Must be less than {self.hi}")
+            raise ArgumentTypeError(f'Must be less than {self.hi}')
 
         return integer
 
@@ -484,10 +477,10 @@ class DateListAction(Action):
         choices=None,
         required=False,
         help=None,
-        metavar=None
+        metavar=None,
     ) -> None:
         if type is not date_type:
-            raise ValueError("type must be `date_type`!")
+            raise ValueError('type must be `date_type`!')
 
         super().__init__(
             option_strings=option_strings,
@@ -499,12 +492,12 @@ class DateListAction(Action):
             choices=choices,
             required=required,
             help=help,
-            metavar=metavar
+            metavar=metavar,
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
         if len(values) > 3 or not values:
-            raise ArgumentError(self, "Only 1, 2 dates, or 2 dates and interval may be supplied")
+            raise ArgumentError(self, 'Only 1, 2 dates, or 2 dates and interval may be supplied')
 
         if len(values) == 2:
             start, end = values
@@ -513,13 +506,12 @@ class DateListAction(Action):
             start, end, stepsize = values
 
             if not isinstance(stepsize.day, int):
-                raise ArgumentError(self, "The stepsize should be in integer days")
+                raise ArgumentError(self, 'The stepsize should be in integer days')
 
             new_year = date(year=stepsize.year, month=1, day=1)
             stepsize = (stepsize - new_year).days + 1
 
-            values = [start + timedelta(days=k)
-                      for k in range(0, (end - start).days + 1, stepsize)]
+            values = [start + timedelta(days=k) for k in range(0, (end - start).days + 1, stepsize)]
 
         setattr(namespace, self.dest, values)
 
@@ -538,10 +530,10 @@ class BBoxAction(Action):
         choices=None,
         required=False,
         help=None,
-        metavar=None
+        metavar=None,
     ) -> None:
         if nargs != 4:
-            raise ValueError("nargs must be 4!")
+            raise ValueError('nargs must be 4!')
 
         super().__init__(
             option_strings=option_strings,
@@ -553,7 +545,7 @@ class BBoxAction(Action):
             choices=choices,
             required=required,
             help=help,
-            metavar=metavar
+            metavar=metavar,
         )
 
     def __call__(self, parser, namespace, values, option_string=None):
@@ -568,6 +560,9 @@ class BBoxAction(Action):
 
         for we in (W, E):
             if we < -180 or we > 180:
-                raise ArgumentError(self, 'Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.')
+                raise ArgumentError(
+                    self,
+                    'Lons are out of W/E bounds (-180 to 180); Lons in the format of (0 to 360) are not supported.',
+                )
 
         setattr(namespace, self.dest, values)

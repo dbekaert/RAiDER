@@ -6,6 +6,7 @@ class AttributeDict(dict):
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+
 DEFAULT_DICT = AttributeDict(
     dict(
         look_dir='right',

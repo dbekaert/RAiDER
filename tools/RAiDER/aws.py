@@ -11,14 +11,7 @@ S3_CLIENT = boto3.client('s3')
 
 
 def get_tag_set():
-    tag_set = {
-        'TagSet': [
-            {
-                'Key': 'file_type',
-                'Value': 'product'
-            }
-        ]
-    }
+    tag_set = {'TagSet': [{'Key': 'file_type', 'Value': 'product'}]}
     return tag_set
 
 
@@ -43,10 +36,7 @@ def upload_file_to_s3(path_to_file: Union[str, Path], bucket: str, prefix: str =
 
 
 def get_s3_file(bucket_name: str, bucket_prefix: str, file_type: str) -> Optional[str]:
-    result = S3_CLIENT.list_objects_v2(
-        Bucket=bucket_name,
-        Prefix=bucket_prefix
-    )
+    result = S3_CLIENT.list_objects_v2(Bucket=bucket_name, Prefix=bucket_prefix)
     for s3_object in result['Contents']:
         key = s3_object['Key']
         if key.endswith(file_type):

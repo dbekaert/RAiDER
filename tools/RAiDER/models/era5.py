@@ -20,11 +20,11 @@ class ERA5(ECMWF):
         self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
-        lag_time = 3 # months
+        lag_time = 3  # months
         end_date = datetime.datetime.today() - relativedelta(months=lag_time)
         self._valid_range = (
-            datetime.datetime(1950, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
-            end_date.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
+            datetime.datetime(1950, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+            end_date.replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
         )
 
         # Availability lag time in days
@@ -32,7 +32,6 @@ class ERA5(ECMWF):
 
         # Default, need to change to ml
         self.setLevelType('ml')
-
 
     def _fetch(self, out) -> None:
         """Fetch a weather model from ECMWF."""
@@ -42,7 +41,6 @@ class ERA5(ECMWF):
 
         # execute the search at ECMWF
         self._get_from_cds(lat_min, lat_max, lon_min, lon_max, time, out)
-
 
     def load_weather(self, f=None, *args, **kwargs) -> None:
         """Load either pressure or model level data."""

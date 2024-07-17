@@ -1,4 +1,5 @@
 """Geodesy-related utility functions."""
+
 import os
 import re
 from datetime import datetime, timedelta, timezone
@@ -43,7 +44,7 @@ pbar = None
 
 def projectDelays(delay, inc):
     """Project zenith delays to LOS."""
-    if inc==90:
+    if inc == 90:
         raise ZeroDivisionError
     return delay / cosd(inc)
 
@@ -123,8 +124,8 @@ def rio_profile(fname):
     """Reads the profile of a rasterio file."""
     if rasterio is None:
         raise ImportError('RAiDER.utilFcns: rio_profile - rasterio is not installed')
-    
-    ## need to access subdataset directly
+
+    # need to access subdataset directly
     if os.path.basename(fname).startswith('S1-GUNW'):
         fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
         with rasterio.open(fname) as src:
@@ -141,9 +142,9 @@ def rio_profile(fname):
 
 def rio_extents(profile):
     """Get a bounding box in SNWE from a rasterio profile."""
-    gt = profile["transform"].to_gdal()
-    xSize = profile["width"]
-    ySize = profile["height"]
+    gt = profile['transform'].to_gdal()
+    xSize = profile['width']
+    ySize = profile['height']
     W, E = gt[0], gt[0] + (xSize - 1) * gt[1] + (ySize - 1) * gt[2]
     N, S = gt[3], gt[3] + (xSize - 1) * gt[4] + (ySize - 1) * gt[5]
     return S, N, W, E
@@ -178,11 +179,10 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
             else:
                 nodataToNan(data, list(nodata) + [userNDV])
 
-
         if data.ndim > 2:
             dlist = []
             for k in range(data.shape[0]):
-                dlist.append(data[k,...].copy())
+                dlist.append(data[k, ...].copy())
             data = dlist
 
     if not returnProj:
@@ -194,7 +194,7 @@ def rio_open(fname, returnProj=False, userNDV=None, band=None):
 
 def nodataToNan(inarr, listofvals) -> None:
     """Setting values to nan as needed."""
-    inarr = inarr.astype(float) # nans cannot be integers (i.e. in DEM)
+    inarr = inarr.astype(float)  # nans cannot be integers (i.e. in DEM)
     for val in listofvals:
         if val is not None:
             inarr[inarr == val] = np.nan
@@ -223,10 +223,10 @@ def rio_stats(fname, band=1):
         fname = fname + '.vrt'
 
     # Turn off PAM to avoid creating .aux.xml files
-    with rasterio.Env(GDAL_PAM_ENABLED="NO"):
+    with rasterio.Env(GDAL_PAM_ENABLED='NO'):
         with rasterio.open(fname) as src:
-            gt    = src.transform.to_gdal()
-            proj  = src.crs
+            gt = src.transform.to_gdal()
+            proj = src.crs
             stats = src.statistics(band)
 
     return stats, proj, gt
@@ -234,7 +234,7 @@ def rio_stats(fname, band=1):
 
 def get_file_and_band(filestr):
     """Support file;bandnum as input for filename strings."""
-    parts = filestr.split(";")
+    parts = filestr.split(';')
 
     # Defaults to first band if no bandnum is provided
     if len(parts) == 1:
@@ -242,20 +242,19 @@ def get_file_and_band(filestr):
     elif len(parts) == 2:
         return parts[0].strip(), int(parts[1].strip())
     else:
-        raise ValueError(
-            f"Cannot interpret {filestr} as valid filename"
-        )
+        raise ValueError(f'Cannot interpret {filestr} as valid filename')
 
-def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, gt=None) -> None:
+
+def writeArrayToRaster(array, filename, noDataValue=0.0, fmt='ENVI', proj=None, gt=None) -> None:
     """Write a numpy array to a GDAL-readable raster."""
     array_shp = np.shape(array)
     if array.ndim != 2:
         raise RuntimeError(f'writeArrayToRaster: cannot write an array of shape {array_shp} to a raster image')
 
     # Data type
-    if "complex" in str(array.dtype):
+    if 'complex' in str(array.dtype):
         dtype = np.complex64
-    elif "float" in str(array.dtype):
+    elif 'float' in str(array.dtype):
         dtype = np.float32
     else:
         dtype = np.uint8
@@ -268,18 +267,25 @@ def writeArrayToRaster(array, filename, noDataValue=0., fmt='ENVI', proj=None, g
         except TypeError:
             trans = gt
 
-    ## cant write netcdfs with rasterio in a simple way
+    # cant write netcdfs with rasterio in a simple way
     if fmt == 'nc':
         fmt = 'GTiff'
         filename = filename.replace('.nc', '.tif')
 
-    with rasterio.open(filename, mode="w", count=1,
-                       width=array_shp[1], height=array_shp[0],
-                       dtype=dtype, crs=proj, nodata=noDataValue,
-                       driver=fmt, transform=trans) as dst:
+    with rasterio.open(
+        filename,
+        mode='w',
+        count=1,
+        width=array_shp[1],
+        height=array_shp[0],
+        dtype=dtype,
+        crs=proj,
+        nodata=noDataValue,
+        driver=fmt,
+        transform=trans,
+    ) as dst:
         dst.write(array, 1)
     logger.info('Wrote: %s', filename)
-    return
 
 
 def round_date(date, precision):
@@ -292,7 +298,7 @@ def round_date(date, precision):
     except TypeError:
         T0 = T0.replace(tzinfo=timezone(offset=timedelta()))
         datedelta = T0 - date
-    
+
     # Round that timedelta to the specified precision
     rem = datedelta % precision
     # Add back to get date rounded up
@@ -304,7 +310,7 @@ def round_date(date, precision):
     except TypeError:
         T0 = T0.replace(tzinfo=timezone(offset=timedelta()))
         datedelta = date - T0
-    
+
     rem = datedelta % precision
     round_down = date - rem
 
@@ -337,7 +343,7 @@ def robmax(a):
 
 def _get_g_ll(lats):
     """Compute the variation in gravity constant with latitude."""
-    return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats))**2)
+    return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats)) ** 2)
 
 
 def get_Re(lats):
@@ -359,7 +365,7 @@ def get_Re(lats):
     >>> assert output[0] == 6378137 # (Rmax)
     >>> assert output[-1] == 6356752 # (Rmin)
     """
-    return np.sqrt(1 / (((cosd(lats)**2) / Rmax**2) + ((sind(lats)**2) / Rmin**2)))
+    return np.sqrt(1 / (((cosd(lats) ** 2) / Rmax**2) + ((sind(lats) ** 2) / Rmin**2)))
 
 
 def geo_to_ht(lats, hts):
@@ -385,8 +391,8 @@ def geo_to_ht(lats, hts):
     Returns:
         ndarray: geometric heights. These are approximate ellipsoidal heights referenced to WGS84
     """
-    g_ll = _get_g_ll(lats) # gravity function of latitude
-    Re = get_Re(lats) # Earth radius function of latitude
+    g_ll = _get_g_ll(lats)  # gravity function of latitude
+    Re = get_Re(lats)  # Earth radius function of latitude
 
     # Calculate Geometric Height, h
     h = (hts * Re) / (g_ll / g0 * Re - hts)
@@ -412,9 +418,7 @@ def round_time(dt, roundTo=60):
     return dt + timedelta(0, rounding - seconds, -dt.microsecond)
 
 
-def writeDelays(aoi, wetDelay, hydroDelay,
-                wetFilename, hydroFilename=None,
-                outformat=None, ndv=0.) -> None:
+def writeDelays(aoi, wetDelay, hydroDelay, wetFilename, hydroFilename=None, outformat=None, ndv=0.0) -> None:
     """Write the delay numpy arrays to files in the format specified."""
     if pd is None:
         raise ImportError('pandas is required to write GNSS delays to a file')
@@ -425,7 +429,7 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
     # Do different things, depending on the type of input
     if aoi.type() == 'station_file':
-        df = pd.read_csv(aoi._filename).drop_duplicates(subset=["Lat", "Lon"])
+        df = pd.read_csv(aoi._filename).drop_duplicates(subset=['Lat', 'Lon'])
 
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
@@ -435,23 +439,9 @@ def writeDelays(aoi, wetDelay, hydroDelay,
 
     else:
         proj = aoi.projection()
-        gt   = aoi.geotransform()
-        writeArrayToRaster(
-            wetDelay,
-            wetFilename,
-            noDataValue=ndv,
-            fmt=outformat,
-            proj=proj,
-            gt=gt
-        )
-        writeArrayToRaster(
-            hydroDelay,
-            hydroFilename,
-            noDataValue=ndv,
-            fmt=outformat,
-            proj=proj,
-            gt=gt
-        )
+        gt = aoi.geotransform()
+        writeArrayToRaster(wetDelay, wetFilename, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
 
 
 def getTimeFromFile(filename):
@@ -460,7 +450,6 @@ def getTimeFromFile(filename):
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
     out = p.search(filename).group()
     return datetime.strptime(out, fmt)
-
 
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
@@ -554,7 +543,7 @@ def UTM_to_WGS84(z, l, x, y):
     return np.reshape(lon, shp), np.reshape(lat, shp)
 
 
-def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
+def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.0):
     """
     Transform bbox to lat/lon or another CRS for use with rest of workflow.
     Returns: SNWE
@@ -566,7 +555,7 @@ def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
         src_crs = CRS(src_crs)
 
     # Handle margin for input bbox in degrees
-    if src_crs.axis_info[0].unit_name == "degree":
+    if src_crs.axis_info[0].unit_name == 'degree':
         margin = margin / 1.0e5
 
     if isinstance(dest_crs, int):
@@ -579,25 +568,26 @@ def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.):
         return snwe_in
 
     T = Transformer.from_crs(src_crs, dest_crs, always_xy=True)
-    xs = np.linspace(snwe_in[2]-margin, snwe_in[3]+margin, num=11)
-    ys = np.linspace(snwe_in[0]-margin, snwe_in[1]+margin, num=11)
+    xs = np.linspace(snwe_in[2] - margin, snwe_in[3] + margin, num=11)
+    ys = np.linspace(snwe_in[0] - margin, snwe_in[1] + margin, num=11)
     X, Y = np.meshgrid(xs, ys)
 
     # Transform to lat/lon
     xx, yy = T.transform(X, Y)
 
     # query_area convention
-    snwe = [np.nanmin(yy), np.nanmax(yy),
-            np.nanmin(xx), np.nanmax(xx)]
+    snwe = [np.nanmin(yy), np.nanmax(yy), np.nanmin(xx), np.nanmax(xx)]
     return snwe
 
 
 def clip_bbox(bbox, spacing):
     """Clip box to multiple of spacing."""
-    return [np.floor(bbox[0] / spacing) * spacing,
-            np.ceil(bbox[1] / spacing) * spacing,
-            np.floor(bbox[2] / spacing) * spacing,
-            np.ceil(bbox[3] / spacing) * spacing]
+    return [
+        np.floor(bbox[0] / spacing) * spacing,
+        np.ceil(bbox[1] / spacing) * spacing,
+        np.floor(bbox[2] / spacing) * spacing,
+        np.ceil(bbox[3] / spacing) * spacing,
+    ]
 
 
 def requests_retry_session(retries=10, session=None):
@@ -605,10 +595,12 @@ def requests_retry_session(retries=10, session=None):
     import requests
     from requests.adapters import HTTPAdapter
     from requests.packages.urllib3.util.retry import Retry
+
     # add a retry strategy; https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
     session = session or requests.Session()
-    retry = Retry(total=retries, read=retries, connect=retries,
-                  backoff_factor=0.3, status_forcelist=list(range(429, 505)))
+    retry = Retry(
+        total=retries, read=retries, connect=retries, backoff_factor=0.3, status_forcelist=list(range(429, 505))
+    )
     adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
@@ -616,16 +608,15 @@ def requests_retry_session(retries=10, session=None):
 
 
 def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=-9999, chunk=(1, 91, 144)) -> None:
-
     # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
     attrs_dict = {
-        'datetime': dt.strftime("%Y_%m_%dT%H_%M_%S"),
-        'date_created': datetime.now().strftime("%Y_%m_%dT%H_%M_%S"),
+        'datetime': dt.strftime('%Y_%m_%dT%H_%M_%S'),
+        'date_created': datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
         'NoDataValue': NoDataValue,
         'chunksize': chunk,
         # 'mapping_name': mapping_name,
     }
-    
+
     dimension_dict = {
         'latitude': (('y', 'x'), lat),
         'longitude': (('y', 'x'), lon),
@@ -639,30 +630,30 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
     }
 
     ds = xarray.Dataset(
-            data_vars=dataset_dict,
-            coords=dimension_dict,
-            attrs=attrs_dict,
-        )
-    
+        data_vars=dataset_dict,
+        coords=dimension_dict,
+        attrs=attrs_dict,
+    )
+
     ds['h'].attrs['standard_name'] = 'mid_layer_heights'
     ds['p'].attrs['standard_name'] = 'mid_level_pressure'
     ds['q'].attrs['standard_name'] = 'specific_humidity'
     ds['t'].attrs['standard_name'] = 'air_temperature'
-    
+
     ds['h'].attrs['units'] = 'm'
     ds['p'].attrs['units'] = 'Pa'
     ds['q'].attrs['units'] = 'kg kg-1'
     ds['t'].attrs['units'] = 'K'
 
-    ds["proj"] = 0
+    ds['proj'] = 0
     for k, v in crs.to_cf().items():
         ds.proj.attrs[k] = v
     for var in ds.data_vars:
         ds[var].attrs['grid_mapping'] = 'proj'
-    
+
     ds.to_netcdf(outName)
     del ds
-    
+
 
 def convertLons(inLons):
     """Convert lons from 0-360 to -180-180."""
@@ -673,7 +664,6 @@ def convertLons(inLons):
 
 
 def read_NCMR_loginInfo(filepath=None):
-
     from pathlib import Path
 
     if filepath is None:
@@ -689,10 +679,9 @@ def read_NCMR_loginInfo(filepath=None):
 
 
 def read_EarthData_loginInfo(filepath=None):
-
     from netrc import netrc
 
-    urs_usr, _, urs_pwd = netrc().hosts["urs.earthdata.nasa.gov"]
+    urs_usr, _, urs_pwd = netrc().hosts['urs.earthdata.nasa.gov']
     return urs_usr, urs_pwd
 
 
@@ -700,7 +689,7 @@ def show_progress(block_num, block_size, total_size) -> None:
     """Show download progress."""
     if progressbar is None:
         raise ImportError('RAiDER.utilFcns: show_progress - progressbar is not available')
-    
+
     global pbar
     if pbar is None:
         pbar = progressbar.ProgressBar(maxval=total_size)
@@ -721,12 +710,7 @@ def getChunkSize(in_shape):
     minChunkSize = 100
     maxChunkSize = 1000
     cpu_count = mp.cpu_count()
-    chunkSize = tuple(
-        max(
-            min(maxChunkSize, s // cpu_count),
-            min(s, minChunkSize)
-        ) for s in in_shape
-    )
+    chunkSize = tuple(max(min(maxChunkSize, s // cpu_count), min(s, minChunkSize)) for s in in_shape)
     return chunkSize
 
 
@@ -763,15 +747,13 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
 
     if len(a) != num_levels + 1 or len(b) != num_levels + 1:
         raise ValueError(
-            f'I have here a model with {num_levels} levels, but parameters a ' +
-            f'and b have lengths {len(a)} and {len(b)} respectively. Of ' +
-            'course, these three numbers should be equal.')
+            f'I have here a model with {num_levels} levels, but parameters a and b have lengths {len(a)} and {len(b)} '
+            'respectively. Of course, these three numbers should be equal.'
+        )
 
     # Integrate up into the atmosphere from *lowest level*
     z_h = 0  # initial value
-    for lev, t_level, q_level in zip(
-            range(num_levels, 0, -1), t[::-1], q[::-1]):
-
+    for lev, t_level, q_level in zip(range(num_levels, 0, -1), t[::-1], q[::-1]):
         # lev is the level number 1-60, we need a corresponding index
         # into ts and qs
         # ilevel = num_levels - lev # << this was Ray's original, but is a typo
@@ -822,7 +804,7 @@ def transform_coords(proj1, proj2, x, y):
 
 
 def get_nearest_wmtimes(t0, time_delta):
-    """"
+    """ "
     Get the nearest two available times to the requested time given a time step.
 
     Args:
@@ -841,7 +823,7 @@ def get_nearest_wmtimes(t0, time_delta):
      (datetime.datetime(2020, 1, 1, 9, 0), datetime.datetime(2020, 1, 1, 12, 0))
     """
     # get the closest time available
-    tclose = round_time(t0, roundTo = time_delta * 60 *60)
+    tclose = round_time(t0, roundTo=time_delta * 60 * 60)
 
     # Just calculate both options and take the closest
     t2_1 = tclose + timedelta(hours=time_delta)
@@ -858,7 +840,7 @@ def get_nearest_wmtimes(t0, time_delta):
             return [t2, tclose]
 
 
-def get_dt(t1,t2):
+def get_dt(t1, t2):
     """
     Helper function for getting the absolute difference in seconds between
     two python datetimes.
@@ -876,5 +858,3 @@ def get_dt(t1,t2):
      18000.0
     """
     return np.abs((t1 - t2).total_seconds())
-
-

@@ -85,7 +85,4 @@ def test_updateTrue(model_name, template):
     actual_content = rc_path.read_text()
     rc_path.unlink()
 
-    assert (
-        expected_content == actual_content,
-        f'{rc_path} was not updated correctly'
-    )
+    assert expected_content == actual_content, f'{rc_path} was not updated correctly'

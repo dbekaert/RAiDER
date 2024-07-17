@@ -16,10 +16,12 @@ from RAiDER.losreader import get_orbit as get_isce_orbit
 from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
 
 
-def _asf_query(point: Point,
-               start: datetime.datetime,
-               end: datetime.datetime,
-               buffer_degrees: float = 2) -> list[str]:
+def _asf_query(
+    point: Point,
+    start: datetime.datetime,
+    end: datetime.datetime,
+    buffer_degrees: float = 2
+) -> list[str]:
     """
     Using a buffer to get as many SLCs covering a given request as.
 
@@ -34,21 +36,24 @@ def _asf_query(point: Point,
     -------
     list[str]
     """
-    results = asf.geo_search(intersectsWith=point.buffer(buffer_degrees).wkt,
-                             processingLevel=asf.PRODUCT_TYPE.SLC,
-                             start=start,
-                             end=end,
-                             maxResults=5
-                             )
+    results = asf.geo_search(
+        intersectsWith=point.buffer(buffer_degrees).wkt,
+        processingLevel=asf.PRODUCT_TYPE.SLC,
+        start=start,
+        end=end,
+        maxResults=5,
+    )
     slc_ids = [r.properties['sceneName'] for r in results]
     return slc_ids
 
 
-def get_slc_id_from_point_and_time(lon: float,
-                                   lat: float,
-                                   dt: datetime.datetime,
-                                   buffer_seconds: int = 600,
-                                   buffer_deg: float = 2) -> list:
+def get_slc_id_from_point_and_time(
+    lon: float,
+    lat: float,
+    dt: datetime.datetime,
+    buffer_seconds: int = 600,
+    buffer_deg: float = 2
+) -> list:
     """
     Obtains a (non-unique) SLC id from the lon/lat and datetime of inputs. The buffere ensures that
     an SLC id is within the queried start/end times. Note an S1 scene takes roughly 30 seconds to acquire.
@@ -80,10 +85,12 @@ def get_slc_id_from_point_and_time(lon: float,
     return slc_ids
 
 
-def get_azimuth_time_grid(lon_mesh: np.ndarray,
-                          lat_mesh: np.ndarray,
-                          hgt_mesh:  np.ndarray,
-                          orb: 'isce.core.Orbit') -> np.ndarray:
+def get_azimuth_time_grid(
+    lon_mesh: np.ndarray,
+    lat_mesh: np.ndarray,
+    hgt_mesh: np.ndarray,
+    orb: 'isce.core.Orbit'
+) -> np.ndarray:
     """
     Source: https://github.com/dbekaert/RAiDER/blob/dev/tools/RAiDER/losreader.py#L601C1-L674C22
 
@@ -102,28 +109,35 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
     look = isce.core.LookSide.Right
 
     m, n, p = hgt_mesh.shape
-    az_arr = np.full((m, n, p),
-                     np.datetime64('NaT'),
-                     # source: https://stackoverflow.com/a/27469108
-                     dtype='datetime64[ms]')
+    az_arr = np.full(
+        (m, n, p),
+        np.datetime64('NaT'),
+        # source: https://stackoverflow.com/a/27469108
+        dtype='datetime64[ms]',
+    )
 
     for ind_0 in range(m):
         for ind_1 in range(n):
             for ind_2 in range(p):
+                hgt_pt, lat_pt, lon_pt = (
+                    hgt_mesh[ind_0, ind_1, ind_2],
+                    lat_mesh[ind_0, ind_1, ind_2],
+                    lon_mesh[ind_0, ind_1, ind_2],
+                )
 
-                hgt_pt, lat_pt, lon_pt = (hgt_mesh[ind_0, ind_1, ind_2],
-                                          lat_mesh[ind_0, ind_1, ind_2],
-                                          lon_mesh[ind_0, ind_1, ind_2])
-
-                input_vec = np.array([np.deg2rad(lon_pt),
-                                      np.deg2rad(lat_pt),
-                                      hgt_pt])
+                input_vec = np.array([np.deg2rad(lon_pt), np.deg2rad(lat_pt), hgt_pt])
 
                 aztime, sr = isce.geometry.geo2rdr(
-                    input_vec, elp, orb, dop, 0.06, look,
+                    input_vec,
+                    elp,
+                    orb,
+                    dop,
+                    0.06,
+                    look,
                     threshold=residual_threshold,
                     maxiter=num_iteration,
-                    delta_range=10.0)
+                    delta_range=10.0,
+                )
 
                 rng_seconds = sr / isce.core.speed_of_light
                 aztime = aztime + rng_seconds
@@ -133,10 +147,12 @@ def get_azimuth_time_grid(lon_mesh: np.ndarray,
     return az_arr
 
 
-def get_s1_azimuth_time_grid(lon: np.ndarray,
-                             lat: np.ndarray,
-                             hgt:  np.ndarray,
-                             dt: datetime.datetime) -> np.ndarray:
+def get_s1_azimuth_time_grid(
+    lon: np.ndarray,
+    lat: np.ndarray,
+    hgt: np.ndarray,
+    dt: datetime.datetime
+) -> np.ndarray:
     """Based on the lon, lat, hgt (3d cube) - obtains an associated s1 orbit
     file to calculate the azimuth timing across the cube. Requires datetime of acq
     associated to cube.
@@ -163,12 +179,16 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
         raise ValueError('Coordinates must be 1d or 3d coordinate arrays')
 
     if dims[0] == 1:
-        hgt_mesh, lat_mesh, lon_mesh = np.meshgrid(hgt, lat, lon,
-                                                   # indexing keyword argument
-                                                   # Ensures output dimensions
-                                                   # align with order the inputs
-                                                   # height x latitude x longitude
-                                                   indexing='ij')
+        hgt_mesh, lat_mesh, lon_mesh = np.meshgrid(
+            hgt,
+            lat,
+            lon,
+            # indexing keyword argument
+            # Ensures output dimensions
+            # align with order the inputs
+            # height x latitude x longitude
+            indexing='ij',
+        )
     else:
         hgt_mesh = hgt
         lat_mesh = lat
@@ -181,9 +201,7 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
     except ValueError:
         warnings.warn('No slc id found for the given datetime and grid; returning empty grid')
         m, n, p = hgt_mesh.shape
-        az_arr = np.full((m, n, p),
-                         np.datetime64('NaT'),
-                         dtype='datetime64[ms]')
+        az_arr = np.full((m, n, p), np.datetime64('NaT'), dtype='datetime64[ms]')
         return az_arr
 
     orb_files = get_orbits_from_slc_ids_hyp3lib(slc_ids)
@@ -195,9 +213,11 @@ def get_s1_azimuth_time_grid(lon: np.ndarray,
     return az_arr
 
 
-def get_n_closest_datetimes(ref_time: datetime.datetime,
-                            n_target_times: int,
-                            time_step_hours: int) -> list[datetime.datetime]:
+def get_n_closest_datetimes(
+    ref_time: datetime.datetime,
+    n_target_times: int,
+    time_step_hours: int
+) -> list[datetime.datetime]:
     """
     Gets n closest times relative to the `round_to_hour_delta` and the
     `ref_time`. Specifically, if one is interetsted in getting 3 closest times
@@ -234,9 +254,11 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
     closest_times = []
 
     if (24 % time_step_hours) != 0:
-        raise ValueError('The time step does not evenly divide 24 hours;'
-                         'Time step has period > 1 day and depends when model '
-                         'starts')
+        raise ValueError(
+            'The time step does not evenly divide 24 hours;'
+            'Time step has period > 1 day and depends when model '
+            'starts'
+        )
 
     ts = pd.Timestamp(ref_time)
     for k in range(iterations):
@@ -255,9 +277,11 @@ def get_n_closest_datetimes(ref_time: datetime.datetime,
     return closest_times
 
 
-def get_times_for_azimuth_interpolation(ref_time: datetime.datetime,
-                                        time_step_hours: int,
-                                        buffer_in_seconds: int = 300) -> list[datetime.datetime]:
+def get_times_for_azimuth_interpolation(
+    ref_time: datetime.datetime,
+    time_step_hours: int,
+    buffer_in_seconds: int = 300
+) -> list[datetime.datetime]:
     """Obtains times needed for azimuth interpolation. Filters 3 closests dates from ref_time
     so that all returned dates are within `time_step_hours` + `buffer_in_seconds`.
 
@@ -304,14 +328,17 @@ def get_times_for_azimuth_interpolation(ref_time: datetime.datetime,
         absolute_time_difference_sec = abs((ref_time - time).total_seconds())
         upper_bound_seconds = time_step_hours * 60 * 60 + buffer_in_seconds
         return absolute_time_difference_sec < upper_bound_seconds
+
     out_times = list(filter(filter_time, closest_times))
     return out_times
 
 
-def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
-                                  dates: list[datetime.datetime],
-                                  inverse_regularizer: float = 1e-9,
-                                  temporal_window_hours: float = None) -> list[np.ndarray]:
+def get_inverse_weights_for_dates(
+    azimuth_time_array: np.ndarray,
+    dates: list[datetime.datetime],
+    inverse_regularizer: float = 1e-9,
+    temporal_window_hours: float = None,
+) -> list[np.ndarray]:
     """Obtains weights according to inverse weighting with respect to the absolute difference between
     azimuth timing array and dates. The output will be a list with length equal to that of dates and
     whose entries are arrays each whose shape matches the azimuth_timing_array.
@@ -358,7 +385,7 @@ def get_inverse_weights_for_dates(azimuth_time_array: np.ndarray,
     abs_diff = [np.abs(azimuth_time_array - date) / np.timedelta64(1, 's') for date in dates_np]
 
     # Get inverse weighting with mask determined by window
-    wgts = [1. / (diff + inverse_regularizer) for diff in abs_diff]
+    wgts = [1.0 / (diff + inverse_regularizer) for diff in abs_diff]
     masks = [(diff <= temporal_window_seconds).astype(int) for diff in abs_diff]
 
     if all([mask.sum() == 0 for mask in masks]):

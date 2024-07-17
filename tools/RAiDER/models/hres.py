@@ -20,16 +20,15 @@ class HRES(ECMWF):
         WeatherModel.__init__(self)
 
         # model constants
-        self._k1 = 0.776   # [K/Pa]
-        self._k2 = 0.233   # [K/Pa]
+        self._k1 = 0.776  # [K/Pa]
+        self._k2 = 0.233  # [K/Pa]
         self._k3 = 3.75e3  # [K^2/Pa]
 
-
         # 9 km horizontal grid spacing. This is only used for extending the download-buffer, i.e. not in subsequent processing.
-        self._lon_res = 9. / 111  # 0.08108115
-        self._lat_res = 9. / 111  # 0.08108115
-        self._x_res = 9. / 111  # 0.08108115
-        self._y_res = 9. / 111  # 0.08108115
+        self._lon_res = 9.0 / 111  # 0.08108115
+        self._lat_res = 9.0 / 111  # 0.08108115
+        self._x_res = 9.0 / 111  # 0.08108115
+        self._y_res = 9.0 / 111  # 0.08108115
 
         self._humidityType = 'q'
         # Default, pressure levels are 'pl'
@@ -41,8 +40,10 @@ class HRES(ECMWF):
 
         self._time_res = TIME_RES[self._dataset.upper()]
         # Tuple of min/max years where data is available.
-        self._valid_range = (datetime.datetime(1983, 4, 20).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
-                             datetime.datetime.now(datetime.timezone.utc))
+        self._valid_range = (
+            datetime.datetime(1983, 4, 20).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+            datetime.datetime.now(datetime.timezone.utc),
+        )
         # Availability lag time in days
         self._lag_time = datetime.timedelta(hours=6)
 
@@ -66,19 +67,19 @@ class HRES(ECMWF):
         f = self.files[0] if f is None else f
 
         if self._model_level_type == 'ml':
-            if (self._time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
+            if self._time < datetime.datetime(2013, 6, 26, 0, 0, 0):
                 self.update_a_b()
             self._load_model_level(f)
         elif self._model_level_type == 'pl':
             self._load_pressure_levels(f)
 
-    def _fetch(self,out) -> None:
+    def _fetch(self, out) -> None:
         """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time
 
-        if (time < datetime.datetime(2013, 6, 26, 0, 0, 0)):
+        if time < datetime.datetime(2013, 6, 26, 0, 0, 0):
             self.update_a_b()
 
         # execute the search at ECMWF

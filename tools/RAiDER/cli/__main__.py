@@ -6,15 +6,12 @@ import RAiDER.cli.conf as conf
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        prefix_chars='+',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(prefix_chars='+', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         '++process',
         choices=['calcDelays', 'downloadGNSS', 'calcDelaysGUNW'],
         default='calcDelays',
-        help='Select the entrypoint to use'
+        help='Select the entrypoint to use',
     )
     parser.add_argument(
         '++logger_path',
@@ -32,14 +29,11 @@ def main() -> None:
 
     try:
         # python >=3.10 interface
-        (process_entry_point,) = entry_points(
-            group='console_scripts', name=f'{args.process}.py')
+        (process_entry_point,) = entry_points(group='console_scripts', name=f'{args.process}.py')
     except TypeError:
         # python 3.8 and 3.9 interface
         scripts = entry_points()['console_scripts']
-        process_entry_point = [
-            ep for ep in scripts if ep.name == f'{args.process}.py'
-        ][0]
+        process_entry_point = [ep for ep in scripts if ep.name == f'{args.process}.py'][0]
 
     process_entry_point.load()()
 
