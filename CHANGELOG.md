@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+[Unreleased]
+### Changed
+* [672](https://github.com/dbekaert/RAiDER/pull/672) - Linted the project with `ruff`.
+
 ## [0.5.2]
 ### Changed
 * [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and added unit tests and bug fixes.
