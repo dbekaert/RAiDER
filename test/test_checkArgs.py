@@ -78,12 +78,12 @@ def test_checkArgs_outfmt_4(args):
     assert argDict.aoi.type()=='radar_rasters'
 
 
-def test_checkArgs_outfmt_5(args):
-    '''Test that passing a raster format with height levels throws an error'''
-    args = args
-    args.aoi = StationFile(os.path.join(SCENARIO_2, 'stations.csv'))
-    argDict = checkArgs(args)
-    assert pd.read_csv(argDict['wetFilenames'][0]).shape == (8, 4)
+def test_checkArgs_outfmt_5(args, tmp_path):
+    with pushd(tmp_path):
+        args = args
+        args.aoi = StationFile(os.path.join(SCENARIO_2, 'stations.csv'))
+        argDict = checkArgs(args)
+        assert pd.read_csv(argDict['wetFilenames'][0]).shape == (8, 4)
 
 
 def test_checkArgs_outloc_1(args):

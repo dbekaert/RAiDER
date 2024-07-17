@@ -27,8 +27,12 @@ def test_datelist():
       }
     
     cfg  = update_yaml(dct_group, 'temp.yaml')
+    file_to_del = 'temp.yaml'
     param_dict = read_run_config_file(cfg)
     assert param_dict['date_list'] == true_dates
+
+    if os.path.exists(file_to_del):
+        os.remove(file_to_del)
 
 
 def test_datestep():
@@ -52,5 +56,9 @@ def test_datestep():
       }
     
     cfg  = update_yaml(dct_group, 'temp.yaml')
+    file_to_del = 'temp.yaml'
     param_dict = read_run_config_file(cfg)
     assert param_dict['date_list'] == true_dates
+
+    if os.path.exists(file_to_del):
+        os.remove(file_to_del)
