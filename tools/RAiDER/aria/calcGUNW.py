@@ -1,15 +1,15 @@
 """
-Calculate the interferometric phase from the 4 delays files of a GUNW and
-write it to disk.
+Calculate the interferometric phase from the 4 delays files of a GUNW and write it to disk.
 """
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 import h5py
+import netCDF4
 import numpy as np
 import xarray as xr
-from netCDF4 import Dataset
 
 import RAiDER
 from RAiDER.logger import logger
@@ -23,7 +23,7 @@ TROPO_NAMES = ['troposphereWet', 'troposphereHydrostatic']
 DIM_NAMES = ['heightsMeta', 'latitudeMeta', 'longitudeMeta']
 
 
-def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
+def compute_delays_slc(cube_paths: list[Path], wavelength: float) -> xr.Dataset:
     """
     Get delays from standard RAiDER output formatting ouput including radian
     conversion and metadata.
@@ -41,16 +41,16 @@ def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
         Formatted dataset for GUNW
     """
     # parse date from filename
-    dct_delays = {}
-    for f in cube_filenames:
-        date = datetime.strptime(os.path.basename(f).split('_')[2], '%Y%m%dT%H%M%S')
-        dct_delays[date] = f
+    dct_delays: dict[datetime, Path] = {}
+    for path in cube_paths:
+        date = datetime.strptime(path.name.split('_')[2], '%Y%m%dT%H%M%S')
+        dct_delays[date] = path
 
     sec, ref = sorted(dct_delays.keys())
 
-    wet_delays = []
-    hyd_delays = []
-    attrs_lst = []
+    wet_delays: list[xr.DataArray] = []
+    hyd_delays: list[xr.DataArray] = []
+    attrs_lst: list[dict] = []
     phase2range = (-4 * np.pi) / float(wavelength)
     for dt in [ref, sec]:
         path = dct_delays[dt]
@@ -76,7 +76,7 @@ def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
         ds_slc[f'{key}_{TROPO_NAMES[0]}'] = wet_delays[i]
         ds_slc[f'{key}_{TROPO_NAMES[1]}'] = hyd_delays[i]
 
-    model = os.path.basename(path).split('_')[0]
+    model = path.name.split('_')[0]
 
     attrs = {
         'units': 'radians',
@@ -110,7 +110,8 @@ def compute_delays_slc(cube_filenames: list, wavelength: float) -> xr.Dataset:
     # first need to delete the variable; only can seem to with h5
 
 
-def update_gunw_slc(path_gunw: str, ds_slc) -> None:
+
+def update_gunw_slc(path_gunw: str, ds_slc: xr.Dataset) -> None:
     """Update the path_gunw file using the slc delays in ds_slc."""
     with h5py.File(path_gunw, 'a') as h5:
         for k in TROPO_GROUP.split():
@@ -126,7 +127,7 @@ def update_gunw_slc(path_gunw: str, ds_slc) -> None:
             if k in h5.keys():
                 del h5[k]
 
-    with Dataset(path_gunw, mode='a') as ds:
+    with netCDF4.Dataset(path_gunw, mode='a') as ds:
         ds_grp = ds[TROPO_GROUP]
         ds_grp.createGroup(ds_slc.attrs['model'].upper())
         ds_grp_wm = ds_grp[ds_slc.attrs['model'].upper()]
@@ -174,13 +175,13 @@ def update_gunw_slc(path_gunw: str, ds_slc) -> None:
     logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
 
 
-def update_gunw_version(path_gunw) -> None:
+def update_gunw_version(path_gunw: str) -> None:
     """Temporary hack for updating version to test aria-tools."""
-    with Dataset(path_gunw, mode='a') as ds:
+    with netCDF4.Dataset(path_gunw, mode='a') as ds:
         ds.version = '1c'
 
 
-def tropo_gunw_slc(cube_filenames: list, path_gunw: str, wavelength: float) -> xr.Dataset:
+def tropo_gunw_slc(cube_paths: list[Path], path_gunw: str, wavelength: float) -> xr.Dataset:
     """
     Compute and format the troposphere phase delay for GUNW from RAiDER outputs.
 
@@ -198,7 +199,7 @@ def tropo_gunw_slc(cube_filenames: list, path_gunw: str, wavelength: float) -> x
     xr.Dataset
         Output cube that will be included in GUNW
     """
-    ds_slc = compute_delays_slc(cube_filenames, wavelength)
+    ds_slc = compute_delays_slc(cube_paths, wavelength)
 
     # write the interferometric delay to disk
     update_gunw_slc(path_gunw, ds_slc)
