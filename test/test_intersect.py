@@ -7,7 +7,7 @@ import numpy as np
 from scipy.interpolate import griddata
 import rasterio
 
-from test import TEST_DIR, WM_DIR, update_yaml
+from test import TEST_DIR, WM_DIR, write_yaml
 
 
 @pytest.mark.parametrize('wm', 'ERA5'.split())
@@ -39,7 +39,7 @@ def test_cube_intersect(wm):
         }
 
     ## generate the default run config file and overwrite it with new parms
-    cfg  = update_yaml(grp, 'temp.yaml')
+    cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
     cmd  = f'raider.py {cfg}'
@@ -85,7 +85,7 @@ def test_gnss_intersect(wm):
         }
 
     ## generate the default run config file and overwrite it with new parms
-    cfg  = update_yaml(grp)
+    cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
     cmd  = f'raider.py {cfg}'

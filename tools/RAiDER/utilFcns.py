@@ -1,13 +1,17 @@
 """Geodesy-related utility functions."""
 
 import os
+from pathlib import Path
 import re
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
+import RAiDER
 import numpy as np
 import xarray
 from numpy import ndarray
 from pyproj import CRS, Proj, Transformer
+import yaml
 
 
 # Optional imports
@@ -858,3 +862,26 @@ def get_dt(t1, t2):
      18000.0
     """
     return np.abs((t1 - t2).total_seconds())
+
+
+def write_yaml(content: dict[Any, Any], dst: Path) -> Path:
+    """Write a new yaml file from a dictionary with template.yaml as a base.
+
+    Each key-value pair in 'content' will override the one from template.yaml.
+    """
+    yaml_path = Path(RAiDER.__file__).parent / 'cli/examples/template/template.yaml'
+
+    with yaml_path.open() as f:
+        try:
+            params = yaml.safe_load(f)
+        except yaml.YAMLError as exc:
+            print(exc)
+            raise ValueError(f'Something is wrong with the yaml file {yaml_path}')
+
+    params = {**params, **content}
+
+    with dst.open('w') as fh:
+        yaml.safe_dump(params, fh, default_flow_style=False)
+
+    logger.info('Wrote new cfg file: %s', str(dst))
+    return dst

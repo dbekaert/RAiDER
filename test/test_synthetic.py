@@ -16,7 +16,7 @@ from RAiDER.utilFcns import lla2ecef
 from RAiDER.cli.validators import modelName2Module
 
 from test import (
-    TEST_DIR, ORB_DIR, WM_DIR, update_yaml
+    TEST_DIR, ORB_DIR, WM_DIR, write_yaml
 )
 
 
@@ -193,7 +193,7 @@ def test_dl_real(region, mod='ERA5'):
             op.dirname(SAobj.path_wm_real)
     dct_cfg['download_only'] = True
 
-    cfg = update_yaml(dct_cfg)
+    cfg = write_yaml(dct_cfg, 'temp.yaml')
     ## run raider to download the real weather model
     cmd  = f'raider.py {cfg}'
 
@@ -228,7 +228,7 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     ## update the weather model; t = p for hydrostatic
     path_synth = update_model(SAobj.path_wm_real, 'hydro', SAobj.wm_dir_synth)
 
-    cfg = update_yaml(dct_cfg)
+    cfg = write_yaml(dct_cfg, 'temp.yaml')
 
     ## run raider with the synthetic model
     cmd  = f'raider.py {cfg}'
@@ -297,7 +297,7 @@ def test_wet_eq_linear(region, mod='ERA-5'):
     ## update the weather model; t = e for wet1
     path_synth = update_model(SAobj.path_wm_real, 'wet_linear', SAobj.wm_dir_synth)
 
-    cfg = update_yaml(dct_cfg)
+    cfg = write_yaml(dct_cfg, 'temp.yaml')
 
     ## run raider with the synthetic model
     cmd  = f'raider.py {cfg}'
@@ -364,7 +364,7 @@ def test_wet_eq_nonlinear(region, mod='ERA-5'):
     ## update the weather model; t = e for wet1
     path_synth = update_model(SAobj.path_wm_real, 'wet_nonlinear', SAobj.wm_dir_synth)
 
-    cfg = update_yaml(dct_cfg)
+    cfg = write_yaml(dct_cfg, 'temp.yaml')
 
     ## run raider with the synthetic model
     cmd  = f'raider.py {cfg}'

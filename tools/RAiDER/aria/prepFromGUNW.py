@@ -349,31 +349,6 @@ class GUNW:
         logger.info('Wrote cube to: %s', dst_cube)
         return dst_cube
 
-
-def update_yaml(dct_cfg: dict, dst: str = 'GUNW.yaml'):
-    """Write a new yaml file from a dictionary.
-
-    Updates parameters in the default 'template.yaml' file.
-    Each key:value pair will in 'dct_cfg' will overwrite that in the default
-    """
-    run_config_path = os.path.join(os.path.dirname(RAiDER.__file__), 'cli', 'examples', 'template', 'template.yaml')
-
-    with open(run_config_path) as f:
-        try:
-            params = yaml.safe_load(f)
-        except yaml.YAMLError as exc:
-            print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {run_config_path}')
-
-    params = {**params, **dct_cfg}
-
-    with open(dst, 'w') as fh:
-        yaml.safe_dump(params, fh, default_flow_style=False)
-
-    logger.info('Wrote new cfg file: %s', dst)
-    return dst
-
-
 def main(args):
     """Read parameters needed for RAiDER from ARIA Standard Products (GUNW)."""
     # Check if WEATHER MODEL API credentials hidden file exists, if not create it or raise ERROR
@@ -404,6 +379,6 @@ def main(args):
         },
     }
 
-    path_cfg = f'GUNW_{GUNWObj.name}.yaml'
-    update_yaml(raider_cfg, path_cfg)
+    path_cfg = Path(f'GUNW_{GUNWObj.name}.yaml')
+    write_yaml(raider_cfg, path_cfg)
     return path_cfg, GUNWObj.wavelength
