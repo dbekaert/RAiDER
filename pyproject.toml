@@ -67,7 +67,6 @@ default_section = "THIRDPARTY"
 
 [tool.setuptools_scm]
 
-
 [tool.ruff]
 line-length = 120
 src = ["tools", "test"]
@@ -84,7 +83,7 @@ extend-select = [
     "ANN", # annotations: https://docs.astral.sh/ruff/rules/#flake8-annotations-ann
     "PTH", # use-pathlib-pth: https://docs.astral.sh/ruff/rules/#flake8-use-pathlib-pth
 ]
-ignore = ["D212"]
+ignore = ["ANN101", "D200", "D205", "D212"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
