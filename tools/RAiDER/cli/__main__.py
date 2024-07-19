@@ -1,6 +1,7 @@
 import argparse
 import sys
 from importlib.metadata import entry_points
+from pathlib import Path
 
 import RAiDER.cli.conf as conf
 
@@ -23,7 +24,7 @@ def main() -> None:
     args, unknowns = parser.parse_known_args()
 
     # Needed for a global logging path
-    conf.setLoggerPath(args.logger_path)
+    conf.setLoggerPath(Path(args.logger_path))
 
     sys.argv = [args.process, *unknowns]
 

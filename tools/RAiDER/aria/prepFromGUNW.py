@@ -5,26 +5,24 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import os
 import sys
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Literal
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import rasterio
 import shapely.wkt
 import xarray as xr
-import yaml
 from shapely.geometry import box
 
-import RAiDER
 from RAiDER.logger import logger
 from RAiDER.models import credentials
 from RAiDER.models.hrrr import AK_GEO, HRRR_CONUS_COVERAGE_POLYGON, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
 from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
+from RAiDER.types import BB, CalcDelaysArgs, LookDir
+from RAiDER.utilFcns import write_yaml
 
 
 # cube spacing in degrees for each model
@@ -156,63 +154,70 @@ def check_weather_model_availability(gunw_path: str, weather_model_name: str) ->
     return ref_cond and sec_cond
 
 
-@dataclass
 class GUNW:
-    path_gunw: str
-    wm: str
-    out_dir: str
+    path_gunw: Path
+    wm: str  # TODO(garlic-os): probably a known weather model name
+    out_dir: Path
+    SNWE: BB.SNWE
+    heights: list[int]
+    dates: list[int]  # ints in YYYYMMDD form
+    mid_time: str  # str in HH:MM:SS form
+    look_dir: LookDir
+    wavelength: float
+    name: str
+    orbit_file: ...
+    spacing_m: int
 
-    def __post_init__(self):
+    def __init__(self, path_gunw: str, wm: str, out_dir: str) -> None:
+        self.path_gunw = Path(path_gunw)
+        self.wm = wm
+        self.out_dir = Path(out_dir)
+
         self.SNWE = self.get_bbox()
         self.heights = np.arange(-500, 9500, 500).tolist()
         # self.heights   = [-500, 0]
         self.dates, self.mid_time = self.get_datetimes()
-
         self.look_dir = self.get_look_dir()
         self.wavelength = self.get_wavelength()
         self.name = self.make_fname()
-        self.OrbitFile = self.get_orbit_file()
+        self.orbit_file = self.get_orbit_file()
         self.spacing_m = int(DCT_POSTING[self.wm] * 1e5)
-
         # not implemented
         # self.spacing_m = self.calc_spacing_UTM() # probably wrong/unnecessary
         # self.lat_file, self.lon_file = self.makeLatLonGrid_native()
         # self.path_cube  = self.make_cube() # not needed
 
-    def get_bbox(self):
+    def get_bbox(self) -> BB.SNWE:
         """Get the bounding box (SNWE) from an ARIA GUNW product."""
         with xr.open_dataset(self.path_gunw) as ds:
             poly_str = ds['productBoundingBox'].data[0].decode('utf-8')
-
         poly = shapely.wkt.loads(poly_str)
         W, S, E, N = poly.bounds
-
-        return [S, N, W, E]
+        return S, N, W, E
 
     def make_fname(self) -> str:
         """Match the ref/sec filename (SLC dates may be different around edge cases)."""
-        ref, sec = os.path.basename(self.path_gunw).split('-')[6].split('_')
-        mid_time = os.path.basename(self.path_gunw).split('-')[7]
+        ref, sec = self.path_gunw.name.split('-')[6].split('_')
+        mid_time = self.path_gunw.name.split('-')[7]
         return f'{ref}-{sec}_{mid_time}'
 
-    def get_datetimes(self):
+    def get_datetimes(self) -> tuple[list[int], str]:
         """Get the datetimes and set the satellite for orbit."""
         ref_sec = self.get_slc_dt()
-        middates = []
-        for aq in ref_sec:
-            st, en = aq
-            midpt = st + (en - st) / 2
-            middates.append(int(midpt.date().strftime('%Y%m%d')))
-            midtime = midpt.time().strftime('%H:%M:%S')
-        return middates, midtime
+        mid_dates: list[int] = []  # dates in YYYYMMDD format
+        for st, en in ref_sec:
+            midpoint = st + (en - st) / 2
+            mid_dates.append(int(midpoint.date().strftime('%Y%m%d')))
+            mid_time = midpoint.time().strftime('%H:%M:%S')
+        return mid_dates, mid_time
 
-    def get_slc_dt(self):
+    def get_slc_dt(self) -> list[tuple[datetime, datetime]]:
         """Grab the SLC start date and time from the GUNW."""
         group = 'science/radarMetaData/inputSLC'
-        lst_sten = []
+        lst_sten: list[tuple[datetime, datetime]] = []
         for key in 'reference secondary'.split():
-            ds   = xr.open_dataset(self.path_gunw, group=f'{group}/{key}')
-            slcs = ds['L1InputGranules']
+            with xr.open_dataset(self.path_gunw, group=f'{group}/{key}') as ds:
+                slcs = ds['L1InputGranules']
             nslcs = slcs.count().item()
             # single slc
             if nslcs == 1:
@@ -241,12 +246,12 @@ class GUNW:
                 assert st > datetime(1989, 3, 1), \
                     f'Missing {key} SLC metadata in GUNW: {self.f}'
 
-            lst_sten.append([st, en])
+            lst_sten.append((st, en))
 
         return lst_sten
 
-    def get_look_dir(self) -> Literal['right', 'left']:
-        look_dir = os.path.basename(self.path_gunw).split('-')[3].lower()
+    def get_look_dir(self) -> LookDir:
+        look_dir = self.path_gunw.name.split('-')[3].lower()
         return 'right' if look_dir == 'r' else 'left'
 
     def get_wavelength(self):
@@ -255,19 +260,20 @@ class GUNW:
             wavelength = ds['wavelength'].item()
         return wavelength
 
-    def get_orbit_file(self):
+    # TODO(garlic-os): sounds like this returns one thing but it returns a list?
+    def get_orbit_file(self) -> list[str]:
         """Get orbit file for reference (GUNW: first & later date)."""
-        orbit_dir = os.path.join(self.out_dir, 'orbits')
-        os.makedirs(orbit_dir, exist_ok=True)
+        orbit_dir = self.out_dir / 'orbits'
+        orbit_dir.mkdir(parents=True, exist_ok=True)
 
         # just to get the correct satellite
         group = 'science/radarMetaData/inputSLC/reference'
 
-        ds = xr.open_dataset(self.path_gunw, group=f'{group}')
-        slcs = ds['L1InputGranules']
+        with xr.open_dataset(self.path_gunw, group=f'{group}') as ds:
+            slcs = ds['L1InputGranules']
         # Convert to list of strings
         slcs_lst = [slc for slc in slcs.data.tolist() if slc]
-        # Remove .zip from the granule ids included in this field
+        # Remove ".zip" from the granule ids included in this field
         slcs_lst = list(map(lambda slc: slc.replace('.zip', ''), slcs_lst))
 
         path_orb = get_orbits_from_slc_ids_hyp3lib(slcs_lst)
@@ -306,7 +312,7 @@ class GUNW:
         lat_spacing_m = np.subtract(*res[3][::-1])
         return np.mean([lon_spacing_m, lat_spacing_m])
 
-    def makeLatLonGrid_native(self):
+    def makeLatLonGrid_native(self) -> tuple[Path, Path]:
         """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)."""
         group = 'science/grids/data'
         with xr.open_dataset(self.path_gunw, group=group) as ds0:
@@ -319,8 +325,8 @@ class GUNW:
         da_lon = xr.DataArray(Lon.T, coords=[Lon[0, :], Lat[:, 0]], dims=dims)
         da_lat = xr.DataArray(Lat.T, coords=[Lon[0, :], Lat[:, 0]], dims=dims)
 
-        dst_lat = os.path.join(self.out_dir, 'latitude.geo')
-        dst_lon = os.path.join(self.out_dir, 'longitude.geo')
+        dst_lat = self.out_dir / 'latitude.geo'
+        dst_lon = self.out_dir / 'longitude.geo'
 
         da_lat.to_netcdf(dst_lat)
         da_lon.to_netcdf(dst_lon)
@@ -329,7 +335,7 @@ class GUNW:
         logger.debug('Wrote: %s', dst_lon)
         return dst_lat, dst_lon
 
-    def make_cube(self):
+    def make_cube(self) -> Path:
         """Make LatLonGrid at GUNW spacing (90m = 0.00083333º)."""
         group = 'science/grids/data'
         with xr.open_dataset(self.path_gunw, group=group) as ds0:
@@ -339,17 +345,17 @@ class GUNW:
         lat_st, lat_en = np.floor(lats0.min()), np.ceil(lats0.max())
         lon_st, lon_en = np.floor(lons0.min()), np.ceil(lons0.max())
 
-        lats = np.arange(lat_st, lat_en, DCT_POSTING[self.wmodel])
-        lons = np.arange(lon_st, lon_en, DCT_POSTING[self.wmodel])
+        lats = np.arange(lat_st, lat_en, DCT_POSTING[self.wm])
+        lons = np.arange(lon_st, lon_en, DCT_POSTING[self.wm])
 
-        ds = xr.Dataset(coords={'latitude': lats, 'longitude': lons, 'heights': self.heights})
-        dst_cube = os.path.join(self.out_dir, f'GeoCube_{self.name}.nc')
-        ds.to_netcdf(dst_cube)
+        dst_cube = self.out_dir / f'GeoCube_{self.name}.nc'
+        with xr.Dataset(coords={'latitude': lats, 'longitude': lons, 'heights': self.heights}) as ds:
+            ds.to_netcdf(dst_cube)
 
-        logger.info('Wrote cube to: %s', dst_cube)
+        logger.info('Wrote cube to: %s', str(dst_cube))
         return dst_cube
 
-def main(args):
+def main(args: CalcDelaysArgs) -> tuple[Path, float]:
     """Read parameters needed for RAiDER from ARIA Standard Products (GUNW)."""
     # Check if WEATHER MODEL API credentials hidden file exists, if not create it or raise ERROR
     credentials.check_api(args.weather_model, args.api_uid, args.api_key)
@@ -370,7 +376,7 @@ def main(args):
         },
         'los_group': {
             'ray_trace': True,
-            'orbit_file': GUNWObj.OrbitFile,
+            'orbit_file': GUNWObj.orbit_file,
             'wavelength': GUNWObj.wavelength,
         },
         'runtime_group': {

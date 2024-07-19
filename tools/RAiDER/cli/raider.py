@@ -6,7 +6,9 @@ import shutil
 import sys
 from pathlib import Path
 from textwrap import dedent
+from typing import Literal, Optional, cast
 
+from RAiDER.types import CalcDelaysArgs, CalcDelaysArgsUnvalidated, TimeInterpolationMethod
 import numpy as np
 import xarray as xr
 import yaml
@@ -136,7 +138,7 @@ def drop_nans(d):
     return d
 
 
-def calcDelays(iargs=None):
+def calcDelays(iargs=None) -> list[Path]:
     """Parse command line arguments using argparse."""
     import RAiDER
     import RAiDER.processWM
@@ -244,7 +246,7 @@ def calcDelays(iargs=None):
 
     model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
-    wet_filenames = []
+    wet_paths: list[Path] = []
     for t, w, f in zip(params['date_list'], params['wetFilenames'], params['hydroFilenames']):
         ###########################################################
         # Weather model calculation
@@ -357,9 +359,9 @@ def calcDelays(iargs=None):
             if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
                 writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
 
-        wet_filenames.append(out_filename)
+        wet_paths.append(Path(out_filename))
 
-    return wet_filenames
+    return wet_paths
 
 
 # ------------------------------------------------------ downloadGNSSDelays.py
@@ -471,7 +473,7 @@ def downloadGNSS() -> None:
 
 
 # ------------------------------------------------------------ prepFromGUNW.py
-def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
+def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -499,7 +501,6 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     p.add_argument(
         '-f',
         '--file',
-        type=str,
         help='1 ARIA GUNW netcdf file'
     )
 
@@ -507,7 +508,6 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         '-m',
         '--weather-model',
         default='HRRR',
-        type=str,
         choices=['None'] + ALLOWED_MODELS,
         help='Weather model.'
     )
@@ -516,7 +516,6 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         '-uid',
         '--api_uid',
         default=None,
-        type=str,
         help='Weather model API UID [uid, email, username], depending on model.',
     )
 
@@ -524,7 +523,6 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         '-key',
         '--api_key',
         default=None,
-        type=str,
         help='Weather model API KEY [key, password], depending on model.'
     )
 
@@ -532,7 +530,6 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         '-interp',
         '--interpolate-time',
         default='azimuth_time_grid',
-        type=str,
         choices=TIME_INTERPOLATION_METHODS,
         help=(
             'How to interpolate across model time steps. Possible options are: '
@@ -545,19 +542,20 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     p.add_argument(
         '-o',
         '--output-directory',
-        default=os.getcwd(),
-        type=str, help='Directory to store results.'
+        default=str(Path.cwd()),
+        help='Directory to store results.'
     )
 
-    iargs = p.parse_args(iargs)
+    args: CalcDelaysArgsUnvalidated = p.parse_args(iargs, namespace=CalcDelaysArgsUnvalidated())
 
-    if not iargs.input_bucket_prefix:
-        iargs.input_bucket_prefix = iargs.bucket_prefix
+    if args.input_bucket_prefix is None:
+        args.input_bucket_prefix = args.bucket_prefix
 
-    if iargs.interpolate_time not in ['none', 'center_time', 'azimuth_time_grid']:
+    if args.interpolate_time not in TIME_INTERPOLATION_METHODS:
         raise ValueError("interpolate_time arg must be in ['none', 'center_time', 'azimuth_time_grid']")
+    args.interpolate_time = cast(TimeInterpolationMethod, args.interpolate_time)
 
-    if iargs.weather_model == 'None':
+    if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
         #       running processing steps. This allows HyP3 to always run this step but exit immediately
         #       and do nothing if tropospheric correction via RAiDER is not selected. This should not cause
@@ -565,22 +563,28 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
         print('Nothing to do!')
         return
 
-    if iargs.file and (iargs.weather_model == 'HRRR') and (iargs.interpolate_time == 'azimuth_time_grid'):
-        file_name = iargs.file.split('/')[-1]
+    if (
+        args.file is not None and
+        args.weather_model == 'HRRR' and
+        args.interpolate_time == 'azimuth_time_grid'
+    ):
+        file_name = args.file.split('/')[-1]
         gunw_id = file_name.replace('.nc', '')
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
             raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
-    if not iargs.file and iargs.bucket:
+    if args.file is None:
+        if args.bucket is None:
+            raise ValueError('Either argument --file or --bucket must be provided')
+
         # only use GUNW ID for checking if HRRR available
-        iargs.file = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.nc')
-        if iargs.file is None:
+        args.file = aws.get_s3_file(args.bucket, args.input_bucket_prefix, '.nc')
+        if args.file is None:
             raise ValueError(
-                'GUNW product file could not be found at' f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+                'GUNW product file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
-        if iargs.weather_model == 'HRRR' and (iargs.interpolate_time == 'azimuth_time_grid'):
-            file_name_str = str(iargs.file)
-            gunw_nc_name = file_name_str.split('/')[-1]
+        if args.weather_model == 'HRRR' and args.interpolate_time == 'azimuth_time_grid':
+            gunw_nc_name = args.file.split('/')[-1]
             gunw_id = gunw_nc_name.replace('.nc', '')
             if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
                 print(
@@ -589,33 +593,32 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
                 return
 
         # Download file to obtain metadata
-        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(iargs.file, iargs.weather_model):
+        if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
             # NOTE: We want to submit jobs that are outside of acceptable weather model range
             #       and still deliver these products to the DAAC without this layer. Therefore
             #       we include this within this portion of the control flow.
             print('Nothing to do because outside of weather model range')
             return
-        json_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.json')
+        json_file_path = aws.get_s3_file(args.bucket, args.input_bucket_prefix, '.json')
         if json_file_path is None:
             raise ValueError(
-                'GUNW metadata file could not be found at' f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+                'GUNW metadata file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
         json_data = json.load(open(json_file_path))
-        json_data['metadata'].setdefault('weather_model', []).append(iargs.weather_model)
+        json_data['metadata'].setdefault('weather_model', []).append(args.weather_model)
         json.dump(json_data, open(json_file_path, 'w'))
 
         # also get browse image -- if RAiDER is running in its own HyP3 job, the browse image will be needed for ingest
-        browse_file_path = aws.get_s3_file(iargs.bucket, iargs.input_bucket_prefix, '.png')
+        browse_file_path = aws.get_s3_file(args.bucket, args.input_bucket_prefix, '.png')
         if browse_file_path is None:
             raise ValueError(
-                'GUNW browse image could not be found at' f's3://{iargs.bucket}/{iargs.input_bucket_prefix}'
+                'GUNW browse image could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
 
-    elif not iargs.file:
-        raise ValueError('Either argument --file or --bucket must be provided')
+    args = cast(CalcDelaysArgs, args)
 
     # prep the config needed for delay calcs
-    path_cfg, wavelength = RAiDER.aria.prepFromGUNW.main(iargs)
+    path_cfg, wavelength = RAiDER.aria.prepFromGUNW.main(args)
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
@@ -626,15 +629,15 @@ def calcDelaysGUNW(iargs: list[str] = None) -> xr.Dataset:
     # calculate the interferometric phase and write it out
     ds = RAiDER.aria.calcGUNW.tropo_gunw_slc(
         cube_filenames,
-        iargs.file,
+        args.file,
         wavelength,
     )
 
     # upload to s3
-    if iargs.bucket:
-        aws.upload_file_to_s3(iargs.file, iargs.bucket, iargs.bucket_prefix)
-        aws.upload_file_to_s3(json_file_path, iargs.bucket, iargs.bucket_prefix)
-        aws.upload_file_to_s3(browse_file_path, iargs.bucket, iargs.bucket_prefix)
+    if args.bucket is not None:
+        aws.upload_file_to_s3(args.file, args.bucket, args.bucket_prefix)
+        aws.upload_file_to_s3(json_file_path, args.bucket, args.bucket_prefix)
+        aws.upload_file_to_s3(browse_file_path, args.bucket, args.bucket_prefix)
     return ds
 
 

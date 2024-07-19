@@ -9,6 +9,7 @@
 
 import logging
 import os
+from pathlib import Path
 import sys
 from logging import FileHandler, Formatter, StreamHandler
 
@@ -53,7 +54,7 @@ class CustomFormatter(UnixColorFormatter):
 #####################################
 # DEFINE THE LOGGER
 if conf.LOGGER_PATH is None:
-    logger_path = os.getcwd()
+    logger_path = Path.cwd()
 else:
     logger_path = conf.LOGGER_PATH
 
@@ -64,13 +65,13 @@ stdout_handler = StreamHandler(sys.stdout)
 stdout_handler.setFormatter(CustomFormatter(use_color=os.name != 'nt'))
 stdout_handler.setLevel(logging.DEBUG)
 
-debugfile_handler = FileHandler(os.path.join(logger_path, 'debug.log'))
+debugfile_handler = FileHandler(logger_path / 'debug.log')
 debugfile_handler.setFormatter(
     Formatter('[{asctime}] {levelname:<10} {module} {exc_info} {funcName:>20}:{lineno:<5} {message}', style='{')
 )
 debugfile_handler.setLevel(logging.DEBUG)
 
-errorfile_handler = FileHandler(os.path.join(logger_path, 'error.log'))
+errorfile_handler = FileHandler(logger_path / 'error.log')
 errorfile_handler.setFormatter(
     Formatter('[{asctime}] {levelname:<10} {module:<10} {exc_info} {funcName:>20}:{lineno:<5} {message}', style='{')
 )
