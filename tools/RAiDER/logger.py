@@ -9,9 +9,9 @@
 
 import logging
 import os
-from pathlib import Path
 import sys
-from logging import FileHandler, Formatter, StreamHandler
+from logging import FileHandler, Formatter, LogRecord, StreamHandler
+from pathlib import Path
 
 import RAiDER.cli.conf as conf
 
@@ -26,14 +26,14 @@ class UnixColorFormatter(Formatter):
 
     COLORS = {logging.WARNING: yellow, logging.ERROR: red, logging.CRITICAL: bold_red}
 
-    def __init__(self, fmt=None, datefmt=None, style='%', use_color=True) -> None:
+    def __init__(self, fmt: str = None, datefmt: str = None, style: str = '%', use_color: bool=True) -> None:
         super().__init__(fmt, datefmt, style)
         # Save the old function so we can call it later
         self.__formatMessage = self.formatMessage
         if use_color:
             self.formatMessage = self.formatMessageColor
 
-    def formatMessageColor(self, record):
+    def formatMessageColor(self, record: LogRecord) -> str:
         message = self.__formatMessage(record)
         color = self.COLORS.get(record.levelno)
         if color:
@@ -43,8 +43,7 @@ class UnixColorFormatter(Formatter):
 
 class CustomFormatter(UnixColorFormatter):
     """Adds levelname prefixes to the message on warning or above."""
-
-    def formatMessage(self, record):
+    def formatMessage(self, record: LogRecord) -> str:
         message = super().formatMessage(record)
         if record.levelno >= logging.WARNING:
             message = ': '.join((record.levelname, message))
@@ -53,10 +52,10 @@ class CustomFormatter(UnixColorFormatter):
 
 #####################################
 # DEFINE THE LOGGER
-if conf.LOGGER_PATH is None:
-    logger_path = Path.cwd()
-else:
+if conf.LOGGER_PATH is not None:
     logger_path = conf.LOGGER_PATH
+else:
+    logger_path = Path.cwd()
 
 logger = logging.getLogger('RAiDER')
 logger.setLevel(logging.DEBUG)
