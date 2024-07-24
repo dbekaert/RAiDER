@@ -137,9 +137,43 @@ def test_writeArrayToRaster(tmp_path):
         band = src.read(1)
         noval = src.nodatavals[0]
 
-
     assert noval == 0
     assert np.allclose(band, array)
+
+
+def test_writeArrayToRaster_2():
+    test = np.random.randn(10,10,10)
+    with pytest.raises(RuntimeError):
+        writeArrayToRaster(test, 'dummy_file')
+
+
+def test_writeArrayToRaster_3(tmp_path):
+    test = np.random.randn(10,10)
+    test = test + test * 1j
+    with pushd(tmp_path):
+        fname = os.path.join(tmp_path, 'tmp_file.tif')
+        writeArrayToRaster(test, fname)
+        tmp = rio_profile(fname)
+        assert tmp['dtype'] == 'complex64'
+
+
+def test_writeArrayToRaster_4(tmp_path):
+    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
+    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    profile = rio_profile(geotif)
+    data = rio_open(geotif)
+    with pushd(tmp_path):
+        fname = os.path.join(tmp_path, 'tmp_file.nc')
+        writeArrayToRaster(
+            data, 
+            fname, 
+            proj=profile['crs'], 
+            gt=profile['transform'], 
+            fmt='nc',
+        )
+        new_fname = os.path.join(tmp_path, 'tmp_file.tif')
+        prof = rio_profile(new_fname)
+        assert prof['driver'] == 'GTiff'
 
 
 def test_makePoints0D_cython(make_points_0d_data):
@@ -514,41 +548,6 @@ def test_rio_4():
     inc, hd = rio_open(los, returnProj=False)
     assert len(inc.shape) == 2
     assert len(hd.shape) == 2
-
-
-def test_writeArrayToRaster_2():
-    test = np.random.randn(10,10,10)
-    with pytest.raises(RuntimeError):
-        writeArrayToRaster(test, 'dummy_file')
-
-
-def test_writeArrayToRaster_3(tmp_path):
-    test = np.random.randn(10,10)
-    test = test + test * 1j
-    with pushd(tmp_path):
-        fname = os.path.join(tmp_path, 'tmp_file.tif')
-        writeArrayToRaster(test, fname)
-        tmp = rio_profile(fname)
-        assert tmp['dtype'] == np.complex64
-
-
-def test_writeArrayToRaster_3(tmp_path):
-    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
-    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
-    profile = rio_profile(geotif)
-    data = rio_open(geotif)
-    with pushd(tmp_path):
-        fname = os.path.join(tmp_path, 'tmp_file.nc')
-        writeArrayToRaster(
-            data, 
-            fname, 
-            proj=profile['crs'], 
-            gt=profile['transform'], 
-            fmt='nc',
-        )
-        new_fname = os.path.join(tmp_path, 'tmp_file.tif')
-        prof = rio_profile(new_fname)
-        assert prof['driver'] == 'GTiff'
 
 
 def test_robs():

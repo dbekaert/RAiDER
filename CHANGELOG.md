@@ -16,6 +16,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [658](https://github.com/dbekaert/RAiDER/pull/658) - Fixed opaque error message if a GUNW file is not produced while HyP3 independently against a previous INSAR_ISCE.
 * [661](https://github.com/dbekaert/RAiDER/pull/661) - Fixed bug in raiderDownloadGNSS, removed call to scipy.sum, and added unit tests.
 * [662](https://github.com/dbekaert/RAiDER/pull/662) - Bumped dem-stitcher to >= v2.5.6, which updates the URL for reading the Geoid EGM 2008.
+* [669](https://github.com/dbekaert/RAiDER/pull/669) - Fixed test name collision (test_writeArrayToRaster).
 
 ## [0.5.1]
 ### Changed
