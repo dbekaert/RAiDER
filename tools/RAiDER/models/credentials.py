@@ -7,145 +7,156 @@ ________________________________________________________________________________
 cdsapirc          ERA5, ERA5T             uid           key         https://cds.climate.copernicus.eu/api/v2
 ecmwfapirc        HRES                    email         key         https://api.ecmwf.int/v1
 netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov
-<NAN>             HRRR [public access]    <NAN>         <NAN>
+<N/A>             HRRR [public access]    <N/A>         <N/A>       <N/A>
 '''
 
 import os
 from pathlib import Path
 from platform import system
+from typing import Dict, Optional, Tuple
 
-# Filename for the hidden file per model
-API_FILENAME = {'ERA5'  : 'cdsapirc',
-                'ERA5T' : 'cdsapirc',
-                'HRES'  : 'ecmwfapirc',
-                'GMAO'  : 'netrc',
-                'HRRR'  :  None
-                }
+from RAiDER.logger import logger
 
-# API urls
-API_URLS = {'cdsapirc'   : 'https://cds.climate.copernicus.eu/api/v2',
-            'ecmwfapirc' : 'https://api.ecmwf.int/v1',
-            'netrc' : 'urs.earthdata.nasa.gov'}
 
-# api credentials dict
-API_CREDENTIALS_DICT = {
-        'cdsapirc' :   {'api' : """\
-                                \nurl: {host}\
-                                \nkey: {uid}:{key}
-                                """,
-                        'help_url' : 'https://cds.climate.copernicus.eu/api-how-to'
-                        },
-        'ecmwfapirc' : {'api' : """{{\
-                                 \n"url"   : "{host}",\
-                                 \n"key"   : "{key}",\
-                                 \n"email" : "{uid}"\
-                                 \n}}
-                                """,
-                        'help_url' : 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key'
-                        },
-        'netrc' :       {'api' : """\
-                                \nmachine {host}\
-                                \n        login {uid}\
-                                \n        password {key}\
-                                """,
-                       'help_url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget'
-                       }
-                }
+# Filename for the rc file for each model
+RC_FILENAMES: Dict[str, Optional[str]] = {
+    'ERA5': 'cdsapirc',
+    'ERA5T': 'cdsapirc',
+    'HRES': 'ecmwfapirc',
+    'GMAO': 'netrc',
+    'MERRA2': 'netrc',
+    'HRRR':  None
+}
 
-# system environmental variables for API credentials
-'''
-ENV variables in cdsapi and ecmwapir
+APIS = {
+    'cdsapirc': {
+        'template': (
+            'url: {host}\n'
+            'key: {uid}:{key}\n'
+        ),
+        'help_url': 'https://cds.climate.copernicus.eu/api-how-to',
+        'default_host': 'https://cds.climate.copernicus.eu/api/v2'
+    },
+    'ecmwfapirc': {
+        'template': (
+            '{{\n'
+            '    "url"   : "{host}",\n'
+            '    "key"   : "{key}",\n'
+            '    "email" : "{uid}"\n'
+            '}}\n'
+        ),
+        'help_url': 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key',
+        'default_host': 'https://api.ecmwf.int/v1'
+    },
+    'netrc': {
+        'template': (
+            'machine {host}\n'
+            '	login {uid}\n'
+            '	password {key}\n'
+        ),
+        'help_url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget',
+        'default_host': 'urs.earthdata.nasa.gov'
+    }
+}
 
-cdsapi ['cdsapirc'] : CDSAPI_KEY [UID:KEY], 'CDSAPI_URL'
-ecmwfapir [ecmwfapirc] : 'ECMWF_API_KEY', 'ECMWF_API_EMAIL','ECMWF_API_URL'  
 
-'''
-
-# Check if API enviroments exists
-def _check_envs(model):
+# Get the environment variables for a given weather model API
+def _get_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     if model in ('ERA5', 'ERA5T'):
         uid = os.getenv('RAIDER_ECMWF_ERA5_UID')
         key = os.getenv('RAIDER_ECMWF_ERA5_API_KEY')
-        host = API_URLS['cdsapirc']
-
-    elif model in ('HRES',):
+        host = APIS['cdsapirc']['default_host']
+    elif model == 'HRES':
         uid = os.getenv('RAIDER_HRES_EMAIL')
         key = os.getenv('RAIDER_HRES_API_KEY')
-        host = os.getenv('RAIDER_HRES_URL')
-        if host is None:
-            host = API_URLS['ecmwfapirc']
-
-    elif model in ('GMAO',):
-        uid = os.getenv('EARTHDATA_USERNAME') # same as in DockerizedTopsApp
+        host = os.getenv('RAIDER_HRES_URL',
+                            APIS['ecmwfapirc']['default_host'])
+    elif model in ('GMAO', 'MERRA2'):
+        # same as in DockerizedTopsApp
+        uid = os.getenv('EARTHDATA_USERNAME')
         key = os.getenv('EARTHDATA_PASSWORD')
-        host = API_URLS['netrc']
-
-    else: # for HRRR
+        host = APIS['netrc']['default_host']
+    else:  # for HRRR
         uid, key, host = None, None, None
-
     return uid, key, host
 
-# Check and write MODEL API_RC_FILE for downloading weather model data
+
 def check_api(model: str,
-              UID: str = None,
-              KEY: str = None,
-              output_dir : str = '~/',
-              update_flag: bool = False) -> None:
+              uid: Optional[str] = None,
+              key: Optional[str] = None,
+              output_dir: str = '~/',
+              update_rc_file: bool = False) -> None:
+    # Weather model API RC filename
+    # Typically stored in home dir as a hidden file
+    rc_filename = RC_FILENAMES[model]
 
-    # Weather model API filename
-    # typically stored in home dir as hidden file
-    api_filename = API_FILENAME[model]
+    # If the given API does not require an rc file, then there is nothing to do
+    # (e.g., HRRR)
+    if rc_filename is None:
+        return
 
-    # Get API credential from os.env if UID/KEY are not inserted
-    if UID is None and KEY is None:
-        UID, KEY, URL = _check_envs(model)
+    # Get the target rc file's path
+    hidden_ext = '_' if system() == "Windows" else '.'
+    rc_path = Path(output_dir) / (hidden_ext + rc_filename)
+    rc_path = rc_path.expanduser()
+
+    # If the RC file doesn't exist, then create it.
+    # But if it does exist, only update it if the user requests.
+    if rc_path.exists() and not update_rc_file:
+        return
+
+    # Get credentials from env vars if uid and key are not passed in
+    if uid is None and key is None:
+        uid, key, url = _get_envs(model)
     else:
-        URL = API_URLS[api_filename]
+        url = APIS[rc_filename]['default_host']
 
-    # Get hidden ext for Windows
-    hidden_ext = '_' if system()=="Windows" else '.'
-
-    # skip below if model is HRRR as it does not need API
-    if api_filename:
-        # Check if the credential api file exists
-        api_filename_path = Path(output_dir) / (hidden_ext + api_filename)
-        api_filename_path = api_filename_path.expanduser()
-
-        # if update flag is on, overwrite existing file
-        if update_flag is True:
-            api_filename_path.unlink(missing_ok=True)
-
-        # Check if API_RC file already exists
-        if api_filename_path.exists():
-            return None
-
-        # if it does not exist, put UID/KEY inserted, create it
-        elif not api_filename_path.exists() and UID and KEY:
-            # Create file with inputs, do it only once
-            print(f'Writing {api_filename_path} locally!')
-            api_filename_path.write_text(API_CREDENTIALS_DICT[api_filename]['api'].format(uid=UID,
-                                                                                          key=KEY,
-                                                                                          host=URL))
-            api_filename_path.chmod(0o000600)
-        # Raise ERROR message
+    # Check for invalid inputs
+    if uid is None or key is None:
+        help_url = APIS[rc_filename]['help_url']
+        if uid is None and key is not None:
+            raise ValueError(
+                f'ERROR: {model} API UID not provided in RAiDER arguments and '
+                'not present in environment variables.\n'
+                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+            )
+        elif uid is not None and key is None:
+            raise ValueError(
+                f'ERROR: {model} API key not provided in RAiDER arguments and '
+                'not present in environment variables.\n'
+                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+            )
         else:
-            help_url = API_CREDENTIALS_DICT[api_filename]['help_url']
+            raise ValueError(
+                f'ERROR: {model} API credentials not provided in RAiDER '
+                'arguments and not present in environment variables.\n'
+                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+            )
 
-            # Raise ERROR in case only UID or KEY is inserted
-            if UID is not None and KEY is None:
-                raise ValueError(f'ERROR: API UID not inserted'
-                                    f' or does not exist in ENVIRONMENTALS!')
-            elif UID is None and KEY is not None:
-                raise ValueError(f'ERROR: API KEY not inserted'
-                                    f' or does not exist in ENVIRONMENTALS!')
-            else:
-                #Raise ERROR is both UID/KEY are none
-                raise ValueError(
-                        f'{api_filename_path}, API ENVIRONMENTALS'
-                        f' and API UID and KEY, do not exist !!'
-                        f'\nGet API info from ' + '\033[1m' f'{help_url}' + '\033[0m, and add it!')
+    # Create file with the API credentials
+    if update_rc_file:
+        logger.info(f'Updating {model} API credentials in {rc_path}')
+    else:
+        logger.warning(f'{model} API credentials not found in {rc_path}; creating')
+    rc_type = RC_FILENAMES[model]
+    if rc_type in ('cdsapirc', 'ecmwfapirc'):
+        # These RC files only ever contain one set of credentials, so
+        # they can just be overwritten when updating.
+        template = APIS[rc_filename]['template']
+        entry = template.format(host=url, uid=uid, key=key)
+        rc_path.write_text(entry)
+    elif rc_type == 'netrc':
+        # This type of RC file may contain more than one set of credentials,
+        # so extra care needs to be taken to make sure we only touch the
+        # one that belongs to this URL.
+        import netrc
+        rc_path.touch()
+        netrc_credentials = netrc.netrc(rc_path)
+        netrc_credentials.hosts[url] = (uid, None, key)
+        rc_path.write_text(str(netrc_credentials))
+    rc_path.chmod(0o000600)
 
 
 def setup_from_env():
-    for model in API_FILENAME.keys():
+    for model in RC_FILENAMES.keys():
         check_api(model)
