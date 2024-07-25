@@ -42,7 +42,6 @@ def isWriteable(dirpath):
 
 def test_checkArgs_outfmt_1(args):
     '''Test that passing height levels with hdf5 outformat works'''
-    args = args
     args.file_format = 'h5'
     args.heightlvls = [10, 100, 1000]
     checkArgs(args)
@@ -51,7 +50,6 @@ def test_checkArgs_outfmt_1(args):
 
 def test_checkArgs_outfmt_2(args):
     '''Test that passing a raster format with height levels throws an error'''
-    args = args
     args.heightlvs = [10, 100, 1000]
     args.file_format = 'GTiff'
     args = checkArgs(args)
@@ -60,14 +58,12 @@ def test_checkArgs_outfmt_2(args):
 
 def test_checkArgs_outfmt_3(args):
     '''Test that passing a raster format with height levels throws an error'''
-    args = args
     with pytest.raises(FileNotFoundError):
         args.aoi = StationFile(os.path.join('fake_dir', 'stations.csv'))
 
 
 def test_checkArgs_outfmt_4(args):
     '''Test that passing a raster format with height levels throws an error'''
-    args = args
     args.aoi = RasterRDR(
         lat_file = os.path.join(SCENARIO_1, 'geom', 'lat.dat'),
         lon_file = os.path.join(SCENARIO_1, 'geom', 'lon.dat'),
@@ -78,7 +74,6 @@ def test_checkArgs_outfmt_4(args):
 
 def test_checkArgs_outfmt_5(args):
     '''Test that passing a raster format with height levels throws an error'''
-    args = args
     args.aoi = StationFile(os.path.join(SCENARIO_2, 'stations.csv'))
     argDict = checkArgs(args)
     assert pd.read_csv(argDict['wetFilenames'][0]).shape == (8, 4)
@@ -86,7 +81,6 @@ def test_checkArgs_outfmt_5(args):
 
 def test_checkArgs_outloc_1(args):
     '''Test that the default output and weather model directories are correct'''
-    args = args
     argDict = checkArgs(args)
     out = argDict['output_directory']
     wmLoc = argDict['weather_model_directory']
@@ -97,7 +91,6 @@ def test_checkArgs_outloc_1(args):
 def test_checkArgs_outloc_2(args, tmp_path):
     '''Tests that the correct output location gets assigned when provided'''
     with pushd(tmp_path):
-        args = args
         args.output_directory = tmp_path
         argDict = checkArgs(args)
         out = argDict['output_directory']
@@ -107,7 +100,6 @@ def test_checkArgs_outloc_2(args, tmp_path):
 def test_checkArgs_outloc_2b(args, tmp_path):
     ''' Tests that the weather model directory gets passed through by itself'''
     with pushd(tmp_path):
-        args = args
         args.output_directory = tmp_path
         args.weather_model_directory = 'weather_dir'
         argDict = checkArgs(args)
@@ -117,7 +109,6 @@ def test_checkArgs_outloc_2b(args, tmp_path):
 def test_checkArgs_outloc_3(args, tmp_path):
     '''Tests that the weather model directory gets created when needed'''
     with pushd(tmp_path):
-        args = args
         args.output_directory = tmp_path
         argDict = checkArgs(args)
         assert os.path.isdir(argDict['weather_model_directory'])
@@ -125,7 +116,6 @@ def test_checkArgs_outloc_3(args, tmp_path):
 
 def test_checkArgs_outloc_4(args):
     '''Tests for creating writeable weather model directory'''
-    args = args
     argDict = checkArgs(args)
 
     assert isWriteable(argDict['weather_model_directory'])
@@ -133,7 +123,6 @@ def test_checkArgs_outloc_4(args):
 
 def test_filenames_1(args):
     '''tests that the correct filenames are generated'''
-    args = args
     argDict = checkArgs(args)
     assert 'Delay' not in argDict['wetFilenames'][0]
     assert 'wet' in argDict['wetFilenames'][0]
@@ -145,7 +134,6 @@ def test_filenames_1(args):
 
 def test_filenames_2(args):
     '''tests that the correct filenames are generated'''
-    args = args
     args['output_directory'] = SCENARIO_2
     args.aoi = StationFile(os.path.join(SCENARIO_2, 'stations.csv'))
     argDict = checkArgs(args)
