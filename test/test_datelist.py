@@ -1,6 +1,7 @@
 import datetime
 import os
 import shutil
+
 from RAiDER.utilFcns import write_yaml
 from test import TEST_DIR, WM
 from RAiDER.cli.raider import read_run_config_file
@@ -13,7 +14,8 @@ def test_datelist():
 
     dates = ['20200124', '20200130']
     true_dates = [
-        datetime.datetime(2020,1,24), datetime.datetime(2020,1,30)
+        datetime.date(2020,1,24),
+        datetime.date(2020,1,30)
     ]
 
     dct_group = {

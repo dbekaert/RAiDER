@@ -13,8 +13,8 @@ from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, build_ray
 from RAiDER.utilFcns import lla2ecef
-from RAiDER.cli.validators import modelName2Module
 from RAiDER.utilFcns import lla2ecef, write_yaml
+from RAiDER.cli.validators import get_wm_by_name
 
 from test import (
     TEST_DIR, ORB_DIR, WM_DIR
@@ -35,7 +35,7 @@ def update_model(wm_file:str, wm_eq_type:str, wm_dir:str='weather_files_synth'):
     # initialize dummy wm to calculate constant delays
     # any model will do as 1) all constants same 2) all equations same
     model = op.basename(wm_file).split('_')[0].upper().replace("-", "")
-    Obj = modelName2Module(model)[1]()
+    Obj = get_wm_by_name(model)[1]()
     ds = xr.open_dataset(wm_file)
     t  = ds['t']
     p  = ds['p']
@@ -118,7 +118,7 @@ class StudyArea(object):
         self.dts   = self.dt.strftime('%Y_%m_%d_T%H_%M_%S')
         self.ttime = self.dt.strftime('%H:%M:%S')
 
-        self.wmObj = modelName2Module(self.wmName.upper().replace("-", ""))[1]()
+        self.wmObj = get_wm_by_name(self.wmName.upper().replace("-", ""))[1]()
 
         self.hgt_lvls        = np.arange(-500, 9500, 500)
         self._cube_spacing_m = 10000.

@@ -24,7 +24,11 @@ class UnixColorFormatter(Formatter):
     bold_red = '\x1b[31;1m'
     reset = '\x1b[0m'
 
-    COLORS = {logging.WARNING: yellow, logging.ERROR: red, logging.CRITICAL: bold_red}
+    COLORS = {
+        logging.WARNING: yellow,
+        logging.ERROR: red,
+        logging.CRITICAL: bold_red
+    }
 
     def __init__(self, fmt: str = None, datefmt: str = None, style: str = '%', use_color: bool=True) -> None:
         super().__init__(fmt, datefmt, style)

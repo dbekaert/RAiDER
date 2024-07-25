@@ -288,7 +288,7 @@ def convert_time(inp):
     raise ValueError(f'Unable to coerce "{inp}" to a time. Try T%H:%M:%S')
 
 
-def modelName2Module(model_name):
+def get_wm_by_name(model_name: str) -> tuple[str, WeatherModel]:
     """
     Turn an arbitrary string into a module name.
 
@@ -303,9 +303,9 @@ def modelName2Module(model_name):
        wmObject    - callable, weather model object.
     """
     module_name = 'RAiDER.models.' + model_name.lower().replace('-', '')
-    model_module = importlib.import_module(module_name)
-    wmObject = getattr(model_module, model_name.upper().replace('-', ''))
-    return module_name, wmObject
+    module = importlib.import_module(module_name)
+    Model = getattr(module, model_name.upper().replace('-', ''))
+    return module_name, Model
 
 
 def getBufferedExtent(lats, lons=None, buf=0.0):

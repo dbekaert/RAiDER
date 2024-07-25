@@ -10,7 +10,7 @@ from RAiDER.losreader import Zenith
 from RAiDER.delay import main
 from RAiDER.utilFcns import rio_open
 from RAiDER.checkArgs import makeDelayFileNames
-from RAiDER.cli.validators import modelName2Module
+from RAiDER.cli.validators import get_wm_by_name
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
 _RTOL = 1e-2
@@ -93,7 +93,7 @@ def core_test_tropo_delay(tmp_path, modelName):
     if not os.path.exists(wmLoc):
         os.mkdir(wmLoc)
 
-    _, model_obj = modelName2Module(modelName)
+    _, model_obj = get_wm_by_name(modelName)
     wet_file, hydro_file = makeDelayFileNames(
         time, Zenith, "envi", modelName, tmp_path
     )
