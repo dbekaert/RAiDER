@@ -37,7 +37,7 @@ def upload_file_to_s3(path_to_file: Union[str, Path], bucket: str, prefix: str =
     S3_CLIENT.put_object_tagging(Bucket=bucket, Key=key, Tagging=tag_set)
 
 
-def get_s3_file(bucket_name: str, bucket_prefix: str, file_type: str) -> Optional[str]:
+def get_s3_file(bucket_name: str, bucket_prefix: str, file_type: str) -> Optional[Path]:
     result = S3_CLIENT.list_objects_v2(Bucket=bucket_name, Prefix=bucket_prefix)
     for s3_object in result['Contents']:
         key = s3_object['Key']
@@ -45,4 +45,4 @@ def get_s3_file(bucket_name: str, bucket_prefix: str, file_type: str) -> Optiona
             file_name = Path(key).name
             logger.info(f'Downloading s3://{bucket_name}/{key} to {file_name}')
             S3_CLIENT.download_file(bucket_name, key, file_name)
-            return file_name
+            return Path(file_name)

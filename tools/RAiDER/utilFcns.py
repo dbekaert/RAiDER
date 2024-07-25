@@ -1,10 +1,10 @@
 """Geodesy-related utility functions."""
 
-import os
-from pathlib import Path
+import pathlib
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from pathlib import Path
 
 import numpy as np
 import rasterio
@@ -121,24 +121,18 @@ def ecef2enu(xyz, lat, lon, height):
     return np.stack((e, n, u), axis=-1)
 
 
-def rio_profile(fname):
+def rio_profile(path: Path) -> RIOProfile:
     """Reads the profile of a rasterio file."""
-    if rasterio is None:
-        raise ImportError('RAiDER.utilFcns: rio_profile - rasterio is not installed')
+    path_vrt = Path(f'{path}.vrt')
 
-    # need to access subdataset directly
-    if os.path.basename(fname).startswith('S1-GUNW'):
-        fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
-        with rasterio.open(fname) as src:
-            profile = src.profile
+    if path.name.startswith('S1-GUNW'):
+        # need to access subdataset directly
+        path = Path(f'NETCDF:"{path}":science/grids/data/unwrappedPhase')
+    elif path_vrt.exists():
+        path = path_vrt
 
-    elif os.path.exists(fname + '.vrt'):
-        fname = fname + '.vrt'
-
-    with rasterio.open(fname) as src:
-        profile = src.profile
-
-    return profile
+    with rasterio.open(path) as src:
+        return src.profile
 
 
 def rio_extents(profile: RIOProfile) -> BB.SNWE:
@@ -855,7 +849,15 @@ def get_dt(t1, t2):
     return np.abs((t1 - t2).total_seconds())
 
 
-def write_yaml(content: dict[Any, Any], dst: Path) -> Path:
+# Tell PyYAML how to serialize pathlib Paths
+yaml.add_representer(
+    pathlib.PosixPath,
+    lambda dumper, data: dumper.represent_scalar(
+        'tag:yaml.org,2002:str',
+        str(data)
+    )
+)
+def write_yaml(content: dict[str, Any], dst: Union[str, Path]) -> Path:
     """Write a new yaml file from a dictionary with template.yaml as a base.
 
     Each key-value pair in 'content' will override the one from template.yaml.
@@ -871,6 +873,7 @@ def write_yaml(content: dict[Any, Any], dst: Path) -> Path:
 
     params = {**params, **content}
 
+    dst = Path(dst)
     with dst.open('w') as fh:
         yaml.safe_dump(params, fh, default_flow_style=False)
 

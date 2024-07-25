@@ -46,15 +46,15 @@ raider.py -g
 raider.py run_config_file.yaml
 """
 
-DEFAULT_RUN_CONFIG_PATH = os.path.abspath('./raider.yaml')
+DEFAULT_RUN_CONFIG_PATH = Path('./examples/template/template.yaml')
 
 
-def read_run_config_file(fname):
+def read_run_config_file(path: Path) -> RunConfig:
     """
     Read the run config file into a dictionary structure.
 
     Args:
-        fname (str): full path to the run config file
+        path (Path): path to the run config file
     Returns:
         dict: arguments to pass to RAiDER functions
 
@@ -64,12 +64,12 @@ def read_run_config_file(fname):
     """
     from RAiDER.cli.validators import enforce_time, enforce_wm, get_heights, get_los, get_query_region, parse_dates
 
-    with open(fname) as f:
+    with path.open() as f:
         try:
             params = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
-            raise ValueError(f'Something is wrong with the yaml file {fname}')
+            raise ValueError(f'Something is wrong with the yaml file {path}')
 
     # Drop any values not specified
     params = drop_nans(params)
@@ -180,6 +180,7 @@ def calcDelays(iargs=None) -> list[Path]:
     group.add_argument(
         'run_config_file',
         nargs='?',
+        type=lambda p: Path(p).absolute(),
         help='a YAML file with arguments to RAiDER'
     )
 
@@ -192,22 +193,22 @@ def calcDelays(iargs=None) -> list[Path]:
 
     if args.generate_config is not None:
         for filename in ex_run_config_dir.glob('*'):
-            dest_path = Path(os.getcwd()) / filename.name
+            dest_path = Path.cwd() / filename.name
             if dest_path.exists():
                 print(f'File {dest_path} already exists. Overwrite? [y/n]')
                 if input().lower() != 'y':
                     continue
-            shutil.copy(filename, os.getcwd())
+            shutil.copy(filename, str(Path.cwd()))
             logger.info('Wrote: %s', filename)
         sys.exit()
     # args.generate_config now guaranteed to be None
 
     # If no run configuration file is provided, look for a ./raider.yaml
     if args.run_config_file is not None:
-        if not os.path.isfile(args.run_config_file):
-            raise FileNotFoundError(args.run_config_file)
+        if not args.run_config_file.exists():
+            raise FileNotFoundError(str(args.run_config_file))
     else:
-        if not os.path.isfile(DEFAULT_RUN_CONFIG_PATH):
+        if not DEFAULT_RUN_CONFIG_PATH.is_file():
             msg = (
                 'No run configuration file provided! Specify a run configuration '
                 "file or have a 'raider.yaml' file in the current directory."
@@ -335,31 +336,32 @@ def calcDelays(iargs=None) -> list[Path]:
         # A dataset was returned by the above
         # Dataset returned: Cube e.g. GUNW workflow
         if hydro_delay is None:
+            out_filename = Path(out_filename.replace('wet', 'tropo'))
             ds = wet_delay
-            ext = os.path.splitext(out_filename)[1]
-            out_filename = out_filename.replace('wet', 'tropo')
+            ext = out_filename.suffix
 
             # data provenance: include metadata for model and times used
             times_str = [t.strftime('%Y%m%dT%H:%M:%S') for t in sorted(times)]
             ds = ds.assign_attrs(model_name=model._Name, model_times_used=times_str, interpolation_method=interp_method)
             if ext not in ['.nc', '.h5']:
-                out_filename = f'{os.path.splitext(out_filename)[0]}.nc'
+                out_filename = out_filename.stem + '.nc'
 
-            if out_filename.endswith('.nc'):
+            if out_filename.suffix == '.nc':
                 ds.to_netcdf(out_filename, mode='w')
-            elif out_filename.endswith('.h5'):
+            elif out_filename.suffix == '.h5':
                 ds.to_netcdf(out_filename, engine='h5netcdf', invalid_netcdf=True)
 
             logger.info('\nSuccessfully wrote delay cube to: %s\n', out_filename)
         # Dataset returned: station files, radar_raster, geocoded_file
         else:
+            out_filename = Path(out_filename)
             if aoi.type() == 'station_file':
-                out_filename = f'{os.path.splitext(out_filename)[0]}.csv'
+                out_filename = out_filename.stem + '.csv'
 
-            if aoi.type() in ['station_file', 'radar_rasters', 'geocoded_file']:
-                writeDelays(aoi, wet_delay, hydro_delay, out_filename, f, outformat=params['raster_format'])
+            if aoi.type() in ('station_file', 'radar_rasters', 'geocoded_file'):
+                writeDelays(aoi, wet_delay, hydro_delay, str(out_filename), f, outformat=run_config.runtime_group.raster_format)
 
-        wet_paths.append(Path(out_filename))
+        wet_paths.append(out_filename)
 
     return wet_paths
 
@@ -542,7 +544,8 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
     p.add_argument(
         '-o',
         '--output-directory',
-        default=str(Path.cwd()),
+        default=Path.cwd(),
+        type=lambda p: Path(p).absolute(),
         help='Directory to store results.'
     )
 
@@ -568,8 +571,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
         args.weather_model == 'HRRR' and
         args.interpolate_time == 'azimuth_time_grid'
     ):
-        file_name = args.file.split('/')[-1]
-        gunw_id = file_name.replace('.nc', '')
+        gunw_id = args.file.name.replace('.nc', '')
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
             raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
@@ -584,8 +586,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
                 'GUNW product file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
         if args.weather_model == 'HRRR' and args.interpolate_time == 'azimuth_time_grid':
-            gunw_nc_name = args.file.split('/')[-1]
-            gunw_id = gunw_nc_name.replace('.nc', '')
+            gunw_id = args.file.name.replace('.nc', '')
             if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
                 print(
                     'The required HRRR data for time-grid interpolation is not available; returning None and not modifying GUNW dataset'
@@ -604,9 +605,11 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
             raise ValueError(
                 'GUNW metadata file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
-        json_data = json.load(open(json_file_path))
+        with json_file_path.open() as f:
+            json_data = json.load(f)
         json_data['metadata'].setdefault('weather_model', []).append(args.weather_model)
-        json.dump(json_data, open(json_file_path, 'w'))
+        with json_file_path.open('w') as f:
+            json.dump(json_data, f)
 
         # also get browse image -- if RAiDER is running in its own HyP3 job, the browse image will be needed for ingest
         browse_file_path = aws.get_s3_file(args.bucket, args.input_bucket_prefix, '.png')
@@ -622,7 +625,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
-    cube_filenames = calcDelays([path_cfg])
+    cube_filenames = calcDelays([str(path_cfg)])
 
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 

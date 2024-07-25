@@ -78,7 +78,7 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
     return all(ref_dataset_availability) and all(sec_dataset_availability)
 
 
-def get_slc_ids_from_gunw(gunw_path: str, reference_or_secondary: str = 'reference') -> list[str]:
+def get_slc_ids_from_gunw(gunw_path: Path, reference_or_secondary: str = 'reference') -> list[str]:
     # Example input: test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc
     if reference_or_secondary not in ['reference', 'secondary']:
         raise ValueError('"reference_or_secondary" must be either "reference" or "secondary"')
@@ -94,14 +94,14 @@ def get_acq_time_from_slc_id(slc_id: str) -> pd.Timestamp:
     return pd.Timestamp(ts_str)
 
 
-def check_weather_model_availability(gunw_path: str, weather_model_name: str) -> bool:
+def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -> bool:
     """
     Check weather reference and secondary dates of GUNW occur within
     weather model valid range.
 
     Parameters
     ----------
-    gunw_path : str
+    gunw_path : Path
     weather_model_name : str
         Should be one of 'HRRR', 'HRES', 'ERA5', 'ERA5T', 'GMAO', 'MERRA2'.
 

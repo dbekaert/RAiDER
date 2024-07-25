@@ -5,8 +5,8 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import os
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import rasterio.drivers as rd
@@ -46,9 +46,9 @@ def checkArgs(args):
         if args.aoi.type() != 'bounding_box':
             # Handle the GNSS station file
             if args.aoi.type() == 'station_file':
-                wetFilename = os.path.join(
-                    args.output_directory,
-                    f'{args.weather_model._dataset.upper()}_Delay' f'_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv',
+                wetFilename = str(
+                    run_config.runtime_group.output_directory /
+                    f'{run_config.weather_model._dataset.upper()}_Delay_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv'
                 )
 
                 hydroFilename = ''  # only the 'wetFilename' is used for the station_file
@@ -107,7 +107,7 @@ def get_raster_ext(fmt):
         raise ValueError(f'{fmt} is not a valid gdal/rasterio file format for rasters')
 
 
-def makeDelayFileNames(time, los, outformat, weather_model_name, out):
+def makeDelayFileNames(time: Optional[datetime], los: Optional[LOS], outformat: str, weather_model_name: str, out: Path) -> tuple[str, str]:
     """
     return names for the wet and hydrostatic delays.
 
@@ -125,6 +125,6 @@ def makeDelayFileNames(time, los, outformat, weather_model_name, out):
     )
     hydroname, wetname = (format_string.format(dtyp) for dtyp in ('hydro', 'wet'))
 
-    hydro_file_name = os.path.join(out, hydroname)
-    wet_file_name = os.path.join(out, wetname)
+    hydro_file_name = str(out / hydroname)
+    wet_file_name = str(out / wetname)
     return wet_file_name, hydro_file_name

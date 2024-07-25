@@ -24,7 +24,8 @@ def main() -> None:
     args, unknowns = parser.parse_known_args()
 
     # Needed for a global logging path
-    conf.setLoggerPath(Path(args.logger_path))
+    logger_path = Path(args.logger_path) if args.logger_path else None
+    conf.setLoggerPath(logger_path)
 
     sys.argv = [args.process, *unknowns]
 

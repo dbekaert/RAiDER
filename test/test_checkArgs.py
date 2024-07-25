@@ -30,11 +30,11 @@ def args():
         shutil.rmtree(f) if os.path.exists(f) else ''
     return d
 
-def isWriteable(dirpath):
+def isWriteable(dirpath: Path) -> bool:
     '''Test whether a directory is writeable'''
     try:
-        filehandle = open(os.path.join(dirpath, 'tmp.txt'), 'w')
-        filehandle.close()
+        with (dirpath / 'tmp.txt').open('w'):
+            pass
         return True
     except IOError:
         return False
@@ -142,17 +142,17 @@ def test_filenames_2(args):
 
 
 def test_makeDelayFileNames_1():
-    assert makeDelayFileNames(None, None, "h5", "name", "dir") == \
+    assert makeDelayFileNames(None, None, "h5", "name", Path("dir")) == \
         ("dir/name_wet_ztd.h5", "dir/name_hydro_ztd.h5")
 
 
 def test_makeDelayFileNames_2():
-    assert makeDelayFileNames(None, (), "h5", "name", "dir") == \
+    assert makeDelayFileNames(None, (), "h5", "name", Path("dir")) == \
         ("dir/name_wet_std.h5", "dir/name_hydro_std.h5")
 
 
 def test_makeDelayFileNames_3():
-    assert makeDelayFileNames(datetime.datetime(2020, 1, 1, 1, 2, 3), None, "h5", "model_name", "dir") == \
+    assert makeDelayFileNames(datetime.datetime(2020, 1, 1, 1, 2, 3), None, "h5", "model_name", Path("dir")) == \
         (
             "dir/model_name_wet_20200101T010203_ztd.h5",
             "dir/model_name_hydro_20200101T010203_ztd.h5"
@@ -160,7 +160,7 @@ def test_makeDelayFileNames_3():
 
 
 def test_makeDelayFileNames_4():
-    assert makeDelayFileNames(datetime.datetime(1900, 12, 31, 1, 2, 3), "los", "h5", "model_name", "dir") == \
+    assert makeDelayFileNames(datetime.datetime(1900, 12, 31, 1, 2, 3), "los", "h5", "model_name", Path("dir")) == \
         (
             "dir/model_name_wet_19001231T010203_std.h5",
             "dir/model_name_hydro_19001231T010203_std.h5"
@@ -170,4 +170,3 @@ def test_makeDelayFileNames_4():
 def test_get_raster_ext():
     with pytest.raises(ValueError):
         get_raster_ext('dummy_format')
-

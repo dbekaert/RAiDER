@@ -1,5 +1,6 @@
 import datetime
 import os
+from pathlib import Path
 import pytest
 
 import numpy as np
@@ -21,6 +22,7 @@ from RAiDER.utilFcns import (
 _R_EARTH = 6378138
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
+SCENARIO0_DIR = TEST_DIR / "scenario_0"
 
 
 @pytest.fixture
@@ -218,16 +220,17 @@ def test_least_nonzero_2():
 
 def test_rio_extent():
     # Create a simple georeferenced test file
-    with rasterio.open("test.tif", mode="w",
+    test_file = Path("test.tif")
+    with rasterio.open(test_file, mode="w",
                        width=11, height=11, count=1,
                        dtype=np.float64, crs=pyproj.CRS.from_epsg(4326),
                        transform=rasterio.Affine.from_gdal(
                            17.0, 0.1, 0, 18.0, 0, -0.1
                        )) as dst:
         dst.write(np.random.randn(11, 11), 1)
-    profile = rio_profile("test.tif")
+    profile = rio_profile(test_file)
     assert rio_extents(profile) == (17.0, 18.0, 17.0, 18.0)
-    os.remove("test.tif")
+    test_file.unlink()
 
 
 def test_getTimeFromFile():
@@ -485,15 +488,13 @@ def test_get_nearest_wmtimes_4():
 
 
 def test_rio():
-    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
-    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    geotif = SCENARIO0_DIR / 'small_dem.tif'
     profile = rio_profile(geotif)
     assert profile['crs'] is not None
 
 
 def test_rio_2():
-    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
-    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    geotif = SCENARIO0_DIR / 'small_dem.tif'
     prof = rio_profile(geotif)
     del prof['transform']
     with pytest.raises(KeyError):
@@ -501,8 +502,7 @@ def test_rio_2():
 
 
 def test_rio_3():
-    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
-    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    geotif = SCENARIO0_DIR / 'small_dem.tif'
     data = rio_open(geotif, returnProj=False, userNDV=None, band=1)
     assert data.shape == (569,558)
 
@@ -532,8 +532,7 @@ def test_writeArrayToRaster_3(tmp_path):
 
 
 def test_writeArrayToRaster_3(tmp_path):
-    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
-    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    geotif = SCENARIO0_DIR / 'small_dem.tif'
     profile = rio_profile(geotif)
     data = rio_open(geotif)
     with pushd(tmp_path):
@@ -545,7 +544,7 @@ def test_writeArrayToRaster_3(tmp_path):
             gt=profile['transform'], 
             fmt='nc',
         )
-        new_fname = os.path.join(tmp_path, 'tmp_file.tif')
+        new_fname = tmp_path / 'tmp_file.tif'
         prof = rio_profile(new_fname)
         assert prof['driver'] == 'GTiff'
 

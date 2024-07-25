@@ -6,7 +6,9 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+from pathlib import Path
 
+from RAiDER.types import BB, RIOProfile
 import numpy as np
 import pyproj
 import xarray
@@ -262,12 +264,12 @@ class RasterRDR(AOI):
 
     def readLL(self):
         # allow for 2-band lat/lon raster
-        lats = rio_open(self._latfile)
+        lats = rio_open(Path(self._latfile))
 
         if self._lonfile is None:
             return lats
         else:
-            return lats, rio_open(self._lonfile)
+            return lats, rio_open(Path(self._lonfile))
 
     def readZ(self):
         """Read the heights from the raster file, or download a DEM if not present."""
@@ -308,16 +310,20 @@ class BoundingBox(AOI):
 class GeocodedFile(AOI):
     """Parse a Geocoded file for coordinates."""
 
-    def __init__(self, filename, is_dem=False) -> None:
+    p: RIOProfile
+    _bounding_box: BB.SNWE
+    _is_dem: bool
+
+    def __init__(self, path: Path, is_dem=False) -> None:
         super().__init__()
 
         from RAiDER.utilFcns import rio_extents, rio_profile
 
-        self._filename = filename
-        self.p = rio_profile(filename)
+        self._filename = path
+        self.p = rio_profile(path)
         self._bounding_box = rio_extents(self.p)
         self._is_dem = is_dem
-        _, self._proj, self._geotransform = rio_stats(filename)
+        _, self._proj, self._geotransform = rio_stats(path)
         self._type = 'geocoded_file'
         try:
             self.crs = self.p['crs']
@@ -385,8 +391,8 @@ def bounds_from_latlon_rasters(latfile, lonfile):
     """
     from RAiDER.utilFcns import get_file_and_band
 
-    latinfo = get_file_and_band(latfile)
-    loninfo = get_file_and_band(lonfile)
+    latinfo = get_file_and_band(str(latfile))
+    loninfo = get_file_and_band(str(lonfile))
     lat_stats, lat_proj, lat_gt = rio_stats(latinfo[0], band=latinfo[1])
     lon_stats, lon_proj, lon_gt = rio_stats(loninfo[0], band=loninfo[1])
 

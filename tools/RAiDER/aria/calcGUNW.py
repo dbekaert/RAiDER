@@ -111,7 +111,7 @@ def compute_delays_slc(cube_paths: list[Path], wavelength: float) -> xr.Dataset:
 
 
 
-def update_gunw_slc(path_gunw: str, ds_slc: xr.Dataset) -> None:
+def update_gunw_slc(path_gunw: Path, ds_slc: xr.Dataset) -> None:
     """Update the path_gunw file using the slc delays in ds_slc."""
     with h5py.File(path_gunw, 'a') as h5:
         for k in TROPO_GROUP.split():
@@ -175,21 +175,21 @@ def update_gunw_slc(path_gunw: str, ds_slc: xr.Dataset) -> None:
     logger.info('Updated %s group in: %s', os.path.basename(TROPO_GROUP), path_gunw)
 
 
-def update_gunw_version(path_gunw: str) -> None:
+def update_gunw_version(path_gunw: Path) -> None:
     """Temporary hack for updating version to test aria-tools."""
     with netCDF4.Dataset(path_gunw, mode='a') as ds:
         ds.version = '1c'
 
 
-def tropo_gunw_slc(cube_paths: list[Path], path_gunw: str, wavelength: float) -> xr.Dataset:
+def tropo_gunw_slc(cube_paths: list[Path], path_gunw: Path, wavelength: float) -> xr.Dataset:
     """
     Compute and format the troposphere phase delay for GUNW from RAiDER outputs.
 
     Parameters
     ----------
-    cube_filenames : list
+    cube_filenames : list[Path]
         list with filename of delay cube for ref and sec date (netcdf)
-    path_gunw : str
+    path_gunw : Path
         GUNW netcdf path
     wavelength : float
         Wavelength of SAR

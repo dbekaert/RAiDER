@@ -18,6 +18,7 @@ import RAiDER
 import RAiDER.cli.raider as raider
 import RAiDER.s1_azimuth_timing
 from RAiDER import aws
+import RAiDER.aria.prepFromGUNW
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
     check_weather_model_availability,_get_acq_time_from_gunw_id,
@@ -509,7 +510,7 @@ def test_hyp3_exits_succesfully_when_hrrr_not_available(mocker):
                  side_effect=[False])
     # The gunw id should not have a hyp3 file associated with it
     # This call will still hit the HRRR s3 API as done in the previous test
-    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['hyp3-job-uuid-3ad24/S1-GUNW-A-R-106-tops-20160809_20140101-160001-00078W_00041N-PP-4be8-v3_0_0.nc'])
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=[Path('hyp3-job-uuid-3ad24/S1-GUNW-A-R-106-tops-20160809_20140101-160001-00078W_00041N-PP-4be8-v3_0_0.nc')])
     mocker.patch('RAiDER.aria.prepFromGUNW.check_weather_model_availability')
     iargs = [
                '--bucket', 's3://foo',
