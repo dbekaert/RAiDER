@@ -8,10 +8,11 @@ import xarray as xr
 
 
 from test import (
-    WM, TEST_DIR, write_yaml
+    WM, TEST_DIR
 )
 
 from RAiDER.logger import logger
+from RAiDER.utilFcns import write_yaml
 
 wm = 'ERA5' if WM == 'ERA-5' else WM
 

@@ -1,7 +1,8 @@
 import datetime
 import os
 import shutil
-from test import TEST_DIR, WM, write_yaml
+from RAiDER.utilFcns import write_yaml
+from test import TEST_DIR, WM
 from RAiDER.cli.raider import read_run_config_file
 
 def test_datelist():

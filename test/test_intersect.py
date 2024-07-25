@@ -1,3 +1,4 @@
+from RAiDER.utilFcns import write_yaml
 import pytest
 import os
 import pandas as pd
@@ -7,7 +8,7 @@ import numpy as np
 from scipy.interpolate import griddata
 import rasterio
 
-from test import TEST_DIR, WM_DIR, write_yaml
+from test import TEST_DIR, WM_DIR
 
 
 @pytest.mark.parametrize('wm', 'ERA5'.split())

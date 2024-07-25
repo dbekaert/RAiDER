@@ -8,8 +8,9 @@ import numpy as np
 import xarray as xr
 
 from test import (
-    TEST_DIR, WM_DIR, ORB_DIR, write_yaml, make_delay_name
+    TEST_DIR, WM_DIR, ORB_DIR, make_delay_name
 )
+from RAiDER.utilFcns import write_yaml
 
 @pytest.mark.parametrize('weather_model_name', ['ERA5'])
 def test_slant_proj(weather_model_name):

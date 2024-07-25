@@ -7,8 +7,6 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-from RAiDER.utilFcns import write_yaml
-
 test_dir = Path(__file__).parents[0]
 
 TEST_DIR = test_dir.absolute()

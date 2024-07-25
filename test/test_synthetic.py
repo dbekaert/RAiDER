@@ -14,9 +14,10 @@ from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, build_ray
 from RAiDER.utilFcns import lla2ecef
 from RAiDER.cli.validators import modelName2Module
+from RAiDER.utilFcns import lla2ecef, write_yaml
 
 from test import (
-    TEST_DIR, ORB_DIR, WM_DIR, write_yaml
+    TEST_DIR, ORB_DIR, WM_DIR
 )
 
 
