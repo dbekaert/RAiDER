@@ -84,7 +84,7 @@ def read_run_config_file(path: Path) -> AttributeDict:
 
     # Parse the user-provided arguments
     run_config = DEFAULT_DICT.copy()
-    for key, value in params.items():
+    for key, value in yaml_data.items():
         if key == 'runtime_group':
             for k, v in value.items():
                 if v is not None:
@@ -95,7 +95,7 @@ def read_run_config_file(path: Path) -> AttributeDict:
             run_config['date_list'] = parse_dates(AttributeDict(value))
         if key == 'aoi_group':
             # in case a DEM is passed and should be used
-            dct_temp = {**AttributeDict(value), **AttributeDict(params['height_group'])}
+            dct_temp = {**AttributeDict(value), **AttributeDict(yaml_data['height_group'])}
             run_config['aoi'] = get_query_region(AttributeDict(dct_temp))
 
         if key == 'los_group':
@@ -111,7 +111,7 @@ def read_run_config_file(path: Path) -> AttributeDict:
             run_config[key] = bool(value)
 
     # Have to guarantee that certain variables exist prior to looking at heights
-    for key, value in params.items():
+    for key, value in yaml_data.items():
         if key == 'height_group':
             run_config.update(
                 get_heights(

@@ -49,8 +49,8 @@ def checkArgs(args):
             # Handle the GNSS station file
             if args.aoi.type() == 'station_file':
                 wetFilename = str(
-                    run_config.runtime_group.output_directory /
-                    f'{run_config.weather_model._dataset.upper()}_Delay_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv'
+                    args.output_directory /
+                    f'{args.weather_model._dataset.upper()}_Delay_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv'
                 )
 
                 hydroFilename = ''  # only the 'wetFilename' is used for the station_file
