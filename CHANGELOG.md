@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+* [650](https://github.com/dbekaert/RAiDER/pull/650) - Added a linting and formatting checking runner.
+* [656](https://github.com/dbekaert/RAiDER/pull/656) - Example run configuration files available through `raider.py --generate_config <example_name>`.
+
 ## [0.5.2]
 ### Changed
 * [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and added unit tests and bug fixes.
