@@ -857,6 +857,14 @@ yaml.add_representer(
         str(data)
     )
 )
+yaml.add_representer(
+    tuple,
+    lambda dumper, data: dumper.represent_sequence(
+        'tag:yaml.org,2002:seq',
+        data
+    )
+)
+
 def write_yaml(content: dict[str, Any], dst: Union[str, Path]) -> Path:
     """Write a new yaml file from a dictionary with template.yaml as a base.
 
@@ -875,7 +883,7 @@ def write_yaml(content: dict[str, Any], dst: Union[str, Path]) -> Path:
 
     dst = Path(dst)
     with dst.open('w') as fh:
-        yaml.safe_dump(params, fh, default_flow_style=False)
+        yaml.dump(params, fh, default_flow_style=False)
 
     logger.info('Wrote new cfg file: %s', str(dst))
     return dst
