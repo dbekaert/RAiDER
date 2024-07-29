@@ -76,6 +76,9 @@ def read_run_config_file(path: Path) -> RunConfig:
         if key not in yaml_data or yaml_data[key] is None:
             yaml_data[key] = {}
 
+    # Validate look direction
+    if not isinstance(yaml_data['look_dir'], str) or yaml_data['look_dir'].lower() not in ('right', 'left'):
+        raise ValueError(f'Unknown look direction {yaml_data['look_dir']}')
 
     # Parse the user-provided arguments
     run_config = DEFAULT_DICT.copy()
