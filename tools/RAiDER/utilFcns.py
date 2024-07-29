@@ -3,8 +3,8 @@
 import pathlib
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any
 from pathlib import Path
+from typing import Any, Union
 
 import numpy as np
 import rasterio

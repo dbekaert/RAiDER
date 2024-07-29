@@ -6,6 +6,7 @@ from datetime import date, datetime, time, timedelta
 from textwrap import dedent
 from time import strptime
 from pathlib import Path
+from typing import Any, Optional, Self, Union
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,8 @@ import pandas as pd
 from RAiDER.llreader import BoundingBox, GeocodedFile, Geocube, RasterRDR, StationFile
 from RAiDER.logger import logger
 from RAiDER.losreader import Conventional, Zenith
+from RAiDER.models.weatherModel import WeatherModel
+from RAiDER.types import BB
 from RAiDER.utilFcns import rio_extents, rio_profile
 
 

@@ -7,6 +7,7 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 from pathlib import Path
+from typing import Union
 
 from RAiDER.types import BB, RIOProfile
 import numpy as np
@@ -165,7 +166,7 @@ class AOI:
     def set_output_directory(self, output_directory) -> None:
         self._output_directory = output_directory
 
-    def set_output_xygrid(self, dst_crs=4326) -> None:
+    def set_output_xygrid(self, dst_crs: Union[int, str]=4326) -> None:
         """Define the locations where the delays will be returned."""
         from RAiDER.utilFcns import transform_bbox
 

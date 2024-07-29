@@ -288,16 +288,13 @@ class HRRR(WeatherModel):
         self._lons = _lons
         self._proj = proj
 
-    def checkValidBounds(self: WeatherModel, ll_bounds: np.ndarray):
+    def checkValidBounds(self, ll_bounds: np.ndarray) -> None:
         """
         Checks whether the given bounding box is valid for the HRRR or HRRRAK
         (i.e., intersects with the model domain at all).
 
         Args:
         ll_bounds : np.ndarray
-
-        Returns:
-            The weather model object
         """
         S, N, W, E = ll_bounds
         aoi = box(W, S, E, N)
@@ -320,8 +317,6 @@ class HRRR(WeatherModel):
 
             else:
                 raise ValueError('The requested location is unavailable for HRRR')
-
-        return Mod
 
 
 class HRRRAK(WeatherModel):

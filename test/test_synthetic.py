@@ -12,7 +12,6 @@ import subprocess
 from RAiDER.llreader import BoundingBox
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, build_ray
-from RAiDER.utilFcns import lla2ecef
 from RAiDER.utilFcns import lla2ecef, write_yaml
 from RAiDER.cli.validators import get_wm_by_name
 

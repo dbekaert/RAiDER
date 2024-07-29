@@ -1,5 +1,5 @@
 from argparse import ArgumentParser
-from datetime import datetime, time
+from datetime import datetime, time, date
 
 import os
 import pytest

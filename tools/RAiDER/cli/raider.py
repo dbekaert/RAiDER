@@ -4,11 +4,11 @@ import json
 import os
 import shutil
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from textwrap import dedent
-from typing import Literal, Optional, cast
+from typing import Any, Optional, cast
 
-from RAiDER.types import CalcDelaysArgs, CalcDelaysArgsUnparsed, TimeInterpolationMethod
 import numpy as np
 import xarray as xr
 import yaml
@@ -20,6 +20,7 @@ from RAiDER.cli import DEFAULT_DICT, AttributeDict
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.logger import logger, logging
+from RAiDER.losreader import Raytracing
 from RAiDER.models.allowed import ALLOWED_MODELS
 from RAiDER.models.customExceptions import DatetimeFailed, NoWeatherModelData, TryToKeepGoingError, WrongNumberOfFiles
 from RAiDER.s1_azimuth_timing import (
@@ -27,6 +28,7 @@ from RAiDER.s1_azimuth_timing import (
     get_s1_azimuth_time_grid,
     get_times_for_azimuth_interpolation,
 )
+from RAiDER.types import CalcDelaysArgs, CalcDelaysArgsUnparsed
 from RAiDER.utilFcns import get_dt
 
 
@@ -49,7 +51,7 @@ raider.py run_config_file.yaml
 DEFAULT_RUN_CONFIG_PATH = Path('./examples/template/template.yaml')
 
 
-def read_run_config_file(path: Path) -> RunConfig:
+def read_run_config_file(path: Path) -> AttributeDict:
     """
     Read the run config file into a dictionary structure.
 
@@ -66,7 +68,7 @@ def read_run_config_file(path: Path) -> RunConfig:
 
     with path.open() as f:
         try:
-            params = yaml.safe_load(f)
+            yaml_data: dict[str, Any] = yaml.safe_load(f)
         except yaml.YAMLError as exc:
             print(exc)
             raise ValueError(f'Something is wrong with the yaml file {path}')
@@ -127,7 +129,7 @@ def read_run_config_file(path: Path) -> RunConfig:
     return AttributeDict(run_config)
 
 
-def drop_nans(d):
+def drop_nans(d: dict[str, Any]) -> dict[str, Any]:
     for key in list(d.keys()):
         if d[key] is None:
             del d[key]
@@ -138,7 +140,7 @@ def drop_nans(d):
     return d
 
 
-def calcDelays(iargs=None) -> list[Path]:
+def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     """Parse command line arguments using argparse."""
     import RAiDER
     import RAiDER.processWM
@@ -475,7 +477,7 @@ def downloadGNSS() -> None:
 
 
 # ------------------------------------------------------------ prepFromGUNW.py
-def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
+def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
     p = argparse.ArgumentParser(
         description='Calculate a cube of interferometic delays for GUNW files',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

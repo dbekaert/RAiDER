@@ -1,6 +1,7 @@
 import datetime
 import os
 from abc import ABC, abstractmethod
+from typing import Optional
 
 import numpy as np
 import xarray
@@ -15,7 +16,6 @@ from RAiDER.interpolate import interpolate_along_axis
 from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots
-from RAiDER.models import weatherModel
 from RAiDER.models.customExceptions import DatetimeOutsideRange
 from RAiDER.utilFcns import calcgeoh, clip_bbox, robmax, robmin, transform_coords
 
@@ -33,6 +33,8 @@ TIME_RES = {
 
 class WeatherModel(ABC):
     """Implement a generic weather model for getting estimated SAR delays."""
+
+    _dataset: Optional[str]
 
     def __init__(self) -> None:
         # Initialize model-specific constants/parameters
@@ -445,36 +447,26 @@ class WeatherModel(ABC):
         return self._bbox
 
     def checkValidBounds(
-        self: weatherModel,
+        self,
         ll_bounds: np.ndarray,
-    ):
-        """
-        Checks whether the given bounding box is valid for the model
-        (i.e., intersects with the model domain at all).
+    ) -> None:
+        """Check whether the given bounding box is valid for the model (i.e., intersects with the model domain at all).
 
         Args:
         ll_bounds : np.ndarray
-
-        Returns:
-            The weather model object
         """
         S, N, W, E = ll_bounds
-        if box(W, S, E, N).intersects(self._valid_bounds):
-            Mod = self
-
-        else:
+        if not box(W, S, E, N).intersects(self._valid_bounds):
             raise ValueError(f'The requested location is unavailable for {self._Name}')
 
-        return Mod
-
-    def checkContainment(self: weatherModel, ll_bounds, buffer_deg: float = 1e-5) -> bool:
+    def checkContainment(self, ll_bounds, buffer_deg: float = 1e-5) -> bool:
         """ "
         Checks containment of weather model bbox of outLats and outLons
         provided.
 
         Args:
         ----------
-        weather_model : weatherModel
+        weather_model : WeatherModel
         ll_bounds: an array of floats (SNWE) demarcating bbox of targets
         buffer_deg : float
             For x-translates for extents that lie outside of world bounding box,
