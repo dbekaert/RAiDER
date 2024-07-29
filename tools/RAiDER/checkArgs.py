@@ -19,7 +19,6 @@ def checkArgs(args):
     """
     Check argument compatibility and return the correct variables.
     """
-    #########################################################################################################################
     # Directories
     if args.weather_model_directory is None:
         args.weather_model_directory = os.path.join(args.output_directory, 'weather_files')
