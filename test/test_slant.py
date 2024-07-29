@@ -1,3 +1,4 @@
+from RAiDER.cli.raider import calcDelays
 import pytest
 import glob
 import os
@@ -94,9 +95,7 @@ def test_ray_tracing(weather_model_name):
     cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER Failed.'
+    calcDelays([str(cfg)])
 
     # model to lat/lon/correct value
     gold = {'ERA5': [33.4, -117.8, 0, 2.97711681]}
