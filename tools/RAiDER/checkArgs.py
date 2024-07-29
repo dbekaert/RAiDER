@@ -13,8 +13,9 @@ from typing import Optional
 import pandas as pd
 import rasterio.drivers as rd
 
+from RAiDER.llreader import BoundingBox, StationFile
 from RAiDER.logger import logger
-from RAiDER.losreader import Zenith
+from RAiDER.losreader import LOS, Zenith
 
 
 def checkArgs(args):
