@@ -6,12 +6,23 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import RAiDER
 import numpy as np
+import rasterio
 import xarray
+import yaml
 from numpy import ndarray
 from pyproj import CRS, Proj, Transformer
-import yaml
+
+import RAiDER
+from RAiDER.constants import (
+    R_EARTH_MAX_WGS84 as Rmax,
+    R_EARTH_MIN_WGS84 as Rmin,
+    _THRESHOLD_SECONDS,
+    _g0 as g0,
+    _g1 as G1,
+)
+from RAiDER.logger import logger
+from RAiDER.types import BB, RIOProfile
 
 
 # Optional imports
@@ -24,23 +35,9 @@ try:
 except ImportError:
     mp = None
 try:
-    import rasterio
-except ImportError:
-    rasterio = None
-try:
     import progressbar
 except ImportError:
     progressbar = None
-
-
-from RAiDER.constants import (
-    _g0 as g0,
-    _g1 as G1,
-    R_EARTH_MAX_WGS84 as Rmax,
-    R_EARTH_MIN_WGS84 as Rmin,
-    _THRESHOLD_SECONDS,
-)
-from RAiDER.logger import logger
 
 
 pbar = None
@@ -144,7 +141,7 @@ def rio_profile(fname):
     return profile
 
 
-def rio_extents(profile):
+def rio_extents(profile: RIOProfile) -> BB.SNWE:
     """Get a bounding box in SNWE from a rasterio profile."""
     gt = profile['transform'].to_gdal()
     xSize = profile['width']
@@ -154,15 +151,12 @@ def rio_extents(profile):
     return S, N, W, E
 
 
-def rio_open(fname, returnProj=False, userNDV=None, band=None):
+def rio_open(path: Path, returnProj=False, userNDV=None, band=None):
     """Reads a rasterio-compatible raster file and returns the data and profile."""
-    if rasterio is None:
-        raise ImportError('RAiDER.utilFcns: rio_open - rasterio is not installed')
+    if (path / '.vrt').exists():
+        path /= '.vrt'
 
-    if os.path.exists(fname + '.vrt'):
-        fname = fname + '.vrt'
-
-    with rasterio.open(fname) as src:
+    with rasterio.open(path) as src:
         profile = src.profile
 
         # For all bands
@@ -204,12 +198,12 @@ def nodataToNan(inarr, listofvals) -> None:
             inarr[inarr == val] = np.nan
 
 
-def rio_stats(fname, band=1):
+def rio_stats(path: Path, band=1):
     """
     Read a rasterio-compatible file and pull the metadata.
 
     Args:
-        fname   - filename to be loaded
+        fname   - file path to be loaded
         band    - band number to use for getting statistics
 
     Returns:
@@ -217,18 +211,15 @@ def rio_stats(fname, band=1):
         proj    - CRS/projection information for the file
         gt      - geotransform for the data
     """
-    if rasterio is None:
-        raise ImportError('RAiDER.utilFcns: rio_stats - rasterio is not installed')
+    if path.name.startswith('S1-GUNW'):
+        path = Path(f'NETCDF:"{path}":science/grids/data/unwrappedPhase')
 
-    if os.path.basename(fname).startswith('S1-GUNW'):
-        fname = os.path.join(f'NETCDF:"{fname}":science/grids/data/unwrappedPhase')
-
-    if os.path.exists(fname + '.vrt'):
-        fname = fname + '.vrt'
+    if (path / '.vrt').exists():
+        path = path / '.vrt'
 
     # Turn off PAM to avoid creating .aux.xml files
     with rasterio.Env(GDAL_PAM_ENABLED='NO'):
-        with rasterio.open(fname) as src:
+        with rasterio.open(path) as src:
             gt = src.transform.to_gdal()
             proj = src.crs
             stats = src.statistics(band)
@@ -236,15 +227,15 @@ def rio_stats(fname, band=1):
     return stats, proj, gt
 
 
-def get_file_and_band(filestr):
+def get_file_and_band(filestr: str) -> tuple[Path, 1]:
     """Support file;bandnum as input for filename strings."""
     parts = filestr.split(';')
 
     # Defaults to first band if no bandnum is provided
     if len(parts) == 1:
-        return filestr.strip(), 1
+        return Path(filestr.strip()), 1
     elif len(parts) == 2:
-        return parts[0].strip(), int(parts[1].strip())
+        return Path(parts[0].strip()), int(parts[1].strip())
     else:
         raise ValueError(f'Cannot interpret {filestr} as valid filename')
 
