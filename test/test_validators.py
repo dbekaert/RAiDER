@@ -53,11 +53,11 @@ def llarray():
 @pytest.fixture
 def args1():
     test_file = os.path.join(SCENARIO, 'los.rdr')
-    args = RunConfig(
-        los_file = test_file,
-        los_convention = 'isce',
-        ray_trace = False,
-    )
+    args = {
+        'los_file': test_file,
+        'los_convention': 'isce',
+        'ray_trace': False,
+    }
     return args
 
 
