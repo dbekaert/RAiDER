@@ -73,12 +73,11 @@ def read_run_config_file(path: Path) -> RunConfig:
 
     # Drop any values not specified
     params = drop_nans(params)
+    # Ensure that all the groups exist, even if they are not specified by the user
+    for key in ('date_group', 'time_group', 'aoi_group', 'height_group', 'los_group', 'runtime_group'):
+        if key not in yaml_data or yaml_data[key] is None:
+            yaml_data[key] = {}
 
-    # Need to ensure that all the groups exist, even if they are not specified by the user
-    group_keys = ['date_group', 'time_group', 'aoi_group', 'height_group', 'los_group', 'runtime_group']
-    for key in group_keys:
-        if key not in params.keys():
-            params[key] = {}
 
     # Parse the user-provided arguments
     run_config = DEFAULT_DICT.copy()
