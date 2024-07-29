@@ -8,7 +8,7 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Literal, Optional, cast
 
-from RAiDER.types import CalcDelaysArgs, CalcDelaysArgsUnvalidated, TimeInterpolationMethod
+from RAiDER.types import CalcDelaysArgs, CalcDelaysArgsUnparsed, TimeInterpolationMethod
 import numpy as np
 import xarray as xr
 import yaml
@@ -549,7 +549,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> xr.Dataset:
         help='Directory to store results.'
     )
 
-    args: CalcDelaysArgsUnvalidated = p.parse_args(iargs, namespace=CalcDelaysArgsUnvalidated())
+    args: CalcDelaysArgsUnparsed = p.parse_args(iargs, namespace=CalcDelaysArgsUnparsed())
 
     if args.input_bucket_prefix is None:
         args.input_bucket_prefix = args.bucket_prefix
