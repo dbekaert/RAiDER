@@ -90,6 +90,9 @@ def read_run_config_file(path: Path) -> RunConfig:
             print(exc)
             raise ValueError(f'Something is wrong with the yaml file {path}')
 
+    # Drop any values not specified
+    yaml_data = drop_nans(yaml_data)
+
     # Ensure that all the groups exist, even if they are not specified by the user
     for key in ('date_group', 'time_group', 'aoi_group', 'height_group', 'los_group', 'runtime_group'):
         if key not in yaml_data or yaml_data[key] is None:
