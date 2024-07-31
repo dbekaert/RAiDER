@@ -44,9 +44,7 @@ def test_slant_proj(weather_model_name):
     cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER Failed.'
+    calcDelays([str(cfg)])
 
     gold = {'ERA5': [33.4, -117.8, 0, 2.333865144]}
     lat, lon, hgt, val = gold[weather_model_name]

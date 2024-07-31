@@ -1,3 +1,4 @@
+from RAiDER.cli.raider import calcDelays
 from RAiDER.utilFcns import write_yaml
 import pytest
 import os
@@ -43,9 +44,7 @@ def test_cube_intersect(wm):
     cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER Failed.'
+    calcDelays([str(cfg)])
 
     ## hard code what it should be and check it matches
     gold = {'ERA5': 2.2787, 'GMAO': np.nan, 'HRRR': np.nan}
@@ -89,9 +88,7 @@ def test_gnss_intersect(wm):
     cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER Failed.'
+    calcDelays([str(cfg)])
 
     gold = {'ERA5': 2.34514, 'GMAO': np.nan, 'HRRR': np.nan}
     df = pd.read_csv(os.path.join(SCENARIO_DIR, f'{wm}_Delay_{date}T{time.replace(":", "")}_ztd.csv'))
