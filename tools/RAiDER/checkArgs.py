@@ -5,94 +5,95 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import os
-from datetime import datetime
+import datetime as dt
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
 import rasterio.drivers as rd
 
+from RAiDER.cli.args import RunConfig
 from RAiDER.llreader import BoundingBox, StationFile
 from RAiDER.logger import logger
 from RAiDER.losreader import LOS, Zenith
 
 
-def checkArgs(args):
-    """
-    Check argument compatibility and return the correct variables.
-    """
+def checkArgs(run_config: RunConfig) -> RunConfig:
+    """Check argument compatibility and return the correct variables."""
+    ############################################################################
     # Directories
-    if args.weather_model_directory is None:
-        args.weather_model_directory = os.path.join(args.output_directory, 'weather_files')
+    run_config.runtime_group.output_directory.mkdir(exist_ok=True)
+    run_config.runtime_group.weather_model_directory.mkdir(exist_ok=True)
+    run_config.weather_model.set_wmLoc(str(run_config.runtime_group.weather_model_directory))
 
-    os.makedirs(args.output_directory, exist_ok=True)
-    os.makedirs(args.weather_model_directory, exist_ok=True)
-    args['weather_model'].set_wmLoc(args.weather_model_directory)
-
-    #########################################################################################################################
+    ############################################################################
     # Date and Time parsing
-    args.date_list = [datetime.combine(d, args.time) for d in args.date_list]
-    if (len(args.date_list) > 1) & (args.orbit_file is not None):
+    run_config.date_group.date_list = [
+        dt.datetime.combine(d, run_config.time_group.time)
+        for d in run_config.date_group.date_list
+    ]
+    if len(run_config.date_group.date_list) > 1 and run_config.los_group.orbit_file is not None:
         logger.warning(
-            'Only one orbit file is being used to get the look vectors for all requested times, if you want to use '
-            'separate orbit files you will need to run raider separately for each time.'
+            'Only one orbit file is being used to get the look vectors for all requested times. If you want to use '
+            'separate orbit files you will need to run RAiDER separately for each time.'
         )
 
-    args.los.setTime(args.date_list[0])
+    run_config.los_group.los.setTime(run_config.date_group.date_list[0])
 
-    #########################################################################################################################
+    ############################################################################
     # filenames
-    wetNames, hydroNames = [], []
-    for d in args.date_list:
-        if args.aoi.type() != 'bounding_box':
+    wetNames: list[str] = []
+    hydroNames: list[str] = []
+    for d in run_config.date_group.date_list:
+        if not isinstance(run_config.aoi_group.aoi, BoundingBox):
             # Handle the GNSS station file
-            if args.aoi.type() == 'station_file':
+            if isinstance(run_config.aoi_group.aoi, StationFile):
                 wetFilename = str(
-                    args.output_directory /
-                    f'{args.weather_model._dataset.upper()}_Delay_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv'
+                    run_config.runtime_group.output_directory /
+                    f'{run_config.weather_model._dataset.upper()}_Delay_{d.strftime("%Y%m%dT%H%M%S")}_ztd.csv'
                 )
 
                 hydroFilename = ''  # only the 'wetFilename' is used for the station_file
 
                 # copy the input station file to the output location for editing
-                indf = pd.read_csv(args.aoi._filename).drop_duplicates(subset=['Lat', 'Lon'])
+                indf = pd.read_csv(run_config.aoi_group.aoi._filename) \
+                    .drop_duplicates(subset=['Lat', 'Lon'])
                 indf.to_csv(wetFilename, index=False)
 
             else:
                 # This implies rasters
-                fmt = get_raster_ext(args.file_format)
+                fmt = get_raster_ext(run_config.runtime_group.file_format)
                 wetFilename, hydroFilename = makeDelayFileNames(
                     d,
-                    args.los,
+                    run_config.los_group.los,
                     fmt,
-                    args.weather_model._dataset.upper(),
-                    args.output_directory,
+                    run_config.weather_model._dataset.upper(),
+                    run_config.runtime_group.output_directory,
                 )
 
         else:
             # In this case a cube file format is needed
-            if args.file_format not in '.nc .h5 h5 hdf5 .hdf5 nc'.split():
+            if run_config.runtime_group.file_format not in '.nc .h5 h5 hdf5 .hdf5 nc'.split():
                 fmt = 'nc'
-                logger.debug('Invalid extension %s for cube. Defaulting to .nc', args.file_format)
+                logger.debug('Invalid extension %s for cube. Defaulting to .nc', run_config.runtime_group.file_format)
             else:
-                fmt = args.file_format.strip('.').replace('df', '')
+                fmt = run_config.runtime_group.file_format.strip('.').replace('df', '')
 
             wetFilename, hydroFilename = makeDelayFileNames(
                 d,
-                args.los,
+                run_config.los_group.los,
                 fmt,
-                args.weather_model._dataset.upper(),
-                args.output_directory,
+                run_config.weather_model._dataset.upper(),
+                run_config.runtime_group.output_directory,
             )
 
         wetNames.append(wetFilename)
         hydroNames.append(hydroFilename)
 
-    args.wetFilenames = wetNames
-    args.hydroFilenames = hydroNames
+    run_config.wetFilenames = wetNames
+    run_config.hydroFilenames = hydroNames
 
-    return args
+    return run_config
 
 
 def get_raster_ext(fmt):
@@ -109,7 +110,7 @@ def get_raster_ext(fmt):
         raise ValueError(f'{fmt} is not a valid gdal/rasterio file format for rasters')
 
 
-def makeDelayFileNames(time: Optional[datetime], los: Optional[LOS], outformat: str, weather_model_name: str, out: Path) -> tuple[str, str]:
+def makeDelayFileNames(date: Optional[dt.date], los: Optional[LOS], outformat: str, weather_model_name: str, out: Path) -> tuple[str, str]:
     """
     return names for the wet and hydrostatic delays.
 
@@ -121,7 +122,7 @@ def makeDelayFileNames(time: Optional[datetime], los: Optional[LOS], outformat: 
     """
     format_string = '{model_name}_{{}}_{time}{los}.{ext}'.format(
         model_name=weather_model_name,
-        time=time.strftime('%Y%m%dT%H%M%S_') if time is not None else '',
+        time=date.strftime('%Y%m%dT%H%M%S_') if date is not None else '',
         los='ztd' if (isinstance(los, Zenith) or los is None) else 'std',
         ext=outformat,
     )

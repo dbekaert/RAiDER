@@ -365,7 +365,6 @@ def main(args: CalcDelaysArgs) -> tuple[Path, float]:
     raider_cfg = {
         'weather_model': args.weather_model,
         'look_dir': GUNWObj.look_dir,
-        'cube_spacing_in_m': GUNWObj.spacing_m,
         'aoi_group': {'bounding_box': GUNWObj.SNWE},
         'height_group': {'height_levels': GUNWObj.heights},
         'date_group': {'date_list': GUNWObj.dates},
@@ -377,11 +376,11 @@ def main(args: CalcDelaysArgs) -> tuple[Path, float]:
         'los_group': {
             'ray_trace': True,
             'orbit_file': GUNWObj.orbit_file,
-            'wavelength': GUNWObj.wavelength,
         },
         'runtime_group': {
             'raster_format': 'nc',
             'output_directory': args.output_directory,
+            'cube_spacing_in_m': GUNWObj.spacing_m,
         },
     }
 

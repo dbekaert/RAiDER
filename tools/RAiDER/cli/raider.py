@@ -16,7 +16,18 @@ import yaml
 import RAiDER.aria.calcGUNW
 import RAiDER.aria.prepFromGUNW
 from RAiDER import aws
-from RAiDER.cli import DEFAULT_DICT, AttributeDict
+from RAiDER.cli.args import (
+    AOIGroup,
+    AOIGroupUnparsed,
+    DateGroupUnparsed,
+    HeightGroupUnparsed,
+    LOSGroup,
+    LOSGroupUnparsed,
+    RAiDERArgs,
+    RunConfig,
+    RuntimeGroup,
+    TimeGroup,
+)
 from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.logger import logger, logging
@@ -51,20 +62,26 @@ raider.py run_config_file.yaml
 DEFAULT_RUN_CONFIG_PATH = Path('./examples/template/template.yaml')
 
 
-def read_run_config_file(path: Path) -> AttributeDict:
+def read_run_config_file(path: Path) -> RunConfig:
     """
     Read the run config file into a dictionary structure.
 
     Args:
         path (Path): path to the run config file
     Returns:
-        dict: arguments to pass to RAiDER functions
+        RAiDERArgs: arguments to pass to RAiDER functions
 
     Examples:
     >>> run_config = read_run_config_file('raider.yaml')
 
     """
-    from RAiDER.cli.validators import enforce_time, enforce_wm, get_heights, get_los, get_query_region, parse_dates
+    from RAiDER.cli.validators import (
+        get_heights,
+        get_los,
+        get_query_region,
+        parse_dates,
+        parse_weather_model,
+    )
 
     with path.open() as f:
         try:
@@ -82,54 +99,46 @@ def read_run_config_file(path: Path) -> AttributeDict:
     if not isinstance(yaml_data['look_dir'], str) or yaml_data['look_dir'].lower() not in ('right', 'left'):
         raise ValueError(f'Unknown look direction {yaml_data['look_dir']}')
 
+    # Support for deprecated location for cube_spacing_in_m
+    if 'cube_spacing_in_m' in yaml_data:
+        logger.warning(
+            'Run config option cube_spacing_in_m is deprecated. Please use runtime_group.cube_spacing_in_m instead.'
+        )
+        yaml_data['runtime_group']['cube_spacing_in_m'] = yaml_data['cube_spacing_in_m']
+
     # Parse the user-provided arguments
-    run_config = DEFAULT_DICT.copy()
-    for key, value in yaml_data.items():
-        if key == 'runtime_group':
-            for k, v in value.items():
-                if v is not None:
-                    run_config[k] = v
-        if key == 'time_group':
-            run_config.update(enforce_time(AttributeDict(value)))
-        if key == 'date_group':
-            run_config['date_list'] = parse_dates(AttributeDict(value))
-        if key == 'aoi_group':
-            # in case a DEM is passed and should be used
-            dct_temp = {**AttributeDict(value), **AttributeDict(yaml_data['height_group'])}
-            run_config['aoi'] = get_query_region(AttributeDict(dct_temp))
+    height_group_unparsed = HeightGroupUnparsed(**yaml_data['height_group'])
+    aoi_group_unparsed = AOIGroupUnparsed(**yaml_data['aoi_group'])
+    runtime_group = RuntimeGroup(**yaml_data['runtime_group'])
+    aoi_group = AOIGroup(
+        aoi=get_query_region(
+            aoi_group_unparsed,
+            height_group_unparsed
+        )
+    )
 
-        if key == 'los_group':
-            run_config['los'] = get_los(AttributeDict(value))
-            run_config['zref'] = AttributeDict(value).get('zref')
-        if key == 'look_dir':
-            if value.lower() not in ['right', 'left']:
-                raise ValueError(f'Unknown look direction {value}')
-            run_config['look_dir'] = value.lower()
-        if key == 'cube_spacing_in_m':
-            run_config[key] = float(value) if isinstance(value, str) else value
-        if key == 'download_only':
-            run_config[key] = bool(value)
-
-    # Have to guarantee that certain variables exist prior to looking at heights
-    for key, value in yaml_data.items():
-        if key == 'height_group':
-            run_config.update(
-                get_heights(
-                    AttributeDict(value),
-                    run_config['output_directory'],
-                    run_config['station_file'],
-                    run_config['bounding_box'],
-                )
-            )
-
-        if key == 'weather_model':
-            run_config[key] = enforce_wm(value, run_config['aoi'])
-
-    run_config['aoi']._cube_spacing_m = run_config['cube_spacing_in_m']
-    return AttributeDict(run_config)
+    return RunConfig(
+        look_dir=yaml_data['look_dir'].lower(),
+        weather_model=parse_weather_model(yaml_data['weather_model'], aoi_group.aoi),
+        date_group=parse_dates(DateGroupUnparsed(**yaml_data['date_group'])),
+        time_group=TimeGroup(**yaml_data['time_group']),
+        aoi_group=aoi_group,
+        height_group=get_heights(
+            height_group=height_group_unparsed,
+            aoi_group=aoi_group_unparsed,
+            runtime_group=runtime_group,
+        ),
+        los_group=LOSGroup(
+            los=get_los(LOSGroupUnparsed(**yaml_data['los_group'])),
+            **yaml_data['los_group']
+        ),
+        runtime_group=runtime_group,
+    )
 
 
 def drop_nans(d: dict[str, Any]) -> dict[str, Any]:
+    # Must iterate over a copy of the dict's keys because dict.keys() cannot
+    # be used directly when the dict's size is going to change.
     for key in list(d.keys()):
         if d[key] is None:
             del d[key]
@@ -161,6 +170,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     p.add_argument(
         '--download_only',
         action='store_true',
+        default=False,
         help='only download a weather model.'
     )
 
@@ -187,7 +197,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     )
 
     # if not None, will replace first argument (run_config_file)
-    args = p.parse_args(args=iargs)
+    args: RAiDERArgs = p.parse_args(args=iargs, namespace=RAiDERArgs())
 
     # Default example run configuration file
     ex_run_config_name = args.generate_config or 'template'
@@ -203,7 +213,6 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
             shutil.copy(filename, str(Path.cwd()))
             logger.info('Wrote: %s', filename)
         sys.exit()
-    # args.generate_config now guaranteed to be None
 
     # If no run configuration file is provided, look for a ./raider.yaml
     if args.run_config_file is not None:
@@ -221,28 +230,28 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         args.run_config_file = DEFAULT_RUN_CONFIG_PATH
 
     # Read the run config file
-    params = read_run_config_file(args.run_config_file)
+    run_config = read_run_config_file(args.run_config_file)
 
     # Verify the run config file's parameters
-    params = checkArgs(params)
-    dl_only = params['download_only'] or args.download_only
+    run_config = checkArgs(run_config)
+    dl_only = run_config.runtime_group.download_only or args.download_only
 
-    if not params.verbose:
+    if not run_config.runtime_group.verbose:
         logger.setLevel(logging.INFO)
 
     # Extract and buffer the AOI
-    los = params['los']
-    aoi = params['aoi']
-    model = params['weather_model']
+    los = run_config.los_group.los
+    aoi = run_config.aoi_group.aoi
+    model = run_config.weather_model
 
     # adjust user requested AOI by grid size and buffer slightly
     aoi.add_buffer(model.getLLRes())
 
     # define the xy grid within the buffered bounding box
-    aoi.set_output_xygrid(params['output_projection'])
+    aoi.set_output_xygrid(run_config.runtime_group.output_projection)
 
     # add a buffer determined by latitude for ray tracing
-    if los.ray_trace():
+    if isinstance(los, Raytracing):
         wm_bounds = aoi.calc_buffer_ray(los.getSensorDirection(), lookDir=los.getLookDirection(), incAngle=30)
     else:
         wm_bounds = aoi.bounds()
@@ -250,7 +259,10 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
     wet_paths: list[Path] = []
-    for t, w, f in zip(params['date_list'], params['wetFilenames'], params['hydroFilenames']):
+    t: datetime.datetime
+    w: str
+    f: str
+    for t, w, f in zip(run_config.date_group.date_list, run_config.wetFilenames, run_config.hydroFilenames):
         ###########################################################
         # Weather model calculation
         ###########################################################
@@ -258,7 +270,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         logger.debug(f'Requested date,time: {t.strftime("%Y%m%d, %H:%M")}')
         logger.debug('Beginning weather model pre-processing')
 
-        interp_method = params.get('interpolate_time')
+        interp_method = run_config.time_group.interpolate_time
         if interp_method is None:
             interp_method = 'none'
             logger.warning(
@@ -284,11 +296,16 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         wfiles = []
         for tt in times:
             try:
-                wfile = RAiDER.processWM.prepareWeatherModel(model, tt, aoi.bounds(), makePlots=params['verbose'])
+                wfile = RAiDER.processWM.prepareWeatherModel(
+                    model,
+                    tt,
+                    aoi.bounds(),
+                    makePlots=run_config.runtime_group.verbose
+                )
                 wfiles.append(wfile)
 
             except TryToKeepGoingError:
-                if interp_method in ['azimuth_time_grid', 'none']:
+                if interp_method in ('azimuth_time_grid', 'none'):
                     raise DatetimeFailed(model.Model(), tt)
                 else:
                     continue
@@ -317,9 +334,9 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
                 weather_model_file,
                 aoi,
                 los,
-                height_levels=params['height_levels'],
-                out_proj=params['output_projection'],
-                zref=params['zref'],
+                height_levels=run_config.height_group.height_levels,
+                out_proj=run_config.runtime_group.output_projection,
+                zref=run_config.los_group.zref,
             )
         except RuntimeError:
             logger.exception('Datetime %s failed', t)
@@ -345,8 +362,8 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
             # data provenance: include metadata for model and times used
             times_str = [t.strftime('%Y%m%dT%H:%M:%S') for t in sorted(times)]
             ds = ds.assign_attrs(model_name=model._Name, model_times_used=times_str, interpolation_method=interp_method)
-            if ext not in ['.nc', '.h5']:
-                out_filename = out_filename.stem + '.nc'
+            if ext not in ('.nc', '.h5'):
+                out_filename = Path(out_filename.stem + '.nc')
 
             if out_filename.suffix == '.nc':
                 ds.to_netcdf(out_filename, mode='w')
@@ -358,7 +375,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         else:
             out_filename = Path(out_filename)
             if aoi.type() == 'station_file':
-                out_filename = out_filename.stem + '.csv'
+                out_filename = Path(out_filename.stem + '.csv')
 
             if aoi.type() in ('station_file', 'radar_rasters', 'geocoded_file'):
                 writeDelays(aoi, wet_delay, hydro_delay, str(out_filename), f, outformat=run_config.runtime_group.raster_format)
@@ -505,7 +522,8 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
     p.add_argument(
         '-f',
         '--file',
-        help='1 ARIA GUNW netcdf file'
+        type=lambda p: Path(p).absolute(),
+        help='1 ARIA GUNW netcdf file',
     )
 
     p.add_argument(
@@ -537,7 +555,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         choices=TIME_INTERPOLATION_METHODS,
         help=(
             'How to interpolate across model time steps. Possible options are: '
-            "['none', 'center_time', 'azimuth_time_grid'] "
+            f"{TIME_INTERPOLATION_METHODS} "
             'None: means nearest model time; center_time: linearly across center time; '
             'Azimuth_time_grid: means every pixel is weighted with respect to azimuth time of S1'
         ),
@@ -555,10 +573,6 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
 
     if args.input_bucket_prefix is None:
         args.input_bucket_prefix = args.bucket_prefix
-
-    if args.interpolate_time not in TIME_INTERPOLATION_METHODS:
-        raise ValueError("interpolate_time arg must be in ['none', 'center_time', 'azimuth_time_grid']")
-    args.interpolate_time = cast(TimeInterpolationMethod, args.interpolate_time)
 
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
@@ -578,11 +592,15 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
             raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
     if args.file is None:
-        if args.bucket is None:
+        if args.bucket is None or args.bucket_prefix is None:
             raise ValueError('Either argument --file or --bucket must be provided')
 
         # only use GUNW ID for checking if HRRR available
-        args.file = aws.get_s3_file(args.bucket, args.input_bucket_prefix, '.nc')
+        args.file = aws.get_s3_file(
+            args.bucket,
+            cast(str, args.input_bucket_prefix),  # guaranteed not None at this point
+            '.nc'
+        )
         if args.file is None:
             raise ValueError(
                 'GUNW product file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
@@ -602,7 +620,11 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
             #       we include this within this portion of the control flow.
             print('Nothing to do because outside of weather model range')
             return
-        json_file_path = aws.get_s3_file(args.bucket, args.input_bucket_prefix, '.json')
+        json_file_path = aws.get_s3_file(
+            args.bucket,
+            cast(str, args.input_bucket_prefix),
+            '.json'
+        )
         if json_file_path is None:
             raise ValueError(
                 'GUNW metadata file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'

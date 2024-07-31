@@ -8,11 +8,11 @@ import numpy as np
 
 from test import TEST_DIR
 
-from RAiDER.cli import AttributeDict
+from RAiDER.cli.args import DateGroupUnparsed, LOSGroupUnparsed, TimeGroup
 from RAiDER.cli.validators import (
     getBufferedExtent, isOutside, isInside,
-    enforce_valid_dates as date_type, convert_time as time_type,
-    enforce_bbox, parse_dates, enforce_wm, get_los
+    coerce_into_date,
+    parse_bbox, parse_dates, parse_weather_model, get_los
 )
 
 SCENARIO = os.path.join(TEST_DIR, "scenario_4")
@@ -64,22 +64,23 @@ def args1():
 
 def test_enforce_wm():
     with pytest.raises(NotImplementedError):
-        enforce_wm('notamodel', 'fakeaoi')
+        parse_weather_model('notamodel', 'fakeaoi')
 
 
 def test_get_los_ray(args1):
     args = args1
-    los = get_los(args)
+    los_group_unparsed = LOSGroupUnparsed(**args)
+    los = get_los(los_group_unparsed)
     assert not los.ray_trace()
     assert los.is_Projected()
 
 
 def test_date_type():
-    assert date_type("2020-10-1") == datetime(2020, 10, 1)
-    assert date_type("2020101") == datetime(2020, 10, 1)
+    assert coerce_into_date("2020-10-1") == date(2020, 10, 1)
+    assert coerce_into_date("2020101") == date(2020, 10, 1)
 
     with pytest.raises(ValueError):
-        date_type("foobar")
+        coerce_into_date("foobar")
 
 
 @pytest.mark.parametrize("input,expected", (
@@ -98,44 +99,42 @@ def test_date_type():
 ))
 @pytest.mark.parametrize("timezone", ("", "z", "+0000"))
 def test_time_type(input, timezone, expected):
-    assert time_type(input + timezone) == expected
+    assert TimeGroup.coerce_into_time(input + timezone) == expected
 
 
 def test_time_type_error():
     with pytest.raises(ValueError):
-        time_type("foobar")
+        TimeGroup.coerce_into_time("foobar")
 
 
 def test_date_list_action():
-    date_list = {
-        'date_start':'20200101',
-    }
-    assert date_type(date_list['date_start']) == datetime(2020,1,1)
+    date_group_unparsed = DateGroupUnparsed(
+        date_start='20200101',
+    )
+    assert coerce_into_date(date_group_unparsed.date_start) == date(2020,1,1)
+    assert parse_dates(date_group_unparsed).date_list == [date(2020,1,1)]
 
+    date_group_unparsed.date_end = '20200103'
+    assert coerce_into_date(date_group_unparsed.date_end) == date(2020,1,3)
+    assert parse_dates(date_group_unparsed).date_list == [date(2020,1,1), date(2020,1,2), date(2020,1,3)]
 
-    assert parse_dates(date_list) == [datetime(2020,1,1)]
-
-    date_list['date_end'] = '20200103'
-    assert date_type(date_list['date_end']) == datetime(2020,1,3)
-    assert parse_dates(date_list) == [datetime(2020,1,1), datetime(2020,1,2), datetime(2020,1,3)]
-
-    date_list['date_end'] = '20200112'
-    date_list['date_step'] = '5'
-    assert parse_dates(date_list) == [datetime(2020,1,1), datetime(2020,1,6), datetime(2020,1,11)]
+    date_group_unparsed.date_end = '20200112'
+    date_group_unparsed.date_step = '5'
+    assert parse_dates(date_group_unparsed).date_list == [date(2020,1,1), date(2020,1,6), date(2020,1,11)]
 
 
 def test_bbox_action():
     bbox_str = "45 46 -72 -70"
-    assert len(enforce_bbox(bbox_str)) == 4
+    assert len(parse_bbox(bbox_str)) == 4
 
-    assert enforce_bbox(bbox_str) == [45, 46, -72, -70]
+    assert parse_bbox(bbox_str) == (45, 46, -72, -70)
 
     with pytest.raises(ValueError):
-        enforce_bbox("20 20 30 30")
+        parse_bbox("20 20 30 30")
     with pytest.raises(ValueError):
-        enforce_bbox("30 100 20 40")
+        parse_bbox("30 100 20 40")
     with pytest.raises(ValueError):
-        enforce_bbox("10 30 40 190")
+        parse_bbox("10 30 40 190")
 
 
 def test_ll1(llsimple):
@@ -159,13 +158,18 @@ def test_ll4(llarray):
 
 
 def test_isOutside1(llsimple):
-    assert isOutside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
+    extent1 = getBufferedExtent(*llsimple)
+    extent2 = extent1[0] + 1, extent1[1] + 1, extent1[2] + 1, extent1[3] + 1
+    assert isOutside(extent1, extent2)
 
 
 def test_isOutside2(llsimple):
-    assert not isOutside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple))
+    extent = getBufferedExtent(*llsimple)
+    assert not isOutside(extent, extent)
 
 
 def test_isInside(llsimple):
-    assert isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple))
-    assert not isInside(getBufferedExtent(*llsimple), getBufferedExtent(*llsimple) + 1)
+    extent1 = getBufferedExtent(*llsimple)
+    extent2 = extent1[0] + 1, extent1[1] + 1, extent1[2] + 1, extent1[3] + 1
+    assert isInside(extent1, extent1)
+    assert not isInside(extent1, extent2)

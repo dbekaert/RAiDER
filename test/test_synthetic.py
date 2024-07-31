@@ -171,10 +171,12 @@ class StudyArea(object):
             'height_group': {'height_levels': self.hgt_lvls.tolist()},
             'time_group': {'time': self.ttime, 'interpolate_time': 'none'},
             'date_group': {'date_list': datetime.strftime(self.dt, '%Y%m%d')},
-            'cube_spacing_in_m': str(self._cube_spacing_m),
             'los_group': {'ray_trace': True, 'orbit_file': self.orbit},
             'weather_model': self.wmName,
-            'runtime_group': {'output_directory': self.wd},
+            'runtime_group': {
+                'output_directory': self.wd,
+                'cube_spacing_in_m': str(self._cube_spacing_m),
+            },
         }
         return dct
 

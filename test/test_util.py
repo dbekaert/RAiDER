@@ -122,7 +122,7 @@ def test_cosd():
 
 
 def test_rio_open():
-    out = rio_open(os.path.join(TEST_DIR, "test_geom", "lat.rdr"), False)
+    out = rio_open(TEST_DIR / "test_geom/lat.rdr", False)
 
     assert np.allclose(out.shape, (45, 226))
 
@@ -508,9 +508,9 @@ def test_rio_3():
 
 
 def test_rio_4():
-    SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_4")
-    los = os.path.join(SCENARIO_DIR, 'los.rdr')
-    inc, hd = rio_open(los, returnProj=False)
+    SCENARIO_DIR = TEST_DIR / "scenario_4"
+    los_path = SCENARIO_DIR / 'los.rdr'
+    inc, hd = rio_open(los_path, returnProj=False)
     assert len(inc.shape) == 2
     assert len(hd.shape) == 2
 

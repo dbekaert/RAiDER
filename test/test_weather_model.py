@@ -319,7 +319,7 @@ def test_hrrr(hrrr: HRRR):
     wm.checkValidBounds(np.array([35, 40, -95, -90]))
 
     with pytest.raises(ValueError):
-        wm.checkValidBounds([45, 47, 300, 310])
+        wm.checkValidBounds(np.array([45, 47, 300, 310]))
 
 
 def test_hrrrak(hrrrak: HRRRAK):
@@ -331,7 +331,7 @@ def test_hrrrak(hrrrak: HRRRAK):
     wm.checkValidBounds(np.array([45, 47, 200, 210]))
 
     with pytest.raises(ValueError):
-        wm.checkValidBounds([15, 20, 265, 270])
+        wm.checkValidBounds(np.array([15, 20, 265, 270]))
 
     with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime(2018, 7, 12).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))

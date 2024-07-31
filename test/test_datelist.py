@@ -31,16 +31,16 @@ def test_datelist():
     
     cfg  = write_yaml(dct_group, 'temp.yaml')
     param_dict = read_run_config_file(cfg)
-    assert param_dict['date_list'] == true_dates
+    assert param_dict.date_group.date_list == true_dates
 
 
 def test_datestep():
     SCENARIO_DIR = os.path.join(TEST_DIR, 'scenario_5')
     st, en, step = '20200124', '20200130', 3
     true_dates = [
-        datetime.datetime(2020,1,24), 
-        datetime.datetime(2020,1,27), 
-        datetime.datetime(2020,1,30)
+        datetime.date(2020,1,24),
+        datetime.date(2020,1,27),
+        datetime.date(2020,1,30)
     ]
 
     dct_group = {
@@ -56,4 +56,4 @@ def test_datestep():
     
     cfg  = write_yaml(dct_group, 'temp.yaml')
     param_dict = read_run_config_file(cfg)
-    assert param_dict['date_list'] == true_dates
+    assert param_dict.date_group.date_list == true_dates
