@@ -345,12 +345,13 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         # Different options depending on the inputs
         if los.is_Projected():
             out_filename = w.replace('_ztd', '_std')
-            f = f.replace('_ztd', '_std')
+            hydro_filename = f.replace('_ztd', '_std')
         elif los.ray_trace():
             out_filename = w.replace('_std', '_ray')
-            f = f.replace('_std', '_ray')
+            hydro_filename = f.replace('_std', '_ray')
         else:
             out_filename = w
+            hydro_filename = f
 
         # A dataset was returned by the above
         # Dataset returned: Cube e.g. GUNW workflow
@@ -378,7 +379,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
                 out_filename = out_filename.with_suffix('.csv')
 
             if aoi.type() in ('station_file', 'radar_rasters', 'geocoded_file'):
-                writeDelays(aoi, wet_delay, hydro_delay, str(out_filename), f, outformat=run_config.runtime_group.raster_format)
+                writeDelays(aoi, wet_delay, hydro_delay, out_filename, Path(hydro_filename), outformat=run_config.runtime_group.raster_format)
 
         wet_paths.append(out_filename)
 

@@ -38,8 +38,9 @@ def tropo_delay(
     out_proj: Union[int, str] = 4326,
     zref: Union[int, float] = _ZREF,
 ):
-    """
-    Calculate integrated delays on query points. Options are:
+    """Calculate integrated delays on query points.
+    
+    Options are:
     1. Zenith delays (ZTD)
     2. Zenith delays projected to the line-of-sight (STD-projected)
     3. Slant delays integrated along the raypath (STD-raytracing)
@@ -52,7 +53,6 @@ def tropo_delay(
         height_levels: list         - (optional) list of height levels on which to calculate delays. Only needed for cube generation.
         out_proj: int,str           - (optional) EPSG code for output projection
         zref: int,float             - (optional) maximum height to integrate up to during raytracing
-
 
     Returns:
         xarray Dataset *or* ndarrays: - wet and hydrostatic delays at the grid nodes / query points.
@@ -75,12 +75,12 @@ def tropo_delay(
         toa = wm_levels.max() - 1
 
     if height_levels is None:
-        if aoi.type() == 'Geocube':
+        if isinstance(aoi, Geocube):
             height_levels = aoi.readZ()
         else:
             height_levels = wm_levels
 
-    if not zref:
+    if zref == 0:
         zref = toa
 
     if zref > toa:
@@ -92,7 +92,7 @@ def tropo_delay(
     # TODO: expose this as library function
     ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels, los, crs, zref)
 
-    if (aoi.type() == 'bounding_box') or (aoi.type() == 'Geocube'):
+    if isinstance(aoi, (BoundingBox, Geocube)):
         return ds, None
 
     else:
@@ -100,7 +100,7 @@ def tropo_delay(
         try:
             out_proj = CRS.from_epsg(out_proj)
         except pyproj.exceptions.CRSError:
-            out_proj = out_proj
+            pass
 
         pnt_proj = CRS.from_epsg(4326)
         lats, lons = aoi.readLL()
@@ -110,7 +110,7 @@ def tropo_delay(
         try:
             ifWet, ifHydro = getInterpolators(ds, 'ztd')
         except RuntimeError:
-            logger.exception('Failed to get weather model %s interpolators.', weather_model_file)
+            raise RuntimeError(f'Failed to get weather model {weather_model_file} interpolators.')
 
         wetDelay = ifWet(pnts)
         hydroDelay = ifHydro(pnts)

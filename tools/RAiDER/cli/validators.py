@@ -243,7 +243,6 @@ def parse_dates(date_group: DateGroupUnparsed) -> DateGroup:
     )
 
 
-
 def coerce_into_date(val: Union[int, str]) -> dt.date:
     """Parse a date from a string in pseudo-ISO 8601 format."""
     year_formats = (

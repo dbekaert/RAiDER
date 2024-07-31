@@ -230,7 +230,7 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
     # confirm file exists (i.e. valid delays exists for specified time/region).
     outputfiles = [i for i in outputfiles if os.path.exists(i)]
     # Consolidate all CSV files into one object
-    if outputfiles == []:
+    if len(outputfiles) == 0:
         raise Exception('No valid delays found for specified time/region.')
     name = os.path.join(outDir, f'{gps_repo}combinedGPS_ztd.csv')
     statsFile = pd.concat([pd.read_csv(i) for i in outputfiles])
