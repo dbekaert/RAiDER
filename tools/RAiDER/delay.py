@@ -15,7 +15,7 @@ models are accessed as NETCDF files and should have "wet" "hydro"
 
 import os
 from datetime import datetime, timezone
-from typing import List, Union
+from typing import Optional, Union
 
 import numpy as np
 import pyproj
@@ -24,19 +24,20 @@ from pyproj import CRS, Transformer
 
 from RAiDER.constants import _ZREF
 from RAiDER.delayFcns import getInterpolators
+from RAiDER.llreader import AOI, BoundingBox, Geocube
 from RAiDER.logger import logger
-from RAiDER.losreader import build_ray
+from RAiDER.losreader import LOS, build_ray
 
 
 ###############################################################################
 def tropo_delay(
-    dt,
+    dt: datetime,
     weather_model_file: str,
-    aoi,
-    los,
-    height_levels: List[float] = None,
+    aoi: AOI,
+    los: LOS,
+    height_levels: Optional[list[float]] = None,
     out_proj: Union[int, str] = 4326,
-    zref: Union[int, float] = _ZREF,
+    zref: np.float64 = _ZREF,
 ):
     """Calculate integrated delays on query points.
     

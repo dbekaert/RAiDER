@@ -10,14 +10,18 @@ try:
 except ImportError:
     mp = None
 
+from pathlib import Path
+from typing import Union
+
 import numpy as np
-import xarray
+import xarray as xr
 from scipy.interpolate import RegularGridInterpolator as Interpolator
 
 from RAiDER.logger import logger
 
 
-def getInterpolators(wm_file, kind='pointwise', shared=False):
+# TODO(garlic-os): type annotate the choices for kind
+def getInterpolators(wm_file: Union[xr.Dataset, Path, str], kind: str='pointwise', shared: bool=False) -> tuple[Interpolator, Interpolator]:
     """
     Read 3D gridded data from a processed weather model file and wrap it with
     the scipy RegularGridInterpolator.
@@ -25,10 +29,7 @@ def getInterpolators(wm_file, kind='pointwise', shared=False):
     The interpolator grid is (y, x, z)
     """
     # Get the weather model data
-    try:
-        ds = xarray.load_dataset(wm_file)
-    except ValueError:
-        ds = wm_file
+    ds = wm_file if isinstance(wm_file, xr.Dataset) else xr.load_dataset(wm_file)
 
     xs_wm = np.array(ds.variables['x'][:])
     ys_wm = np.array(ds.variables['y'][:])

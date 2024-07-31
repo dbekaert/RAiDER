@@ -4,7 +4,7 @@ import pathlib
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import rasterio
@@ -407,7 +407,15 @@ def round_time(dt, roundTo=60):
     return dt + timedelta(0, rounding - seconds, -dt.microsecond)
 
 
-def writeDelays(aoi, wetDelay, hydroDelay, wetFilename, hydroFilename=None, outformat=None, ndv=0.0) -> None:
+def writeDelays(
+    aoi,  #: AOI,
+    wetDelay,
+    hydroDelay,
+    wet_path: Path,
+    hydro_filename: Optional[str]=None,
+    outformat: str=None,
+    ndv: float=0.0
+) -> None:
     """Write the delay numpy arrays to files in the format specified."""
     if pd is None:
         raise ImportError('pandas is required to write GNSS delays to a file')
@@ -423,14 +431,14 @@ def writeDelays(aoi, wetDelay, hydroDelay, wetFilename, hydroFilename=None, outf
         df['wetDelay'] = wetDelay
         df['hydroDelay'] = hydroDelay
         df['totalDelay'] = wetDelay + hydroDelay
-        df.to_csv(wetFilename, index=False)
-        logger.info('Wrote delays to: %s', wetFilename)
+        df.to_csv(str(wet_path), index=False)
+        logger.info('Wrote delays to: %s', wet_path.absolute())
 
     else:
         proj = aoi.projection()
         gt = aoi.geotransform()
-        writeArrayToRaster(wetDelay, wetFilename, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
-        writeArrayToRaster(hydroDelay, hydroFilename, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(wetDelay, str(wet_path), noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(hydroDelay, hydro_filename, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
 
 
 def getTimeFromFile(filename):
