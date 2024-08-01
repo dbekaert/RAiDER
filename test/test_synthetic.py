@@ -175,7 +175,7 @@ class StudyArea(object):
             'weather_model': self.wmName,
             'runtime_group': {
                 'output_directory': self.wd,
-                'cube_spacing_in_m': str(self._cube_spacing_m),
+                'cube_spacing_in_m': self._cube_spacing_m,
             },
         }
         return dct
