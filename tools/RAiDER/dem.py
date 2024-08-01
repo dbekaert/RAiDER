@@ -5,35 +5,36 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import os
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import rasterio
 from dem_stitcher.stitcher import stitch_dem
 
 from RAiDER.logger import logger
+from RAiDER.types import RIO
 from RAiDER.utilFcns import rio_open
 
 
 def download_dem(
     ll_bounds=None,
     dem_path: Path=Path('warpedDEM.dem'),
-    Download a DEM if one is not already present.
     overwrite: bool=False,
     writeDEM: bool=False,
     buf: float=0.02,
 ) -> tuple[np.ndarray, Optional[RIO.Profile]]:
+    """Download a DEM if one is not already present.
 
     Args:
-            llbounds: list/ndarry of floats   -lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]
-            writeDEM: boolean                 -write the DEM to file
-            outName: string                   -name of the DEM file
-            buf: float                        -buffer to add to the bounds
-            overwrite: boolean                -overwrite existing DEM
+        llbounds: list/ndarry of floats - lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]
+        writeDEM: bool                  - write the DEM to file
+        outName: string                 - name of the DEM file
+        buf: float                      - buffer to add to the bounds
+        overwrite: bool                 - overwrite existing DEM
     Returns:
-            zvals: np.array         -DEM heights
-            metadata:               -metadata for the DEM
+        zvals: np.array                 - DEM heights
+        metadata:                       - metadata for the DEM
     """
     if dem_path.exists():
         download = overwrite
