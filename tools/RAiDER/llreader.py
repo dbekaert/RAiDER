@@ -402,7 +402,8 @@ def bounds_from_latlon_rasters(lat_filestr: str, lon_filestr: str) -> tuple[BB.S
     assert lat_gt == lon_gt, 'Affine transform for Latitude and Longitude files does not match'
 
     # TODO - handle dateline crossing here
-    snwe = (lat_stats.min, lat_stats.max, lon_stats.min, lon_stats.max)
+    snwe = (lat_stats.min, lat_stats.max,
+            lon_stats.min, lon_stats.max)
 
     if lat_proj is None:
         logger.debug('Assuming lat/lon files are in EPSG:4326')
