@@ -10,6 +10,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 * [672](https://github.com/dbekaert/RAiDER/pull/672) - Linted the project with `ruff`.
 
+### Fixed
+* [672](https://github.com/dbekaert/RAiDER/pull/672) - Fixed a bug causing test_updateTrue to falsely pass.
+
 ## [0.5.3]
 ### Fixed
 * Updates dem-stitcher to 2.5.8 to ensure new (ARIA-managed) url for reading the Geoid EGM 2008. See this [issue](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/issues/96).
