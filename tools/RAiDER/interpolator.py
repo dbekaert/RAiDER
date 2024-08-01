@@ -5,6 +5,8 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from pathlib import Path
+from typing import Union
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
@@ -117,7 +119,7 @@ def fillna3D(array, axis=-1, fill_value=0.0):
     return outmat
 
 
-def interpolateDEM(demFile, outLL, method='nearest'):
+def interpolateDEM(dem_path: Union[Path, str], outLL: tuple[np.ndarray, np.ndarray], method='nearest') -> np.ndarray:
     """Interpolate a DEM raster to a set of lat/lon query points using rioxarray.
 
     outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
@@ -129,5 +131,5 @@ def interpolateDEM(demFile, outLL, method='nearest'):
     lats, lons = outLL
     lats = lats[:, 0] if lats.ndim == 2 else lats
     lons = lons[0, :] if lons.ndim == 2 else lons
-    z_out = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
+    z_out: np.ndarray = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
     return z_out

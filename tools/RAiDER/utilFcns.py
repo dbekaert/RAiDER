@@ -145,25 +145,31 @@ def rio_extents(profile: RIO.Profile) -> BB.SNWE:
     return S, N, W, E
 
 
-def rio_open(path: Path, returnProj=False, userNDV=None, band=None):
+def rio_open(
+    path: Path,
+    returnProj: bool=False,
+    userNDV: Optional[float]=None,
+    band: Optional[int]=None
+) -> tuple[np.ndarray, Optional[RIO.Profile]]:
     """Reads a rasterio-compatible raster file and returns the data and profile."""
-    if (path / '.vrt').exists():
-        path /= '.vrt'
+    vrt_path = path.with_suffix(path.suffix + '.vrt')
+    if vrt_path.exists():
+        path = vrt_path
 
     with rasterio.open(path) as src:
-        profile = src.profile
+        profile: Optional[RIO.Profile] = src.profile if returnProj else None
 
         # For all bands
-        nodata = src.nodatavals
+        nodata: tuple[float, ...] = src.nodatavals
 
         # If user requests a band
         if band is not None:
             ndv = nodata[band - 1]
-            data = src.read(band).squeeze()
+            data: np.ndarray = src.read(band).squeeze()
             nodataToNan(data, [userNDV, ndv])
 
         else:
-            data = src.read().squeeze()
+            data: np.ndarray = src.read().squeeze()
             if data.ndim > 2:
                 for bnd in range(data.shape[0]):
                     val = data[bnd, ...]
@@ -172,29 +178,24 @@ def rio_open(path: Path, returnProj=False, userNDV=None, band=None):
                 nodataToNan(data, list(nodata) + [userNDV])
 
         if data.ndim > 2:
-            dlist = []
+            dlist: list[list[float]] = []
             for k in range(data.shape[0]):
-                dlist.append(data[k, ...].copy())
-            data = dlist
+                dlist.append(data[k].copy())
+            data = np.array(dlist)
 
-    if not returnProj:
-        return data
-
-    else:
-        return data, profile
+    return data, profile
 
 
-def nodataToNan(inarr, listofvals) -> None:
+def nodataToNan(inarr: np.ndarray, vals: list[Optional[float]]) -> None:
     """Setting values to nan as needed."""
     inarr = inarr.astype(float)  # nans cannot be integers (i.e. in DEM)
-    for val in listofvals:
+    for val in vals:
         if val is not None:
             inarr[inarr == val] = np.nan
 
 
 def rio_stats(path: Path, band: int=1) -> tuple[RIO.Statistics, Optional[CRS], RIO.GDAL]:
-    """
-    Read a rasterio-compatible file and pull the metadata.
+    """Read a rasterio-compatible file and pull the metadata.
 
     Args:
         path    - file path to be loaded
@@ -235,7 +236,14 @@ def get_file_and_band(filestr: str) -> tuple[Path, int]:
         raise ValueError(f'Cannot interpret {filestr} as valid filename')
 
 
-def writeArrayToRaster(array, path: Path, noDataValue=0.0, fmt='ENVI', proj=None, gt=None) -> None:
+def writeArrayToRaster(
+    array: np.ndarray,
+    path: Path,
+    noDataValue: float=0.0,
+    fmt: str='ENVI',
+    proj: Optional[CRS]=None,
+    gt: Optional[RIO.GDAL]=None
+) -> None:
     """Write a numpy array to a GDAL-readable raster."""
     array_shp = np.shape(array)
     if array.ndim != 2:
