@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Union
 
+from RAiDER.constants import _CUBE_SPACING_IN_M
 from RAiDER.types import BB, RIOProfile
 import numpy as np
 import pyproj
@@ -36,12 +37,12 @@ class AOI:
        _type            - Type of AOI
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cube_spacing_in_m: float = _CUBE_SPACING_IN_M) -> None:
         self._output_directory = os.getcwd()
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
         self._geotransform = None
-        self._cube_spacing_m = None
+        self._cube_spacing_m = cube_spacing_in_m
 
     def type(self):
         return self._type
@@ -190,8 +191,8 @@ class AOI:
 class StationFile(AOI):
     """Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns."""
 
-    def __init__(self, station_file, demFile=None) -> None:
-        super().__init__()
+    def __init__(self, station_file, demFile=None, cube_spacing_in_m: float = _CUBE_SPACING_IN_M) -> None:
+        super().__init__(cube_spacing_in_m)
         self._filename = station_file
         self._demfile = demFile
         self._bounding_box = bounds_from_csv(station_file)
@@ -240,8 +241,8 @@ class StationFile(AOI):
 class RasterRDR(AOI):
     """Use a 2-band raster file containing lat/lon coordinates."""
 
-    def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce') -> None:
-        super().__init__()
+    def __init__(self, lat_file, lon_file=None, hgt_file=None, dem_file=None, convention='isce', cube_spacing_in_m: float = _CUBE_SPACING_IN_M) -> None:
+        super().__init__(cube_spacing_in_m)
         self._type = 'radar_rasters'
         self._latfile = lat_file
         self._lonfile = lon_file
@@ -302,8 +303,8 @@ class RasterRDR(AOI):
 class BoundingBox(AOI):
     """Parse a bounding box AOI."""
 
-    def __init__(self, bbox) -> None:
-        AOI.__init__(self)
+    def __init__(self, bbox, cube_spacing_in_m: float = _CUBE_SPACING_IN_M) -> None:
+        super().__init__(cube_spacing_in_m)
         self._bounding_box = bbox
         self._type = 'bounding_box'
 
@@ -315,8 +316,8 @@ class GeocodedFile(AOI):
     _bounding_box: BB.SNWE
     _is_dem: bool
 
-    def __init__(self, path: Path, is_dem=False) -> None:
-        super().__init__()
+    def __init__(self, path: Path, is_dem=False, cube_spacing_in_m: float = _CUBE_SPACING_IN_M) -> None:
+        super().__init__(cube_spacing_in_m)
 
         from RAiDER.utilFcns import rio_extents, rio_profile
 
@@ -358,8 +359,8 @@ class GeocodedFile(AOI):
 class Geocube(AOI):
     """Pull lat/lon/height from a georeferenced data cube."""
 
-    def __init__(self, path_cube) -> None:
-        super().__init__()
+    def __init__(self, path_cube, cube_spacing_in_m: float = _CUBE_SPACING_IN_M) -> None:
+        super().__init__(cube_spacing_in_m)
         self.path = path_cube
         self._type = 'Geocube'
         self._bounding_box = self.get_extent()

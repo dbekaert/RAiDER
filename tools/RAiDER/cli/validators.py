@@ -129,7 +129,7 @@ def get_heights(height_group: HeightGroupUnparsed, aoi_group: AOIGroupUnparsed, 
     return result
 
 
-def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnparsed) -> AOI:
+def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnparsed, cube_spacing_in_m: float) -> AOI:
     """Parse the query region from inputs.
     
     This function determines the query region from the input parameters. It will return an AOI object that can be used
@@ -139,38 +139,39 @@ def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnpar
     # Get bounds from the inputs
     # make sure this is first
     if height_group.use_dem_latlon:
-        query = GeocodedFile(height_group.dem, is_dem=True)
+        query = GeocodedFile(Path(height_group.dem), is_dem=True, cube_spacing_in_m=cube_spacing_in_m)
 
     elif aoi_group.lat_file is not None or aoi_group.lon_file is not None:
         if aoi_group.lat_file is None or aoi_group.lon_file is None:
             raise ValueError('A lon_file must be specified if a lat_file is specified')
         query = RasterRDR(
             aoi_group.lat_file, aoi_group.lon_file,
-            height_group.height_file_rdr, height_group.dem
+            height_group.height_file_rdr, height_group.dem,
+            cube_spacing_in_m=cube_spacing_in_m
         )
 
     elif aoi_group.station_file is not None:
-        query = StationFile(aoi_group.station_file)
+        query = StationFile(aoi_group.station_file, cube_spacing_in_m=cube_spacing_in_m)
 
     elif aoi_group.bounding_box is not None:
         bbox = parse_bbox(aoi_group.bounding_box)
         if np.min(bbox[0]) < -90 or np.max(bbox[1]) > 90:
             raise ValueError('Lats are out of N/S bounds; are your lat/lon coordinates switched? Should be SNWE')
-        query = BoundingBox(bbox)
+        query = BoundingBox(bbox, cube_spacing_in_m=cube_spacing_in_m)
 
     elif aoi_group.geocoded_file is not None:
-        filename = Path(aoi_group.geocoded_file).name.upper()
+        geocoded_file_path = Path(aoi_group.geocoded_file)
+        filename = geocoded_file_path.name.upper()
         if filename.startswith('SRTM') or filename.startswith('GLO'):
             logger.debug('Using user DEM: %s', filename)
             is_dem = True
         else:
             is_dem = False
-
-        query = GeocodedFile(aoi_group.geocoded_file, is_dem=is_dem)
+        query = GeocodedFile(geocoded_file_path, is_dem=is_dem, cube_spacing_in_m=cube_spacing_in_m)
 
     # untested
     elif aoi_group.geo_cube is not None:
-        query = Geocube(aoi_group.geo_cube)
+        query = Geocube(aoi_group.geo_cube, cube_spacing_in_m)
 
     else:
         # TODO: Need to incorporate the cube

@@ -116,7 +116,8 @@ def read_run_config_file(path: Path) -> RunConfig:
     aoi_group = AOIGroup(
         aoi=get_query_region(
             aoi_group_unparsed,
-            height_group_unparsed
+            height_group_unparsed,
+            cube_spacing_in_m=runtime_group.cube_spacing_in_m,
         )
     )
 
