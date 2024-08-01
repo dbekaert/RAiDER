@@ -221,7 +221,7 @@ def rio_stats(path: Path, band=1):
     return stats, proj, gt
 
 
-def get_file_and_band(filestr: str) -> tuple[Path, 1]:
+def get_file_and_band(filestr: str) -> tuple[Path, int]:
     """Support file;bandnum as input for filename strings."""
     parts = filestr.split(';')
 
