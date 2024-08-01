@@ -152,7 +152,7 @@ def check_api(model: str,
         import netrc
         rc_path.touch()
         netrc_credentials = netrc.netrc(rc_path.name)
-        netrc_credentials.hosts[url] = (uid, None, key)
+        netrc_credentials.hosts[url] = (uid, '', key)
         rc_path.write_text(str(netrc_credentials))
     rc_path.chmod(0o000600)
 
