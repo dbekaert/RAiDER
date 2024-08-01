@@ -90,16 +90,19 @@ def test_envVars(
     rc_path = rc_path.expanduser()
     rc_path.unlink(missing_ok=True)
 
+    # Give the rc file mock contents
+    rc_path.write_text(template.format(uid=random_string(), key=random_string()))
+
     test_uid = random_string()
     test_key = random_string()
 
     with monkeypatch.context() as mp:
         mp.setenv(env_var_name_uid, test_uid)
         mp.setenv(env_var_name_key, test_key)
-        credentials.check_api(model_name, None, None, './', update_rc_file=False)
+        credentials.check_api(model_name, None, None, './', update_rc_file=True)
 
     expected_content = template.format(uid=test_uid, key=test_key)
     actual_content = rc_path.read_text()
     rc_path.unlink()
 
-    assert expected_content == actual_content, f'{rc_path} was not updated correctly'
+    assert expected_content == actual_content, f'{rc_path} was not created correctly'

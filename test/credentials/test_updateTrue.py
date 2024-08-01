@@ -77,12 +77,16 @@ def test_updateTrue(model_name, template):
         return
     rc_path = Path('./') / (hidden_ext + rc_filename)
 
+    # Give the rc file mock contents
+    rc_path.write_text(template.format(uid=random_string(), key=random_string()))
+
+    # Use check_api to update the rc file
     test_uid = random_string()
     test_key = random_string()
     credentials.check_api(model_name, test_uid, test_key, './', update_rc_file=True)
 
+    # Check that the rc file was properly updated
     expected_content = template.format(uid=test_uid, key=test_key)
     actual_content = rc_path.read_text()
     rc_path.unlink()
-
     assert expected_content == actual_content, f'{rc_path} was not updated correctly'
