@@ -22,7 +22,7 @@ from RAiDER.constants import (
     _g1 as G1,
 )
 from RAiDER.logger import logger
-from RAiDER.types import BB, RIOProfile
+from RAiDER.types import BB, RIO
 
 
 # Optional imports
@@ -121,7 +121,7 @@ def ecef2enu(xyz, lat, lon, height):
     return np.stack((e, n, u), axis=-1)
 
 
-def rio_profile(path: Path) -> RIOProfile:
+def rio_profile(path: Path) -> RIO.Profile:
     """Reads the profile of a rasterio file."""
     path_vrt = Path(f'{path}.vrt')
 
@@ -135,7 +135,7 @@ def rio_profile(path: Path) -> RIOProfile:
         return src.profile
 
 
-def rio_extents(profile: RIOProfile) -> BB.SNWE:
+def rio_extents(profile: RIO.Profile) -> BB.SNWE:
     """Get a bounding box in SNWE from a rasterio profile."""
     gt = profile['transform'].to_gdal()
     xSize = profile['width']

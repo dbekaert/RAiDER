@@ -2,10 +2,7 @@
 
 import argparse
 from pathlib import Path
-from typing import Literal, Optional, TypedDict, Union
-
-import rasterio.crs
-import rasterio.transform
+from typing import Literal, Optional
 
 
 LookDir = Literal['right', 'left']
@@ -25,12 +22,3 @@ class CalcDelaysArgsUnparsed(argparse.Namespace):
 
 class CalcDelaysArgs(CalcDelaysArgsUnparsed):
     file: Path
-
-class RIOProfile(TypedDict):
-    driver: str
-    width: int
-    height: int
-    count: int
-    crs: Union[str, dict, rasterio.crs.CRS]
-    transform: rasterio.transform.Affine
-    dtype: str

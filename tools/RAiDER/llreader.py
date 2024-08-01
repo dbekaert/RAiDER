@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 from RAiDER.constants import _CUBE_SPACING_IN_M
-from RAiDER.types import BB, RIOProfile
+from RAiDER.types import BB, RIO
 import numpy as np
 import pyproj
 import xarray
@@ -312,7 +312,7 @@ class BoundingBox(AOI):
 class GeocodedFile(AOI):
     """Parse a Geocoded file for coordinates."""
 
-    p: RIOProfile
+    p: RIO.Profile
     _bounding_box: BB.SNWE
     _is_dem: bool
 
