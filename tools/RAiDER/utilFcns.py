@@ -208,8 +208,9 @@ def rio_stats(path: Path, band: int=1) -> tuple[RIO.Statistics, Optional[CRS], R
     if path.name.startswith('S1-GUNW'):
         path = Path(f'NETCDF:"{path}":science/grids/data/unwrappedPhase')
 
-    if (path / '.vrt').exists():
-        path = path / '.vrt'
+    vrt_path = path.with_suffix(path.suffix + '.vrt')
+    if vrt_path.exists():
+        path = vrt_path
 
     # Turn off PAM to avoid creating .aux.xml files
     with rasterio.Env(GDAL_PAM_ENABLED='NO'):
