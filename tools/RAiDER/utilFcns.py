@@ -197,7 +197,7 @@ def rio_stats(path: Path, band: int=1) -> tuple[RIO.Statistics, Optional[CRS], R
     Read a rasterio-compatible file and pull the metadata.
 
     Args:
-        fname   - file path to be loaded
+        path    - file path to be loaded
         band    - band number to use for getting statistics
 
     Returns:
