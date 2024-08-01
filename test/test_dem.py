@@ -1,4 +1,3 @@
-import os
 import pytest
 
 from test import TEST_DIR, pushd
@@ -12,6 +11,7 @@ def test_download_dem_1():
         overwrite=False
     )
     assert hts.shape == (45,226)
+    assert meta is not None
     assert meta['crs'] is None
 
 
@@ -22,17 +22,18 @@ def test_download_dem_2():
 
 def test_download_dem_3(tmp_path):
     with pushd(tmp_path):
-        fname = os.path.join(tmp_path, 'tmp_file.nc')
+        path = tmp_path / 'tmp_file.nc'
         with pytest.raises(ValueError):
-            download_dem(dem_path=fname)
+            download_dem(dem_path=path)
 
 
 @pytest.mark.long
 def test_download_dem_4(tmp_path):
     with pushd(tmp_path):
-        fname = os.path.join(tmp_path, 'tmp_file.nc')
-        z,m = download_dem(dem_path=fname, overwrite=True, ll_bounds=[37.9,38.,-91.8,-91.7], writeDEM=True)
+        path = tmp_path / 'tmp_file.nc'
+        z, m = download_dem(dem_path=path, overwrite=True, ll_bounds=[37.9,38.,-91.8,-91.7], writeDEM=True)
         assert len(z.shape) == 2
+        assert m is not None
         assert 'crs' in m.keys()
 
 

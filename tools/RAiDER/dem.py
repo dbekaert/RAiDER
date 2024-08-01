@@ -19,12 +19,11 @@ from RAiDER.utilFcns import rio_open
 def download_dem(
     ll_bounds=None,
     dem_path: Path=Path('warpedDEM.dem'),
-    overwrite=False,
-    writeDEM=False,
-    buf=0.02,
-):
-    """
     Download a DEM if one is not already present.
+    overwrite: bool=False,
+    writeDEM: bool=False,
+    buf: float=0.02,
+) -> tuple[np.ndarray, Optional[RIO.Profile]]:
 
     Args:
             llbounds: list/ndarry of floats   -lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]

@@ -222,7 +222,7 @@ class StationFile(AOI):
             download_dem(
                 self._bounding_box,
                 writeDEM=True,
-                dem_path=demFile,
+                dem_path=Path(demFile),
             )
 
             ## interpolate the DEM to the query points
@@ -293,7 +293,7 @@ class RasterRDR(AOI):
             download_dem(
                 self._bounding_box,
                 writeDEM=True,
-                dem_path=demFile,
+                dem_path=Path(demFile),
             )
             z_out = interpolateDEM(demFile, self.readLL())
 
@@ -350,7 +350,7 @@ class GeocodedFile(AOI):
 
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox = self._bounding_box
-        _, _ = download_dem(bbox, writeDEM=True, dem_path=demFile)
+        _, _ = download_dem(bbox, writeDEM=True, dem_path=Path(demFile))
         z_out = interpolateDEM(demFile, self.readLL())
 
         return z_out
