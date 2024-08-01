@@ -10,6 +10,10 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 * [672](https://github.com/dbekaert/RAiDER/pull/672) - Fixed a bug causing test_updateTrue to falsely pass.
 
+## [0.5.3]
+### Fixed
+* Updates dem-stitcher to 2.5.8 to ensure new (ARIA-managed) url for reading the Geoid EGM 2008. See this [issue](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/issues/96).
+
 ## [0.5.2]
 ### Changed
 * [627](https://github.com/dbekaert/RAiDER/pull/627) - Made Python datetimes timezone-aware and added unit tests and bug fixes.
@@ -20,6 +24,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [658](https://github.com/dbekaert/RAiDER/pull/658) - Fixed opaque error message if a GUNW file is not produced while HyP3 independently against a previous INSAR_ISCE.
 * [661](https://github.com/dbekaert/RAiDER/pull/661) - Fixed bug in raiderDownloadGNSS, removed call to scipy.sum, and added unit tests.
 * [662](https://github.com/dbekaert/RAiDER/pull/662) - Bumped dem-stitcher to >= v2.5.6, which updates the URL for reading the Geoid EGM 2008.
+* [669](https://github.com/dbekaert/RAiDER/pull/669) - Fixed test name collision (test_writeArrayToRaster).
 
 ## [0.5.1]
 ### Changed
