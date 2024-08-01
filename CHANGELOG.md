@@ -11,7 +11,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [672](https://github.com/dbekaert/RAiDER/pull/672) - Linted the project with `ruff`.
 
 ### Fixed
-* [672](https://github.com/dbekaert/RAiDER/pull/672) - Fixed a bug causing test_updateTrue to falsely pass.
+* [679](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a bug causing test_updateTrue to falsely pass.
 
 ## [0.5.3]
 ### Fixed
