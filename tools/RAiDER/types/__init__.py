@@ -20,5 +20,13 @@ class CalcDelaysArgsUnparsed(argparse.Namespace):
     interpolate_time: TimeInterpolationMethod
     output_directory: Path
 
-class CalcDelaysArgs(CalcDelaysArgsUnparsed):
+class CalcDelaysArgs(argparse.Namespace):
+    bucket: Optional[str]
+    bucket_prefix: Optional[str]
+    input_bucket_prefix: Optional[str]
     file: Path
+    weather_model: str
+    api_uid: Optional[str]
+    api_key: Optional[str]
+    interpolate_time: TimeInterpolationMethod
+    output_directory: Path
