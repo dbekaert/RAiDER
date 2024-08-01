@@ -1,3 +1,4 @@
+from RAiDER.cli.raider import calcDelays
 import pytest
 
 import os.path as op
@@ -196,9 +197,9 @@ def test_dl_real(region, mod='ERA5'):
     dct_cfg['download_only'] = True
 
     cfg = write_yaml(dct_cfg, 'temp.yaml')
+
     ## run raider to download the real weather model
     cmd  = f'raider.py {cfg}'
-
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
     assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
@@ -233,9 +234,7 @@ def test_hydrostatic_eq(region, mod='ERA-5'):
     cfg = write_yaml(dct_cfg, 'temp.yaml')
 
     ## run raider with the synthetic model
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER did not complete successfully'
+    calcDelays([str(cfg)])
 
     # get the just created synthetic delays
     wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
@@ -302,9 +301,7 @@ def test_wet_eq_linear(region, mod='ERA-5'):
     cfg = write_yaml(dct_cfg, 'temp.yaml')
 
     ## run raider with the synthetic model
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER did not complete successfully'
+    calcDelays([str(cfg)])
 
     # get the just created synthetic delays
     wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
@@ -369,9 +366,7 @@ def test_wet_eq_nonlinear(region, mod='ERA-5'):
     cfg = write_yaml(dct_cfg, 'temp.yaml')
 
     ## run raider with the synthetic model
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER did not complete successfully'
+    calcDelays([str(cfg)])
 
     # get the just created synthetic delays
     wm_name = SAobj.wmName.replace('-', '') # incase of ERA-5
