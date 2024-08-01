@@ -131,10 +131,10 @@ def test_writeArrayToRaster(tmp_path):
     array = np.transpose(
         np.array([np.arange(0, 10)])
     ) * np.arange(0, 10)
-    filename = str(tmp_path / 'dummy.out')
+    path = tmp_path / 'dummy.out'
 
-    writeArrayToRaster(array, filename)
-    with rasterio.open(filename) as src:
+    writeArrayToRaster(array, path)
+    with rasterio.open(path) as src:
         band = src.read(1)
         noval = src.nodatavals[0]
 
@@ -145,35 +145,35 @@ def test_writeArrayToRaster(tmp_path):
 def test_writeArrayToRaster_2():
     test = np.random.randn(10,10,10)
     with pytest.raises(RuntimeError):
-        writeArrayToRaster(test, 'dummy_file')
+        writeArrayToRaster(test, Path('dummy_file'))
 
 
 def test_writeArrayToRaster_3(tmp_path):
     test = np.random.randn(10,10)
     test = test + test * 1j
     with pushd(tmp_path):
-        fname = os.path.join(tmp_path, 'tmp_file.tif')
-        writeArrayToRaster(test, fname)
-        tmp = rio_profile(fname)
+        path = tmp_path / 'tmp_file.tif'
+        writeArrayToRaster(test, path)
+        tmp = rio_profile(path)
         assert tmp['dtype'] == 'complex64'
 
 
 def test_writeArrayToRaster_4(tmp_path):
-    SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
-    geotif = os.path.join(SCENARIO0_DIR, 'small_dem.tif')
+    SCENARIO0_DIR = TEST_DIR / "scenario_0"
+    geotif = SCENARIO0_DIR / 'small_dem.tif'
     profile = rio_profile(geotif)
     data = rio_open(geotif)
     with pushd(tmp_path):
-        fname = os.path.join(tmp_path, 'tmp_file.nc')
+        path = tmp_path / 'tmp_file.nc'
         writeArrayToRaster(
             data, 
-            fname, 
+            path, 
             proj=profile['crs'], 
             gt=profile['transform'], 
             fmt='nc',
         )
-        new_fname = os.path.join(tmp_path, 'tmp_file.tif')
-        prof = rio_profile(new_fname)
+        new_path = tmp_path / 'tmp_file.tif'
+        prof = rio_profile(new_path)
         assert prof['driver'] == 'GTiff'
 
 

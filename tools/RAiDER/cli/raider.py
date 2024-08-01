@@ -360,32 +360,33 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         # A dataset was returned by the above
         # Dataset returned: Cube e.g. GUNW workflow
         if hydro_delay is None:
-            out_filename = Path(out_filename.replace('wet', 'tropo'))
+            out_path = Path(out_filename.replace('wet', 'tropo'))
             ds = wet_delay
-            ext = out_filename.suffix
+            ext = out_path.suffix
 
             # data provenance: include metadata for model and times used
             times_str = [t.strftime('%Y%m%dT%H:%M:%S') for t in sorted(times)]
             ds = ds.assign_attrs(model_name=model._Name, model_times_used=times_str, interpolation_method=interp_method)
             if ext not in ('.nc', '.h5'):
-                out_filename = Path(out_filename.stem + '.nc')
+                out_path = Path(out_path.stem + '.nc')
 
-            if out_filename.suffix == '.nc':
-                ds.to_netcdf(out_filename, mode='w')
-            elif out_filename.suffix == '.h5':
-                ds.to_netcdf(out_filename, engine='h5netcdf', invalid_netcdf=True)
+            if out_path.suffix == '.nc':
+                ds.to_netcdf(out_path, mode='w')
+            elif out_path.suffix == '.h5':
+                ds.to_netcdf(out_path, engine='h5netcdf', invalid_netcdf=True)
 
-            logger.info('\nSuccessfully wrote delay cube to: %s\n', out_filename)
+            logger.info('\nSuccessfully wrote delay cube to: %s\n', out_path)
         # Dataset returned: station files, radar_raster, geocoded_file
         else:
-            out_filename = Path(out_filename)
+            out_path = Path(out_filename)
+            hydro_path = Path(hydro_filename)
             if aoi.type() == 'station_file':
-                out_filename = out_filename.with_suffix('.csv')
+                out_path = out_path.with_suffix('.csv')
 
             if aoi.type() in ('station_file', 'radar_rasters', 'geocoded_file'):
-                writeDelays(aoi, wet_delay, hydro_delay, out_filename, Path(hydro_filename), outformat=run_config.runtime_group.raster_format)
+                writeDelays(aoi, wet_delay, hydro_delay, out_path, hydro_path, outformat=run_config.runtime_group.raster_format)
 
-        wet_paths.append(out_filename)
+        wet_paths.append(out_path)
 
     return wet_paths
 

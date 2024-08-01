@@ -234,7 +234,7 @@ def get_file_and_band(filestr: str) -> tuple[Path, 1]:
         raise ValueError(f'Cannot interpret {filestr} as valid filename')
 
 
-def writeArrayToRaster(array, filename, noDataValue=0.0, fmt='ENVI', proj=None, gt=None) -> None:
+def writeArrayToRaster(array, path: Path, noDataValue=0.0, fmt='ENVI', proj=None, gt=None) -> None:
     """Write a numpy array to a GDAL-readable raster."""
     array_shp = np.shape(array)
     if array.ndim != 2:
@@ -259,10 +259,10 @@ def writeArrayToRaster(array, filename, noDataValue=0.0, fmt='ENVI', proj=None, 
     # cant write netcdfs with rasterio in a simple way
     if fmt == 'nc':
         fmt = 'GTiff'
-        filename = filename.replace('.nc', '.tif')
+        path = path.with_suffix('.tif')
 
     with rasterio.open(
-        filename,
+        path,
         mode='w',
         count=1,
         width=array_shp[1],
@@ -274,7 +274,7 @@ def writeArrayToRaster(array, filename, noDataValue=0.0, fmt='ENVI', proj=None, 
         transform=trans,
     ) as dst:
         dst.write(array, 1)
-    logger.info('Wrote: %s', filename)
+    logger.info('Wrote: %s', path)
 
 
 def round_date(date, precision):
@@ -412,7 +412,7 @@ def writeDelays(
     wetDelay,
     hydroDelay,
     wet_path: Path,
-    hydro_filename: Optional[str]=None,
+    hydro_path: Optional[Path]=None,
     outformat: str=None,
     ndv: float=0.0
 ) -> None:
@@ -435,10 +435,12 @@ def writeDelays(
         logger.info('Wrote delays to: %s', wet_path.absolute())
 
     else:
+        if hydro_path is None:
+            raise ValueError('Hydro delay file path must be specified if the AOI is not a station file')
         proj = aoi.projection()
         gt = aoi.geotransform()
-        writeArrayToRaster(wetDelay, str(wet_path), noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
-        writeArrayToRaster(hydroDelay, hydro_filename, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(wetDelay, wet_path, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
+        writeArrayToRaster(hydroDelay, hydro_path, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
 
 
 def getTimeFromFile(filename):

@@ -6,6 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+from pathlib import Path
 
 import numpy as np
 import rasterio
@@ -17,7 +18,7 @@ from RAiDER.utilFcns import rio_open
 
 def download_dem(
     ll_bounds=None,
-    demName='warpedDEM.dem',
+    dem_path: Path=Path('warpedDEM.dem'),
     overwrite=False,
     writeDEM=False,
     buf=0.02,
@@ -35,20 +36,17 @@ def download_dem(
             zvals: np.array         -DEM heights
             metadata:               -metadata for the DEM
     """
-    if os.path.exists(demName):
-        if overwrite:
-            download = True
-        else:
-            download = False
+    if dem_path.exists():
+        download = overwrite
     else:
         download = True
 
-    if download and (ll_bounds is None):
+    if download and ll_bounds is None:
         raise ValueError('download_dem: Either an existing file or lat/lon bounds must be passed')
 
     if not download:
-        logger.info('Using existing DEM: %s', demName)
-        zvals, metadata = rio_open(demName, returnProj=True)
+        logger.info('Using existing DEM: %s', dem_path)
+        zvals, metadata = rio_open(dem_path, returnProj=True)
     else:
         # download the dem
         # inExtent is SNWE
@@ -67,9 +65,9 @@ def download_dem(
             dst_area_or_point='Area',
         )
         if writeDEM:
-            with rasterio.open(demName, 'w', **metadata) as ds:
+            with rasterio.open(dem_path, 'w', **metadata) as ds:
                 ds.write(zvals, 1)
                 ds.update_tags(AREA_OR_POINT='Point')
-            logger.info('Wrote DEM: %s', demName)
+            logger.info('Wrote DEM: %s', dem_path)
 
     return zvals, metadata
