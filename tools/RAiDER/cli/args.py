@@ -8,7 +8,7 @@ from typing import Literal, Optional, Union
 
 import numpy as np
 
-from RAiDER.constants import _CUBE_SPACING_IN_M, _ZREF
+from RAiDER.constants import _CUBE_SPACING_IN_M
 from RAiDER.llreader import AOI
 from RAiDER.losreader import LOS
 from RAiDER.models.weatherModel import WeatherModel
@@ -141,7 +141,7 @@ class LOSGroupUnparsed:
     los_convention: LOSConvention = 'isce'
     los_cube: Optional[str] = None
     orbit_file: Optional[str] = None
-    zref: np.float64 = _ZREF
+    zref: Optional[np.float64] = None
 
 @dataclasses.dataclass
 class LOSGroup:
@@ -151,7 +151,7 @@ class LOSGroup:
     los_convention: LOSConvention = 'isce'
     los_cube: Optional[str] = None
     orbit_file: Optional[str] = None
-    zref: np.float64 = _ZREF
+    zref: Optional[np.float64] = None
 
 class RuntimeGroup:
     raster_format: str

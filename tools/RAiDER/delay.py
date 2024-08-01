@@ -37,7 +37,7 @@ def tropo_delay(
     los: LOS,
     height_levels: Optional[list[float]] = None,
     out_proj: Union[int, str] = 4326,
-    zref: np.float64 = _ZREF,
+    zref: Optional[np.float64] = None,
 ):
     """Calculate integrated delays on query points.
     
@@ -81,7 +81,7 @@ def tropo_delay(
         else:
             height_levels = wm_levels
 
-    if zref == 0:
+    if zref is None:
         zref = toa
 
     if zref > toa:
