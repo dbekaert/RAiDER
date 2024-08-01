@@ -126,8 +126,11 @@ def interpolateDEM(dem_path: Union[Path, str], outLL: tuple[np.ndarray, np.ndarr
         For now will only use first row/col of 2D
     """
     import rioxarray as xrr
+    from xarray import Dataset
 
-    da_dem = xrr.open_rasterio(demFile, band_as_variable=True)['band_1']
+    data = xrr.open_rasterio(dem_path, band_as_variable=True)
+    assert isinstance(data, Dataset), 'DEM could not be opened as a rioxarray dataset'
+    da_dem = data['band_1']
     lats, lons = outLL
     lats = lats[:, 0] if lats.ndim == 2 else lats
     lons = lons[0, :] if lons.ndim == 2 else lons
