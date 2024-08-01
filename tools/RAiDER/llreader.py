@@ -386,23 +386,20 @@ class Geocube(AOI):
         return heights
 
 
-def bounds_from_latlon_rasters(latfile, lonfile):
+def bounds_from_latlon_rasters(lat_filestr: str, lon_filestr: str) -> tuple[BB.SNWE, CRS, RIO.GDAL]:
     """
     Parse lat/lon/height inputs and return
     the appropriate outputs.
     """
     from RAiDER.utilFcns import get_file_and_band
 
-    latinfo = get_file_and_band(str(latfile))
-    loninfo = get_file_and_band(str(lonfile))
+    latinfo = get_file_and_band(lat_filestr)
+    loninfo = get_file_and_band(lon_filestr)
     lat_stats, lat_proj, lat_gt = rio_stats(latinfo[0], band=latinfo[1])
     lon_stats, lon_proj, lon_gt = rio_stats(loninfo[0], band=loninfo[1])
 
-    if lat_proj != lon_proj:
-        raise ValueError('Projection information for Latitude and Longitude files does not match')
-
-    if lat_gt != lon_gt:
-        raise ValueError('Affine transform for Latitude and Longitude files does not match')
+    assert lat_proj == lon_proj, 'Projection information for Latitude and Longitude files does not match'
+    assert lat_gt == lon_gt, 'Affine transform for Latitude and Longitude files does not match'
 
     # TODO - handle dateline crossing here
     snwe = (lat_stats.min, lat_stats.max, lon_stats.min, lon_stats.max)

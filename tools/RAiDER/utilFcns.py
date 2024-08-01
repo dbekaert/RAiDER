@@ -192,7 +192,7 @@ def nodataToNan(inarr, listofvals) -> None:
             inarr[inarr == val] = np.nan
 
 
-def rio_stats(path: Path, band=1):
+def rio_stats(path: Path, band: int=1) -> tuple[RIO.Statistics, Optional[CRS], RIO.GDAL]:
     """
     Read a rasterio-compatible file and pull the metadata.
 
@@ -214,9 +214,9 @@ def rio_stats(path: Path, band=1):
     # Turn off PAM to avoid creating .aux.xml files
     with rasterio.Env(GDAL_PAM_ENABLED='NO'):
         with rasterio.open(path) as src:
-            gt = src.transform.to_gdal()
-            proj = src.crs
             stats = src.statistics(band)
+            proj = src.crs
+            gt = src.transform.to_gdal()
 
     return stats, proj, gt
 
