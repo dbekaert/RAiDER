@@ -1,3 +1,4 @@
+from pathlib import Path
 from RAiDER.cli.raider import calcDelays
 import pytest
 
@@ -395,7 +396,7 @@ def test_wet_eq_nonlinear(region, mod='ERA-5'):
     np.testing.assert_almost_equal(0, resid, decimal=6)
 
     da.close()
-    os.remove('./temp.yaml')
-    os.remove('./error.log')
-    os.remove('./debug.log')
+    Path('./temp.yaml').unlink(missing_ok=True)
+    Path('./error.log').unlink(missing_ok=True)
+    Path('./debug.log').unlink(missing_ok=True)
     del da
