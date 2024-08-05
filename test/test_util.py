@@ -544,7 +544,8 @@ def test_rio_3():
 def test_rio_4():
     SCENARIO_DIR = TEST_DIR / "scenario_4"
     los_path = SCENARIO_DIR / 'los.rdr'
-    inc, hd = rio_open(los_path)
+    los, _ = rio_open(los_path)
+    inc, hd = los
     assert len(inc.shape) == 2
     assert len(hd.shape) == 2
 
