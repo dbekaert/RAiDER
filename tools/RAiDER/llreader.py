@@ -198,7 +198,7 @@ class StationFile(AOI):
         self._bounding_box = bounds_from_csv(station_file)
         self._type = 'station_file'
 
-    def readLL(self):
+    def readLL(self) -> tuple[np.ndarray, np.ndarray]:
         """Read the station lat/lons from the csv file."""
         df = pd.read_csv(self._filename).drop_duplicates(subset=['Lat', 'Lon'])
         return df['Lat'].values, df['Lon'].values
@@ -334,7 +334,7 @@ class GeocodedFile(AOI):
         except KeyError:
             self.crs = None
 
-    def readLL(self):
+    def readLL(self) -> tuple[np.ndarray, np.ndarray]:
         # ll_bounds are SNWE
         S, N, W, E = self._bounding_box
         w, h = self.p['width'], self.p['height']
@@ -375,7 +375,7 @@ class Geocube(AOI):
         return [S, N, W, E]
 
     ## untested
-    def readLL(self):
+    def readLL(self) -> tuple[np.ndarray, np.ndarray]:
         with xarray.open_dataset(self.path) as ds:
             lats = ds.latitutde.data()
             lons = ds.longitude.data()
