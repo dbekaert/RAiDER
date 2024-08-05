@@ -46,7 +46,7 @@ def download_dem(
 
     if not download:
         logger.info('Using existing DEM: %s', dem_path)
-        zvals, metadata = rio_open(dem_path, returnProj=True)
+        zvals, metadata = rio_open(dem_path)
     else:
         # download the dem
         # inExtent is SNWE

@@ -264,20 +264,22 @@ class RasterRDR(AOI):
         self._demfile = dem_file
         self._convention = convention
 
-    def readLL(self):
+    def readLL(self) -> tuple[np.ndarray, Optional[np.ndarray]]:
         # allow for 2-band lat/lon raster
-        lats = rio_open(Path(self._latfile))
+        lats, _ = rio_open(Path(self._latfile))
 
         if self._lonfile is None:
-            return lats
+            return lats, None
         else:
-            return lats, rio_open(Path(self._lonfile))
+            lons, _ = rio_open(Path(self._lonfile))
+            return lats, lons
 
-    def readZ(self):
+    def readZ(self) -> np.ndarray:
         """Read the heights from the raster file, or download a DEM if not present."""
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
-            return rio_open(self._hgtfile)
+            hgts, _ = rio_open(self._hgtfile)
+            return hgts
 
         else:
             # Download the DEM

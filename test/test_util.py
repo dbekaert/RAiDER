@@ -122,7 +122,7 @@ def test_cosd():
 
 
 def test_rio_open():
-    out = rio_open(TEST_DIR / "test_geom/lat.rdr", False)
+    out, _ = rio_open(TEST_DIR / "test_geom/lat.rdr", False)
 
     assert np.allclose(out.shape, (45, 226))
 
@@ -162,7 +162,7 @@ def test_writeArrayToRaster_4(tmp_path):
     SCENARIO0_DIR = TEST_DIR / "scenario_0"
     geotif = SCENARIO0_DIR / 'small_dem.tif'
     profile = rio_profile(geotif)
-    data = rio_open(geotif)
+    data, _ = rio_open(geotif)
     with pushd(tmp_path):
         path = tmp_path / 'tmp_file.nc'
         writeArrayToRaster(
@@ -537,14 +537,14 @@ def test_rio_2():
 
 def test_rio_3():
     geotif = SCENARIO0_DIR / 'small_dem.tif'
-    data = rio_open(geotif, returnProj=False, userNDV=None, band=1)
+    data, _ = rio_open(geotif, userNDV=None, band=1)
     assert data.shape == (569,558)
 
 
 def test_rio_4():
     SCENARIO_DIR = TEST_DIR / "scenario_4"
     los_path = SCENARIO_DIR / 'los.rdr'
-    inc, hd = rio_open(los_path, returnProj=False)
+    inc, hd = rio_open(los_path)
     assert len(inc.shape) == 2
     assert len(hd.shape) == 2
 

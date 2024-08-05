@@ -71,8 +71,8 @@ def test_set_xygrid():
 def test_latlon_reader():
     latfile = Path(GEOM_DIR) / 'lat.rdr'
     lonfile = Path(GEOM_DIR) / 'lon.rdr'
-    lat_true = rio_open(latfile)
-    lon_true = rio_open(lonfile)
+    lat_true, _ = rio_open(latfile)
+    lon_true, _ = rio_open(lonfile)
 
     query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile))
     lats, lons = query.readLL()

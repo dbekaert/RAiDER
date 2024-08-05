@@ -116,7 +116,8 @@ class Conventional(LOS):
 
         try:
             # if an ISCE-style los file is passed open it with GDAL
-            LOS_enu = inc_hd_to_enu(*rio_open(self._file))
+            data, _ = rio_open(self._file)
+            LOS_enu = inc_hd_to_enu(*data)
 
         except (OSError, TypeError):
             # Otherwise, treat it as an orbit / statevector file
