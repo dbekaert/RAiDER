@@ -9,6 +9,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.5.3]
 ### Fixed
 * Updates dem-stitcher to 2.5.8 to ensure new (ARIA-managed) url for reading the Geoid EGM 2008. See this [issue](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/issues/96).
+* [674](https://github.com/dbekaert/RAiDER/pull/674#issue-2412467565) - Update tests to get rid of extra files created when running tests.
 
 ## [0.5.2]
 ### Changed
