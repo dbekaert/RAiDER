@@ -1,17 +1,21 @@
 import argparse
 import datetime as dt
 import importlib
-import itertools
 import re
-import time
+import sys
 from pathlib import Path
-from typing import Any, Optional, Self, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import pandas as pd
 
+
+if sys.version_info >= (3,11):
+    from typing import Self
+else:
+    Self = Any
+
 from RAiDER.cli.args import (
-    AOIGroup,
     AOIGroupUnparsed,
     DateGroup,
     DateGroupUnparsed,
