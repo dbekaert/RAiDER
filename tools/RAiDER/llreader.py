@@ -201,7 +201,7 @@ class StationFile(AOI):
     def readLL(self) -> tuple[np.ndarray, np.ndarray]:
         """Read the station lat/lons from the csv file."""
         df = pd.read_csv(self._filename).drop_duplicates(subset=['Lat', 'Lon'])
-        return df['Lat'].values, df['Lon'].values
+        return df['Lat'].to_numpy(), df['Lon'].to_numpy()
 
     def readZ(self):
         """Read the station heights from the file, or download a DEM if not present."""
