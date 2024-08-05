@@ -17,6 +17,8 @@ import os
 from datetime import datetime, timezone
 from typing import Optional, Union
 
+from RAiDER.types import CRSLike
+from RAiDER.utilFcns import parse_crs
 import numpy as np
 import pyproj
 import xarray
@@ -397,7 +399,13 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
     return ds
 
 
-def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_proj: CRS, new_proj: CRS) -> np.ndarray:
+def transformPoints(
+    lats: np.ndarray,
+    lons: np.ndarray,
+    hgts: np.ndarray,
+    old_proj: CRSLike,
+    new_proj: CRSLike,
+) -> np.ndarray:
     """
     Transform lat/lon/hgt data to an array of points in a new projection.
 
@@ -412,10 +420,8 @@ def transformPoints(lats: np.ndarray, lons: np.ndarray, hgts: np.ndarray, old_pr
         ndarray: the array of query points in the weather model coordinate system (YX)
     """
     # Flags for flipping inputs or outputs
-    if not isinstance(new_proj, CRS):
-        new_proj = CRS.from_epsg(new_proj.lstrip('EPSG:'))
-    if not isinstance(old_proj, CRS):
-        old_proj = CRS.from_epsg(old_proj.lstrip('EPSG:'))
+    old_proj = parse_crs(old_proj)
+    new_proj = parse_crs(new_proj)
 
     t = Transformer.from_crs(old_proj, new_proj, always_xy=True)
 

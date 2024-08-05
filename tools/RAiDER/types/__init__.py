@@ -2,12 +2,14 @@
 
 import argparse
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
+
+from pyproj import CRS
 
 
 LookDir = Literal['right', 'left']
-
 TimeInterpolationMethod = Literal['none', 'center_time', 'azimuth_time_grid']
+CRSLike = Union[CRS, str, int]
 
 class CalcDelaysArgsUnparsed(argparse.Namespace):
     bucket: Optional[str]

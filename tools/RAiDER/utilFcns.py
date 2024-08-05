@@ -22,7 +22,7 @@ from RAiDER.constants import (
     _g1 as G1,
 )
 from RAiDER.logger import logger
-from RAiDER.types import BB, RIO
+from RAiDER.types import BB, RIO, CRSLike
 
 
 # Optional imports
@@ -905,3 +905,13 @@ def write_yaml(content: dict[str, Any], dst: Union[str, Path]) -> Path:
 
     logger.info('Wrote new cfg file: %s', str(dst))
     return dst
+
+
+def parse_crs(proj: CRSLike) -> CRS:
+    if isinstance(proj, CRS):
+        return proj
+    elif isinstance(proj, str):
+        return CRS.from_epsg(proj.lstrip('EPSG:'))
+    elif isinstance(proj, int):
+        return CRS.from_epsg(proj)
+    raise TypeError(f'Data type "{type(proj)}" not supported for CRS')
