@@ -179,8 +179,8 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
 
     # only keep observation closest to Localtime
     print(
-        f'Total number of datapoints dropped in {raiderFile} for not being within {localTime.split(' ')[1]} hrs of '
-        f'specified local-time {localTime.split(' ')[0]}: {dfr.shape[0]} out of {OG_total}'
+        f'Total number of datapoints dropped in {raiderFile} for not being within {localTime.split(" ")[1]} hrs of '
+        f'specified local-time {localTime.split(" ")[0]}: {dfr.shape[0]} out of {OG_total}'
     )
     dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
     dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
@@ -188,8 +188,8 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
     # only keep observation closest to Localtime
     print(
-        f'Total number of datapoints dropped in {ztdFile} for not being within {localTime.split(' ')[1]} hrs of '
-        f'specified local-time {localTime.split(' ')[0]}: {dfz.shape[0]} out of {OG_total}'
+        f'Total number of datapoints dropped in {ztdFile} for not being within {localTime.split(" ")[1]} hrs of '
+        f'specified local-time {localTime.split(" ")[0]}: {dfz.shape[0]} out of {OG_total}'
     )
 
     # drop all lines with nans
