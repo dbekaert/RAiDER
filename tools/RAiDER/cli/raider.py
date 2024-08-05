@@ -100,7 +100,7 @@ def read_run_config_file(path: Path) -> RunConfig:
 
     # Validate look direction
     if not isinstance(yaml_data['look_dir'], str) or yaml_data['look_dir'].lower() not in ('right', 'left'):
-        raise ValueError(f'Unknown look direction {yaml_data['look_dir']}')
+        raise ValueError(f'Unknown look direction {yaml_data["look_dir"]}')
 
     # Support for deprecated location for cube_spacing_in_m
     if 'cube_spacing_in_m' in yaml_data:
