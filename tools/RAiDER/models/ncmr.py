@@ -195,7 +195,7 @@ class NCMR(WeatherModel):
 
         try:
             writeWeatherVarsXarray(lats, lons, hgt, q, p, t, self._time, self._proj, outName=out)
-        except Exception:
+        except:
             logger.exception('Unable to save weathermodel to file')
 
     def _makeDataCubes(self, filename) -> None:

@@ -38,8 +38,8 @@ def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=
     print(f'Combining {source} delay files')
     try:
         concatDelayFiles(files, sort_list=['ID', 'Datetime'], outName=outName, source=source)
-    except BaseException:
         concatDelayFiles(files, sort_list=['ID', 'Date'], outName=outName, source=source, ref=ref, col_name=col_name)
+    except:
 
 
 def addDateTimeToFiles(fileList, force=False, verbose=False) -> None:

@@ -250,7 +250,7 @@ class Raytracing(LOS):
                     )
                     sat_xyz, _ = self._orbit.interpolate(aztime)
                     los[ii, jj, :] = (sat_xyz - inp_xyz) / slant_range
-                except Exception:
+                except:
                     los[ii, jj, :] = np.nan
         return los
 
@@ -356,10 +356,10 @@ def get_sv(los_file: Union[str, list, PosixPath], ref_time: datetime.datetime, p
             for orb_path in los_files:
                 svs.extend(read_ESA_Orbit_file(orb_path))
 
-        except BaseException:
+        except:
             try:
                 svs = read_shelve(los_file)
-            except BaseException:
+            except:
                 raise ValueError(f'get_sv: I cannot parse the statevector file {los_file}')
     except:
         raise ValueError(f'get_sv: I cannot parse the statevector file {los_file}')

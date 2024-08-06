@@ -163,5 +163,5 @@ def _weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, time,
         )
         try:
             weather_model.write2NETCDF4(weather_model_file)
-        except Exception:
+        except:
             logger.exception('Unable to save weathermodel to file')

@@ -198,7 +198,7 @@ class ECMWF(WeatherModel):
 
         try:
             c.retrieve('reanalysis-era5-complete', dataDict, outname)
-        except Exception:
+        except:
             raise Exception
 
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out) -> None:

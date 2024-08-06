@@ -585,7 +585,7 @@ class WeatherModel(ABC):
         if _zlevels is None:
             try:
                 _zlevels = self._zlevels
-            except BaseException:
+            except:
                 _zlevels = np.nanmean(self._zs, axis=(0, 1))
 
         new_zs = np.tile(_zlevels, (nx, ny, 1))

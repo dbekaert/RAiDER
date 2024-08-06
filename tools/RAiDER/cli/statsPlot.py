@@ -647,7 +647,7 @@ class VariogramAnalysis:
                     warnings.filterwarnings('ignore', message='Mean of empty slice')
                     hExp.append(np.nanmean(hEff[iBinMask]))
                     expVario.append(np.nanmean(rawVario[iBinMask]))
-            except BaseException:  # TODO: Which error(s)?
+            except:  # TODO: Which error(s)?
                 pass
 
         if False in ~np.isnan(hExp):
@@ -1391,7 +1391,7 @@ class RaiderStats:
             data = pd.read_csv(self.fname, parse_dates=['Datetime'])
             data['Date'] = data['Datetime'].apply(lambda x: x.date())
             data['Date'] = data['Date'].apply(lambda x: dt.datetime.strptime(x.strftime('%Y-%m-%d'), '%Y-%m-%d'))
-        except BaseException:
+        except:
             data = pd.read_csv(self.fname, parse_dates=['Date'])
 
         # check if user-specified key is valid
@@ -1511,7 +1511,7 @@ class RaiderStats:
         if self.bbox is not None:
             try:
                 self.bbox = [float(val) for val in self.bbox.split()]
-            except BaseException:
+            except:
                 raise Exception(
                     'Cannot understand the --bounding_box argument. String input is incorrect or path does not exist.'
                 )

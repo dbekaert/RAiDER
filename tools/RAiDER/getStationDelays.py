@@ -100,7 +100,7 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None) -> None:
                     trotot, trototSD, trwet, tgetot, tgetotSD, tgntot, tgntotSD, wvapor, wvaporSD, mtemp = (
                         float(t) for t in split_lines[2:]
                     )
-                except BaseException:  # TODO: What error(s)?
+                except:  # TODO: What error(s)?
                     continue
                 site = split_lines[0]
                 year, doy, seconds = (int(n) for n in split_lines[1].split(':'))
