@@ -405,7 +405,8 @@ def convert_SI(val, unit_in, unit_out):
         # adjust if input isn't datetime, and assume it to be part of workflow
         # e.g. sigZTD filter, already extracted datetime object
         try:
-            return eval(f'val.apply(pd.to_datetime).dt.{unit_out}.astype(float).astype("Int32")')
+            datetime = val.apply(pd.to_datetime).dt
+            return getattr(datetime, unit_out).astype(float).astype("Int32")
         except AttributeError:
             return val
 
