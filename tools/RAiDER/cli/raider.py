@@ -16,7 +16,9 @@ import yaml
 import RAiDER.aria.calcGUNW
 import RAiDER.aria.prepFromGUNW
 from RAiDER import aws
-from RAiDER.cli.args import (
+from RAiDER.aria.types import CalcDelaysArgs, CalcDelaysArgsUnparsed
+from RAiDER.cli.parser import add_cpus, add_out, add_verbose
+from RAiDER.cli.types import (
     AOIGroup,
     AOIGroupUnparsed,
     DateGroupUnparsed,
@@ -28,8 +30,8 @@ from RAiDER.cli.args import (
     RuntimeGroup,
     TimeGroup,
 )
-from RAiDER.cli.parser import add_cpus, add_out, add_verbose
 from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.gnss.types import RAiDERCombineArgs
 from RAiDER.logger import logger, logging
 from RAiDER.losreader import Raytracing
 from RAiDER.models.allowed import ALLOWED_MODELS
@@ -39,7 +41,6 @@ from RAiDER.s1_azimuth_timing import (
     get_s1_azimuth_time_grid,
     get_times_for_azimuth_interpolation,
 )
-from RAiDER.types import CalcDelaysArgs, CalcDelaysArgsUnparsed
 from RAiDER.utilFcns import get_dt
 
 

@@ -84,8 +84,8 @@ class TimeGroup:
                 )
         else:
             sentinel_datetime = dt.datetime.combine(dt.date(1900, 1, 1), self.time)
-            end_time = sentinel_datetime + dt.timedelta(seconds=TimeGroup._DEFAULT_ACQUISITION_WINDOW_SEC)
-            self.end_time = end_time.time()
+            new_end_time = sentinel_datetime + dt.timedelta(seconds=TimeGroup._DEFAULT_ACQUISITION_WINDOW_SEC)
+            self.end_time = new_end_time.time()
             if self.end_time < self.time:
                 raise ValueError(
                     'Acquisition start time must be before end time. '
@@ -95,6 +95,7 @@ class TimeGroup:
     
     @staticmethod
     def coerce_into_time(val: Union[int, str]) -> dt.time:
+        val = str(val)
         all_formats = map(''.join, itertools.product(TimeGroup.TIME_FORMATS, TimeGroup.TIMEZONE_FORMATS))
         for tf in all_formats:
             try:

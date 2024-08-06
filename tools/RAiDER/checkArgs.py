@@ -12,7 +12,7 @@ from typing import Optional
 import pandas as pd
 import rasterio.drivers as rd
 
-from RAiDER.cli.args import RunConfig
+from RAiDER.cli.types import RunConfig
 from RAiDER.llreader import BoundingBox, StationFile
 from RAiDER.logger import logger
 from RAiDER.losreader import LOS, Zenith

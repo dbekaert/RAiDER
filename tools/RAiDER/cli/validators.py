@@ -15,7 +15,7 @@ if sys.version_info >= (3,11):
 else:
     Self = Any
 
-from RAiDER.cli.args import (
+from RAiDER.cli.types import (
     AOIGroupUnparsed,
     DateGroup,
     DateGroupUnparsed,

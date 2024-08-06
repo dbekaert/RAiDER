@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from RAiDER.checkArgs import checkArgs, get_raster_ext, makeDelayFileNames
-from RAiDER.cli.args import AOIGroup, DateGroup, HeightGroupUnparsed, LOSGroup, RunConfig, RuntimeGroup, TimeGroup
+from RAiDER.cli.types import AOIGroup, DateGroup, HeightGroupUnparsed, LOSGroup, RunConfig, RuntimeGroup, TimeGroup
 from RAiDER.llreader import BoundingBox, RasterRDR, StationFile
 from RAiDER.losreader import Zenith
 from RAiDER.models.gmao import GMAO

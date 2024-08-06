@@ -9,6 +9,7 @@ import datetime as dt
 import sys
 from pathlib import Path
 
+from RAiDER.aria.types import CalcDelaysArgs
 import numpy as np
 import pandas as pd
 import rasterio
@@ -21,7 +22,7 @@ from RAiDER.models import credentials
 from RAiDER.models.hrrr import AK_GEO, HRRR_CONUS_COVERAGE_POLYGON, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
 from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
-from RAiDER.types import BB, CalcDelaysArgs, LookDir
+from RAiDER.types import BB, LookDir
 from RAiDER.utilFcns import write_yaml
 
 

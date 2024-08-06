@@ -8,7 +8,7 @@ import numpy as np
 
 from test import TEST_DIR
 
-from RAiDER.cli.args import DateGroupUnparsed, LOSGroupUnparsed, TimeGroup
+from RAiDER.cli.types import DateGroupUnparsed, LOSGroupUnparsed, TimeGroup
 from RAiDER.cli.validators import (
     getBufferedExtent, isOutside, isInside,
     coerce_into_date,

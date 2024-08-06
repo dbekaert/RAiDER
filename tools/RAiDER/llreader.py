@@ -7,10 +7,8 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
-from RAiDER.constants import _CUBE_SPACING_IN_M
-from RAiDER.types import BB, RIO
 import numpy as np
 import pyproj
 import xarray as xr
@@ -24,6 +22,7 @@ except ImportError:
 from pyproj import CRS
 
 from RAiDER.logger import logger
+from RAiDER.types import BB, RIO
 from RAiDER.utilFcns import rio_open, rio_stats
 
 

@@ -17,8 +17,6 @@ import datetime as dt
 import os
 from typing import Optional, Union
 
-from RAiDER.types import CRSLike
-from RAiDER.utilFcns import parse_crs
 import numpy as np
 import pyproj
 import xarray as xr
