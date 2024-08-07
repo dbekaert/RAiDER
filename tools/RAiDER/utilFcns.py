@@ -846,7 +846,7 @@ def get_nearest_wmtimes(t0, time_delta):
             return [t2, tclose]
 
 
-def get_dt(t1, t2):
+def get_dt(t1: dt.datetime, t2: dt.datetime) -> float:
     """
     Helper function for getting the absolute difference in seconds between
     two python datetimes.

@@ -6,14 +6,14 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 
 import numpy as np
 import rasterio
 from dem_stitcher.stitcher import stitch_dem
 
 from RAiDER.logger import logger
-from RAiDER.types import RIO
+from RAiDER.types import BB, RIO
 from RAiDER.utilFcns import rio_open
 
 
@@ -51,19 +51,20 @@ def download_dem(
         # download the dem
         # inExtent is SNWE
         # dem-stitcher wants WSEN
-        bounds = [
+        bounds: BB.WSEN = (
             np.floor(ll_bounds[2]) - buf,
             np.floor(ll_bounds[0]) - buf,
             np.ceil(ll_bounds[3]) + buf,
             np.ceil(ll_bounds[1]) + buf,
-        ]
+        )
 
         zvals, metadata = stitch_dem(
-            bounds,
+            list(bounds),
             dem_name='glo_30',
             dst_ellipsoidal_height=True,
             dst_area_or_point='Area',
         )
+        metadata = cast(RIO.Profile, metadata)
         if writeDEM:
             with rasterio.open(dem_path, 'w', **metadata) as ds:
                 ds.write(zvals, 1)

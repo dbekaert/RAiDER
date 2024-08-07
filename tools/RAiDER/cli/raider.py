@@ -41,6 +41,7 @@ from RAiDER.s1_azimuth_timing import (
     get_s1_azimuth_time_grid,
     get_times_for_azimuth_interpolation,
 )
+from RAiDER.types import TimeInterpolationMethod
 from RAiDER.utilFcns import get_dt
 
 
@@ -197,7 +198,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     group.add_argument(
         'run_config_file',
         nargs='?',
-        type=lambda p: Path(p).absolute(),
+        type=lambda s: Path(s).absolute(),
         help='a YAML file with arguments to RAiDER'
     )
 
@@ -298,7 +299,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
             raise NotImplementedError(
                 'Only none, center_time, and azimuth_time_grid are accepted values for interp_method.'
             )
-        wfiles = []
+        wfiles: list[Path] = []
         for tt in times:
             try:
                 wfile = RAiDER.processWM.prepareWeatherModel(
@@ -307,7 +308,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
                     aoi.bounds(),
                     makePlots=run_config.runtime_group.verbose
                 )
-                wfiles.append(wfile)
+                wfiles.append(Path(wfile))
 
             except TryToKeepGoingError:
                 if interp_method in ('azimuth_time_grid', 'none'):
@@ -336,7 +337,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         try:
             wet_delay, hydro_delay = tropo_delay(
                 t,
-                weather_model_file,
+                str(weather_model_file),
                 aoi,
                 los,
                 height_levels=run_config.height_group.height_levels,
@@ -529,7 +530,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
     p.add_argument(
         '-f',
         '--file',
-        type=lambda p: Path(p).absolute(),
+        type=lambda s: Path(s).absolute(),
         help='1 ARIA GUNW netcdf file',
     )
 
@@ -572,7 +573,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         '-o',
         '--output-directory',
         default=Path.cwd(),
-        type=lambda p: Path(p).absolute(),
+        type=lambda s: Path(s).absolute(),
         help='Directory to store results.'
     )
 
@@ -681,34 +682,41 @@ def combineZTDFiles() -> None:
     from RAiDER.gnss.processDelayFiles import combineDelayFiles, create_parser, main
 
     p = create_parser()
-    args = p.parse_args()
+    args: RAiDERCombineArgs = p.parse_args(namespace=RAiDERCombineArgs())
 
-    if not os.path.exists(args.raider_file):
+    if not args.raider_file.exists():
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
 
-    if not os.path.exists(args.gnss_file):
+    if args.gnss_file is None:
+        return
+
+    if not args.gnss_file.exists():
         combineDelayFiles(
             args.gnss_file, loc=args.gnss_folder, source='GNSS', ref=args.raider_file, col_name=args.column_name
         )
 
-    if args.gnss_file is not None:
-        main(
-            args.raider_file,
-            args.gnss_file,
-            col_name=args.column_name,
-            raider_delay=args.raider_column_name,
-            outName=args.out_name,
-            localTime=args.local_time,
-        )
+    main(
+        args.raider_file,
+        args.gnss_file,
+        col_name=args.column_name,
+        raider_delay=args.raider_column_name,
+        out_path=args.out_name,
+        local_time=args.local_time,
+    )
 
 
-def getWeatherFile(wfiles, times, t, model, interp_method='none'):
-    """
-    # Time interpolation.
-    #
-    # Need to handle various cases, including if the exact weather model time is
-    # requested, or if one or more datetimes are not available from the weather
-    # model data provider
+def getWeatherFile(
+    wfiles: list[Path],
+    times: list,
+    time: dt.datetime,
+    model: str,
+    interp_method: TimeInterpolationMethod='none'
+) -> Optional[Path]:
+    """Time interpolation.
+
+    Need to handle various cases, including if the exact weather model time is
+    requested, or if one or more datetimes are not available from the weather
+    model data provider
     """
     # time interpolation method: number of expected files
     EXPECTED_NUM_FILES = {'none': 1, 'center_time': 2, 'azimuth_time_grid': 3}
@@ -735,7 +743,7 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
 
     elif interp_method == 'center_time':
         if Nmatch:  # Case 3: two weather files downloaded
-            weather_model_file = combine_weather_files(wfiles, t, model, interp_method='center_time')
+            weather_model_file = combine_weather_files(wfiles, time, model, interp_method='center_time')
         elif Tmatch:  # Case 4: Exact time is available without interpolation
             logger.warning('Time interpolation is not needed as exact time is available')
             weather_model_file = wfiles[0]
@@ -747,24 +755,23 @@ def getWeatherFile(wfiles, times, t, model, interp_method='none'):
         else:
             raise WrongNumberOfFiles(Nfiles_expected, Nfiles)
 
-    elif (interp_method) == 'azimuth_time_grid':
+    elif interp_method == 'azimuth_time_grid':
         if Nmatch or Tmatch:  # Case 6: all files downloaded
-            weather_model_file = combine_weather_files(wfiles, t, model, interp_method='azimuth_time_grid')
+            weather_model_file = combine_weather_files(wfiles, time, model, interp_method='azimuth_time_grid')
         else:
             raise WrongNumberOfFiles(Nfiles_expected, Nfiles)
 
     # Case 7 - Anything else errors out
     else:
-        N = len(wfiles)
         raise NotImplementedError(
-            f'The {interp_method} with {N} retrieved weather model files was not well posed '
+            f'The {interp_method} with {len(wfiles)} retrieved weather model files was not well posed '
             'for the current workflow.'
         )
 
     return weather_model_file
 
 
-def combine_weather_files(wfiles, t, model, interp_method='center_time'):
+def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, interp_method: TimeInterpolationMethod='center_time') -> Path:
     """Interpolate downloaded weather files and save to a single file."""
     STYLE = {'center_time': '_timeInterp_', 'azimuth_time_grid': '_timeInterpAziGrid_'}
 
@@ -772,7 +779,7 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     datasets = [xr.open_dataset(f) for f in wfiles]
 
     # Pull the datetimes from the datasets
-    times = []
+    times: list[dt.datetime] = []
     for ds in datasets:
         times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
@@ -781,10 +788,12 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
 
     # calculate relative weights of each dataset
     if interp_method == 'center_time':
-        wgts = get_weights_time_interp(times, t)
+        wgts = get_weights_time_interp(times, time)
     elif interp_method == 'azimuth_time_grid':
-        time_grid = get_time_grid_for_aztime_interp(datasets, t, model)
+        time_grid = get_time_grid_for_aztime_interp(datasets, time, model)
         wgts = get_inverse_weights_for_dates(time_grid, times)
+    else:  # interp_method == 'none'
+        raise ValueError('Interpolating weather files is not available with interpolation method "none"')
 
     # combine datasets
     ds_out = datasets[0]
@@ -794,13 +803,12 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     ds_out.attrs['Date2'] = 0
 
     # Give the weighted combination a new file name
-    weather_model_file = os.path.join(
-        os.path.dirname(wfiles[0]),
-        os.path.basename(wfiles[0]).split('_')[0]
+    weather_model_file = wfiles[0].parent / (
+        wfiles[0].name.split('_')[0]
         + '_'
-        + t.strftime('%Y_%m_%dT%H_%M_%S')
+        + time.strftime('%Y_%m_%dT%H_%M_%S')
         + STYLE[interp_method]
-        + '_'.join(wfiles[0].split('_')[-4:]),
+        + '_'.join(wfiles[0].name.split('_')[-4:])
     )
 
     # write the combined results to disk
@@ -809,19 +817,19 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     return weather_model_file
 
 
-def combine_files_using_azimuth_time(wfiles, t, times):
+def combine_files_using_azimuth_time(wfiles, time: dt.datetime, times: list[dt.datetime]):
     """Combine files using azimuth time interpolation."""
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
 
     # Pull the datetimes from the datasets
-    times = []
+    times: list[dt.datetime] = []
     for ds in datasets:
         times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
     model = datasets[0].attrs['model_name']
 
-    time_grid = get_time_grid_for_aztime_interp(datasets, times, t, model)
+    time_grid = get_time_grid_for_aztime_interp(datasets, times, time, model)
 
     wgts = get_inverse_weights_for_dates(time_grid, times)
 
@@ -837,7 +845,7 @@ def combine_files_using_azimuth_time(wfiles, t, times):
         os.path.dirname(wfiles[0]),
         os.path.basename(wfiles[0]).split('_')[0]
         + '_'
-        + t.strftime('%Y_%m_%dT%H_%M_%S')
+        + time.strftime('%Y_%m_%dT%H_%M_%S')
         + '_timeInterpAziGrid_'
         + '_'.join(wfiles[0].split('_')[-4:]),
     )
@@ -848,21 +856,21 @@ def combine_files_using_azimuth_time(wfiles, t, times):
     return weather_model_file
 
 
-def get_weights_time_interp(times, t):
+def get_weights_time_interp(times: list[dt.datetime], time: dt.datetime) -> Optional[list[float]]:
     """Calculate weights for time interpolation using simple inverse linear weighting."""
     date1, date2 = times
-    wgts = [1 - get_dt(t, date1) / get_dt(date2, date1), 1 - get_dt(date2, t) / get_dt(date2, date1)]
+    wgts = [1 - get_dt(time, date1) / get_dt(date2, date1), 1 - get_dt(date2, time) / get_dt(date2, date1)]
 
     try:
         assert np.isclose(np.sum(wgts), 1)
     except AssertionError:
-        logger.error('Time interpolation weights do not sum to one; something is off with query datetime: %s', t)
+        logger.error('Time interpolation weights do not sum to one; something is off with query datetime: %s', time)
         return None
 
     return wgts
 
 
-def get_time_grid_for_aztime_interp(datasets, t, model):
+def get_time_grid_for_aztime_interp(datasets: list[xr.Dataset], time: dt.datetime, model: str) -> np.ndarray:
     """Calculate the time-varying grid for use with azimuth time interpolation."""
     # Each model will require some inspection here
     # the subsequent s1 azimuth time grid requires dimension
@@ -883,7 +891,7 @@ def get_time_grid_for_aztime_interp(datasets, t, model):
     else:
         raise NotImplementedError('Azimuth Time is currently only implemented for HRRR')
 
-    time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, t)  # This is the acq time from loop
+    time_grid = get_s1_azimuth_time_grid(lon, lat, hgt, time)  # This is the acq time from loop
     if np.any(np.isnan(time_grid)):
         raise ValueError('The Time Grid return nans meaning no orbit was downloaded.')
 

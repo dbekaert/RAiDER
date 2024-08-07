@@ -638,18 +638,18 @@ def test_check_hrrr_availability_all_true():
     assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
 
 def test_get_slc_ids_from_gunw():
-    test_path = 'test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
+    test_path = Path('test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc')
     assert get_slc_ids_from_gunw(test_path, 'reference') == 'S1A_IW_SLC__1SDV_20230320T180251_20230320T180309_047731_05BBDB_DCA0.zip'
     assert get_slc_ids_from_gunw(test_path, 'secondary') == 'S1A_IW_SLC__1SDV_20220418T180246_20220418T180305_042831_051CC3_3C47.zip'
 
     with pytest.raises(FileNotFoundError):
-        get_slc_ids_from_gunw('dummy.nc')
+        get_slc_ids_from_gunw(Path('dummy.nc'))
     
     with pytest.raises(ValueError):
         get_slc_ids_from_gunw(test_path, 'tertiary')
     
     with pytest.raises(OSError):
-        get_slc_ids_from_gunw('test/weather_files/ERA-5_2020_01_30_T13_52_45_32N_35N_120W_115W.nc')
+        get_slc_ids_from_gunw(Path('test/weather_files/ERA-5_2020_01_30_T13_52_45_32N_35N_120W_115W.nc'))
 
 
 def test_get_acq_time_valid_slc_id():

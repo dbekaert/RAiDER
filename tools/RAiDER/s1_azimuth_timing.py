@@ -1,4 +1,5 @@
 import datetime as dt
+from typing import Optional
 import warnings
 
 import asf_search as asf
@@ -337,7 +338,7 @@ def get_inverse_weights_for_dates(
     azimuth_time_array: np.ndarray,
     dates: list[dt.datetime],
     inverse_regularizer: float = 1e-9,
-    temporal_window_hours: float = None,
+    temporal_window_hours: Optional[float] = None,
 ) -> list[np.ndarray]:
     """Obtains weights according to inverse weighting with respect to the absolute difference between
     azimuth timing array and dates. The output will be a list with length equal to that of dates and

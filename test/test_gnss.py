@@ -1,3 +1,4 @@
+from pathlib import Path
 from RAiDER.models.customExceptions import NoStationDataFoundError
 from RAiDER.gnss.downloadGNSSDelays import (
     get_stats_by_llh, get_station_list, download_tropo_delays,
@@ -18,11 +19,9 @@ from test import pushd, TEST_DIR
 SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
 
 
-def file_len(fname):
-    with open(fname) as f:
-        for i, l in enumerate(f):
-            pass
-    return i + 1
+def file_len(path: Path) -> int:
+    with path.open('rb') as f:
+        return sum(1 for _ in f)
 
 
 @pytest.fixture
@@ -39,11 +38,11 @@ def temp_file():
 
 
 def test_getDateTime():
-    f1 = '20080101T060000'
-    f2 = '20080101T560000'
-    f3 = '20080101T0600000'
-    f4 = '20080101_060000'
-    f5 = '2008-01-01T06:00:00'
+    f1 = Path('20080101T060000')
+    f2 = Path('20080101T560000')
+    f3 = Path('20080101T0600000')
+    f4 = Path('20080101_060000')
+    f5 = Path('2008-01-01T06:00:00')
     assert getDateTime(f1) == datetime.datetime(2008, 1, 1, 6, 0, 0)
     with pytest.raises(ValueError):
         getDateTime(f2)
@@ -58,10 +57,10 @@ def test_addDateTimeToFiles1(tmp_path, temp_file):
     df = temp_file
 
     with pushd(tmp_path):
-        new_name = os.path.join(tmp_path, 'tmp.csv')
-        df.to_csv(new_name, index=False)
-        addDateTimeToFiles([new_name])
-        df = pd.read_csv(new_name)
+        new_path = tmp_path / 'tmp.csv'
+        df.to_csv(new_path, index=False)
+        addDateTimeToFiles([new_path])
+        df = pd.read_csv(new_path)
         assert 'Datetime' not in df.columns
 
 
@@ -70,13 +69,10 @@ def test_addDateTimeToFiles2(tmp_path, temp_file):
     df = temp_file
 
     with pushd(tmp_path):
-        new_name = os.path.join(
-            tmp_path,
-            'tmp' + f1 + '.csv'
-        )
-        df.to_csv(new_name, index=False)
-        addDateTimeToFiles([new_name])
-        df = pd.read_csv(new_name)
+        new_path = tmp_path / f'tmp{f1}.csv'
+        df.to_csv(new_path, index=False)
+        addDateTimeToFiles([new_path])
+        df = pd.read_csv(new_path)
         assert 'Datetime' in df.columns
 
 
@@ -85,25 +81,19 @@ def test_concatDelayFiles(tmp_path, temp_file):
     df = temp_file
 
     with pushd(tmp_path):
-        new_name = os.path.join(
-            tmp_path,
-            'tmp' + f1 + '.csv'
-        )
-        new_name2 = os.path.join(
-            tmp_path,
-            'tmp' + f1 + '_2.csv'
-        )
-        df.to_csv(new_name, index=False)
-        df.to_csv(new_name2, index=False)
-        file_length = file_len(new_name)
-        addDateTimeToFiles([new_name, new_name2])
+        new_path1 = tmp_path / f'tmp{f1}_1.csv'
+        new_path2 = tmp_path / f'tmp{f1}_2.csv'
+        df.to_csv(new_path1, index=False)
+        df.to_csv(new_path2, index=False)
+        file_length = file_len(new_path1)
+        addDateTimeToFiles([new_path1, new_path2])
 
-        out_name = os.path.join(tmp_path, 'out.csv')
+        out_path = tmp_path / 'out.csv'
         concatDelayFiles(
-            [new_name, new_name2],
-            outName=out_name
+            [new_path1, new_path2],
+            outName=out_path
         )
-    assert file_len(out_name) == file_length
+    assert file_len(out_path) == file_length
 
 
 def test_get_stats_by_llh2():

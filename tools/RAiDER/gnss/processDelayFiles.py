@@ -1,10 +1,10 @@
 import argparse
-import glob
 import datetime as dt
 import math
-import os
 import re
+from pathlib import Path
 from textwrap import dedent
+from typing import Optional
 
 import pandas as pd
 from tqdm import tqdm
@@ -13,46 +13,52 @@ from tqdm import tqdm
 pd.options.mode.chained_assignment = None  # default='warn'
 
 
-def combineDelayFiles(outName, loc=os.getcwd(), source='model', ext='.csv', ref=None, col_name='ZTD') -> None:
-    files = glob.glob(os.path.join(loc, '*' + ext))
+def combineDelayFiles(
+    out_path: Path,
+    loc: Path=Path.cwd(),
+    source: str='model',
+    ext: str='.csv',
+    ref: Optional[Path]=None,
+    col_name: str='ZTD'
+) -> None:
+    file_paths = list(loc.glob('*' + ext))
 
     if source == 'model':
         print('Ensuring that "Datetime" column exists in files')
-        addDateTimeToFiles(files)
+        addDateTimeToFiles(file_paths)
 
     # If single file, just copy source
-    if len(files) == 1:
+    if len(file_paths) == 1:
         if source == 'model':
             import shutil
-
-            shutil.copy(files[0], outName)
+            shutil.copy(file_paths[0], out_path)
         else:
-            files = readZTDFile(files[0], col_name=col_name)
+            file_paths = readZTDFile(file_paths[0], col_name=col_name)
             # drop all lines with nans
-            files.dropna(how='any', inplace=True)
+            file_paths.dropna(how='any', inplace=True)
             # drop all duplicate lines
-            files.drop_duplicates(inplace=True)
-            files.to_csv(outName, index=False)
+            file_paths.drop_duplicates(inplace=True)
+            file_paths.to_csv(out_path, index=False)
         return
 
     print(f'Combining {source} delay files')
     try:
-        concatDelayFiles(files, sort_list=['ID', 'Datetime'], outName=outName, source=source)
-        concatDelayFiles(files, sort_list=['ID', 'Date'], outName=outName, source=source, ref=ref, col_name=col_name)
+        concatDelayFiles(file_paths, sort_list=['ID', 'Datetime'], outName=out_path, source=source)
     except:
+        concatDelayFiles(file_paths, sort_list=['ID', 'Date'], outName=out_path, source=source, ref=ref, col_name=col_name)
 
 
-def addDateTimeToFiles(fileList, force=False, verbose=False) -> None:
+def addDateTimeToFiles(file_paths: list[Path], force: bool=False, verbose: bool=False) -> None:
     """Run through a list of files and add the datetime of each file as a column."""
     print('Adding Datetime to delay files')
 
-    for f in tqdm(fileList):
-        data = pd.read_csv(f)
+    for path in tqdm(file_paths):
+        data = pd.read_csv(path)
 
         if 'Datetime' in data.columns and not force:
             if verbose:
                 print(
-                    f'File {f} already has a "Datetime" column, pass'
+                    f'File {path} already has a "Datetime" column, pass'
                     '"force = True" if you want to override and '
                     're-process'
                 )
@@ -63,18 +69,17 @@ def addDateTimeToFiles(fileList, force=False, verbose=False) -> None:
                 data.dropna(how='any', inplace=True)
                 # drop all duplicate lines
                 data.drop_duplicates(inplace=True)
-                data.to_csv(f, index=False)
+                data.to_csv(path, index=False)
             except (AttributeError, ValueError):
-                print(f'File {f} does not contain datetime info, skipping')
+                print(f'File {path} does not contain datetime info, skipping')
         del data
 
 
-def getDateTime(filename):
+def getDateTime(path: Path) -> dt.datetime:
     """Parse a datetime from a RAiDER delay filename."""
-    filename = os.path.basename(filename)
-    dtr = re.compile(r'\d{8}T\d{6}')
-    dt = dtr.search(filename)
-    return datetime.datetime.strptime(dt.group(), '%Y%m%dT%H%M%S')
+    datetime_pattern = re.compile(r'\d{8}T\d{6}')
+    match = datetime_pattern.search(path.name)
+    return dt.datetime.strptime(match.group(), '%Y%m%dT%H%M%S')
 
 
 def update_time(row, localTime_hrs):
@@ -217,7 +222,20 @@ def readZTDFile(filename, col_name='ZTD'):
     return data
 
 
-def create_parser():
+def file_choices(p: argparse.ArgumentParser, choices: tuple[str], s: str) -> Path:
+    path = Path(s)
+    if path.suffix not in choices:
+       p.error(f"File must end with one of {choices}")
+    return path
+
+def parse_dir(p: argparse.ArgumentParser, s: str) -> Path:
+    path = Path(s)
+    if not path.is_dir():
+        p.error("Path must be a directory")
+    return path
+
+
+def create_parser() -> argparse.ArgumentParser:
     """Parse command line arguments using argparse."""
     p = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -240,6 +258,7 @@ def create_parser():
             delay files.
             """),
         required=True,
+        type=lambda s: file_choices(p, ('csv',), s),
     )
     p.add_argument(
         '--raiderDir',
@@ -250,7 +269,8 @@ def create_parser():
             Files should be named with a Datetime in the name and contain the
             column "ID" as the delay column names.
             """),
-        default=os.getcwd(),
+        type=lambda s: parse_dir(p, s),
+        default=Path.cwd(),
     )
     p.add_argument(
         '--gnssDir',
@@ -261,7 +281,8 @@ def create_parser():
             Files should contain the column "ID" as the delay column names
             and times should be denoted by the "Date" key.
             """),
-        default=os.getcwd(),
+        type=lambda s: parse_dir(p, s),
+        default=Path.cwd(),
     )
 
     p.add_argument(
@@ -271,6 +292,7 @@ def create_parser():
             Optional .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
             """),
         default=None,
+        type=lambda s: file_choices(p, ('csv',), s),
     )
 
     p.add_argument(
@@ -299,9 +321,9 @@ def create_parser():
         dest='out_name',
         help=dedent("""\
             Name to use for the combined delay file. Only used with the "--gnss" option
-
             """),
-        default='Combined_delays.csv',
+        type=Path,
+        default=Path('Combined_delays.csv'),
     )
 
     p.add_argument(
@@ -313,7 +335,6 @@ def create_parser():
              and within +/- specified hour threshold (2nd argument).
              By default UTC is passed as is without local-time conversions.
              Input in 'HH H', e.g. '16 1'"
-
             """),
         default=None,
     )
@@ -321,14 +342,21 @@ def create_parser():
     return p
 
 
-def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName=None, localTime=None):
+def main(
+    raider_file: Path,
+    ztd_file: Path,
+    col_name: str='ZTD',
+    raider_delay: str='totalDelay',
+    out_path: Optional[Path]=None,
+    local_time=None
+):
     """Merge a combined RAiDER delays file with a GPS ZTD delay file."""
-    print(f'Merging delay files {raiderFile} and {ztdFile}')
-    dfr = pd.read_csv(raiderFile, parse_dates=['Datetime'])
+    print(f'Merging delay files {raider_file} and {ztd_file}')
+    dfr = pd.read_csv(raider_file, parse_dates=['Datetime'])
     # drop extra columns
     expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay', 'hydroDelay', raider_delay]
     dfr = dfr.drop(columns=[col for col in dfr if col not in expected_data_columns])
-    dfz = pd.read_csv(ztdFile, parse_dates=['Date'])
+    dfz = pd.read_csv(ztd_file, parse_dates=['Date'])
     if 'Datetime' not in dfz.keys():
         dfz.rename(columns={'Date': 'Datetime'}, inplace=True)
     # drop extra columns
@@ -351,8 +379,8 @@ def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName
 
     # If specified, convert to local-time reference frame WRT 0 longitude
     common_keys = ['Datetime', 'ID']
-    if localTime is not None:
-        dfr, dfz = local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime)
+    if local_time is not None:
+        dfr, dfz = local_time_filter(raider_file, ztd_file, dfr, dfz, local_time)
         common_keys.append('Localtime')
         # only pass common locations and times
         dfz = pass_common_obs(dfr, dfz, localtime='Localtime')
@@ -384,11 +412,11 @@ def main(raiderFile, ztdFile, col_name='ZTD', raider_delay='totalDelay', outName
     print(f'Total number of rows containing NaNs: {dfc[dfc.isna().any(axis=1)].shape[0]}')
     print('Merge finished')
 
-    if outName is None:
+    if out_path is None:
         return dfc
     else:
         # drop all lines with nans
         dfc.dropna(how='any', inplace=True)
         # drop all duplicate lines
         dfc.drop_duplicates(inplace=True)
-        dfc.to_csv(outName, index=False)
+        dfc.to_csv(out_path, index=False)
