@@ -111,6 +111,22 @@ git commit -a -m "Put here the synthetic commit message"
 git push my_user_name my_new_feature_branch
 ```
 
+### Formatting and linting with [Ruff](https://docs.astral.sh/ruff/) ###
+
+Format your code to follow the style of the project with:
+```
+ruff format
+```
+and check for linting problems with:
+```
+ruff check
+```
+Please ensure that any linting problems in your changes are resolved before
+submitting a pull request.
+> [!TIP]
+> vscode users can [install the ruff extension](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff) to run the linter automatically in the
+editor.
+
 ### Issue a pull request from GitHub UI ###
 commit locally and push. To get a reasonable history, you may need to
 
