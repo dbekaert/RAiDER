@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 import warnings
 
 import asf_search as asf
@@ -18,8 +18,8 @@ from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
 
 def _asf_query(
     point: Point,
-    start: datetime.datetime,
-    end: datetime.datetime,
+    start: dt.datetime,
+    end: dt.datetime,
     buffer_degrees: float = 2
 ) -> list[str]:
     """
@@ -28,8 +28,8 @@ def _asf_query(
     Parameters
     ----------
     point : Point
-    start : datetime.datetime
-    end : datetime.datetime
+    start : dt.datetime
+    end : dt.datetime
     buffer_degrees : float, optional
 
     Returns:
@@ -50,7 +50,7 @@ def _asf_query(
 def get_slc_id_from_point_and_time(
     lon: float,
     lat: float,
-    dt: datetime.datetime,
+    datetime: dt.datetime,
     buffer_seconds: int = 600,
     buffer_deg: float = 2
 ) -> list:
@@ -62,7 +62,7 @@ def get_slc_id_from_point_and_time(
     ----------
     lon : float
     lat : float
-    dt : datetime.datetime
+    datetime : dt.datetime
     buffer_seconds : int, optional
         Do not recommend adjusting this, by default 600, to ensure enough padding for multiple orbit files
 
@@ -72,9 +72,9 @@ def get_slc_id_from_point_and_time(
         All slc_ids returned by asf_search
     """
     point = Point(lon, lat)
-    time_delta = datetime.timedelta(seconds=buffer_seconds)
-    start = dt - time_delta
-    end = dt + time_delta
+    time_delta = dt.timedelta(seconds=buffer_seconds)
+    start = datetime - time_delta
+    end = datetime + time_delta
 
     # Requires buffer of degrees to get several SLCs and ensure we get correct
     # orbit files
@@ -151,7 +151,7 @@ def get_s1_azimuth_time_grid(
     lon: np.ndarray,
     lat: np.ndarray,
     hgt: np.ndarray,
-    dt: datetime.datetime
+    datetime: dt.datetime
 ) -> np.ndarray:
     """Based on the lon, lat, hgt (3d cube) - obtains an associated s1 orbit
     file to calculate the azimuth timing across the cube. Requires datetime of acq
@@ -165,7 +165,7 @@ def get_s1_azimuth_time_grid(
         1 dimensional coordinate array or 3d mesh of coordinates
     hgt : np.ndarray
         1 dimensional coordinate array or 3d mesh of coordinates
-    dt : datetime.datetime
+    datetime : dt.datetime
 
     Returns:
     -------
@@ -197,7 +197,7 @@ def get_s1_azimuth_time_grid(
     try:
         lon_m = np.mean(lon)
         lat_m = np.mean(lat)
-        slc_ids = get_slc_id_from_point_and_time(lon_m, lat_m, dt)
+        slc_ids = get_slc_id_from_point_and_time(lon_m, lat_m, datetime)
     except ValueError:
         warnings.warn('No slc id found for the given datetime and grid; returning empty grid')
         m, n, p = hgt_mesh.shape
@@ -207,35 +207,35 @@ def get_s1_azimuth_time_grid(
     orb_files = get_orbits_from_slc_ids_hyp3lib(slc_ids)
     orb_files = [str(of) for of in orb_files]
 
-    orb = get_isce_orbit(orb_files, dt, pad=600)
+    orb = get_isce_orbit(orb_files, datetime, pad=600)
     az_arr = get_azimuth_time_grid(lon_mesh, lat_mesh, hgt_mesh, orb)
 
     return az_arr
 
 
 def get_n_closest_datetimes(
-    ref_time: datetime.datetime,
+    ref_time: dt.datetime,
     n_target_times: int,
     time_step_hours: int
-) -> list[datetime.datetime]:
+) -> list[dt.datetime]:
     """
     Gets n closest times relative to the `round_to_hour_delta` and the
     `ref_time`. Specifically, if one is interetsted in getting 3 closest times
     to say 0, 6, 12, 18 UTC times of a ref time `dt`, then:
     ```
-    dt = datetime.datetime(2023, 1, 1, 11, 0, 0)
+    dt = dt.datetime(2023, 1, 1, 11, 0, 0)
     get_n_closest_datetimes(dt, 3, 6)
     ```
     gives the desired answer of
     ```
-    [datetime.datetime(2023, 1, 1, 12, 0, 0),
-     datetime.datetime(2023, 1, 1, 6, 0, 0),
-     datetime.datetime(2023, 1, 1, 18, 0, 0)]
+    [dt.datetime(2023, 1, 1, 12, 0, 0),
+     dt.datetime(2023, 1, 1, 6, 0, 0),
+     dt.datetime(2023, 1, 1, 18, 0, 0)]
     ```
 
     Parameters
     ----------
-    ref_time : datetime.datetime
+    ref_time : dt.datetime
         Time to round from
     n_times : int
         Number of times to get
@@ -246,7 +246,7 @@ def get_n_closest_datetimes(
 
     Returns:
     -------
-    list[datetime.datetime]
+    list[dt.datetime]
         List of closest dates ordered by absolute proximity. If two dates have same distance to ref_time,
         choose earlier one (more likely to be available)
     """
@@ -278,38 +278,38 @@ def get_n_closest_datetimes(
 
 
 def get_times_for_azimuth_interpolation(
-    ref_time: datetime.datetime,
+    ref_time: dt.datetime,
     time_step_hours: int,
     buffer_in_seconds: int = 300
-) -> list[datetime.datetime]:
+) -> list[dt.datetime]:
     """Obtains times needed for azimuth interpolation. Filters 3 closests dates from ref_time
     so that all returned dates are within `time_step_hours` + `buffer_in_seconds`.
 
     This ensures we request dates that are really needed.
     ```
-    dt = datetime.datetime(2023, 1, 1, 11, 1, 0)
+    dt = dt.datetime(2023, 1, 1, 11, 1, 0)
     get_times_for_azimuth_interpolation(dt, 1)
     ```
     yields
     ```
-    [datetime.datetime(2023, 1, 1, 11, 0, 0),
-     datetime.datetime(2023, 1, 1, 12, 0, 0),
-     datetime.datetime(2023, 1, 1, 10, 0, 0)]
+    [dt.datetime(2023, 1, 1, 11, 0, 0),
+     dt.datetime(2023, 1, 1, 12, 0, 0),
+     dt.datetime(2023, 1, 1, 10, 0, 0)]
     ```
     whereas
     ```
-    dt = datetime.datetime(2023, 1, 1, 11, 30, 0)
+    dt = dt.datetime(2023, 1, 1, 11, 30, 0)
     get_times_for_azimuth_interpolation(dt, 1)
     ```
     yields
     ```
-    [datetime.datetime(2023, 1, 1, 11, 0, 0),
-     datetime.datetime(2023, 1, 1, 12, 0, 0)]
+    [dt.datetime(2023, 1, 1, 11, 0, 0),
+     dt.datetime(2023, 1, 1, 12, 0, 0)]
     ```
 
     Parameters
     ----------
-    ref_time : datetime.datetime
+    ref_time : dt.datetime
         A time of acquisition
     time_step_hours : int
         Weather model time step, should evenly divide 24 hours
@@ -318,13 +318,13 @@ def get_times_for_azimuth_interpolation(
 
     Returns:
     -------
-    list[datetime.datetime]
+    list[dt.datetime]
         2 or 3 closest times within 1 time step (plust the buffer) and the reference time
     """
     # Get 3 closest times
     closest_times = get_n_closest_datetimes(ref_time, 3, time_step_hours)
 
-    def filter_time(time: datetime.datetime):
+    def filter_time(time: dt.datetime):
         absolute_time_difference_sec = abs((ref_time - time).total_seconds())
         upper_bound_seconds = time_step_hours * 60 * 60 + buffer_in_seconds
         return absolute_time_difference_sec < upper_bound_seconds
@@ -335,7 +335,7 @@ def get_times_for_azimuth_interpolation(
 
 def get_inverse_weights_for_dates(
     azimuth_time_array: np.ndarray,
-    dates: list[datetime.datetime],
+    dates: list[dt.datetime],
     inverse_regularizer: float = 1e-9,
     temporal_window_hours: float = None,
 ) -> list[np.ndarray]:
@@ -350,7 +350,7 @@ def get_inverse_weights_for_dates(
     ----------
     azimuth_time_array : np.ndarray
         Array of type `np.datetime64[ms]`
-    dates : list[datetime.datetime]
+    dates : list[dt.datetime]
         List of datetimes
     inverse_regularizer : float, optional
         If a `time` in the azimuth time arr equals one of the given dates, then the regularlizer ensures that the value
@@ -373,7 +373,7 @@ def get_inverse_weights_for_dates(
     if n_dates == 0:
         raise ValueError('No dates provided')
 
-    if not all([isinstance(date, datetime.datetime) for date in dates]):
+    if not all([isinstance(date, dt.datetime) for date in dates]):
         raise TypeError('dates must be all datetimes')
     if temporal_window_hours is None:
         temporal_window_seconds = min([abs((date - dates[0]).total_seconds()) for date in dates[1:]])

@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from dateutil.relativedelta import relativedelta
 from pyproj import CRS
@@ -21,10 +21,10 @@ class ERA5(ECMWF):
 
         # Tuple of min/max years where data is available.
         lag_time = 3  # months
-        end_date = datetime.datetime.today() - relativedelta(months=lag_time)
+        end_date = dt.datetime.today() - relativedelta(months=lag_time)
         self._valid_range = (
-            datetime.datetime(1950, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            end_date.replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+            dt.datetime(1950, 1, 1).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            end_date.replace(tzinfo=dt.timezone(offset=dt.timedelta())),
         )
 
         # Availability lag time in days

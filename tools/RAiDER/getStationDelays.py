@@ -8,7 +8,7 @@
 import datetime as dt
 import gzip
 import io
-import multiprocessing
+import multiprocessing as mp
 import os
 import zipfile
 
@@ -224,7 +224,7 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
                 args.append((sf, name, dateList, returnTime))
                 outputfiles.append(name)
             # Parallelize remote querying of zenith delays
-            with multiprocessing.Pool(numCPUs) as multipool:
+            with mp.Pool(numCPUs) as multipool:
                 multipool.starmap(get_delays_UNR, args)
 
     # confirm file exists (i.e. valid delays exists for specified time/region).

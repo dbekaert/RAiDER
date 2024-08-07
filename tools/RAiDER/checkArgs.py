@@ -115,7 +115,7 @@ def makeDelayFileNames(date: Optional[dt.date], los: Optional[LOS], outformat: s
     return names for the wet and hydrostatic delays.
 
     # Examples:
-    >>> makeDelayFileNames(datetime(2020, 1, 1, 0, 0, 0), None, "h5", "model_name", "some_dir")
+    >>> makeDelayFileNames(dt.datetime(2020, 1, 1, 0, 0, 0), None, "h5", "model_name", "some_dir")
     ('some_dir/model_name_wet_00_00_00_ztd.h5', 'some_dir/model_name_hydro_00_00_00_ztd.h5')
     >>> makeDelayFileNames(None, None, "h5", "model_name", "some_dir")
     ('some_dir/model_name_wet_ztd.h5', 'some_dir/model_name_hydro_ztd.h5')

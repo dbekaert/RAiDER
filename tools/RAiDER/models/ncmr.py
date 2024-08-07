@@ -3,7 +3,7 @@ Created on Wed Sep  9 10:26:44 2020 @author: prashant
 Modified by Yang Lei, GPS/Caltech
 """
 
-import datetime
+import datetime as dt
 import os
 import urllib.request
 
@@ -38,11 +38,11 @@ class NCMR(WeatherModel):
 
         # Tuple of min/max years where data is available.
         self._valid_range = (
-            datetime.datetime(2015, 12, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime.now(datetime.timezone.utc),
+            dt.datetime(2015, 12, 1).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
         )
         # Availability lag time in days/hours
-        self._lag_time = datetime.timedelta(hours=6)
+        self._lag_time = dt.timedelta(hours=6)
 
         # model constants
         self._k1 = 0.776  # [K/Pa]

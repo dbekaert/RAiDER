@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 from RAiDER.models.ecmwf import ECMWF
 from RAiDER.models.model_levels import A_ERAI, B_ERAI
@@ -17,11 +17,11 @@ class ERAI(ECMWF):
 
         # Tuple of min/max years where data is available.
         self._valid_range = (
-            datetime.datetime(1979, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime(2019, 8, 31).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
+            dt.datetime(1979, 1, 1).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime(2019, 8, 31).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
         )
 
-        self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
+        self._lag_time = dt.timedelta(days=30)  # Availability lag time in days
 
     def __model_levels__(self):
         self._levels = 60

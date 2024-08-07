@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import numpy as np
 import xarray as xr
@@ -122,7 +122,7 @@ class ECMWF(WeatherModel):
 
         server = ecmwfapi.ECMWFDataServer()
 
-        corrected_DT = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        corrected_DT = util.round_date(time, dt.timedelta(hours=self._time_res))
         if not corrected_DT == time:
             logger.warning('Rounded given datetime from  %s to %s', time, corrected_DT)
 
@@ -138,14 +138,14 @@ class ECMWF(WeatherModel):
                 'stream': 'oper',
                 # date: Specify a single date as "2015-08-01" or a period as
                 # "2015-08-01/to/2015-08-31".
-                'date': datetime.datetime.strftime(corrected_DT, '%Y-%m-%d'),
+                'date': dt.datetime.strftime(corrected_DT, '%Y-%m-%d'),
                 # type: Use an (analysis) unless you have a particular reason to
                 # use fc (forecast).
                 'type': 'an',
                 # time: With type=an, time can be any of
                 # "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can
                 # be any of "00:00:00/12:00:00",
-                'time': datetime.time.strftime(corrected_DT.time(), '%H:%M:%S'),
+                'time': dt.time.strftime(corrected_DT.time(), '%H:%M:%S'),
                 # step: With type=an, step is always "0". With type=fc, step can
                 # be any of "3/6/9/12".
                 'step': '0',
@@ -173,7 +173,7 @@ class ECMWF(WeatherModel):
 
         # round to the closest legal time
 
-        corrected_DT = util.round_date(acqTime, datetime.timedelta(hours=self._time_res))
+        corrected_DT = util.round_date(acqTime, dt.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
 
@@ -187,7 +187,7 @@ class ECMWF(WeatherModel):
             'stream': 'oper',
             'type': 'an',
             'date': corrected_DT.strftime('%Y-%m-%d'),
-            'time': datetime.time.strftime(corrected_DT.time(), '%H:%M'),
+            'time': dt.time.strftime(corrected_DT.time(), '%H:%M'),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             'step': '0',
@@ -208,7 +208,7 @@ class ECMWF(WeatherModel):
         server = ECMWFService('mars')
 
         # round to the closest legal time
-        corrected_DT = util.round_date(time, datetime.timedelta(hours=self._time_res))
+        corrected_DT = util.round_date(time, dt.timedelta(hours=self._time_res))
         if not corrected_DT == time:
             logger.warning('Rounded given datetime from  %s to %s', time, corrected_DT)
 
@@ -228,8 +228,8 @@ class ECMWF(WeatherModel):
                 'levelist': 'all',
                 'levtype': f'{self._model_level_type}',
                 'param': param,
-                'date': datetime.datetime.strftime(corrected_DT, '%Y-%m-%d'),
-                'time': datetime.time.strftime(corrected_DT.time(), '%H:%M'),
+                'date': dt.datetime.strftime(corrected_DT, '%Y-%m-%d'),
+                'time': dt.time.strftime(corrected_DT.time(), '%H:%M'),
                 'step': '0',
                 'grid': f'{lon_step}/{lat_step}',
                 'area': f'{lat_max}/{util.floorish(lon_min, 0.1)}/{util.floorish(lat_min, 0.1)}/{lon_max}',

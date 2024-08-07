@@ -1,14 +1,14 @@
 """Geodesy-related utility functions."""
 
+import datetime as dt
 import pathlib
 import re
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional, Union
 
 import numpy as np
 import rasterio
-import xarray
+import xarray as xr
 import yaml
 from numpy import ndarray
 from pyproj import CRS, Proj, Transformer
@@ -288,15 +288,15 @@ def writeArrayToRaster(
 def round_date(date, precision):
     # First try rounding up
     # Timedelta since the beginning of time
-    T0 = datetime.min
+    T0 = dt.datetime.min
 
     try:
         datedelta = T0 - date
     except TypeError:
-        T0 = T0.replace(tzinfo=timezone(offset=timedelta()))
+        T0 = T0.replace(tzinfo=dt.timezone(offset=dt.timedelta()))
         datedelta = T0 - date
 
-    # Round that timedelta to the specified precision
+    # Round that dt.timedelta to the specified precision
     rem = datedelta % precision
     # Add back to get date rounded up
     round_up = date + rem
@@ -305,7 +305,7 @@ def round_date(date, precision):
     try:
         datedelta = date - T0
     except TypeError:
-        T0 = T0.replace(tzinfo=timezone(offset=timedelta()))
+        T0 = T0.replace(tzinfo=dt.timezone(offset=dt.timedelta()))
         datedelta = date - T0
 
     rem = datedelta % precision
@@ -403,16 +403,16 @@ def padLower(invar):
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def round_time(dt, roundTo=60):
+def round_time(datetime, roundTo=60):
     """
     Round a datetime object to any time lapse in seconds
-    dt: datetime.datetime object
+    datetime: dt.datetime object
     roundTo: Closest number of seconds to round to, default 1 minute.
     Source: https://stackoverflow.com/questions/3463930/how-to-round-the-minute-of-a-datetime-object/10854034#10854034
     """
-    seconds = (dt.replace(tzinfo=None) - dt.min).seconds
+    seconds = (datetime.replace(tzinfo=None) - datetime.min).seconds
     rounding = (seconds + roundTo / 2) // roundTo * roundTo
-    return dt + timedelta(0, rounding - seconds, -dt.microsecond)
+    return datetime + dt.timedelta(0, rounding - seconds, -datetime.microsecond)
 
 
 def writeDelays(
@@ -456,7 +456,7 @@ def getTimeFromFile(filename):
     fmt = '%Y_%m_%d_T%H_%M_%S'
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
     out = p.search(filename).group()
-    return datetime.strptime(out, fmt)
+    return dt.datetime.strptime(out, fmt)
 
 
 # Part of the following UTM and WGS84 converter is borrowed from https://gist.github.com/twpayne/4409500
@@ -614,10 +614,10 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataValue=-9999, chunk=(1, 91, 144)) -> None:
+def writeWeatherVarsXarray(lat, lon, h, q, p, t, datetime, crs, outName=None, NoDataValue=-9999, chunk=(1, 91, 144)) -> None:
     # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
     attrs_dict = {
-        'datetime': dt.strftime('%Y_%m_%dT%H_%M_%S'),
+        'datetime': datetime.strftime('%Y_%m_%dT%H_%M_%S'),
         'date_created': datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
         'NoDataValue': NoDataValue,
         'chunksize': chunk,
@@ -636,7 +636,7 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, dt, crs, outName=None, NoDataVa
         't': (('z', 'y', 'x'), t),
     }
 
-    ds = xarray.Dataset(
+    ds = xr.Dataset(
         data_vars=dataset_dict,
         coords=dimension_dict,
         attrs=attrs_dict,
@@ -811,11 +811,10 @@ def transform_coords(proj1, proj2, x, y):
 
 
 def get_nearest_wmtimes(t0, time_delta):
-    """ "
-    Get the nearest two available times to the requested time given a time step.
+    """Get the nearest two available times to the requested time given a time step.
 
     Args:
-        t0         - user-requested Python datetime
+        t0          - user-requested Python datetime
         time_delta  - time interval of weather model
 
     Returns:
@@ -823,18 +822,18 @@ def get_nearest_wmtimes(t0, time_delta):
         available times to the requested time
 
     Example:
-    >>> import datetime
+    >>> import datetime as dt
     >>> from RAiDER.utilFcns import get_nearest_wmtimes
-    >>> t0 = datetime.datetime(2020,1,1,11,35,0)
+    >>> t0 = dt.datetime(2020,1,1,11,35,0)
     >>> get_nearest_wmtimes(t0, 3)
-     (datetime.datetime(2020, 1, 1, 9, 0), datetime.datetime(2020, 1, 1, 12, 0))
+     (dt.datetime(2020, 1, 1, 9, 0), dt.datetime(2020, 1, 1, 12, 0))
     """
     # get the closest time available
     tclose = round_time(t0, roundTo=time_delta * 60 * 60)
 
     # Just calculate both options and take the closest
-    t2_1 = tclose + timedelta(hours=time_delta)
-    t2_2 = tclose - timedelta(hours=time_delta)
+    t2_1 = tclose + dt.timedelta(hours=time_delta)
+    t2_2 = tclose - dt.timedelta(hours=time_delta)
     t2 = [t2_1 if get_dt(t2_1, t0) < get_dt(t2_2, t0) else t2_2][0]
 
     # If you're within 5 minutes just take the closest time
@@ -859,9 +858,9 @@ def get_dt(t1, t2):
         Absolute difference in seconds between the two inputs
 
     Examples:
-    >>> import datetime
+    >>> import datetime as dt
     >>> from RAiDER.utilFcns import get_dt
-    >>> get_dt(datetime.datetime(2020,1,1,5,0,0), datetime.datetime(2020,1,1,0,0,0))
+    >>> get_dt(dt.datetime(2020,1,1,5,0,0), dt.datetime(2020,1,1,0,0,0))
      18000.0
     """
     return np.abs((t1 - t2).total_seconds())

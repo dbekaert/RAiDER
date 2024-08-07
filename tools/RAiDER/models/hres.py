@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import numpy as np
 from pyproj import CRS
@@ -41,11 +41,11 @@ class HRES(ECMWF):
         self._time_res = TIME_RES[self._dataset.upper()]
         # Tuple of min/max years where data is available.
         self._valid_range = (
-            datetime.datetime(1983, 4, 20).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime.now(datetime.timezone.utc),
+            dt.datetime(1983, 4, 20).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
         )
         # Availability lag time in days
-        self._lag_time = datetime.timedelta(hours=6)
+        self._lag_time = dt.timedelta(hours=6)
 
         self.setLevelType('ml')
 
@@ -67,7 +67,7 @@ class HRES(ECMWF):
         f = self.files[0] if f is None else f
 
         if self._model_level_type == 'ml':
-            if self._time < datetime.datetime(2013, 6, 26, 0, 0, 0):
+            if self._time < dt.datetime(2013, 6, 26, 0, 0, 0):
                 self.update_a_b()
             self._load_model_level(f)
         elif self._model_level_type == 'pl':
@@ -79,7 +79,7 @@ class HRES(ECMWF):
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time
 
-        if time < datetime.datetime(2013, 6, 26, 0, 0, 0):
+        if time < dt.datetime(2013, 6, 26, 0, 0, 0):
             self.update_a_b()
 
         # execute the search at ECMWF

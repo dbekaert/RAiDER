@@ -5,8 +5,8 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import datetime as dt
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -29,7 +29,7 @@ from RAiDER.utilFcns import write_yaml
 DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
 
 
-def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> datetime:
+def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dt.datetime:
     # Ex: S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0
     if reference_or_secondary not in ['reference', 'secondary']:
         raise ValueError('Reference_or_secondary must "reference" or "secondary"')
@@ -37,7 +37,7 @@ def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dat
     date_tokens = tokens[6].split('_')
     date_token = date_tokens[0] if reference_or_secondary == 'reference' else date_tokens[1]
     center_time_token = tokens[7]
-    cen_acq_time = datetime(
+    cen_acq_time = dt.datetime(
         int(date_token[:4]),
         int(date_token[4:6]),
         int(date_token[6:]),
@@ -120,8 +120,8 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
     ref_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='reference')
     sec_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='secondary')
 
-    ref_ts = get_acq_time_from_slc_id(ref_slc_ids[0]).replace(tzinfo=timezone(offset=timedelta()))
-    sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0]).replace(tzinfo=timezone(offset=timedelta()))
+    ref_ts = get_acq_time_from_slc_id(ref_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
+    sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 
     if weather_model_name == 'HRRR':
         group = '/science/grids/data/'
@@ -147,7 +147,7 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
     weather_model = weather_model_cls()
 
     wm_start_date, wm_end_date = weather_model._valid_range
-    if not isinstance(wm_end_date, datetime):
+    if not isinstance(wm_end_date, dt.datetime):
         raise ValueError(f"the weather model's end date is not valid: {wm_end_date}")
     ref_cond = ref_ts <= wm_end_date
     sec_cond = sec_ts >= wm_start_date
@@ -211,10 +211,10 @@ class GUNW:
             mid_time = midpoint.time().strftime('%H:%M:%S')
         return mid_dates, mid_time
 
-    def get_slc_dt(self) -> list[tuple[datetime, datetime]]:
+    def get_slc_dt(self) -> list[tuple[dt.datetime, dt.datetime]]:
         """Grab the SLC start date and time from the GUNW."""
         group = 'science/radarMetaData/inputSLC'
-        lst_sten: list[tuple[datetime, datetime]] = []
+        lst_sten: list[tuple[dt.datetime, dt.datetime]] = []
         for key in 'reference secondary'.split():
             with xr.open_dataset(self.path_gunw, group=f'{group}/{key}') as ds:
                 slcs = ds['L1InputGranules']
@@ -223,19 +223,19 @@ class GUNW:
             if nslcs == 1:
                 slc = slcs.item()
                 assert slc, f'Missing {key} SLC  metadata in GUNW: {self.f}'
-                st = datetime.strptime(slc.split('_')[5], '%Y%m%dT%H%M%S')
-                en = datetime.strptime(slc.split('_')[6], '%Y%m%dT%H%M%S')
+                st = dt.datetime.strptime(slc.split('_')[5], '%Y%m%dT%H%M%S')
+                en = dt.datetime.strptime(slc.split('_')[6], '%Y%m%dT%H%M%S')
             else:
-                st, en = datetime(1989, 3, 1), datetime(1989, 3, 1)
+                st, en = dt.datetime(1989, 3, 1), dt.datetime(1989, 3, 1)
                 for j in range(nslcs):
                     slc = slcs.data[j]
                     if slc:
                         # get the maximum range
-                        st_tmp = datetime.strptime(slc.split('_')[5], '%Y%m%dT%H%M%S')
-                        en_tmp = datetime.strptime(slc.split('_')[6], '%Y%m%dT%H%M%S')
+                        st_tmp = dt.datetime.strptime(slc.split('_')[5], '%Y%m%dT%H%M%S')
+                        en_tmp = dt.datetime.strptime(slc.split('_')[6], '%Y%m%dT%H%M%S')
 
                         # check the second SLC is within one day of the previous
-                        if st > datetime(1989, 3, 1):
+                        if st > dt.datetime(1989, 3, 1):
                             stdiff = np.abs((st_tmp - st).days)
                             endiff = np.abs((en_tmp - en).days)
                             assert stdiff < 2 and endiff < 2, 'SLCs granules are too far apart in time. Incorrect metadata'
@@ -243,7 +243,7 @@ class GUNW:
                         st = st_tmp if st_tmp > st else st
                         en = en_tmp if en_tmp > en else en
 
-                assert st > datetime(1989, 3, 1), \
+                assert st > dt.datetime(1989, 3, 1), \
                     f'Missing {key} SLC metadata in GUNW: {self.f}'
 
             lst_sten.append((st, en))

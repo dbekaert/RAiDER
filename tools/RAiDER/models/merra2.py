@@ -1,10 +1,10 @@
-import datetime
+import datetime as dt
 import os
 
 import numpy as np
 import pydap.cas.urs
 import pydap.client
-import xarray
+import xarray as xr
 from pyproj import CRS
 
 from RAiDER.logger import logger
@@ -38,15 +38,15 @@ class MERRA2(WeatherModel):
         self._dataset = 'merra2'
 
         # Tuple of min/max years where data is available.
-        utcnow = datetime.datetime.now(datetime.timezone.utc)
-        enddate = datetime.datetime(utcnow.year, utcnow.month, 15) - datetime.timedelta(days=60)
-        enddate = datetime.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month)[1])
+        utcnow = dt.datetime.now(dt.timezone.utc)
+        enddate = dt.datetime(utcnow.year, utcnow.month, 15) - dt.timedelta(days=60)
+        enddate = dt.datetime(enddate.year, enddate.month, calendar.monthrange(enddate.year, enddate.month)[1])
         self._valid_range = (
-            datetime.datetime(1980, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime.now(datetime.timezone.utc),
+            dt.datetime(1980, 1, 1).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
         )
-        lag_time = utcnow - enddate.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
-        self._lag_time = datetime.timedelta(days=lag_time.days)  # Availability lag time in days
+        lag_time = utcnow - enddate.replace(tzinfo=dt.timezone(offset=dt.timedelta()))
+        self._lag_time = dt.timedelta(days=lag_time.days)  # Availability lag time in days
         self._time_res = 1
 
         # model constants
@@ -140,7 +140,7 @@ class MERRA2(WeatherModel):
     def _load_model_level(self, filename) -> None:
         """Get the variables from the GMAO link using OpenDAP."""
         # adding the import here should become absolute when transition to netcdf
-        ds = xarray.load_dataset(filename)
+        ds = xr.load_dataset(filename)
         lons = ds['longitude'].values
         lats = ds['latitude'].values
         h = ds['h'].values

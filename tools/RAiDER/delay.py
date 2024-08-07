@@ -13,15 +13,15 @@ models are accessed as NETCDF files and should have "wet" "hydro"
 "wet_total" and "hydro_total" fields specified.
 """
 
+import datetime as dt
 import os
-from datetime import datetime, timezone
 from typing import Optional, Union
 
 from RAiDER.types import CRSLike
 from RAiDER.utilFcns import parse_crs
 import numpy as np
 import pyproj
-import xarray
+import xarray as xr
 from pyproj import CRS, Transformer
 
 from RAiDER.constants import _ZREF
@@ -29,11 +29,13 @@ from RAiDER.delayFcns import getInterpolators
 from RAiDER.llreader import AOI, BoundingBox, Geocube
 from RAiDER.logger import logger
 from RAiDER.losreader import LOS, build_ray
+from RAiDER.types import CRSLike
+from RAiDER.utilFcns import parse_crs
 
 
 ###############################################################################
 def tropo_delay(
-    dt: datetime,
+    datetime: dt.datetime,
     weather_model_file: str,
     aoi: AOI,
     los: LOS,
@@ -49,7 +51,7 @@ def tropo_delay(
     3. Slant delays integrated along the raypath (STD-raytracing)
 
     Args:
-        dt: Datetime                - Datetime object for determining when to calculate delays
+        datetime: Datetime          - Datetime object for determining when to calculate delays
         weather_model_File: string  - Name of the NETCDF file containing a pre-processed weather model
         aoi: AOI object             - AOI object
         los: LOS object             - LOS object
@@ -63,7 +65,7 @@ def tropo_delay(
     crs = CRS(out_proj)
 
     # Load CRS from weather model file
-    with xarray.load_dataset(weather_model_file) as ds:
+    with xr.load_dataset(weather_model_file) as ds:
         try:
             wm_proj = CRS.from_wkt(ds['proj'].attrs['crs_wkt'])
         except KeyError:
@@ -73,7 +75,7 @@ def tropo_delay(
             wm_proj = CRS.from_epsg(4326)
 
     # get heights
-    with xarray.load_dataset(weather_model_file) as ds:
+    with xr.load_dataset(weather_model_file) as ds:
         wm_levels = ds.z.values
         toa = wm_levels.max() - 1
 
@@ -93,7 +95,7 @@ def tropo_delay(
         )
 
     # TODO: expose this as library function
-    ds = _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, height_levels, los, crs, zref)
+    ds = _get_delays_on_cube(datetime, weather_model_file, wm_proj, aoi, height_levels, los, crs, zref)
 
     if isinstance(aoi, (BoundingBox, Geocube)):
         return ds, None
@@ -120,7 +122,7 @@ def tropo_delay(
 
         # return the delays (ZTD or STD)
         if los.is_Projected():
-            los.setTime(dt)
+            los.setTime(datetime)
             los.setPoints(lats, lons, hgts)
             wetDelay = los(wetDelay)
             hydroDelay = los(hydroDelay)
@@ -128,14 +130,14 @@ def tropo_delay(
     return wetDelay, hydroDelay
 
 
-def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs, zref, nproc=1):
+def _get_delays_on_cube(datetime: dt.datetime, weather_model_file, wm_proj, aoi, heights, los, crs, zref, nproc=1):
     """Raider cube generation function."""
     zpts = np.array(heights)
 
     try:
         aoi.xpts
     except AttributeError:
-        with xarray.load_dataset(weather_model_file) as ds:
+        with xr.load_dataset(weather_model_file) as ds:
             x_spacing = ds.x.diff(dim='x').values.mean()
             y_spacing = ds.y.diff(dim='y').values.mean()
         aoi.set_output_spacing(ll_res=np.min([x_spacing, y_spacing]))
@@ -186,7 +188,7 @@ def _get_delays_on_cube(dt, weather_model_file, wm_proj, aoi, heights, los, crs,
         logger.critical('There are missing delay values. Check your inputs.')
 
     # Write output file
-    ds = writeResultsToXarray(dt, aoi.xpts, aoi.ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type)
+    ds = writeResultsToXarray(datetime, aoi.xpts, aoi.ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type)
 
     return ds
 
@@ -324,10 +326,10 @@ def _build_cube_ray(
         return outputArrs
 
 
-def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type):
+def writeResultsToXarray(datetime: dt.datetime, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weather_model_file, out_type):
     """Write a 1-D array to a NETCDF5 file."""
     # Modify this as needed for NISAR / other projects
-    ds = xarray.Dataset(
+    ds = xr.Dataset(
         data_vars=dict(
             wet=(
                 ['z', 'y', 'x'],
@@ -359,9 +361,9 @@ def writeResultsToXarray(dt, xpts, ypts, zpts, crs, wetDelay, hydroDelay, weathe
             Conventions='CF-1.7',
             title='RAiDER geo cube',
             source=os.path.basename(weather_model_file),
-            history=str(datetime.now(tz=timezone.utc)) + ' RAiDER',
+            history=str(dt.datetime.now(tz=dt.timezone.utc)) + ' RAiDER',
             description=f'RAiDER geo cube - {out_type}',
-            reference_time=dt.strftime('%Y%m%dT%H:%M:%S'),
+            reference_time=datetime.strftime('%Y%m%dT%H:%M:%S'),
         ),
     )
 

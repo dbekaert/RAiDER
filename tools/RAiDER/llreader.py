@@ -13,7 +13,7 @@ from RAiDER.constants import _CUBE_SPACING_IN_M
 from RAiDER.types import BB, RIO
 import numpy as np
 import pyproj
-import xarray
+import xarray as xr
 
 
 try:
@@ -369,21 +369,21 @@ class Geocube(AOI):
         _, self._proj, self._geotransform = rio_stats(path_cube)
 
     def get_extent(self):
-        with xarray.open_dataset(self.path) as ds:
+        with xr.open_dataset(self.path) as ds:
             S, N = ds.latitude.min().item(), ds.latitude.max().item()
             W, E = ds.longitude.min().item(), ds.longitude.max().item()
         return [S, N, W, E]
 
     ## untested
     def readLL(self) -> tuple[np.ndarray, np.ndarray]:
-        with xarray.open_dataset(self.path) as ds:
+        with xr.open_dataset(self.path) as ds:
             lats = ds.latitutde.data()
             lons = ds.longitude.data()
         Lats, Lons = np.meshgrid(lats, lons)
         return Lats, Lons
 
     def readZ(self):
-        with xarray.open_dataset(self.path) as ds:
+        with xr.open_dataset(self.path) as ds:
             heights = ds.heights.data
         return heights
 

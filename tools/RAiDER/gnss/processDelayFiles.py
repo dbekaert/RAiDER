@@ -1,6 +1,6 @@
 import argparse
-import datetime
 import glob
+import datetime as dt
 import math
 import os
 import re
@@ -58,8 +58,7 @@ def addDateTimeToFiles(fileList, force=False, verbose=False) -> None:
                 )
         else:
             try:
-                dt = getDateTime(f)
-                data['Datetime'] = dt
+                data['Datetime'] = getDateTime(path)
                 # drop all lines with nans
                 data.dropna(how='any', inplace=True)
                 # drop all duplicate lines
@@ -82,29 +81,29 @@ def update_time(row, localTime_hrs):
     """Update with local origin time."""
     localTime_estimate = row['Datetime'].replace(hour=localTime_hrs, minute=0, second=0)
     # determine if you need to shift days
-    time_shift = datetime.timedelta(days=0)
+    time_shift = dt.timedelta(days=0)
     # round to nearest hour
     days_diff = (
-        row['Datetime'] - datetime.timedelta(seconds=math.floor(row['Localtime']) * 3600)
+        row['Datetime'] - dt.timedelta(seconds=math.floor(row['Localtime']) * 3600)
     ).day - localTime_estimate.day
     # if lon <0, check if you need to add day
     if row['Lon'] < 0:
         # add day
         if days_diff != 0:
-            time_shift = datetime.timedelta(days=1)
+            time_shift = dt.timedelta(days=1)
     # if lon >0, check if you need to subtract day
     if row['Lon'] > 0:
         # subtract day
         if days_diff != 0:
-            time_shift = -datetime.timedelta(days=1)
-    return localTime_estimate + datetime.timedelta(seconds=row['Localtime'] * 3600) + time_shift
+            time_shift = -dt.timedelta(days=1)
+    return localTime_estimate + dt.timedelta(seconds=row['Localtime'] * 3600) + time_shift
 
 
 def pass_common_obs(reference, target, localtime=None):
     """Pass only observations in target spatiotemporally common to reference."""
     if isinstance(target['Datetime'].iloc[0], str):
         target['Datetime'] = target['Datetime'].apply(
-            lambda x: datetime.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+            lambda x: dt.datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
         )
     if localtime:
         return target[
@@ -172,8 +171,8 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     dfz['Localtime'] = dfz.apply(lambda r: update_time(r, localTime_hrs), axis=1)
 
     # filter out data outside of --localtime hour threshold
-    dfr['Localtime_u'] = dfr['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
-    dfr['Localtime_l'] = dfr['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
+    dfr['Localtime_u'] = dfr['Localtime'] + dt.timedelta(hours=localTime_hrthreshold)
+    dfr['Localtime_l'] = dfr['Localtime'] - dt.timedelta(hours=localTime_hrthreshold)
     OG_total = dfr.shape[0]
     dfr = dfr[(dfr['Datetime'] >= dfr['Localtime_l']) & (dfr['Datetime'] <= dfr['Localtime_u'])]
 
@@ -182,8 +181,8 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
         f'Total number of datapoints dropped in {raiderFile} for not being within {localTime.split(" ")[1]} hrs of '
         f'specified local-time {localTime.split(" ")[0]}: {dfr.shape[0]} out of {OG_total}'
     )
-    dfz['Localtime_u'] = dfz['Localtime'] + datetime.timedelta(hours=localTime_hrthreshold)
-    dfz['Localtime_l'] = dfz['Localtime'] - datetime.timedelta(hours=localTime_hrthreshold)
+    dfz['Localtime_u'] = dfz['Localtime'] + dt.timedelta(hours=localTime_hrthreshold)
+    dfz['Localtime_l'] = dfz['Localtime'] - dt.timedelta(hours=localTime_hrthreshold)
     OG_total = dfz.shape[0]
     dfz = dfz[(dfz['Datetime'] >= dfz['Localtime_l']) & (dfz['Datetime'] <= dfz['Localtime_u'])]
     # only keep observation closest to Localtime
@@ -209,7 +208,7 @@ def readZTDFile(filename, col_name='ZTD'):
     """Read and parse a GPS zenith delay file."""
     try:
         data = pd.read_csv(filename, parse_dates=['Date'])
-        times = data['times'].apply(lambda x: datetime.timedelta(seconds=x))
+        times = data['times'].apply(lambda x: dt.timedelta(seconds=x))
         data['Datetime'] = data['Date'] + times
     except (KeyError, ValueError):
         data = pd.read_csv(filename, parse_dates=['Datetime'])

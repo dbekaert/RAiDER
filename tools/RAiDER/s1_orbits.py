@@ -1,3 +1,4 @@
+import datetime as dt
 import netrc
 import os
 import re
@@ -107,25 +108,25 @@ def get_orbits_from_slc_ids_hyp3lib(slc_ids: list, orbit_directory: str = None) 
     return orbits
 
 
-def download_eofs(dts: list, missions: list, save_dir: str):
+def download_eofs(datetimes: list[dt.datetime], missions: list, save_dir: str):
     """Wrapper around sentineleof to first try downloading from ASF and fall back to CDSE."""
     _ = ensure_orbit_credentials()
 
     orb_files = []
-    for dt, mission in zip(dts, missions):
-        dt = dt if isinstance(dt, list) else [dt]
+    for datetime, mission in zip(datetimes, missions):
+        datetime = datetime if isinstance(datetime, list) else [datetime]
         mission = mission if isinstance(mission, list) else [mission]
 
         try:
-            orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=True)
+            orb_file = eof.download.download_eofs(datetime, mission, save_dir=save_dir, force_asf=True)
         except:
             logger.error('Could not download orbit from ASF, trying ESA...')
-            orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=False)
+            orb_file = eof.download.download_eofs(datetime, mission, save_dir=save_dir, force_asf=False)
 
         orb_file = orb_file[0] if isinstance(orb_file, list) else orb_file
         orb_files.append(orb_file)
 
-    if not len(orb_files) == len(dts):
-        raise Exception(f'Missing {len(dts) - len(orb_files)} orbit files! dts={dts}, orb_files={len(orb_files)}')
+    if not len(orb_files) == len(datetimes):
+        raise Exception(f'Missing {len(datetimes) - len(orb_files)} orbit files! dts={datetimes}, orb_files={len(orb_files)}')
 
     return orb_files

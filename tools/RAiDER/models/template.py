@@ -1,4 +1,4 @@
-import datetime
+import datetime as dt
 
 import numpy as np
 from pyproj import CRS
@@ -20,11 +20,11 @@ class customModelReader(WeatherModel):
         # Tuple of min/max years where data is available.
         #  valid range of the dataset. Users need to specify the start date and end date (can be "present")
         self._valid_range = (
-            datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime.now(datetime.timezone.utc),
+            dt.datetime(2016, 7, 15).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
         )
         #  Availability lag time. Can be specified in hours "hours=3" or in days "days=3"
-        self._lag_time = datetime.timedelta(hours=3)
+        self._lag_time = dt.timedelta(hours=3)
         # Availabile time resolution; i.e. minimum rate model is available in hours. 1 is hourly
         self._time_res = 1
 

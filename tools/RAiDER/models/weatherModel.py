@@ -1,10 +1,10 @@
-import datetime
+import datetime as dt
 import os
 from abc import ABC, abstractmethod
 from typing import Optional
 
 import numpy as np
-import xarray
+import xarray as xr
 from pyproj import CRS
 from shapely.affinity import translate
 from shapely.geometry import box
@@ -62,10 +62,10 @@ class WeatherModel(ABC):
         self._model_level_type = 'ml'
 
         self._valid_range = (
-            datetime.datetime(1900, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime.now(datetime.timezone.utc).date(),
+            dt.datetime(1900, 1, 1).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc).date(),
         )  # Tuple of min/max years where data is available.
-        self._lag_time = datetime.timedelta(days=30)  # Availability lag time in days
+        self._lag_time = dt.timedelta(days=30)  # Availability lag time in days
         self._time = None
         self._bbox = None
 
@@ -169,13 +169,13 @@ class WeatherModel(ABC):
     def setTime(self, time, fmt='%Y-%m-%dT%H:%M:%S') -> None:
         """Set the time for a weather model."""
         if isinstance(time, str):
-            self._time = datetime.datetime.strptime(time, fmt)
-        elif isinstance(time, datetime.datetime):
+            self._time = dt.datetime.strptime(time, fmt)
+        elif isinstance(time, dt.datetime):
             self._time = time
         else:
             raise ValueError('"time" must be a string or a datetime object')
         if self._time.tzinfo is None:
-            self._time = self._time.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
+            self._time = self._time.replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 
     def get_latlon_bounds(self):
         return self._ll_bounds
@@ -280,12 +280,12 @@ class WeatherModel(ABC):
         start_time = self._valid_range[0]
         end_time = self._valid_range[1]
 
-        if not isinstance(time, datetime.datetime):
+        if not isinstance(time, dt.datetime):
             raise ValueError(f'"time" should be a Python datetime object, instead it is {time}')
 
         # This is needed because Python now gets angry if you try to compare non-timezone-aware
         # objects with time-zone aware objects.
-        time = time.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
+        time = time.replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 
         logger.info('Weather model %s is available from %s to %s', self.Model(), start_time, end_time)
         if time < start_time:
@@ -294,9 +294,9 @@ class WeatherModel(ABC):
         if end_time < time:
             raise DatetimeOutsideRange(self.Model(), time)
 
-        # datetime.datetime.utcnow() is deprecated because Python developers
+        # dt.datetime.utcnow() is deprecated because Python developers
         # want everyone to use timezone-aware datetimes.
-        if time > datetime.datetime.now(datetime.timezone.utc) - self._lag_time:
+        if time > dt.datetime.now(dt.timezone.utc) - self._lag_time:
             raise DatetimeOutsideRange(self.Model(), time)
 
     def setLevelType(self, levelType) -> None:
@@ -426,7 +426,7 @@ class WeatherModel(ABC):
             if not os.path.exists(path_weather_model):
                 raise ValueError('Need to save cropped weather model as netcdf')
 
-            with xarray.load_dataset(path_weather_model) as ds:
+            with xr.load_dataset(path_weather_model) as ds:
                 try:
                     xmin, xmax = ds.x.min(), ds.x.max()
                     ymin, ymax = ds.y.min(), ds.y.max()
@@ -643,8 +643,8 @@ class WeatherModel(ABC):
 
         attrs_dict = {
             'Conventions': 'CF-1.6',
-            'datetime': datetime.datetime.strftime(self._time, '%Y_%m_%dT%H_%M_%S'),
-            'date_created': datetime.datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
+            'datetime': dt.datetime.strftime(self._time, '%Y_%m_%dT%H_%M_%S'),
+            'date_created': dt.datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
             'title': 'Weather model data and delay calculations',
             'model_name': self._Name,
         }
@@ -668,7 +668,7 @@ class WeatherModel(ABC):
             'hydro_total': (('z', 'y', 'x'), self._hydrostatic_ztd.swapaxes(0, 2).swapaxes(1, 2)),
         }
 
-        ds = xarray.Dataset(data_vars=dataset_dict, coords=dimension_dict, attrs=attrs_dict)
+        ds = xr.Dataset(data_vars=dataset_dict, coords=dimension_dict, attrs=attrs_dict)
 
         # Define units
         ds['t'].attrs['units'] = 'K'
@@ -717,7 +717,7 @@ def make_weather_model_filename(name, time, ll_bounds) -> str:
 
 def make_raw_weather_data_filename(outLoc, name, time):
     """Filename generator for the raw downloaded weather model data."""
-    date_string = datetime.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')
+    date_string = dt.datetime.strftime(time, '%Y_%m_%d_T%H_%M_%S')
     f = os.path.join(outLoc, f'{name}_{date_string}.nc')
     return f
 

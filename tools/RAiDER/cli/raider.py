@@ -1,5 +1,5 @@
 import argparse
-import datetime
+import datetime as dt
 import json
 import os
 import shutil
@@ -263,7 +263,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
     wet_paths: list[Path] = []
-    t: datetime.datetime
+    t: dt.datetime
     w: str
     f: str
     for t, w, f in zip(run_config.date_group.date_list, run_config.wetFilenames, run_config.hydroFilenames):
@@ -773,7 +773,7 @@ def combine_weather_files(wfiles, t, model, interp_method='center_time'):
     # Pull the datetimes from the datasets
     times = []
     for ds in datasets:
-        times.append(datetime.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+        times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
     if len(times) == 0:
         raise NoWeatherModelData()
@@ -816,7 +816,7 @@ def combine_files_using_azimuth_time(wfiles, t, times):
     # Pull the datetimes from the datasets
     times = []
     for ds in datasets:
-        times.append(datetime.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+        times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
     model = datasets[0].attrs['model_name']
 

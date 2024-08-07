@@ -1,10 +1,10 @@
-import datetime
+import datetime as dt
 import os
 from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
-import xarray
+import xarray as xr
 from herbie import Herbie
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
@@ -25,10 +25,10 @@ HRRR_AK_PROJ = CRS.from_string(
 AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
 
 
-def check_hrrr_dataset_availability(dt: datetime) -> bool:
+def check_hrrr_dataset_availability(datetime: dt.datetime) -> bool:
     """Note a file could still be missing within the models valid range."""
     herbie = Herbie(
-        dt,
+        datetime,
         model='hrrr',
         product='nat',
         fxx=0,
@@ -161,7 +161,7 @@ def get_bounds_indices(SNWE, lats, lons):
 def load_weather_hrrr(filename):
     """Loads a weather model from a HRRR file."""
     # read data from the netcdf file
-    ds = xarray.open_dataset(filename, engine='netcdf4')
+    ds = xr.open_dataset(filename, engine='netcdf4')
     # Pull the relevant data from the file
     pres = ds['pres'].values.transpose(1, 2, 0)
     xArr = ds['x'].values
@@ -198,10 +198,10 @@ class HRRR(WeatherModel):
 
         # Tuple of min/max years where data is available.
         self._valid_range = (
-            datetime.datetime(2016, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime.now(datetime.timezone.utc),
+            dt.datetime(2016, 7, 15).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
         )
-        self._lag_time = datetime.timedelta(hours=3)  # Availability lag time in days
+        self._lag_time = dt.timedelta(hours=3)  # Availability lag time in days
 
         # model constants
         self._k1 = 0.776  # [K/Pa]
@@ -255,7 +255,7 @@ class HRRR(WeatherModel):
     def _fetch(self, out) -> None:
         """Fetch weather model data from HRRR."""
         self._files = out
-        corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
+        corrected_DT = round_date(self._time, dt.timedelta(hours=self._time_res))
         self.checkTime(corrected_DT)
         if not corrected_DT == self._time:
             logger.info('Rounded given datetime from  %s to %s', self._time, corrected_DT)
@@ -346,10 +346,10 @@ class HRRRAK(WeatherModel):
         self._Name = 'HRRR-AK'
         self._time_res = TIME_RES['HRRR-AK']
         self._valid_range = (
-            datetime.datetime(2018, 7, 13).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())),
-            datetime.datetime.now(datetime.timezone.utc),
+            dt.datetime(2018, 7, 13).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
         )
-        self._lag_time = datetime.timedelta(hours=3)
+        self._lag_time = dt.timedelta(hours=3)
         self._valid_bounds = HRRR_AK_COVERAGE_POLYGON
         # The projection information gets read directly from the  weather model file but we
         # keep this here for object instantiation.
@@ -368,7 +368,7 @@ class HRRRAK(WeatherModel):
     def _fetch(self, out) -> None:
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
-        corrected_DT = round_date(self._time, datetime.timedelta(hours=self._time_res))
+        corrected_DT = round_date(self._time, dt.timedelta(hours=self._time_res))
         self.checkTime(corrected_DT)
         if not corrected_DT == self._time:
             logger.info(f'Rounded given datetime from {self._time} to {corrected_DT}')

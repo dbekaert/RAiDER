@@ -6,7 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-import datetime
+import datetime as dt
 import os
 import shelve
 from abc import ABC
@@ -59,8 +59,8 @@ class LOS(ABC):
             self._lons = lons
             self._heights = heights
 
-    def setTime(self, dt) -> None:
-        self._time = dt
+    def setTime(self, datetime) -> None:
+        self._time = datetime
 
     def is_Zenith(self):
         return self._is_zenith
@@ -316,7 +316,7 @@ def getZenithLookVecs(lats, lons, heights):
     return np.stack([x, y, z], axis=-1)
 
 
-def get_sv(los_file: Union[str, list, PosixPath], ref_time: datetime.datetime, pad: int):
+def get_sv(los_file: Union[str, list, PosixPath], ref_time: dt.datetime, pad: int):
     """
     Read an LOS file and return orbital state vectors.
 
@@ -453,7 +453,7 @@ def read_txt_file(filename):
         for line in f:
             try:
                 parts = line.strip().split()
-                t_ = datetime.datetime.fromisoformat(parts[0])
+                t_ = dt.datetime.fromisoformat(parts[0])
                 x_, y_, z_, vx_, vy_, vz_ = (float(t) for t in parts[1:])
             except ValueError:
                 raise ValueError(
@@ -506,7 +506,7 @@ def read_ESA_Orbit_file(filename):
     vz = np.ones(numOSV)
 
     for i, st in enumerate(data_block[0]):
-        t.append(datetime.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
+        t.append(dt.datetime.strptime(st[1].text, 'UTC=%Y-%m-%dT%H:%M:%S.%f'))
 
         x[i] = float(st[4].text)
         y[i] = float(st[5].text)
@@ -518,13 +518,13 @@ def read_ESA_Orbit_file(filename):
     return [t, x, y, z, vx, vy, vz]
 
 
-def pick_ESA_orbit_file(list_files: list, ref_time: datetime.datetime):
+def pick_ESA_orbit_file(list_files: list, ref_time: dt.datetime):
     """From list of .EOF orbit files, pick the one that contains 'ref_time'."""
     orb_file = None
     for path in list_files:
         f = os.path.basename(path)
-        t0 = datetime.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
-        t1 = datetime.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
+        t0 = dt.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
+        t1 = dt.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
         if t0 < ref_time < t1:
             orb_file = path
             break
@@ -534,14 +534,14 @@ def pick_ESA_orbit_file(list_files: list, ref_time: datetime.datetime):
     return path
 
 
-def filter_ESA_orbit_file(orbit_xml: str, ref_time: datetime.datetime) -> bool:
+def filter_ESA_orbit_file(orbit_xml: str, ref_time: dt.datetime) -> bool:
     """Returns true or false depending on whether orbit file contains ref time.
 
     Parameters
     ----------
     orbit_xml : str
         ESA orbit xml
-    ref_time : datetime.datetime
+    ref_time : dt.datetime
 
     Returns:
     -------
@@ -549,8 +549,8 @@ def filter_ESA_orbit_file(orbit_xml: str, ref_time: datetime.datetime) -> bool:
         True if ref time is within orbit_xml
     """
     f = os.path.basename(orbit_xml)
-    t0 = datetime.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
-    t1 = datetime.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
+    t0 = dt.datetime.strptime(f.split('_')[6].lstrip('V'), '%Y%m%dT%H%M%S')
+    t1 = dt.datetime.strptime(f.split('_')[7].rstrip('.EOF'), '%Y%m%dT%H%M%S')
     return t0 < ref_time < t1
 
 
@@ -571,12 +571,12 @@ def state_to_los(svs, llh_targets):
     LOS 			- * x 3 matrix of LOS unit vectors in ECEF (*not* ENU)
 
     Example:
-    >>> import datetime
-    >>> import numpy
+    >>> import datetime as dt
+    >>> import numpy as np
     >>> from RAiDER.utilFcns import rio_open
     >>> import RAiDER.losreader as losr
     >>> lats, lons, heights = np.array([-76.1]), np.array([36.83]), np.array([0])
-    >>> time = datetime.datetime(2018,11,12,23,0,0)
+    >>> time = dt.datetime(2018,11,12,23,0,0)
     >>> # download the orbit file beforehand
     >>> esa_orbit_file = 'S1A_OPER_AUX_POEORB_OPOD_20181203T120749_V20181112T225942_20181114T005942.EOF'
     >>> svs = losr.read_ESA_Orbit_file(esa_orbit_file)
@@ -733,7 +733,7 @@ def getTopOfAtmosphere(xyz, look_vecs, toaheight, factor=None):
     return pos
 
 
-def get_orbit(orbit_file: Union[list, str], ref_time: datetime.datetime, pad: int):
+def get_orbit(orbit_file: Union[list, str], ref_time: dt.datetime, pad: int):
     """
     Returns state vectors from an orbit file; state vectors are unique and ordered in terms of time
     orbit file (str | list):   - user-passed file(s) containing statevectors

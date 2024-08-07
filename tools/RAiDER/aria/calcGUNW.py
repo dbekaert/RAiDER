@@ -2,8 +2,8 @@
 Calculate the interferometric phase from the 4 delays files of a GUNW and write it to disk.
 """
 
+import datetime as dt
 import os
-from datetime import datetime
 from pathlib import Path
 
 import h5py
@@ -41,9 +41,9 @@ def compute_delays_slc(cube_paths: list[Path], wavelength: float) -> xr.Dataset:
         Formatted dataset for GUNW
     """
     # parse date from filename
-    dct_delays: dict[datetime, Path] = {}
+    dct_delays: dict[dt.datetime, Path] = {}
     for path in cube_paths:
-        date = datetime.strptime(path.name.split('_')[2], '%Y%m%dT%H%M%S')
+        date = dt.datetime.strptime(path.name.split('_')[2], '%Y%m%dT%H%M%S')
         dct_delays[date] = path
 
     sec, ref = sorted(dct_delays.keys())
@@ -52,8 +52,8 @@ def compute_delays_slc(cube_paths: list[Path], wavelength: float) -> xr.Dataset:
     hyd_delays: list[xr.DataArray] = []
     attrs_lst: list[dict] = []
     phase2range = (-4 * np.pi) / float(wavelength)
-    for dt in [ref, sec]:
-        path = dct_delays[dt]
+    for datetime in [ref, sec]:
+        path = dct_delays[datetime]
         with xr.open_dataset(path) as ds:
             da_wet = ds['wet'] * phase2range
             da_hydro = ds['hydro'] * phase2range

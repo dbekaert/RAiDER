@@ -6,7 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import itertools
-import multiprocessing
+import multiprocessing as mp
 import os
 
 import pandas as pd
@@ -126,7 +126,7 @@ def download_tropo_delays(
 
     # Parallelize remote querying of station locations
     results = []
-    with multiprocessing.Pool(numCPUs) as multipool:
+    with mp.Pool(numCPUs) as multipool:
         # only record valid path
         if gps_repo == 'UNR':
             results = [fileurl for fileurl in multipool.starmap(download_UNR, stat_year_tup) if fileurl['path']]

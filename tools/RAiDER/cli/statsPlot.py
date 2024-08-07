@@ -9,7 +9,7 @@ import argparse
 import copy
 import datetime as dt
 import itertools
-import multiprocessing
+import multiprocessing as mp
 import os
 import warnings
 
@@ -861,7 +861,7 @@ class VariogramAnalysis:
             grid_subset = self.df[self.df['gridnode'] == i]
             args.append((i, grid_subset))
         # Parallelize iteration through all grid-cells and time slices
-        with multiprocessing.Pool(self.numCPUs) as multipool:
+        with mp.Pool(self.numCPUs) as multipool:
             for i, j, k, l in multipool.starmap(self._append_variogram, args):
                 self.TOT_good_slices.extend(i)
                 self.TOT_res_robust_arr.extend(j)
@@ -1819,7 +1819,7 @@ class RaiderStats:
                     )
                 )
             # Parallelize iteration through all grid-cells and time slices
-            with multiprocessing.Pool(self.numCPUs) as multipool:
+            with mp.Pool(self.numCPUs) as multipool:
                 for i, j, k, l, m, n, o in multipool.starmap(self._amplitude_and_phase, args):
                     self.ampfit.extend(i)
                     self.phsfit.extend(j)
