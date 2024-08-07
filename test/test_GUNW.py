@@ -370,6 +370,18 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
     assert cond
 
 
+@pytest.mark.parametrize('weather_model_name', ['ERA5', 'GMAO', 'MERRA2', 'HRRR'])
+def test_check_weather_model_availability_2(weather_model_name):
+    gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
+    assert check_weather_model_availability(gunw_id, weather_model_name)
+
+
+def test_check_weather_model_availability_3():
+    gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
+    with pytest.raises(ValueError):
+        check_weather_model_availability(gunw_id, 'NotAModel')
+
+
 @pytest.mark.parametrize('weather_model_name', ['HRRR'])
 @pytest.mark.parametrize('location', ['california-t71', 'alaska'])
 def test_weather_model_availability_integration_using_valid_range(location,
@@ -653,20 +665,3 @@ def test_get_acq_time_invalid_slc_id():
   invalid_slc_id = "test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
   with pytest.raises(ValueError):
     get_acq_time_from_slc_id(invalid_slc_id)
-
-
-def test_check_weather_model_availability():
-    gunw_id = "test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc"
-    weather_models = ['ERA5', 'GMAO', 'MERRA2', 'HRRR']
-    for wm in weather_models:
-        assert check_weather_model_availability(gunw_id, wm)
-    
-    with pytest.raises(ValueError):
-        check_weather_model_availability(gunw_id, 'NotAModel')
-
-def test_check_weather_model_availability_2():
-    gunw_id = "test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc"
-    weather_models = ['ERA5', 'GMAO', 'MERRA2', 'HRRR']
-    fail_check = [True, True, True, True]
-    for wm, check in zip(weather_models, fail_check):
-        assert check_weather_model_availability(gunw_id, wm)==check
