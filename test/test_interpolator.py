@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import numpy as np
 import rasterio as rio
 import pytest
@@ -936,19 +937,19 @@ def test_interpolateDEM():
     metadata = {'driver': 'GTiff', 'dtype': 'float32',
                 'width': s, 'height': s, 'count': 1}
 
-    demFile  = './dem_tmp.tif'
+    dem_file = Path('./dem_tmp.tif')
 
-    with rio.open(demFile, 'w', **metadata) as ds:
+    with rio.open(dem_file, 'w', **metadata) as ds:
         ds.write(dem, 1)
         ds.update_tags(AREA_OR_POINT='Point')
 
     ## random points to interpolate to
     lons =  np.array([4.5, 9.5])
     lats = np.array([2.5, 9.5])
-    out  = interpolateDEM(demFile, (lats, lons))
+    out  = interpolateDEM(dem_file, (lats, lons))
     gold = np.array([[36, 81], [8, 18]], dtype=float)
     assert np.allclose(out, gold)
-    os.remove(demFile)
+    dem_file.unlink()
 
 # TODO: implement an interpolator test that is similar to test_scenario_1.
 # Currently the scipy and C++ interpolators differ on that case.

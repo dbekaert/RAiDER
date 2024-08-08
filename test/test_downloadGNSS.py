@@ -1,10 +1,7 @@
-import os
 import pytest
 import requests
 from unittest import mock
 
-from test import TEST_DIR, pushd
-from RAiDER.dem import download_dem
 from RAiDER.gnss.downloadGNSSDelays import (
     check_url,
     in_box,
@@ -13,6 +10,8 @@ from RAiDER.gnss.downloadGNSSDelays import (
     download_UNR,
     main,
 )
+
+from test import pushd
 
 
 # Test check_url with a valid and invalid URL
@@ -35,15 +34,13 @@ def test_in_box_inside():
     lat = 38.0
     lon = -97.0
     llbox = [30, 40, -100, -90]  # Sample bounding box
-    assert in_box(lat, lon, llbox) == True
-
+    assert in_box(lat, lon, llbox)
 
 def test_in_box_outside():
     lat = 50.0
     lon = -80.0
     llbox = [30, 40, -100, -90]  # Sample bounding box
-    assert in_box(lat, lon, llbox) == False
-
+    assert not in_box(lat, lon, llbox)
 
 # Test fix_lons with various longitudes
 def test_fix_lons_positive():
@@ -84,14 +81,12 @@ def test_get_ID_invalid():
 
 
 def test_download_UNR(tmp_path):
+    expected_path = "http://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip"
+    statID = "MORZ"
+    year = 2020
     with pushd(tmp_path):
-        statID = "MORZ"
-        year = 2020
         outDict = download_UNR(statID, year)
-        assert (
-            outDict["path"]
-            == "http://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip"
-        )
+        assert outDict["path"] == expected_path
 
 
 def test_download_UNR_2():
@@ -115,7 +110,7 @@ def test_download_UNR_4():
         download_UNR(statID, year, baseURL="www.google.com")
 
 
+@pytest.mark.skip
 def test_main():
-    # iargs = None
-    # main(inps=iargs)
-    assert True
+    iargs = None
+    main(inps=iargs)

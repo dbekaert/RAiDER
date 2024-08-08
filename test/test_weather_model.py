@@ -23,7 +23,7 @@ from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
-from RAiDER.models.customExceptions import *
+from RAiDER.models.customExceptions import DatetimeOutsideRange
 
 
 _LON0 = 0
@@ -315,10 +315,11 @@ def test_hrrr(hrrr: HRRR):
         wm.checkTime(datetime.datetime(2010, 7, 15).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
     wm.checkTime(datetime.datetime(2018, 7, 12).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))
 
-    assert isinstance(wm.checkValidBounds([35, 40, -95, -90]), HRRR)
+    assert isinstance(wm, HRRR)
+    wm.checkValidBounds(np.array([35, 40, -95, -90]))
 
     with pytest.raises(ValueError):
-        wm.checkValidBounds([45, 47, 300, 310])
+        wm.checkValidBounds(np.array([45, 47, 300, 310]))
 
 
 def test_hrrrak(hrrrak: HRRRAK):
@@ -326,10 +327,11 @@ def test_hrrrak(hrrrak: HRRRAK):
     assert wm._Name == 'HRRR-AK'
     assert wm._valid_range[0] == datetime.datetime(2018, 7, 13).replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
 
-    assert isinstance(wm.checkValidBounds([45, 47, 200, 210]), HRRRAK)
+    assert isinstance(wm, HRRRAK)
+    wm.checkValidBounds(np.array([45, 47, 200, 210]))
 
     with pytest.raises(ValueError):
-        wm.checkValidBounds([15, 20, 265, 270])
+        wm.checkValidBounds(np.array([15, 20, 265, 270]))
 
     with pytest.raises(DatetimeOutsideRange):
         wm.checkTime(datetime.datetime(2018, 7, 12).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())))

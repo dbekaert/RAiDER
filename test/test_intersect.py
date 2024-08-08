@@ -1,10 +1,15 @@
+from RAiDER.cli.raider import calcDelays
+from RAiDER.utilFcns import write_yaml
+import pytest
+import os
 import pandas as pd
-# import rasterio
+import subprocess
+import numpy as np
 
 from scipy.interpolate import griddata
 import rasterio
 
-from test import *
+from test import TEST_DIR, WM_DIR, pushd
 
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_6")
@@ -38,15 +43,10 @@ def test_cube_intersect(tmp_path, wm):
         }
 
         ## generate the default run config file and overwrite it with new parms
-        cfg = update_yaml(grp, "temp.yaml")
+        cfg  = write_yaml(grp, 'temp.yaml')
 
-        # breakpoint()
         ## run raider and intersect
-        cmd = f"raider.py {cfg}"
-        proc = subprocess.run(
-            cmd.split(), stdout=subprocess.PIPE, universal_newlines=True
-        )
-        assert proc.returncode == 0, "RAiDER Failed."
+        calcDelays([str(cfg)])
 
         ## hard code what it should be and check it matches
         gold = {"ERA5": 2.2787, "GMAO": np.nan, "HRRR": np.nan}
@@ -95,14 +95,10 @@ def test_gnss_intersect(tmp_path, wm):
         }
 
         ## generate the default run config file and overwrite it with new parms
-        cfg = update_yaml(grp)
+        cfg  = write_yaml(grp, 'temp.yaml')
 
         ## run raider and intersect
-        cmd = f"raider.py {cfg}"
-        proc = subprocess.run(
-            cmd.split(), stdout=subprocess.PIPE, universal_newlines=True
-        )
-        assert proc.returncode == 0, "RAiDER Failed."
+        calcDelays([str(cfg)])
 
         gold = {"ERA5": 2.34514, "GMAO": np.nan, "HRRR": np.nan}
         df = pd.read_csv(
@@ -112,5 +108,3 @@ def test_gnss_intersect(tmp_path, wm):
 
         # test for equality with golden data
         np.testing.assert_almost_equal(td.item(), gold[wm], decimal=4)
-
-        return

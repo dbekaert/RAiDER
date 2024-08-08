@@ -1,14 +1,22 @@
+import os
 import os.path as op
+import shutil
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
+import numpy as np
+import pytest
+import xarray as xr
+
+from RAiDER.cli.raider import calcDelays
+from RAiDER.cli.validators import get_wm_by_name
 from RAiDER.llreader import BoundingBox
-from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.losreader import Raytracing, build_ray
-from RAiDER.utilFcns import lla2ecef
-from RAiDER.cli.validators import modelName2Module
-
-from test import *
+from RAiDER.models.weatherModel import make_weather_model_filename
+from RAiDER.utilFcns import lla2ecef, write_yaml
+from test import ORB_DIR, WM_DIR, pushd
 
 
 def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_synth"):
@@ -25,8 +33,8 @@ def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_syn
     ), "Set  wm_eq_type to hydro, wet_linear, or wet_nonlinear"
     # initialize dummy wm to calculate constant delays
     # any model will do as 1) all constants same 2) all equations same
-    model = op.basename(wm_file).split("_")[0].upper().replace("-", "")
-    Obj = modelName2Module(model)[1]()
+    model = op.basename(wm_file).split('_')[0].upper().replace("-", "")
+    Obj = get_wm_by_name(model)[1]()
     ds = xr.open_dataset(wm_file)
     t = ds["t"]
     p = ds["p"]
@@ -110,7 +118,7 @@ class StudyArea(object):
         self.dts = self.dt.strftime("%Y_%m_%d_T%H_%M_%S")
         self.ttime = self.dt.strftime("%H:%M:%S")
 
-        self.wmObj = modelName2Module(self.wmName.upper().replace("-", ""))[1]()
+        self.wmObj = get_wm_by_name(self.wmName.upper().replace("-", ""))[1]()
 
         self.hgt_lvls = np.arange(-500, 9500, 500)
         self._cube_spacing_m = 10000.0
@@ -168,14 +176,16 @@ class StudyArea(object):
 
     def make_config_dict(self):
         dct = {
-            "aoi_group": {"bounding_box": list(self.SNWE)},
-            "height_group": {"height_levels": self.hgt_lvls.tolist()},
-            "time_group": {"time": self.ttime, "interpolate_time": "none"},
-            "date_group": {"date_list": datetime.strftime(self.dt, "%Y%m%d")},
-            "cube_spacing_in_m": str(self._cube_spacing_m),
-            "los_group": {"ray_trace": True, "orbit_file": self.orbit},
-            "weather_model": self.wmName,
-            "runtime_group": {"output_directory": self.wd},
+            'aoi_group': {'bounding_box': list(self.SNWE)},
+            'height_group': {'height_levels': self.hgt_lvls.tolist()},
+            'time_group': {'time': self.ttime, 'interpolate_time': 'none'},
+            'date_group': {'date_list': datetime.strftime(self.dt, '%Y%m%d')},
+            'los_group': {'ray_trace': True, 'orbit_file': self.orbit},
+            'weather_model': self.wmName,
+            'runtime_group': {
+                'output_directory': self.wd,
+                'cube_spacing_in_m': self._cube_spacing_m,
+            },
         }
         return dct
 
@@ -196,14 +206,12 @@ def test_dl_real(tmp_path, region, mod="ERA5"):
         )
         dct_cfg["download_only"] = True
 
-        cfg = update_yaml(dct_cfg)
-        ## run raider to download the real weather model
-        cmd = f"raider.py {cfg}"
+        cfg = write_yaml(dct_cfg, 'temp.yaml')
 
-        proc = subprocess.run(
-            cmd.split(), stdout=subprocess.PIPE, universal_newlines=True
-        )
-        assert proc.returncode == 0, "RAiDER did not complete successfully"
+        ## run raider to download the real weather model
+        cmd  = f'raider.py {cfg}'
+        proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+        assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
 
 @pytest.mark.parametrize("region", "AK LA Fort".split())
@@ -231,16 +239,11 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
         dct_cfg["download_only"] = False
 
         ## update the weather model; t = p for hydrostatic
-        path_synth = update_model(SAobj.path_wm_real, "hydro", SAobj.wm_dir_synth)
-
-        cfg = update_yaml(dct_cfg)
+        update_model(SAobj.path_wm_real, "hydro", SAobj.wm_dir_synth)
 
         ## run raider with the synthetic model
-        cmd = f"raider.py {cfg}"
-        proc = subprocess.run(
-            cmd.split(), stdout=subprocess.PIPE, universal_newlines=True
-        )
-        assert proc.returncode == 0, "RAiDER did not complete successfully"
+        cfg = write_yaml(dct_cfg, 'temp.yaml')
+        calcDelays([str(cfg)])
 
         # get the just created synthetic delays
         wm_name = SAobj.wmName.replace("-", "")  # incase of ERA-5
@@ -310,17 +313,11 @@ def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
         dct_cfg["download_only"] = False
 
         ## update the weather model; t = e for wet1
-        path_synth = update_model(SAobj.path_wm_real, "wet_linear", SAobj.wm_dir_synth)
-
-        cfg = update_yaml(dct_cfg)
+        update_model(SAobj.path_wm_real, "wet_linear", SAobj.wm_dir_synth)
 
         ## run raider with the synthetic model
-        cmd = f"raider.py {cfg}"
-        proc = subprocess.run(
-            cmd.split(), stdout=subprocess.PIPE, universal_newlines=True
-        )
-
-        assert proc.returncode == 0, "RAiDER did not complete successfully"
+        cfg = write_yaml(dct_cfg, 'temp.yaml')
+        calcDelays([str(cfg)])
 
         # get the just created synthetic delays
         wm_name = SAobj.wmName.replace("-", "")  # incase of ERA-5
@@ -393,18 +390,11 @@ def test_wet_eq_nonlinear(tmp_path, region, mod="ERA-5"):
         dct_cfg["download_only"] = False
 
         ## update the weather model; t = e for wet1
-        path_synth = update_model(
-            SAobj.path_wm_real, "wet_nonlinear", SAobj.wm_dir_synth
-        )
-
-        cfg = update_yaml(dct_cfg)
+        update_model(SAobj.path_wm_real, "wet_nonlinear", SAobj.wm_dir_synth)
 
         ## run raider with the synthetic model
-        cmd = f"raider.py {cfg}"
-        proc = subprocess.run(
-            cmd.split(), stdout=subprocess.PIPE, universal_newlines=True
-        )
-        assert proc.returncode == 0, "RAiDER did not complete successfully"
+        cfg = write_yaml(dct_cfg, 'temp.yaml')
+        calcDelays([str(cfg)])
 
         # get the just created synthetic delays
         wm_name = SAobj.wmName.replace("-", "")  # incase of ERA-5
@@ -436,9 +426,9 @@ def test_wet_eq_nonlinear(tmp_path, region, mod="ERA-5"):
         np.testing.assert_almost_equal(0, resid, decimal=6)
 
         da.close()
-        os.remove("./temp.yaml")
-        os.remove("./error.log")
-        os.remove("./debug.log")
+        Path('./temp.yaml').unlink(missing_ok=True)
+        Path('./error.log').unlink(missing_ok=True)
+        Path('./debug.log').unlink(missing_ok=True)
         del da
 
         # delete temp directory

@@ -2,7 +2,7 @@ import numpy as np
 import scipy.io.netcdf as netcdf
 from pyproj import CRS, Transformer
 
-from RAiDER.models.weatherModel import WeatherModel, TIME_RES
+from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 
 
 # Need to incorporate this snippet into this part of the code.
@@ -15,31 +15,27 @@ from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 #        lats, lons = wrf.wm_nodes(*weather_files)
 #
 class WRF(WeatherModel):
-    '''
-    WRF class definition, based on the WeatherModel base class.
-    '''
+    """WRF class definition, based on the WeatherModel base class."""
+
     # TODO: finish implementing
 
-    def __init__(self):
+    def __init__(self) -> None:
         WeatherModel.__init__(self)
 
         self._k1 = 0.776  # K/Pa
         self._k2 = 0.233  # K/Pa
         self._k3 = 3.75e3  # K^2/Pa
 
-
         # Currently WRF is using RH instead of Q to get E
         self._humidityType = 'rh'
         self._Name = 'WRF'
         self._time_res = TIME_RES[self._Name]
 
-    def _fetch(self):
+    def _fetch(self) -> None:
         pass
 
-    def load_weather(self, file1, file2, *args, **kwargs):
-        '''
-        Consistent class method to be implemented across all weather model types
-        '''
+    def load_weather(self, file1, file2, *args, **kwargs) -> None:
+        """Consistent class method to be implemented across all weather model types."""
         try:
             lons, lats = self._get_wm_nodes(file1)
             self._read_netcdf(file2)
@@ -61,10 +57,8 @@ class WRF(WeatherModel):
         xs = np.mean(xs, axis=0)
         ys = np.mean(ys, axis=1)
 
-        _xs = np.broadcast_to(xs[np.newaxis, np.newaxis, :],
-                              self._p.shape)
-        _ys = np.broadcast_to(ys[np.newaxis, :, np.newaxis],
-                              self._p.shape)
+        _xs = np.broadcast_to(xs[np.newaxis, np.newaxis, :], self._p.shape)
+        _ys = np.broadcast_to(ys[np.newaxis, :, np.newaxis], self._p.shape)
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         self._p = np.transpose(self._p)
         self._t = np.transpose(self._t)
@@ -85,10 +79,8 @@ class WRF(WeatherModel):
 
         return lons, lats
 
-    def _read_netcdf(self, weatherFile, defNul=None):
-        """
-        Read weather variables from a netCDF file
-        """
+    def _read_netcdf(self, weatherFile, defNul=None) -> None:
+        """Read weather variables from a netCDF file."""
         if defNul is None:
             defNul = np.nan
 
@@ -129,10 +121,17 @@ class WRF(WeatherModel):
         # Projection
         # See http://www.pkrc.net/wrf-lambert.html
         earthRadius = 6370e3  # <- note Ray had a bug here
-        p1 = CRS(proj='lcc', lat_1=lat1,
-                 lat_2=lat2, lat_0=lat0,
-                 lon_0=lon0, a=earthRadius, b=earthRadius,
-                 towgs84=(0, 0, 0), no_defs=True)
+        p1 = CRS(
+            proj='lcc',
+            lat_1=lat1,
+            lat_2=lat2,
+            lat_0=lat0,
+            lon_0=lon0,
+            a=earthRadius,
+            b=earthRadius,
+            towgs84=(0, 0, 0),
+            no_defs=True,
+        )
         self._proj = p1
 
         temps[temps == tNull] = np.nan
@@ -155,36 +154,28 @@ class WRF(WeatherModel):
         self._zs = geoh
 
         if len(sp.shape) == 1:
-            self._p = np.broadcast_to(
-                sp[:, np.newaxis, np.newaxis], self._zs.shape)
+            self._p = np.broadcast_to(sp[:, np.newaxis, np.newaxis], self._zs.shape)
         else:
             self._p = sp
 
 
 class UnitTypeError(Exception):
-    '''
-    Define a unit type exception for easily formatting
-    error messages for units
-    '''
+    """Define a unit type exception for easily formatting error messages for units."""
 
     def __init___(self, varName, unittype):
-        msg = "Unknown units for {}: '{}'".format(varName, unittype)
+        msg = f"Unknown units for {varName}: '{unittype}'"
         Exception.__init__(self, msg)
 
 
-def checkUnits(unitCheck, varName):
-    '''
-    Implement a check that the units are as expected
-    '''
+def checkUnits(unitCheck, varName) -> None:
+    """Implement a check that the units are as expected."""
     unitDict = {'pressure': 'Pa', 'temperature': 'K', 'relative humidity': '%', 'geopotential': 'm'}
     if unitCheck != unitDict[varName]:
         raise UnitTypeError(varName, unitCheck)
 
 
 def getNullValue(var):
-    '''
-    Get the null (or fill) value if it exists, otherwise set the null value to defNullValue
-    '''
+    """Get the null (or fill) value if it exists, otherwise set the null value to defNullValue."""
     # NetCDF files have the ability to record their nodata value, but in the
     # particular NetCDF files that I'm reading, this field is left
     # unspecified and a nodata value of -999 is used. The solution I'm using

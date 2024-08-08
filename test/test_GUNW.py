@@ -18,6 +18,7 @@ import RAiDER
 import RAiDER.cli.raider as raider
 import RAiDER.s1_azimuth_timing
 from RAiDER import aws
+import RAiDER.aria.prepFromGUNW
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
     check_weather_model_availability,_get_acq_time_from_gunw_id,
@@ -369,6 +370,18 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
     assert cond
 
 
+@pytest.mark.parametrize('weather_model_name', ['ERA5', 'GMAO', 'MERRA2', 'HRRR'])
+def test_check_weather_model_availability_2(weather_model_name):
+    gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
+    assert check_weather_model_availability(gunw_id, weather_model_name)
+
+
+def test_check_weather_model_availability_3():
+    gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
+    with pytest.raises(ValueError):
+        check_weather_model_availability(gunw_id, 'NotAModel')
+
+
 @pytest.mark.parametrize('weather_model_name', ['HRRR'])
 @pytest.mark.parametrize('location', ['california-t71', 'alaska'])
 def test_weather_model_availability_integration_using_valid_range(location,
@@ -509,7 +522,7 @@ def test_hyp3_exits_succesfully_when_hrrr_not_available(mocker):
                  side_effect=[False])
     # The gunw id should not have a hyp3 file associated with it
     # This call will still hit the HRRR s3 API as done in the previous test
-    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['hyp3-job-uuid-3ad24/S1-GUNW-A-R-106-tops-20160809_20140101-160001-00078W_00041N-PP-4be8-v3_0_0.nc'])
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=[Path('hyp3-job-uuid-3ad24/S1-GUNW-A-R-106-tops-20160809_20140101-160001-00078W_00041N-PP-4be8-v3_0_0.nc')])
     mocker.patch('RAiDER.aria.prepFromGUNW.check_weather_model_availability')
     iargs = [
                '--bucket', 's3://foo',
@@ -622,22 +635,21 @@ def test_check_hrrr_availability_all_true():
     gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
     
     # Mock _get_acq_time_from_gunw_id to return expected times
-    result = check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
-    assert result == True
+    assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
 
 def test_get_slc_ids_from_gunw():
-    test_path = 'test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
+    test_path = Path('test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc')
     assert get_slc_ids_from_gunw(test_path, 'reference') == 'S1A_IW_SLC__1SDV_20230320T180251_20230320T180309_047731_05BBDB_DCA0.zip'
     assert get_slc_ids_from_gunw(test_path, 'secondary') == 'S1A_IW_SLC__1SDV_20220418T180246_20220418T180305_042831_051CC3_3C47.zip'
 
     with pytest.raises(FileNotFoundError):
-        get_slc_ids_from_gunw('dummy.nc')
+        get_slc_ids_from_gunw(Path('dummy.nc'))
     
     with pytest.raises(ValueError):
         get_slc_ids_from_gunw(test_path, 'tertiary')
     
     with pytest.raises(OSError):
-        get_slc_ids_from_gunw('test/weather_files/ERA-5_2020_01_30_T13_52_45_32N_35N_120W_115W.nc')
+        get_slc_ids_from_gunw(Path('test/weather_files/ERA-5_2020_01_30_T13_52_45_32N_35N_120W_115W.nc'))
 
 
 def test_get_acq_time_valid_slc_id():
@@ -653,20 +665,3 @@ def test_get_acq_time_invalid_slc_id():
   invalid_slc_id = "test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
   with pytest.raises(ValueError):
     get_acq_time_from_slc_id(invalid_slc_id)
-
-
-def test_check_weather_model_availability():
-    gunw_id = "test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc"
-    weather_models = ['ERA5', 'GMAO', 'MERRA2', 'HRRR']
-    for wm in weather_models:
-        assert check_weather_model_availability(gunw_id, wm)
-    
-    with pytest.raises(ValueError):
-        check_weather_model_availability(gunw_id, 'NotAModel')
-
-def test_check_weather_model_availability_2():
-    gunw_id = "test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc"
-    weather_models = ['ERA5', 'GMAO', 'MERRA2', 'HRRR']
-    fail_check = [True, True, True, True]
-    for wm, check in zip(weather_models, fail_check):
-        assert check_weather_model_availability(gunw_id, wm)==check

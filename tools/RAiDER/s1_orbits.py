@@ -1,3 +1,4 @@
+import datetime as dt
 import netrc
 import os
 import re
@@ -7,6 +8,7 @@ from typing import List, Optional
 
 import eof.download
 from hyp3lib import get_orb
+
 from RAiDER.logger import logger
 
 
@@ -20,7 +22,7 @@ def _netrc_path() -> Path:
 
 
 def ensure_orbit_credentials() -> Optional[int]:
-    """Ensure credentials exist for ESA's CDSE and ASF's S1QC to download orbits
+    """Ensure credentials exist for ESA's CDSE and ASF's S1QC to download orbits.
 
     This method will prefer to use CDSE and NASA Earthdata credentials from your `~/.netrc` file if they exist,
     otherwise will look for environment variables and update or create your `~/.netrc` file. The environment variables
@@ -44,9 +46,11 @@ def ensure_orbit_credentials() -> Optional[int]:
         username = os.environ.get('ESA_USERNAME')
         password = os.environ.get('ESA_PASSWORD')
         if username is None or password is None:
-            raise ValueError('Credentials are required for fetching orbit data from dataspace.copernicus.eu!\n'
-                             'Either add your credentials to ~/.netrc or set the ESA_USERNAME and ESA_PASSWORD '
-                             'environment variables.')
+            raise ValueError(
+                'Credentials are required for fetching orbit data from dataspace.copernicus.eu!\n'
+                'Either add your credentials to ~/.netrc or set the ESA_USERNAME and ESA_PASSWORD '
+                'environment variables.'
+            )
 
         netrc_credentials.hosts[ESA_CDSE_HOST] = (username, None, password)
 
@@ -54,9 +58,11 @@ def ensure_orbit_credentials() -> Optional[int]:
         username = os.environ.get('EARTHDATA_USERNAME')
         password = os.environ.get('EARTHDATA_PASSWORD')
         if username is None or password is None:
-            raise ValueError('Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!\n'
-                             'Either add your credentials to ~/.netrc or set the EARTHDATA_USERNAME and'
-                             ' EARTHDATA_PASSWORD environment variables.')
+            raise ValueError(
+                'Credentials are required for fetching orbit data from s1qc.asf.alaska.edu!\n'
+                'Either add your credentials to ~/.netrc or set the EARTHDATA_USERNAME and'
+                ' EARTHDATA_PASSWORD environment variables.'
+            )
 
         netrc_credentials.hosts[NASA_EDL_HOST] = (username, None, password)
 
@@ -64,7 +70,7 @@ def ensure_orbit_credentials() -> Optional[int]:
 
 
 def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Path]:
-    """Download all orbit files for a set of SLCs
+    """Download all orbit files for a set of SLCs.
 
     This method will ensure that the downloaded orbit files cover the entire acquisition start->stop time
 
@@ -79,11 +85,8 @@ def get_orbits_from_slc_ids(slc_ids: List[str], directory=Path.cwd()) -> List[Pa
     return orb_files
 
 
-def get_orbits_from_slc_ids_hyp3lib(
-    slc_ids: list, orbit_directory: str = None
-) -> dict:
-    """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23"""
-
+def get_orbits_from_slc_ids_hyp3lib(slc_ids: list, orbit_directory: str = None) -> dict:
+    """Reference: https://github.com/ACCESS-Cloud-Based-InSAR/DockerizedTopsApp/blob/dev/isce2_topsapp/localize_orbits.py#L23."""
     # Populates env variables to netrc as required for sentineleof
     _ = ensure_orbit_credentials()
     esa_username, _, esa_password = netrc.netrc().authenticators(ESA_CDSE_HOST)
@@ -105,25 +108,25 @@ def get_orbits_from_slc_ids_hyp3lib(
     return orbits
 
 
-def download_eofs(dts: list, missions: list, save_dir: str):
-    """Wrapper around sentineleof to first try downloading from ASF and fall back to CDSE"""
+def download_eofs(datetimes: list[dt.datetime], missions: list, save_dir: str):
+    """Wrapper around sentineleof to first try downloading from ASF and fall back to CDSE."""
     _ = ensure_orbit_credentials()
 
     orb_files = []
-    for dt, mission in zip(dts, missions):
-        dt = dt if isinstance(dt, list) else [dt]
+    for datetime, mission in zip(datetimes, missions):
+        datetime = datetime if isinstance(datetime, list) else [datetime]
         mission = mission if isinstance(mission, list) else [mission]
 
         try:
-            orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=True)
+            orb_file = eof.download.download_eofs(datetime, mission, save_dir=save_dir, force_asf=True)
         except:
             logger.error('Could not download orbit from ASF, trying ESA...')
-            orb_file = eof.download.download_eofs(dt, mission, save_dir=save_dir, force_asf=False)
+            orb_file = eof.download.download_eofs(datetime, mission, save_dir=save_dir, force_asf=False)
 
         orb_file = orb_file[0] if isinstance(orb_file, list) else orb_file
         orb_files.append(orb_file)
 
-    if not len(orb_files) == len(dts):
-        raise Exception(f'Missing {len(dts) - len(orb_files)} orbit files! dts={dts}, orb_files={len(orb_files)}')
+    if not len(orb_files) == len(datetimes):
+        raise Exception(f'Missing {len(datetimes) - len(orb_files)} orbit files! dts={datetimes}, orb_files={len(orb_files)}')
 
     return orb_files
