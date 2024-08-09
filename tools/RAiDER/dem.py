@@ -6,7 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from pathlib import Path
-from typing import Optional, cast
+from typing import List, Optional, Union, bool, cast, float, tuple
 
 import numpy as np
 import rasterio
@@ -18,20 +18,20 @@ from RAiDER.utilFcns import rio_open
 
 
 def download_dem(
-    ll_bounds=None,
-    dem_path: Path=Path('warpedDEM.dem'),
-    overwrite: bool=False,
-    writeDEM: bool=False,
-    buf: float=0.02,
-) -> tuple[np.ndarray, Optional[RIO.Profile]]:
+        ll_bounds: Union[tuple, List, np.ndarray]=None,
+        dem_path: Path=Path('warpedDEM.dem'),
+        overwrite: bool=False,
+        writeDEM: bool=False,
+        buf: float=0.02,
+    ) -> tuple[np.ndarray, Optional[RIO.Profile]]:
     """Download a DEM if one is not already present.
 
     Args:
-        llbounds: list/ndarry of floats - lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]
-        writeDEM: bool                  - write the DEM to file
-        outName: string                 - name of the DEM file
-        buf: float                      - buffer to add to the bounds
-        overwrite: bool                 - overwrite existing DEM
+        ll_bounds: list/ndarry of floats    - lat/lon bounds of the area to download. Values should be ordered in the following way: [S, N, W, E]
+        dem_path: string                    - Path to write DEM file
+        overwrite: bool                     - overwrite existing DEM
+        writeDEM: bool                      - write the DEM to file
+        buf: float                          - buffer to add to the bounds
     Returns:
         zvals: np.array                 - DEM heights
         metadata:                       - metadata for the DEM
