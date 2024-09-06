@@ -6,7 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from pathlib import Path
-from typing import Union
+from typing import Union, float, int, bool, tuple
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
@@ -20,20 +20,29 @@ class RegularGridInterpolator:
     interface to scipy.interpolate.RegularGridInterpolator.
     """
     def __init__(
-        self,
-        grid,
-        values,
-        fill_value=None,
-        assume_sorted=False,
-        max_threads=8,
-    ) -> None:
+            self,
+            grid: np.ndarray,
+            values: np.ndarray,
+            fill_value: Union[None,float,int]=None,
+            assume_sorted: bool=False,
+            max_threads: int=8,
+        ) -> None:
+        """
+        Args:
+            grid (np.ndarray): _description_
+            values (_type_): _description_
+            fill_value (None,float, or int, optional): Fill value to represent no data
+            assume_sorted (bool, optional): _description_. Defaults to False.
+            max_threads (int, optional): _description_. Defaults to 8.
+        """  # noqa: D202
+   
         self.grid = grid
         self.values = values
         self.fill_value = fill_value
         self.assume_sorted = assume_sorted
         self.max_threads = max_threads
 
-    def __call__(self, points):
+    def __call__(self, points: Union[tuple, np.array]) -> np.array:
         if isinstance(points, tuple):
             shape = points[0].shape
             for arr in points:
