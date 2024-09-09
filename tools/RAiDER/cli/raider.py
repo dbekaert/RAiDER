@@ -182,17 +182,19 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
     # Generate an example configuration file, OR
     # run with a configuration file.
-    group = p.add_mutually_exclusive_group(required=True)
+    group = p.add_mutually_exclusive_group(required=False)
     group.add_argument(
         '--generate_config',
         '-g',
         nargs='?',
+        const='template',
         choices=[
             'template',
             'example_LA_bbox',
             'example_LA_GNSS',
             'example_UK_isce',
         ],
+        default='template',
         help='Generate an example run configuration and exit',
     )
     group.add_argument(
