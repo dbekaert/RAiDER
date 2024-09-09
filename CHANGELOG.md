@@ -9,6 +9,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [Unreleased]
 ### Changed
 * [672](https://github.com/dbekaert/RAiDER/pull/672) - Linted the project with `ruff`.
+* [683](https://github.com/dbekaert/RAiDER/pull/683) - Fixed a naive datetime and added default template to template generation argument
 
 ### Fixed
 * [679](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a bug causing test_updateTrue to falsely pass.

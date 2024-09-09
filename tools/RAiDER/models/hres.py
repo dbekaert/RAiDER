@@ -79,7 +79,7 @@ class HRES(ECMWF):
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time
 
-        if time < dt.datetime(2013, 6, 26, 0, 0, 0):
+        if time < dt.datetime(2013, 6, 26, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta())):
             self.update_a_b()
 
         # execute the search at ECMWF
