@@ -1,7 +1,8 @@
 import datetime as dt
 import os
 from abc import ABC, abstractmethod
-from typing import Optional
+from pathlib import Path
+from typing import Optional, Union, List, Tuple
 
 import numpy as np
 import xarray as xr
@@ -459,8 +460,8 @@ class WeatherModel(ABC):
         if not box(W, S, E, N).intersects(self._valid_bounds):
             raise ValueError(f'The requested location is unavailable for {self._Name}')
 
-    def checkContainment(self, ll_bounds, buffer_deg: float = 1e-5) -> bool:
-        """ "
+    def checkContainment(self, ll_bounds: Union[List, Tuple,np.ndarray], buffer_deg: float = 1e-5) -> bool:
+        """
         Checks containment of weather model bbox of outLats and outLons
         provided.
 
@@ -507,8 +508,15 @@ class WeatherModel(ABC):
                 translate(weather_model_box, xoff=-360).buffer(buffer_deg),
             ]
             weather_model_box = unary_union(translates)
+            return weather_model_box.contains(input_box)
 
-        return weather_model_box.contains(input_box)
+        elif weather_model_box.contains(world_box):
+            self.bbox = (-180, -90, 180, 90)
+            return True
+
+        else:
+            return False
+
 
     def _isOutside(self, extent1, extent2) -> bool:
         """
@@ -764,8 +772,12 @@ def get_mapping(proj):
         return proj.to_wkt()
 
 
-def checkContainment_raw(path_wm_raw, ll_bounds, buffer_deg: float = 1e-5) -> bool:
-    """ "
+def checkContainment_raw(
+        path_wm_raw: Path, 
+        ll_bounds: Union[List, Tuple,np.ndarray], 
+        buffer_deg: float = 1e-5
+    ) -> bool:
+    """
     Checks if existing raw weather model contains
     requested ll_bounds.
 
@@ -820,4 +832,10 @@ def checkContainment_raw(path_wm_raw, ll_bounds, buffer_deg: float = 1e-5) -> bo
         ]
         weather_model_box = unary_union(translates)
 
-    return weather_model_box.contains(input_box)
+        return weather_model_box.contains(input_box)
+
+    elif weather_model_box.contains(world_box):
+        return True
+
+    else:
+        return False
