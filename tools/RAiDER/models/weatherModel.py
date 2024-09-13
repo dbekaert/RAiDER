@@ -18,7 +18,7 @@ from RAiDER.interpolator import fillna3D
 from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots
 from RAiDER.models.customExceptions import DatetimeOutsideRange
-from RAiDER.utilFcns import calcgeoh, clip_bbox, robmax, robmin, transform_coords
+from RAiDER.utilFcns import calcgeoh, clip_bbox, transform_coords
 
 
 TIME_RES = {
@@ -122,9 +122,9 @@ class WeatherModel(ABC):
             string += 'Number of points in Lon/Lat = {}/{}\n'.format(*self._p.shape[:2])
             string += f'Total number of grid points (3D): {np.prod(self._p.shape)}\n'
         if self._xs.size == 0:
-            string += f'Minimum/Maximum y: {robmin(self._ys): 4.2f}/{robmax(self._ys): 4.2f}\n'
-            string += f'Minimum/Maximum x: {robmin(self._xs): 4.2f}/{robmax(self._xs): 4.2f}\n'
-            string += f'Minimum/Maximum zs/heights: {robmin(self._zs): 10.2f}/{robmax(self._zs): 10.2f}\n'
+            string += f'Minimum/Maximum y: {np.nanmin(self._ys): 4.2f}/{np.nanmax(self._ys): 4.2f}\n'
+            string += f'Minimum/Maximum x: {np.nanmin(self._xs): 4.2f}/{np.nanmax(self._xs): 4.2f}\n'
+            string += f'Minimum/Maximum zs/heights: {np.nanmin(self._zs): 10.2f}/{np.nanmax(self._zs): 10.2f}\n'
 
         string += '=====================================\n'
         return string

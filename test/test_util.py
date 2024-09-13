@@ -14,7 +14,7 @@ from RAiDER.utilFcns import (
     writeArrayToRaster, rio_profile,
     rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
     transform_bbox, clip_bbox, get_nearest_wmtimes,
-    robmax,robmin,padLower,convertLons,
+    padLower,convertLons,
     projectDelays,floorish,round_date,
 )
 
@@ -551,10 +551,10 @@ def test_rio_4():
 
 
 def test_robs():
-    assert robmin([1, 2, 3, np.nan])==1
-    assert robmin([1,2,3])==1
-    assert robmax([1, 2, 3, np.nan])==3
-    assert robmax([1,2,3])==3
+    assert np.nanmin([1, 2, 3, np.nan])==1
+    assert np.nanmin([1,2,3])==1
+    assert np.nanmax([1, 2, 3, np.nan])==3
+    assert np.nanmax([1,2,3])==3
     
 
 def test_floorish1():
