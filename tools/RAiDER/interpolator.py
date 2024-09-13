@@ -6,7 +6,8 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from pathlib import Path
-from typing import Union, float, int, bool, tuple
+from typing import Tuple, Union
+
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
@@ -29,20 +30,20 @@ class RegularGridInterpolator:
         ) -> None:
         """
         Args:
-            grid (np.ndarray): _description_
-            values (_type_): _description_
+            grid (np.ndarray): _description
+            values (_type_): _description
             fill_value (None,float, or int, optional): Fill value to represent no data
             assume_sorted (bool, optional): _description_. Defaults to False.
             max_threads (int, optional): _description_. Defaults to 8.
-        """  # noqa: D202
-   
+        """
         self.grid = grid
         self.values = values
         self.fill_value = fill_value
         self.assume_sorted = assume_sorted
         self.max_threads = max_threads
 
-    def __call__(self, points: Union[tuple, np.array]) -> np.array:
+    def __call__(self, points: Union[Tuple, np.array]) -> np.array:
+        """Call the interpolator function."""
         if isinstance(points, tuple):
             shape = points[0].shape
             for arr in points:
@@ -128,7 +129,7 @@ def fillna3D(array, axis=-1, fill_value=0.0):
     return outmat
 
 
-def interpolateDEM(dem_path: Union[Path, str], outLL: tuple[np.ndarray, np.ndarray], method='nearest') -> np.ndarray:
+def interpolateDEM(dem_path: Union[Path, str], outLL: Tuple[np.ndarray, np.ndarray], method='nearest') -> np.ndarray:
     """Interpolate a DEM raster to a set of lat/lon query points using rioxarray.
 
     outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
