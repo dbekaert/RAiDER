@@ -13,6 +13,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 * [679](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a bug causing test_updateTrue to falsely pass.
+* [685](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a global bbox bug in checkContainment
 
 ## [0.5.3]
 ### Fixed

@@ -90,7 +90,7 @@ def product(iterable):
 class MockWeatherModel(WeatherModel):
     """Implement abstract methods for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:  # noqa: D107
         super().__init__()
 
         self._k1 = 1
@@ -102,10 +102,10 @@ class MockWeatherModel(WeatherModel):
                              datetime.datetime.now(datetime.timezone.utc))
         self._lag_time = datetime.timedelta(days=15)
 
-    def _fetch(self, ll_bounds, time, out):
+    def _fetch(self, ll_bounds, time, out):  # noqa: ANN202
         pass
 
-    def load_weather(self, *args, **kwargs):
+    def load_weather(self, *args, **kwargs) -> None:  # noqa: D102
         _N_Z = 32
         self._ys = np.arange(-2,3) + _LAT0
         self._xs = np.arange(-3,4) + _LON0
@@ -128,10 +128,10 @@ class MockWeatherModel(WeatherModel):
         self._true_wet_refr = 2 * np.ones(self._t.shape)
         self._true_wet_refr[:,3:] = 4
 
-    def interpWet(self):
+    def interpWet(self):  # noqa: ANN201, D102
         _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)
         return _ifWet
-    def interpHydro(self):
+    def interpHydro(self):  # noqa: ANN201, D102
         _ifHydro = rgi((self._ys, self._xs, self._zs), self._true_hydro_refr)
         return _ifHydro
 
