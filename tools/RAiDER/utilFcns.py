@@ -4,7 +4,7 @@ import datetime as dt
 import pathlib
 import re
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional, Tuple, Union, List
 
 import numpy as np
 import rasterio
@@ -23,6 +23,7 @@ from RAiDER.constants import (
 )
 from RAiDER.logger import logger
 from RAiDER.types import BB, RIO, CRSLike
+from llreader import AOI
 
 
 # Optional imports
@@ -43,35 +44,37 @@ except ImportError:
 pbar = None
 
 
-def projectDelays(delay, inc):
+def projectDelays(delay: Union[float, np.array], inc: Union[float, np.array]) -> Union[float, np.array]:
     """Project zenith delays to LOS."""
     if inc == 90:
         raise ZeroDivisionError
     return delay / cosd(inc)
 
 
-def floorish(val, frac):
+def floorish(val: Union[float, np.array], frac: Union[float, np.array]) -> Union[float, np.array]:
     """Round a value to the lower fractional part."""
     return val - (val % frac)
 
 
-def sind(x):
+def sind(x: Union[float, np.array]) -> Union[float, np.array]:
     """Return the sine of x when x is in degrees."""
     return np.sin(np.radians(x))
 
 
-def cosd(x):
+def cosd(x: Union[float, np.array]) -> Union[float, np.array]:
     """Return the cosine of x when x is in degrees."""
     return np.cos(np.radians(x))
 
 
-def lla2ecef(lat, lon, height):
+def lla2ecef(lat: Union[float, np.array], lon: Union[float, np.array], height: Union[float, np.array]) -> np.array:
+    """Transforms from lla to ecef."""
     T = Transformer.from_crs(4326, 4978, always_xy=True)
 
     return T.transform(lon, lat, height)
 
 
-def ecef2lla(x, y, z):
+def ecef2lla(x: Union[float, np.array], y: Union[float, np.array], z: Union[float, np.array]) -> np.array:
+    """Converts ecef to lla."""
     T = Transformer.from_crs(4978, 4326, always_xy=True)
 
     return T.transform(x, y, z)
@@ -84,7 +87,8 @@ def enu2ecef(
     lat0: ndarray,
     lon0: ndarray,
     h0: ndarray,
-):
+) -> np.array:
+    """Converts enu to ecef."""
     """
     Args:
     ----------
@@ -109,8 +113,12 @@ def enu2ecef(
     return np.stack((u, v, w), axis=-1)
 
 
-def ecef2enu(xyz, lat, lon, height):
+def ecef2enu(xyz: Union[float, np.array], 
+             lat: Union[float, np.array], 
+             lon: Union[float, np.array], 
+             height: Union[float, np.array]) -> np.array:
     """Convert ECEF xyz to ENU."""
+    """height is not used here, needs looked at"""
     x, y, z = xyz[..., 0], xyz[..., 1], xyz[..., 2]
 
     t = cosd(lon) * x + sind(lon) * y
@@ -197,8 +205,10 @@ def rio_stats(path: Path, band: int=1) -> tuple[RIO.Statistics, Optional[CRS], R
     """Read a rasterio-compatible file and pull the metadata.
 
     Args:
-        path    - file path to be loaded
-        band    - band number to use for getting statistics
+        path: Path
+            file path to be loaded
+        band: int
+            band number to use for getting statistics
 
     Returns:
         stats   - a list of stats for the specified band
@@ -285,7 +295,8 @@ def writeArrayToRaster(
     logger.info('Wrote: %s', path)
 
 
-def round_date(date, precision):
+def round_date(date: dt.datetime, precision: int) -> dt.datetime:
+    """Rounds the date to the nearest precision in seconds."""
     # First try rounding up
     # Timedelta since the beginning of time
     T0 = dt.datetime.min
@@ -319,7 +330,7 @@ def round_date(date, precision):
     return round_up if up_diff < down_diff else round_down
 
 
-def _least_nonzero(a):
+def _least_nonzero(a: np.array) -> np.array:
     """Fill in a flat array with the first non-nan value in the last dimension.
 
     Useful for interpolation below the bottom of the weather model.
@@ -328,27 +339,17 @@ def _least_nonzero(a):
     return a[tuple(np.mgrid[mgrid_index]) + ((~np.isnan(a)).argmax(-1),)]
 
 
-def robmin(a):
-    """Get the minimum of an array, accounting for empty lists."""
-    return np.nanmin(a)
-
-
-def robmax(a):
-    """Get the minimum of an array, accounting for empty lists."""
-    return np.nanmax(a)
-
-
-def _get_g_ll(lats):
+def _get_g_ll(lats: Union[float, np.array]) -> Union[float, np.array]:
     """Compute the variation in gravity constant with latitude."""
     return G1 * (1 - 0.002637 * cosd(2 * lats) + 0.0000059 * (cosd(2 * lats)) ** 2)
 
 
-def get_Re(lats):
+def get_Re(lats: ndarray) -> ndarray:
     """
     Returns earth radius as a function of latitude for WGS84.
 
-    Args:
-        lats    - ndarray of geodetic latitudes in degrees
+    Args: lats
+        ndarray of geodetic latitudes in degrees
 
     Returns:
         ndarray of earth radius at each latitude
@@ -365,7 +366,7 @@ def get_Re(lats):
     return np.sqrt(1 / (((cosd(lats) ** 2) / Rmax**2) + ((sind(lats) ** 2) / Rmin**2)))
 
 
-def geo_to_ht(lats, hts):
+def geo_to_ht(lats: ndarray, hts: ndarray) -> ndarray:
     """
     Convert geopotential height to ellipsoidal heights referenced to WGS84.
 
@@ -382,8 +383,11 @@ def geo_to_ht(lats, hts):
     # Assumes a sphere instead of an ellipsoid
 
     Args:
-        lats    - latitude of points of interest
-        hts     - geopotential height at points of interest
+        lats: ndarray
+            latitude of points of interest
+        hts: ndarray
+            geopotential height at points of interest
+    
 
     Returns:
         ndarray: geometric heights. These are approximate ellipsoidal heights referenced to WGS84
@@ -397,15 +401,15 @@ def geo_to_ht(lats, hts):
     return h
 
 
-def padLower(invar):
+def padLower(invar: np.array) -> np.array:
     """Add a layer of data below the lowest current z-level at height zmin."""
     new_var = _least_nonzero(invar)
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def round_time(datetime, roundTo=60):
+def round_time(datetime: dt.datetime, roundTo: int=60) -> dt.datetime:
+    """Round a datetime object to any time lapse in seconds."""
     """
-    Round a datetime object to any time lapse in seconds
     datetime: dt.datetime object
     roundTo: Closest number of seconds to round to, default 1 minute.
     Source: https://stackoverflow.com/questions/3463930/how-to-round-the-minute-of-a-datetime-object/10854034#10854034
@@ -416,9 +420,9 @@ def round_time(datetime, roundTo=60):
 
 
 def writeDelays(
-    aoi,  #: AOI,
-    wetDelay,
-    hydroDelay,
+    aoi: AOI,  #: AOI,
+    wetDelay: ndarray,
+    hydroDelay: ndarray,
     wet_path: Path,
     hydro_path: Optional[Path]=None,
     outformat: str=None,
@@ -451,7 +455,7 @@ def writeDelays(
         writeArrayToRaster(hydroDelay, hydro_path, noDataValue=ndv, fmt=outformat, proj=proj, gt=gt)
 
 
-def getTimeFromFile(filename):
+def getTimeFromFile(filename: Union[str, Path]) -> dt.datetime:
     """Parse a filename to get a date-time."""
     fmt = '%Y_%m_%d_T%H_%M_%S'
     p = re.compile(r'\d{4}_\d{2}_\d{2}_T\d{2}_\d{2}_\d{2}')
@@ -465,7 +469,8 @@ def getTimeFromFile(filename):
 _projections = {}
 
 
-def zone(coordinates):
+def zone(coordinates: Union[list, tuple, np.array]) -> int:
+    """Returns the zone of a UTM zone."""
     if 56 <= coordinates[1] < 64 and 3 <= coordinates[0] < 12:
         return 32
     if 72 <= coordinates[1] < 84 and 0 <= coordinates[0] < 42:
@@ -479,33 +484,37 @@ def zone(coordinates):
     return int((coordinates[0] + 180) / 6) + 1
 
 
-def letter(coordinates):
+def letter(coordinates: Union[list, tuple, np.array]) -> str:
+    """Returns zone UTM letter."""
     return 'CDEFGHJKLMNPQRSTUVWXX'[int((coordinates[1] + 80) / 8)]
 
 
-def project(coordinates, z=None, l=None):
+def project(coordinates: Union[list, tuple, np.array], z: int=None, ltr: str=None) -> tuple[int, str, float, float]:
+    """Returns zone UTM coordinate."""
     if z is None:
         z = zone(coordinates)
-    if l is None:
-        l = letter(coordinates)
+    if ltr is None:
+        ltr = letter(coordinates)
     if z not in _projections:
         _projections[z] = Proj(proj='utm', zone=z, ellps='WGS84')
     x, y = _projections[z](coordinates[0], coordinates[1])
     if y < 0:
         y += 10000000
-    return z, l, x, y
+    return z, ltr, x, y
 
 
-def unproject(z, l, x, y):
+def unproject(z: int, ltr: str, x: float, y: float) -> tuple[Union[float, np.array]]:
+    """Returns a tuple containing the zone UTM lng and lat."""
     if z not in _projections:
         _projections[z] = Proj(proj='utm', zone=z, ellps='WGS84')
-    if l < 'N':
+    if ltr < 'N':
         y -= 10000000
     lng, lat = _projections[z](x, y, inverse=True)
     return (lng, lat)
 
 
-def WGS84_to_UTM(lon, lat, common_center=False):
+def WGS84_to_UTM(lon: float, lat: float, common_center: bool=False) -> tuple[np.array]:
+    """Converts WGS84 to UTM."""
     shp = lat.shape
     lon = np.ravel(lon)
     lat = np.ravel(lat)
@@ -531,17 +540,18 @@ def WGS84_to_UTM(lon, lat, common_center=False):
     return np.reshape(Z, shp), np.reshape(L, shp), np.reshape(X, shp), np.reshape(Y, shp)
 
 
-def UTM_to_WGS84(z, l, x, y):
+def UTM_to_WGS84(z: int, ltr: str, x: float, y: float) -> tuple[np.array]:
+    """Converts UTM to WGS84."""
     shp = x.shape
     z = np.ravel(z)
-    l = np.ravel(l)
+    ltr = np.ravel(l)
     x = np.ravel(x)
     y = np.ravel(y)
     lat = x.copy()
     lon = x.copy()
     for ind in range(z.__len__()):
         zz = z[ind]
-        ll = l[ind]
+        ll = ltr[ind]
         xx = x[ind]
         yy = y[ind]
         coordinates = unproject(zz, ll, xx, yy)
@@ -550,9 +560,9 @@ def UTM_to_WGS84(z, l, x, y):
     return np.reshape(lon, shp), np.reshape(lat, shp)
 
 
-def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.0):
+def transform_bbox(snwe_in: list, dest_crs: int=4326, src_crs: int=4326, buffer: float=100.0) -> Tuple[np.array]:
+    """Transform bbox to lat/lon or another CRS for use with rest of workflow."""
     """
-    Transform bbox to lat/lon or another CRS for use with rest of workflow.
     Returns: SNWE
     """
     # TODO - Handle dateline crossing
@@ -563,7 +573,7 @@ def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.0):
 
     # Handle margin for input bbox in degrees
     if src_crs.axis_info[0].unit_name == 'degree':
-        margin = margin / 1.0e5
+        buffer = buffer / 1.0e5
 
     if isinstance(dest_crs, int):
         dest_crs = CRS.from_epsg(dest_crs)
@@ -575,8 +585,8 @@ def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.0):
         return snwe_in
 
     T = Transformer.from_crs(src_crs, dest_crs, always_xy=True)
-    xs = np.linspace(snwe_in[2] - margin, snwe_in[3] + margin, num=11)
-    ys = np.linspace(snwe_in[0] - margin, snwe_in[1] + margin, num=11)
+    xs = np.linspace(snwe_in[2] - buffer, snwe_in[3] + buffer, num=11)
+    ys = np.linspace(snwe_in[0] - buffer, snwe_in[1] + buffer, num=11)
     X, Y = np.meshgrid(xs, ys)
 
     # Transform to lat/lon
@@ -587,7 +597,7 @@ def transform_bbox(snwe_in, dest_crs=4326, src_crs=4326, margin=100.0):
     return snwe
 
 
-def clip_bbox(bbox, spacing):
+def clip_bbox(bbox: Union[list, tuple, ndarray], spacing: Union[int, float]) -> List[np.array]:
     """Clip box to multiple of spacing."""
     return [
         np.floor(bbox[0] / spacing) * spacing,
@@ -597,8 +607,8 @@ def clip_bbox(bbox, spacing):
     ]
 
 
-def requests_retry_session(retries=10, session=None):
-    """https://www.peterbe.com/plog/best-practice-with-retries-with-requests"""
+def requests_retry_session(retries: int=10, session=None):  # noqa: ANN001, ANN201
+    """https://www.peterbe.com/plog/best-practice-with-retries-with-requests."""
     import requests
     from requests.adapters import HTTPAdapter
     from requests.packages.urllib3.util.retry import Retry
@@ -614,7 +624,8 @@ def requests_retry_session(retries=10, session=None):
     return session
 
 
-def writeWeatherVarsXarray(lat, lon, h, q, p, t, datetime, crs, outName=None, NoDataValue=-9999, chunk=(1, 91, 144)) -> None:
+def writeWeatherVarsXarray(lat: float, lon: float, h: float, q: float, p: float, t: float, datetime: dt.datetime, crs: float, outName: str=None, NoDataValue: int=-9999, chunk: list=(1, 91, 144)) -> None:
+    """Does not return anything."""
     # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
     attrs_dict = {
         'datetime': datetime.strftime('%Y_%m_%dT%H_%M_%S'),
@@ -662,7 +673,7 @@ def writeWeatherVarsXarray(lat, lon, h, q, p, t, datetime, crs, outName=None, No
     del ds
 
 
-def convertLons(inLons):
+def convertLons(inLons: np.ndarray) -> np.ndarray:
     """Convert lons from 0-360 to -180-180."""
     mask = inLons > 180
     outLons = inLons
@@ -670,13 +681,14 @@ def convertLons(inLons):
     return outLons
 
 
-def read_NCMR_loginInfo(filepath=None):
+def read_NCMR_loginInfo(filepath: str=None) -> Tuple[str]:
+    """Returns login information."""
     from pathlib import Path
 
     if filepath is None:
         filepath = str(Path.home()) + '/.ncmrlogin'
 
-    f = open(filepath)
+    f = Path.open(filepath)
     lines = f.readlines()
     url = lines[0].strip().split(': ')[1]
     username = lines[1].strip().split(': ')[1]
@@ -685,14 +697,15 @@ def read_NCMR_loginInfo(filepath=None):
     return url, username, password
 
 
-def read_EarthData_loginInfo(filepath=None):
+def read_EarthData_loginInfo(filepath: str=None) -> Tuple[str, str]:
+    """Returns username and password."""
     from netrc import netrc
 
     urs_usr, _, urs_pwd = netrc().hosts['urs.earthdata.nasa.gov']
     return urs_usr, urs_pwd
 
 
-def show_progress(block_num, block_size, total_size) -> None:
+def show_progress(block_num: Union[int, float], block_size: Union[int, float], total_size: Union[int, float]) -> None:
     """Show download progress."""
     if progressbar is None:
         raise ImportError('RAiDER.utilFcns: show_progress - progressbar is not available')
@@ -710,7 +723,7 @@ def show_progress(block_num, block_size, total_size) -> None:
         pbar = None
 
 
-def getChunkSize(in_shape):
+def getChunkSize(in_shape: ndarray) -> Tuple:
     """Create a reasonable chunk size."""
     if mp is None:
         raise ImportError('RAiDER.utilFcns: getChunkSize - multiprocessing is not available')
@@ -721,7 +734,7 @@ def getChunkSize(in_shape):
     return chunkSize
 
 
-def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
+def calcgeoh(lnsp: ndarray, t: ndarray, q: ndarray, z: ndarray, a: ndarray, b: ndarray, R_d: float, num_levels: int) -> Tuple[np.ndarray]:
     """
     Calculate pressure, geopotential, and geopotential height
     from the surface pressure and model levels provided by a weather model.
@@ -732,9 +745,10 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
         lnsp: ndarray         - [y, x] array of log surface pressure
         t: ndarray            - [z, y, x] cube of temperatures
         q: ndarray            - [z, y, x] cube of specific humidity
-        geopotential: ndarray - [z, y, x] cube of geopotential values
+        z: ndarray - [z, y, x] cube of geopotential values
         a: ndarray            - [z] vector of a values
         b: ndarray            - [z] vector of b values
+        R_d: float            - R_d from weather model
         num_levels: int       - integer number of model levels
 
     Returns:
@@ -801,7 +815,7 @@ def calcgeoh(lnsp, t, q, z, a, b, R_d, num_levels):
     return geopotential, pressurelvs, geoheight
 
 
-def transform_coords(proj1, proj2, x, y):
+def transform_coords(proj1: CRS, proj2: CRS, x: float, y: float) -> np.ndarray:
     """
     Transform coordinates from proj1 to proj2 (can be EPSG or crs from proj).
     e.g. x, y = transform_coords(4326, 4087, lon, lat).
@@ -810,7 +824,7 @@ def transform_coords(proj1, proj2, x, y):
     return transformer.transform(x, y)
 
 
-def get_nearest_wmtimes(t0, time_delta):
+def get_nearest_wmtimes(t0: dt.datetime, time_delta: int) -> List[dt.datetime]:
     """Get the nearest two available times to the requested time given a time step.
 
     Args:
@@ -852,7 +866,8 @@ def get_dt(t1: dt.datetime, t2: dt.datetime) -> float:
     two python datetimes.
 
     Args:
-        t1, t2  - Python datetimes
+        t1: Python datetimes
+        t2: Python datetimes
 
     Returns:
         Absolute difference in seconds between the two inputs
@@ -907,6 +922,7 @@ def write_yaml(content: dict[str, Any], dst: Union[str, Path]) -> Path:
 
 
 def parse_crs(proj: CRSLike) -> CRS:
+    """Parses through the projections."""
     if isinstance(proj, CRS):
         return proj
     elif isinstance(proj, str):
