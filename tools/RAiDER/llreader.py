@@ -1,3 +1,4 @@
+# noqa: D100
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # Author: Jeremy Maurer, Raymond Hogenson & David Bekaert
@@ -23,7 +24,6 @@ from pyproj import CRS
 
 from RAiDER.logger import logger
 from RAiDER.types import BB, RIO
-from RAiDER.utilFcns import rio_open, rio_stats
 
 
 class AOI:
@@ -269,6 +269,7 @@ class RasterRDR(AOI):
 
     def readLL(self) -> tuple[np.ndarray, Optional[np.ndarray]]:
         # allow for 2-band lat/lon raster
+        from RAiDER.utilFcns import rio_open
         lats, _ = rio_open(Path(self._latfile))
 
         if self._lonfile is None:
@@ -279,6 +280,7 @@ class RasterRDR(AOI):
 
     def readZ(self) -> np.ndarray:
         """Read the heights from the raster file, or download a DEM if not present."""
+        from RAiDER.utilFcns import rio_open
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             hgts, _ = rio_open(self._hgtfile)
@@ -324,7 +326,7 @@ class GeocodedFile(AOI):
     def __init__(self, path: Path, is_dem=False, cube_spacing_in_m: Optional[float]=None) -> None:
         super().__init__(cube_spacing_in_m)
 
-        from RAiDER.utilFcns import rio_extents, rio_profile
+        from RAiDER.utilFcns import rio_extents, rio_profile, rio_stats
 
         self._filename = path
         self.p = rio_profile(path)
@@ -365,6 +367,7 @@ class Geocube(AOI):
     """Pull lat/lon/height from a georeferenced data cube."""
 
     def __init__(self, path_cube, cube_spacing_in_m: Optional[float]=None) -> None:
+        from RAiDER.utilFcns import rio_stats
         super().__init__(cube_spacing_in_m)
         self.path = path_cube
         self._type = 'Geocube'
@@ -396,7 +399,7 @@ def bounds_from_latlon_rasters(lat_filestr: str, lon_filestr: str) -> tuple[BB.S
     Parse lat/lon/height inputs and return
     the appropriate outputs.
     """
-    from RAiDER.utilFcns import get_file_and_band
+    from RAiDER.utilFcns import get_file_and_band, rio_stats
 
     latinfo = get_file_and_band(lat_filestr)
     loninfo = get_file_and_band(lon_filestr)

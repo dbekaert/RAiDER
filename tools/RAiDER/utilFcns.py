@@ -4,7 +4,7 @@ import datetime as dt
 import pathlib
 import re
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union, List
+from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
 import rasterio
@@ -16,14 +16,22 @@ from pyproj import CRS, Proj, Transformer
 import RAiDER
 from RAiDER.constants import (
     R_EARTH_MAX_WGS84 as Rmax,
+)
+from RAiDER.constants import (
     R_EARTH_MIN_WGS84 as Rmin,
+)
+from RAiDER.constants import (
     _THRESHOLD_SECONDS,
+)
+from RAiDER.constants import (
     _g0 as g0,
+)
+from RAiDER.constants import (
     _g1 as G1,
 )
+from RAiDER.llreader import AOI
 from RAiDER.logger import logger
 from RAiDER.types import BB, RIO, CRSLike
-from llreader import AOI
 
 
 # Optional imports
