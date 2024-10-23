@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from RAiDER.models.era5 import ERA5
+from RAiDER.models.weatherModel import WeatherModel
 from test import TEST_DIR
 
 
@@ -26,24 +27,46 @@ def getWM():  # noqa: ANN201
 
 def test_checkContainment(getWM) -> None:  # noqa: ANN001
     """Test whether a weather model contains a bbox."""
-    if Path.exists(getWM.files[0]):
-        wm = getWM
+    wm = getWM
+    if Path.exists(wm.files[0]):
         ll_bounds = (10, 20, -100, -100)
-        # outLats = np.linspace(10, 20)
-        # outLons = -100 * np.ones(outLats.shape)
-
         containment = wm.checkContainment(ll_bounds)
         assert(~containment)
 
 
 def test_checkContainment2(getWM) -> None:  # noqa: ANN001
     """Test whether a weather model contains a bbox."""
-    if Path.exists(getWM.files[0]):
-        wm = getWM
-        # outLats = np.linspace(17, 18)
-        # outLons = -100 * np.ones(outLats.shape)
+    wm = getWM
+    if Path.exists(wm.files[0]):
         ll_bounds = (17, 18, -100, -100)
-
         containment = wm.checkContainment(ll_bounds)
         assert(containment)
+
+
+def test_checkContainment3() -> None:  # noqa: ANN001
+    """Test whether a weather model contains a bbox."""
+    with pytest.raises(TypeError):
+        WeatherModel()
+
+
+def test_checkContainment4() -> None:  # noqa: ANN001
+    """Test whether a weather model contains a bbox."""
+    wm = ERA5()
+    wm._bbox = [-180, 0, 180, 90]
+    ll_bounds = (1, 89, -179, 179)
+    assert wm.checkContainment(ll_bounds)
+
+def test_checkContainment5() -> None:  # noqa: ANN001
+    """Test whether a weather model contains a bbox."""
+    wm = ERA5()
+    wm._bbox = [-180, 0, 180, 90]
+    ll_bounds = (0, 90, -180, 180)
+    assert wm.checkContainment(ll_bounds)
+
+def test_checkContainment6() -> None:  # noqa: ANN001
+    """Test whether a weather model contains a bbox."""
+    wm = ERA5()
+    wm._bbox = [-180, 0, 180, 90]
+    ll_bounds = (0, 90, -181, 180)
+    assert wm.checkContainment(ll_bounds)
 

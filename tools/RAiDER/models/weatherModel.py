@@ -462,8 +462,7 @@ class WeatherModel(ABC):
 
     def checkContainment(self, ll_bounds: Union[List, Tuple,np.ndarray], buffer_deg: float = 1e-5) -> bool:
         """
-        Checks containment of weather model bbox of outLats and outLons
-        provided.
+        Checks containment of weather model bbox. 
 
         Args:
         ----------
@@ -508,14 +507,18 @@ class WeatherModel(ABC):
                 translate(weather_model_box, xoff=-360).buffer(buffer_deg),
             ]
             weather_model_box = unary_union(translates)
-            return weather_model_box.contains(input_box)
-
-        elif weather_model_box.contains(world_box):
+        
+        if weather_model_box.contains(world_box):
+            # Handle the case where the whole world is requested
             self.bbox = (-180, -90, 180, 90)
-            return True
-
+            return True 
         else:
-            return False
+                return weather_model_box.contains(input_box)
+        else:
+            if weather_model_box.contains(input_box):
+                return True
+            else:
+                return False
 
 
     def _isOutside(self, extent1, extent2) -> bool:
