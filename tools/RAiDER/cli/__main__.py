@@ -31,7 +31,8 @@ def main() -> None:
 
     try:
         # python >=3.10 interface
-        (process_entry_point,) = entry_points(group='console_scripts', name=f'{args.process}.py')
+        process_entry_point = next(iter(entry_points(group='console_scripts', name=f'{args.process}.py')), None)
+
     except TypeError:
         # python 3.8 and 3.9 interface
         scripts = entry_points()['console_scripts']
