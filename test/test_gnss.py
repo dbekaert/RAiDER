@@ -1,21 +1,16 @@
-from pathlib import Path
-from RAiDER.models.customExceptions import NoStationDataFoundError
-from RAiDER.gnss.downloadGNSSDelays import (
-    get_stats_by_llh, get_station_list, download_tropo_delays,
-    filterToBBox
-)
-from RAiDER.gnss.processDelayFiles import (
-    addDateTimeToFiles,
-    getDateTime,
-    concatDelayFiles
-)
 import datetime
 import os
-import pytest
+from pathlib import Path
 
 import pandas as pd
+import pytest
 
-from test import pushd, TEST_DIR
+from RAiDER.gnss.downloadGNSSDelays import download_tropo_delays, filterToBBox, get_station_list, get_stats_by_llh
+from RAiDER.gnss.processDelayFiles import addDateTimeToFiles, concatDelayFiles, getDateTime
+from RAiDER.models.customExceptions import NoStationDataFoundError
+from test import TEST_DIR, pushd
+
+
 SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
 
 
@@ -125,17 +120,19 @@ def test_download_tropo_delays2():
 
 
 def test_download_tropo_delays2(tmp_path):
-    stations, output_file = get_station_list(
-        stationFile=os.path.join(SCENARIO2_DIR, 'stations.csv'))
+    with pushd(tmp_path):
+        stations, output_file = get_station_list(
+            stationFile=os.path.join(SCENARIO2_DIR, 'stations.csv')
+        )
 
-    # spot check a couple of stations
-    assert 'CAPE' in stations
-    assert 'FGNW' in stations
-    assert isinstance(output_file, str)
+        # spot check a couple of stations
+        assert 'CAPE' in stations
+        assert 'FGNW' in stations
+        assert isinstance(output_file, str)
 
-    # try downloading the delays
-    download_tropo_delays(stats=stations, years=[2022], writeDir=tmp_path)
-    assert True
+        # try downloading the delays
+        download_tropo_delays(stats=stations, years=[2022], writeDir=tmp_path)
+        assert True
 
 
 def test_filterByBBox1():
