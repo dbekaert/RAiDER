@@ -1,22 +1,42 @@
 import datetime
 import os
 from pathlib import Path
-import pytest
+from unittest.mock import MagicMock, mock_open, patch
 
 import numpy as np
 import pyproj
+import pytest
 import rasterio
-
-from test import TEST_DIR, pushd
+import xarray as xr
 
 from RAiDER.utilFcns import (
-    _least_nonzero, cosd, rio_open, sind,
-    writeArrayToRaster, rio_profile,
-    rio_extents, getTimeFromFile, enu2ecef, ecef2enu,
-    transform_bbox, clip_bbox, get_nearest_wmtimes,
-    padLower,convertLons,
-    projectDelays,floorish,round_date,
+    UTM_to_WGS84,
+    _least_nonzero,
+    clip_bbox,
+    convertLons,
+    cosd,
+    ecef2enu,
+    enu2ecef,
+    floorish,
+    getChunkSize,
+    getTimeFromFile,
+    get_nearest_wmtimes,
+    padLower,
+    projectDelays,
+    read_EarthData_loginInfo,
+    read_NCMR_loginInfo,
+    rio_extents,
+    rio_open,
+    rio_profile,
+    round_date,
+    show_progress,
+    sind,
+    transform_bbox,
+    unproject,
+    writeArrayToRaster,
+    writeWeatherVarsXarray,
 )
+from test import TEST_DIR, pushd
 
 
 _R_EARTH = 6378138
@@ -714,3 +734,415 @@ def test_round_date_edge_case_end_of_day():
   precision = datetime.timedelta(hours=1)
   expected_result = datetime.datetime(2024, 6, 26, 0, 0, 0)
   assert round_date(date, precision) == expected_result
+
+
+# Test rio_profile
+@pytest.fixture
+def mock_raster_profile():
+    """Mock a rasterio profile."""
+    return {
+        "driver": "GTiff",
+        "dtype": "float32",
+        "nodata": None,
+        "width": 100,
+        "height": 100,
+        "count": 1,
+        "crs": "EPSG:4326",
+        "transform": [0.1, 0, 0, 0, -0.1, 0],
+    }
+
+
+@patch("rasterio.open")
+def test_rio_profile_vrt_file(mock_rasterio_open, tmp_path, mock_raster_profile):
+    """Test for a path with a .vrt file."""
+    raster_file = tmp_path / "test_file.tif"
+    vrt_file = tmp_path / "test_file.tif.vrt"
+    vrt_file.touch()  # Create a mock .vrt file
+
+    mock_src = MagicMock()
+    mock_src.profile = mock_raster_profile
+    mock_rasterio_open.return_value.__enter__.return_value = mock_src
+
+    profile = rio_profile(raster_file)
+    assert profile == mock_raster_profile
+    mock_rasterio_open.assert_called_once_with(vrt_file)
+
+
+@patch("rasterio.open")
+def test_rio_profile_s1_gunw(mock_rasterio_open, tmp_path, mock_raster_profile):
+    """Test for an S1-GUNW path."""
+    raster_file = tmp_path / "S1-GUNW_example.nc"
+
+    mock_src = MagicMock()
+    mock_src.profile = mock_raster_profile
+    mock_rasterio_open.return_value.__enter__.return_value = mock_src
+
+    profile = rio_profile(raster_file)
+    assert profile == mock_raster_profile
+    mock_rasterio_open.assert_called_once_with(
+        Path(f'NETCDF:"{raster_file}":science/grids/data/unwrappedPhase')
+    )
+
+
+@patch("rasterio.open")
+def test_rio_profile_normal_file(mock_rasterio_open, tmp_path, mock_raster_profile):
+    """Test for a normal raster file."""
+    raster_file = tmp_path / "test_file.tif"
+
+    mock_src = MagicMock()
+    mock_src.profile = mock_raster_profile
+    mock_rasterio_open.return_value.__enter__.return_value = mock_src
+
+    profile = rio_profile(raster_file)
+    assert profile == mock_raster_profile
+    mock_rasterio_open.assert_called_once_with(raster_file)
+
+
+# Test unproject
+def test_unproject_northern_hemisphere():
+    """Test the unproject function for a zone in the northern hemisphere."""
+    # Example input for the northern hemisphere
+    zone = 33
+    letter = 'N'
+    x, y = 500000, 4649776.22482  # UTM coordinates
+
+    lng, lat = unproject(zone, letter, x, y)
+    
+    # Validate the results (expected values depend on your Proj setup; this is an example)
+    assert isinstance(lng, float)
+    assert isinstance(lat, float)
+
+
+def test_unproject_southern_hemisphere():
+    """Test the unproject function for a zone in the southern hemisphere."""
+    # Example input for the southern hemisphere
+    zone = 33
+    letter = 'K'
+    x, y = 500000, 4649776.22482  # UTM coordinates
+
+    lng, lat = unproject(zone, letter, x, y)
+    
+    # Southern hemisphere adjustment should apply
+    # Validate the results (expected values depend on your Proj setup; this is an example)
+    assert isinstance(lng, float)
+    assert isinstance(lat, float)
+    assert lat < 0  # Ensure latitude is negative for the southern hemisphere
+
+
+def test_unproject_invalid_zone():
+    """Test the unproject function with an invalid zone."""
+    zone = 99  # Invalid UTM zone
+    letter = 'N'
+    x, y = 500000, 4649776.22482
+
+    with pytest.raises(Exception):  # Replace Exception with a specific exception if applicable
+        unproject(zone, letter, x, y)
+
+
+# Test UTM_to_WGS84
+def test_UTM_to_WGS84_single_point():
+    """Test UTM_to_WGS84 with a single UTM coordinate."""
+    z = np.array([33])
+    ltr = np.array(['N'])
+    x = np.array([500000])
+    y = np.array([4649776.22482])
+
+    lon, lat = UTM_to_WGS84(z, ltr, x, y)
+
+    assert lon.shape == x.shape
+    assert lat.shape == y.shape
+    assert isinstance(lon[0], float)
+    assert isinstance(lat[0], float)
+
+
+def test_UTM_to_WGS84_multiple_points():
+    """Test UTM_to_WGS84 with multiple UTM coordinates."""
+    z = np.array([33, 34])
+    ltr = np.array(['N', 'S'])
+    x = np.array([500000, 600000])
+    y = np.array([4649776.22482, 5000000])
+
+    lon, lat = UTM_to_WGS84(z, ltr, x, y)
+
+    assert lon.shape == x.shape
+    assert lat.shape == y.shape
+    assert lon[0] != lon[1]  # Ensure different zones produce different results
+    assert lat[0] > 0  # Northern hemisphere latitude should be positive
+    assert lat[1] < 0  # Southern hemisphere latitude should be negative
+
+
+def test_UTM_to_WGS84_invalid_input_shapes():
+    """Test UTM_to_WGS84 with mismatched input shapes."""
+    z = np.array([33, 34])
+    ltr = np.array(['N'])
+    x = np.array([500000, 600000])
+    y = np.array([4649776.22482, 5000000])
+
+    with pytest.raises(ValueError):
+        UTM_to_WGS84(z, ltr, x, y)
+
+
+def test_UTM_to_WGS84_edge_case():
+    """Test UTM_to_WGS84 with edge case inputs."""
+    z = np.array([1])
+    ltr = np.array(['M'])
+    x = np.array([166021.4431])  # Minimum easting
+    y = np.array([0])  # Minimum northing
+
+    lon, lat = UTM_to_WGS84(z, ltr, x, y)
+
+    assert lon.shape == x.shape
+    assert lat.shape == y.shape
+    assert isinstance(lon[0], float)
+    assert isinstance(lat[0], float)
+
+
+def test_UTM_to_WGS84_empty_input():
+    """Test UTM_to_WGS84 with empty arrays."""
+    z = np.array([])
+    ltr = np.array([])
+    x = np.array([])
+    y = np.array([])
+
+    lon, lat = UTM_to_WGS84(z, ltr, x, y)
+
+    assert lon.shape == x.shape
+    assert lat.shape == y.shape
+    assert lon.size == 0
+    assert lat.size == 0
+
+
+# Test writeWeatherVarsXarray
+def test_writeWeatherVarsXarray(tmp_path):
+    """Test writing weather variables to an xarray dataset and NetCDF file."""
+    # Mock inputs
+    lat = np.random.rand(91, 144) * 180 - 90  # Random latitudes between -90 and 90
+    lon = np.random.rand(91, 144) * 360 - 180  # Random longitudes between -180 and 180
+    h = np.random.rand(5, 91, 144) * 10000  # Heights in meters
+    q = np.random.rand(5, 91, 144) * 0.02  # Specific humidity in kg/kg
+    p = np.random.rand(5, 91, 144) * 100000  # Pressure in Pa
+    t = np.random.rand(5, 91, 144) * 40 + 233.15  # Temperature in Kelvin
+    datetime_value = datetime.datetime(2024, 11, 23, 12, 0, 0)
+    crs = {
+        'to_cf': lambda: {'grid_mapping_name': 'latitude_longitude', 'crs_wkt': 'WKT representation'}
+    }  # Mock CRS
+    outName = tmp_path / "test_output.nc"
+
+    # Call the function
+    writeWeatherVarsXarray(lat, lon, h, q, p, t, datetime_value, crs, outName)
+
+    # Check the output file exists
+    assert Path(outName).exists()
+
+    # Open the NetCDF file and verify its contents
+    ds = xr.open_dataset(outName)
+
+    # Check attributes
+    assert ds.attrs['datetime'] == datetime_value.strftime('%Y_%m_%dT%H_%M_%S')
+    assert 'date_created' in ds.attrs
+    assert ds.attrs['NoDataValue'] == -9999
+    assert ds.attrs['chunksize'] == (1, 91, 144)
+
+    # Check variables
+    for var in ['h', 'q', 'p', 't']:
+        assert var in ds.data_vars
+        assert 'grid_mapping' in ds[var].attrs
+    assert ds['h'].attrs['units'] == 'm'
+    assert ds['p'].attrs['units'] == 'Pa'
+    assert ds['q'].attrs['units'] == 'kg kg-1'
+    assert ds['t'].attrs['units'] == 'K'
+
+    # Check dimensions and shapes
+    assert ds['latitude'].shape == (91, 144)
+    assert ds['longitude'].shape == (91, 144)
+    assert ds['h'].shape == (5, 91, 144)
+
+    # Clean up
+    del ds
+    Path.unlink(outName)
+
+
+# Test read_NCMR_loginInfo
+def test_read_NCMR_loginInfo_valid_file():
+    # Mock content of the login file
+    mock_file_content = """url: http://example.com
+username: user123
+password: pass456
+"""
+
+    with patch("builtins.open", mock_open(read_data=mock_file_content)):
+        url, username, password = read_NCMR_loginInfo("/mock/path/.ncmrlogin")
+        assert url == "http://example.com"
+        assert username == "user123"
+        assert password == "pass456"
+
+
+def test_read_NCMR_loginInfo_missing_file():
+    with patch("builtins.open", side_effect=FileNotFoundError):
+        with pytest.raises(FileNotFoundError):
+            read_NCMR_loginInfo("/non/existent/path/.ncmrlogin")
+
+
+def test_read_NCMR_loginInfo_incorrect_format():
+    # Mock a file with incorrect format
+    mock_file_content = """url: http://example.com
+username: user123
+"""
+
+    with patch("builtins.open", mock_open(read_data=mock_file_content)):
+        with pytest.raises(ValueError, match="The login file must have at least three lines"):
+            read_NCMR_loginInfo("/mock/path/.ncmrlogin")
+
+
+def test_read_NCMR_loginInfo_malformed_lines():
+    # Mock a file with malformed lines
+    mock_file_content = """url: http://example.com
+username: user123
+password:
+"""
+
+    with patch("builtins.open", mock_open(read_data=mock_file_content)):
+        with pytest.raises(ValueError, match="Improperly formatted login file"):
+            read_NCMR_loginInfo("/mock/path/.ncmrlogin")
+
+
+# Test read_EarthData_loginInfo
+def test_read_EarthData_loginInfo_valid():
+    # Mock the behavior of netrc to return a fake username and password
+    mock_netrc = {
+        'urs.earthdata.nasa.gov': ('test_username', None, 'test_password')
+    }
+
+    with patch('netrc.netrc', return_value=mock_netrc):
+        username, password = read_EarthData_loginInfo()
+        assert username == 'test_username'
+        assert password == 'test_password'
+
+
+def test_read_EarthData_loginInfo_no_entry():
+    # Mock netrc to simulate no entry for the given host
+    mock_netrc = {}
+
+    with patch('netrc.netrc', return_value=mock_netrc):
+        with pytest.raises(KeyError, match="No entry for urs.earthdata.nasa.gov"):
+            read_EarthData_loginInfo()
+
+
+def test_read_EarthData_loginInfo_invalid_format():
+    # Mock netrc with an invalid entry (None as username and password)
+    mock_netrc = {
+        'urs.earthdata.nasa.gov': (None, None, None)
+    }
+
+    with patch('netrc.netrc', return_value=mock_netrc):
+        with pytest.raises(ValueError, match="Invalid login information in netrc"):
+            read_EarthData_loginInfo()
+
+
+# Test show_progress
+@pytest.fixture
+def mock_progressbar():
+    with patch("your_module.progressbar.ProgressBar") as mock_progressbar:
+        yield mock_progressbar
+
+
+def test_show_progress_initial(mock_progressbar):
+    # Mock the ProgressBar class and its methods
+    mock_pbar_instance = MagicMock()
+    mock_progressbar.return_value = mock_pbar_instance
+
+    block_num = 5
+    block_size = 100
+    total_size = 5000
+
+    # Call the function to test the initial behavior
+    show_progress(block_num, block_size, total_size)
+
+    # Ensure that ProgressBar is initialized with the correct max value
+    mock_progressbar.assert_called_once_with(maxval=total_size)
+
+    # Ensure the start method is called
+    mock_pbar_instance.start.assert_called_once()
+
+    # Ensure the update method is called with the correct value
+    mock_pbar_instance.update.assert_called_once_with(block_num * block_size)
+
+
+def test_show_progress_finish(mock_progressbar):
+    # Mock the ProgressBar class and its methods
+    mock_pbar_instance = MagicMock()
+    mock_progressbar.return_value = mock_pbar_instance
+
+    block_num = 50
+    block_size = 100
+    total_size = 5000
+
+    # Call the function to test finishing behavior
+    show_progress(block_num, block_size, total_size)
+
+    # Ensure the finish method is called
+    mock_pbar_instance.finish.assert_called_once()
+
+    # Ensure pbar is reset to None after finishing
+    assert mock_progressbar.return_value is None
+
+
+def test_show_progress_no_progressbar(mock_progressbar):
+    # Test case where progressbar is not available
+    with patch("your_module.progressbar", None):
+        with pytest.raises(ImportError, match="RAiDER.utilFcns: show_progress - progressbar is not available"):
+            show_progress(1, 100, 5000)
+
+
+# Test getChunkSize
+@pytest.fixture
+def mock_mp():
+    with patch("your_module.mp") as mock_mp:
+        yield mock_mp
+
+
+def test_getChunkSize(mock_mp):
+    # Mock the number of CPU cores
+    mock_mp.cpu_count.return_value = 4  # Assume the system has 4 CPUs
+
+    # Test case with a shape that should result in chunk sizes within the allowed range
+    in_shape = (500, 800)  # Example shape for input data
+    expected_chunk_size = (200, 200)  # Expected chunk size based on the logic
+    chunk_size = getChunkSize(in_shape)
+
+    # Check that the function returns the correct chunk size
+    assert chunk_size == expected_chunk_size
+
+
+def test_getChunkSize_with_min_chunk_size(mock_mp):
+    # Mock the number of CPU cores
+    mock_mp.cpu_count.return_value = 4
+
+    # Test case where the chunk size is constrained by the min size (e.g., 50)
+    in_shape = (50, 80)
+    expected_chunk_size = (50, 50)  # The chunk size cannot go below the min value of 50
+    chunk_size = getChunkSize(in_shape)
+
+    # Check that the chunk size is the minimum
+    assert chunk_size == expected_chunk_size
+
+
+def test_getChunkSize_with_max_chunk_size(mock_mp):
+    # Mock the number of CPU cores
+    mock_mp.cpu_count.return_value = 4
+
+    # Test case where the chunk size is constrained by the max size (e.g., 1000)
+    in_shape = (4000, 5000)
+    expected_chunk_size = (1000, 1000)  # The chunk size cannot go above the max value of 1000
+    chunk_size = getChunkSize(in_shape)
+
+    # Check that the chunk size is the maximum
+    assert chunk_size == expected_chunk_size
+
+
+def test_getChunkSize_no_multiprocessing(mock_mp):
+    # Simulate the absence of the multiprocessing module
+    with patch("your_module.mp", None):
+        with pytest.raises(ImportError, match="RAiDER.utilFcns: getChunkSize - multiprocessing is not available"):
+            getChunkSize((500, 500))
+
