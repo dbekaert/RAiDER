@@ -7,6 +7,9 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [Unreleased]
+### Added
+* [695](https://github.com/dbekaert/RAiDER/pull/695) - Add `AUTO` option for `raider.py` to avoid failure when there is no `HRRR` weather model available
+
 ### Changed
 * [672](https://github.com/dbekaert/RAiDER/pull/672) - Linted the project with `ruff`.
 * [683](https://github.com/dbekaert/RAiDER/pull/683) - Fixed a naive datetime and added default template to template generation argument
