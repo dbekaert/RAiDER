@@ -594,12 +594,16 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
 
     if (
         args.file is not None and
-        args.weather_model == 'HRRR' and
+        [args.weather_model == 'HRRR' or args.weather_model == 'AUTO'] and
         args.interpolate_time == 'azimuth_time_grid'
     ):
         gunw_id = args.file.name.replace('.nc', '')
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-            raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
+            if args.weather_model == 'AUTO':
+                print('No HRRR weather model available for AOI. Nothing to do!')
+                return
+            else:
+                raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
     if args.file is None:
         if args.bucket is None or args.bucket_prefix is None:
