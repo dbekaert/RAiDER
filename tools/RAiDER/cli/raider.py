@@ -594,7 +594,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
 
     if (
         args.file is not None and
-        [args.weather_model == 'HRRR' or args.weather_model == 'AUTO'] and
+        args.weather_model == 'HRRR' and
         args.interpolate_time == 'azimuth_time_grid'
     ):
         gunw_id = args.file.name.replace('.nc', '')
