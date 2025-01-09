@@ -26,6 +26,7 @@ RC_FILENAMES: Dict[str, Optional[str]] = {
     'GMAO': 'netrc',
     'MERRA2': 'netrc',
     'HRRR': None,
+    'AUTO': None,
 }
 
 APIS = {

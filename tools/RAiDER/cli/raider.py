@@ -540,7 +540,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         '-m',
         '--weather-model',
         default='HRRR',
-        choices=['None'] + ALLOWED_MODELS,
+        choices=['None', 'AUTO'] + ALLOWED_MODELS,
         help='Weather model.'
     )
 
