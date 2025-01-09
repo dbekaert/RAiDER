@@ -31,7 +31,12 @@ dependencies:
  - numpy<2  # https://github.com/dbekaert/RAiDER/issues/691
  - pandas
  - progressbar
+ # PYDAP: When python 3.8 and 3.9 support is dropped, we should depend on pydap-server>=3.5.1 due to upstream
+ #        changes to the conda packaging: https://github.com/conda-forge/pydap-feedstock/pull/24
+ #        Until then, we need to depend on pydap and beautifulsoup4
  - pydap>3.2.2
+ - beautifulsoup4
+ # END PYDAP
  - pyproj>=2.2.0
  - pyyaml
  - rasterio>=1.3.0
