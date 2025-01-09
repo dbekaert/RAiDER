@@ -13,7 +13,7 @@ jobs:
 
       - run:
           name: Install MiniForge
-          shell: /bin/bash -l
+          shell: /bin/bash -xl
           command: |
             apt update --yes && apt-get upgrade --yes
             apt install -y --no-install-recommends wget ca-certificates git
