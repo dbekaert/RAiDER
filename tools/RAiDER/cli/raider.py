@@ -685,6 +685,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
     # return a list with the path to cube for each date
 
     cube_filenames = calcDelays([str(path_cfg)])
+
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
 
     # calculate the interferometric phase and write it out
