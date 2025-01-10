@@ -37,11 +37,11 @@ _BUFFER_SIZE = 0.2  # default buffer size in lat/lon degrees
 
 def parse_weather_model(weather_model_name: str, aoi: AOI) -> WeatherModel:
     weather_model_name = weather_model_name.upper().replace('-', '')
-    if weather_model_name == 'AUTO':
-        weather_model_name = 'HRRR'
     try:
         _, Model = get_wm_by_name(weather_model_name)
     except ModuleNotFoundError:
+        if weather_model_name == 'AUTO':
+            _, Model = get_wm_by_name('HRRR')
         raise NotImplementedError(
             f'Model {weather_model_name} is not yet fully implemented, please contribute!'
         )

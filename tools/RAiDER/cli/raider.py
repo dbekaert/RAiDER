@@ -619,7 +619,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
             raise ValueError(
                 'GUNW product file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
-        if args.weather_model == 'HRRR' and args.interpolate_time == 'azimuth_time_grid':
+        if (args.weather_model == 'HRRR' or args.weather_model == 'AUTO') and args.interpolate_time == 'azimuth_time_grid':
             gunw_id = args.file.name.replace('.nc', '')
             if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
                 print(
@@ -663,10 +663,14 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
 
     # write delay cube (nc) to disk using config
     # return a list with the path to cube for each date
-    cube_filenames = calcDelays([str(path_cfg)])
+    try:
+        cube_filenames = calcDelays([str(path_cfg)])
+    except:
+        if args.weather_model == 'AUTO':
+            print('WARNING: error acquiring HRRR model. Nothing to do!')
+            return
 
     assert len(cube_filenames) == 2, 'Incorrect number of delay files written.'
-
     # calculate the interferometric phase and write it out
     ds = RAiDER.aria.calcGUNW.tropo_gunw_slc(
         cube_filenames,
