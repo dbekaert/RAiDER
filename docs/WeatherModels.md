@@ -100,3 +100,5 @@ Reference: __[The Modern-Era Retrospective Analysis for Research and Application
     **Note**: this step has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER
    
     **Note**: PyDAP v3.2.1 is required for now (thus specified in the above pip install command) because the latest v3.2.2 (as of now) has a known [bug](https://colab.research.google.com/drive/1f_ss1Oa3VzgAOd_p8sgekdnLVE5NW6s5) in accessing and slicing the GMAO data. This bug is expected to be fixed in newer versions of PyDAP.
+
+# TODO : ADD IN DOCUMENTATION FOR THE AUTO SELECT
