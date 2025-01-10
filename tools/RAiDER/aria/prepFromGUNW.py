@@ -28,7 +28,7 @@ from RAiDER.utilFcns import write_yaml
 
 
 # cube spacing in degrees for each model
-DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
+DCT_POSTING = {'AUTO': 0.05, 'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
 
 
 def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dt.datetime:
@@ -124,6 +124,9 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
 
     ref_ts = get_acq_time_from_slc_id(ref_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
     sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
+
+    if weather_model_name == 'AUTO':
+        weather_model_name = 'HRRR'
 
     if weather_model_name == 'HRRR':
         group = '/science/grids/data/'
