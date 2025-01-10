@@ -513,6 +513,7 @@ def determine_weather_model(gunw_file):
     """
     for model in ALLOWED_MODELS:
         try:
+            print(model)
             weather_model = RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_file, model)
             return weather_model
         except:
@@ -613,7 +614,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
 
     if args.weather_model == 'AUTO':
         args.weather_model = determine_weather_model(args.file)
-        print('Selected weather model {args.weather_model} for scene gunw')
+        print(f'Selected weather model {args.weather_model} for scene')
 
     if (
         args.file is not None and
