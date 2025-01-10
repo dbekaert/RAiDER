@@ -511,15 +511,13 @@ def determine_weather_model(gunw_file):
     Returns:
         weather_model : appropriate weather model for the GUNW file
     """
-    for model in ALLOWED_MODELS:
-        try:
-            print(model)
-            weather_model = RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_file, model)
-            return weather_model
-        except:
-            continue
-
-    if not weather_model:
+    model = 'HRRR'
+    try:
+        print(model)
+        weather_model = RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_file, model)
+        return weather_model
+    except:
+        print(f'{model} not available for AOI.')
         return 'None'
 
 
@@ -604,6 +602,10 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
     if args.input_bucket_prefix is None:
         args.input_bucket_prefix = args.bucket_prefix
 
+    if args.weather_model == 'AUTO':
+        args.weather_model = determine_weather_model(args.file)
+        print(f'Selected weather model {args.weather_model} for scene')
+
     if args.weather_model == 'None':
         # NOTE: HyP3's current step function implementation does not have a good way of conditionally
         #       running processing steps. This allows HyP3 to always run this step but exit immediately
@@ -611,10 +613,6 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         #       any appreciable cost increase to GUNW product generation.
         print('Nothing to do!')
         return
-
-    if args.weather_model == 'AUTO':
-        args.weather_model = determine_weather_model(args.file)
-        print(f'Selected weather model {args.weather_model} for scene')
 
     if (
         args.file is not None and
