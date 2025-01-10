@@ -28,7 +28,7 @@ from RAiDER.utilFcns import write_yaml
 
 
 # cube spacing in degrees for each model
-DCT_POSTING = {'AUTO': 0.05, 'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
+DCT_POSTING = {'HRRR': 0.05, 'HRES': 0.10, 'GMAO': 0.10, 'ERA5': 0.10, 'ERA5T': 0.10, 'MERRA2': 0.1}
 
 
 def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dt.datetime:
