@@ -40,8 +40,6 @@ def parse_weather_model(weather_model_name: str, aoi: AOI) -> WeatherModel:
     try:
         _, Model = get_wm_by_name(weather_model_name)
     except ModuleNotFoundError:
-        if weather_model_name == 'AUTO':
-            _, Model = get_wm_by_name('HRRR')
         raise NotImplementedError(
             f'Model {weather_model_name} is not yet fully implemented, please contribute!'
         )
