@@ -503,6 +503,25 @@ def downloadGNSS() -> None:
     dlGNSS(args)
 
 
+def determine_weather_model(gunw_file):
+    """
+    Args:
+        gunw_file: absolute path to a gunw file
+
+    Returns:
+        weather_model : appropriate weather model for the GUNW file
+    """
+    for model in ALLOWED_MODELS:
+        try:
+            weather_model = RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_file, model)
+            return weather_model
+        except:
+            continue
+
+    if not weather_model:
+        return 'None'
+
+
 # ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
     p = argparse.ArgumentParser(
@@ -593,8 +612,8 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         return
 
     if args.weather_model == 'AUTO':
-        args.weather_model = determine_weather_model(gunw_id)
-        print('Selected weather model args.weather_model for scene gunw')
+        args.weather_model = determine_weather_model(args.file)
+        print('Selected weather model {args.weather_model} for scene gunw')
 
     if (
         args.file is not None and
