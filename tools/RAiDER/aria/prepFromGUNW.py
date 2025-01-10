@@ -125,9 +125,6 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
     ref_ts = get_acq_time_from_slc_id(ref_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
     sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 
-    if weather_model_name == 'AUTO':
-        weather_model_name = 'HRRR'
-
     if weather_model_name == 'HRRR':
         group = '/science/grids/data/'
         with xr.open_dataset(gunw_path, group=f'{group}') as ds:
