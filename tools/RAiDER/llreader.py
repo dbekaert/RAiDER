@@ -42,6 +42,10 @@ class AOI:
         self._proj = CRS.from_epsg(4326)
         self._geotransform = None
         self._cube_spacing_m = cube_spacing_in_m
+    
+
+    def __repr__(self):
+        return f'AOI: {self.__class__.__name__}({self._bounding_box}, {self._type})'
 
     def type(self):
         return self._type

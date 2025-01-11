@@ -15,11 +15,12 @@ from test import TEST_DIR, WM_DIR, pushd
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_6")
 
 
+@pytest.mark.skip(reason="The lats/lons in scenario_6 are all offshore and there is no DEM")
 @pytest.mark.parametrize("wm", "ERA5".split())
 def test_cube_intersect(tmp_path, wm):
-    with pushd(tmp_path):
+    # with pushd(tmp_path):
         """ Test the intersection of lat/lon files with the DEM (model height levels?) """
-        outdir = os.path.join(tmp_path, "output")
+        outdir = os.path.join('.', "output")
         ## make the lat lon grid
         # S, N, W, E = 33.5, 34, -118.0, -117.5
         date = 20200130
@@ -57,6 +58,7 @@ def test_cube_intersect(tmp_path, wm):
         latf = os.path.join(SCENARIO_DIR, "lat.rdr")
         lonf = os.path.join(SCENARIO_DIR, "lon.rdr")
 
+        breakpoint()
         hyd = rasterio.open(path_delays).read(1)
         lats = rasterio.open(latf).read(1)
         lons = rasterio.open(lonf).read(1)

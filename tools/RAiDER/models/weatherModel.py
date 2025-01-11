@@ -479,19 +479,21 @@ class WeatherModel(ABC):
            True if weather model contains bounding box of OutLats and outLons
            and False otherwise.
         """
+        # Parse the input
         ymin_input, ymax_input, xmin_input, xmax_input = ll_bounds
+        world_box = box(-180, -90, 180, 90)
+
+        # Parse the weather model bounding box
         input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
         xmin, ymin, xmax, ymax = self.bbox
         weather_model_box = box(xmin, ymin, xmax, ymax)
-        world_box = box(-180, -90, 180, 90)
-
+        
         # Logger
         input_box_str = [f'{x:1.2f}' for x in [xmin_input, ymin_input, xmax_input, ymax_input]]
-        weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
-
-        weath_box_str = ', '.join(weath_box_str)
         input_box_str = ', '.join(input_box_str)
-
+        weath_box_str = [f'{x:1.2f}' for x in [xmin, ymin, xmax, ymax]]
+        weath_box_str = ', '.join(weath_box_str)
+        
         logger.info(f'Extent of the weather model is (xmin, ymin, xmax, ymax):' f'{weath_box_str}')
         logger.info(f'Extent of the input is (xmin, ymin, xmax, ymax): ' f'{input_box_str}')
 
@@ -512,8 +514,6 @@ class WeatherModel(ABC):
             # Handle the case where the whole world is requested
             self.bbox = (-180, -90, 180, 90)
             return True 
-        else:
-                return weather_model_box.contains(input_box)
         else:
             if weather_model_box.contains(input_box):
                 return True

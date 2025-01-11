@@ -951,6 +951,27 @@ def test_interpolateDEM():
     assert np.allclose(out, gold)
     dem_file.unlink()
 
+def test_interpolateDEM_2():
+    s = 10
+    x = np.arange(s)
+    dem = np.outer(x, x)
+    metadata = {'driver': 'GTiff', 'dtype': 'float32',
+                'width': s, 'height': s, 'count': 1}
+
+    dem_file = Path('./dem_tmp.tif')
+
+    with rio.open(dem_file, 'w', **metadata) as ds:
+        ds.write(dem, 1)
+        ds.update_tags(AREA_OR_POINT='Point')
+
+    ## random points to interpolate to
+    lons =  np.array([[4.5, 9.5], [4.5, 9.5]])
+    lats = np.array([[2.5, 9.5], [2.5, 9.5]]).T
+    out  = interpolateDEM(dem_file, (lats, lons))
+    gold = np.array([[36, 81], [8, 18]], dtype=float)
+    assert np.allclose(out, gold)
+    dem_file.unlink()
+
 # TODO: implement an interpolator test that is similar to test_scenario_1.
 # Currently the scipy and C++ interpolators differ on that case.
 

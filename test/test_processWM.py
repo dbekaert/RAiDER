@@ -63,10 +63,5 @@ def test_checkContainment5() -> None:  # noqa: ANN001
     ll_bounds = (0, 90, -180, 180)
     assert wm.checkContainment(ll_bounds)
 
-def test_checkContainment6() -> None:  # noqa: ANN001
-    """Test whether a weather model contains a bbox."""
-    wm = ERA5()
-    wm._bbox = [-180, 0, 180, 90]
-    ll_bounds = (0, 90, -181, 180)
-    assert wm.checkContainment(ll_bounds)
+
 

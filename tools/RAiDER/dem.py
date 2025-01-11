@@ -6,7 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 from pathlib import Path
-from typing import List, Optional, Union, bool, cast, float, tuple
+from typing import List, Optional, Union, cast
 
 import numpy as np
 import rasterio

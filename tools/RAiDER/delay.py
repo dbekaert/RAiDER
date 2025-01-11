@@ -101,6 +101,8 @@ def tropo_delay(
     else:
         # CRS can be an int, str, or CRS object
         try:
+            if isinstance(out_proj, str):
+                out_proj = out_proj.split(':')[-1] # handle the case where "EPSG:" is included
             out_proj = CRS.from_epsg(out_proj)
         except pyproj.exceptions.CRSError:
             pass

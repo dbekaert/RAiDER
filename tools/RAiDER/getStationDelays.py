@@ -13,7 +13,7 @@ import os
 import zipfile
 
 from pathlib import Path
-from typing import List, Union, int, list, str, tuple
+from typing import List, Union
 
 import numpy as np
 import pandas as pd

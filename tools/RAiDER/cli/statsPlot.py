@@ -479,6 +479,7 @@ def save_gridfile(
         nodata=noData,
         crs='+proj=latlong',
         transform=transform,
+        driver='GTiff',
     ) as dst:
         dst.update_tags(0, **metadata_dict)
         dst.write(df, 1)

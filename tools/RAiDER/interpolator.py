@@ -5,6 +5,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+from contextlib import contextmanager  
 from pathlib import Path
 from typing import Tuple, Union
 
@@ -135,14 +136,83 @@ def interpolateDEM(dem_path: Union[Path, str], outLL: Tuple[np.ndarray, np.ndarr
     outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
         For now will only use first row/col of 2D
     """
-    import rioxarray as xrr
-    from xarray import Dataset
-
-    data = xrr.open_rasterio(dem_path, band_as_variable=True)
-    assert isinstance(data, Dataset), 'DEM could not be opened as a rioxarray dataset'
-    da_dem = data['band_1']
     lats, lons = outLL
-    lats = lats[:, 0] if lats.ndim == 2 else lats
-    lons = lons[0, :] if lons.ndim == 2 else lons
-    z_out: np.ndarray = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
+    if lats.ndim == 2:
+        z_out = interpolate_elevation(dem_path, lons, lats)
+    else:
+        import rioxarray as xrr
+        from xarray import Dataset
+
+        data = xrr.open_rasterio(dem_path, band_as_variable=True)
+        assert isinstance(data, Dataset), 'DEM could not be opened as a rioxarray dataset'
+        da_dem = data['band_1']
+        z_out: np.ndarray = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
+    
     return z_out
+
+
+def interpolate_elevation(dem_path: Union[Path, str], x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    """
+    Interpolates elevation values from a DEM to scattered points.
+
+    Args:
+    dem_path: Path to the DEM file.
+    points: List of (latitude, longitude) tuples.
+
+    Returns:
+    List of elevation values corresponding to the input points.
+    """
+    import rasterio
+
+    # with rasterio.open(dem_path) as src:
+    breakpoint()
+    with reproject_raster(dem_path, 4326) as src:
+        # Get raster metadata
+        transform = src.transform
+
+        # Convert coordinates to pixel indices
+        row, col = rasterio.transform.rowcol(transform, x.ravel(), y.ravel())
+
+        # Extract elevation values
+        row, col = np.round(row).astype(int), np.round(col).astype(int)
+        valid_indices = (
+            (row >= 0) & (row < src.height) & (col >= 0) & (col < src.width)
+        )
+        elevations = src.read(1)[row[valid_indices], col[valid_indices]]
+        output = np.full(x.shape, np.nan)
+        output[valid_indices.reshape(x.shape)] = elevations
+
+    return output
+
+
+@contextmanager  
+def reproject_raster(in_path, crs):
+    # reproject raster to project crs
+    import rasterio
+    from rasterio.io import MemoryFile
+    from rasterio.warp import calculate_default_transform, reproject, Resampling
+
+    with rasterio.open(in_path) as src:
+        src_crs = src.crs
+        transform, width, height = calculate_default_transform(src_crs, crs, src.width, src.height, *src.bounds)
+        kwargs = src.meta.copy()
+
+        kwargs.update({
+            'crs': crs,
+            'transform': transform,
+            'width': width,
+            'height': height})
+
+        with MemoryFile() as memfile:
+            with memfile.open(**kwargs) as dst:
+                for i in range(1, src.count + 1):
+                    reproject(
+                        source=rasterio.band(src, i),
+                        destination=rasterio.band(dst, i),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform,
+                        dst_crs=crs,
+                        resampling=Resampling.nearest)
+            with memfile.open() as dataset:  # Reopen as DatasetReader
+                yield dataset  # Note yield not return as we're a contextmanager
