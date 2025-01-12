@@ -549,24 +549,38 @@ def WGS84_to_UTM(lon: float, lat: float, common_center: bool=False) -> tuple[np.
     return np.reshape(Z, shp), np.reshape(L, shp), np.reshape(X, shp), np.reshape(Y, shp)
 
 
-def UTM_to_WGS84(z: int, ltr: str, x: float, y: float) -> tuple[np.array]:
+def UTM_to_WGS84(z: np.array, ltr: np.array, x: np.array, y: np.array) -> tuple[np.array]:
     """Converts UTM to WGS84."""
-    shp = x.shape
+    # Ensure inputs are numpy arrays
     z = np.ravel(z)
-    ltr = np.ravel(l)
+    ltr = np.ravel(ltr)
     x = np.ravel(x)
     y = np.ravel(y)
-    lat = x.copy()
-    lon = x.copy()
-    for ind in range(z.__len__()):
+    
+    # Validate that all input arrays have the same length
+    if not (len(z) == len(ltr) == len(x) == len(y)):
+        raise ValueError("All input arrays must have the same length.")
+    
+    # Initialize arrays for lat and lon
+    lat = np.empty_like(x, dtype=float)
+    lon = np.empty_like(x, dtype=float)
+    
+    # Iterate over all coordinates
+    for ind in range(len(z)):
         zz = z[ind]
         ll = ltr[ind]
         xx = x[ind]
         yy = y[ind]
+        
+        # Perform the transformation
         coordinates = unproject(zz, ll, xx, yy)
-        lat[ind] = coordinates[1]
+        
+        # Assign the results to lat and lon
         lon[ind] = coordinates[0]
-    return np.reshape(lon, shp), np.reshape(lat, shp)
+        lat[ind] = coordinates[1]
+    
+    # Reshape and return the results
+    return np.reshape(lon, x.shape), np.reshape(lat, x.shape)
 
 
 def transform_bbox(snwe_in: list, dest_crs: int=4326, src_crs: int=4326, buffer: float=100.0) -> Tuple[np.array]:
@@ -690,38 +704,59 @@ def convertLons(inLons: np.ndarray) -> np.ndarray:
     return outLons
 
 
-def read_NCMR_loginInfo(filepath: str=None) -> Tuple[str]:
+def read_NCMR_loginInfo(filepath: str = None) -> Tuple[str, str, str]:
     """Returns login information."""
     from pathlib import Path
 
     if filepath is None:
         filepath = str(Path.home()) + '/.ncmrlogin'
 
-    f = Path.open(filepath)
-    lines = f.readlines()
-    url = lines[0].strip().split(': ')[1]
-    username = lines[1].strip().split(': ')[1]
-    password = lines[2].strip().split(': ')[1]
+    with Path(filepath).open() as f:
+        lines = f.readlines()
+
+    if len(lines) < 3:
+        raise ValueError("The login file must have at least three lines")
+
+    def parse_line(line, expected_key):  # noqa: ANN001, ANN202
+        parts = line.strip().split(': ')
+        if len(parts) != 2 or parts[0] != expected_key:
+            raise ValueError(f"Improperly formatted login file: Expected '{expected_key}: <value>'")
+        return parts[1]
+
+    url = parse_line(lines[0], "url")
+    username = parse_line(lines[1], "username")
+    password = parse_line(lines[2], "password")
 
     return url, username, password
 
 
-def read_EarthData_loginInfo(filepath: str=None) -> Tuple[str, str]:
+def read_EarthData_loginInfo(filepath: str = None) -> Tuple[str, str]:
     """Returns username and password."""
     from netrc import netrc
 
-    urs_usr, _, urs_pwd = netrc().hosts['urs.earthdata.nasa.gov']
-    return urs_usr, urs_pwd
+    nrc = netrc(filepath) if filepath else netrc()
+    try:
+        urs_usr, _, urs_pwd = nrc.hosts['urs.earthdata.nasa.gov']
+        if not urs_usr or not urs_pwd:
+            raise ValueError("Invalid login information in netrc")
+        return urs_usr, urs_pwd
+    except KeyError:
+        raise KeyError("No entry for urs.earthdata.nasa.gov in netrc")
 
 
 def show_progress(block_num: Union[int, float], block_size: Union[int, float], total_size: Union[int, float]) -> None:
     """Show download progress."""
-    if progressbar is None:
-        raise ImportError('RAiDER.utilFcns: show_progress - progressbar is not available')
-
     global pbar
+    try:
+        pbar
+    except NameError:
+        pbar = None
+    
     if pbar is None:
-        pbar = progressbar.ProgressBar(maxval=total_size)
+        try:
+            pbar = progressbar.ProgressBar(maxval=total_size)
+        except NameError:
+            raise ImportError('RAiDER.utilFcns: show_progress - progressbar is not available')
         pbar.start()
 
     downloaded = block_num * block_size
