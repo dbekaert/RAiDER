@@ -28,7 +28,7 @@ dependencies:
  - lxml
  - matplotlib
  - netcdf4
- - numpy
+ - numpy<2
  - pandas
  - progressbar
  - pydap>3.2.2
