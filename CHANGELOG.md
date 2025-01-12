@@ -8,6 +8,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 [Unreleased]
 ### Changed
+* Added unit tests for utilFncs.py
 * [686](https://github.com/dbekaert/RAiDER/pull/686) - Linted the project with `ruff`.
 * [672](https://github.com/dbekaert/RAiDER/pull/672) - Linted the project with `ruff`.
 * [683](https://github.com/dbekaert/RAiDER/pull/683) - Fixed a naive datetime and added default template to template generation argument
