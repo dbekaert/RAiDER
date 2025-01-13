@@ -512,14 +512,19 @@ def determine_weather_model(gunw_file):
         weather_model : appropriate weather model for the GUNW file
     """
     model = 'HRRR'
-    try:
-        print(model)
-        weather_model = RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_file, model)
-        return weather_model
-    except:
-        print(f'{model} not available for AOI.')
-        return 'None'
-
+    if model == 'HRRR':
+        gunw_id = gunw_file.name.replace('.nc', '')
+        if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+            return model
+        else:
+            print(f'{model} not available for AOI.')
+            return 'None'
+    else:
+        if RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
+            return model
+        else:
+            print(f'{model} not available for AOI.')
+            return 'None'
 
 # ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
@@ -672,6 +677,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
             args.interpolate_time == 'azimuth_time_grid'
     ):
         gunw_id = args.file.name.replace('.nc', '')
+        print(gunw_id)
         if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
             raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
