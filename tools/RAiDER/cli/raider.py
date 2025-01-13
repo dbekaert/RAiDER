@@ -616,36 +616,14 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
             raise ValueError(
                 'GUNW product file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
-
-    if args.weather_model == 'AUTO':
-        args.weather_model = determine_weather_model(args.file)
-        print(f'Selected weather model {args.weather_model} for scene')
-
-    if args.weather_model == 'None':
-        # NOTE: HyP3's current step function implementation does not have a good way of conditionally
-        #       running processing steps. This allows HyP3 to always run this step but exit immediately
-        #       and do nothing if tropospheric correction via RAiDER is not selected. This should not cause
-        #       any appreciable cost increase to GUNW product generation.
-        print('Nothing to do!')
-        return
-
-    # TODO: check if this is needed?
-    if args.file is None and args.weather_model == 'HRRR' and args.interpolate_time == 'azimuth_time_grid':
-        gunw_id = args.file.name.replace('.nc', '')
-        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-            print(
-                'The required HRRR data for time-grid interpolation is not available; returning None and not modifying GUNW dataset'
-            )
-            return
-
-    if (
-        args.file is not None and
-        args.weather_model == 'HRRR' and
-        args.interpolate_time == 'azimuth_time_grid'
-    ):
-        gunw_id = args.file.name.replace('.nc', '')
-        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-            raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
+        if args.file is None and args.weather_model == 'HRRR' and args.interpolate_time == 'azimuth_time_grid':
+            gunw_id = args.file.name.replace('.nc', '')
+            if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+                print(
+                    'The required HRRR data for time-grid interpolation is not available; returning None and not '
+                    'modifying GUNW dataset'
+                )
+                return
 
         # Download file to obtain metadata
         if not RAiDER.aria.prepFromGUNW.check_weather_model_availability(args.file, args.weather_model):
@@ -675,6 +653,27 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
             raise ValueError(
                 'GUNW browse image could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
+
+    if args.weather_model == 'AUTO':
+        args.weather_model = determine_weather_model(args.file)
+        print(f'Selected weather model {args.weather_model} for scene')
+
+    if args.weather_model == 'None':
+        # NOTE: HyP3's current step function implementation does not have a good way of conditionally
+        #       running processing steps. This allows HyP3 to always run this step but exit immediately
+        #       and do nothing if tropospheric correction via RAiDER is not selected. This should not cause
+        #       any appreciable cost increase to GUNW product generation.
+        print('Nothing to do!')
+        return
+
+    if (
+            args.file is not None and
+            args.weather_model == 'HRRR' and
+            args.interpolate_time == 'azimuth_time_grid'
+    ):
+        gunw_id = args.file.name.replace('.nc', '')
+        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+            raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
     args = cast(CalcDelaysArgs, args)
 
