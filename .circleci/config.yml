@@ -40,7 +40,7 @@ jobs:
           shell: /bin/bash -xl
           command: |
             source "${HOME}/conda/etc/profile.d/conda.sh"
-            source "${HOME}/conda/etc/profile.d/mamba.
+            source "${HOME}/conda/etc/profile.d/mamba.sh"
             mamba activate RAiDER
 
             python -m pip install --no-deps .
@@ -66,8 +66,9 @@ jobs:
           name: Run unit tests
           shell: /bin/bash -xl
           command: |
-            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
-            micromamba activate RAiDER
+            source "${HOME}/conda/etc/profile.d/conda.sh"
+            source "${HOME}/conda/etc/profile.d/mamba.sh"
+            mamba activate RAiDER
 
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
             pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
