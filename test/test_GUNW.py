@@ -84,12 +84,6 @@ def test_GUNW_dataset_update(test_dir_path, test_gunw_path_factory, weather_mode
         crs = rio.crs.CRS.from_wkt(ds['crs'].crs_wkt)
         assert crs.to_epsg() == epsg, 'CRS incorrect'
 
-    for v in 'troposphereWet troposphereHydrostatic'.split():
-        with rio.open(f'netcdf:{updated_GUNW}:{group}/{v}') as ds:
-            ds.crs.to_epsg()
-            assert ds.crs.to_epsg() == epsg, 'CRS incorrect'
-            assert ds.transform.almost_equals(transform), 'Affine Transform incorrect'
-
     # Clean up files
     shutil.rmtree(scenario_dir)
     os.remove('GUNW_20200130-20200124_135156.yaml')

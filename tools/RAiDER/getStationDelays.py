@@ -12,6 +12,9 @@ import multiprocessing as mp
 import os
 import zipfile
 
+from pathlib import Path
+from typing import List, Union
+
 import numpy as np
 import pandas as pd
 import requests
@@ -19,7 +22,7 @@ import requests
 from RAiDER.logger import logger
 
 
-def get_delays_UNR(stationFile, filename, dateList, returnTime=None) -> None:
+def get_delays_UNR(stationFile: Path, filename: str, dateList: List, returnTime: str=None) -> None:
     """
     Parses and returns a dictionary containing either (1) all
     the GPS delays, if returnTime is None, or (2) only the delay
@@ -66,7 +69,6 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None) -> None:
     if stationFile.startswith('http'):
         r = requests.get(stationFile)
         ziprepo = zipfile.ZipFile(io.BytesIO(r.content))
-    # if downloaded file
     else:
         ziprepo = zipfile.ZipFile(stationFile)
     # iterate through tarfiles
@@ -75,7 +77,7 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None) -> None:
     final_stationTarlist = []
     for j in stationTarlist:
         # get the date of the file
-        time, yearFromFile, doyFromFile = get_date(os.path.basename(j).split('.'))
+        time, _, doyFromFile = get_date(Path.name(j).split('.'))  # noqa: PTH119
         # check if in list of specified input dates
         if time.strftime('%Y-%m-%d') not in dateList:
             continue
@@ -176,13 +178,13 @@ def get_delays_UNR(stationFile, filename, dateList, returnTime=None) -> None:
             ]
         # setup pandas array and write output to CSV, making sure to update existing CSV.
         filtoutput = pd.DataFrame(filtoutput)
-        if os.path.exists(filename):
+        if Path.exists(filename):
             filtoutput.to_csv(filename, index=False, mode='a', header=False)
         else:
             filtoutput.to_csv(filename, index=False)
 
     # record all used tar files
-    allstationTarfiles.extend([os.path.join(stationFile, k) for k in stationTarlist])
+    allstationTarfiles.extend([Path(stationFile) / k for k in stationTarlist])
     allstationTarfiles.sort()
     del ziprepo
 
@@ -192,9 +194,9 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
     if outDir is None:
         outDir = os.getcwd()
 
-    pathbase = os.path.join(outDir, 'GPS_delays')
-    if not os.path.exists(pathbase):
-        os.mkdir(pathbase)
+    pathbase = Path(outDir) / 'GPS_delays'
+    if not Path.exists(pathbase):
+        Path.mkdir(pathbase)
 
     returnTime = seconds_of_day(returnTime)
     # print warning if not divisible by 3 seconds
@@ -219,8 +221,8 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
         # parse delays from UNR
         if gps_repo == 'UNR':
             for sf in stationFiles:
-                StationID = os.path.basename(sf).split('.')[0]
-                name = os.path.join(pathbase, StationID + '_ztd.csv')
+                StationID = Path.name(sf).split('.')[0]
+                name = Path(pathbase) / StationID + '_ztd.csv'
                 args.append((sf, name, dateList, returnTime))
                 outputfiles.append(name)
             # Parallelize remote querying of zenith delays
@@ -228,11 +230,11 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
                 multipool.starmap(get_delays_UNR, args)
 
     # confirm file exists (i.e. valid delays exists for specified time/region).
-    outputfiles = [i for i in outputfiles if os.path.exists(i)]
+    outputfiles = [i for i in outputfiles if Path.exists(i)]
     # Consolidate all CSV files into one object
     if len(outputfiles) == 0:
-        raise Exception('No valid delays found for specified time/region.')
-    name = os.path.join(outDir, f'{gps_repo}combinedGPS_ztd.csv')
+        raise RuntimeError('No valid delays found for specified time/region.')
+    name = Path(outDir) / f'{gps_repo}combinedGPS_ztd.csv'
     statsFile = pd.concat([pd.read_csv(i) for i in outputfiles])
     # drop all duplicate lines
     statsFile.drop_duplicates(inplace=True)
@@ -255,7 +257,7 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
     del origstatsFile, statsFile
 
 
-def get_date(stationFile):
+def get_date(stationFile: Union[str, Path]) -> tuple[dt.datetime, int, int]:
     """Extract the date from a station delay file."""
     # find the date info
     year = int(stationFile[1])
@@ -264,7 +266,7 @@ def get_date(stationFile):
     return date, year, doy
 
 
-def seconds_of_day(returnTime):
+def seconds_of_day(returnTime: Union[dt.datetime, str]) -> int:
     """Convert HH:MM:SS format time-tag to seconds of day."""
     if isinstance(returnTime, dt.time):
         h, m, s = returnTime.hour, returnTime.minute, returnTime.second

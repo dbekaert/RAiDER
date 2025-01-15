@@ -146,11 +146,12 @@ def rio_extents(profile: RIO.Profile) -> BB.SNWE:
 
 
 def rio_open(
-    path: Path,
+    path: Union[Path, str],
     userNDV: Optional[float]=None,
     band: Optional[int]=None
 ) -> tuple[np.ndarray, RIO.Profile]:
     """Reads a rasterio-compatible raster file and returns the data and profile."""
+    path = Path(path)
     vrt_path = path.with_suffix(path.suffix + '.vrt')
     if vrt_path.exists():
         path = vrt_path

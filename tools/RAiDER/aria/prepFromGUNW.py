@@ -15,6 +15,7 @@ import pandas as pd
 import rasterio
 import shapely.wkt
 import xarray as xr
+import rioxarray as rio
 from shapely.geometry import box
 
 from RAiDER.logger import logger
@@ -126,9 +127,8 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
 
     if weather_model_name == 'HRRR':
         group = '/science/grids/data/'
-        variable = 'coherence'
-        with rasterio.open(f'netcdf:{gunw_path}:{group}/{variable}') as ds:
-            gunw_poly = box(*ds.bounds)
+        with xr.open_dataset(gunw_path, group=f'{group}') as ds:
+            gunw_poly = box(*ds.rio.bounds())
         if HRRR_CONUS_COVERAGE_POLYGON.intersects(gunw_poly):
             pass
         elif AK_GEO.intersects(gunw_poly):
