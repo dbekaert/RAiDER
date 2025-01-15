@@ -165,7 +165,6 @@ def interpolate_elevation(dem_path: Union[Path, str], x: np.ndarray, y: np.ndarr
     import rasterio
 
     # with rasterio.open(dem_path) as src:
-    breakpoint()
     with reproject_raster(dem_path, 4326) as src:
         # Get raster metadata
         transform = src.transform
