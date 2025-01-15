@@ -58,7 +58,6 @@ def test_cube_intersect(tmp_path, wm):
         latf = os.path.join(SCENARIO_DIR, "lat.rdr")
         lonf = os.path.join(SCENARIO_DIR, "lon.rdr")
 
-        breakpoint()
         hyd = rasterio.open(path_delays).read(1)
         lats = rasterio.open(latf).read(1)
         lons = rasterio.open(lonf).read(1)
