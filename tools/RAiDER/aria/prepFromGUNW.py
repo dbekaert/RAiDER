@@ -174,7 +174,7 @@ class GUNW:
         self.wm = wm
         self.out_dir = Path(out_dir)
 
-        self.SNWE = self.get_bbox()
+        self.SNWE = get_bbox(path_gunw)
         self.heights = np.arange(-500, 9500, 500).tolist()
         # self.heights   = [-500, 0]
         self.dates, self.mid_time = self.get_datetimes()
@@ -188,9 +188,10 @@ class GUNW:
         # self.lat_file, self.lon_file = self.makeLatLonGrid_native()
         # self.path_cube  = self.make_cube() # not needed
 
-    def get_bbox(self) -> BB.SNWE:
+    @staticmethod
+    def get_bbox(path_gunw) -> BB.SNWE:
         """Get the bounding box (SNWE) from an ARIA GUNW product."""
-        with xr.open_dataset(self.path_gunw) as ds:
+        with xr.open_dataset(path_gunw) as ds:
             poly_str = ds['productBoundingBox'].data[0].decode('utf-8')
         poly = shapely.wkt.loads(poly_str)
         W, S, E, N = poly.bounds
