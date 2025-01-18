@@ -221,7 +221,7 @@ class WeatherModel(ABC):
     def get_wmLoc(self) -> Path:
         """Get the path to the direct with the weather model files."""
         if self._wmLoc is None:
-            wmLoc = Path.join(Path.getcwd(), 'weather_files')
+            wmLoc = os.path.join(Path.getcwd(), 'weather_files')
         else:
             wmLoc = self._wmLoc
         return wmLoc
@@ -631,7 +631,7 @@ class WeatherModel(ABC):
             self._time,
             self._ll_bounds,
         )
-        return Path.join(outLoc, f)
+        return os.path.join(outLoc, f)
 
     def filename(self, time: dt.datetime=None, outLoc: str='weather_files') -> str:
         """Create a filename to store the weather model."""
