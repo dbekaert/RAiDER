@@ -42,7 +42,7 @@ from test import TEST_DIR, pushd
 
 _R_EARTH = 6378138
 
-SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_1")
+SCENARIO_DIR = Path(TEST_DIR / "scenario_1")
 SCENARIO0_DIR = TEST_DIR / "scenario_0"
 
 
@@ -123,7 +123,7 @@ def make_points_3d_data():
 
     make_points_args = (100., sp, slv, 5)
 
-    df = np.loadtxt(os.path.join(TEST_DIR, "test_result_makePoints3D.txt"))
+    df = np.loadtxt(Path(TEST_DIR) / "test_result_makePoints3D.txt")
 
     return df.reshape((3, 3, 3, 3, 20)), make_points_args
 
