@@ -30,7 +30,7 @@ from RAiDER.cli.types import (
     RuntimeGroup,
     TimeGroup,
 )
-from RAiDER.cli.validators import DateListAction, date_type
+from RAiDER.cli.validators import DateListAction, date_type, get_wm_by_name
 from RAiDER.gnss.types import RAiDERCombineArgs
 from RAiDER.logger import logger, logging
 from RAiDER.losreader import Raytracing
@@ -41,12 +41,11 @@ from RAiDER.s1_azimuth_timing import (
     get_s1_azimuth_time_grid,
     get_times_for_azimuth_interpolation,
 )
+from RAiDER.models.weatherModel import WeatherModel
 from RAiDER.types import TimeInterpolationMethod
 from RAiDER.utilFcns import get_dt
 
-
 TIME_INTERPOLATION_METHODS = ['none', 'center_time', 'azimuth_time_grid']
-
 
 HELP_MESSAGE = """
 Command line options for RAiDER processing. Default options can be found by running
@@ -155,7 +154,7 @@ def drop_nans(d: dict[str, Any]) -> dict[str, Any]:
     return d
 
 
-def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
+def calcDelays(iargs: Optional[Sequence[str]] = None) -> list[Path]:
     """Parse command line arguments using argparse."""
     import RAiDER
     import RAiDER.processWM
@@ -164,8 +163,8 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     from RAiDER.utilFcns import get_nearest_wmtimes, writeDelays
 
     examples = 'Examples of use:' \
-        '\n\t raider.py run_config_file.yaml' \
-        '\n\t raider.py --generate_config template'
+               '\n\t raider.py run_config_file.yaml' \
+               '\n\t raider.py --generate_config template'
 
     p = argparse.ArgumentParser(
         description=HELP_MESSAGE,
@@ -388,7 +387,8 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
                 out_path = out_path.with_suffix('.csv')
 
             if aoi.type() in ('station_file', 'radar_rasters', 'geocoded_file'):
-                writeDelays(aoi, wet_delay, hydro_delay, out_path, hydro_path, outformat=run_config.runtime_group.raster_format)
+                writeDelays(aoi, wet_delay, hydro_delay, out_path, hydro_path,
+                            outformat=run_config.runtime_group.raster_format)
 
         wet_paths.append(out_path)
 
@@ -512,19 +512,31 @@ def determine_weather_model(gunw_file):
         weather_model : appropriate weather model for the GUNW file
     """
     model = 'HRRR'
-    if model == 'HRRR':
-        gunw_id = gunw_file.name.replace('.nc', '')
-        if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+    gunw_id = gunw_file.name.replace('.nc', '')
+    GUNWObj = RAiDER.aria.prepFromGUNW.GUNW(gunw_file, model, os.getcwd())
+    weather_model_name = model.upper().replace('-', '')
+    try:
+        _, Model = get_wm_by_name(weather_model_name)
+    except ModuleNotFoundError:
+        raise NotImplementedError(
+            f'Model {weather_model_name} is not yet fully implemented, please contribute!'
+        )
+
+    # Check that the user-requested bounding box is within the weather model domain
+    model: WeatherModel = Model()
+    model.checkValidBounds(aoi.bounds())
+
+    if parse_weather_model(GUNWObj):
+        if model == 'HRRR':
+            if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+                return model
+        elif RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
             return model
-        else:
-            print(f'{model} not available for AOI.')
-            return 'None'
     else:
-        if RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
-            return model
-        else:
-            print(f'{model} not available for AOI.')
-            return 'None'
+        print(f'{model} not available for AOI.')
+        return 'None'
+
+
 
 # ------------------------------------------------------------ prepFromGUNW.py
 def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
@@ -542,14 +554,14 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         '--bucket-prefix',
         default='',
         help='S3 bucket prefix which may contain an ARIA GUNW NetCDF file to calculate delays for and which the final '
-        'ARIA GUNW NetCDF file will be upload to. Will be ignored if the --file argument is provided.',
+             'ARIA GUNW NetCDF file will be upload to. Will be ignored if the --file argument is provided.',
     )
 
     p.add_argument(
         '--input-bucket-prefix',
         help='S3 bucket prefix that contains an ARIA GUNW NetCDF file to calculate delays for. '
-        'If not provided, will look in --bucket-prefix for an ARIA GUNW NetCDF file. '
-        'Will be ignored if the --file argument is provided.',
+             'If not provided, will look in --bucket-prefix for an ARIA GUNW NetCDF file. '
+             'Will be ignored if the --file argument is provided.',
     )
 
     p.add_argument(
@@ -737,11 +749,11 @@ def combineZTDFiles() -> None:
 
 
 def getWeatherFile(
-    wfiles: list[Path],
-    times: list,
-    time: dt.datetime,
-    model: str,
-    interp_method: TimeInterpolationMethod='none'
+        wfiles: list[Path],
+        times: list,
+        time: dt.datetime,
+        model: str,
+        interp_method: TimeInterpolationMethod = 'none'
 ) -> Optional[Path]:
     """Time interpolation.
 
@@ -802,7 +814,8 @@ def getWeatherFile(
     return weather_model_file
 
 
-def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, interp_method: TimeInterpolationMethod='center_time') -> Path:
+def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str,
+                          interp_method: TimeInterpolationMethod = 'center_time') -> Path:
     """Interpolate downloaded weather files and save to a single file."""
     STYLE = {'center_time': '_timeInterp_', 'azimuth_time_grid': '_timeInterpAziGrid_'}
 
@@ -835,11 +848,11 @@ def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, int
 
     # Give the weighted combination a new file name
     weather_model_file = wfiles[0].parent / (
-        wfiles[0].name.split('_')[0]
-        + '_'
-        + time.strftime('%Y_%m_%dT%H_%M_%S')
-        + STYLE[interp_method]
-        + '_'.join(wfiles[0].name.split('_')[-4:])
+            wfiles[0].name.split('_')[0]
+            + '_'
+            + time.strftime('%Y_%m_%dT%H_%M_%S')
+            + STYLE[interp_method]
+            + '_'.join(wfiles[0].name.split('_')[-4:])
     )
 
     # write the combined results to disk

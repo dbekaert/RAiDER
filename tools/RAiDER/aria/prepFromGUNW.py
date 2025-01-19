@@ -174,7 +174,7 @@ class GUNW:
         self.wm = wm
         self.out_dir = Path(out_dir)
 
-        self.SNWE = get_bbox(path_gunw)
+        self.SNWE = self.get_bbox(path_gunw)
         self.heights = np.arange(-500, 9500, 500).tolist()
         # self.heights   = [-500, 0]
         self.dates, self.mid_time = self.get_datetimes()
