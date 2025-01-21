@@ -77,7 +77,7 @@ def get_delays_UNR(stationFile: Path, filename: str, dateList: List, returnTime:
     final_stationTarlist = []
     for j in stationTarlist:
         # get the date of the file
-        time, _, doyFromFile = get_date(Path.name(j).split('.'))  # noqa: PTH119
+        time, _, doyFromFile = get_date(os.path.basename(j).split('.'))
         # check if in list of specified input dates
         if time.strftime('%Y-%m-%d') not in dateList:
             continue
@@ -221,8 +221,8 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
         # parse delays from UNR
         if gps_repo == 'UNR':
             for sf in stationFiles:
-                StationID = Path.name(sf).split('.')[0]
-                name = Path(pathbase) / StationID + '_ztd.csv'
+                StationID = os.path.basename(sf).split('.')[0]
+                name = Path(pathbase) / f"{StationID}_ztd.csv"
                 args.append((sf, name, dateList, returnTime))
                 outputfiles.append(name)
             # Parallelize remote querying of zenith delays
