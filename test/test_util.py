@@ -377,7 +377,7 @@ def test_WGS84_to_UTM():
 @pytest.mark.skipif(True, reason='Need to ensure this file always get written before this executes')
 def test_read_weather_model_file():
     # TODO: read_wm_file is undefined
-    weather_model_obj = read_wm_file(
+    weather_model_obj = read_wm_file(  # noqa: F821
         os.path.join(
             SCENARIO_DIR,
             'weather_files',

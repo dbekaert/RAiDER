@@ -20,7 +20,7 @@ from test import ORB_DIR, WM_DIR, pushd
 
 
 def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_synth"):
-    """Update weather model file by the equation to test, write it to disk
+    """Update weather model file by the equation to test, write it to disk.
 
     wm_eq_type is one of: [hydro, wet_linear, wet_nonlinear]
     Hydro Refractivity = k1 * (Pressure/Temp), set Pressure = Temp
@@ -73,8 +73,8 @@ def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_syn
 
 
 def length_of_ray(target_xyz: list, model_zs, los, max_height):
-    """Build rays at xy locations
-
+    """Build rays at xy locations."""
+    """
     Target xyz is a list of lists (xpts, ypts, hgt_levels)
     Model_zs are all the model levels over which ray is calculated
     los in los object (has the orbit info)
@@ -99,7 +99,7 @@ def length_of_ray(target_xyz: list, model_zs, los, max_height):
 
 @dataclass
 class StudyArea(object):
-    """Object with shared parameters related to the study area
+    """Object with shared parameters related to the study area.
 
     region the short name corresponding to a specific bounding box.
     Choose from:
@@ -141,7 +141,7 @@ class StudyArea(object):
         self.wm_dir_synth = op.join(self.wd, "weather_files_synth")
 
     def setup_region(self):
-        """Setup the bounding box and choose orbit file based on region name
+        """Setup the bounding box and choose orbit file based on region name.
 
         Possible regions are:
             LA (Los Angeles, California; midlatitude)
@@ -193,7 +193,7 @@ class StudyArea(object):
 @pytest.mark.skip()
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_dl_real(tmp_path, region, mod="ERA5"):
-    """Download the real weather model to overwrite
+    """Download the real weather model to overwrite.
 
     This 'golden dataset' shouldnt be changed
     """
@@ -216,7 +216,7 @@ def test_dl_real(tmp_path, region, mod="ERA5"):
 
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
-    """Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp)
+    """Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp).
 
     The hydrostatic delay reduces to an integral along the ray path when P=T.
     However the constants k1 and scaling of 10^-6 will remain present leading
@@ -282,9 +282,8 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
     """Test linear part of wet equation.
-
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
-    E = relative humidty; T = temperature
+    E = relative humidty; T = temperature.
 
     The wet delay reduces to an integral along the ray path when E=T and k3 = 0
     However the constants k2 and scaling of 10^-6 will remain present, leading
@@ -297,9 +296,8 @@ def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
     Check they are both large enough for meaningful numerical comparison (>1)
     Compute residual and normalize by theoretical ray length (calculated here)
     Ensure that normalized residual is not significantly different from 0
-        significantly different = 7 decimal places
+    significantly different = 7 decimal places
     """
-
     with pushd(tmp_path):
         # create temp directory for file that is created
         dir_to_del = "tmp_dir"
@@ -359,8 +357,8 @@ def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
 
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_nonlinear(tmp_path, region, mod="ERA-5"):
-    """Test the nonlinear part of the wet equation.
-
+    """Test the nonlinear part of the wet equation."""
+    """
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
     E = relative humidty; T = temperature
 
