@@ -33,7 +33,7 @@ def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_syn
     ), "Set  wm_eq_type to hydro, wet_linear, or wet_nonlinear"
     # initialize dummy wm to calculate constant delays
     # any model will do as 1) all constants same 2) all equations same
-    model = op.basename(wm_file).split('_')[0].upper().replace("-", "")
+    model = os.path.basename(wm_file).split('_')[0].upper().replace("-", "")
     Obj = get_wm_by_name(model)[1]()
     ds = xr.open_dataset(wm_file)
     t = ds["t"]
@@ -231,52 +231,52 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
     Ensure that normalized residual is not significantly different from 0
         significantly different = 6 decimal places
     """
-    with pushd(tmp_path):
-        ## setup the config files
-        SAobj = StudyArea(region, mod, tmp_path)
-        dct_cfg = SAobj.make_config_dict()
-        dct_cfg["runtime_group"]["weather_model_directory"] = SAobj.wm_dir_synth
-        dct_cfg["download_only"] = False
+    ## setup the config files
+    SAobj = StudyArea(region, mod, WM_DIR)
+    dct_cfg = SAobj.make_config_dict()
+    dct_cfg["runtime_group"]["weather_model_directory"] = SAobj.wm_dir_synth
+    dct_cfg["download_only"] = False
 
-        ## update the weather model; t = p for hydrostatic
-        update_model(SAobj.path_wm_real, "hydro", SAobj.wm_dir_synth)
+    ## update the weather model; t = p for hydrostatic
+    update_model(SAobj.path_wm_real, "hydro", SAobj.wm_dir_synth)
 
-        ## run raider with the synthetic model
-        cfg = write_yaml(dct_cfg, 'temp.yaml')
-        calcDelays([str(cfg)])
+    ## run raider with the synthetic model
+    cfg = write_yaml(dct_cfg, 'temp.yaml')
+    calcDelays([str(cfg)])
 
-        # get the just created synthetic delays
-        wm_name = SAobj.wmName.replace("-", "")  # incase of ERA-5
-        ds = xr.open_dataset(
-            f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc'
-        )
-        da = ds["hydro"]
-        ds.close()
-        del ds
+    # get the just created synthetic delays
+    wm_name = SAobj.wmName.replace("-", "")  # incase of ERA-5
+    out_name = f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc'
+    ds = xr.open_dataset(out_name)
+    da = ds["hydro"]
+    ds.close()
+    del ds
+    out_name.unlink()
+    'temp.yaml'.unlink()
 
-        # now build the rays at the unbuffered wm nodes
-        max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
-        targ_xyz = [da.x.data, da.y.data, da.z.data]
-        ray_length = length_of_ray(
-            targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height
-        )
+    # now build the rays at the unbuffered wm nodes
+    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+    targ_xyz = [da.x.data, da.y.data, da.z.data]
+    ray_length = length_of_ray(
+        targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height
+    )
 
-        # scale by constant (units K/Pa) to match raider (m K / Pa)
-        ray_data = ray_length * SAobj.wmObj._k1
+    # scale by constant (units K/Pa) to match raider (m K / Pa)
+    ray_data = ray_length * SAobj.wmObj._k1
 
-        # actual raider data
-        # undo scaling of ppm;  units are  meters * K/Pa
-        raid_data = da.data * 1e6
+    # actual raider data
+    # undo scaling of ppm;  units are  meters * K/Pa
+    raid_data = da.data * 1e6
 
-        assert np.all(np.abs(ray_data) > 1)
-        assert np.all(np.abs(raid_data) > 1)
+    assert np.all(np.abs(ray_data) > 1)
+    assert np.all(np.abs(raid_data) > 1)
 
-        # normalize with the theoretical data and compare difference with 0
-        resid = (ray_data - raid_data) / ray_data
-        np.testing.assert_almost_equal(0, resid, decimal=6)
+    # normalize with the theoretical data and compare difference with 0
+    resid = (ray_data - raid_data) / ray_data
+    np.testing.assert_almost_equal(0, resid, decimal=6)
 
-        da.close()
-        del da
+    da.close()
+    del da
 
 
 @pytest.mark.parametrize("region", "AK LA Fort".split())

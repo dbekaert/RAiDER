@@ -334,6 +334,8 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
         # Get the weather model file
         weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
+        if weather_model_file is None:
+            continue
 
         # Now process the delays
         try:
