@@ -230,6 +230,7 @@ class WeatherModel(ABC):
         """Set the path to the directory with the weather model files."""
         self._wmLoc = weather_model_directory
 
+
     def load(self, *args: tuple, _zlevels: Union[np.ndarray, list]=None, **kwargs: dict) -> None:
         """
         Calls the load_weather method. Each model class should define a load_weather
@@ -240,7 +241,7 @@ class WeatherModel(ABC):
         path_wm_raw = make_raw_weather_data_filename(outLoc, self.Model(), self.getTime())
         self._out_name = self.out_file(outLoc)
 
-        if Path.exists(self._out_name):
+        if Path.exists(Path(self._out_name)):
             return self._out_name
         else:
             # Load the weather just for the query points
@@ -430,7 +431,7 @@ class WeatherModel(ABC):
         """
         if self._bbox is None:
             path_weather_model = self.out_file(self.get_wmLoc())
-            if not Path.exists(path_weather_model):
+            if not Path.exists(Path(path_weather_model)):
                 raise ValueError('Need to save cropped weather model as netcdf')
 
             with xr.load_dataset(path_weather_model) as ds:

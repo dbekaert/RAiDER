@@ -16,7 +16,7 @@ from RAiDER.llreader import BoundingBox
 from RAiDER.losreader import Raytracing, build_ray
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.utilFcns import lla2ecef, write_yaml
-from test import ORB_DIR, WM_DIR, pushd
+from test import ORB_DIR, TEST_DIR, WM_DIR, pushd
 
 
 def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_synth"):
@@ -232,7 +232,7 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
         significantly different = 6 decimal places
     """
     ## setup the config files
-    SAobj = StudyArea(region, mod, WM_DIR)
+    SAobj = StudyArea(region, mod, TEST_DIR)
     dct_cfg = SAobj.make_config_dict()
     dct_cfg["runtime_group"]["weather_model_directory"] = SAobj.wm_dir_synth
     dct_cfg["download_only"] = False
@@ -251,8 +251,6 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
     da = ds["hydro"]
     ds.close()
     del ds
-    out_name.unlink()
-    'temp.yaml'.unlink()
 
     # now build the rays at the unbuffered wm nodes
     max_tropo_height = SAobj.wmObj._zlevels[-1] - 1

@@ -101,7 +101,7 @@ def test_gnss_intersect(tmp_path, wm):
         ## run raider and intersect
         calcDelays([str(cfg)])
 
-        gold = {"ERA5": 2.34514, "GMAO": np.nan, "HRRR": np.nan}
+        gold = {"ERA5": 2.34514, "GMAO": 2.34514, "HRRR": np.nan} # gmao is fake
         df = pd.read_csv(
             os.path.join(outdir, f'{wm}_Delay_{date}T{time.replace(":", "")}_ztd.csv')
         )
