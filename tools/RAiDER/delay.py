@@ -5,7 +5,7 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-"""RAiDER tropospheric delay calculation
+"""RAiDER tropospheric delay calculation.
 
 This module provides the main RAiDER functionality for calculating
 tropospheric wet and hydrostatic delays from a weather model. Weather

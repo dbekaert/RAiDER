@@ -19,6 +19,7 @@ from RAiDER.utilFcns import requests_retry_session
 
 # base URL for UNR repository
 _UNR_URL = 'http://geodesy.unr.edu/'
+NEW_STATION_FILENAME = 'gnssStationList_overbbox'
 
 
 def get_station_list(
@@ -43,9 +44,7 @@ def get_station_list(
         stations: list of strings        - station IDs to access
         output_file: string or dataframe - file to write delays
     """
-    if bbox is not None:
-        station_data = get_stats_by_llh(llhBox=bbox)
-    else:
+    if stationFile is not None:
         try:
             station_data = pd.read_csv(stationFile)
         except:
@@ -56,11 +55,13 @@ def get_station_list(
                         names = line.strip().split()
                     else:
                         stations.append([line.strip().split()])
-            station_data = pd.DataFrame(stations, columns=names)
+            station_data = pd.DataFrame(stations, columns=names)         
+    else:
+        station_data = get_stats_by_llh(llhBox=bbox)
 
     # write to file and pass final stations list
     if writeStationFile:
-        output_file = os.path.join(writeLoc or os.getcwd(), 'gnssStationList_overbbox' + name_appendix + '.csv')
+        output_file = os.path.join(writeLoc or os.getcwd(), NEW_STATION_FILENAME + name_appendix + '.csv')
         station_data.to_csv(output_file, index=False)
 
     return list(station_data['ID'].values), [output_file if writeStationFile else station_data][0]
@@ -135,9 +136,9 @@ def download_tropo_delays(
 
     # Write results to file
     if len(results) == 0:
-        raise NoStationDataFoundError(station_list=stats['ID'].to_list(), years=years)
+        raise NoStationDataFoundError(station_list=stats, years=years)
     statDF = pd.DataFrame(results).set_index('ID')
-    statDF.to_csv(os.path.join(writeDir, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'))
+    statDF.to_csv(os.path.join(writeDir, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'))
 
 
 def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
@@ -224,6 +225,8 @@ def main(inps=None) -> None:
         returnTime = inps.returnTime
 
     station_file = inps.station_file
+    if (station_file is not None) and not os.path.isfile(station_file):
+        raise FileNotFoundError(f'File {station_file} does not exist.')
     bounding_box = inps.bounding_box
     gps_repo = inps.gps_repo
     out = inps.out
@@ -254,15 +257,15 @@ def main(inps=None) -> None:
     download_tropo_delays(stats, years, gps_repo=gps_repo, writeDir=out, download=download)
 
     # Combine station data with URL info
-    pathsdf = pd.read_csv(os.path.join(out, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'))
+    pathsdf = pd.read_csv(os.path.join(out, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'))
     pathsdf = pd.merge(left=pathsdf, right=statdf, how='left', left_on='ID', right_on='ID')
-    pathsdf.to_csv(os.path.join(out, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'), index=False)
+    pathsdf.to_csv(os.path.join(out, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'), index=False)
     del statdf, pathsdf
 
     # Extract delays for each station
     dateList = [k.strftime('%Y-%m-%d') for k in dateList]
     get_station_data(
-        os.path.join(out, f'{gps_repo}gnssStationList_overbbox_withpaths.csv'),
+        os.path.join(out, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'),
         dateList,
         gps_repo=gps_repo,
         numCPUs=cpus,
@@ -312,14 +315,16 @@ def get_stats(bbox, long_cross_zero, out, station_file):
             bbox=bbox2, stationFile=station_file, name_appendix='_b', writeStationFile=False
         )
         stats = stats1 + stats2
+        stats = list(set(stats))
         frames = [statdata1, statdata2]
         statdata = pd.concat(frames, ignore_index=True)
+        statdata = statdata.drop_duplicates(subset=['ID'])
     else:
         if bbox[3] < bbox[2]:
             bbox[3] = 360.0
         stats, statdata = get_station_list(bbox=bbox, stationFile=station_file, writeStationFile=False)
 
-    statdata.to_csv(station_file, index=False)
+    statdata.to_csv(NEW_STATION_FILENAME + '.csv', index=False)
     return stats, statdata
 
 

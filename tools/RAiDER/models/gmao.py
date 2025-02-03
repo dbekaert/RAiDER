@@ -68,7 +68,7 @@ class GMAO(WeatherModel):
         lon_min_ind = int((self._ll_bounds[2] - (-180.0)) / self._lon_res)
         lon_max_ind = int((self._ll_bounds[3] - (-180.0)) / self._lon_res)
 
-        T0 = dt.datetime(2017, 12, 1, 0, 0, 0)
+        T0 = dt.datetime(2017, 12, 1, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
         # round time to nearest third hour
         corrected_DT = round_date(acqTime, dt.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:

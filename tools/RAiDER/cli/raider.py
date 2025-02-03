@@ -332,8 +332,14 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         if dl_only:
             continue
 
+        if len(wfiles) == 0:
+            logger.error('No weather model data was successfully processed.')
+            raise NoWeatherModelData()
+        
         # Get the weather model file
         weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
+        if weather_model_file is None:
+            continue
 
         # Now process the delays
         try:

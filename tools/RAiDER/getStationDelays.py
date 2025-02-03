@@ -77,7 +77,7 @@ def get_delays_UNR(stationFile: Path, filename: str, dateList: List, returnTime:
     final_stationTarlist = []
     for j in stationTarlist:
         # get the date of the file
-        time, _, doyFromFile = get_date(Path.name(j).split('.'))  # noqa: PTH119
+        time, _, doyFromFile = get_date(os.path.basename(j).split('.'))
         # check if in list of specified input dates
         if time.strftime('%Y-%m-%d') not in dateList:
             continue
@@ -221,8 +221,8 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
         # parse delays from UNR
         if gps_repo == 'UNR':
             for sf in stationFiles:
-                StationID = Path.name(sf).split('.')[0]
-                name = Path(pathbase) / StationID + '_ztd.csv'
+                StationID = os.path.basename(sf).split('.')[0]
+                name = Path(pathbase) / f"{StationID}_ztd.csv"
                 args.append((sf, name, dateList, returnTime))
                 outputfiles.append(name)
             # Parallelize remote querying of zenith delays
@@ -243,18 +243,25 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
     del statsFile
 
     # Add lat/lon/height info
-    origstatsFile = pd.read_csv(inFile)
-    statsFile = pd.read_csv(name)
-    statsFile = pd.merge(
-        left=statsFile, right=origstatsFile[['ID', 'Lat', 'Lon', 'Hgt_m']], how='left', left_on='ID', right_on='ID'
+    origstats = pd.read_csv(inFile)
+    keys = origstats.columns
+    lat_keys = ['lat', 'latitude', 'Lat', 'Latitude']
+    lon_keys = ['lon', 'longitude', 'Lon', 'Longitude']
+    lat_key = [ik for ik in lat_keys if ik in keys][0]
+    lon_key = [ik for ik in lon_keys if ik in keys][0]
+    origstats.rename(columns={lat_key: 'Lat', lon_key: 'Lon'}, inplace=True)
+
+    stats = pd.read_csv(name)
+    stats = pd.merge(
+        left=stats, right=origstats[['ID', 'Lat', 'Lon', 'Hgt_m']], how='left', left_on='ID', right_on='ID'
     )
     # drop all lines with nans and sort by station ID and year
-    statsFile.dropna(how='any', inplace=True)
+    stats.dropna(how='any', inplace=True)
     # drop all duplicate lines
-    statsFile.drop_duplicates(inplace=True)
-    statsFile.sort_values(['ID', 'Date'])
-    statsFile.to_csv(name, index=False)
-    del origstatsFile, statsFile
+    stats.drop_duplicates(inplace=True)
+    stats.sort_values(['ID', 'Date'])
+    stats.to_csv(name, index=False)
+    del origstats, stats
 
 
 def get_date(stationFile: Union[str, Path]) -> tuple[dt.datetime, int, int]:

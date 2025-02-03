@@ -16,11 +16,11 @@ from RAiDER.llreader import BoundingBox
 from RAiDER.losreader import Raytracing, build_ray
 from RAiDER.models.weatherModel import make_weather_model_filename
 from RAiDER.utilFcns import lla2ecef, write_yaml
-from test import ORB_DIR, WM_DIR, pushd
+from test import ORB_DIR, TEST_DIR, WM_DIR, pushd
 
 
 def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_synth"):
-    """Update weather model file by the equation to test, write it to disk
+    """Update weather model file by the equation to test, write it to disk.
 
     wm_eq_type is one of: [hydro, wet_linear, wet_nonlinear]
     Hydro Refractivity = k1 * (Pressure/Temp), set Pressure = Temp
@@ -33,7 +33,7 @@ def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_syn
     ), "Set  wm_eq_type to hydro, wet_linear, or wet_nonlinear"
     # initialize dummy wm to calculate constant delays
     # any model will do as 1) all constants same 2) all equations same
-    model = op.basename(wm_file).split('_')[0].upper().replace("-", "")
+    model = os.path.basename(wm_file).split('_')[0].upper().replace("-", "")
     Obj = get_wm_by_name(model)[1]()
     ds = xr.open_dataset(wm_file)
     t = ds["t"]
@@ -73,8 +73,8 @@ def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_syn
 
 
 def length_of_ray(target_xyz: list, model_zs, los, max_height):
-    """Build rays at xy locations
-
+    """Build rays at xy locations."""
+    """
     Target xyz is a list of lists (xpts, ypts, hgt_levels)
     Model_zs are all the model levels over which ray is calculated
     los in los object (has the orbit info)
@@ -99,7 +99,7 @@ def length_of_ray(target_xyz: list, model_zs, los, max_height):
 
 @dataclass
 class StudyArea(object):
-    """Object with shared parameters related to the study area
+    """Object with shared parameters related to the study area.
 
     region the short name corresponding to a specific bounding box.
     Choose from:
@@ -141,7 +141,7 @@ class StudyArea(object):
         self.wm_dir_synth = op.join(self.wd, "weather_files_synth")
 
     def setup_region(self):
-        """Setup the bounding box and choose orbit file based on region name
+        """Setup the bounding box and choose orbit file based on region name.
 
         Possible regions are:
             LA (Los Angeles, California; midlatitude)
@@ -193,7 +193,7 @@ class StudyArea(object):
 @pytest.mark.skip()
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_dl_real(tmp_path, region, mod="ERA5"):
-    """Download the real weather model to overwrite
+    """Download the real weather model to overwrite.
 
     This 'golden dataset' shouldnt be changed
     """
@@ -216,7 +216,7 @@ def test_dl_real(tmp_path, region, mod="ERA5"):
 
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
-    """Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp)
+    """Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp).
 
     The hydrostatic delay reduces to an integral along the ray path when P=T.
     However the constants k1 and scaling of 10^-6 will remain present leading
@@ -231,60 +231,57 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
     Ensure that normalized residual is not significantly different from 0
         significantly different = 6 decimal places
     """
-    with pushd(tmp_path):
-        ## setup the config files
-        SAobj = StudyArea(region, mod, tmp_path)
-        dct_cfg = SAobj.make_config_dict()
-        dct_cfg["runtime_group"]["weather_model_directory"] = SAobj.wm_dir_synth
-        dct_cfg["download_only"] = False
+    ## setup the config files
+    SAobj = StudyArea(region, mod, TEST_DIR)
+    dct_cfg = SAobj.make_config_dict()
+    dct_cfg["runtime_group"]["weather_model_directory"] = SAobj.wm_dir_synth
+    dct_cfg["download_only"] = False
 
-        ## update the weather model; t = p for hydrostatic
-        update_model(SAobj.path_wm_real, "hydro", SAobj.wm_dir_synth)
+    ## update the weather model; t = p for hydrostatic
+    update_model(SAobj.path_wm_real, "hydro", SAobj.wm_dir_synth)
 
-        ## run raider with the synthetic model
-        cfg = write_yaml(dct_cfg, 'temp.yaml')
-        calcDelays([str(cfg)])
+    ## run raider with the synthetic model
+    cfg = write_yaml(dct_cfg, 'temp.yaml')
+    calcDelays([str(cfg)])
 
-        # get the just created synthetic delays
-        wm_name = SAobj.wmName.replace("-", "")  # incase of ERA-5
-        ds = xr.open_dataset(
-            f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc'
-        )
-        da = ds["hydro"]
-        ds.close()
-        del ds
+    # get the just created synthetic delays
+    wm_name = SAobj.wmName.replace("-", "")  # incase of ERA-5
+    out_name = f'{SAobj.wd}/{wm_name}_tropo_{SAobj.dts.replace("_", "")}_ray.nc'
+    ds = xr.open_dataset(out_name)
+    da = ds["hydro"]
+    ds.close()
+    del ds
 
-        # now build the rays at the unbuffered wm nodes
-        max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
-        targ_xyz = [da.x.data, da.y.data, da.z.data]
-        ray_length = length_of_ray(
-            targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height
-        )
+    # now build the rays at the unbuffered wm nodes
+    max_tropo_height = SAobj.wmObj._zlevels[-1] - 1
+    targ_xyz = [da.x.data, da.y.data, da.z.data]
+    ray_length = length_of_ray(
+        targ_xyz, SAobj.wmObj._zlevels, SAobj.los, max_tropo_height
+    )
 
-        # scale by constant (units K/Pa) to match raider (m K / Pa)
-        ray_data = ray_length * SAobj.wmObj._k1
+    # scale by constant (units K/Pa) to match raider (m K / Pa)
+    ray_data = ray_length * SAobj.wmObj._k1
 
-        # actual raider data
-        # undo scaling of ppm;  units are  meters * K/Pa
-        raid_data = da.data * 1e6
+    # actual raider data
+    # undo scaling of ppm;  units are  meters * K/Pa
+    raid_data = da.data * 1e6
 
-        assert np.all(np.abs(ray_data) > 1)
-        assert np.all(np.abs(raid_data) > 1)
+    assert np.all(np.abs(ray_data) > 1)
+    assert np.all(np.abs(raid_data) > 1)
 
-        # normalize with the theoretical data and compare difference with 0
-        resid = (ray_data - raid_data) / ray_data
-        np.testing.assert_almost_equal(0, resid, decimal=6)
+    # normalize with the theoretical data and compare difference with 0
+    resid = (ray_data - raid_data) / ray_data
+    np.testing.assert_almost_equal(0, resid, decimal=6)
 
-        da.close()
-        del da
+    da.close()
+    del da
 
 
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
     """Test linear part of wet equation.
-
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
-    E = relative humidty; T = temperature
+    E = relative humidty; T = temperature.
 
     The wet delay reduces to an integral along the ray path when E=T and k3 = 0
     However the constants k2 and scaling of 10^-6 will remain present, leading
@@ -297,9 +294,8 @@ def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
     Check they are both large enough for meaningful numerical comparison (>1)
     Compute residual and normalize by theoretical ray length (calculated here)
     Ensure that normalized residual is not significantly different from 0
-        significantly different = 7 decimal places
+    significantly different = 7 decimal places
     """
-
     with pushd(tmp_path):
         # create temp directory for file that is created
         dir_to_del = "tmp_dir"
@@ -359,8 +355,8 @@ def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
 
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_nonlinear(tmp_path, region, mod="ERA-5"):
-    """Test the nonlinear part of the wet equation.
-
+    """Test the nonlinear part of the wet equation."""
+    """
     Wet Refractivity = k2 * (E/T) + k3 * (E/T^2)
     E = relative humidty; T = temperature
 
