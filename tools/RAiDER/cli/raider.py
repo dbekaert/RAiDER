@@ -30,7 +30,7 @@ from RAiDER.cli.types import (
     RuntimeGroup,
     TimeGroup,
 )
-from RAiDER.cli.validators import DateListAction, date_type, get_wm_by_name
+from RAiDER.cli.validators import DateListAction, date_type, get_wm_by_name, parse_weather_model
 from RAiDER.gnss.types import RAiDERCombineArgs
 from RAiDER.logger import logger, logging
 from RAiDER.losreader import Raytracing
@@ -524,18 +524,13 @@ def determine_weather_model(gunw_file):
 
     # Check that the user-requested bounding box is within the weather model domain
     model: WeatherModel = Model()
-    model.checkValidBounds(aoi.bounds())
+    model.checkValidBounds(GUNWObj.get_bbox(gunw_file.name))
 
-    if parse_weather_model(GUNWObj):
-        if model == 'HRRR':
-            if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-                return model
-        elif RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
+    if model == 'HRRR':
+        if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
             return model
-    else:
-        print(f'{model} not available for AOI.')
-        return 'None'
-
+    elif RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
+        return model
 
 
 # ------------------------------------------------------------ prepFromGUNW.py
@@ -672,7 +667,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
             )
 
     if args.weather_model == 'AUTO':
-        args.weather_model = determine_weather_model(args.file)
+        args.weather_model = determine_weather_model(Path(args.file))
         print(f'Selected weather model {args.weather_model} for scene')
 
     if args.weather_model == 'None':
