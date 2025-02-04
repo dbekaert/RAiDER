@@ -524,13 +524,16 @@ def determine_weather_model(gunw_file):
 
     # Check that the user-requested bounding box is within the weather model domain
     model: WeatherModel = Model()
-    model.checkValidBounds(GUNWObj.get_bbox(gunw_file.name))
+    model.checkValidBounds(GUNWObj.get_bbox(gunw_file.absolute()))
 
     if model == 'HRRR':
         if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
             return model
-    elif RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
-        return model
+    if model != "HRRR":
+        if RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
+            return model
+    else:
+        return None
 
 
 # ------------------------------------------------------------ prepFromGUNW.py
