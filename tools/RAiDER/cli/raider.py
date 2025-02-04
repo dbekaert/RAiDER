@@ -513,7 +513,6 @@ def determine_weather_model(gunw_file):
     """
     model = 'HRRR'
     gunw_id = gunw_file.name.replace('.nc', '')
-    GUNWObj = RAiDER.aria.prepFromGUNW.GUNW(gunw_file, model, os.getcwd())
     weather_model_name = model.upper().replace('-', '')
     try:
         _, Model = get_wm_by_name(weather_model_name)
@@ -522,18 +521,19 @@ def determine_weather_model(gunw_file):
             f'Model {weather_model_name} is not yet fully implemented, please contribute!'
         )
 
-    # Check that the user-requested bounding box is within the weather model domain
-    model: WeatherModel = Model()
-    model.checkValidBounds(GUNWObj.get_bbox(gunw_file.absolute()))
+    try:
+        # Check that the user-requested bounding box is within the weather model domain
+        GUNWObj = RAiDER.aria.prepFromGUNW.GUNW(gunw_file, model, os.getcwd())
+        model: WeatherModel = Model()
+        model.checkValidBounds(GUNWObj.get_bbox(gunw_file.absolute()))
 
-    if model == 'HRRR':
-        if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
-            return model
-    if model != "HRRR":
-        if RAiDER.aria.prepFromGUNW.check_weather_model_availability(gunw_id, model):
-            return model
-    else:
-        return None
+        if model == 'HRRR':
+            if RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+                return model
+        else:
+            return 'None'
+    except:
+        return 'None'
 
 
 # ------------------------------------------------------------ prepFromGUNW.py
