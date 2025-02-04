@@ -364,6 +364,12 @@ def test_check_weather_model_availability_over_alaska(test_gunw_path_factory, we
     assert cond
 
 
+def test_check_hrrr_availability_outside_united_states(test_gunw_path_factory):
+    # S1-GUNW-D-R-032-tops-20200220_20200214-214625-00120E_00014N-PP-b785-v3_0_1.nc
+    test_gunw_path = test_gunw_path_factory(location='philippines')
+    assert not check_weather_model_availability(test_gunw_path, 'HRRR')
+
+
 @pytest.mark.parametrize('weather_model_name', ['ERA5', 'GMAO', 'MERRA2', 'HRRR'])
 def test_check_weather_model_availability_2(weather_model_name):
     gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")

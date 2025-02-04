@@ -110,14 +110,13 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
     Returns:
     -------
     bool:
-        True if both reference and secondary acquisitions are within the valid range. We assume that
-        reference_date > secondary_date (i.e. reference scenes are most recent)
+        True if both reference and secondary acquisitions are within the valid temporal and spatial ranges for the given
+        weather model. We assume that reference_date > secondary_date (i.e. reference scenes are most recent)
 
     Raises:
     ------
     ValueError
         - If weather model is not correctly referencing the Class from RAiDER.models
-        - HRRR was requested and it's not in the HRRR CONUS or HRRR AK coverage area
     """
     ref_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='reference')
     sec_slc_ids = get_slc_ids_from_gunw(gunw_path, reference_or_secondary='secondary')
@@ -134,7 +133,7 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
         elif AK_GEO.intersects(gunw_poly):
             weather_model_name = 'HRRRAK'
         else:
-            raise ValueError('HRRR was requested but it is not available in this area')
+            return False
 
     # source: https://stackoverflow.com/a/7668273
     # Allows us to get weather models as strings
