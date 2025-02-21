@@ -166,5 +166,7 @@ class customModelReader(WeatherModel):
         q - humidity (3-D data cube; could be relative humidity or specific humidity)
         p - pressure level (3-D data cube; could be pressure level (preferred) or surface pressure)
         hgt - height (3-D data cube; could be geopotential height or topographic height (preferred)).
+
+        Data cubes need to be in (lons, lats, heights) order, with z ordered from bottom to top
         """
         pass
