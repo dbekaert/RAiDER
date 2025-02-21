@@ -34,14 +34,14 @@ class WRF(WeatherModel):
     def _fetch(self) -> None:
         pass
 
-    def load_weather(self, file1, file2, *args, **kwargs) -> None:
+    def load_weather(self, f, *args, f2=None, **kwargs) -> None:
         """Consistent class method to be implemented across all weather model types."""
         try:
-            lons, lats = self._get_wm_nodes(file1)
-            self._read_netcdf(file2)
+            lons, lats = self._get_wm_nodes(f)
+            self._read_netcdf(f2)
         except KeyError:
-            self._get_wm_nodes(file2)
-            self._read_netcdf(file1)
+            self._get_wm_nodes(f2)
+            self._read_netcdf(f1)
 
         # WRF doesn't give us the coordinates of the points in the native projection,
         # only the coordinates in lat/long. Ray transformed these to the native

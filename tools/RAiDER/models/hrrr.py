@@ -114,7 +114,13 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
     xs = np.arange(W, E + grid_x / 2, grid_x)
     ys = np.arange(S, N + grid_y / 2, grid_y)
 
-    ds_out['x'] = xs
+    try:
+        ds_out['x'] = xs
+    except Exception as e:
+        print(ds_out)
+        print(xs.shape)
+        print(e)
+        raise Exception('Error setting x coordinate')
     ds_out['y'] = ys
     ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
     ds_sub.to_netcdf(out, engine='netcdf4')
