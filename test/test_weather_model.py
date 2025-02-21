@@ -465,8 +465,10 @@ def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK) -> None:
     fname = d / "hrrr_ak.nc"
     wm.set_latlon_bounds([65, 67, -160, -150])
     wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
-
-    wm._fetch(fname)
+    try:
+        wm._fetch(fname)
+    except Exception as e:
+        raise Exception(f"bounds = {wm._ll_bounds}")
     assert True
 
 def test_hrrrak_dl2(tmp_path: Path, wm:hrrrak=HRRRAK) -> None:
@@ -478,7 +480,6 @@ def test_hrrrak_dl2(tmp_path: Path, wm:hrrrak=HRRRAK) -> None:
 
     wm.set_latlon_bounds([50, 52, 179, -179])
     wm.setTime(datetime.datetime(2020, 12, 1, 0, 0, 0))
-
     wm._fetch(fname)
     assert True
 
