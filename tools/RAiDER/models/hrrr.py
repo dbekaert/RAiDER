@@ -120,7 +120,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         print(ds_out)
         print(xs.shape)
         print(e)
-        raise Exception('Error setting x coordinate')
+        raise Exception(f'Error {xs.shape}, {ds_out}, {ys.shape}')
     ds_out['y'] = ys
     ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
     ds_sub.to_netcdf(out, engine='netcdf4')
