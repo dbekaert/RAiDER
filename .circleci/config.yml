@@ -26,6 +26,7 @@ jobs:
 
       - run:
           name: Create RAiDER environment
+          no_output_timeout: 30m
           shell: /bin/bash -xl
           command: |
             source "${HOME}/conda/etc/profile.d/conda.sh"
