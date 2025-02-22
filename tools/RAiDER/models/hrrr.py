@@ -107,6 +107,8 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
     proj = CRS.from_cf(ds_out['proj'].attrs)
     t = Transformer.from_crs(4326, proj, always_xy=True)
     xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
+    WW, EE = ds_out['longitude'].values.min(), ds_out['longitude'].values.max()
+    SS, NN = ds_out['latitude'].values.min(), ds_out['latitude'].values.max()
     W, E, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
 
     grid_x = 3000  # meters
@@ -120,7 +122,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         print(ds_out)
         print(xs.shape)
         print(e)
-        raise Exception(f'\n\nError {W}, {E}, {S}, {N}\n----------------------------------\n\n')
+        raise Exception(f'\n\nError {proj}, {[WW, SS, EE, NN]}\n----------------------------------\n\n')
     ds_out['y'] = ys
     ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
     ds_sub.to_netcdf(out, engine='netcdf4')
