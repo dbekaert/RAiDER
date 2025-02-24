@@ -16,6 +16,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [700](https://github.com/dbekaert/RAiDER/pull/700) - Fixed a few path typos and handle some edge cases
 * [679](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a bug causing test_updateTrue to falsely pass.
 * [685](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a global bbox bug in checkContainment
+* Pinned to `herbie-data<2025.2.1` to address failing HRRR AK tests introduced with the 2025.2.1 release on 2025-02-18.
 
 ## [0.5.3]
 ### Fixed
