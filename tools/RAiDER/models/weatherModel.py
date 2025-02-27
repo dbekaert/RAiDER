@@ -221,7 +221,7 @@ class WeatherModel(ABC):
     def get_wmLoc(self) -> Path:
         """Get the path to the direct with the weather model files."""
         if self._wmLoc is None:
-            wmLoc = os.path.join(Path.getcwd(), 'weather_files')
+            wmLoc = os.path.join(os.getcwd(), 'weather_files')
         else:
             wmLoc = self._wmLoc
         return wmLoc
