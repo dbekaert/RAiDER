@@ -6,7 +6,6 @@ import xarray
 import numpy as np
 from pyproj import CRS
 
-import RAiDER
 from RAiDER.delay import tropo_delay, _get_delays_on_cube
 from RAiDER.llreader import RasterRDR
 from RAiDER.losreader import Zenith

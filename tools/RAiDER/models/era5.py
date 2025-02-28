@@ -1,16 +1,15 @@
-import datetime
-from dateutil.relativedelta import relativedelta
+import datetime as dt
 
+from dateutil.relativedelta import relativedelta
 from pyproj import CRS
 
 from RAiDER.models.ecmwf import ECMWF
-from RAiDER.logger import logger
 
 
 class ERA5(ECMWF):
     # I took this from
     # https://www.ecmwf.int/en/forecasts/documentation-and-support/137-model-levels.
-    def __init__(self):
+    def __init__(self) -> None:
         ECMWF.__init__(self)
 
         self._humidityType = 'q'
@@ -21,11 +20,11 @@ class ERA5(ECMWF):
         self._proj = CRS.from_epsg(4326)
 
         # Tuple of min/max years where data is available.
-        lag_time = 3 # months
-        end_date = datetime.datetime.today() - relativedelta(months=lag_time)
+        lag_time = 3  # months
+        end_date = dt.datetime.today() - relativedelta(months=lag_time)
         self._valid_range = (
-            datetime.datetime(1950, 1, 1).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
-            end_date.replace(tzinfo=datetime.timezone(offset=datetime.timedelta()))
+            dt.datetime(1950, 1, 1).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            end_date.replace(tzinfo=dt.timezone(offset=dt.timedelta())),
         )
 
         # Availability lag time in days
@@ -34,11 +33,8 @@ class ERA5(ECMWF):
         # Default, need to change to ml
         self.setLevelType('ml')
 
-
-    def _fetch(self, out):
-        '''
-        Fetch a weather model from ECMWF
-        '''
+    def _fetch(self, out) -> None:
+        """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         time = self._time
@@ -46,9 +42,8 @@ class ERA5(ECMWF):
         # execute the search at ECMWF
         self._get_from_cds(lat_min, lat_max, lon_min, lon_max, time, out)
 
-
-    def load_weather(self, f=None, *args, **kwargs):
-        '''Load either pressure or model level data'''
+    def load_weather(self, f=None, *args, **kwargs) -> None:
+        """Load either pressure or model level data."""
         f = self.files[0] if f is None else f
         if self._model_level_type == 'pl':
             self._load_pressure_level(f, *args, **kwargs)

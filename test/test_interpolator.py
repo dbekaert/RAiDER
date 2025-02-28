@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import numpy as np
 import rasterio as rio
 import pytest
@@ -930,27 +931,56 @@ def test_interpolate_wrapper2():
 
 
 def test_interpolateDEM():
+    from affine import Affine
+
     s = 10
     x = np.arange(s)
     dem = np.outer(x, x)
-    metadata = {'driver': 'GTiff', 'dtype': 'float32',
-                'width': s, 'height': s, 'count': 1}
+    metadata = {
+        'driver': 'GTiff', 'dtype': 'float32',
+        'width': s, 'height': s, 'count': 1,
+        'transform': Affine.from_gdal(0, 1, 0, 10, 0, -1),
+        'crs': rio.crs.CRS.from_epsg(4326),
+    }
 
-    demFile  = './dem_tmp.tif'
-
-    with rio.open(demFile, 'w', **metadata) as ds:
+    dem_file = Path('./dem_tmp.tif')
+    with rio.open(dem_file, 'w', **metadata) as ds:
         ds.write(dem, 1)
         ds.update_tags(AREA_OR_POINT='Point')
 
     ## random points to interpolate to
-    lons =  np.array([4.5, 9.5])
-    lats = np.array([2.5, 9.5])
-    out  = interpolateDEM(demFile, (lats, lons))
-    gold = np.array([[36, 81], [8, 18]], dtype=float)
+    lons =  np.array([4.5, 8.5])
+    lats = np.array([2.5, 8.5])
+    out  = interpolateDEM(dem_file, (lats, lons))
+    gold = np.array([[4., 8.], [28., 56.]], dtype=float)
     assert np.allclose(out, gold)
-    os.remove(demFile)
+    dem_file.unlink()
+
+
+def test_interpolateDEM_2():
+    from affine import Affine
+    s = 10
+    x = np.arange(s)
+    dem = np.outer(x, x)
+    metadata = {
+        'driver': 'GTiff', 'dtype': 'float32',
+        'width': s, 'height': s, 'count': 1,
+        'transform': Affine.from_gdal(0, 1, 0, 10, 0, -1),
+        'crs': rio.crs.CRS.from_epsg(4326),
+    }
+
+    dem_file = Path('./dem_tmp.tif')
+    with rio.open(dem_file, 'w', **metadata) as ds:
+        ds.write(dem, 1)
+        ds.update_tags(AREA_OR_POINT='Point')
+
+    ## random points to interpolate to
+    lons = np.array([[4.5, 8.5], [4.5, 8.5]])
+    lats = np.array([[8.5, 2.5], [8.5, 2.5]]).T
+    out  = interpolateDEM(dem_file, (lats, lons))
+    gold = np.array([[4., 8.], [28., 56.]], dtype=float)
+    assert np.allclose(out, gold)
+    dem_file.unlink()
 
 # TODO: implement an interpolator test that is similar to test_scenario_1.
 # Currently the scipy and C++ interpolators differ on that case.
-
-

@@ -9,7 +9,7 @@ from test import TEST_DIR, pushd
 
 from RAiDER.delay import main
 from RAiDER.losreader import Zenith
-from RAiDER.cli.validators import modelName2Module
+from RAiDER.cli.validators import get_wm_by_name
 
 SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_2")
 _RTOL = 1e-2
@@ -34,7 +34,7 @@ def test_computeDelay(tmp_path):
     lats = stats['Lat'].values
     lons = stats['Lon'].values
 
-    _, model_obj = modelName2Module('ERA5')
+    _, model_obj = get_wm_by_name('ERA5')
 
     with pushd(tmp_path):
 

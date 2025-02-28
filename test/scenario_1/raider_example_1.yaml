@@ -11,7 +11,3 @@
   height_group:
     height_levels: 0 50 100 500 1000 # Return only these specific height levels
   los_group: # absent other options ZTD is calculated
-  runtime_group:
-    output_directory: test/scenario_1
-  
-  

@@ -12,32 +12,37 @@ jobs:
       - checkout
 
       - run:
-          name: Install micromamba
+          name: Install MiniForge
           shell: /bin/bash -l
           command: |
             apt update --yes && apt-get upgrade --yes
             apt install -y --no-install-recommends wget ca-certificates git
 
             cd ${HOME}
-            curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xvj bin/micromamba
-            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
+            wget -O  Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+            bash Miniforge3.sh -b -p "${HOME}/conda"
+            source "${HOME}/conda/etc/profile.d/conda.sh"
+            source "${HOME}/conda/etc/profile.d/mamba.sh"
 
       - run:
           name: Create RAiDER environment
-          shell: /bin/bash -l
+          no_output_timeout: 30m
+          shell: /bin/bash -xl
           command: |
-            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
+            source "${HOME}/conda/etc/profile.d/conda.sh"
+            source "${HOME}/conda/etc/profile.d/mamba.sh"
           
             PYTHON_VERSION="<< parameters.python-version >>"
             sed -i "/python>=/c\ - python=${PYTHON_VERSION}" environment.yml
-            micromamba create -f environment.yml
+            mamba env create -f environment.yml
 
       - run:
           name: Install raider and check environment
-          shell: /bin/bash -l
+          shell: /bin/bash -xl
           command: |
-            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
-            micromamba activate RAiDER
+            source "${HOME}/conda/etc/profile.d/conda.sh"
+            source "${HOME}/conda/etc/profile.d/mamba.sh"
+            mamba activate RAiDER
 
             python -m pip install --no-deps .
 
@@ -50,31 +55,34 @@ jobs:
 
       - run:
           name: Setup data stores
-          shell: /bin/bash -l
+          shell: /bin/bash -xl
           command: |
-            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
-            micromamba activate RAiDER
+            source "${HOME}/conda/etc/profile.d/conda.sh"
+            source "${HOME}/conda/etc/profile.d/mamba.sh"
+            mamba activate RAiDER
 
             python -c 'from RAiDER.models.credentials import setup_from_env; setup_from_env()'
 
       - run:
           name: Run unit tests
-          shell: /bin/bash -l
+          shell: /bin/bash -xl
           command: |
-            eval "$(${HOME}/bin/micromamba shell hook -s posix)"
-            micromamba activate RAiDER
+            source "${HOME}/conda/etc/profile.d/conda.sh"
+            source "${HOME}/conda/etc/profile.d/mamba.sh"
+            mamba activate RAiDER
 
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
             pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
 
       - run:
           name: Report coverage
-          shell: /bin/bash -l
+          shell: /bin/bash -xl
           command: |
             PYTHON_VERSION="<< parameters.python-version >>"
             if [ "${PYTHON_VERSION}" == "3.12" ]; then
-              eval "$(${HOME}/bin/micromamba shell hook -s posix)"
-              micromamba activate RAiDER
+              source "${HOME}/conda/etc/profile.d/conda.sh"
+              source "${HOME}/conda/etc/profile.d/mamba.sh"
+              mamba activate RAiDER
 
               python -m pip install coveralls
               python .circleci/fix_coverage_paths.py .coverage ${PWD}/tools/RAiDER/

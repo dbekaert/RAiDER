@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import pytest
 
 import numpy as np
@@ -11,13 +12,12 @@ from RAiDER.cli.raider import calcDelays
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
-    StationFile, RasterRDR, BoundingBox, GeocodedFile, Geocube,
-    bounds_from_latlon_rasters, bounds_from_csv
+    StationFile, RasterRDR, BoundingBox, GeocodedFile, bounds_from_latlon_rasters, bounds_from_csv
 )
 
-SCENARIO0_DIR = os.path.join(TEST_DIR, "scenario_0")
-SCENARIO1_DIR = os.path.join(TEST_DIR, "scenario_1", "geom")
-SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
+SCENARIO0_DIR = TEST_DIR / "scenario_0"
+SCENARIO1_DIR = TEST_DIR / "scenario_1/geom"
+SCENARIO2_DIR = TEST_DIR / "scenario_2"
 
 
 @pytest.fixture
@@ -27,12 +27,12 @@ def parser():
 
 @pytest.fixture
 def station_file():
-    return os.path.join(SCENARIO2_DIR, 'stations.csv')
+    return SCENARIO2_DIR / 'stations.csv'
 
 
 @pytest.fixture
 def llfiles():
-    return os.path.join(SCENARIO1_DIR, 'lat.dat'), os.path.join(SCENARIO1_DIR, 'lon.dat')
+    return SCENARIO1_DIR / 'lat.dat', SCENARIO1_DIR / 'lon.dat'
 
 
 def test_latlon_reader_2():
@@ -69,12 +69,12 @@ def test_set_xygrid():
 
 
 def test_latlon_reader():
-    latfile = os.path.join(GEOM_DIR, 'lat.rdr')
-    lonfile = os.path.join(GEOM_DIR, 'lon.rdr')
-    lat_true = rio_open(latfile)
-    lon_true = rio_open(lonfile)
+    latfile = Path(GEOM_DIR) / 'lat.rdr'
+    lonfile = Path(GEOM_DIR) / 'lon.rdr'
+    lat_true, _ = rio_open(latfile)
+    lon_true, _ = rio_open(lonfile)
 
-    query = RasterRDR(lat_file=latfile, lon_file=lonfile)
+    query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile))
     lats, lons = query.readLL()
     assert lats.shape == (45, 226)
     assert lons.shape == (45, 226)
@@ -122,9 +122,9 @@ def test_read_station_file(station_file):
 
 
 def test_bounds_from_latlon_rasters():
-    latfile = os.path.join(GEOM_DIR, 'lat.rdr')
-    lonfile = os.path.join(GEOM_DIR, 'lon.rdr')
-    snwe, _, _ = bounds_from_latlon_rasters(latfile, lonfile)
+    lat_path = Path(GEOM_DIR) / 'lat.rdr'
+    lon_path = Path(GEOM_DIR) / 'lon.rdr'
+    snwe, _, _ = bounds_from_latlon_rasters(str(lat_path), str(lon_path))
 
     bounds_true =[15.7637, 21.4936, -101.6384, -98.2418]
     assert all([np.allclose(b, t, rtol=1e-4) for b, t in zip(snwe, bounds_true)])
@@ -142,10 +142,8 @@ def test_readZ_sf(station_file):
 
 
 def test_GeocodedFile():
-    aoi = GeocodedFile(os.path.join(SCENARIO0_DIR, 'small_dem.tif'), is_dem=True)
+    aoi = GeocodedFile(SCENARIO0_DIR / 'small_dem.tif', is_dem=True)
     z = aoi.readZ()
     x,y = aoi.readLL()
     assert z.shape == (569,558)
     assert x.shape == z.shape
-    assert True
-
