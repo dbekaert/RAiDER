@@ -258,7 +258,7 @@ def create_parser() -> argparse.ArgumentParser:
             delay files.
             """),
         required=True,
-        type=lambda s: file_choices(p, ('csv',), s),
+        type=lambda s: file_choices(p, ('csv','.csv'), s),
     )
     p.add_argument(
         '--raiderDir',
@@ -292,7 +292,7 @@ def create_parser() -> argparse.ArgumentParser:
             Optional .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
             """),
         default=None,
-        type=lambda s: file_choices(p, ('csv',), s),
+        type=lambda s: file_choices(p, ('csv','.csv'), s),
     )
 
     p.add_argument(
