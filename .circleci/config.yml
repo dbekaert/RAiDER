@@ -85,9 +85,13 @@ jobs:
               mamba activate RAiDER
 
               python -m pip install coveralls
+              pwd
+              ls -l tools/RAiDER/
               python .circleci/fix_coverage_paths.py .coverage ${PWD}/tools/RAiDER/
-              coverage report -mi
-              coveralls
+              coverage report -mi --show-missing --data-file=.coverage
+              ls -l .coverage # Add this line
+              cat .coverage # Add this line (to see its contents)
+              coveralls --verbose
             fi
 
 workflows:
