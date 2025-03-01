@@ -691,6 +691,14 @@ def combineZTDFiles() -> None:
 
     p = create_parser()
     args: RAiDERCombineArgs = p.parse_args(namespace=RAiDERCombineArgs())
+    if args.verbose:
+        print(f"RAiDER file: {args.raider_file}")
+        print(f"GNSS folder: {args.gnss_folder}")
+        print(f"GNSS file: {args.gnss_file}")
+        print(f"Column name: {args.column_name}")
+        print(f"Raider column name: {args.raider_column_name}")
+        print(f"Output name: {args.out_name}")
+        print(f"Local time: {args.local_time}")
 
     if not args.raider_file.exists():
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
