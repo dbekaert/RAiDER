@@ -9,6 +9,8 @@ from typing import Optional
 import pandas as pd
 from tqdm import tqdm
 
+from RAiDER.cli.parser import add_verbose
+
 
 pd.options.mode.chained_assignment = None  # default='warn'
 
@@ -258,7 +260,7 @@ def create_parser() -> argparse.ArgumentParser:
             delay files.
             """),
         required=True,
-        type=lambda s: file_choices(p, ('csv',), s),
+        type=lambda s: file_choices(p, ('csv','.csv'), s),
     )
     p.add_argument(
         '--raiderDir',
@@ -292,7 +294,7 @@ def create_parser() -> argparse.ArgumentParser:
             Optional .csv file containing GPS Zenith Delays. Should contain columns "ID", "ZTD", and "Datetime"
             """),
         default=None,
-        type=lambda s: file_choices(p, ('csv',), s),
+        type=lambda s: file_choices(p, ('csv','.csv'), s),
     )
 
     p.add_argument(
@@ -338,6 +340,7 @@ def create_parser() -> argparse.ArgumentParser:
             """),
         default=None,
     )
+    add_verbose(p)
 
     return p
 
@@ -356,9 +359,27 @@ def main(
     # drop extra columns
     expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay', 'hydroDelay', raider_delay]
     dfr = dfr.drop(columns=[col for col in dfr if col not in expected_data_columns])
+
+    # Round raider datetime to the nearest 5 min to match GNSS data
+    dfr['Datetime'] = dfr['Datetime'].apply(
+        lambda x: x - dt.timedelta(minutes=x.minute % 5, seconds=x.second, microseconds=x.microsecond)
+    )
+
     dfz = pd.read_csv(ztd_file, parse_dates=['Date'])
+
+    # Handle datetime conversion for the GNSS files that use time in seconds
     if 'Datetime' not in dfz.keys():
-        dfz.rename(columns={'Date': 'Datetime'}, inplace=True)
+        if "Date" in dfz.keys():
+            date = dfz['Date'].apply(lambda x: x.strftime('%Y-%m-%d'))
+            if 'times' in dfz.keys():
+                tm = dfz['times'].apply(lambda x: dt.timedelta(seconds=x))
+                dfz['Datetime'] = pd.to_datetime(date) + tm
+            else:
+                dfz['Datetime'] = pd.to_datetime(date)
+        else:
+            raise ValueError(
+                f'Datetime key not found in {ztd_file};\n please ensure that "Datetime" or "Date" plus "times" is included'
+            )
     # drop extra columns
     expected_data_columns = [
         'ID',
@@ -393,8 +414,8 @@ def main(
     dfr.drop_duplicates(inplace=True)
     dfz.drop_duplicates(inplace=True)
 
+    # merge the two dataframes
     print('Beginning merge')
-
     dfc = dfr.merge(
         dfz[common_keys + ['ZTD', 'sigZTD']], how='left', left_on=common_keys, right_on=common_keys, sort=True
     )

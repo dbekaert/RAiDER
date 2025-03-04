@@ -72,7 +72,7 @@ jobs:
             mamba activate RAiDER
 
             COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
+            coverage run -m pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
 
       - run:
           name: Report coverage
@@ -86,8 +86,8 @@ jobs:
 
               python -m pip install coveralls
               python .circleci/fix_coverage_paths.py .coverage ${PWD}/tools/RAiDER/
-              coverage report -mi
-              coveralls
+              coverage report -mi --show-missing --data-file=.coverage
+              coveralls --verbose
             fi
 
 workflows:
