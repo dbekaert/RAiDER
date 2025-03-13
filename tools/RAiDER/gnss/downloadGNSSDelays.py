@@ -153,7 +153,6 @@ def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
         raise NotImplementedError(f'Data repository {baseURL} has not yet been implemented')
 
     URL = '{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip'.format(baseURL, statID.upper(), year)
-    print(URL)
     logger.debug('Currently checking station %s in %s', statID, year)
     if download:
         saveLoc = os.path.abspath(os.path.join(writeDir, f'{statID.upper()}.{year}.trop.zip'))
