@@ -8,9 +8,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [0.5.5]
 ### Changed
-- `RAiDER.s1_orbits` now uses the `s1_orbits` package to retrieve orbit files from AWS, rather than using `hyp3lib`
+* `RAiDER.s1_orbits` now uses the `s1_orbits` package to retrieve orbit files from AWS, rather than using `hyp3lib`
   to retrieve orbit files from ASF and CDSE.
-- RAiDER no longer requires a `dataspace.copernicus.eu` .netrc entry or the `ESA_USERNAME`/`ESA_PASSWORD` environment variables.
+* RAiDER no longer requires a `dataspace.copernicus.eu` .netrc entry or the `ESA_USERNAME`/`ESA_PASSWORD` environment variables.
 
 ### Fixed
 * [715](https://github.com/dbekaert/RAiDER/pull/715) - Fixed the coverage test Github action and a timing issue with raiderCombine
