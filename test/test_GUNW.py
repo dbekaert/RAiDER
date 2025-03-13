@@ -260,16 +260,6 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # https://github.com/dbekaert/RAiDER/blob/
     # f77af9ce2d3875b00730603305c0e92d6c83adc2/tools/RAiDER/aria/prepFromGUNW.py#L151-L200
 
-    # For prepGUNW
-    side_effect = [
-        # center-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-        # azimuth-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-    ]
-    mocker.patch('eof.download.download_eofs',
-                 side_effect=side_effect)
-
     # These outputs are not needed since the orbits are specified above
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                  side_effect=[
@@ -281,11 +271,11 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
                              ])
 
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
         side_effect=[
             # For azimuth time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-            [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+            [str(orbit_dict_for_azimuth_time_test['reference'])],
+            [str(orbit_dict_for_azimuth_time_test['secondary']), str(orbit_dict_for_azimuth_time_test['secondary'])],
         ]
     )
 
@@ -312,12 +302,9 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # Calls 4 times for azimuth time and 4 times for center time
     assert RAiDER.processWM.prepareWeatherModel.call_count == 8
     # Only calls once each ref and sec list of slcs
-    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib.call_count == 2
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 2
     # Only calls for azimuth timing: once for ref and sec
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
-    ## When we return to sentineleof
-    # Once for center-time and azimuth-time each
-    # assert eof.download.download_eofs.call_count == 2
 
     for ifg_type in ['reference', 'secondary']:
         for var in ['troposphereHydrostatic', 'troposphereWet']:
@@ -441,16 +428,6 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
     out_path = shutil.copy(gunw_azimuth_test, tmp_path / out)
 
     if interp_method == 'azimuth_time_grid':
-        # For prepGUNW
-        side_effect = [
-             # center-time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-             # azimuth-time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-        ]
-        mocker.patch('RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
-                     side_effect=side_effect)
-
         # These outputs are not needed since the orbits are specified above
         mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                      side_effect=[
@@ -462,11 +439,11 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
                                  ])
 
         mocker.patch(
-            'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
+            'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
             side_effect=[
                 # For azimuth time
-                [Path(orbit_dict_for_azimuth_time_test['reference'])],
-                [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+                [str(orbit_dict_for_azimuth_time_test['reference'])],
+                [str(orbit_dict_for_azimuth_time_test['secondary']), str(orbit_dict_for_azimuth_time_test['secondary'])],
             ]
         )
     weather_model_path_dict = (weather_model_dict_for_center_time_test
@@ -543,16 +520,6 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
     # Maybe better mocks could be done - but this is sufficient or simply a factory for this test given
     # This is reused so many times.
 
-    # For prepGUNW
-    side_effect = [
-        # center-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-        # azimuth-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-    ]
-    mocker.patch('eof.download.download_eofs',
-                    side_effect=side_effect)
-
     # These outputs are not needed since the orbits are specified above
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                 side_effect=[
@@ -564,11 +531,11 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                                 ])
 
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
         side_effect=[
             # For azimuth time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-            [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+            [str(orbit_dict_for_azimuth_time_test['reference'])],
+            [str(orbit_dict_for_azimuth_time_test['secondary']), str(orbit_dict_for_azimuth_time_test['secondary'])],
         ]
     )
 

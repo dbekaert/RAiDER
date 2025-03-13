@@ -22,7 +22,7 @@ from RAiDER.logger import logger
 from RAiDER.models import credentials
 from RAiDER.models.hrrr import AK_GEO, HRRR_CONUS_COVERAGE_POLYGON, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
-from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
+from RAiDER.s1_orbits import get_orbits_from_slc_ids
 from RAiDER.types import BB, LookDir
 from RAiDER.utilFcns import write_yaml
 
@@ -276,7 +276,7 @@ class GUNW:
         # Remove ".zip" from the granule ids included in this field
         slcs_lst = list(map(lambda slc: slc.replace('.zip', ''), slcs_lst))
 
-        path_orb = get_orbits_from_slc_ids_hyp3lib(slcs_lst)
+        path_orb = get_orbits_from_slc_ids(slcs_lst)
 
         return [str(o) for o in path_orb]
 
