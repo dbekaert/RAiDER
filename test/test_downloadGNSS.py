@@ -81,7 +81,7 @@ def test_get_ID_invalid():
 
 
 def test_download_UNR(tmp_path):
-    expected_path = "http://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip"
+    expected_path = "https://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip"
     statID = "MORZ"
     year = 2020
     with pushd(tmp_path):

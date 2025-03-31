@@ -14,7 +14,7 @@ except ImportError:
     isce = None
 
 from RAiDER.losreader import get_orbit as get_isce_orbit
-from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
+from RAiDER.s1_orbits import get_orbits_from_slc_ids
 
 
 def _asf_query(
@@ -205,7 +205,7 @@ def get_s1_azimuth_time_grid(
         az_arr = np.full((m, n, p), np.datetime64('NaT'), dtype='datetime64[ms]')
         return az_arr
 
-    orb_files = get_orbits_from_slc_ids_hyp3lib(slc_ids)
+    orb_files = get_orbits_from_slc_ids(slc_ids)
     orb_files = [str(of) for of in orb_files]
 
     orb = get_isce_orbit(orb_files, datetime, pad=600)

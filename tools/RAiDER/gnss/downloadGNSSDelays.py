@@ -18,7 +18,7 @@ from RAiDER.utilFcns import requests_retry_session
 
 
 # base URL for UNR repository
-_UNR_URL = 'http://geodesy.unr.edu/'
+_UNR_URL = 'https://geodesy.unr.edu/'
 NEW_STATION_FILENAME = 'gnssStationList_overbbox'
 
 

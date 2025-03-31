@@ -21,7 +21,6 @@ dependencies:
  - ecmwf-api-client
  - h5netcdf
  - h5py
- - hyp3lib>=3,<4
  - herbie-data<2025.2.1
  - isce3>=0.15.0
  - jsonschema==3.2.0  # this is for ASF DAAC ingest schema validation
@@ -39,7 +38,7 @@ dependencies:
  - rioxarray
  - s3fs
  - scipy>1.10.0
- - sentineleof>=0.9.5
+ - s1_orbits
  - shapely
  - tqdm
  - xarray
