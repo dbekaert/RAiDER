@@ -8,8 +8,10 @@ import xarray as xr
 from herbie import Herbie
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
+from typing import Optional, Union, List, Tuple
 
 from RAiDER.logger import logger
+from RAiDER.models.customExceptions import NoWeatherModelData
 from RAiDER.models.model_levels import LEVELS_50_HEIGHTS
 from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 from RAiDER.utilFcns import round_date
@@ -87,11 +89,17 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         raise RuntimeError('Herbie did not obtain an HRRR dataset with the expected layers and coordinates')
 
     # subset the full file by AOI
-    x_min, x_max, y_min, y_max = get_bounds_indices(
-        ll_bounds,
-        ds_out.latitude.to_numpy(),
-        ds_out.longitude.to_numpy(),
-    )
+    try:
+        x_min, x_max, y_min, y_max = get_bounds_indices(
+            ll_bounds,
+            ds_out.latitude.to_numpy(),
+            ds_out.longitude.to_numpy(),
+        )
+    except NoWeatherModelData as e:
+        logger.error(e)
+        logger.error('lat/lon bounds: %s', ll_bounds)
+        logger.error('Weather model is {}'.format(model))
+        raise
 
     # bookkeepping
     ds_out = ds_out.rename({'gh': 'z', coord: 'levels'})
@@ -105,7 +113,8 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
 
     # pull the grid information
     proj = CRS.from_cf(ds_out['proj'].attrs)
-    t = Transformer.from_crs(4326, proj, always_xy=True)
+    t = Transformer.from_crs(4326, HRRR_AK_PROJ, always_xy=True)
+    
     xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
     W, E, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
 
@@ -114,6 +123,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
     xs = np.arange(W, E + grid_x / 2, grid_x)
     ys = np.arange(S, N + grid_y / 2, grid_y)
 
+    breakpoint()
     ds_out['x'] = xs
     ds_out['y'] = ys
     ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
@@ -139,7 +149,7 @@ def get_bounds_indices(SNWE, lats, lons):
         W, E = np.mod([W, E], 360)
         m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
         if np.sum(m1) == 0:
-            raise RuntimeError('Area of Interest has no overlap with the HRRR model available extent')
+            raise NoWeatherModelData('Area of Interest has no overlap with the HRRR model available extent')
 
     # Y extent
     shp = lats.shape
@@ -264,7 +274,30 @@ class HRRR(WeatherModel):
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
 
-        download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
+        model = 'hrrr'
+        if not isContained(self._valid_bounds, self._ll_bounds):
+            # If the bounding box is in Alaska, update the model to HRRR-AK
+            self._cast_to_hrrrak()
+            model = 'hrrrak'
+
+        download_hrrr_file(bounds, corrected_DT, out, model, self._model_level_type)
+
+    def _cast_to_hrrrak(self) -> None:
+        """
+        Update the weather model to HRRR-AK if the bounding box is in Alaska.
+        """
+        self.__class__ = HRRRAK
+        self._dataset = 'hrrrak'
+        self._valid_bounds = HRRR_AK_COVERAGE_POLYGON
+        self._proj = HRRR_AK_PROJ
+        self._Name = 'HRRR-AK'
+        self._time_res = TIME_RES['HRRR-AK']
+        self._valid_range = (
+            dt.datetime(2018, 7, 13).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
+        )
+        self.setLevelType('nat')
+        
 
     def load_weather(self, f=None, *args, **kwargs) -> None:
         """
@@ -306,13 +339,18 @@ class HRRR(WeatherModel):
             logger.critical('The HRRR weather model extent does not completely cover your AOI!')
 
         else:
+            logger.info('The HRRR weather model extent does not include your AOI!')
+            logger.info('Checking the HRRR-AK model.')
             Mod = HRRRAK()
             # valid bounds are in 0->360 to account for dateline crossing
             W, E = np.mod([W, E], 360)
             aoi = box(W, S, E, N)
             if Mod._valid_bounds.contains(aoi):
-                pass
+                self._cast_to_hrrrak()
+                logger.info('Casting self to the HRRR-AK weather model.')
             elif aoi.intersects(Mod._valid_bounds):
+                self._cast_to_hrrrak()
+                logger.info('Casting self to the HRRR-AK weather model.')
                 logger.critical('The HRRR-AK weather model extent does not completely cover your AOI!')
 
             else:
@@ -391,3 +429,4 @@ class HRRRAK(WeatherModel):
         self._lats = _lats
         self._lons = _lons
         self._proj = proj
+
