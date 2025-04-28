@@ -123,7 +123,6 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
     xs = np.arange(W, E + grid_x / 2, grid_x)
     ys = np.arange(S, N + grid_y / 2, grid_y)
 
-    breakpoint()
     ds_out['x'] = xs
     ds_out['y'] = ys
     ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
