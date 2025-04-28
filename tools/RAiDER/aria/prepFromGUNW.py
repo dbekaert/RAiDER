@@ -20,7 +20,7 @@ from shapely.geometry import box
 
 from RAiDER.logger import logger
 from RAiDER.models import credentials
-from RAiDER.models.exceptions import NoWeatherModelData
+from RAiDER.models.customExceptions import NoWeatherModelData
 from RAiDER.models.hrrr import AK_GEO, HRRR_CONUS_COVERAGE_POLYGON, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
 from RAiDER.s1_orbits import get_orbits_from_slc_ids
