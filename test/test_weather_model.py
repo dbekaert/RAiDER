@@ -23,7 +23,9 @@ from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
-from RAiDER.models.customExceptions import DatetimeOutsideRange
+from RAiDER.models.customExceptions import (
+    DatetimeOutsideRange, NoWeatherModelData,
+)
 
 
 _LON0 = 0
@@ -435,7 +437,7 @@ def test_get_bounds_indices_3() -> None:
     l = np.arange(-20, 20)
     l2 = (((np.arange(160, 200) + 180) % 360) - 180)
     lats, lons = np.meshgrid(l, l2)
-    with pytest.raises(RuntimeError):
+    with pytest.raises(NoWeatherModelData):
         get_bounds_indices(snwe, lats, lons)
 
 
