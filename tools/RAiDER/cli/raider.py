@@ -30,6 +30,7 @@ from RAiDER.cli.types import (
     RuntimeGroup,
     TimeGroup,
 )
+from RAiDER.aria.prepFromGUNW import identify_which_hrrr
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.gnss.types import RAiDERCombineArgs
 from RAiDER.logger import logger, logging

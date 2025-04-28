@@ -50,7 +50,7 @@ def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dt.
     return cen_acq_time
 
 
-def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: str, weather_model_name='hrrr') -> bool:
+def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: str, weather_model_name: str='hrrr') -> bool:
     """
     Determine if all the times for azimuth interpolation are available using
     Herbie. Note that not all 1 hour times are available within the said date
