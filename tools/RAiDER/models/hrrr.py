@@ -273,13 +273,7 @@ class HRRR(WeatherModel):
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
 
-        model = 'hrrr'
-        if not isContained(self._valid_bounds, self._ll_bounds):
-            # If the bounding box is in Alaska, update the model to HRRR-AK
-            self._cast_to_hrrrak()
-            model = 'hrrrak'
-
-        download_hrrr_file(bounds, corrected_DT, out, model, self._model_level_type)
+        download_hrrr_file(bounds, corrected_DT, out, 'hrrr', self._model_level_type)
 
     def _cast_to_hrrrak(self) -> None:
         """
