@@ -126,7 +126,10 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
     sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 
     if weather_model_name == 'HRRR':
-        weather_model_name = identify_which_hrrr(gunw_path)
+        try:
+            weather_model_name = identify_which_hrrr(gunw_path)
+        except NoWeatherModelData:
+            return False
 
     # source: https://stackoverflow.com/a/7668273
     # Allows us to get weather models as strings
