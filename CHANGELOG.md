@@ -14,6 +14,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 * [715](https://github.com/dbekaert/RAiDER/pull/715) - Fixed the coverage test Github action and a timing issue with raiderCombine
+* [719](https://github.com/dbekaert/RAiDER/pull/719) - Fixed the automatic switch to HRRR-AK based on bounding box when generic HRRR is specified as the weather model
 
 ## [0.5.4]
 ### Changed
