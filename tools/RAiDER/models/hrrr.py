@@ -27,11 +27,11 @@ HRRR_AK_PROJ = CRS.from_string(
 AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
 
 
-def check_hrrr_dataset_availability(datetime: dt.datetime) -> bool:
+def check_hrrr_dataset_availability(datetime: dt.datetime, model='hrrr') -> bool:
     """Note a file could still be missing within the models valid range."""
     herbie = Herbie(
         datetime,
-        model='hrrr',
+        model=model,
         product='nat',
         fxx=0,
     )
