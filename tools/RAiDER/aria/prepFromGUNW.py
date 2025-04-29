@@ -401,7 +401,7 @@ def identify_which_hrrr(gunw_path: Path) -> str:
             )
     except FileNotFoundError:
         raise NoWeatherModelData(
-            f'''GUNW {gunw_path} does not exist or is not a valid file.
+            f'''GUNW {gunw_path} does not exist or is not a valid HRRR file.
             Please check the file path.
             '''
         )
