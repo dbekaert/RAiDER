@@ -75,8 +75,8 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
     model_step_hours = 1
     ref_times_for_interp = get_times_for_azimuth_interpolation(ref_acq_time, model_step_hours)
     sec_times_for_interp = get_times_for_azimuth_interpolation(sec_acq_time, model_step_hours)
-    ref_dataset_availability = list(map(check_hrrr_dataset_availability, ref_times_for_interp, weather_model_name))
-    sec_dataset_availability = list(map(check_hrrr_dataset_availability, sec_times_for_interp, weather_model_name))
+    ref_dataset_availability = list(map(check_hrrr_dataset_availability, ref_times_for_interp, [weather_model_name]*len(ref_times_for_interp)))
+    sec_dataset_availability = list(map(check_hrrr_dataset_availability, sec_times_for_interp, [weather_model_name]*len(sec_times_for_interp)))
 
     return all(ref_dataset_availability) and all(sec_dataset_availability)
 
@@ -387,15 +387,22 @@ def main(args: CalcDelaysArgs) -> tuple[Path, float]:
 
 def identify_which_hrrr(gunw_path: Path) -> str:
     group = '/science/grids/data/'
-    with xr.open_dataset(gunw_path, group=f'{group}') as ds:
-        gunw_poly = box(*ds.rio.bounds())
-    if HRRR_CONUS_COVERAGE_POLYGON.intersects(gunw_poly):
-        weather_model_name = 'HRRR'
-    elif AK_GEO.intersects(gunw_poly):
-        weather_model_name = 'HRRRAK'
-    else:
+    try:
+        with xr.open_dataset(gunw_path, group=f'{group}') as ds:
+            gunw_poly = box(*ds.rio.bounds())
+        if HRRR_CONUS_COVERAGE_POLYGON.intersects(gunw_poly):
+            weather_model_name = 'HRRR'
+        elif AK_GEO.intersects(gunw_poly):
+            weather_model_name = 'HRRRAK'
+        else:
+            raise NoWeatherModelData(
+                f'GUNW {gunw_path} does not intersect with any HRRR coverage area. '
+                'Please use a different weather model.'
+            )
+    except FileNotFoundError:
         raise NoWeatherModelData(
-            f'GUNW {gunw_path} does not intersect with any HRRR coverage area. '
-            'Please use a different weather model.'
+            f'''GUNW {gunw_path} does not exist or is not a valid file.
+            Please check the file path.
+            '''
         )
     return weather_model_name
