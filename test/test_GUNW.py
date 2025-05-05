@@ -22,7 +22,7 @@ import RAiDER.aria.prepFromGUNW
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
     check_weather_model_availability,_get_acq_time_from_gunw_id,
-    get_slc_ids_from_gunw,get_acq_time_from_slc_id
+    get_slc_ids_from_gunw,get_acq_time_from_slc_id,identify_which_hrrr
 )
 from RAiDER.cli.raider import calcDelaysGUNW
 from RAiDER.models.customExceptions import (
@@ -632,3 +632,25 @@ def test_get_acq_time_invalid_slc_id():
   invalid_slc_id = "test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
   with pytest.raises(ValueError):
     get_acq_time_from_slc_id(invalid_slc_id)
+
+
+def test_identify_which_hrrr_1():
+    """Tests if function identifies the correct HRRR file"""
+    gunw_id = Path("test/gunw_azimuth_test_data/S1-GUNW-A-R-064-tops-20210723_20210711-015000-00119W_00033N-PP-6267-v2_0_6.nc")
+    result = identify_which_hrrr(gunw_id)
+    assert result == "HRRR"
+
+
+def test_identify_which_hrrr_2():
+    """Tests if function identifies the correct HRRR file"""
+    gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
+    result = identify_which_hrrr(gunw_id)
+    assert result == "HRRRAK"
+
+
+def test_identify_which_hrrr_invalid():
+    """Tests if function raises error for an invalid gunw_id format"""
+    invalid_gunw_id = "dummy.nc"
+    with pytest.raises(NoWeatherModelData):
+        identify_which_hrrr(invalid_gunw_id)
+

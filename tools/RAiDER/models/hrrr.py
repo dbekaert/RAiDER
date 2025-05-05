@@ -112,9 +112,15 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         ds_out[var].attrs['grid_mapping'] = 'proj'
 
     # pull the grid information
-    proj = CRS.from_cf(ds_out['proj'].attrs)
-    t = Transformer.from_crs(4326, HRRR_AK_PROJ, always_xy=True)
-    
+    if model=='hrrr':
+        proj = CRS.from_cf(ds_out['proj'].attrs)
+    elif model=='hrrrak':
+        proj = HRRR_AK_PROJ
+    else:
+        raise ValueError('Model not recognized. Please use either hrrr or hrrrak')
+
+    t = Transformer.from_crs(4326, proj, always_xy=True)
+
     xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
     W, E, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
 
