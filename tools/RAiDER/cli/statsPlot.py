@@ -3422,7 +3422,6 @@ def stats_analyses(
 
 def main() -> None:
     inps = cmd_line_parse()
-    print('inps', inps)
 
     stats_analyses(
         inps.fname,
@@ -3468,5 +3467,5 @@ def main() -> None:
         inps.variogramplot,
         inps.binnedvariogram,
         inps.variogram_per_timeslice,
-        inps.variogram_errlimit
+        inps.variogram_errlimit,
     )
