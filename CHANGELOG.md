@@ -14,6 +14,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 * [715](https://github.com/dbekaert/RAiDER/pull/715) - Fixed the coverage test Github action and a timing issue with raiderCombine
+* [720](https://github.com/dbekaert/RAiDER/pull/720) - Bug-fix to properly pass expected `user_title` argument through raiderStats function.
 
 ## [0.5.4]
 ### Changed
