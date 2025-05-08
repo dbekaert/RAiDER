@@ -326,7 +326,7 @@ class HRRR(WeatherModel):
         (i.e., intersects with the model domain at all).
 
         Args:
-        ll_bounds : np.ndarray
+        ll_bounds : np.ndarray SNWE bounding box
         """
         S, N, W, E = ll_bounds
         aoi = box(W, S, E, N)

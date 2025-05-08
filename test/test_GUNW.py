@@ -25,6 +25,7 @@ from RAiDER.aria.prepFromGUNW import (
     get_slc_ids_from_gunw,get_acq_time_from_slc_id,identify_which_hrrr
 )
 from RAiDER.cli.raider import calcDelaysGUNW
+from RAiDER.models.hrrr import HRRR, HRRRAK
 from RAiDER.models.customExceptions import (
      NoWeatherModelData, WrongNumberOfFiles,
 ) 
@@ -646,6 +647,48 @@ def test_identify_which_hrrr_2():
     gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
     result = identify_which_hrrr(gunw_id)
     assert result == "HRRRAK"
+
+
+def test_cast_to_hrrrak_1():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [51.0, 71.0, -175., -130.0]
+    conus_bounds = [34.0,35.0, -91,  -90.0]
+    model = HRRR()
+    model.checkValidBounds(conus_bounds)
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_2():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [51.0, 71.0, -175., -130.0]
+    model = HRRRAK()
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_2b():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [60.0, 65.0, -150., -120.0]
+    model = HRRRAK()
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_3():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    conus_bounds = [34.0,35.0, -91,  -90.0]
+    model = HRRR()
+    model.checkValidBounds(conus_bounds)
+    assert model._Name == "HRRR"
+
+
+def test_cast_to_hrrrak_4():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    europe_bounds = [-1, 1, -1, 1]
+    model = HRRR()
+    with pytest.raises(ValueError):
+        model.checkValidBounds(europe_bounds)
 
 
 def test_identify_which_hrrr_invalid():
