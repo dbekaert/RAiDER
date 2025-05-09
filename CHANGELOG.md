@@ -13,6 +13,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * RAiDER no longer requires a `dataspace.copernicus.eu` .netrc entry or the `ESA_USERNAME`/`ESA_PASSWORD` environment variables.
 
 ### Fixed
+* [721](https://github.com/dbekaert/RAiDER/pull/721) - Fixed bug mixing station_delay_mean and station_delay_median
 * [715](https://github.com/dbekaert/RAiDER/pull/715) - Fixed the coverage test Github action and a timing issue with raiderCombine
 
 ## [0.5.4]
