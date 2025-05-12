@@ -2904,7 +2904,7 @@ def stats_analyses(
     # Plot mean delay per station
     if station_delay_mean:
         logger.info('- Plot mean delay for each station.')
-        unique_points = df_stats.df.groupby(['Lon', 'Lat'])[col_name].median()
+        unique_points = df_stats.df.groupby(['Lon', 'Lat'])[col_name].mean()
         unique_points.dropna(how='any', inplace=True)
         df_stats(
             [
@@ -2920,7 +2920,7 @@ def stats_analyses(
     # Plot median delay per station
     if station_delay_median:
         logger.info('- Plot median delay for each station.')
-        unique_points = df_stats.df.groupby(['Lon', 'Lat'])[col_name].mean()
+        unique_points = df_stats.df.groupby(['Lon', 'Lat'])[col_name].median()
         unique_points.dropna(how='any', inplace=True)
         df_stats(
             [
