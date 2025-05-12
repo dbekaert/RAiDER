@@ -3436,6 +3436,7 @@ def main() -> None:
         inps.seasonalinterval,
         inps.obs_errlimit,
         inps.figdpi,
+        inps.user_title,
         inps.plot_fmt,
         inps.cbounds,
         inps.colorpercentile,
