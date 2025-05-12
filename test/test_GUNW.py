@@ -697,3 +697,8 @@ def test_identify_which_hrrr_invalid():
     with pytest.raises(NoWeatherModelData):
         identify_which_hrrr(invalid_gunw_id)
 
+
+def test_check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation_again():
+    """Tests if function raises error for an invalid gunw_id format"""
+    gunw_id = "S1-GUNW-D-R-044-tops-20240418_20240406-171649-00163W_00069N-PP-af6b-v3_0_1.nc"
+    assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id, 'hrrrak') is True

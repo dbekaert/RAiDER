@@ -72,7 +72,7 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
     ref_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'reference')
     sec_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'secondary')
 
-    model_step_hours = 1
+    model_step_hours = [1 if weather_model_name == 'hrrr' else 3][0]
     ref_times_for_interp = get_times_for_azimuth_interpolation(ref_acq_time, model_step_hours)
     sec_times_for_interp = get_times_for_azimuth_interpolation(sec_acq_time, model_step_hours)
     ref_dataset_availability = list(map(check_hrrr_dataset_availability, ref_times_for_interp, [weather_model_name]*len(ref_times_for_interp)))
