@@ -30,6 +30,7 @@ from RAiDER.cli.types import (
     RuntimeGroup,
     TimeGroup,
 )
+from RAiDER.aria.prepFromGUNW import identify_which_hrrr
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.gnss.types import RAiDERCombineArgs
 from RAiDER.logger import logger, logging
@@ -334,7 +335,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
         if len(wfiles) == 0:
             logger.error('No weather model data was successfully processed.')
-            raise NoWeatherModelData()
+            raise NoWeatherModelData('Weather model processing failed for all times')
         
         # Get the weather model file
         weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
@@ -604,7 +605,8 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         args.interpolate_time == 'azimuth_time_grid'
     ):
         gunw_id = args.file.name.replace('.nc', '')
-        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
+        weather_model_name = identify_which_hrrr(args.file)
+        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id, weather_model_name):
             raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
     if args.file is None:

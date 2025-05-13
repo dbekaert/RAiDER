@@ -22,9 +22,10 @@ import RAiDER.aria.prepFromGUNW
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
     check_weather_model_availability,_get_acq_time_from_gunw_id,
-    get_slc_ids_from_gunw,get_acq_time_from_slc_id
+    get_slc_ids_from_gunw,get_acq_time_from_slc_id,identify_which_hrrr
 )
 from RAiDER.cli.raider import calcDelaysGUNW
+from RAiDER.models.hrrr import HRRR, HRRRAK
 from RAiDER.models.customExceptions import (
      NoWeatherModelData, WrongNumberOfFiles,
 ) 
@@ -632,3 +633,72 @@ def test_get_acq_time_invalid_slc_id():
   invalid_slc_id = "test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
   with pytest.raises(ValueError):
     get_acq_time_from_slc_id(invalid_slc_id)
+
+
+def test_identify_which_hrrr_1():
+    """Tests if function identifies the correct HRRR file"""
+    gunw_id = Path("test/gunw_azimuth_test_data/S1-GUNW-A-R-064-tops-20210723_20210711-015000-00119W_00033N-PP-6267-v2_0_6.nc")
+    result = identify_which_hrrr(gunw_id)
+    assert result == "HRRR"
+
+
+def test_identify_which_hrrr_2():
+    """Tests if function identifies the correct HRRR file"""
+    gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
+    result = identify_which_hrrr(gunw_id)
+    assert result == "HRRRAK"
+
+
+def test_cast_to_hrrrak_1():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [51.0, 71.0, -175., -130.0]
+    conus_bounds = [34.0,35.0, -91,  -90.0]
+    model = HRRR()
+    model.checkValidBounds(conus_bounds)
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_2():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [51.0, 71.0, -175., -130.0]
+    model = HRRRAK()
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_2b():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [60.0, 65.0, -150., -120.0]
+    model = HRRRAK()
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_3():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    conus_bounds = [34.0,35.0, -91,  -90.0]
+    model = HRRR()
+    model.checkValidBounds(conus_bounds)
+    assert model._Name == "HRRR"
+
+
+def test_cast_to_hrrrak_4():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    europe_bounds = [-1, 1, -1, 1]
+    model = HRRR()
+    with pytest.raises(ValueError):
+        model.checkValidBounds(europe_bounds)
+
+
+def test_identify_which_hrrr_invalid():
+    """Tests if function raises error for an invalid gunw_id format"""
+    invalid_gunw_id = "dummy.nc"
+    with pytest.raises(NoWeatherModelData):
+        identify_which_hrrr(invalid_gunw_id)
+
+
+def test_check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation_again():
+    """Tests if function raises error for an invalid gunw_id format"""
+    gunw_id = "S1-GUNW-D-R-044-tops-20240418_20240406-171649-00163W_00069N-PP-af6b-v3_0_1.nc"
+    assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id, 'hrrrak') is True

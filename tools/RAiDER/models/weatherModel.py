@@ -465,7 +465,9 @@ class WeatherModel(ABC):
         """
         S, N, W, E = ll_bounds
         if not box(W, S, E, N).intersects(self._valid_bounds):
-            raise ValueError(f'The requested location is unavailable for {self._Name}')
+            #check the longitude wrapping
+            if not box(360+W, S, 360+E, N).intersects(self._valid_bounds):
+                raise ValueError(f'The requested location is unavailable for {self._Name}')
 
     def checkContainment(self, ll_bounds: Union[List, Tuple,np.ndarray], buffer_deg: float = 1e-5) -> bool:
         """
