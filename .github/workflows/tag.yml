@@ -7,7 +7,7 @@ on:
 
 jobs:
   call-bump-version-workflow:
-    uses: ASFHyP3/actions/.github/workflows/reusable-bump-version.yml@v0.17.1
+    uses: ASFHyP3/actions/.github/workflows/reusable-bump-version.yml@v0.19.0
     with:
       user: dbekaert
       email: bekaertdavid@gmail.com
