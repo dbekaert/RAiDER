@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.5]
+### Changed
+* `RAiDER.s1_orbits` now uses the `s1_orbits` package to retrieve orbit files from AWS, rather than using `hyp3lib`
+  to retrieve orbit files from ASF and CDSE.
+* RAiDER no longer requires a `dataspace.copernicus.eu` .netrc entry or the `ESA_USERNAME`/`ESA_PASSWORD` environment variables.
+
+### Fixed
+* [721](https://github.com/dbekaert/RAiDER/pull/721) - Fixed bug mixing station_delay_mean and station_delay_median
+* [715](https://github.com/dbekaert/RAiDER/pull/715) - Fixed the coverage test Github action and a timing issue with raiderCombine
+* [719](https://github.com/dbekaert/RAiDER/pull/719) - Fixed the automatic switch to HRRR-AK based on bounding box when generic HRRR is specified as the weather model
+* [720](https://github.com/dbekaert/RAiDER/pull/720) - Bug-fix to properly pass expected `user_title` argument through raiderStats function.
+
 ## [0.5.4]
 ### Changed
 * [701](https://github.com/dbekaert/RAiDER/pull/701) - Fixed a few path typos and handle some edge cases, add unit tests, lint project

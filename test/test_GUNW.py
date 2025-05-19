@@ -22,9 +22,10 @@ import RAiDER.aria.prepFromGUNW
 from RAiDER.aria.prepFromGUNW import (
     check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation,
     check_weather_model_availability,_get_acq_time_from_gunw_id,
-    get_slc_ids_from_gunw,get_acq_time_from_slc_id
+    get_slc_ids_from_gunw,get_acq_time_from_slc_id,identify_which_hrrr
 )
 from RAiDER.cli.raider import calcDelaysGUNW
+from RAiDER.models.hrrr import HRRR, HRRRAK
 from RAiDER.models.customExceptions import (
      NoWeatherModelData, WrongNumberOfFiles,
 ) 
@@ -260,16 +261,6 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # https://github.com/dbekaert/RAiDER/blob/
     # f77af9ce2d3875b00730603305c0e92d6c83adc2/tools/RAiDER/aria/prepFromGUNW.py#L151-L200
 
-    # For prepGUNW
-    side_effect = [
-        # center-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-        # azimuth-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-    ]
-    mocker.patch('eof.download.download_eofs',
-                 side_effect=side_effect)
-
     # These outputs are not needed since the orbits are specified above
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                  side_effect=[
@@ -281,11 +272,11 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
                              ])
 
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
         side_effect=[
             # For azimuth time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-            [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+            [str(orbit_dict_for_azimuth_time_test['reference'])],
+            [str(orbit_dict_for_azimuth_time_test['secondary']), str(orbit_dict_for_azimuth_time_test['secondary'])],
         ]
     )
 
@@ -312,12 +303,9 @@ def test_azimuth_timing_interp_against_center_time_interp(weather_model_name: st
     # Calls 4 times for azimuth time and 4 times for center time
     assert RAiDER.processWM.prepareWeatherModel.call_count == 8
     # Only calls once each ref and sec list of slcs
-    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib.call_count == 2
+    assert RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids.call_count == 2
     # Only calls for azimuth timing: once for ref and sec
     assert RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time.call_count == 2
-    ## When we return to sentineleof
-    # Once for center-time and azimuth-time each
-    # assert eof.download.download_eofs.call_count == 2
 
     for ifg_type in ['reference', 'secondary']:
         for var in ['troposphereHydrostatic', 'troposphereWet']:
@@ -441,16 +429,6 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
     out_path = shutil.copy(gunw_azimuth_test, tmp_path / out)
 
     if interp_method == 'azimuth_time_grid':
-        # For prepGUNW
-        side_effect = [
-             # center-time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-             # azimuth-time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-        ]
-        mocker.patch('RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
-                     side_effect=side_effect)
-
         # These outputs are not needed since the orbits are specified above
         mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                      side_effect=[
@@ -462,11 +440,11 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
                                  ])
 
         mocker.patch(
-            'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
+            'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
             side_effect=[
                 # For azimuth time
-                [Path(orbit_dict_for_azimuth_time_test['reference'])],
-                [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+                [str(orbit_dict_for_azimuth_time_test['reference'])],
+                [str(orbit_dict_for_azimuth_time_test['secondary']), str(orbit_dict_for_azimuth_time_test['secondary'])],
             ]
         )
     weather_model_path_dict = (weather_model_dict_for_center_time_test
@@ -543,16 +521,6 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
     # Maybe better mocks could be done - but this is sufficient or simply a factory for this test given
     # This is reused so many times.
 
-    # For prepGUNW
-    side_effect = [
-        # center-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-        # azimuth-time
-        [Path(orbit_dict_for_azimuth_time_test['reference'])],
-    ]
-    mocker.patch('eof.download.download_eofs',
-                    side_effect=side_effect)
-
     # These outputs are not needed since the orbits are specified above
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                 side_effect=[
@@ -564,11 +532,11 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
                                 ])
 
     mocker.patch(
-        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids_hyp3lib',
+        'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
         side_effect=[
             # For azimuth time
-            [Path(orbit_dict_for_azimuth_time_test['reference'])],
-            [Path(orbit_dict_for_azimuth_time_test['secondary']), Path(orbit_dict_for_azimuth_time_test['secondary'])],
+            [str(orbit_dict_for_azimuth_time_test['reference'])],
+            [str(orbit_dict_for_azimuth_time_test['secondary']), str(orbit_dict_for_azimuth_time_test['secondary'])],
         ]
     )
 
@@ -665,3 +633,72 @@ def test_get_acq_time_invalid_slc_id():
   invalid_slc_id = "test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
   with pytest.raises(ValueError):
     get_acq_time_from_slc_id(invalid_slc_id)
+
+
+def test_identify_which_hrrr_1():
+    """Tests if function identifies the correct HRRR file"""
+    gunw_id = Path("test/gunw_azimuth_test_data/S1-GUNW-A-R-064-tops-20210723_20210711-015000-00119W_00033N-PP-6267-v2_0_6.nc")
+    result = identify_which_hrrr(gunw_id)
+    assert result == "HRRR"
+
+
+def test_identify_which_hrrr_2():
+    """Tests if function identifies the correct HRRR file"""
+    gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
+    result = identify_which_hrrr(gunw_id)
+    assert result == "HRRRAK"
+
+
+def test_cast_to_hrrrak_1():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [51.0, 71.0, -175., -130.0]
+    conus_bounds = [34.0,35.0, -91,  -90.0]
+    model = HRRR()
+    model.checkValidBounds(conus_bounds)
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_2():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [51.0, 71.0, -175., -130.0]
+    model = HRRRAK()
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_2b():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    ak_bounds = [60.0, 65.0, -150., -120.0]
+    model = HRRRAK()
+    model.checkValidBounds(ak_bounds)
+    assert model._Name == "HRRR-AK"
+
+
+def test_cast_to_hrrrak_3():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    conus_bounds = [34.0,35.0, -91,  -90.0]
+    model = HRRR()
+    model.checkValidBounds(conus_bounds)
+    assert model._Name == "HRRR"
+
+
+def test_cast_to_hrrrak_4():
+    """Tests if function casts the HRRR file to HRRRAK"""
+    europe_bounds = [-1, 1, -1, 1]
+    model = HRRR()
+    with pytest.raises(ValueError):
+        model.checkValidBounds(europe_bounds)
+
+
+def test_identify_which_hrrr_invalid():
+    """Tests if function raises error for an invalid gunw_id format"""
+    invalid_gunw_id = "dummy.nc"
+    with pytest.raises(NoWeatherModelData):
+        identify_which_hrrr(invalid_gunw_id)
+
+
+def test_check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation_again():
+    """Tests if function raises error for an invalid gunw_id format"""
+    gunw_id = "S1-GUNW-D-R-044-tops-20240418_20240406-171649-00163W_00069N-PP-af6b-v3_0_1.nc"
+    assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id, 'hrrrak') is True

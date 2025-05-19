@@ -20,9 +20,10 @@ from shapely.geometry import box
 
 from RAiDER.logger import logger
 from RAiDER.models import credentials
+from RAiDER.models.customExceptions import NoWeatherModelData
 from RAiDER.models.hrrr import AK_GEO, HRRR_CONUS_COVERAGE_POLYGON, check_hrrr_dataset_availability
 from RAiDER.s1_azimuth_timing import get_times_for_azimuth_interpolation
-from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
+from RAiDER.s1_orbits import get_orbits_from_slc_ids
 from RAiDER.types import BB, LookDir
 from RAiDER.utilFcns import write_yaml
 
@@ -50,7 +51,7 @@ def _get_acq_time_from_gunw_id(gunw_id: str, reference_or_secondary: str) -> dt.
     return cen_acq_time
 
 
-def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: str) -> bool:
+def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: str, weather_model_name: str='hrrr') -> bool:
     """
     Determine if all the times for azimuth interpolation are available using
     Herbie. Note that not all 1 hour times are available within the said date
@@ -71,11 +72,11 @@ def check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id: st
     ref_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'reference')
     sec_acq_time = _get_acq_time_from_gunw_id(gunw_id, 'secondary')
 
-    model_step_hours = 1
+    model_step_hours = [1 if weather_model_name == 'hrrr' else 3][0]
     ref_times_for_interp = get_times_for_azimuth_interpolation(ref_acq_time, model_step_hours)
     sec_times_for_interp = get_times_for_azimuth_interpolation(sec_acq_time, model_step_hours)
-    ref_dataset_availability = list(map(check_hrrr_dataset_availability, ref_times_for_interp))
-    sec_dataset_availability = list(map(check_hrrr_dataset_availability, sec_times_for_interp))
+    ref_dataset_availability = list(map(check_hrrr_dataset_availability, ref_times_for_interp, [weather_model_name]*len(ref_times_for_interp)))
+    sec_dataset_availability = list(map(check_hrrr_dataset_availability, sec_times_for_interp, [weather_model_name]*len(sec_times_for_interp)))
 
     return all(ref_dataset_availability) and all(sec_dataset_availability)
 
@@ -125,14 +126,9 @@ def check_weather_model_availability(gunw_path: Path, weather_model_name: str) -
     sec_ts = get_acq_time_from_slc_id(sec_slc_ids[0]).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 
     if weather_model_name == 'HRRR':
-        group = '/science/grids/data/'
-        with xr.open_dataset(gunw_path, group=f'{group}') as ds:
-            gunw_poly = box(*ds.rio.bounds())
-        if HRRR_CONUS_COVERAGE_POLYGON.intersects(gunw_poly):
-            pass
-        elif AK_GEO.intersects(gunw_poly):
-            weather_model_name = 'HRRRAK'
-        else:
+        try:
+            weather_model_name = identify_which_hrrr(gunw_path)
+        except NoWeatherModelData:
             return False
 
     # source: https://stackoverflow.com/a/7668273
@@ -276,7 +272,7 @@ class GUNW:
         # Remove ".zip" from the granule ids included in this field
         slcs_lst = list(map(lambda slc: slc.replace('.zip', ''), slcs_lst))
 
-        path_orb = get_orbits_from_slc_ids_hyp3lib(slcs_lst)
+        path_orb = get_orbits_from_slc_ids(slcs_lst)
 
         return [str(o) for o in path_orb]
 
@@ -387,3 +383,26 @@ def main(args: CalcDelaysArgs) -> tuple[Path, float]:
     path_cfg = Path(f'GUNW_{GUNWObj.name}.yaml')
     write_yaml(raider_cfg, path_cfg)
     return path_cfg, GUNWObj.wavelength
+
+
+def identify_which_hrrr(gunw_path: Path) -> str:
+    group = '/science/grids/data/'
+    try:
+        with xr.open_dataset(gunw_path, group=f'{group}') as ds:
+            gunw_poly = box(*ds.rio.bounds())
+        if HRRR_CONUS_COVERAGE_POLYGON.intersects(gunw_poly):
+            weather_model_name = 'HRRR'
+        elif AK_GEO.intersects(gunw_poly):
+            weather_model_name = 'HRRRAK'
+        else:
+            raise NoWeatherModelData(
+                f'GUNW {gunw_path} does not intersect with any HRRR coverage area. '
+                'Please use a different weather model.'
+            )
+    except FileNotFoundError:
+        raise NoWeatherModelData(
+            f'''GUNW {gunw_path} does not exist or is not a valid HRRR file.
+            Please check the file path.
+            '''
+        )
+    return weather_model_name

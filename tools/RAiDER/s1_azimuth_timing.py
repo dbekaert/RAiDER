@@ -14,7 +14,7 @@ except ImportError:
     isce = None
 
 from RAiDER.losreader import get_orbit as get_isce_orbit
-from RAiDER.s1_orbits import get_orbits_from_slc_ids_hyp3lib
+from RAiDER.s1_orbits import get_orbits_from_slc_ids
 
 
 def _asf_query(
@@ -205,7 +205,7 @@ def get_s1_azimuth_time_grid(
         az_arr = np.full((m, n, p), np.datetime64('NaT'), dtype='datetime64[ms]')
         return az_arr
 
-    orb_files = get_orbits_from_slc_ids_hyp3lib(slc_ids)
+    orb_files = get_orbits_from_slc_ids(slc_ids)
     orb_files = [str(of) for of in orb_files]
 
     orb = get_isce_orbit(orb_files, datetime, pad=600)
@@ -266,8 +266,8 @@ def get_n_closest_datetimes(
         ts_0 = ts - pd.Timedelta(hours=(time_step_hours * k))
         ts_1 = ts + pd.Timedelta(hours=(time_step_hours * k))
 
-        t_ceil = ts_0.floor(f'{time_step_hours}H')
-        t_floor = ts_1.ceil(f'{time_step_hours}H')
+        t_ceil = ts_0.floor(f'{time_step_hours}h')
+        t_floor = ts_1.ceil(f'{time_step_hours}h')
         # In the event that t_floor == t_ceil for k = 0
         out_times = list(set([t_ceil, t_floor]))
         closest_times.extend(out_times)
@@ -283,7 +283,7 @@ def get_times_for_azimuth_interpolation(
     time_step_hours: int,
     buffer_in_seconds: int = 300
 ) -> list[dt.datetime]:
-    """Obtains times needed for azimuth interpolation. Filters 3 closests dates from ref_time
+    """Obtains times needed for azimuth interpolation. Filters 3 closest dates from ref_time
     so that all returned dates are within `time_step_hours` + `buffer_in_seconds`.
 
     This ensures we request dates that are really needed.

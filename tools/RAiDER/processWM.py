@@ -89,7 +89,7 @@ def prepareWeatherModel(
         logger.warning('The processed weather model file already exists, so I will use that.')
 
         containment = weather_model.checkContainment(ll_bounds)
-        if not containment and weather_model.Model() not in 'HRRR'.split():
+        if not containment and weather_model.Model() not in 'HRRR HRRRAK'.split():
             raise ExistingWeatherModelTooSmall
 
         return f
