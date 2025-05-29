@@ -7,10 +7,11 @@ on:
 
 jobs:
   call-release-workflow:
-    uses: ASFHyP3/actions/.github/workflows/reusable-release.yml@v0.17.1
+    uses: ASFHyP3/actions/.github/workflows/reusable-release.yml@v0.20.0
+    permissions: {}
     with:
       release_prefix: RAiDER
       develop_branch: dev
-      sync_pr_label: bot
+      sync_pr_label: bumpless
     secrets:
       USER_TOKEN: ${{ secrets.RELEASE_ACCESS_TOKEN }}

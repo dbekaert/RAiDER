@@ -14,9 +14,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: mamba-org/provision-with-micromamba@v16
+      - uses: mamba-org/setup-micromamba@v2
         with:
-          extra-specs: |
+          environment-file: environment.yml
+          create-args: >-
             python=3.10
 
       - name: install RAiDER
