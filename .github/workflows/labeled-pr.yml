@@ -13,3 +13,5 @@ on:
 jobs:
   call-labeled-pr-check-workflow:
     uses: ASFHyP3/actions/.github/workflows/reusable-labeled-pr-check.yml@v0.20.0
+    permissions:
+      pull-requests: read
