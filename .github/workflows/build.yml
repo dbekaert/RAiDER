@@ -3,8 +3,9 @@ name: Docker Build
 on:
   push:
     branches:
-      - main
       - dev
+    tags:
+      - 'v*'
   pull_request:
     branches:
       - main
@@ -12,17 +13,20 @@ on:
 
 jobs:
   call-version-info-workflow:
-    uses: ASFHyP3/actions/.github/workflows/reusable-version-info.yml@v0.17.1
+    uses: ASFHyP3/actions/.github/workflows/reusable-version-info.yml@v0.20.0
+    permissions:
+      contents: read
     with:
       python_version: '3.10'
 
   call-docker-ghcr-workflow:
     needs: call-version-info-workflow
-    uses: ASFHyP3/actions/.github/workflows/reusable-docker-ghcr.yml@v0.17.1
+    uses: ASFHyP3/actions/.github/workflows/reusable-docker-ghcr.yml@v0.20.0
+    permissions:
+      contents: read
+      packages: write
     with:
       version_tag: ${{ needs.call-version-info-workflow.outputs.version_tag }}
-      release_branch: main
-      develop_branch: dev
       user: ${{ github.actor }}
     secrets:
       USER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
