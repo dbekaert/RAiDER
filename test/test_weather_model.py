@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import datetime
 import operator
 import pytest
@@ -85,7 +86,7 @@ def ncmr():
     return wm
 
 
-def product(iterable):
+def product[T](iterable: Iterable[T]) -> T:
     return reduce(operator.mul, iterable, 1)
 
 
