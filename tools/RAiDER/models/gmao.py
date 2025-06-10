@@ -1,24 +1,25 @@
+import datetime as dt
 import os
-import datetime
-import numpy as np
 import shutil
+
 import h5py
+import numpy as np
 import pydap.cas.urs
 import pydap.client
 from pyproj import CRS
 
-from RAiDER.models.weatherModel import WeatherModel, TIME_RES
 from RAiDER.logger import logger
-from RAiDER.utilFcns import writeWeatherVarsXarray, round_date, requests_retry_session
 from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
+from RAiDER.models.weatherModel import TIME_RES, WeatherModel
+from RAiDER.utilFcns import requests_retry_session, round_date, writeWeatherVarsXarray
 
 
 class GMAO(WeatherModel):
     # I took this from GMAO model level weblink
     # https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv
-    def __init__(self):
+    def __init__(self) -> None:
         # initialize a weather model
         WeatherModel.__init__(self)
 
@@ -29,9 +30,11 @@ class GMAO(WeatherModel):
         self._dataset = 'gmao'
 
         # Tuple of min/max years where data is available.
-        self._valid_range = (datetime.datetime(2014, 2, 20).replace(tzinfo=datetime.timezone(offset=datetime.timedelta())), 
-                             datetime.datetime.now(datetime.timezone.utc))
-        self._lag_time = datetime.timedelta(hours=24.0)  # Availability lag time in hours
+        self._valid_range = (
+            dt.datetime(2014, 2, 20).replace(tzinfo=dt.timezone(offset=dt.timedelta())),
+            dt.datetime.now(dt.timezone.utc),
+        )
+        self._lag_time = dt.timedelta(hours=24.0)  # Availability lag time in hours
 
         # model constants
         self._k1 = 0.776  # [K/Pa]
@@ -39,7 +42,6 @@ class GMAO(WeatherModel):
         self._k3 = 3.75e3  # [K^2/Pa]
 
         self._time_res = TIME_RES[self._dataset.upper()]
-
 
         # horizontal grid spacing
         self._lat_res = 0.25
@@ -56,11 +58,8 @@ class GMAO(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-
-    def _fetch(self, out):
-        '''
-        Fetch weather model data from GMAO
-        '''
+    def _fetch(self, out) -> None:
+        """Fetch weather model data from GMAO."""
         acqTime = self._time
 
         # calculate the array indices for slicing the GMAO variable arrays
@@ -69,9 +68,9 @@ class GMAO(WeatherModel):
         lon_min_ind = int((self._ll_bounds[2] - (-180.0)) / self._lon_res)
         lon_max_ind = int((self._ll_bounds[3] - (-180.0)) / self._lon_res)
 
-        T0 = datetime.datetime(2017, 12, 1, 0, 0, 0)
+        T0 = dt.datetime(2017, 12, 1, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
         # round time to nearest third hour
-        corrected_DT = round_date(acqTime, datetime.timedelta(hours=self._time_res))
+        corrected_DT = round_date(acqTime, dt.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
 
@@ -85,31 +84,28 @@ class GMAO(WeatherModel):
             url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
             session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
             ds = pydap.client.open_url(url, session=session)
-            qv = ds['qv'].array[
-                time_ind,
-                ml_min:(ml_max + 1),
-                lat_min_ind:(lat_max_ind + 1),
-                lon_min_ind:(lon_max_ind + 1)
-            ].data[0]
 
-            p = ds['pl'].array[
-                time_ind,
-                ml_min:(ml_max + 1),
-                lat_min_ind:(lat_max_ind + 1),
-                lon_min_ind:(lon_max_ind + 1)
-            ].data[0]
-            t = ds['t'].array[
-                time_ind,
-                ml_min:(ml_max + 1),
-                lat_min_ind:(lat_max_ind + 1),
-                lon_min_ind:(lon_max_ind + 1)
-            ].data[0]
-            h = ds['h'].array[
-                time_ind,
-                ml_min:(ml_max + 1),
-                lat_min_ind:(lat_max_ind + 1),
-                lon_min_ind:(lon_max_ind + 1)
-            ].data[0]
+            p = (
+                ds['pl']
+                .array[
+                    time_ind, ml_min : (ml_max + 1), lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)
+                ]
+                .data[0]
+            )
+            t = (
+                ds['t']
+                .array[
+                    time_ind, ml_min : (ml_max + 1), lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)
+                ]
+                .data[0]
+            )
+            h = (
+                ds['h']
+                .array[
+                    time_ind, ml_min : (ml_max + 1), lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)
+                ]
+                .data[0]
+            )
 
         else:
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
@@ -127,48 +123,38 @@ class GMAO(WeatherModel):
                 logger.warning('Weather model already exists, skipping download')
 
             with h5py.File(f, 'r') as ds:
-                q = ds['QV'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
-                p = ds['PL'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
-                t = ds['T'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
-                h = ds['H'][0, :, lat_min_ind:(lat_max_ind + 1), lon_min_ind:(lon_max_ind + 1)]
+                q = ds['QV'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
+                p = ds['PL'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
+                t = ds['T'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
+                h = ds['H'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
             os.remove(f)
 
-        lats = np.arange(
-            (-90 + lat_min_ind * self._lat_res),
-            (-90 + (lat_max_ind + 1) * self._lat_res),
-            self._lat_res
-        )
+        lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
         lons = np.arange(
-            (-180 + lon_min_ind * self._lon_res),
-            (-180 + (lon_max_ind + 1) * self._lon_res),
-            self._lon_res
+            (-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res
         )
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
             writeWeatherVarsXarray(lats, lons, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144))
-        except Exception:
-            logger.exception("Unable to save weathermodel to file")
+        except:
+            logger.exception('Unable to save weathermodel to file')
 
-
-    def load_weather(self, f=None):
-        '''
+    def load_weather(self, f=None) -> None:
+        """
         Consistent class method to be implemented across all weather model types.
         As a result of calling this method, all of the variables (x, y, z, p, q,
         t, wet_refractivity, hydrostatic refractivity, e) should be fully
         populated.
-        '''
+        """
         f = self.files[0] if f is None else f
         self._load_model_level(f)
 
-
-    def _load_model_level(self, filename):
-        '''
-        Get the variables from the GMAO link using OpenDAP
-        '''
-
+    def _load_model_level(self, filename) -> None:
+        """Get the variables from the GMAO link using OpenDAP."""
         # adding the import here should become absolute when transition to netcdf
         from netCDF4 import Dataset
+
         with Dataset(filename, mode='r') as f:
             lons = np.array(f.variables['x'][:])
             lats = np.array(f.variables['y'][:])
@@ -178,7 +164,7 @@ class GMAO(WeatherModel):
             t = np.array(f.variables['T'][:])
 
         # restructure the 1-D lat/lon in regular 2D grid
-        _lons, _lats= np.meshgrid(lons, lats)
+        _lons, _lats = np.meshgrid(lons, lats)
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         p = np.transpose(p)

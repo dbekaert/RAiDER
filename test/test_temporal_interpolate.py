@@ -1,11 +1,18 @@
+import pytest
 import glob
 import shutil
+import os
+import subprocess
+import numpy as np
+import xarray as xr
 
-import pandas as pd
 
-from test import *
+from test import (
+    WM, TEST_DIR
+)
 
 from RAiDER.logger import logger
+from RAiDER.utilFcns import write_yaml
 
 wm = 'ERA5' if WM == 'ERA-5' else WM
 
@@ -34,7 +41,7 @@ def test_cube_timemean():
     for hr in [hr1, hr2]:
         grp['time_group'].update({'time': f'{hr}:00:00'})
         ## generate the default run config file and overwrite it with new parms
-        cfg  = update_yaml(grp)
+        cfg  = write_yaml(grp, 'temp.yaml')
 
         ## run raider for the default date
         cmd  = f'raider.py {cfg}'
@@ -43,7 +50,7 @@ def test_cube_timemean():
 
     ## run interpolation in the middle of the two
     grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
-    cfg  = update_yaml(grp)
+    cfg  = write_yaml(grp, 'temp.yaml')
 
     cmd  = f'raider.py {cfg}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
@@ -96,7 +103,7 @@ def test_cube_weighting():
     for hr in [hr1, hr2]:
         grp['time_group'].update({'time': f'{hr}:00:00'})
         ## generate the default run config file and overwrite it with new parms
-        cfg  = update_yaml(grp)
+        cfg  = write_yaml(grp, 'temp.yaml')
 
         ## run raider for the default date
         cmd  = f'raider.py {cfg}'
@@ -105,7 +112,7 @@ def test_cube_weighting():
 
     ## run interpolation very near the first
     grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
-    cfg  = update_yaml(grp)
+    cfg  = write_yaml(grp, 'temp.yaml')
 
     cmd  = f'raider.py {cfg}'
     proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)

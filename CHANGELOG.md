@@ -9,7 +9,38 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 ### Added
 * [650](https://github.com/dbekaert/RAiDER/pull/650) - Added a linting and formatting checking runner.
-* [656](https://github.com/dbekaert/RAiDER/pull/656) - Example run configuration files available through `raider.py --generate_config <example_name>`.
+* [725](https://github.com/dbekaert/RAiDER/pull/725) - Added rules to ignore all test artifacts in git.
+
+## [0.5.5]
+### Changed
+* `RAiDER.s1_orbits` now uses the `s1_orbits` package to retrieve orbit files from AWS, rather than using `hyp3lib`
+  to retrieve orbit files from ASF and CDSE.
+* RAiDER no longer requires a `dataspace.copernicus.eu` .netrc entry or the `ESA_USERNAME`/`ESA_PASSWORD` environment variables.
+
+### Fixed
+* [721](https://github.com/dbekaert/RAiDER/pull/721) - Fixed bug mixing station_delay_mean and station_delay_median
+* [715](https://github.com/dbekaert/RAiDER/pull/715) - Fixed the coverage test Github action and a timing issue with raiderCombine
+* [719](https://github.com/dbekaert/RAiDER/pull/719) - Fixed the automatic switch to HRRR-AK based on bounding box when generic HRRR is specified as the weather model
+* [720](https://github.com/dbekaert/RAiDER/pull/720) - Bug-fix to properly pass expected `user_title` argument through raiderStats function.
+
+## [0.5.4]
+### Changed
+* [701](https://github.com/dbekaert/RAiDER/pull/701) - Fixed a few path typos and handle some edge cases, add unit tests, lint project
+* [672](https://github.com/dbekaert/RAiDER/pull/672) - Linted the project with `ruff`.
+* [683](https://github.com/dbekaert/RAiDER/pull/683) - Fixed a naive datetime and added default template to template generation argument
+* `prepFromGunw.check_weather_model_availability` now returns `False` for HRRR when outside the CONUS or AK coverage areas, rather than raising `ValueError`.
+  As a result, HRRR jobs run via HyP3 for GUNWs outside HRRR coverage will exit successfully without making any changes to the GUNW. 
+
+### Fixed
+* [700](https://github.com/dbekaert/RAiDER/pull/700) - Fixed a few path typos and handle some edge cases
+* [679](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a bug causing test_updateTrue to falsely pass.
+* [685](https://github.com/dbekaert/RAiDER/pull/679) - Fixed a global bbox bug in checkContainment
+* Pinned to `herbie-data<2025.2.1` to address failing HRRR AK tests introduced with the 2025.2.1 release on 2025-02-18.
+
+## [0.5.3]
+### Fixed
+* Updates dem-stitcher to 2.5.8 to ensure new (ARIA-managed) url for reading the Geoid EGM 2008. See this [issue](https://github.com/ACCESS-Cloud-Based-InSAR/dem-stitcher/issues/96).
+* [674](https://github.com/dbekaert/RAiDER/pull/674#issue-2412467565) - Update tests to get rid of extra files created when running tests.
 
 ## [0.5.2]
 ### Changed
@@ -21,6 +52,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [658](https://github.com/dbekaert/RAiDER/pull/658) - Fixed opaque error message if a GUNW file is not produced while HyP3 independently against a previous INSAR_ISCE.
 * [661](https://github.com/dbekaert/RAiDER/pull/661) - Fixed bug in raiderDownloadGNSS, removed call to scipy.sum, and added unit tests.
 * [662](https://github.com/dbekaert/RAiDER/pull/662) - Bumped dem-stitcher to >= v2.5.6, which updates the URL for reading the Geoid EGM 2008.
+* [669](https://github.com/dbekaert/RAiDER/pull/669) - Fixed test name collision (test_writeArrayToRaster).
 
 ## [0.5.1]
 ### Changed

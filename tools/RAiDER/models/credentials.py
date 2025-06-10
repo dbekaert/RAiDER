@@ -1,6 +1,6 @@
-'''
+"""
 API credential information and help url for downloading weather model data
-    saved in a hidden file in home directory
+    saved in a hidden file in home directory.
 
 api filename      weather models          UID           KEY         URL
 _________________________________________________________________________________
@@ -8,7 +8,7 @@ cdsapirc          ERA5, ERA5T             uid           key         https://cds.
 ecmwfapirc        HRES                    email         key         https://api.ecmwf.int/v1
 netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov
 <N/A>             HRRR [public access]    <N/A>         <N/A>       <N/A>
-'''
+"""
 
 import os
 from pathlib import Path
@@ -25,7 +25,7 @@ RC_FILENAMES: Dict[str, Optional[str]] = {
     'HRES': 'ecmwfapirc',
     'GMAO': 'netrc',
     'MERRA2': 'netrc',
-    'HRRR':  None
+    'HRRR': None,
 }
 
 APIS = {
@@ -35,7 +35,7 @@ APIS = {
             'key: {uid}:{key}\n'
         ),
         'help_url': 'https://cds.climate.copernicus.eu/api-how-to',
-        'default_host': 'https://cds.climate.copernicus.eu/api/v2'
+        'default_host': 'https://cds.climate.copernicus.eu/api/v2',
     },
     'ecmwfapirc': {
         'template': (
@@ -46,7 +46,7 @@ APIS = {
             '}}\n'
         ),
         'help_url': 'https://confluence.ecmwf.int/display/WEBAPI/Access+ECMWF+Public+Datasets#AccessECMWFPublicDatasets-key',
-        'default_host': 'https://api.ecmwf.int/v1'
+        'default_host': 'https://api.ecmwf.int/v1',
     },
     'netrc': {
         'template': (
@@ -55,8 +55,8 @@ APIS = {
             '	password {key}\n'
         ),
         'help_url': 'https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget',
-        'default_host': 'urs.earthdata.nasa.gov'
-    }
+        'default_host': 'urs.earthdata.nasa.gov',
+    },
 }
 
 
@@ -69,8 +69,7 @@ def _get_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     elif model == 'HRES':
         uid = os.getenv('RAIDER_HRES_EMAIL')
         key = os.getenv('RAIDER_HRES_API_KEY')
-        host = os.getenv('RAIDER_HRES_URL',
-                            APIS['ecmwfapirc']['default_host'])
+        host = os.getenv('RAIDER_HRES_URL', APIS['ecmwfapirc']['default_host'])
     elif model in ('GMAO', 'MERRA2'):
         # same as in DockerizedTopsApp
         uid = os.getenv('EARTHDATA_USERNAME')
@@ -81,11 +80,13 @@ def _get_envs(model: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     return uid, key, host
 
 
-def check_api(model: str,
-              uid: Optional[str] = None,
-              key: Optional[str] = None,
-              output_dir: str = '~/',
-              update_rc_file: bool = False) -> None:
+def check_api(
+    model: str,
+    uid: Optional[str] = None,
+    key: Optional[str] = None,
+    output_dir: str = '~/',
+    update_rc_file: bool = False,
+) -> None:
     # Weather model API RC filename
     # Typically stored in home dir as a hidden file
     rc_filename = RC_FILENAMES[model]
@@ -96,7 +97,7 @@ def check_api(model: str,
         return
 
     # Get the target rc file's path
-    hidden_ext = '_' if system() == "Windows" else '.'
+    hidden_ext = '_' if system() == 'Windows' else '.'
     rc_path = Path(output_dir) / (hidden_ext + rc_filename)
     rc_path = rc_path.expanduser()
 
@@ -118,19 +119,19 @@ def check_api(model: str,
             raise ValueError(
                 f'ERROR: {model} API UID not provided in RAiDER arguments and '
                 'not present in environment variables.\n'
-                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+                f"See info for this model's API at \033[1m{help_url}\033[0m"
             )
         elif uid is not None and key is None:
             raise ValueError(
                 f'ERROR: {model} API key not provided in RAiDER arguments and '
                 'not present in environment variables.\n'
-                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+                f"See info for this model's API at \033[1m{help_url}\033[0m"
             )
         else:
             raise ValueError(
                 f'ERROR: {model} API credentials not provided in RAiDER '
                 'arguments and not present in environment variables.\n'
-                f'See info for this model\'s API at \033[1m{help_url}\033[0m'
+                f"See info for this model's API at \033[1m{help_url}\033[0m"
             )
 
     # Create file with the API credentials
@@ -150,13 +151,14 @@ def check_api(model: str,
         # so extra care needs to be taken to make sure we only touch the
         # one that belongs to this URL.
         import netrc
+
         rc_path.touch()
-        netrc_credentials = netrc.netrc(rc_path)
-        netrc_credentials.hosts[url] = (uid, None, key)
+        netrc_credentials = netrc.netrc(str(rc_path))
+        netrc_credentials.hosts[url] = (uid, '', key)
         rc_path.write_text(str(netrc_credentials))
     rc_path.chmod(0o000600)
 
 
-def setup_from_env():
+def setup_from_env() -> None:
     for model in RC_FILENAMES.keys():
         check_api(model)

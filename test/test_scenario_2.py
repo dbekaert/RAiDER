@@ -1,11 +1,5 @@
-import os
-import pytest
-import subprocess
 
-from test import TEST_DIR
 
-import numpy as np
-import xarray as xr
 
 #TODO: include GNSS station test
 # @pytest.mark.long

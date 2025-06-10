@@ -37,6 +37,8 @@ def test_gunw_path_factory() -> Callable:
             file_name = 'S1-GUNW-D-R-071-tops-20200130_20200124-135156-34956N_32979N-PP-913f-v2_0_4.nc'
         elif location == 'alaska':
             file_name = 'S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc'
+        elif location == 'philippines':
+            file_name = 'S1-GUNW-D-R-032-tops-20200220_20200214-214625-00120E_00014N-PP-b785-v3_0_1.nc'
         else:
             raise NotImplementedError
         return TEST_DIR / 'gunw_test_data' / file_name

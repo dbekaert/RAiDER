@@ -1,9 +1,17 @@
+from RAiDER.cli.raider import calcDelays
+import pytest
 import glob
+import os
+import subprocess
+import shutil
 
 import numpy as np
 import xarray as xr
 
-from test import *
+from test import (
+    TEST_DIR, WM_DIR, ORB_DIR, make_delay_name
+)
+from RAiDER.utilFcns import write_yaml
 
 @pytest.mark.parametrize('weather_model_name', ['ERA5'])
 def test_slant_proj(weather_model_name):
@@ -33,12 +41,10 @@ def test_slant_proj(weather_model_name):
         }
 
     ## generate the default run config file and overwrite it with new parms
-    cfg  = update_yaml(grp, 'temp.yaml')
+    cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER Failed.'
+    calcDelays([str(cfg)])
 
     gold = {'ERA5': [33.4, -117.8, 0, 2.333865144]}
     lat, lon, hgt, val = gold[weather_model_name]
@@ -84,12 +90,10 @@ def test_ray_tracing(weather_model_name):
         }
 
     ## generate the default run config file and overwrite it with new parms
-    cfg  = update_yaml(grp, 'temp.yaml')
+    cfg  = write_yaml(grp, 'temp.yaml')
 
     ## run raider and intersect
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert proc.returncode == 0, 'RAiDER Failed.'
+    calcDelays([str(cfg)])
 
     # model to lat/lon/correct value
     gold = {'ERA5': [33.4, -117.8, 0, 2.97711681]}
