@@ -4,7 +4,7 @@ API credential information and help url for downloading weather model data
 
 api filename      weather models          UID           KEY         URL
 _________________________________________________________________________________
-cdsapirc          ERA5, ERA5T             uid           key         https://cds.climate.copernicus.eu/api/v2
+cdsapirc          ERA5, ERA5T             uid           key         https://cds.climate.copernicus.eu/api
 ecmwfapirc        HRES                    email         key         https://api.ecmwf.int/v1
 netrc             GMAO, MERRA2            username      password    urs.earthdata.nasa.gov
 <N/A>             HRRR [public access]    <N/A>         <N/A>       <N/A>
@@ -34,8 +34,8 @@ APIS = {
             'url: {host}\n'
             'key: {uid}:{key}\n'
         ),
-        'help_url': 'https://cds.climate.copernicus.eu/api-how-to',
         'default_host': 'https://cds.climate.copernicus.eu/api/v2',
+        'help_url': 'https://cds.climate.copernicus.eu/how-to-api',
     },
     'ecmwfapirc': {
         'template': (

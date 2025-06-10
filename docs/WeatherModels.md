@@ -30,7 +30,7 @@ You can read more information about their reanalysis models __[here](https://www
 ### Accessing ERA5 and ERA5T weather reanalysis datasets from Copernicus CDS
 1. Create an ECMWF account at __[ecmwf.int](https://www.ecmwf.int/)__. 
 2. Confirm your email, etc. 
-3. Set up your CDS API personal access token __[here](https://cds.climate.copernicus.eu/api-how-to)__. Only Step 1 on the page is necessary.
+3. Set up your CDS API personal access token __[here](https://cds.climate.copernicus.eu/how-to-api)__. Only Step 1 on the page is necessary.
 4. **Optional:** Install the CDS API using pip:
 
         pip install cdsapi
