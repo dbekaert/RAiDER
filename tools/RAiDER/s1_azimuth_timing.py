@@ -271,7 +271,7 @@ def get_n_closest_datetimes(
         # In the event that t_floor == t_ceil for k = 0
         out_times = list(set([t_ceil, t_floor]))
         closest_times.extend(out_times)
-    # if 2 times have same distance to ref_time, order times by occurence (earlier comes first)
+    # if 2 times have same distance to ref_time, order times by occurrence (earlier comes first)
     closest_times = sorted(closest_times, key=lambda ts_rounded: (abs(ts - ts_rounded), ts_rounded))
     closest_times = [t.to_pydatetime() for t in closest_times]
     closest_times = closest_times[:n_target_times]

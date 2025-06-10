@@ -146,8 +146,8 @@ class AOI:
         except AttributeError:
             lookDir = lookDir.lower()
 
-        assert direction in 'asc desc'.split(), f'Incorrection orbital direction: {direction}. Choose asc or desc.'
-        assert lookDir in 'right light'.split(), f'Incorrection look direction: {lookDir}. Choose right or left.'
+        assert direction in 'asc desc'.split(), f'Incorrect orbital direction: {direction}. Choose asc or desc.'
+        assert lookDir in 'right left'.split(), f'Incorrect look direction: {lookDir}. Choose right or left.'
 
         S, N, W, E = self.bounds()
 
