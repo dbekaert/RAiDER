@@ -34,8 +34,8 @@ APIS = {
             'url: {host}\n'
             'key: {uid}:{key}\n'
         ),
-        'default_host': 'https://cds.climate.copernicus.eu/api/v2',
         'help_url': 'https://cds.climate.copernicus.eu/how-to-api',
+        'default_host': 'https://cds.climate.copernicus.eu/api',
     },
     'ecmwfapirc': {
         'template': (
