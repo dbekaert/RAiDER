@@ -39,6 +39,9 @@ You can read more information about their reanalysis models __[here](https://www
 
 5. Accept the __[ECMWF license agreement](https://apps.ecmwf.int/datasets/licences/copernicus/)__.
 
+> [!IMPORTANT]
+> In late 2024, the CDS API underwent a migration that invalidated all existing personal access tokens. Current RAiDER users will have to follow the above instructions again to continue being able to the ECMWF weather models.
+
 
 ### Accessing ERAI, HRES
 
