@@ -2,6 +2,7 @@ from collections.abc import Iterable
 import datetime
 import operator
 import pytest
+from typing import TypeVar
 
 import numpy as np
 from functools import reduce
@@ -86,7 +87,10 @@ def ncmr():
     return wm
 
 
-def product[T](iterable: Iterable[T]) -> T:
+T = TypeVar('T')
+
+
+def product(iterable: Iterable[T]) -> T:
     return reduce(operator.mul, iterable, 1)
 
 
