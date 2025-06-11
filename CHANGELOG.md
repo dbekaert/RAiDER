@@ -6,8 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [Unreleased]
+### Added
 * [725](https://github.com/dbekaert/RAiDER/pull/725) - Added rules to ignore all test artifacts in git
+* [728](https://github.com/dbekaert/RAiDER/pull/728) - Added downloader tests for HRES, GMAO, and MERRA2.
+### Changed
+* [726](https://github.com/dbekaert/RAiDER/pull/726) - Updated code and documentation for changes to the CDS API
 
 ## [0.5.5]
 ### Changed
