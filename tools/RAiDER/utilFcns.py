@@ -304,7 +304,7 @@ def writeArrayToRaster(
     logger.info('Wrote: %s', path)
 
 
-def round_date(date: dt.datetime, precision: int) -> dt.datetime:
+def round_date(date: dt.datetime, precision: dt.timedelta) -> dt.datetime:
     """Rounds the date to the nearest precision in seconds."""
     # First try rounding up
     # Timedelta since the beginning of time

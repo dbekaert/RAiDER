@@ -138,14 +138,14 @@ class ECMWF(WeatherModel):
                 'stream': 'oper',
                 # date: Specify a single date as "2015-08-01" or a period as
                 # "2015-08-01/to/2015-08-31".
-                'date': dt.datetime.strftime(corrected_DT, '%Y-%m-%d'),
+                'date': corrected_DT.strftime('%Y-%m-%d'),
                 # type: Use an (analysis) unless you have a particular reason to
                 # use fc (forecast).
                 'type': 'an',
                 # time: With type=an, time can be any of
                 # "00:00:00/06:00:00/12:00:00/18:00:00".  With type=fc, time can
                 # be any of "00:00:00/12:00:00",
-                'time': dt.time.strftime(corrected_DT.time(), '%H:%M:%S'),
+                'time': corrected_DT.strftime('%H:%M:%S'),
                 # step: With type=an, step is always "0". With type=fc, step can
                 # be any of "3/6/9/12".
                 'step': '0',
@@ -158,11 +158,26 @@ class ECMWF(WeatherModel):
             }
         )
 
-    def _get_from_cds(self, lat_min, lat_max, lon_min, lon_max, acqTime, outname) -> None:
+    def _get_from_cds(
+        self,
+        lat_min: float,
+        lat_max: float,
+        lon_min: float,
+        lon_max: float,
+        acqTime: dt.datetime,
+        outname: str,
+    ) -> None:
         """Used for ERA5."""
         import cdsapi
 
         c = cdsapi.Client(verify=0)
+
+        if c.url == 'https://cds.climate.copernicus.eu/api/v2':
+            logger.warning(
+                'Old CDS API configuration detected: ECMWF released a breaking change in late 2024 that expired all '
+                "existing credentials. This run may fail with a 404 HTTP error, in which case you may have to "
+                'regenerate your CDS API credentials at https://cds.climate.copernicus.eu/how-to-api.'
+            )
 
         if self._model_level_type == 'pl':
             var = ['z', 'q', 't']
@@ -172,7 +187,6 @@ class ECMWF(WeatherModel):
         bbox = [lat_max, lon_min, lat_min, lon_max]
 
         # round to the closest legal time
-
         corrected_DT = util.round_date(acqTime, dt.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
@@ -187,7 +201,7 @@ class ECMWF(WeatherModel):
             'stream': 'oper',
             'type': 'an',
             'date': corrected_DT.strftime('%Y-%m-%d'),
-            'time': dt.time.strftime(corrected_DT.time(), '%H:%M'),
+            'time': corrected_DT.strftime('%H:%M'),
             # step: With type=an, step is always "0". With type=fc, step can
             # be any of "3/6/9/12".
             'step': '0',
@@ -196,10 +210,7 @@ class ECMWF(WeatherModel):
             'format': 'netcdf',
         }
 
-        try:
-            c.retrieve('reanalysis-era5-complete', dataDict, outname)
-        except:
-            raise Exception
+        c.retrieve('reanalysis-era5-complete', dataDict, outname)
 
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out) -> None:
         """Used for HRES."""

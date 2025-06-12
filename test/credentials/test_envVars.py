@@ -3,18 +3,21 @@ Environment variables specific to each model are accepted iff uid and key
 arguments are None.
 '''
 
-import pytest
 from pathlib import Path
 from platform import system
-from RAiDER.models import credentials
+
+import pytest
 from test import random_string
+
+from RAiDER.models import credentials
+
 
 @pytest.mark.parametrize(
     'model_name,template,env_var_name_uid,env_var_name_key',
     [
         (
             'ERA5', (
-                'url: https://cds.climate.copernicus.eu/api/v2\n'
+                'url: https://cds.climate.copernicus.eu/api\n'
                 'key: {uid}:{key}\n'
             ),
             'RAIDER_ECMWF_ERA5_UID',
@@ -22,7 +25,7 @@ from test import random_string
         ),
         (
             'ERA5T', (
-                'url: https://cds.climate.copernicus.eu/api/v2\n'
+                'url: https://cds.climate.copernicus.eu/api\n'
                 'key: {uid}:{key}\n'
             ),
             'RAIDER_ECMWF_ERA5_UID',

@@ -2,7 +2,7 @@ import datetime as dt
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, Union, List, Tuple
+from typing import Literal, Optional, Union, List, Tuple
 
 import numpy as np
 import xarray as xr
@@ -36,6 +36,7 @@ class WeatherModel(ABC):
     """Implement a generic weather model for getting estimated SAR delays."""
 
     _dataset: Optional[str]
+    _model_level_type: Literal['ml', 'pl']
 
     def __init__(self) -> None:
         """Initialize model-specific constants/parameters."""
