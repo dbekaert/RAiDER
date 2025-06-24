@@ -15,23 +15,20 @@ jobs:
           name: Install MiniForge
           shell: /bin/bash -l
           command: |
-            apt update --yes && apt-get upgrade --yes
-            apt install -y --no-install-recommends wget ca-certificates git
+            apt update --yes && apt upgrade --yes
+            apt install --yes --no-install-recommends wget ca-certificates git
 
             cd ${HOME}
             wget -O  Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
             bash Miniforge3.sh -b -p "${HOME}/conda"
             source "${HOME}/conda/etc/profile.d/conda.sh"
-            source "${HOME}/conda/etc/profile.d/mamba.sh"
+            mamba shell init
 
       - run:
           name: Create RAiDER environment
           no_output_timeout: 30m
           shell: /bin/bash -xl
           command: |
-            source "${HOME}/conda/etc/profile.d/conda.sh"
-            source "${HOME}/conda/etc/profile.d/mamba.sh"
-          
             PYTHON_VERSION="<< parameters.python-version >>"
             sed -i "/python>=/c\ - python=${PYTHON_VERSION}" environment.yml
             mamba env create -f environment.yml
@@ -40,10 +37,6 @@ jobs:
           name: Install raider and check environment
           shell: /bin/bash -xl
           command: |
-            source "${HOME}/conda/etc/profile.d/conda.sh"
-            source "${HOME}/conda/etc/profile.d/mamba.sh"
-            mamba activate RAiDER
-
             python -m pip install --no-deps .
 
             python -c "import RAiDER; from RAiDER.delay import tropo_delay"
@@ -57,21 +50,13 @@ jobs:
           name: Setup data stores
           shell: /bin/bash -xl
           command: |
-            source "${HOME}/conda/etc/profile.d/conda.sh"
-            source "${HOME}/conda/etc/profile.d/mamba.sh"
-            mamba activate RAiDER
-
             python -c 'from RAiDER.models.credentials import setup_from_env; setup_from_env()'
 
       - run:
           name: Run unit tests
           shell: /bin/bash -xl
           command: |
-            source "${HOME}/conda/etc/profile.d/conda.sh"
-            source "${HOME}/conda/etc/profile.d/mamba.sh"
-            mamba activate RAiDER
-
-            COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
+            COV_OPTIONS=`python -c "import importlib; print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
             coverage run -m pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
 
       - run:
@@ -80,10 +65,6 @@ jobs:
           command: |
             PYTHON_VERSION="<< parameters.python-version >>"
             if [ "${PYTHON_VERSION}" == "3.12" ]; then
-              source "${HOME}/conda/etc/profile.d/conda.sh"
-              source "${HOME}/conda/etc/profile.d/mamba.sh"
-              mamba activate RAiDER
-
               python -m pip install coveralls
               python .circleci/fix_coverage_paths.py .coverage ${PWD}/tools/RAiDER/
               coverage report -mi --show-missing --data-file=.coverage
