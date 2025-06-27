@@ -119,7 +119,7 @@ def test_download_tropo_delays2():
         download_tropo_delays(stats=['dummy_station'], years=[2022])
 
 
-def test_download_tropo_delays2(tmp_path):
+def test_download_tropo_delays3(tmp_path):
     with pushd(tmp_path):
         stations, output_file = get_station_list(
             stationFile=os.path.join(SCENARIO2_DIR, 'stations.csv')
