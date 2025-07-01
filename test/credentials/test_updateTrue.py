@@ -20,13 +20,13 @@ from RAiDER.models import credentials
         (
             'ERA5', (
                 'url: https://cds.climate.copernicus.eu/api\n'
-                'key: {uid}:{key}\n'
+                'key: {key}\n'
             )
         ),
         (
             'ERA5T', (
                 'url: https://cds.climate.copernicus.eu/api\n'
-                'key: {uid}:{key}\n'
+                'key: {key}\n'
             )
         ),
         (

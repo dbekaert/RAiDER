@@ -26,7 +26,7 @@ jobs:
 
       - run:
           name: Create RAiDER environment
-          no_output_timeout: 30m
+          no_output_timeout: 60m
           shell: /bin/bash -xl
           command: |
             source "${HOME}/conda/etc/profile.d/conda.sh"
@@ -71,8 +71,8 @@ jobs:
             source "${HOME}/conda/etc/profile.d/mamba.sh"
             mamba activate RAiDER
 
-            COV_OPTIONS=`python -c "import importlib;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            coverage run -m pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
+            COV_OPTIONS=`python -c "import importlib.util;print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
+            pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
 
       - run:
           name: Report coverage

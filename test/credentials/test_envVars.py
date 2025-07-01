@@ -18,7 +18,7 @@ from RAiDER.models import credentials
         (
             'ERA5', (
                 'url: https://cds.climate.copernicus.eu/api\n'
-                'key: {uid}:{key}\n'
+                'key: {key}\n'
             ),
             'RAIDER_ECMWF_ERA5_UID',
             'RAIDER_ECMWF_ERA5_API_KEY'
@@ -26,7 +26,7 @@ from RAiDER.models import credentials
         (
             'ERA5T', (
                 'url: https://cds.climate.copernicus.eu/api\n'
-                'key: {uid}:{key}\n'
+                'key: {key}\n'
             ),
             'RAIDER_ECMWF_ERA5_UID',
             'RAIDER_ECMWF_ERA5_API_KEY'

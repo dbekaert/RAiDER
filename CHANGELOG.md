@@ -9,11 +9,15 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 ### Fixed
 * [744](https://github.com/dbekaert/RAiDER/pull/744) - Re-enabled a test (`test_download_tropo_delays2()`) that had been inadvertently disabled due to a name collision.
+* [733](https://github.com/dbekaert/RAiDER/pull/733) - Fixed coverage reports being generated for incorrect directories.
+* [734](https://github.com/dbekaert/RAiDER/pull/734) - Resolved a deprecation warning from Rasterio about the use of `statistics()`.
+* [732](https://github.com/dbekaert/RAiDER/pull/732) - Updated `hrrr.py` to resolve a deprecation warning about `unary_union`.
+* [731](https://github.com/dbekaert/RAiDER/pull/731) - Fixed fetch routine for GMAO.
 
 ### Added
-* [725](https://github.com/dbekaert/RAiDER/pull/725) - Added rules to ignore all test artifacts in git
+* [725](https://github.com/dbekaert/RAiDER/pull/725) - Added rules to ignore all test artifacts in git.
 * [728](https://github.com/dbekaert/RAiDER/pull/728) - Added downloader tests for HRES, GMAO, and MERRA2.
-* [726](https://github.com/dbekaert/RAiDER/pull/726) - Updated code and documentation for changes to the CDS API
+* [726](https://github.com/dbekaert/RAiDER/pull/726) - Updated code and documentation for changes to the CDS API.
 
 ## [0.5.5]
 ### Changed

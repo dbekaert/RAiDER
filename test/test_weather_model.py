@@ -462,7 +462,7 @@ def test_hrrr_badloc(wm:hrrr=HRRR) -> None:
     wm.set_latlon_bounds([-10, 10, -10, 10])
     wm.setTime(datetime.datetime(2020, 10, 1, 0, 0, 0))
     with pytest.raises(ValueError):
-        wm._fetch('dummy_filename')
+        wm._fetch(Path('dummy_filename'))
 
 def test_hrrrak_dl(tmp_path: Path, wm:hrrrak=HRRRAK) -> None:
     """Test HRRR-AK."""

@@ -1,4 +1,5 @@
 import datetime as dt
+from pathlib import Path
 
 from dateutil.relativedelta import relativedelta
 from pyproj import CRS
@@ -33,7 +34,7 @@ class ERA5(ECMWF):
         # Default, need to change to ml
         self.setLevelType('ml')
 
-    def _fetch(self, out) -> None:
+    def _fetch(self, out: Path) -> None:
         """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds

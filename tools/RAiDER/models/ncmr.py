@@ -4,8 +4,8 @@ Modified by Yang Lei, GPS/Caltech
 """
 
 import datetime as dt
-import os
 import urllib.request
+from pathlib import Path
 
 import numpy as np
 from pyproj import CRS
@@ -63,7 +63,7 @@ class NCMR(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, out) -> None:
+    def _fetch(self, out: Path) -> None:
         """
         Fetch weather model data from NCMR: note we only extract the lat/lon bounds for this weather model;
         fetching data is not needed here as we don't actually download data, data exist in same system.
@@ -86,7 +86,7 @@ class NCMR(WeatherModel):
 
         self._makeDataCubes(f)
 
-    def _download_ncmr_file(self, out, date_time, bounding_box) -> None:
+    def _download_ncmr_file(self, out: Path, date_time, bounding_box) -> None:
         """
         Download weather model data (whole globe) from NCMR weblink, crop it to the region of interest, and save the cropped data as a standard .nc file of RAiDER (e.g. "NCMR_YYYY_MM_DD_THH_MM_SS.nc");
         Temporarily download data from NCMR ftp 'https://ftp.ncmrwf.gov.in/pub/outgoing/SAC/NCUM_OSF/' and copied in weather_models folder.
@@ -95,10 +95,9 @@ class NCMR(WeatherModel):
 
         ############# Use these lines and modify the link when actually downloading NCMR data from a weblink #############
         url, username, password = read_NCMR_loginInfo()
-        filename = os.path.basename(out)
-        url = f'ftp://{username}:{password}@{url}/TEST/{filename}'
-        filepath = f'{out[:-3]}_raw.nc'
-        if not os.path.exists(filepath):
+        url = f'ftp://{username}:{password}@{url}/TEST/{out.stem}'
+        filepath = f'{out.stem}_raw.nc'
+        if not out.exists():
             logger.info('Fetching URL: %s', url)
             local_filename, headers = urllib.request.urlretrieve(url, filepath, show_progress)
         else:
@@ -190,11 +189,11 @@ class NCMR(WeatherModel):
             lons[lons > 180] -= 360
 
         ############# For debugging: comment it out when using pre-downloaded raw data files and don't want to remove them for test; Uncomment it when actually downloading NCMR data from a weblink #############
-        os.remove(filepath)
+        filepath.unlink()
         ########################################################################################################################
 
         try:
-            writeWeatherVarsXarray(lats, lons, hgt, q, p, t, self._time, self._proj, outName=out)
+            writeWeatherVarsXarray(lats, lons, hgt, q, p, t, self._time, self._proj, out_path=out)
         except:
             logger.exception('Unable to save weathermodel to file')
 

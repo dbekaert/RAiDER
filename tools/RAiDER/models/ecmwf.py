@@ -1,4 +1,5 @@
 import datetime as dt
+from pathlib import Path
 
 import numpy as np
 import xarray as xr
@@ -110,14 +111,14 @@ class ECMWF(WeatherModel):
         self._xs = self._lons.copy()
         self._zs = np.flip(h, axis=2)
 
-    def _fetch(self, out) -> None:
+    def _fetch(self, out: Path) -> None:
         """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds
         # execute the search at ECMWF
         self._get_from_ecmwf(lat_min, lat_max, self._lat_res, lon_min, lon_max, self._lon_res, self._time, out)
 
-    def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out) -> None:
+    def _get_from_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out: Path) -> None:
         import ecmwfapi
 
         server = ecmwfapi.ECMWFDataServer()
@@ -154,7 +155,7 @@ class ECMWF(WeatherModel):
                 'area': f'{lat_max}/{lon_min}/{lat_min}/{lon_max}',  # area: N/W/S/E
                 'format': 'netcdf',
                 'resol': 'av',
-                'target': out,  # target: the name of the output file.
+                'target': str(out),  # target: the name of the output file.
             }
         )
 
@@ -165,7 +166,7 @@ class ECMWF(WeatherModel):
         lon_min: float,
         lon_max: float,
         acqTime: dt.datetime,
-        outname: str,
+        out_path: Path,
     ) -> None:
         """Used for ERA5."""
         import cdsapi
@@ -210,9 +211,9 @@ class ECMWF(WeatherModel):
             'format': 'netcdf',
         }
 
-        c.retrieve('reanalysis-era5-complete', dataDict, outname)
+        c.retrieve('reanalysis-era5-complete', dataDict, str(out_path))
 
-    def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out) -> None:
+    def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out: Path) -> None:
         """Used for HRES."""
         from ecmwfapi import ECMWFService
 
@@ -246,7 +247,7 @@ class ECMWF(WeatherModel):
                 'area': f'{lat_max}/{util.floorish(lon_min, 0.1)}/{util.floorish(lat_min, 0.1)}/{lon_max}',
                 'format': 'netcdf',
             },
-            out,
+            str(out),
         )
 
     def _load_pressure_level(self, filename, *args, **kwargs) -> None:

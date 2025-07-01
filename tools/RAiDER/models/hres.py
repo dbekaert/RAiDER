@@ -1,4 +1,5 @@
 import datetime as dt
+from pathlib import Path
 
 import numpy as np
 from pyproj import CRS
@@ -73,7 +74,7 @@ class HRES(ECMWF):
         elif self._model_level_type == 'pl':
             self._load_pressure_levels(f)
 
-    def _fetch(self, out) -> None:
+    def _fetch(self, out: Path) -> None:
         """Fetch a weather model from ECMWF."""
         # bounding box plus a buffer
         lat_min, lat_max, lon_min, lon_max = self._ll_bounds

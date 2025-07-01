@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
+import numpy.typing as npt
 import rasterio
 import xarray as xr
 import yaml
@@ -14,21 +15,11 @@ from numpy import ndarray
 from pyproj import CRS, Proj, Transformer
 
 import RAiDER
-from RAiDER.constants import (
-    R_EARTH_MAX_WGS84 as Rmax,
-)
-from RAiDER.constants import (
-    R_EARTH_MIN_WGS84 as Rmin,
-)
-from RAiDER.constants import (
-    _THRESHOLD_SECONDS,
-)
-from RAiDER.constants import (
-    _g0 as g0,
-)
-from RAiDER.constants import (
-    _g1 as G1,
-)
+from RAiDER.constants import R_EARTH_MAX_WGS84 as Rmax
+from RAiDER.constants import R_EARTH_MIN_WGS84 as Rmin
+from RAiDER.constants import _THRESHOLD_SECONDS
+from RAiDER.constants import _g0 as g0
+from RAiDER.constants import _g1 as G1
 from RAiDER.llreader import AOI
 from RAiDER.logger import logger
 from RAiDER.types import BB, RIO, CRSLike
@@ -234,7 +225,7 @@ def rio_stats(path: Path, band: int=1) -> tuple[RIO.Statistics, Optional[CRS], R
     # Turn off PAM to avoid creating .aux.xml files
     with rasterio.Env(GDAL_PAM_ENABLED='NO'):
         with rasterio.open(path) as src:
-            stats = src.statistics(band)
+            stats = src.stats(indexes=(band,))[0]
             proj = src.crs
             gt = src.transform.to_gdal()
 
@@ -647,27 +638,42 @@ def requests_retry_session(retries: int=10, session=None):  # noqa: ANN001, ANN2
     return session
 
 
-def writeWeatherVarsXarray(lat: float, lon: float, h: float, q: float, p: float, t: float, datetime: dt.datetime, crs: float, outName: str=None, NoDataValue: int=-9999, chunk: list=(1, 91, 144)) -> None:
-    """Does not return anything."""
-    # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
-    attrs_dict = {
-        'datetime': datetime.strftime('%Y_%m_%dT%H_%M_%S'),
-        'date_created': datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
-        'NoDataValue': NoDataValue,
-        'chunksize': chunk,
-        # 'mapping_name': mapping_name,
-    }
-
-    dimension_dict = {
-        'latitude': (('y', 'x'), lat),
-        'longitude': (('y', 'x'), lon),
-    }
-
+def writeWeatherVarsXarray(
+    lat: npt.NDArray[np.floating],
+    lon: npt.NDArray[np.floating],
+    h: npt.NDArray[np.floating],
+    q: npt.NDArray[np.floating],
+    p: npt.NDArray[np.floating],
+    t: npt.NDArray[np.floating],
+    datetime: dt.datetime,
+    crs: CRS,
+    out_path: Path,
+    NoDataValue: int = -9999,
+    chunksize: Tuple[int, ...] = (1, 91, 144),
+) -> None:
+    assert len(h.shape) == 3, "Invalid h array dimensions"
+    assert len(q.shape) == 3, "Invalid q array dimensions"
+    assert len(p.shape) == 3, "Invalid p array dimensions"
+    assert len(t.shape) == 3, "Invalid t array dimensions"
     dataset_dict = {
         'h': (('z', 'y', 'x'), h),
         'q': (('z', 'y', 'x'), q),
         'p': (('z', 'y', 'x'), p),
         't': (('z', 'y', 'x'), t),
+    }
+    assert len(lat.shape) == 2, "Invalid lats array dimensions"
+    assert len(lon.shape) == 2, "Invalid lons array dimensions"
+    dimension_dict = {
+        'latitude': (('y', 'x'), lat),
+        'longitude': (('y', 'x'), lon),
+    }
+    # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
+    attrs_dict = {
+        'datetime': datetime.strftime('%Y_%m_%dT%H_%M_%S'),
+        'date_created': datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
+        'NoDataValue': NoDataValue,
+        'chunksize': chunksize,
+        # 'mapping_name': mapping_name,
     }
 
     ds = xr.Dataset(
@@ -692,7 +698,7 @@ def writeWeatherVarsXarray(lat: float, lon: float, h: float, q: float, p: float,
     for var in ds.data_vars:
         ds[var].attrs['grid_mapping'] = 'proj'
 
-    ds.to_netcdf(outName)
+    ds.to_netcdf(out_path)
     del ds
 
 
@@ -728,20 +734,6 @@ def read_NCMR_loginInfo(filepath: str = None) -> Tuple[str, str, str]:
     password = parse_line(lines[2], "password")
 
     return url, username, password
-
-
-def read_EarthData_loginInfo(filepath: str = None) -> Tuple[str, str]:
-    """Returns username and password."""
-    from netrc import netrc
-
-    nrc = netrc(filepath) if filepath else netrc()
-    try:
-        urs_usr, _, urs_pwd = nrc.hosts['urs.earthdata.nasa.gov']
-        if not urs_usr or not urs_pwd:
-            raise ValueError("Invalid login information in netrc")
-        return urs_usr, urs_pwd
-    except KeyError:
-        raise KeyError("No entry for urs.earthdata.nasa.gov in netrc")
 
 
 def show_progress(block_num: Union[int, float], block_size: Union[int, float], total_size: Union[int, float]) -> None:

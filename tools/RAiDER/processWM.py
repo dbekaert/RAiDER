@@ -6,6 +6,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -73,7 +74,7 @@ def prepareWeatherModel(
     else:
         os.makedirs(os.path.dirname(path_wm_raw), exist_ok=True)
         try:
-            weather_model.fetch(path_wm_raw, time)
+            weather_model.fetch(Path(path_wm_raw), time)
         except DatetimeOutsideRange:
             raise TryToKeepGoingError
 

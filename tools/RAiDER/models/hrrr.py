@@ -24,7 +24,7 @@ HRRR_AK_PROJ = CRS.from_string(
     '+x_0=0.0 +y_0=0.0 +lat_ts=60.0 +no_defs +type=crs'
 )
 # Source: https://eric.clst.org/tech/usgeojson/
-AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.unary_union
+AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.union_all("unary")
 
 
 def check_hrrr_dataset_availability(datetime: dt.datetime, model='hrrr') -> bool:
@@ -38,7 +38,7 @@ def check_hrrr_dataset_availability(datetime: dt.datetime, model='hrrr') -> bool
     return herbie.grib_source is not None
 
 
-def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0, verbose=False) -> None:
+def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', fxx=0, verbose=False) -> None:
     """
     Download a HRRR weather model using Herbie.
 
@@ -61,7 +61,7 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         fxx=fxx,
         overwrite=False,
         verbose=True,
-        save_dir=Path(os.path.dirname(out)),
+        save_dir=out.parent,
     )
 
     # Iterate through the list of datasets
@@ -71,7 +71,6 @@ def download_hrrr_file(ll_bounds, DATE, out, model='hrrr', product='nat', fxx=0,
         logger.error(e)
         raise
 
-    ds_out = None
     # Note order coord names are request for `test_HRRR_ztd` matters
     # when both coord names are retreived by Herbie is ds_list possibly in
     # Different orders on different machines; `hybrid` is what is expected for the test.
@@ -402,7 +401,7 @@ class HRRRAK(WeatherModel):
             'hrrr.py: Revisit whether or not pressure levels from HRRR can be used for delay calculations; they do not go high enough compared to native model levels.'
         )
 
-    def _fetch(self, out) -> None:
+    def _fetch(self, out: Path) -> None:
         bounds = self._ll_bounds.copy()
         bounds[2:] = np.mod(bounds[2:], 360)
         corrected_DT = round_date(self._time, dt.timedelta(hours=self._time_res))

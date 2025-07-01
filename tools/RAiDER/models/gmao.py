@@ -1,10 +1,9 @@
 import datetime as dt
-import os
 import shutil
+from pathlib import Path
 
 import h5py
 import numpy as np
-import pydap.cas.urs
 import pydap.client
 from pyproj import CRS
 
@@ -58,10 +57,8 @@ class GMAO(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
-    def _fetch(self, out) -> None:
+    def _fetch(self, out: Path) -> None:
         """Fetch weather model data from GMAO."""
-        acqTime = self._time
-
         # calculate the array indices for slicing the GMAO variable arrays
         lat_min_ind = int((self._ll_bounds[0] - (-90.0)) / self._lat_res)
         lat_max_ind = int((self._ll_bounds[1] - (-90.0)) / self._lat_res)
@@ -70,9 +67,9 @@ class GMAO(WeatherModel):
 
         T0 = dt.datetime(2017, 12, 1, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
         # round time to nearest third hour
-        corrected_DT = round_date(acqTime, dt.timedelta(hours=self._time_res))
-        if not corrected_DT == acqTime:
-            logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
+        corrected_DT = round_date(self._time, dt.timedelta(hours=self._time_res))
+        if not corrected_DT == self._time:
+            logger.warning('Rounded given datetime from  %s to %s', self._time, corrected_DT)
 
         DT = corrected_DT - T0
         time_ind = int(DT.total_seconds() / 3600.0 / self._time_res)
@@ -81,10 +78,19 @@ class GMAO(WeatherModel):
         ml_max = 71
         if corrected_DT >= T0:
             # open the dataset and pull the data
-            url = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
-            session = pydap.cas.urs.setup_session('username', 'password', check_url=url)
-            ds = pydap.client.open_url(url, session=session)
+            URL = 'https://opendap.nccs.nasa.gov/dods/GEOS-5/fp/0.25_deg/assim/inst3_3d_asm_Nv'
+            ds = pydap.client.open_url(URL)
 
+            q = (
+                ds['qv']
+                .array[
+                    time_ind,
+                    ml_min : (ml_max + 1),
+                    lat_min_ind : (lat_max_ind + 1),
+                    lon_min_ind : (lon_max_ind + 1),
+                ]
+                .data[0]
+            )
             p = (
                 ds['pl']
                 .array[
@@ -110,35 +116,37 @@ class GMAO(WeatherModel):
         else:
             root = 'https://portal.nccs.nasa.gov/datashare/gmao/geos-fp/das/Y{}/M{:02d}/D{:02d}'
             base = f'GEOS.fp.asm.inst3_3d_asm_Nv.{corrected_DT.strftime("%Y%m%d")}_{corrected_DT.hour:02}00.V01.nc4'
-            url = f'{root.format(corrected_DT.year, corrected_DT.month, corrected_DT.day)}/{base}'
-            f = '{}_raw{}'.format(*os.path.splitext(out))
-            if not os.path.exists(f):
-                logger.info('Fetching URL: %s', url)
+            URL = f'{root.format(corrected_DT.year, corrected_DT.month, corrected_DT.day)}/{base}'
+            path = Path(f'{out.stem}_raw{out.suffix}')
+            if not path.exists():
+                logger.info('Fetching URL: %s', URL)
                 session = requests_retry_session()
-                resp = session.get(url, stream=True)
+                resp = session.get(URL, stream=True)
                 assert resp.ok, f'Could not access url for datetime: {corrected_DT}'
-                with open(f, 'wb') as fh:
-                    shutil.copyfileobj(resp.raw, fh)
+                with path.open('wb') as fout:
+                    shutil.copyfileobj(resp.raw, fout)
             else:
                 logger.warning('Weather model already exists, skipping download')
 
-            with h5py.File(f, 'r') as ds:
+            with h5py.File(path, 'r') as ds:
                 q = ds['QV'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
                 p = ds['PL'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
                 t = ds['T'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
                 h = ds['H'][0, :, lat_min_ind : (lat_max_ind + 1), lon_min_ind : (lon_max_ind + 1)]
-            os.remove(f)
+            path.unlink()
 
         lats = np.arange((-90 + lat_min_ind * self._lat_res), (-90 + (lat_max_ind + 1) * self._lat_res), self._lat_res)
         lons = np.arange(
             (-180 + lon_min_ind * self._lon_res), (-180 + (lon_max_ind + 1) * self._lon_res), self._lon_res
         )
+        lon, lat = np.meshgrid(lons, lats)
 
         try:
             # Note that lat/lon gets written twice for GMAO because they are the same as y/x
-            writeWeatherVarsXarray(lats, lons, h, q, p, t, dt, crs, outName=None, NoDataValue=None, chunk=(1, 91, 144))
+            writeWeatherVarsXarray(lat, lon, h, q, p, t, self._time, self._proj, out)
         except:
-            logger.exception('Unable to save weathermodel to file')
+            logger.exception('Unable to save weathermodel to file:')
+            raise
 
     def load_weather(self, f=None) -> None:
         """

@@ -34,3 +34,4 @@ orbits/
 /*.nc
 /GUNW*.yaml
 /*.tif
+.coverage*
