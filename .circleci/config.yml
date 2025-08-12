@@ -27,7 +27,6 @@ jobs:
             # it even in non-interactive terminals
             "${HOME}/conda/bin/mamba" shell hook --shell bash --root-prefix "${HOME}/conda" \
               > /etc/profile.d/mamba-raider-circleci.sh
-            echo "mamba activate RAiDER" >> /etc/profile.d/mamba-raider-circleci.sh
 
       - run:
           name: Create RAiDER environment
@@ -37,6 +36,7 @@ jobs:
             PYTHON_VERSION="<< parameters.python-version >>"
             sed -i "/python>=/c\ - python=${PYTHON_VERSION}" environment.yml
             mamba env create -f environment.yml
+            echo "mamba activate RAiDER" >> /etc/profile.d/mamba-raider-circleci.sh
 
       - run:
           name: Install RAiDER and check environment
