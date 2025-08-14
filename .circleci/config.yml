@@ -70,6 +70,7 @@ jobs:
           name: Report coverage
           shell: /bin/bash -xl
           command: |
+            # Only run the coverage test on the latest supported version (3.12)
             PYTHON_VERSION="<< parameters.python-version >>"
             if [ "${PYTHON_VERSION}" == "3.12" ]; then
               python -m pip install coveralls
