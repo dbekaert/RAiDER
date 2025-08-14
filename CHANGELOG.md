@@ -11,6 +11,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [743](https://github.com/dbekaert/RAiDER/pull/743) - Switched from HTTPS to DAP4 for retrieving MERRA2 data, and suppressed a warning for using DAP4 for GMAO data where doing so is not possible.
 
 ### Fixed
+* [757](https://github.com/dbekaert/RAiDER/pull/757) - Switched to micromamba in CircleCI tests to fix configuration issue experienced with MiniForge.
 * [741](https://github.com/dbekaert/RAiDER/pull/741) - Updated mamba setup commands in CircleCI for mamba 2.0.0.
 * [738](https://github.com/dbekaert/RAiDER/pull/738) - Resolved an InsecureRequestWarning when fetching data through CDS, such as for ERA5.
 * [734](https://github.com/dbekaert/RAiDER/pull/734) - Resolved a deprecation warning from Rasterio about the use of `statistics()`.
