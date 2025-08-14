@@ -33,10 +33,9 @@ jobs:
           shell: /bin/bash -xl
           command: |
             PYTHON_VERSION="<< parameters.python-version >>"
-            sed -i "/python>=/c\ - python=${PYTHON_VERSION}" environment.yml
             # Create RAiDER enivronment
-            micromamba env create --yes -f environment.yml
-            # Activate the RAiDER env for the rest of this script's steps
+            micromamba env create --yes -f environment.yml python=${PYTHON_VERSION}
+            # Activate the RAiDER env for the rest of the script's shells
             echo "micromamba activate RAiDER" >> /etc/profile.d/mamba-raider-circleci.sh
 
       - run:
