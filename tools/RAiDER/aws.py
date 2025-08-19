@@ -10,6 +10,23 @@ from RAiDER.logger import logger
 S3_CLIENT = boto3.client('s3')
 
 
+def get_tag_set(file_name: str) -> dict:
+    if file_name.endswith('.png'):
+        file_type = 'browse'
+    else:
+        file_type = 'product'
+
+    tag_set = {
+        'TagSet': [
+            {
+                'Key': 'file_type',
+                'Value': file_type
+            }
+        ]
+    }
+    return tag_set
+
+
 def get_content_type(file_location: Union[Path, str]) -> str:
     content_type = guess_type(file_location)[0]
     if content_type is None:
@@ -25,14 +42,7 @@ def upload_file_to_s3(path_to_file: Union[str, Path], bucket: str, prefix: str =
     logger.info(f'Uploading s3://{bucket}/{key}')
     S3_CLIENT.upload_file(str(path_to_file), bucket, key, extra_args)
 
-    tag_set = {
-        'TagSet': [
-            {
-                'Key': 'file_type',
-                'Value': 'product'
-            }
-        ]
-    }
+    tag_set = get_tag_set(path_to_file.name)
 
     S3_CLIENT.put_object_tagging(Bucket=bucket, Key=key, Tagging=tag_set)
 
