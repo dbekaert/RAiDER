@@ -34,9 +34,8 @@ def get_content_type(file_location: Union[Path, str]) -> str:
     return content_type
 
 
-def upload_file_to_s3(path_to_file: Union[str, Path], bucket: str, prefix: str = '') -> None:
-    path_to_file = Path(path_to_file)
-    key = str(Path(prefix) / path_to_file)
+def upload_file_to_s3(path_to_file: Path, bucket: str, prefix: str = '') -> None:
+    key = str(Path(prefix) / path_to_file.name)
     extra_args = {'ContentType': get_content_type(key)}
 
     logger.info(f'Uploading s3://{bucket}/{key}')

@@ -137,9 +137,9 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
     )
 
     assert aws.upload_file_to_s3.mock_calls == [
-        unittest.mock.call('foo.nc', 'myBucket', 'myPrefix'),
+        unittest.mock.call(tmp_path / 'foo.nc', 'myBucket', 'myPrefix'),
         unittest.mock.call(temp_json_path, 'myBucket', 'myPrefix'),
-        unittest.mock.call('foo.png', 'myBucket', 'myPrefix'),
+        unittest.mock.call(tmp_path / 'foo.png', 'myBucket', 'myPrefix'),
     ]
 
 
