@@ -4,8 +4,9 @@ import numpy as np
 import xarray as xr
 from RAiDER.cli.raider import calcDelays
 
-def test_scenario_1(tmp_path, data_for_hrrr_ztd, mocker):
-    SCENARIO_DIR = TEST_DIR / "scenario_1"
+
+def test_hrrr_ztd(tmp_path, data_for_hrrr_ztd, mocker) -> None:
+    SCENARIO_DIR = TEST_DIR / 'scenario_1'
     test_path = SCENARIO_DIR / 'raider_example_1.yaml'
     mocker.patch('RAiDER.processWM.prepareWeatherModel',
                     side_effect=[str(data_for_hrrr_ztd)])

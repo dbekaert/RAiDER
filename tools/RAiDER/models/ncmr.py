@@ -18,7 +18,7 @@ from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 from RAiDER.utilFcns import (
     read_NCMR_loginInfo,
     show_progress,
-    writeWeatherVarsXarray,
+    write_weather_vars_to_ds,
 )
 
 
@@ -193,7 +193,7 @@ class NCMR(WeatherModel):
         ########################################################################################################################
 
         try:
-            writeWeatherVarsXarray(lats, lons, hgt, q, p, t, self._time, self._proj, out_path=out)
+            write_weather_vars_to_ds(lats, lons, hgt, q, p, t, self._time, self._proj, out_path=out)
         except:
             logger.exception('Unable to save weathermodel to file')
 

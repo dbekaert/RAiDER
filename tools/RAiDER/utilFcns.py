@@ -22,7 +22,7 @@ from RAiDER.constants import _g0 as g0
 from RAiDER.constants import _g1 as G1
 from RAiDER.llreader import AOI
 from RAiDER.logger import logger
-from RAiDER.types import BB, RIO, CRSLike
+from RAiDER.types import BB, RIO, CRSLike, FloatArray2D, FloatArray3D
 
 
 # Optional imports
@@ -638,68 +638,76 @@ def requests_retry_session(retries: int=10, session=None):  # noqa: ANN001, ANN2
     return session
 
 
-def writeWeatherVarsXarray(
-    lat: npt.NDArray[np.floating],
-    lon: npt.NDArray[np.floating],
-    h: npt.NDArray[np.floating],
-    q: npt.NDArray[np.floating],
-    p: npt.NDArray[np.floating],
-    t: npt.NDArray[np.floating],
+def write_weather_vars_to_ds(
+    lat_range: FloatArray2D,
+    lon_range: FloatArray2D,
+    h: FloatArray3D,
+    q: FloatArray3D,
+    p: FloatArray3D,
+    t: FloatArray3D,
     datetime: dt.datetime,
     crs: CRS,
     out_path: Path,
     NoDataValue: int = -9999,
-    chunksize: Tuple[int, ...] = (1, 91, 144),
+    chunksize: Tuple[int, int, int] = (1, 91, 144),
 ) -> None:
-    assert len(h.shape) == 3, "Invalid h array dimensions"
-    assert len(q.shape) == 3, "Invalid q array dimensions"
-    assert len(p.shape) == 3, "Invalid p array dimensions"
-    assert len(t.shape) == 3, "Invalid t array dimensions"
-    dataset_dict = {
-        'h': (('z', 'y', 'x'), h),
-        'q': (('z', 'y', 'x'), q),
-        'p': (('z', 'y', 'x'), p),
-        't': (('z', 'y', 'x'), t),
-    }
-    assert len(lat.shape) == 2, "Invalid lats array dimensions"
-    assert len(lon.shape) == 2, "Invalid lons array dimensions"
-    dimension_dict = {
-        'latitude': (('y', 'x'), lat),
-        'longitude': (('y', 'x'), lon),
-    }
-    # I added datetime as an input to the function and just copied these two lines from merra2 for the attrs_dict
-    attrs_dict = {
-        'datetime': datetime.strftime('%Y_%m_%dT%H_%M_%S'),
-        'date_created': datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
-        'NoDataValue': NoDataValue,
-        'chunksize': chunksize,
-        # 'mapping_name': mapping_name,
-    }
-
-    ds = xr.Dataset(
-        data_vars=dataset_dict,
-        coords=dimension_dict,
-        attrs=attrs_dict,
-    )
-
-    ds['h'].attrs['standard_name'] = 'mid_layer_heights'
-    ds['p'].attrs['standard_name'] = 'mid_level_pressure'
-    ds['q'].attrs['standard_name'] = 'specific_humidity'
-    ds['t'].attrs['standard_name'] = 'air_temperature'
-
-    ds['h'].attrs['units'] = 'm'
-    ds['p'].attrs['units'] = 'Pa'
-    ds['q'].attrs['units'] = 'kg kg-1'
-    ds['t'].attrs['units'] = 'K'
-
-    ds['proj'] = 0
-    for k, v in crs.to_cf().items():
-        ds.proj.attrs[k] = v
-    for var in ds.data_vars:
-        ds[var].attrs['grid_mapping'] = 'proj'
-
-    ds.to_netcdf(out_path)
-    del ds
+    DIMS_3D = ('z', 'y', 'x')
+    DIMS_2D = ('y', 'x')
+    with xr.Dataset(
+        data_vars={
+            'h': xr.Variable(
+                dims=DIMS_3D,
+                data=h,
+                attrs={
+                    'standard_name': 'mid_layer_heights',
+                    'units': 'm',
+                },
+            ),
+            'q': xr.Variable(
+                dims=DIMS_3D,
+                data=q,
+                attrs={
+                    'standard_name': 'specific_humidity',
+                    'units': 'kg kg-1',
+                },
+            ),
+            'p': xr.Variable(
+                dims=DIMS_3D,
+                data=p,
+                attrs={
+                    'standard_name': 'mid_level_pressure',
+                    'units': 'Pa',
+                },
+            ),
+            't': xr.Variable(
+                dims=DIMS_3D,
+                data=t,
+                attrs={
+                    'standard_name': 'air_temperature',
+                    'units': 'K',
+                },
+            ),
+            'proj': 0,
+        },
+        coords={
+            'latitude': xr.Variable(dims=DIMS_2D, data=lat_range),
+            'longitude': xr.Variable(dims=DIMS_2D, data=lon_range),
+        },
+        attrs={
+            # I added datetime as an input to the function and just copied these
+            # two lines from merra2 for the attrs_dict
+            'datetime': datetime.strftime('%Y_%m_%dT%H_%M_%S'),
+            'date_created': dt.datetime.now().strftime('%Y_%m_%dT%H_%M_%S'),
+            'NoDataValue': NoDataValue,
+            'chunksize': chunksize,
+            # 'mapping_name': mapping_name,
+        },
+    ) as ds:
+        for k, v in crs.to_cf().items():
+            ds['proj'].attrs[k] = v
+        for var in ds.data_vars:
+            ds[var].attrs['grid_mapping'] = 'proj'
+        ds.to_netcdf(out_path)
 
 
 def convertLons(inLons: np.ndarray) -> np.ndarray:

@@ -77,7 +77,7 @@ class customModelReader(WeatherModel):
         # download dataset of the custom weather model "ABCD" from a server and then save it to a file named out.
         # This function needs to be writen by the users. For download from the weather model server, the weather model
         # name, time and bounding box may be needed to retrieve the dataset; for cases where no file is actually
-        # downloaded, e.g. the GMAO and MERRA-2 models using OpenDAP, this function can be omitted leaving the data
+        # downloaded, e.g. the GMAO and MERRA-2 models using OPeNDAP, this function can be omitted leaving the data
         # retrieval to the following "load_weather" function.
         self._files = self._download_abcd_file(out, 'abcd', self._time, self._ll_bounds)
 
@@ -91,7 +91,7 @@ class customModelReader(WeatherModel):
         # read individual variables (in 3-D cube format with exactly the same dimension) from downloaded file
         # This function needs to be writen by the users. For downloaded file from the weather model server,
         # this function extracts the individual variables from the saved file named filename;
-        # for cases where no file is actually downloaded, e.g. the GMAO and MERRA-2 models using OpenDAP,
+        # for cases where no file is actually downloaded, e.g. the GMAO and MERRA-2 models using OPeNDAP,
         # this function retrieves the individual variables directly from the weblink of the weather model.
         lats, lons, xs, ys, t, q, p, hgt = self._makeDataCubes(filename)
 

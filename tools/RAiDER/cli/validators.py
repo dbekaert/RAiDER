@@ -150,7 +150,7 @@ def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnpar
             raise ValueError('A lon_file must be specified if a lat_file is specified')
         query = RasterRDR(
             aoi_group.lat_file, aoi_group.lon_file,
-            height_group.height_file_rdr, height_group.dem,
+            hgt_file=height_group.height_file_rdr, dem_file=height_group.dem,
             cube_spacing_in_m=cube_spacing_in_m
         )
 

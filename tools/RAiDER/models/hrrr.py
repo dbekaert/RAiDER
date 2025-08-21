@@ -1,14 +1,15 @@
 import datetime as dt
-import os
 from pathlib import Path
+from typing import List, Tuple, Union, cast
 
+from RAiDER.types import BB, Array2D, FloatArray2D
 import geopandas as gpd
+import herbie
+import herbie.accessors
 import numpy as np
 import xarray as xr
-from herbie import Herbie
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
-from typing import Optional, Union, List, Tuple
 
 from RAiDER.logger import logger
 from RAiDER.models.customExceptions import NoWeatherModelData
@@ -29,13 +30,13 @@ AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').ge
 
 def check_hrrr_dataset_availability(datetime: dt.datetime, model='hrrr') -> bool:
     """Note a file could still be missing within the models valid range."""
-    herbie = Herbie(
+    h = herbie.Herbie(
         datetime,
         model=model,
         product='nat',
         fxx=0,
     )
-    return herbie.grib_source is not None
+    return h.grib_source is not None
 
 
 def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', fxx=0, verbose=False) -> None:
@@ -54,7 +55,7 @@ def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', 
     Returns:
         None, writes data to a netcdf file
     """
-    herbie = Herbie(
+    h = herbie.Herbie(
         DATE.strftime('%Y-%m-%d %H:%M'),
         model=model,
         product=product,
@@ -66,7 +67,12 @@ def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', 
 
     # Iterate through the list of datasets
     try:
-        ds_list = herbie.xarray(':(SPFH|PRES|TMP|HGT):', verbose=verbose)
+        # cast: Herbie.xarray can return one Dataset or a list
+        ds_list = cast(
+            Union[xr.Dataset, List[xr.Dataset]],
+            h.xarray(':(SPFH|PRES|TMP|HGT):', verbose=verbose),
+        )
+        assert isinstance(ds_list, list)
     except ValueError as e:
         logger.error(e)
         raise
@@ -74,14 +80,14 @@ def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', 
     # Note order coord names are request for `test_HRRR_ztd` matters
     # when both coord names are retreived by Herbie is ds_list possibly in
     # Different orders on different machines; `hybrid` is what is expected for the test.
-    ds_list_filt_0 = [ds for ds in ds_list if 'hybrid' in ds._coord_names]
-    ds_list_filt_1 = [ds for ds in ds_list if 'isobaricInhPa' in ds._coord_names]
-    if ds_list_filt_0:
+    ds_list_filt_0 = [ds for ds in ds_list if 'hybrid' in ds.coords]
+    ds_list_filt_1 = [ds for ds in ds_list if 'isobaricInhPa' in ds.coords]
+    if len(ds_list_filt_0) > 0:
         ds_out = ds_list_filt_0[0]
         coord = 'hybrid'
     #  I do not think that this coord name will result in successful processing nominally as variables are
     #  gh,gribfile_projection for test_HRRR_ztd
-    elif ds_list_filt_1:
+    elif len(ds_list_filt_1) > 0:
         ds_out = ds_list_filt_1[0]
         coord = 'isobaricInhPa'
     else:
@@ -91,22 +97,25 @@ def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', 
     try:
         x_min, x_max, y_min, y_max = get_bounds_indices(
             ll_bounds,
-            ds_out.latitude.to_numpy(),
-            ds_out.longitude.to_numpy(),
+            ds_out['latitude'].to_numpy(),
+            ds_out['longitude'].to_numpy(),
         )
     except NoWeatherModelData as e:
         logger.error(e)
-        logger.error('lat/lon bounds: %s', ll_bounds)
-        logger.error('Weather model is {}'.format(model))
+        logger.error(f'lat/lon bounds: {ll_bounds}')
+        logger.error(f'Weather model is {model}')
         raise
 
     # bookkeepping
     ds_out = ds_out.rename({'gh': 'z', coord: 'levels'})
 
+    # Herbie injects brainworms into all its xarray Datasets
+    crs = cast(herbie.accessors.HerbieAccessor, ds_out.herbie).crs
+
     # projection information
     ds_out['proj'] = 0
-    for k, v in CRS.from_user_input(ds_out.herbie.crs).to_cf().items():
-        ds_out.proj.attrs[k] = v
+    for k, v in CRS.from_user_input(crs).to_cf().items():
+        ds_out['proj'].attrs[k] = v
     for var in ds_out.data_vars:
         ds_out[var].attrs['grid_mapping'] = 'proj'
 
@@ -121,53 +130,50 @@ def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', 
     t = Transformer.from_crs(4326, proj, always_xy=True)
 
     xl, yl = t.transform(ds_out['longitude'].values, ds_out['latitude'].values)
-    W, E, S, N = np.nanmin(xl), np.nanmax(xl), np.nanmin(yl), np.nanmax(yl)
+    s, n, w, e = np.nanmin(yl), np.nanmax(yl), np.nanmin(xl), np.nanmax(xl)
 
     grid_x = 3000  # meters
     grid_y = 3000  # meters
-    xs = np.arange(W, E + grid_x / 2, grid_x)
-    ys = np.arange(S, N + grid_y / 2, grid_y)
+    xs = np.arange(w, e + grid_x / 2, grid_x)
+    ys = np.arange(s, n + grid_y / 2, grid_y)
 
     ds_out['x'] = xs
     ds_out['y'] = ys
     ds_sub = ds_out.isel(x=slice(x_min, x_max), y=slice(y_min, y_max))
-    ds_sub.to_netcdf(out, engine='netcdf4')
+    ds_sub.to_netcdf(out)
 
 
-def get_bounds_indices(SNWE, lats, lons):
+def get_bounds_indices(snwe: BB.SNWE, lats: FloatArray2D, lons: FloatArray2D) -> BB.WSEN:
     """Convert SNWE lat/lon bounds to index bounds."""
     # Unpack the bounds and find the relevent indices
-    S, N, W, E = SNWE
+    s, n, w, e = snwe
 
     # Need to account for crossing the international date line
-    if W < E:
-        m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
-    else:
+    if w >= e:
         raise ValueError(
-            'Longitude is either flipped or you are crossing the international date line;'
-            + 'if the latter please give me longitudes from 0-360'
+            'Longitude is either flipped or you are crossing the international date line; '
+            'if the latter please give me longitudes from 0-360'
         )
 
-    if np.sum(m1) == 0:
+    m1: Array2D[np.bool] = (s <= lats) & (n >= lats) & (w <= lons) & (e >= lons)
+    if np.sum(m1) == 0:  # All False
         lons = np.mod(lons, 360)
-        W, E = np.mod([W, E], 360)
-        m1 = (S <= lats) & (N >= lats) & (W <= lons) & (E >= lons)
-        if np.sum(m1) == 0:
+        w, e = np.mod([w, e], 360)
+        # try again
+        m1 = (s <= lats) & (n >= lats) & (w <= lons) & (e >= lons)
+        if np.sum(m1) == 0:  # All False
             raise NoWeatherModelData('Area of Interest has no overlap with the HRRR model available extent')
 
     # Y extent
-    shp = lats.shape
-    m1_y = np.argwhere(np.sum(m1, axis=1) != 0)
-    y_min = max(m1_y[0][0], 0)
-    y_max = min(m1_y[-1][0], shp[0])
-    m1_y = None
+    m1_y: Array2D[np.integer] = np.argwhere(np.sum(m1, axis=1) != 0)
+    y_min: int = max(m1_y[0][0], 0)
+    y_max: int = min(m1_y[-1][0], lats.shape[0])
+    del m1_y  # big
 
     # X extent
-    m1_x = np.argwhere(np.sum(m1, axis=0) != 0)
-    x_min = max(m1_x[0][0], 0)
-    x_max = min(m1_x[-1][0], shp[1])
-    m1_x = None
-    m1 = None
+    m1_x: Array2D[np.integer] = np.argwhere(np.sum(m1, axis=0) != 0)
+    x_min: int = max(m1_x[0][0], 0)
+    x_max: int = min(m1_x[-1][0], lats.shape[1])
 
     return x_min, x_max, y_min, y_max
 

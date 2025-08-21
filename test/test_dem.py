@@ -7,7 +7,7 @@ from RAiDER.dem import download_dem
 def test_download_dem_1():
     SCENARIO_1 = TEST_DIR / "scenario_4"
     hts, meta = download_dem(
-        dem_path=SCENARIO_1 / 'warpedDEM.dem', 
+        dem_path=SCENARIO_1 / 'warpedDEM.rdr', 
         overwrite=False
     )
     assert hts.shape == (45,226)

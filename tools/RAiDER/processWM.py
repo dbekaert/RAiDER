@@ -18,11 +18,16 @@ from RAiDER.models.customExceptions import (
     ExistingWeatherModelTooSmall,
     TryToKeepGoingError,
 )
-from RAiDER.models.weatherModel import checkContainment_raw, make_raw_weather_data_filename, make_weather_model_filename
+from RAiDER.models.weatherModel import (
+    WeatherModel,
+    checkContainment_raw,
+    make_raw_weather_data_filename,
+    make_weather_model_filename,
+)
 
 
 def prepareWeatherModel(
-    weather_model,
+    weather_model: WeatherModel,
     time,
     ll_bounds,
     download_only: bool = False,

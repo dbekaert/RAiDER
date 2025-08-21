@@ -13,26 +13,29 @@ from RAiDER.models.weatherModel import WeatherModel
 from test import random_string
 
 
-DATETIME = dt.datetime(2020, 1, 1, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 BOUNDS = np.array([10, 10.2, -72, -72])
+DATETIME = dt.datetime(2020, 1, 1, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
+DATETIME_GMAO_OLD = dt.datetime(2017, 1, 1, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta()))
 
 
 @pytest.mark.long
 @pytest.mark.parametrize(
-    'name,Model',
+    'Model,time',
     [
-        ('ERA5', ERA5),
-        ('ERA5T', ERA5T),
-        pytest.param('HRES', HRES, marks=pytest.mark.skip),  # Paid access
-        ('GMAO', GMAO),
-        ('MERRA2', MERRA2),
+        pytest.param(ERA5, DATETIME, id='ERA5'),
+        pytest.param(ERA5T, DATETIME, id='ERA5T'),
+        pytest.param(HRES, DATETIME, id='HRES', marks=pytest.mark.skip),  # Paid access
+        # HRRR: see test_weather_model.py
+        pytest.param(GMAO, DATETIME, id='GMAO new'),
+        pytest.param(GMAO, DATETIME_GMAO_OLD, id='GMAO old'),
+        pytest.param(MERRA2, DATETIME, id='MERRA2'),
     ],
 )
-def test_downloader(tmp_path: Path, name: str, Model: Type[WeatherModel]) -> None:
-    out_path = tmp_path / f'test_{name}.nc'
+def test_downloader(tmp_path: Path, Model: Type[WeatherModel], time: dt.datetime) -> None:
     wm = Model()
+    out_path = tmp_path / f'test_{wm._Name}.nc'
     wm.set_latlon_bounds(BOUNDS)
-    wm.fetch(out_path, DATETIME)
+    wm.fetch(out_path, time)
 
 
 @pytest.mark.long

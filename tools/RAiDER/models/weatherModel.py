@@ -472,22 +472,20 @@ class WeatherModel(ABC):
 
     def checkContainment(self, ll_bounds: Union[List, Tuple,np.ndarray], buffer_deg: float = 1e-5) -> bool:
         """
-        Checks containment of weather model bbox. 
+        Checks containment of weather model bbox.
 
         Args:
-        ----------
-        weather_model : WeatherModel
-        ll_bounds: an array of floats (SNWE) demarcating bbox of targets
-        buffer_deg : float
-            For x-translates for extents that lie outside of world bounding box,
-            this ensures that translates have some overlap. The default is 1e-5
-            or ~11.1 meters.
+            weather_model: WeatherModel
+            ll_bounds: an array of floats (SNWE) demarcating bbox of targets
+            buffer_deg:
+                For x-translates for extents that lie outside of world bounding box,
+                this ensures that translates have some overlap. The default is 1e-5
+                or ~11.1 meters.
 
         Returns:
-        -------
-        bool
-           True if weather model contains bounding box of OutLats and outLons
-           and False otherwise.
+            bool:
+                True if weather model contains bounding box of OutLats and
+                outLons and False otherwise.
         """
         # Parse the input
         ymin_input, ymax_input, xmin_input, xmax_input = ll_bounds
@@ -495,7 +493,7 @@ class WeatherModel(ABC):
 
         # Parse the weather model bounding box
         input_box = box(xmin_input, ymin_input, xmax_input, ymax_input)
-        xmin, ymin, xmax, ymax = self.bbox
+        xmin, ymin, xmax, ymax = self._ll_bounds
         weather_model_box = box(xmin, ymin, xmax, ymax)
         
         # Logger
@@ -522,7 +520,7 @@ class WeatherModel(ABC):
         
         if weather_model_box.contains(world_box):
             # Handle the case where the whole world is requested
-            self.bbox = (-180, -90, 180, 90)
+            self._ll_bounds = (-180, -90, 180, 90)
             return True 
         else:
             if weather_model_box.contains(input_box):

@@ -71,7 +71,7 @@ ECMWF requires a license agreement to be able to access, download, and use their
 
 ## 4. NASA weather models (GMAO, MERRA2)
     
-1. The Global Modeling and Assimilation Office (__[GMAO](https://www.nccs.nasa.gov/services/data-collections/coupled-products/geos5-forecast#:~:text=The%20Global%20Modeling%20and%20Assimilation,near%2Dreal%2Dtime%20production.)__) at NASA generates reanalysis weather models. GMAO datasets can also be accessed without a license agreement through the pyDAP interface implemented in RAiDER. GMAO has a horizontal grid spacing of approximately 33 km, and its projection is EPSG code 4326 (WGS-84). 
+1. The Global Modeling and Assimilation Office (__[GMAO](https://www.nccs.nasa.gov/services/data-collections/coupled-products/geos5-forecast#:~:text=The%20Global%20Modeling%20and%20Assimilation,near%2Dreal%2Dtime%20production.)__) at NASA generates reanalysis weather models. GMAO datasets can be accessed without a license agreement through the OPeNDAP interface implemented in RAiDER. GMAO has a horizontal grid spacing of approximately 33 km, and its projection is EPSG code 4326 (WGS-84). 
 
 2. The Modern-Era Retrospective analysis for Research and Applications, Version 2 (__[MERRA-2](https://gmao.gsfc.nasa.gov/reanalysis/MERRA-2/#:~:text=MERRA%2D2%20is%20the%20first,(say)%20Greenland%20and%20Antarctica.)__) provides data beginning in 1980. MERRA-2 is also produced by NASA and has a spatial resolution of about 50 km and a global projection (EPSG 4326, WGS-84).  
 
@@ -88,12 +88,4 @@ Reference: __[The Modern-Era Retrospective Analysis for Research and Application
                  
     **Note**: the username and password represent the user's username and password.
    
-4. Add the application `NASA GESDISC DATA ARCHIVE` by clicking on the `Applications->Authorized Apps` on the menu after logging into your Earthdata profile, and then scrolling down to the application `NASA GESDISC DATA ARCHIVE` to approve it. _This seems not required for GMAO for now, but recommended to do so for all OpenDAP-based weather models._
-5. Install the OpenDAP using pip: 
-
-         pip install pydap==3.2.1
-      
-
-    **Note**: this step has been included in the conda install of RAiDER, thus can be omitted if one uses the recommended conda install of RAiDER
-   
-    **Note**: PyDAP v3.2.1 is required for now (thus specified in the above pip install command) because the latest v3.2.2 (as of now) has a known [bug](https://colab.research.google.com/drive/1f_ss1Oa3VzgAOd_p8sgekdnLVE5NW6s5) in accessing and slicing the GMAO data. This bug is expected to be fixed in newer versions of PyDAP.
+4. Add the application `NASA GESDISC DATA ARCHIVE` by clicking on the `Applications->Authorized Apps` on the menu after logging into your Earthdata profile, and then scrolling down to the application `NASA GESDISC DATA ARCHIVE` to approve it. _This seems not required for GMAO for now, but recommended to do so for all OPeNDAP-based weather models._
