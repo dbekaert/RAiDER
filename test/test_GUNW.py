@@ -132,7 +132,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
 
     RAiDER.aria.calcGUNW.tropo_gunw_slc.assert_called_once_with(
         ['file1', 'file2'],
-        'foo.nc',
+        Path('foo.nc'),
         'my_wavelength',
     )
 
