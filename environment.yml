@@ -8,63 +8,63 @@ channels:
  - conda-forge
  - nodefaults
 dependencies:
- - python>=3.8,<3.14
- - pip>=25,<26
+ - python>=3.8
+ - pip>=25
  # For running
- - asf_search>=9,<10
- - boto3>=1,<2
- - cartopy<1
- - cdsapi<1
- - cfgrib<1
+ - asf_search>=9
+ - boto3>=1
+ - cartopy
+ - cdsapi
+ - cfgrib
  - dask
- - dem_stitcher>=2.5.8,<3
- - ecmwf-api-client>=1,<2
- - h5netcdf>=1,<2
- - h5py>=2,<4
+ - dem_stitcher>=2.5.8
+ - ecmwf-api-client>=1
+ - h5netcdf>=1
+ - h5py>=2
  - herbie-data<2025.2.1
- - isce3>=0.15.0,<1
- - jsonschema>=3.2.0,<4  # this is for ASF DAAC ingest schema validation
- - lxml>=6,<7
- - matplotlib>=3,<4
- - netcdf4>=1,<2
- - numpy>=1,<3
- - pandas>=2,<3
- - progressbar>=2,<3
- - pydap>=3.2.3,<4
- - pyproj>=2.2.0,<4
- - pyyaml>=6,<7
- - rasterio>=1.3.0,<2
- - requests>=2,<3
- - rioxarray<1
+ - isce3>=0.15.0
+ - jsonschema>=3.2.0  # this is for ASF DAAC ingest schema validation
+ - lxml>=6
+ - matplotlib>=3
+ - netcdf4>=1
+ - numpy>=1
+ - pandas>=2
+ - progressbar>=2
+ - pydap>=3.2.3
+ - pyproj>=2.2.0
+ - pyyaml>=6
+ - rasterio>=1.3.0
+ - requests>=2
+ - rioxarray
  - s3fs
- - scipy>=1.10.1,<2
- - s1_orbits<1
- - shapely>=2,<3
- - tqdm>=4,<5
+ - scipy>=1.10.1
+ - s1_orbits
+ - shapely>=2
+ - tqdm>=4
  - xarray
  # For packaging and testing
- - autopep8>=2,<3
- - cmake>=4,<5
- - cxx-compiler>=1,<2
- - cython>=3,<4
- - pybind11>=2,<3
- - pytest>=8,<9
- - pytest-console-scripts>=1,<2
- - pytest-cov>=6,<7
- - pytest-mock>=3,<4
- - pytest-timeout>=2,<3
- - setuptools_scm>=6.2,<9
- - sysroot_linux-64>=2,<3
+ - autopep8>=2
+ - cmake>=4
+ - cxx-compiler>=1
+ - cython>=3
+ - pybind11>=2
+ - pytest>=8
+ - pytest-console-scripts>=1
+ - pytest-cov>=6
+ - pytest-mock>=3
+ - pytest-timeout>=2
+ - setuptools_scm>=6.2
+ - sysroot_linux-64>=2
  # For docs website
- - mkdocs>=1,<2
- - mkdocs-macros-plugin>=1,<2
- - mkdocs-material>=9,<10
- - mkdocs-material-extensions>=1,<2
- - mkdocstrings<1
- - mkdocstrings-python>=1,<2
+ - mkdocs>=1
+ - mkdocs-macros-plugin>=1
+ - mkdocs-material>=9
+ - mkdocs-material-extensions>=1
+ - mkdocstrings
+ - mkdocstrings-python>=1
  # For RAiDER-docs
- - jupyter_contrib_nbextensions<1
- - jupyterlab>=3,<4
- - wand<1
+ - jupyter_contrib_nbextensions
+ - jupyterlab>=3
+ - wand
  # For development
- - boto3-stubs>=1,<2
+ - boto3-stubs>=1
