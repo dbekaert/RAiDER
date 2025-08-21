@@ -100,7 +100,7 @@ def test_GUNW_hyp3_metadata_update(test_gunw_json_path, test_gunw_json_schema_pa
 
     # We only need to make sure the json file is passed, the netcdf file name will not have
     # any impact on subsequent testing
-    mocker.patch("RAiDER.aws.get_s3_file", side_effect=['foo.nc', temp_json_path, 'foo.png'])
+    mocker.patch("RAiDER.aws.get_s3_file", side_effect=[Path('foo.nc'), temp_json_path, Path('foo.png')])
     mocker.patch("RAiDER.aws.upload_file_to_s3")
     mocker.patch("RAiDER.aria.prepFromGUNW.main", return_value=['my_path_cfg', 'my_wavelength'])
     mocker.patch('RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation',
