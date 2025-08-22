@@ -2,7 +2,6 @@ import pytest
 import glob
 import shutil
 import os
-import subprocess
 import numpy as np
 import xarray as xr
 
@@ -13,6 +12,7 @@ from test import (
 
 from RAiDER.logger import logger
 from RAiDER.utilFcns import write_yaml
+from RAiDER.cli.raider import calcDelays
 
 wm = 'ERA5' if WM == 'ERA-5' else WM
 
@@ -42,19 +42,13 @@ def test_cube_timemean():
         grp['time_group'].update({'time': f'{hr}:00:00'})
         ## generate the default run config file and overwrite it with new parms
         cfg  = write_yaml(grp, 'temp.yaml')
-
         ## run raider for the default date
-        cmd  = f'raider.py {cfg}'
-        proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-        assert np.isclose(proc.returncode, 0)
+        calcDelays([str(cfg)])
 
     ## run interpolation in the middle of the two
     grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
     cfg  = write_yaml(grp, 'temp.yaml')
-
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-    assert np.isclose(proc.returncode, 0)
+    calcDelays([str(cfg)])
 
 
     with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{hr1}0000_ztd.nc')) as ds:
@@ -106,16 +100,12 @@ def test_cube_weighting():
         cfg  = write_yaml(grp, 'temp.yaml')
 
         ## run raider for the default date
-        cmd  = f'raider.py {cfg}'
-        proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
-        assert np.isclose(proc.returncode, 0)
+        calcDelays([str(cfg)])
 
     ## run interpolation very near the first
     grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
     cfg  = write_yaml(grp, 'temp.yaml')
-
-    cmd  = f'raider.py {cfg}'
-    proc = subprocess.run(cmd.split(), stdout=subprocess.PIPE, universal_newlines=True)
+    calcDelays([str(cfg)])
 
     ## double check on weighting
 

@@ -109,7 +109,7 @@ class MERRA2(WeatherModel):
             + '.nc4'
         )
 
-        stream = pydap.client.open_url(url)
+        stream = xr.open_dataset(url, decode_times=False, engine='pydap')
 
         q = stream['QV'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
         p = stream['PL'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
