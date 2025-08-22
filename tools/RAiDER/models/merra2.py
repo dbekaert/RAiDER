@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 
 import numpy as np
-import pydap.client
 import xarray as xr
 from pyproj import CRS
 
@@ -12,7 +11,7 @@ from RAiDER.models.model_levels import (
     LEVELS_137_HEIGHTS,
 )
 from RAiDER.models.weatherModel import WeatherModel
-from RAiDER.utilFcns import writeWeatherVarsXarray
+from RAiDER.utilFcns import write_weather_vars_to_ds
 
 
 # Path to Netrc file, can be controlled by env var
@@ -69,7 +68,11 @@ class MERRA2(WeatherModel):
         self._proj = CRS.from_epsg(4326)
 
     def _fetch(self, out: Path) -> None:
-        """Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP."""
+        """Fetch weather model data from GMAO.
+        
+        Note: we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't
+        actually download any data using OPeNDAP.
+        """
         time = self._time
 
         # check whether the file already exists
@@ -100,28 +103,45 @@ class MERRA2(WeatherModel):
 
         # open the dataset and pull the data
         url = (
-            'dap4://goldsmr5.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2T3NVASM.5.12.4/'
-            + time.strftime('%Y/%m')
-            + '/MERRA2_'
-            + str(url_sub)
-            + '.tavg3_3d_asm_Nv.'
-            + time.strftime('%Y%m%d')
-            + '.nc4'
+            f'dap4://goldsmr5.gesdisc.eosdis.nasa.gov/opendap/MERRA2/M2T3NVASM.5.12.4/'
+            f'{time.strftime('%Y/%m')}/'
+            f'MERRA2_{url_sub}.tavg3_3d_asm_Nv.{time.strftime('%Y%m%d')}.nc4'
         )
 
-        stream = pydap.client.open_url(url)
+        # pydap engine required for password-protected datasets
+        ds = xr.open_dataset(url, decode_times=False, engine='pydap')
 
-        q = stream['QV'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
-        p = stream['PL'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
-        t = stream['T'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
-        h = stream['H'][0, :, lat_min_ind : lat_max_ind + 1, lon_min_ind : lon_max_ind + 1].data.squeeze()
+        q = ds['QV'][
+            0,
+            :,
+            lat_min_ind : lat_max_ind + 1,
+            lon_min_ind : lon_max_ind + 1,
+        ].data.squeeze()
+        p = ds['PL'][
+            0,
+            :,
+            lat_min_ind : lat_max_ind + 1,
+            lon_min_ind : lon_max_ind + 1,
+        ].data.squeeze()
+        t = ds['T'][
+            0,
+            :,
+            lat_min_ind : lat_max_ind + 1,
+            lon_min_ind : lon_max_ind + 1,
+        ].data.squeeze()
+        h = ds['H'][
+            0,
+            :,
+            lat_min_ind : lat_max_ind + 1,
+            lon_min_ind : lon_max_ind + 1,
+        ].data.squeeze()
 
         try:
-            writeWeatherVarsXarray(lat, lon, h, q, p, t, time, self._proj, out_path=out)
+            write_weather_vars_to_ds(lat, lon, h, q, p, t, time, self._proj, out_path=out)
         except Exception as e:
             logger.debug(e)
-            logger.exception('MERRA-2: Unable to save weathermodel to file')
-            raise RuntimeError(f'MERRA-2 failed with the following error: {e}')
+            logger.exception('MERRA-2: Unable to save weather model query to file')
+            raise
 
     def load_weather(self, f=None, *args, **kwargs) -> None:
         """
@@ -134,7 +154,7 @@ class MERRA2(WeatherModel):
         self._load_model_level(f)
 
     def _load_model_level(self, filename) -> None:
-        """Get the variables from the GMAO link using OpenDAP."""
+        """Get the variables from the GMAO link using OPeNDAP."""
         # adding the import here should become absolute when transition to netcdf
         ds = xr.load_dataset(filename)
         lons = ds['longitude'].values

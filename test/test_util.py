@@ -33,7 +33,7 @@ from RAiDER.utilFcns import (
     transform_bbox,
     unproject,
     writeArrayToRaster,
-    writeWeatherVarsXarray,
+    write_weather_vars_to_ds,
 )
 from test import TEST_DIR, pushd
 
@@ -917,7 +917,7 @@ def test_UTM_to_WGS84_empty_input():
 
 
 # Test writeWeatherVarsXarray
-def test_writeWeatherVarsXarray(tmp_path):
+def test_write_weather_vars_to_ds(tmp_path):
     """Test writing weather variables to an xarray dataset and NetCDF file."""
     # Mock inputs
     lat = np.random.rand(91, 144) * 180 - 90  # Random latitudes between -90 and 90
@@ -938,7 +938,7 @@ def test_writeWeatherVarsXarray(tmp_path):
     out_path = tmp_path / "test_output.nc"
     
     # Call the function
-    writeWeatherVarsXarray(lat, lon, h, q, p, t, datetime_value, crs, out_path)
+    write_weather_vars_to_ds(lat, lon, h, q, p, t, datetime_value, crs, out_path)
     
     # Check that the file was created
     assert out_path.exists()

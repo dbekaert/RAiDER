@@ -403,7 +403,7 @@ def test_ztd(model: MockWeatherModel) -> None:
 
 def test_get_bounds_indices() -> None:
     """Test bounds indices."""
-    snwe = [-10, 10, -10, 10]
+    snwe = (-10, 10, -10, 10)
     ll = np.arange(-20, 20)
     lats, lons = np.meshgrid(ll, ll)
     xmin, xmax, ymin, ymax = get_bounds_indices(snwe, lats, lons)
@@ -415,7 +415,7 @@ def test_get_bounds_indices() -> None:
 
 def test_get_bounds_indices_2() -> None:
     """Test bounds indices."""
-    snwe = [-10, 10, 170, -170]
+    snwe = (-10, 10, 170, -170)
     l = np.arange(-20, 20)
     l2 = (((np.arange(160, 200) + 180) % 360) - 180)
     lats, lons = np.meshgrid(l, l2)
@@ -425,7 +425,7 @@ def test_get_bounds_indices_2() -> None:
 
 def test_get_bounds_indices_2b() -> None:
     """Test bounds indices."""
-    snwe = [-10, 10, 170, 190]
+    snwe = (-10, 10, 170, 190)
     l = np.arange(-20, 20)
     l2 = np.arange(160, 200)
     lats, lons = np.meshgrid(l, l2)
@@ -438,7 +438,7 @@ def test_get_bounds_indices_2b() -> None:
 
 def test_get_bounds_indices_3() -> None:
     """Test bounds indices"""
-    snwe = [-10, 10, -10, 10]
+    snwe = (-10, 10, -10, 10)
     l = np.arange(-20, 20)
     l2 = (((np.arange(160, 200) + 180) % 360) - 180)
     lats, lons = np.meshgrid(l, l2)
@@ -448,7 +448,7 @@ def test_get_bounds_indices_3() -> None:
 
 def test_get_bounds_indices_4() -> None:
     """Test bounds_indices."""
-    snwe = [55, 60, 175, 185]
+    snwe = (55, 60, 175, 185)
     l = np.arange(55, 60, 1)
     l2 = np.arange(175, 185, 1)
     lats, lons = np.meshgrid(l, l2)
