@@ -8,6 +8,8 @@
 import itertools
 import multiprocessing as mp
 import os
+from pathlib import Path
+from typing import TypedDict
 
 import pandas as pd
 
@@ -123,7 +125,7 @@ def download_tropo_delays(
 
     # Iterate over stations and years and check or download data
     stat_year_tup = itertools.product(stats, years)
-    stat_year_tup = ((*tup, writeDir, download) for tup in stat_year_tup)
+    stat_year_tup = ((*tup, Path(writeDir), download) for tup in stat_year_tup)
 
     # Parallelize remote querying of station locations
     results = []
@@ -141,9 +143,22 @@ def download_tropo_delays(
     statDF.to_csv(os.path.join(writeDir, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'))
 
 
-def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
+class UNRDownloadResult(TypedDict):
+    ID: str
+    year: int
+    path: Path
+
+
+def download_UNR(
+    statID: str,
+    year: int,
+    writeDir: Path = Path.cwd(),
+    download: bool = False,
+    baseURL: str = _UNR_URL,
+) -> UNRDownloadResult:
     """
     Download a zip file containing tropospheric delays for a given station and year.
+
     The URL format is http://geodesy.unr.edu/gps_timeseries/trop/<ssss>/<ssss>.<yyyy>.trop.zip
     Inputs:
         statID   - 4-character station identifier
@@ -155,16 +170,16 @@ def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
     URL = '{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip'.format(baseURL, statID.upper(), year)
     logger.debug('Currently checking station %s in %s', statID, year)
     if download:
-        saveLoc = os.path.abspath(os.path.join(writeDir, f'{statID.upper()}.{year}.trop.zip'))
-        filepath = download_url(URL, saveLoc)
-        if filepath == '':
+        saveLoc = (writeDir / f'{statID.upper()}.{year}.trop.zip').resolve()
+        success = download_url(URL, saveLoc)
+        if not success:
             raise ValueError('Year or station ID does not exist')
     else:
-        filepath = check_url(URL)
-    return {'ID': statID, 'year': year, 'path': filepath}
+        saveLoc = check_url(URL)
+    return {'ID': statID, 'year': year, 'path': saveLoc}
 
 
-def download_url(url, save_path, chunk_size=2048):
+def download_url(url: str, save_path: Path, chunk_size: int=2048) -> bool:
     """
     Download a file from a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url.
@@ -173,17 +188,17 @@ def download_url(url, save_path, chunk_size=2048):
     r = session.get(url, stream=True)
 
     if r.status_code == 404:
-        return ''
+        return False
     else:
         logger.debug('Beginning download of %s to %s', url, save_path)
-        with open(save_path, 'wb') as fd:
+        with save_path.open('wb') as fd:
             for chunk in r.iter_content(chunk_size=chunk_size):
                 fd.write(chunk)
         logger.debug('Completed download of %s to %s', url, save_path)
-        return save_path
+        return True
 
 
-def check_url(url):
+def check_url(url: str) -> str:
     """
     Check whether a file exists at a URL. Modified from
     https://stackoverflow.com/questions/9419162/download-returned-zip-file-from-url.
@@ -324,7 +339,7 @@ def get_stats(bbox, long_cross_zero, out, station_file):
             bbox[3] = 360.0
         stats, statdata = get_station_list(bbox=bbox, stationFile=station_file, writeStationFile=False)
 
-    statdata.to_csv(NEW_STATION_FILENAME + '.csv', index=False)
+    statdata.to_csv(os.path.join(out, NEW_STATION_FILENAME + '.csv'), index=False)
     return stats, statdata
 
 

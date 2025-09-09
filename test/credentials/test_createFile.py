@@ -56,13 +56,13 @@ def get_creds_netrc(rc_path: Path) -> Tuple[str, str]:
         ('MERRA2', get_creds_netrc, True),
     ),
 )
-def test_createFile(model_name, get_creds, has_uid):
+def test_createFile(tmp_path: Path, model_name, get_creds, has_uid):
     # Get the rc file's path
     hidden_ext = '_' if system() == 'Windows' else '.'
     rc_filename = credentials.RC_FILENAMES[model_name]
     if rc_filename is None:
         return
-    rc_path = Path('./') / (hidden_ext + rc_filename)
+    rc_path = tmp_path / (hidden_ext + rc_filename)
     rc_path = rc_path.expanduser()
     rc_path.unlink(missing_ok=True)
 
@@ -70,7 +70,7 @@ def test_createFile(model_name, get_creds, has_uid):
     test_key = random_string()
 
     # Test creation of the rc file
-    credentials.check_api(model_name, test_uid, test_key, './', update_rc_file=False)
+    credentials.check_api(model_name, test_uid, test_key, tmp_path, update_rc_file=False)
     assert rc_path.exists(), f'{rc_path} does not exist'
 
     # Check if API is written correctly

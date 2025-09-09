@@ -87,7 +87,7 @@ def check_api(
     model: str,
     uid: Optional[str] = None,
     key: Optional[str] = None,
-    output_dir: str = '~/',
+    output_dir: Path = Path.home(),
     update_rc_file: bool = False,
 ) -> None:
     # Weather model API RC filename
@@ -101,7 +101,7 @@ def check_api(
 
     # Get the target rc file's path
     hidden_ext = '_' if system() == 'Windows' else '.'
-    rc_path = Path(output_dir) / (hidden_ext + rc_filename)
+    rc_path = output_dir / (hidden_ext + rc_filename)
     rc_path = rc_path.expanduser()
 
     # If the RC file doesn't exist, then create it.

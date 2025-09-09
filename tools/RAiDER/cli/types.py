@@ -173,8 +173,8 @@ class RuntimeGroup:
         output_projection: str = 'EPSG:4326',
         cube_spacing_in_m: float = _CUBE_SPACING_IN_M,
         download_only: bool = False,
-        output_directory: str = '.',
-        weather_model_directory: Optional[str] = None,
+        output_directory: Union[Path, str] = Path.cwd(),
+        weather_model_directory: Optional[Union[Path, str]] = None,
     ):
         self.raster_format = raster_format
         self.file_format = file_format

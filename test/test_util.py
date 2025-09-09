@@ -35,7 +35,7 @@ from RAiDER.utilFcns import (
     writeArrayToRaster,
     writeWeatherVarsXarray,
 )
-from test import TEST_DIR, pushd
+from test import TEST_DIR
 
 
 _R_EARTH = 6378138
@@ -170,11 +170,10 @@ def test_writeArrayToRaster_2():
 def test_writeArrayToRaster_3(tmp_path):
     test = np.random.randn(10,10)
     test = test + test * 1j
-    with pushd(tmp_path):
-        path = tmp_path / 'tmp_file.tif'
-        writeArrayToRaster(test, path)
-        tmp = rio_profile(path)
-        assert tmp['dtype'] == 'complex64'
+    path = tmp_path / 'tmp_file.tif'
+    writeArrayToRaster(test, path)
+    tmp = rio_profile(path)
+    assert tmp['dtype'] == 'complex64'
 
 
 def test_writeArrayToRaster_4(tmp_path):
@@ -182,18 +181,17 @@ def test_writeArrayToRaster_4(tmp_path):
     geotif = SCENARIO0_DIR / 'small_dem.tif'
     profile = rio_profile(geotif)
     data, _ = rio_open(geotif)
-    with pushd(tmp_path):
-        path = tmp_path / 'tmp_file.nc'
-        writeArrayToRaster(
-            data, 
-            path, 
-            proj=profile['crs'], 
-            gt=profile['transform'], 
-            fmt='nc',
-        )
-        new_path = tmp_path / 'tmp_file.tif'
-        prof = rio_profile(new_path)
-        assert prof['driver'] == 'GTiff'
+    path = tmp_path / 'tmp_file.nc'
+    writeArrayToRaster(
+        data, 
+        path, 
+        proj=profile['crs'], 
+        gt=profile['transform'], 
+        fmt='nc',
+    )
+    new_path = tmp_path / 'tmp_file.tif'
+    prof = rio_profile(new_path)
+    assert prof['driver'] == 'GTiff'
 
 
 def test_makePoints0D_cython(make_points_0d_data):
@@ -271,9 +269,9 @@ def test_least_nonzero_2():
     )
 
 
-def test_rio_extent():
+def test_rio_extent(tmp_path: Path):
     # Create a simple georeferenced test file
-    test_file = Path("test.tif")
+    test_file = tmp_path / 'test.tif'
     with rasterio.open(test_file, mode="w",
                        width=11, height=11, count=1,
                        dtype=np.float64, crs=pyproj.CRS.from_epsg(4326),
@@ -283,7 +281,6 @@ def test_rio_extent():
         dst.write(np.random.randn(11, 11), 1)
     profile = rio_profile(test_file)
     assert rio_extents(profile) == (17.0, 18.0, 17.0, 18.0)
-    test_file.unlink()
 
 
 def test_getTimeFromFile():

@@ -1,17 +1,16 @@
+from unittest import mock
+
 import pytest
 import requests
-from unittest import mock
 
 from RAiDER.gnss.downloadGNSSDelays import (
     check_url,
-    in_box,
+    download_UNR,
     fix_lons,
     get_ID,
-    download_UNR,
+    in_box,
     main,
 )
-
-from test import pushd
 
 
 # Test check_url with a valid and invalid URL
@@ -84,9 +83,8 @@ def test_download_UNR(tmp_path):
     expected_path = "https://geodesy.unr.edu/gps_timeseries/trop/MORZ/MORZ.2020.trop.zip"
     statID = "MORZ"
     year = 2020
-    with pushd(tmp_path):
-        outDict = download_UNR(statID, year)
-        assert outDict["path"] == expected_path
+    outDict = download_UNR(statID, year, tmp_path)
+    assert outDict["path"] == expected_path
 
 
 def test_download_UNR_2():

@@ -930,7 +930,7 @@ def test_interpolate_wrapper2():
     assert np.allclose(ans2, ans_scipy, 1e-15, equal_nan=True)
 
 
-def test_interpolateDEM():
+def test_interpolateDEM(tmp_path: Path):
     from affine import Affine
 
     s = 10
@@ -943,7 +943,7 @@ def test_interpolateDEM():
         'crs': rio.crs.CRS.from_epsg(4326),
     }
 
-    dem_file = Path('./dem_tmp.tif')
+    dem_file = tmp_path / 'dem_tmp.tif'
     with rio.open(dem_file, 'w', **metadata) as ds:
         ds.write(dem, 1)
         ds.update_tags(AREA_OR_POINT='Point')
@@ -954,10 +954,9 @@ def test_interpolateDEM():
     out  = interpolateDEM(dem_file, (lats, lons))
     gold = np.array([[4., 8.], [28., 56.]], dtype=float)
     assert np.allclose(out, gold)
-    dem_file.unlink()
 
 
-def test_interpolateDEM_2():
+def test_interpolateDEM_2(tmp_path: Path):
     from affine import Affine
     s = 10
     x = np.arange(s)
@@ -969,7 +968,7 @@ def test_interpolateDEM_2():
         'crs': rio.crs.CRS.from_epsg(4326),
     }
 
-    dem_file = Path('./dem_tmp.tif')
+    dem_file = tmp_path / 'dem_tmp.tif'
     with rio.open(dem_file, 'w', **metadata) as ds:
         ds.write(dem, 1)
         ds.update_tags(AREA_OR_POINT='Point')

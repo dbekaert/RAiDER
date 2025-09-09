@@ -70,13 +70,13 @@ from RAiDER.models import credentials
         ),
     ]
 )
-def test_updateTrue(model_name, template) -> None:
+def test_updateTrue(tmp_path: Path, model_name, template) -> None:
     # Get the rc file's path
     hidden_ext = '_' if system() == "Windows" else '.'
     rc_filename = credentials.RC_FILENAMES[model_name]
     if rc_filename is None:
         return
-    rc_path = Path('./') / (hidden_ext + rc_filename)
+    rc_path = tmp_path / (hidden_ext + rc_filename)
 
     # Give the rc file mock contents
     rc_path.write_text(template.format(uid=random_string(), key=random_string()))
@@ -84,7 +84,7 @@ def test_updateTrue(model_name, template) -> None:
     # Use check_api to update the rc file
     test_uid = random_string()
     test_key = random_string()
-    credentials.check_api(model_name, test_uid, test_key, './', update_rc_file=True)
+    credentials.check_api(model_name, test_uid, test_key, tmp_path, update_rc_file=True)
 
     # Check that the rc file was properly updated
     expected_content = template.format(uid=test_uid, key=test_key)

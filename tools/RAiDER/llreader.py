@@ -8,40 +8,34 @@
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import Literal, Optional, Union
 
 import numpy as np
+import pandas as pd
 import pyproj
 import xarray as xr
-
-
-try:
-    import pandas as pd
-except ImportError:
-    pd = None
-
 from pyproj import CRS
 
 from RAiDER.logger import logger
-from RAiDER.types import BB, RIO
+from RAiDER.types import BB, RIO, CRSLike, LookDir
 
 
 class AOI:
-    """
-    This instantiates a generic AOI class object.
+    """Instantiates a generic AOI class object."""
+    _output_directory: Path
+    _bounding_box: Optional[BB.SNWE]
+    _proj: Optional[CRS]
+    _geotransform: Optional[RIO.GDAL]
+    _cube_spacing_m: Optional[float]
+    _type: str
 
-    Attributes:
-       _bounding_box    - S N W E bounding box
-       _proj            - pyproj-compatible CRS
-       _type            - Type of AOI
-    """
-
-    def __init__(self, cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
-        self._output_directory = output_directory
+    def __init__(self, cube_spacing_in_m: Optional[float]=None, output_directory: Union[Path, str]=Path.cwd()) -> None:
+        self._output_directory = Path(output_directory)
         self._bounding_box = None
         self._proj = CRS.from_epsg(4326)
         self._geotransform = None
         self._cube_spacing_m = cube_spacing_in_m
+        self._type = 'generic'
     
 
     def __repr__(self):
@@ -59,7 +53,7 @@ class AOI:
     def projection(self):
         return self._proj
 
-    def get_output_spacing(self, crs=4326):
+    def get_output_spacing(self, crs: CRSLike=4326):
         """Return the output spacing in desired units."""
         output_spacing_deg = self._output_spacing
         if not isinstance(crs, CRS):
@@ -128,7 +122,7 @@ class AOI:
         self._bounding_box = [np.round(a, digits) for a in (S, N, W, E)]
 
 
-    def calc_buffer_ray(self, direction, lookDir='right', incAngle=30, maxZ=80, digits=2):
+    def calc_buffer_ray(self, direction, lookDir: LookDir='right', incAngle=30, maxZ=80, digits=2):
         """
         Calculate the buffer for ray tracing. This only needs to be done in the east-west
         direction due to satellite orbits, and only needs extended on the side closest to
@@ -140,11 +134,7 @@ class AOI:
             maxZ (float)       - maximum integration elevation in km
         """
         direction = direction.lower()
-        # for isce object
-        try:
-            lookDir = lookDir.name.lower()
-        except AttributeError:
-            lookDir = lookDir.lower()
+        lookDir = lookDir.lower()
 
         assert direction in 'asc desc'.split(), f'Incorrect orbital direction: {direction}. Choose asc or desc.'
         assert lookDir in 'right left'.split(), f'Incorrect look direction: {lookDir}. Choose right or left.'
@@ -167,7 +157,7 @@ class AOI:
             logger.warning('Bounds extend past +/- 180. Results may be incorrect.')
         return bounds
 
-    def set_output_directory(self, output_directory) -> None:
+    def set_output_directory(self, output_directory: Path) -> None:
         self._output_directory = output_directory
 
     def set_output_xygrid(self, dst_crs: Union[int, str]=4326) -> None:
@@ -193,8 +183,17 @@ class AOI:
 
 class StationFile(AOI):
     """Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns."""
+    _filename: Path
+    _demfile: Optional[Path]
+    _type: Literal['station_file']
 
-    def __init__(self, station_file, demFile=None, cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
+    def __init__(
+        self,
+        station_file: Path,
+        demFile: Optional[Path]=None,
+        cube_spacing_in_m: Optional[float]=None,
+        output_directory: Union[Path, str]=Path.cwd(),
+    ) -> None:
         super().__init__(cube_spacing_in_m, output_directory)
         self._filename = station_file
         self._demfile = demFile
@@ -217,9 +216,9 @@ class StationFile(AOI):
             from RAiDER.interpolator import interpolateDEM
 
             demFile = (
-                os.path.join(self._output_directory, 'GLO30_fullres_dem.tif')
-                if self._demfile is None
-                else self._demfile
+                self._demfile
+                if self._demfile is not None
+                else self._output_directory / 'GLO30_fullres_dem.tif'
             )
 
             download_dem(
@@ -243,21 +242,36 @@ class StationFile(AOI):
 
 class RasterRDR(AOI):
     """Use a 2-band raster file containing lat/lon coordinates."""
+    _latfile: Optional[Path]
+    _lonfile: Optional[Path]
+    _hgtfile: Optional[Path]
+    _demfile: Optional[Path]
+    _convention: str  # TODO: can probably be narrowed down to a few Literals
 
-    def __init__(self, lat_file, lon_file=None, *, hgt_file=None, dem_file=None, convention='isce', cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
+    def __init__(
+        self,
+        lat_file: Path,
+        lon_file: Optional[Path]=None,
+        *,
+        hgt_file: Optional[Path]=None,
+        dem_file: Optional[Path]=None,
+        convention='isce',
+        cube_spacing_in_m: Optional[float]=None,
+        output_directory: Union[Path, str]=Path.cwd(),
+    ) -> None:
         super().__init__(cube_spacing_in_m, output_directory)
         self._type = 'radar_rasters'
         self._latfile = lat_file
         self._lonfile = lon_file
 
-        if (self._latfile is None) and (self._lonfile is None):
+        if self._latfile is None and self._lonfile is None:
             raise ValueError('You need to specify a 2-band file or two single-band files')
 
-        if not os.path.exists(self._latfile):
+        if not self._latfile.exists():
             raise ValueError(f'{self._latfile} cannot be found!')
 
         try:
-            bpg = bounds_from_latlon_rasters(lat_file, lon_file)
+            bpg = bounds_from_latlon_rasters(str(lat_file), str(lon_file))
             self._bounding_box, self._proj, self._geotransform = bpg
         except Exception as e:
             raise ValueError(f'Could not read lat/lon rasters: {e}')
@@ -270,12 +284,12 @@ class RasterRDR(AOI):
     def readLL(self) -> tuple[np.ndarray, Optional[np.ndarray]]:
         # allow for 2-band lat/lon raster
         from RAiDER.utilFcns import rio_open
-        lats, _ = rio_open(Path(self._latfile))
+        lats, _ = rio_open(self._latfile)
 
         if self._lonfile is None:
             return lats, None
         else:
-            lons, _ = rio_open(Path(self._lonfile))
+            lons, _ = rio_open(self._lonfile)
             return lats, lons
 
     def readZ(self) -> np.ndarray:
@@ -292,15 +306,15 @@ class RasterRDR(AOI):
             from RAiDER.interpolator import interpolateDEM
 
             demFile = (
-                os.path.join(self._output_directory, 'GLO30_fullres_dem.tif')
-                if self._demfile is None
-                else self._demfile
+                self._demfile
+                if self._demfile is not None
+                else self._output_directory / 'GLO30_fullres_dem.tif'
             )
 
             download_dem(
                 self._bounding_box,
                 writeDEM=True,
-                dem_path=Path(demFile),
+                dem_path=demFile,
             )
             z_out = interpolateDEM(demFile, self.readLL())
 
@@ -309,8 +323,14 @@ class RasterRDR(AOI):
 
 class BoundingBox(AOI):
     """Parse a bounding box AOI."""
+    _type: Literal['bounding_box']
 
-    def __init__(self, bbox, cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
+    def __init__(
+        self,
+        bbox: Optional[BB.SNWE],
+        cube_spacing_in_m: Optional[float]=None,
+        output_directory: Union[Path, str]=Path.cwd(),
+    ) -> None:
         super().__init__(cube_spacing_in_m, output_directory)
         self._bounding_box = bbox
         self._type = 'bounding_box'
@@ -320,10 +340,15 @@ class GeocodedFile(AOI):
     """Parse a Geocoded file for coordinates."""
 
     p: RIO.Profile
-    _bounding_box: BB.SNWE
     _is_dem: bool
 
-    def __init__(self, path: Path, is_dem=False, cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
+    def __init__(
+        self,
+        path: Path,
+        is_dem: bool=False,
+        cube_spacing_in_m: Optional[float]=None,
+        output_directory: Union[Path, str]=Path.cwd(),
+    ) -> None:
         super().__init__(cube_spacing_in_m, output_directory)
 
         from RAiDER.utilFcns import rio_extents, rio_profile, rio_stats
@@ -355,7 +380,7 @@ class GeocodedFile(AOI):
         from RAiDER.dem import download_dem
         from RAiDER.interpolator import interpolateDEM
 
-        demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
+        demFile = self._filename if self._is_dem else Path('GLO30_fullres_dem.tif')
         bbox = self._bounding_box
         _, _ = download_dem(bbox, writeDEM=True, dem_path=Path(demFile))
         z_out = interpolateDEM(demFile, self.readLL())
@@ -365,8 +390,10 @@ class GeocodedFile(AOI):
 
 class Geocube(AOI):
     """Pull lat/lon/height from a georeferenced data cube."""
+    path: Path
+    _type: Literal['Geocube']
 
-    def __init__(self, path_cube, cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
+    def __init__(self, path_cube: Path, cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
         from RAiDER.utilFcns import rio_stats
         super().__init__(cube_spacing_in_m, output_directory)
         self.path = path_cube

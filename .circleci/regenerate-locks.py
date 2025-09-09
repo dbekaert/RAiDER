@@ -16,7 +16,7 @@ from RAiDER.logger import logger
 
 # Matches the "dependencies" entry for python.
 # First group: like " - python"
-# Second group: like ">=3.8"
+# Second group: like ">=3.9"
 PATTERN_PYTHON_DEP = re.compile(r'^(\s*-\s*python)([<>=~]?=?.+)$', re.MULTILINE)
 
 
@@ -30,8 +30,8 @@ def generate_lock(out_path: Path, version: str, template: str) -> None:
         env_path = Path(tmp_dir_str) / 'environment.yml'
 
         # Hardcode a copy of the environment.yml file to this Python version
-        with env_path.open('w', encoding='utf-8') as f_env:
-            f_env.write(re.sub(PATTERN_PYTHON_DEP, f'\\1={version}', template))
+        with env_path.open('w', encoding='utf-8') as f_tmp_env:
+            f_tmp_env.write(re.sub(PATTERN_PYTHON_DEP, f'\\1={version}', template))
 
         # Platforms explicitly listed in order to exclude win-64, since isce3
         # and wand (and therefore RAiDER) are not compatible with Windows.
@@ -50,9 +50,11 @@ def main() -> None:
     # Read RAiDER's supported Python versions from CircleCI config.
     # The last entry in the list will be placed in the project root.
     with Path('.circleci/config.yml').open(encoding='utf-8') as f_ci_config:
+        # fmt: off
         versions: list[str] = yaml.safe_load(f_ci_config) \
             ['workflows']['all-tests']['jobs'][0] \
             ['build']['matrix']['parameters']['python-version']
+        # fmt: on
 
     for i, version in tqdm(enumerate(versions), total=len(versions), unit='lockfiles written'):
         if i < len(versions) - 1:

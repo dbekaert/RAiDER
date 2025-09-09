@@ -130,7 +130,7 @@ def fillna3D(array, axis=-1, fill_value=0.0):
     return outmat
 
 
-def interpolateDEM(dem_path: Union[Path, str], outLL: Tuple[np.ndarray, np.ndarray], method='nearest') -> np.ndarray:
+def interpolateDEM(dem_path: Path, outLL: Tuple[np.ndarray, np.ndarray], method='nearest') -> np.ndarray:
     """Interpolate a DEM raster to a set of lat/lon query points using rioxarray.
 
     outLL will be a tuple of (lats, lons). lats/lons can either be 1D arrays or 2
@@ -151,7 +151,7 @@ def interpolateDEM(dem_path: Union[Path, str], outLL: Tuple[np.ndarray, np.ndarr
     return z_out
 
 
-def interpolate_elevation(dem_path: Union[Path, str], x: np.ndarray, y: np.ndarray) -> np.ndarray:
+def interpolate_elevation(dem_path: Path, x: np.ndarray, y: np.ndarray) -> np.ndarray:
     """
     Interpolates elevation values from a DEM to scattered points.
 

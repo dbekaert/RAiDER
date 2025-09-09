@@ -16,7 +16,7 @@ from setuptools import Extension, setup
 from Cython.Build import cythonize  # isort:skip
 
 # Parameter defs
-UTIL_DIR = Path('tools') / 'bindings' / 'utils'
+UTIL_DIR = Path('tools/bindings/utils')
 
 pybind_extensions = [
     Pybind11Extension(

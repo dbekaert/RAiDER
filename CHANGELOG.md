@@ -12,10 +12,13 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [753](https://github.com/dbekaert/RAiDER/pull/753) - Removed support for ERA-Interim.
 
 ### Changed
+* [745](https://github.com/dbekaert/RAiDER/pull/745) - Refactored the test suite to be able to run tests in parallel. 
 * [743](https://github.com/dbekaert/RAiDER/pull/743) - Switched from HTTPS to DAP4 for retrieving MERRA2 data, and suppressed a warning for using DAP4 for GMAO data where doing so is not possible.
+* [726](https://github.com/dbekaert/RAiDER/pull/726) - Updated code and documentation for changes to the CDS API.
 
 ### Fixed
 * [765](https://github.com/dbekaert/RAiDER/pull/765) - Fixed a dead link to "Installing from Source" in the ReadMe.
+* [761](https://github.com/dbekaert/RAiDER/pull/761) - Misc. fixes for tests `test_GUNW_hyp3_metadata_update...` and `test_cube...`.
 * [759](https://github.com/dbekaert/RAiDER/pull/759) - Added a `browse` S3 tag for `.png` files when uploaded to AWS.
 * [751](https://github.com/dbekaert/RAiDER/pull/751) - Fixed ERA-5 interface for a change to its API that requires pressure variables to be requested separately from temperature and humidity.
 * [741](https://github.com/dbekaert/RAiDER/pull/741) - Updated mamba setup commands in CircleCI for mamba 2.0.0.
@@ -32,7 +35,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [746](https://github.com/dbekaert/RAiDER/pull/746) - Added support for numpy v2.
 * [725](https://github.com/dbekaert/RAiDER/pull/725) - Added rules to ignore all test artifacts in git.
 * [728](https://github.com/dbekaert/RAiDER/pull/728) - Added downloader tests for HRES, GMAO, and MERRA2.
-* [726](https://github.com/dbekaert/RAiDER/pull/726) - Updated code and documentation for changes to the CDS API.
 
 ## [0.5.5]
 ### Changed

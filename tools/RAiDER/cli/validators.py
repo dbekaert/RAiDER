@@ -4,7 +4,7 @@ import importlib
 import re
 import sys
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any, Optional, Type, Union
 
 import numpy as np
 import pandas as pd
@@ -45,7 +45,7 @@ def parse_weather_model(weather_model_name: str, aoi: AOI) -> WeatherModel:
         )
 
     # Check that the user-requested bounding box is within the weather model domain
-    model: WeatherModel = Model()
+    model = Model()
     model.checkValidBounds(aoi.bounds())
 
     return model
@@ -266,7 +266,7 @@ def coerce_into_date(val: Union[int, str]) -> dt.date:
     raise ValueError(f'Unable to coerce {val} to a date. Try %Y-%m-%d')
 
 
-def get_wm_by_name(model_name: str) -> tuple[str, WeatherModel]:
+def get_wm_by_name(model_name: str) -> tuple[str, Type[WeatherModel]]:
     """
     Turn an arbitrary string into a module name.
 

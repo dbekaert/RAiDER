@@ -1,11 +1,11 @@
 import os
-import string
 import random
-from contextlib import contextmanager
+import string
 from pathlib import Path
 
 import numpy as np
 import xarray as xr
+
 
 test_dir = Path(__file__).parents[0]
 
@@ -16,16 +16,6 @@ WM_DIR   = os.path.join(TEST_DIR, 'weather_files')
 ORB_DIR  = os.path.join(TEST_DIR, 'orbit_files')
 
 WM = 'MERRA2'
-
-@contextmanager
-def pushd(dir):
-    """
-    Change the current working directory within a context.
-    """
-    prevdir = os.getcwd()
-    os.chdir(dir)
-    yield
-    os.chdir(prevdir)
 
 
 def makeLatLonGrid(bbox, reg, out_dir, spacing=0.1):

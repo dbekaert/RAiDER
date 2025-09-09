@@ -397,13 +397,13 @@ def test_get_bounds_indices_4() -> None:
     assert bounds_list == (0, 4, 0, 9)
 
 
-def test_hrrr_badloc() -> None:
+def test_hrrr_badloc(tmp_path: Path) -> None:
     """Test HRRR out of bounds."""
     wm = HRRR()
     wm.set_latlon_bounds([-10, 10, -10, 10])
     wm.setTime(dt.datetime(2020, 10, 1, 0, 0, 0))
     with pytest.raises(ValueError):
-        wm._fetch(Path('dummy_filename'))
+        wm._fetch(tmp_path / 'this_file_will_not_be_made.nc')
 
 
 def test_hrrrak_dl(tmp_path: Path) -> None:
@@ -413,7 +413,7 @@ def test_hrrrak_dl(tmp_path: Path) -> None:
     d.mkdir()
     fname = d / 'hrrr_ak.nc'
     wm.set_latlon_bounds([65, 67, -160, -150])
-    wm.setTime(dt.datetime(2020, 12, 1, 0, 0, 0))
+    wm.setTime(dt.datetime(2020, 12, 1, 0, 0, 1))
 
     wm._fetch(fname)
 
@@ -426,6 +426,6 @@ def test_hrrrak_dl2(tmp_path: Path) -> None:
     fname = d / 'hrrr_ak.nc'
 
     wm.set_latlon_bounds([50, 52, 179, -179])
-    wm.setTime(dt.datetime(2020, 12, 1, 0, 0, 0))
+    wm.setTime(dt.datetime(2020, 12, 1, 0, 0, 2))
 
     wm._fetch(fname)

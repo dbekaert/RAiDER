@@ -1,27 +1,21 @@
-import pytest
-import glob
-import shutil
-import os
+from pathlib import Path
+
 import numpy as np
+import pytest
 import xarray as xr
 
-
-from test import (
-    WM, TEST_DIR
-)
-
+from RAiDER.cli.raider import calcDelays
 from RAiDER.logger import logger
 from RAiDER.utilFcns import write_yaml
-from RAiDER.cli.raider import calcDelays
+from test import WM
+
 
 wm = 'ERA5' if WM == 'ERA-5' else WM
 
 
 @pytest.mark.long
-def test_cube_timemean():
-    """ Test the mean interpolation by computing cube delays at 1:30PM vs mean of 12 PM / 3PM for GMAO """
-    SCENARIO_DIR = os.path.join(TEST_DIR, "INTERP_TIME")
-    os.makedirs(SCENARIO_DIR, exist_ok=True)
+def test_cube_timemean(tmp_path: Path):
+    """Test the mean interpolation by computing cube delays at 1:30PM vs mean of 12 PM / 3PM for GMAO."""
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
     date       = 20200130
@@ -33,50 +27,40 @@ def test_cube_timemean():
             'weather_model': WM,
             'aoi_group': {'bounding_box': [S, N, W, E]},
             'time_group': {'interpolate_time': 'none'},
-            'runtime_group': {'output_directory': SCENARIO_DIR},
+            'runtime_group': {'output_directory': tmp_path},
         }
-
 
     ## run raider without interpolation for two exact weather model times
     for hr in [hr1, hr2]:
         grp['time_group'].update({'time': f'{hr}:00:00'})
         ## generate the default run config file and overwrite it with new parms
-        cfg  = write_yaml(grp, 'temp.yaml')
+        cfg = write_yaml(grp, tmp_path / 'temp1.yaml')
+
         ## run raider for the default date
         calcDelays([str(cfg)])
 
     ## run interpolation in the middle of the two
     grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
-    cfg  = write_yaml(grp, 'temp.yaml')
+    cfg = write_yaml(grp, tmp_path / 'temp.yaml')
     calcDelays([str(cfg)])
 
-    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{hr1}0000_ztd.nc')) as ds:
+    with xr.open_dataset(tmp_path / f'{WM}_tropo_{date}T{hr1}0000_ztd.nc') as ds:
         da1_tot = ds['wet'] + ds['hydro']
 
-    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{hr2}0000_ztd.nc')) as ds:
+    with xr.open_dataset(tmp_path/ f'{WM}_tropo_{date}T{hr2}0000_ztd.nc') as ds:
         da2_tot = ds['wet'] + ds['hydro']
 
-    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{ti.replace(":", "")}_ztd.nc')) as ds:
+    with xr.open_dataset(tmp_path/ f'{WM}_tropo_{date}T{ti.replace(":", "")}_ztd.nc') as ds:
         da_interp_tot = ds['wet'] + ds['hydro']
 
     da_mu = (da1_tot + da2_tot) / 2
     assert np.allclose(da_mu, da_interp_tot)
 
 
-    # Clean up files
-    shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{WM}*')]
-    os.remove('temp.yaml')
-
-    return
-
-
 @pytest.mark.long
-def test_cube_weighting():
-    """ Test the weighting by comparing a small crop with numpy directly """
-    from datetime import datetime
-    SCENARIO_DIR = os.path.join(TEST_DIR, "INTERP_TIME")
-    os.makedirs(SCENARIO_DIR, exist_ok=True)
+def test_cube_weighting(tmp_path: Path):
+    """Test the weighting by comparing a small crop with numpy directly."""
+    import datetime as dt
     ## make the lat lon grid
     S, N, W, E = 34, 35, -117, -116
     date       = 20200130
@@ -88,7 +72,7 @@ def test_cube_weighting():
             'weather_model': WM,
             'aoi_group': {'bounding_box': [S, N, W, E]},
             'time_group': {'interpolate_time': 'none'},
-            'runtime_group': {'output_directory': SCENARIO_DIR},
+            'runtime_group': {'output_directory': tmp_path},
         }
 
 
@@ -96,30 +80,30 @@ def test_cube_weighting():
     for hr in [hr1, hr2]:
         grp['time_group'].update({'time': f'{hr}:00:00'})
         ## generate the default run config file and overwrite it with new parms
-        cfg  = write_yaml(grp, 'temp.yaml')
+        cfg  = write_yaml(grp, tmp_path / 'temp1.yaml')
 
         ## run raider for the default date
         calcDelays([str(cfg)])
 
     ## run interpolation very near the first
     grp['time_group'] =  {'time': ti, 'interpolate_time': 'center_time'}
-    cfg  = write_yaml(grp, 'temp.yaml')
+    cfg = write_yaml(grp, tmp_path / 'temp2.yaml')
     calcDelays([str(cfg)])
 
     ## double check on weighting
 
-    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{hr1}0000_ztd.nc')) as ds:
+    with xr.open_dataset(tmp_path / f'{WM}_tropo_{date}T{hr1}0000_ztd.nc') as ds:
         da1_tot = ds['wet'] + ds['hydro']
 
-    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{hr2}0000_ztd.nc')) as ds:
+    with xr.open_dataset(tmp_path / f'{WM}_tropo_{date}T{hr2}0000_ztd.nc') as ds:
         da2_tot = ds['wet'] + ds['hydro']
 
-    with xr.open_dataset(os.path.join(SCENARIO_DIR, f'{WM}_tropo_{date}T{ti.replace(":", "")}_ztd.nc')) as ds:
+    with xr.open_dataset(tmp_path / f'{WM}_tropo_{date}T{ti.replace(":", "")}_ztd.nc') as ds:
         da_interp_tot = ds['wet'] + ds['hydro']
 
-    dt1 = datetime.strptime(f'{date}{hr1}', '%Y%m%d%H')
-    dt2 = datetime.strptime(f'{date}{hr2}', '%Y%m%d%H')
-    dt_ref = datetime.strptime(f'{date}{ti}', '%Y%m%d%H:%M:%S')
+    dt1 = dt.datetime.strptime(f'{date}{hr1}', '%Y%m%d%H')
+    dt2 = dt.datetime.strptime(f'{date}{hr2}', '%Y%m%d%H')
+    dt_ref = dt.datetime.strptime(f'{date}{ti}', '%Y%m%d%H:%M:%S')
 
     wgts  = np.array([(dt_ref-dt1).seconds, (dt2-dt_ref).seconds])
     da1_crop = da1_tot.isel(z=0, y=slice(0,1), x=slice(0, 2))
@@ -133,10 +117,3 @@ def test_cube_weighting():
     logger.info ('Data from two dates: %s', dat)
     logger.info ('Weighted mean: %s', da_out_crop.data)
     assert np.allclose(da_out_crop, np.average(dat, weights=1/wgts, axis=0))
-
-    # Clean up files
-    shutil.rmtree(SCENARIO_DIR)
-    [os.remove(f) for f in glob.glob(f'{WM}*')]
-    os.remove('temp.yaml')
-
-    return

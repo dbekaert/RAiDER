@@ -40,7 +40,7 @@ def test_latlon_reader_2():
         RasterRDR(lat_file=None, lon_file=None)
 
     with pytest.raises(ValueError):
-        RasterRDR(lat_file='doesnotexist.rdr', lon_file='doesnotexist.rdr')
+        RasterRDR(lat_file=Path('doesnotexist.rdr'), lon_file=Path('doesnotexist.rdr'))
 
 
 def test_aoi_epsg():
@@ -54,8 +54,8 @@ def test_aoi_epsg():
 def test_set_output_dir():
     bbox = [20, 27, -115, -104]
     r = BoundingBox(bbox)
-    r.set_output_directory('dummy_directory')
-    assert r._output_directory == 'dummy_directory'
+    r.set_output_directory(Path('dummy_directory'))
+    assert r._output_directory == Path('dummy_directory')
 
 
 def test_set_xygrid():
@@ -74,7 +74,7 @@ def test_latlon_reader():
     lat_true, _ = rio_open(latfile)
     lon_true, _ = rio_open(lonfile)
 
-    query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile))
+    query = RasterRDR(lat_file=latfile, lon_file=lonfile)
     lats, lons = query.readLL()
     assert lats.shape == (45, 226)
     assert lons.shape == (45, 226)
@@ -88,8 +88,8 @@ def test_latlon_reader():
 
 
 def test_badllfiles(station_file):
-    latfile = os.path.join(GEOM_DIR, 'lat.rdr')
-    lonfile = os.path.join(GEOM_DIR, 'lon_dummy.rdr')
+    latfile = Path(GEOM_DIR) / 'lat.rdr'
+    lonfile = Path(GEOM_DIR) / 'lon_dummy.rdr'
     station_file = station_file
     with pytest.raises(ValueError):
         RasterRDR(lat_file=latfile, lon_file=lonfile)

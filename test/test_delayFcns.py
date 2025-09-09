@@ -1,16 +1,14 @@
-import os
-import pytest
-
 import numpy as np
+import pytest
 import xarray as xr
-
 from pyproj import CRS, Transformer
+
+from RAiDER.delay import transformPoints
+from RAiDER.delayFcns import getInterpolators
 from test import TEST_DIR
 
-from RAiDER.delayFcns import getInterpolators
-from RAiDER.delay import transformPoints
 
-SCENARIO1_DIR = os.path.join(TEST_DIR, "scenario_1", "golden_data")
+SCENARIO1_DIR = TEST_DIR / "scenario_1/golden_data"
 
 
 @pytest.fixture
@@ -28,8 +26,8 @@ def hrrr_proj():
 
 
 @pytest.fixture
-def wmdata():
-    return xr.load_dataset(os.path.join(SCENARIO1_DIR, 'HRRR_tropo_20200101T120000_ztd.nc'))
+def wmdata() -> xr.Dataset:
+    return xr.load_dataset(SCENARIO1_DIR / 'HRRR_tropo_20200101T120000_ztd.nc')
 
 
 def test_getInterpolators(wmdata):

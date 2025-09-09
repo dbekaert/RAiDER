@@ -153,5 +153,24 @@ git add conda-lock.yml
 git add .circleci/conda-lock*.yml
 ```
 
+### TIP: Speed up the test suite ###
+You can increase the speed that the test suite completes by allocating more than
+one core to pytest. By default pytest uses 1 core, but RAiDER comes with
+`pytest-xdist` to allow you to distribute the tests across multiple cores and
+iterate faster.
+
+Add this to your pytest arguments:
+```
+-n <# cores>
+```
+Or, in your vscode workspace settings, you can add:
+```json
+    "python.testing.pytestArgs": [
+        "test",
+        "-n", "logical"
+    ],
+```
+
+
 ### Things you should NOT do
 (For anyone with push rights to RAiDER or RAiDER-docs) Never modify a commit or the history of anything that has been committed to https://github.com/dbekaert/RAiDER and https://github.com/dbekaert/RAiDER-docs.

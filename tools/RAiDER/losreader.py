@@ -173,9 +173,6 @@ class Raytracing(LOS):
 
     def __init__(self, filename=None, los_convention='isce', time=None, look_dir='right', pad=600) -> None:
         """Read in and parse a statevector file."""
-        if isce is None:
-            raise ImportError('isce3 is required for this class. Use conda to install isce3`')
-
         super().__init__()
         self._ray_trace = True
         self._file = filename
@@ -208,8 +205,8 @@ class Raytracing(LOS):
         end = np.argmax(t)
         return 'desc' if z[start] > z[end] else 'asc'
 
-    def getLookDirection(self):
-        return self._look_dir
+    def getLookDirection(self) -> Literal['left', 'right']:
+        return 'right' if self._look_dir == isce.core.LookSide.Right else 'left'
 
     # Called in checkArgs
     def setTime(self, time, pad=600) -> None:
@@ -218,9 +215,6 @@ class Raytracing(LOS):
 
     def getLookVectors(self, ht, llh, xyz, yy):
         """Calculate look vectors for raytracing."""
-        if isce is None:
-            raise ImportError('isce3 is required for this method. Use conda to install isce3`')
-
         # TODO - Modify when isce3 vectorization is available
         los = np.full(yy.shape + (3,), np.nan)
         llh = llh.copy()

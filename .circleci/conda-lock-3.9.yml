@@ -9,13 +9,13 @@
 # To update a single package to the latest version compatible with the version constraints in the source:
 #     conda-lock lock  --lockfile conda-lock-3.9.yml --update PACKAGE
 # To re-solve the entire environment, e.g. after changing a version constraint in the source file:
-#     conda-lock -f environment-9.yml -f ../../../../../../../../tmp/tmpv7j5fuec/environment.yml --lockfile conda-lock-3.9.yml
+#     conda-lock -f environment-9.yml -f ../../../../../../../../tmp/tmp89nfu46r/environment.yml -f ../../../../../../../../tmp/tmpnfyamusf/environment.yml --lockfile conda-lock-3.9.yml
 version: 1
 metadata:
   content_hash:
-    linux-64: e223acab8a9275c2958f598daf5343e4f78ebce019288844ce9b7161940b8e32
-    osx-64: b056e7669c41b80c573a06cb18c838bb07e54fe3473c3bd73e3ad3569ed9e73b
-    osx-arm64: c6065c53cb182253dd85ac36bff55637c5f62d68a30a791a1f56e2a9d93daac3
+    linux-64: a7103f80ed49c526b31d6a31b83acc8fa8a9c8411abca4d7b5c4fa87deb17a2d
+    osx-64: 0cc6fc48f64795bf1f76eb2b101a03b70442508438f70bab4d8013e06154b2a3
+    osx-arm64: 238a506d859b616a8bc9ad4395734ab61af25ccbf6fa5d15713cda1693ce6e1a
   channels:
   - url: conda-forge
     used_env_vars: []
@@ -25,7 +25,8 @@ metadata:
   - osx-arm64
   sources:
   - environment-9.yml
-  - ../../../../../../../../tmp/tmpv7j5fuec/environment.yml
+  - ../../../../../../../../tmp/tmp89nfu46r/environment.yml
+  - ../../../../../../../../tmp/tmpnfyamusf/environment.yml
 package:
 - name: _libgcc_mutex
   version: '0.1'
@@ -3389,7 +3390,7 @@ package:
   category: main
   optional: false
 - name: cmake
-  version: 4.1.0
+  version: 4.1.1
   manager: conda
   platform: linux-64
   dependencies:
@@ -3405,14 +3406,14 @@ package:
     ncurses: '>=6.5,<7.0a0'
     rhash: '>=1.4.6,<2.0a0'
     zstd: '>=1.5.7,<1.6.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/cmake-4.1.0-hc85cc9f_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/cmake-4.1.1-hc85cc9f_0.conda
   hash:
-    md5: 63080125641ce03edb003ba6cb3639d0
-    sha256: e7f4837d1d74368bcda30aaae545af72fe8a83abd86666e0a56a6fcb744e6508
+    md5: c090226f6d82c9bb396948065c3808d9
+    sha256: 00f6c0883b8365e141a77d1777339817fe4c582e6cf1e39c69fb0b3eb4349b3a
   category: main
   optional: false
 - name: cmake
-  version: 4.1.0
+  version: 4.1.1
   manager: conda
   platform: osx-64
   dependencies:
@@ -3427,14 +3428,14 @@ package:
     ncurses: '>=6.5,<7.0a0'
     rhash: '>=1.4.6,<2.0a0'
     zstd: '>=1.5.7,<1.6.0a0'
-  url: https://conda.anaconda.org/conda-forge/osx-64/cmake-4.1.0-h118fb26_0.conda
+  url: https://conda.anaconda.org/conda-forge/osx-64/cmake-4.1.1-h118fb26_0.conda
   hash:
-    md5: eeaba0b95ae7d9cf3834686f37f5ff2a
-    sha256: ceb6b5a8185534b1ca5d93d1ad36ca606afc7515e5b90a99f5d01c438f7e7664
+    md5: 07d353575f84d6ccaa01fcdfd2d9db0c
+    sha256: 72d8ae208757d404a6dd2de94a1f9dd314dbb5f3c0f0ee89424a5444fb9e3386
   category: main
   optional: false
 - name: cmake
-  version: 4.1.0
+  version: 4.1.1
   manager: conda
   platform: osx-arm64
   dependencies:
@@ -3449,10 +3450,10 @@ package:
     ncurses: '>=6.5,<7.0a0'
     rhash: '>=1.4.6,<2.0a0'
     zstd: '>=1.5.7,<1.6.0a0'
-  url: https://conda.anaconda.org/conda-forge/osx-arm64/cmake-4.1.0-hae74ae4_0.conda
+  url: https://conda.anaconda.org/conda-forge/osx-arm64/cmake-4.1.1-hae74ae4_0.conda
   hash:
-    md5: 65d333c04dcdbea01b16993358df3364
-    sha256: 0e00e9c1944e594f293e10b4e4abd4505f098d8d63c95c455b80775abcf134fa
+    md5: 8a19f6de15b62a0ad43fc5959e8bb325
+    sha256: ec1d31c48cce2c94bd5ed29bb3af809845a32af255704c2cc87b6106e140b04a
   category: main
   optional: false
 - name: colorama
@@ -4748,6 +4749,42 @@ package:
   hash:
     md5: 72e42d28960d875c7654614f8b50939a
     sha256: ce61f4f99401a4bd455b89909153b40b9c823276aefcbb06f2044618696009ca
+  category: main
+  optional: false
+- name: execnet
+  version: 2.1.1
+  manager: conda
+  platform: linux-64
+  dependencies:
+    python: '>=3.9'
+  url: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.1-pyhd8ed1ab_1.conda
+  hash:
+    md5: a71efeae2c160f6789900ba2631a2c90
+    sha256: 9abc6c128cd40733e9b24284d0462e084d4aff6afe614f0754aa8533ebe505e4
+  category: main
+  optional: false
+- name: execnet
+  version: 2.1.1
+  manager: conda
+  platform: osx-64
+  dependencies:
+    python: '>=3.9'
+  url: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.1-pyhd8ed1ab_1.conda
+  hash:
+    md5: a71efeae2c160f6789900ba2631a2c90
+    sha256: 9abc6c128cd40733e9b24284d0462e084d4aff6afe614f0754aa8533ebe505e4
+  category: main
+  optional: false
+- name: execnet
+  version: 2.1.1
+  manager: conda
+  platform: osx-arm64
+  dependencies:
+    python: '>=3.9'
+  url: https://conda.anaconda.org/conda-forge/noarch/execnet-2.1.1-pyhd8ed1ab_1.conda
+  hash:
+    md5: a71efeae2c160f6789900ba2631a2c90
+    sha256: 9abc6c128cd40733e9b24284d0462e084d4aff6afe614f0754aa8533ebe505e4
   category: main
   optional: false
 - name: executing
@@ -12196,10 +12233,10 @@ package:
     libgcc: '>=14'
     openldap: '>=2.6.10,<2.7.0a0'
     openssl: '>=3.5.2,<4.0a0'
-  url: https://conda.anaconda.org/conda-forge/linux-64/libpq-17.6-h3675c94_0.conda
+  url: https://conda.anaconda.org/conda-forge/linux-64/libpq-17.6-h3675c94_1.conda
   hash:
-    md5: de8839c8dde1cba9335ac43d86e16d65
-    sha256: 56ba34c2b3ae008a6623a59b14967366b296d884723ace95596cc986d31594a0
+    md5: bcee8587faf5dce5050a01817835eaed
+    sha256: 1b3323f5553db17cad2b0772f6765bf34491e752bfe73077977d376679f97420
   category: main
   optional: false
 - name: libprotobuf
@@ -17708,6 +17745,48 @@ package:
   hash:
     md5: 52a50ca8ea1b3496fbd3261bea8c5722
     sha256: 25afa7d9387f2aa151b45eb6adf05f9e9e3f58c8de2bc09be7e85c114118eeb9
+  category: main
+  optional: false
+- name: pytest-xdist
+  version: 3.8.0
+  manager: conda
+  platform: linux-64
+  dependencies:
+    execnet: '>=2.1'
+    pytest: '>=7.0.0'
+    python: '>=3.9'
+  url: https://conda.anaconda.org/conda-forge/noarch/pytest-xdist-3.8.0-pyhd8ed1ab_0.conda
+  hash:
+    md5: 8375cfbda7c57fbceeda18229be10417
+    sha256: b7b58a5be090883198411337b99afb6404127809c3d1c9f96e99b59f36177a96
+  category: main
+  optional: false
+- name: pytest-xdist
+  version: 3.8.0
+  manager: conda
+  platform: osx-64
+  dependencies:
+    execnet: '>=2.1'
+    pytest: '>=7.0.0'
+    python: '>=3.9'
+  url: https://conda.anaconda.org/conda-forge/noarch/pytest-xdist-3.8.0-pyhd8ed1ab_0.conda
+  hash:
+    md5: 8375cfbda7c57fbceeda18229be10417
+    sha256: b7b58a5be090883198411337b99afb6404127809c3d1c9f96e99b59f36177a96
+  category: main
+  optional: false
+- name: pytest-xdist
+  version: 3.8.0
+  manager: conda
+  platform: osx-arm64
+  dependencies:
+    execnet: '>=2.1'
+    pytest: '>=7.0.0'
+    python: '>=3.9'
+  url: https://conda.anaconda.org/conda-forge/noarch/pytest-xdist-3.8.0-pyhd8ed1ab_0.conda
+  hash:
+    md5: 8375cfbda7c57fbceeda18229be10417
+    sha256: b7b58a5be090883198411337b99afb6404127809c3d1c9f96e99b59f36177a96
   category: main
   optional: false
 - name: python

@@ -8,6 +8,8 @@ jobs:
     docker:
       - image: cimg/base:current
         user: root
+    resource_class: medium
+
     steps:
       - checkout
 
@@ -73,8 +75,8 @@ jobs:
           shell: /bin/bash -xl
           command: |
             python -m pip install pytest-cov
-            COV_OPTIONS=`python -c "import importlib.util; print(*(' --cov='+p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
-            pytest -m "not long" test/ ${COV_OPTIONS} --cov-report=
+            COV_OPTIONS=`python -c "import importlib.util; print(*(' --cov=' + p for p in importlib.util.find_spec('RAiDER').submodule_search_locations))"`
+            pytest test/ -n 2 -m "not long" ${COV_OPTIONS} --cov-report=
 
       - run:
           name: Report coverage
