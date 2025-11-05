@@ -26,6 +26,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [731](https://github.com/dbekaert/RAiDER/pull/731) - Fixed fetch routine for GMAO.
 
 ### Added
+* [771](https://github.com/dbekaert/RAiDER/pull/771) - Support in concatenation script to pass wildcard for `--raiderDir` and `--gnssDir` added back in.
 * [762](https://github.com/dbekaert/RAiDER/pull/762) - Added lockfiles through conda-lock to the repo, documentation, and CircleCI runners.
 * [761](https://github.com/dbekaert/RAiDER/pull/761) - Added Python 3.13 support.
 * [747](https://github.com/dbekaert/RAiDER/pull/747) - Added support for run config time format `%H:%M:%S` (without quotes).
