@@ -1,14 +1,18 @@
+# Standard library
 import argparse
 import datetime as dt
+import glob
 import math
 import re
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
 
+# Third-party
 import pandas as pd
 from tqdm import tqdm
 
+# Local
 from RAiDER.cli.parser import add_verbose
 
 
@@ -23,7 +27,7 @@ def combineDelayFiles(
     ref: Optional[Path]=None,
     col_name: str='ZTD'
 ) -> None:
-    file_paths = list(loc.glob('*' + ext))
+    file_paths = [f for folder in loc for f in folder.glob(f"*{ext}")]
 
     if source == 'model':
         print('Ensuring that "Datetime" column exists in files')
@@ -230,11 +234,15 @@ def file_choices(p: argparse.ArgumentParser, choices: tuple[str], s: str) -> Pat
        p.error(f"File must end with one of {choices}")
     return path
 
-def parse_dir(p: argparse.ArgumentParser, s: str) -> Path:
-    path = Path(s)
-    if not path.is_dir():
-        p.error("Path must be a directory")
-    return path
+def parse_dir(pattern: str) -> list[Path]:
+    """
+    Expand a single directory or wildcard pattern into
+    a list of valid Path objects.
+    """
+    paths = sorted(Path(p) for p in glob.glob(pattern))
+    if not paths:
+        raise ValueError(f"No directories found matching pattern: {pattern}")
+    return paths
 
 
 def create_parser() -> argparse.ArgumentParser:
@@ -271,8 +279,8 @@ def create_parser() -> argparse.ArgumentParser:
             Files should be named with a Datetime in the name and contain the
             column "ID" as the delay column names.
             """),
-        type=lambda s: parse_dir(p, s),
-        default=Path.cwd(),
+        type=parse_dir,
+        default=[Path.cwd()],
     )
     p.add_argument(
         '--gnssDir',
@@ -283,8 +291,8 @@ def create_parser() -> argparse.ArgumentParser:
             Files should contain the column "ID" as the delay column names
             and times should be denoted by the "Date" key.
             """),
-        type=lambda s: parse_dir(p, s),
-        default=Path.cwd(),
+        type=parse_dir,
+        default=[Path.cwd()],
     )
 
     p.add_argument(

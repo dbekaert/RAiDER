@@ -695,6 +695,7 @@ def combineZTDFiles() -> None:
     args: RAiDERCombineArgs = p.parse_args(namespace=RAiDERCombineArgs())
     if args.verbose:
         print(f"RAiDER file: {args.raider_file}")
+        print(f"RAiDER folder: {args.raider_folder}")
         print(f"GNSS folder: {args.gnss_folder}")
         print(f"GNSS file: {args.gnss_file}")
         print(f"Column name: {args.column_name}")
