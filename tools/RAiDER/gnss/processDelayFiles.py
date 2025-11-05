@@ -437,11 +437,6 @@ def main(
     # estimate residual
     dfc['ZTD_minus_RAiDER'] = dfc['ZTD'] - dfc[raider_delay]
 
-    # estimate noise corrected residual using GNSS sigZTD
-    dfc["Residual_minus_sigZTD"] = (
-        (dfc["ZTD_minus_RAiDER"] ** 2) - (dfc["sigZTD"] ** 2)
-    ) ** 0.5
-
     print('Total number of rows in the concatenated file: ' f'{dfc.shape[0]}')
     print(f'Total number of rows containing NaNs: {dfc[dfc.isna().any(axis=1)].shape[0]}')
     print('Merge finished')
