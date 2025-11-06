@@ -508,7 +508,6 @@ def load_gridfile(fname, unit):
     grid_array = np.ma.filled(grid_array, np.nan)
 
     # Make plotting command a global variable
-    print('metadata_dict', metadata_dict)
     gridfile_type = metadata_dict['gridfile_type']
     globals()[gridfile_type] = True
 
