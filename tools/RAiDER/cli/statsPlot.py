@@ -728,7 +728,7 @@ class VariogramAnalysis:
         d_test_arr = []
         v_test_arr = []
         for j in sorted(list(set(grid_subset['Date']))):
-            # If insufficient sample size, skip slice and record occurence
+            # If insufficient sample size, skip slice and record occurrence
             if len(np.array(grid_subset[grid_subset['Date'] == j][self.col_name])) < self.densitythreshold:
                 # Record skipped [gridnode, timeslice]
                 self.skipped_slices.append([grid_ind, j.strftime('%Y-%m-%d')])
@@ -2589,7 +2589,7 @@ class RaiderStats:
                     cmap=cmap,
                     norm=norm,
                     zorder=1,
-                    s=10,
+                    s=0.5,
                     marker='.',
                     transform=ccrs.PlateCarree(),
                 )
