@@ -54,7 +54,7 @@ def get_station_list(
                     if k == 0:
                         names = line.strip().split()
                     else:
-                        stations.append(line.strip().split())
+                        stations.append([line.strip().split()])
             station_data = pd.DataFrame(stations, columns=names)         
     else:
         station_data = get_stats_by_llh(llhBox=bbox)
@@ -200,13 +200,56 @@ def in_box(lat, lon, llhbox):
     return lat < llhbox[1] and lat > llhbox[0] and lon < llhbox[3] and lon > llhbox[2]
 
 
-def fix_lons(lon):
-    """Fix the given longitudes into the range `[-180, 180]`."""
-    fixed_lon = ((lon + 180) % 360) - 180
-    # Make the positive 180s positive again.
-    if fixed_lon == -180 and lon > 0:
-        fixed_lon *= -1
-    return fixed_lon
+def fix_lons(lon, to360: bool = False):
+    """
+    Convert longitude values between [-180, 180] and [0, 360] conventions.
+
+    Parameters
+    ----------
+    lon : float or array-like
+        Input longitude(s) in degrees.
+    to360 : bool, optional
+        If True, convert from [-180, 180] to [0, 360].
+        If False (default), convert from [0, 360] to [-180, 180].
+
+    Returns
+    -------
+    float or array-like
+        Normalized longitude(s) in the specified range.
+    """
+    if to360:
+        # Input sanity check
+        if lon < -180 or lon > 180:
+            raise ValueError(
+                f"Longitude {lon} outside valid [-180, 180] bounds. "
+                "Check input."
+            )
+
+        # Convert from [-180, 180] → [0, 360]
+        fixed = ((lon + 180) % 360)
+        # Handle the special wrap case: -180 → 0, 180 → 360
+        if lon == -180:
+            fixed = 0
+        elif lon == 180:
+            fixed = 360
+        return fixed
+
+    # Convert from [0, 360] → [-180, 180]
+    # Input sanity check
+    if lon < 0 or lon > 360:
+        raise ValueError(
+            f"Longitude {lon} outside valid [0, 360] bounds. "
+            "Check input."
+        )
+
+    fixed = (lon % 360) - 180
+    # Handle edge cases explicitly: 0 → -180, 360 → 180
+    if lon == 0:
+        fixed = -180
+    elif lon == 360:
+        fixed = 180
+
+    return fixed
 
 
 def get_ID(line):
@@ -227,6 +270,7 @@ def main(inps=None) -> None:
     station_file = inps.station_file
     if (station_file is not None) and not os.path.isfile(station_file):
         raise FileNotFoundError(f'File {station_file} does not exist.')
+
     bounding_box = inps.bounding_box
     gps_repo = inps.gps_repo
     out = inps.out
@@ -291,12 +335,9 @@ def parse_bbox(bounding_box):
 
     long_cross_zero = 1 if bbox[2] * bbox[3] < 0 else 0
 
-    # if necessary, convert negative longitudes to positive
-    if bbox[2] < 0:
-        bbox[2] += 360
-
-    if bbox[3] < 0:
-        bbox[3] += 360
+    # convert to 0 to 360 longitude convention
+    bbox[2] = fix_lons(bbox[2], to360=True)
+    bbox[3] = fix_lons(bbox[3], to360=True)
 
     return bbox, long_cross_zero
 
@@ -306,8 +347,8 @@ def get_stats(bbox, long_cross_zero, out, station_file):
     if long_cross_zero == 1:
         bbox1 = bbox.copy()
         bbox2 = bbox.copy()
-        bbox1[3] = 360.0
-        bbox2[2] = 0.0
+        bbox1[3] -= 180.0
+        bbox2[2] += 180.0
         stats1, statdata1 = get_station_list(
             bbox=bbox1, stationFile=station_file, name_appendix='_a', writeStationFile=False
         )
@@ -360,7 +401,9 @@ def filterToBBox(stations, llhBox):
 
     if stations[lon_key].min() < 0:
         # convert lon format to -180 to 180
-        W, E = (((D + 180) % 360) - 180 for D in [W, E])
+        W = fix_lons(W)
+        E = fix_lons(E)
 
+    print('updated S, N, W, E', S, N, W, E)
     mask = (stations[lat_key] > S) & (stations[lat_key] < N) & (stations[lon_key] < E) & (stations[lon_key] > W)
     return stations[mask]
