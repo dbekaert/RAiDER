@@ -491,12 +491,12 @@ def load_gridfile(fname, unit):
     """Function to load gridded-arrays saved from previous runs."""
     try:
         with rasterio.open(fname) as src:
+            # Read data array
             grid_array = src.read(1).astype(float)
+            # Read metadata variables needed for plotting
+            metadata_dict = src.tags()
     except TypeError:
         raise ValueError('fname is not a valid file')
-
-    # Read metadata variables needed for plotting
-    metadata_dict = src.tags()
 
     # Initiate no-data array to mask data
     nodat_arr = [0, np.nan, np.inf]
@@ -729,7 +729,7 @@ class VariogramAnalysis:
         d_test_arr = []
         v_test_arr = []
         for j in sorted(list(set(grid_subset['Date']))):
-            # If insufficient sample size, skip slice and record occurrence
+            # If insufficient sample size, skip slice and record occurence
             if len(np.array(grid_subset[grid_subset['Date'] == j][self.col_name])) < self.densitythreshold:
                 # Record skipped [gridnode, timeslice]
                 self.skipped_slices.append([grid_ind, j.strftime('%Y-%m-%d')])
@@ -2590,7 +2590,7 @@ class RaiderStats:
                     cmap=cmap,
                     norm=norm,
                     zorder=1,
-                    s=0.5,
+                    s=10,
                     marker='.',
                     transform=ccrs.PlateCarree(),
                 )
