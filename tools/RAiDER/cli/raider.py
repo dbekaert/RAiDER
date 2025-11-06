@@ -457,7 +457,12 @@ def downloadGNSS() -> None:
         dest='bounding_box',
         type=str,
         default=None,
-        help="Provide either valid shapefile or Lat/Lon Bounding SNWE. -- Example : '19 20 -99.5 -98.5'",
+        help=(
+            "Provide either valid shapefile or Lat/Lon Bounding SNWE. "
+            "If passing SNWE, input must be in 0-centered latitude "
+            "convention (i.e. -180/180). "
+            "Example: '19 20 -99.5 -98.5'"
+        ),
     )
     area.add_argument(
         '--gpsrepo',
