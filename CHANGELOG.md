@@ -15,6 +15,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [743](https://github.com/dbekaert/RAiDER/pull/743) - Switched from HTTPS to DAP4 for retrieving MERRA2 data, and suppressed a warning for using DAP4 for GMAO data where doing so is not possible.
 
 ### Fixed
+* [774](https://github.com/dbekaert/RAiDER/pull/774) - Fixed inconsistent Lat/Lon mapping in combine workflow which leads to localtime matching problems.
 * [765](https://github.com/dbekaert/RAiDER/pull/765) - Fixed a dead link to "Installing from Source" in the ReadMe.
 * [759](https://github.com/dbekaert/RAiDER/pull/759) - Added a `browse` S3 tag for `.png` files when uploaded to AWS.
 * [751](https://github.com/dbekaert/RAiDER/pull/751) - Fixed ERA-5 interface for a change to its API that requires pressure variables to be requested separately from temperature and humidity.
