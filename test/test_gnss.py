@@ -92,13 +92,13 @@ def test_concatDelayFiles(tmp_path, temp_file):
 
 
 def test_get_stats_by_llh2():
-    stations = get_stats_by_llh(llhBox=[10, 18, 360-93, 360-88])
+    stations = get_stats_by_llh(llhBox=[10, 18, -93, -88])
     assert isinstance(stations, pd.DataFrame)
 
 
 def test_get_stats_by_llh3():
     with pytest.raises(ValueError):
-        get_stats_by_llh(llhBox=[10, 18, -93, -88])
+        get_stats_by_llh(llhBox=[10, 18, 360-93, 360-88])
 
 
 def test_get_station_list():
