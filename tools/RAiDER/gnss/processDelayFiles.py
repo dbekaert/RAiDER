@@ -172,6 +172,10 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     """Convert to local-time reference frame WRT 0 longitude."""
     localTime_hrs = int(localTime.split(' ')[0])
     localTime_hrthreshold = int(localTime.split(' ')[1])
+    # modify dataframes without warnings
+    dfr = dfr.copy()
+    dfz = dfz.copy()
+
     # with rotation rate and distance to 0 lon, get localtime shift WRT 00 UTC at 0 lon
     # *rotation rate at given point = (360deg/23.9333333333hr) = 15.041782729825965 deg/hr
     dfr['Localtime'] = dfr['Lon'] / 15.041782729825965
@@ -363,17 +367,30 @@ def main(
 ):
     """Merge a combined RAiDER delays file with a GPS ZTD delay file."""
     print(f'Merging delay files {raider_file} and {ztd_file}')
+
+    # load files
+    dfz = pd.read_csv(ztd_file, parse_dates=['Date'])
     dfr = pd.read_csv(raider_file, parse_dates=['Datetime'])
-    # drop extra columns
+
+    # drop extra columns from tropo delay file
     expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay', 'hydroDelay', raider_delay]
     dfr = dfr.drop(columns=[col for col in dfr if col not in expected_data_columns])
+
+    # Create dictionaries mapping ID → Lat and ID → Lon from GNSS file
+    lat_map = dict(zip(dfz["ID"], dfz["Lat"]))
+    lon_map = dict(zip(dfz["ID"], dfz["Lon"]))
+
+    # Apply to tropo delay file to avoid discrepancies in lat/lon
+    # since this will lead to dropped matches downstream
+    # as localtime estimation would be inconsistent
+    dfr = dfr.copy()
+    dfr["Lat"] = dfr["ID"].map(lat_map)
+    dfr["Lon"] = dfr["ID"].map(lon_map)
 
     # Round raider datetime to the nearest 5 min to match GNSS data
     dfr['Datetime'] = dfr['Datetime'].apply(
         lambda x: x - dt.timedelta(minutes=x.minute % 5, seconds=x.second, microseconds=x.microsecond)
     )
-
-    dfz = pd.read_csv(ztd_file, parse_dates=['Date'])
 
     # Handle datetime conversion for the GNSS files that use time in seconds
     if 'Datetime' not in dfz.keys():
