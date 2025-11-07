@@ -139,15 +139,14 @@ def test_filterByBBox1():
     _, station_data = get_station_list(stationFile=os.path.join(
         SCENARIO2_DIR, 'stations.csv'), writeStationFile=False)
     with pytest.raises(ValueError):
-        filterToBBox(station_data, llhBox=[34, 38, -120, -115])
+        filterToBBox(station_data, llhBox=[34, 38, 240, 245])
 
 
 def test_filterByBBox2():
     _, station_data = get_station_list(stationFile=os.path.join(
         SCENARIO2_DIR, 'stations.csv'), writeStationFile=False)
-    new_data = filterToBBox(station_data, llhBox=[34, 38, 240, 245])
+    new_data = filterToBBox(station_data, llhBox=[34, 38, -120, -115])
     for stat in ['CAPE', 'MHMS', 'NVCO']:
         assert stat not in new_data['ID'].to_list()
     for stat in ['FGNW', 'JPLT', 'NVTP', 'WLHG', 'WORG']:
         assert stat in new_data['ID'].to_list()
-
