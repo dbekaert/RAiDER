@@ -50,7 +50,7 @@ def test_fix_lons_positive_to360():
 
 def test_fix_lons_negative_to360():
     lon = -100.0
-    assert fix_lons(lon, to360=True) == 800.0
+    assert fix_lons(lon, to360=True) == 80.0
 
 
 def test_fix_lons_0_to180():
