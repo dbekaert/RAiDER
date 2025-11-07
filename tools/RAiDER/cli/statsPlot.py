@@ -491,12 +491,12 @@ def load_gridfile(fname, unit):
     """Function to load gridded-arrays saved from previous runs."""
     try:
         with rasterio.open(fname) as src:
+            # Read data array
             grid_array = src.read(1).astype(float)
+            # Read metadata variables needed for plotting
+            metadata_dict = src.tags()
     except TypeError:
         raise ValueError('fname is not a valid file')
-
-    # Read metadata variables needed for plotting
-    metadata_dict = src.tags()
 
     # Initiate no-data array to mask data
     nodat_arr = [0, np.nan, np.inf]
@@ -508,7 +508,6 @@ def load_gridfile(fname, unit):
     grid_array = np.ma.filled(grid_array, np.nan)
 
     # Make plotting command a global variable
-    print('metadata_dict', metadata_dict)
     gridfile_type = metadata_dict['gridfile_type']
     globals()[gridfile_type] = True
 
