@@ -404,7 +404,7 @@ def filterToBBox(stations, llhBox):
     if (W > 180.) or (E > 180.):
         raise ValueError(
             f"Check input -b:{llhBox} longitudes appear to be in the "
-            "-360/360 convention. Expected -180/180 convention."
+            "[0, 360] convention. Expected [-180, 180] convention."
         )
 
     # For a user-provided file, check possible column names
