@@ -141,27 +141,58 @@ def download_tropo_delays(
     statDF.to_csv(os.path.join(writeDir, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'))
 
 
-def download_UNR(statID, year, writeDir='.', download=False, baseURL=_UNR_URL):
+def download_UNR(statID, year, writeDir=".", download=False, baseURL=_UNR_URL):
     """
-    Download a zip file containing tropospheric delays for a given station and year.
-    The URL format is http://geodesy.unr.edu/gps_timeseries/trop/<ssss>/<ssss>.<yyyy>.trop.zip
-    Inputs:
-        statID   - 4-character station identifier
-        year     - 4-numeral year
+    Download a zip file containing tropospheric delays for a given
+    station and year.
+
+    The URL format is:
+        http://geodesy.unr.edu/gps_timeseries/IGS20/trop/<ssss>/
+        <ssss>.<yyyy>.trop.zip
+
+    Parameters
+    ----------
+    statID : str
+        4-character station identifier.
+    year : int or str
+        4-digit year.
+    writeDir : str, optional
+        Directory to write the downloaded file. Defaults to current
+        directory.
+    download : bool, optional
+        If True, download the file. Otherwise, only check if it exists
+        remotely.
+    baseURL : str, optional
+        Base URL for the UNR repository.
+
+    Returns
+    -------
+    dict
+        Dictionary with keys 'ID', 'year', and 'path'.
     """
     if baseURL not in [_UNR_URL]:
-        raise NotImplementedError(f'Data repository {baseURL} has not yet been implemented')
+        raise NotImplementedError(
+            f"Data repository {baseURL} has not yet been implemented"
+        )
 
-    URL = '{0}gps_timeseries/trop/{1}/{1}.{2}.trop.zip'.format(baseURL, statID.upper(), year)
-    logger.debug('Currently checking station %s in %s', statID, year)
+    URL = (
+        f"{baseURL}gps_timeseries/IGS20/trop/"
+        f"{statID.upper()}/{statID.upper()}.{year}.trop.zip"
+    )
+
+    logger.debug("Currently checking station %s in %s", statID, year)
+
     if download:
-        saveLoc = os.path.abspath(os.path.join(writeDir, f'{statID.upper()}.{year}.trop.zip'))
+        saveLoc = os.path.abspath(
+            os.path.join(writeDir, f"{statID.upper()}.{year}.trop.zip")
+        )
         filepath = download_url(URL, saveLoc)
-        if filepath == '':
-            raise ValueError('Year or station ID does not exist')
+        if filepath == "":
+            raise ValueError("Year or station ID does not exist")
     else:
         filepath = check_url(URL)
-    return {'ID': statID, 'year': year, 'path': filepath}
+
+    return {"ID": statID, "year": year, "path": filepath}
 
 
 def download_url(url, save_path, chunk_size=2048):
