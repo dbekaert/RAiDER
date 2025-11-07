@@ -404,6 +404,5 @@ def filterToBBox(stations, llhBox):
         W = fix_lons(W)
         E = fix_lons(E)
 
-    print('updated S, N, W, E', S, N, W, E)
     mask = (stations[lat_key] > S) & (stations[lat_key] < N) & (stations[lon_key] < E) & (stations[lon_key] > W)
     return stations[mask]
