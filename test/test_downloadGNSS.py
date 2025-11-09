@@ -43,24 +43,24 @@ def test_in_box_outside():
     assert not in_box(lat, lon, llbox)
 
 # Test fix_lons with various longitudes
-def test_fix_lons_positive():
-    lon = 200.0
-    assert fix_lons(lon) == -160.0
+def test_fix_lons_positive_to360():
+    lon = 80.0
+    assert fix_lons(lon, to360=True) == 260.0
 
 
-def test_fix_lons_negative():
-    lon = -220.0
-    assert fix_lons(lon) == 140.0
+def test_fix_lons_negative_to360():
+    lon = -100.0
+    assert fix_lons(lon, to360=True) == 80.0
 
 
-def test_fix_lons_positive_180():
-    lon = 180.0
-    assert fix_lons(lon) == 180.0
-
-
-def test_fix_lons_negative_180():
-    lon = -180.0
+def test_fix_lons_0_to180():
+    lon = 0.0
     assert fix_lons(lon) == -180.0
+
+
+def test_fix_lons_360_to180():
+    lon = 360.0
+    assert fix_lons(lon) == 180.0
 
 
 # Test get_ID with a valid line

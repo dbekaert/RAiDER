@@ -92,13 +92,13 @@ def test_concatDelayFiles(tmp_path, temp_file):
 
 
 def test_get_stats_by_llh2():
-    stations = get_stats_by_llh(llhBox=[10, 18, 360-93, 360-88])
+    stations = get_stats_by_llh(llhBox=[10, 18, -93, -88])
     assert isinstance(stations, pd.DataFrame)
 
 
 def test_get_stats_by_llh3():
     with pytest.raises(ValueError):
-        get_stats_by_llh(llhBox=[10, 18, -93, -88])
+        get_stats_by_llh(llhBox=[10, 18, 360-93, 360-88])
 
 
 def test_get_station_list():
@@ -139,15 +139,14 @@ def test_filterByBBox1():
     _, station_data = get_station_list(stationFile=os.path.join(
         SCENARIO2_DIR, 'stations.csv'), writeStationFile=False)
     with pytest.raises(ValueError):
-        filterToBBox(station_data, llhBox=[34, 38, -120, -115])
+        filterToBBox(station_data, llhBox=[34, 38, 240, 245])
 
 
 def test_filterByBBox2():
     _, station_data = get_station_list(stationFile=os.path.join(
         SCENARIO2_DIR, 'stations.csv'), writeStationFile=False)
-    new_data = filterToBBox(station_data, llhBox=[34, 38, 240, 245])
+    new_data = filterToBBox(station_data, llhBox=[34, 38, -120, -115])
     for stat in ['CAPE', 'MHMS', 'NVCO']:
         assert stat not in new_data['ID'].to_list()
     for stat in ['FGNW', 'JPLT', 'NVTP', 'WLHG', 'WORG']:
         assert stat in new_data['ID'].to_list()
-

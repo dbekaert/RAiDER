@@ -54,7 +54,7 @@ def get_station_list(
                     if k == 0:
                         names = line.strip().split()
                     else:
-                        stations.append(line.strip().split())
+                        stations.append([line.strip().split()])
             station_data = pd.DataFrame(stations, columns=names)         
     else:
         station_data = get_stats_by_llh(llhBox=bbox)
@@ -73,17 +73,15 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
     llhBox should be a tuple in SNWE format.
     """
     if llhBox is None:
-        llhBox = [-90, 90, 0, 360]
+        llhBox = [-90, 90, -180, 180]
     S, N, W, E = llhBox
-    if (W < 0) or (E < 0):
-        raise ValueError('get_stats_by_llh: bounding box must be on lon range [0, 360]')
 
     stationHoldings = f'{baseURL}NGLStationPages/llh.out'
     # it's a file like object and works just like a file
 
     stations = pd.read_csv(stationHoldings, sep=r'\s+', names=['ID', 'Lat', 'Lon', 'Hgt_m'])
 
-    # convert lons from [0, 360] to [-180, 180]
+    # convert lons from [-360, 0] to [-180, 180]
     stations['Lon'] = ((stations['Lon'].values + 180) % 360) - 180
 
     stations = filterToBBox(stations, llhBox)
@@ -231,13 +229,56 @@ def in_box(lat, lon, llhbox):
     return lat < llhbox[1] and lat > llhbox[0] and lon < llhbox[3] and lon > llhbox[2]
 
 
-def fix_lons(lon):
-    """Fix the given longitudes into the range `[-180, 180]`."""
-    fixed_lon = ((lon + 180) % 360) - 180
-    # Make the positive 180s positive again.
-    if fixed_lon == -180 and lon > 0:
-        fixed_lon *= -1
-    return fixed_lon
+def fix_lons(lon, to360: bool = False):
+    """
+    Convert longitude values between [-180, 180] and [0, 360] conventions.
+
+    Parameters
+    ----------
+    lon : float or array-like
+        Input longitude(s) in degrees.
+    to360 : bool, optional
+        If True, convert from [-180, 180] to [0, 360].
+        If False (default), convert from [0, 360] to [-180, 180].
+
+    Returns
+    -------
+    float or array-like
+        Normalized longitude(s) in the specified range.
+    """
+    if to360:
+        # Input sanity check
+        if lon < -180 or lon > 180:
+            raise ValueError(
+                f"Longitude {lon} outside valid [-180, 180] bounds. "
+                "Check input."
+            )
+
+        # Convert from [-180, 180] → [0, 360]
+        fixed = ((lon + 180) % 360)
+        # Handle the special wrap case: -180 → 0, 180 → 360
+        if lon == -180:
+            fixed = 0
+        elif lon == 180:
+            fixed = 360
+        return fixed
+
+    # Convert from [0, 360] → [-180, 180]
+    # Input sanity check
+    if lon < 0 or lon > 360:
+        raise ValueError(
+            f"Longitude {lon} outside valid [0, 360] bounds. "
+            "Check input."
+        )
+
+    fixed = (lon % 360) - 180
+    # Handle edge cases explicitly: 0 → -180, 360 → 180
+    if lon == 0:
+        fixed = -180
+    elif lon == 360:
+        fixed = 180
+
+    return fixed
 
 
 def get_ID(line):
@@ -258,6 +299,7 @@ def main(inps=None) -> None:
     station_file = inps.station_file
     if (station_file is not None) and not os.path.isfile(station_file):
         raise FileNotFoundError(f'File {station_file} does not exist.')
+
     bounding_box = inps.bounding_box
     gps_repo = inps.gps_repo
     out = inps.out
@@ -274,14 +316,13 @@ def main(inps=None) -> None:
 
     # Setup bounding box
     if bounding_box:
-        bbox, long_cross_zero = parse_bbox(bounding_box)
+        bbox = parse_bbox(bounding_box)
     # If bbox not specified, query stations across the entire globe
     else:
-        bbox = [-90, 90, 0, 360]
-        long_cross_zero = 1
+        bbox = [-90, 90, -180, 180]
 
     # Handle station query
-    stats, statdf = get_stats(bbox, long_cross_zero, out, station_file)
+    stats, statdf = get_stats(bbox, out, station_file)
 
     # iterate over years
     years = list(set([i.year for i in dateList]))
@@ -320,40 +361,19 @@ def parse_bbox(bounding_box):
     else:
         raise Exception('Passing a file with a bounding box not yet supported.')
 
-    long_cross_zero = 1 if bbox[2] * bbox[3] < 0 else 0
-
-    # if necessary, convert negative longitudes to positive
-    if bbox[2] < 0:
-        bbox[2] += 360
-
-    if bbox[3] < 0:
-        bbox[3] += 360
-
-    return bbox, long_cross_zero
+    return bbox
 
 
-def get_stats(bbox, long_cross_zero, out, station_file):
+def get_stats(bbox, out, station_file):
     """Pull the stations needed."""
-    if long_cross_zero == 1:
-        bbox1 = bbox.copy()
-        bbox2 = bbox.copy()
-        bbox1[3] = 360.0
-        bbox2[2] = 0.0
-        stats1, statdata1 = get_station_list(
-            bbox=bbox1, stationFile=station_file, name_appendix='_a', writeStationFile=False
+    if bbox[3] < bbox[2]:
+        raise ValueError(
+            f"Check input -b {bbox}: longitudes appear to be flipped."
         )
-        stats2, statdata2 = get_station_list(
-            bbox=bbox2, stationFile=station_file, name_appendix='_b', writeStationFile=False
-        )
-        stats = stats1 + stats2
-        stats = list(set(stats))
-        frames = [statdata1, statdata2]
-        statdata = pd.concat(frames, ignore_index=True)
-        statdata = statdata.drop_duplicates(subset=['ID'])
-    else:
-        if bbox[3] < bbox[2]:
-            bbox[3] = 360.0
-        stats, statdata = get_station_list(bbox=bbox, stationFile=station_file, writeStationFile=False)
+
+    stats, statdata = get_station_list(bbox=bbox,
+        stationFile=station_file,
+        writeStationFile=False)
 
     statdata.to_csv(NEW_STATION_FILENAME + '.csv', index=False)
     return stats, statdata
@@ -361,37 +381,57 @@ def get_stats(bbox, long_cross_zero, out, station_file):
 
 def filterToBBox(stations, llhBox):
     """
-    Filter a dataframe by lat/lon.
-    *NOTE: llhBox longitude format should be [0, 360].
+    Filter a DataFrame of stations by latitude and longitude.
 
-    Args:
-        stations: DataFrame     - a pandas dataframe with "Lat" and "Lon" columns
-        llhBox: list of float   - 4-element list: [S, N, W, E]
+    Notes
+    -----
+    The `llhBox` and `stations` longitude format should be in [-180, 180].
 
-    Returns:
-        a Pandas Dataframe with stations removed that are not inside llhBox
+    Parameters
+    ----------
+    stations : pandas.DataFrame
+        DataFrame containing "Lat" and "Lon" (or similar) columns.
+    llhBox : list[float]
+        Four-element list defining [S, N, W, E] bounding box.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Subset of stations within the specified bounding box.
     """
     S, N, W, E = llhBox
-    if (W < 0) or (E < 0):
-        raise ValueError('llhBox longitude format should 0-360')
 
-    # For a user-provided file, need to check the column names
+    if (W > 180.) or (E > 180.):
+        raise ValueError(
+            f"Check input -b:{llhBox} longitudes appear to be in the "
+            "[0, 360] convention. Expected [-180, 180] convention."
+        )
+
+    # For a user-provided file, check possible column names
     keys = stations.columns
-    lat_keys = ['lat', 'latitude', 'Lat', 'Latitude']
-    lon_keys = ['lon', 'longitude', 'Lon', 'Longitude']
+    lat_keys = ["lat", "latitude", "Lat", "Latitude"]
+    lon_keys = ["lon", "longitude", "Lon", "Longitude"]
+
     index = None
     for k, key in enumerate(lat_keys):
         if key in list(keys):
             index = k
             break
+
     if index is None:
-        raise KeyError('filterToBBox: No valid column names found for latitude and longitude')
-    lon_key = lon_keys[k]
-    lat_key = lat_keys[k]
+        raise KeyError(
+            "filterToBBox: No valid column names found for latitude "
+            "and longitude."
+        )
 
-    if stations[lon_key].min() < 0:
-        # convert lon format to -180 to 180
-        W, E = (((D + 180) % 360) - 180 for D in [W, E])
+    lon_key = lon_keys[index]
+    lat_key = lat_keys[index]
 
-    mask = (stations[lat_key] > S) & (stations[lat_key] < N) & (stations[lon_key] < E) & (stations[lon_key] > W)
+    mask = (
+        (stations[lat_key] > S)
+        & (stations[lat_key] < N)
+        & (stations[lon_key] < E)
+        & (stations[lon_key] > W)
+    )
+
     return stations[mask]

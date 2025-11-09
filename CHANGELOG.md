@@ -15,6 +15,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [743](https://github.com/dbekaert/RAiDER/pull/743) - Switched from HTTPS to DAP4 for retrieving MERRA2 data, and suppressed a warning for using DAP4 for GMAO data where doing so is not possible.
 
 ### Fixed
+* [775](https://github.com/dbekaert/RAiDER/pull/775) - Fixed bug in managing longitude conventions for GNSS download bounding box input.
 * [774](https://github.com/dbekaert/RAiDER/pull/774) - Fixed inconsistent Lat/Lon mapping in combine workflow which leads to localtime matching problems.
 * [773](https://github.com/dbekaert/RAiDER/pull/773) - Fixed bug with loading metadata in the stats workflow when replotting data.
 * [772](https://github.com/dbekaert/RAiDER/pull/772) - For GNSS download, pull in new IGS20 processed data which is being supported in forward processing mode.
