@@ -21,7 +21,7 @@ jobs:
 
   call-docker-ghcr-workflow:
     needs: call-version-info-workflow
-    uses: ASFHyP3/actions/.github/workflows/reusable-docker-ghcr.yml@v0.20.0
+    uses: ASFHyP3/actions/.github/workflows/reusable-docker-ghcr.yml@v0.21.0
     permissions:
       contents: read
       packages: write
