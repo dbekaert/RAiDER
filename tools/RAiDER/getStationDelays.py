@@ -5,13 +5,13 @@
 # RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+import csv
 import datetime as dt
 import gzip
 import io
 import multiprocessing as mp
 import os
 import zipfile
-
 from pathlib import Path
 from typing import List, Union
 
@@ -72,7 +72,7 @@ def get_delays_UNR(stationFile: Path, filename: str, dateList: List, returnTime:
             r = requests.get(stationFile)
 
             if not stationFile.lower().endswith('.zip'):
-                logging.warning(f"{stationFile} is not a ZIP file")
+                logger.warning(f"{stationFile} is not a ZIP file")
                 return None
 
             # Try to open the ZIP in memory
@@ -82,7 +82,7 @@ def get_delays_UNR(stationFile: Path, filename: str, dateList: List, returnTime:
             requests.exceptions.RequestException,
             zipfile.BadZipFile,
         ) as e:
-            logging.warning(f"Skipping {stationFile}: {e}")
+            logger.warning(f"Skipping {stationFile}: {e}")
             return None
 
     else:
@@ -240,11 +240,37 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
             for sf in stationFiles:
                 StationID = os.path.basename(sf).split('.')[0]
                 name = Path(pathbase) / f"{StationID}_ztd.csv"
+                # if GNSS CSV exists
+                # check whether all dates have already been downloaded
+                if Path.exists(name):
+                    with open(name, newline='') as f:
+                        reader = csv.DictReader(f)
+                        dates_in_file = {row['Date'] for row in reader}
+
+                    missing = [d for d in dateList if d not in dates_in_file]
+                    if not missing:
+                        logger.warning(
+                            f"Station file {name} already "
+                            "contains expected dates"
+                        )
+                        continue
+
+                # append query to args
                 args.append((sf, name, dateList, returnTime))
                 outputfiles.append(name)
+
             # Parallelize remote querying of zenith delays
             with mp.Pool(numCPUs) as multipool:
                 multipool.starmap(get_delays_UNR, args)
+ 
+            # Dedup entries in CSV files
+            for name in list(set(outputfiles)):
+                # Read + convert date column
+                df = pd.read_csv(name, parse_dates=['Date'])
+                # Drop duplicates and sort ascending by Date
+                df = df.drop_duplicates().sort_values(by='Date', ascending=True)
+                # Overwrite file cleanly
+                df.to_csv(name, index=False)
 
     # confirm file exists (i.e. valid delays exists for specified time/region).
     outputfiles = [i for i in outputfiles if Path.exists(i)]
