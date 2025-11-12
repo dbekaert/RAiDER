@@ -65,12 +65,29 @@ def get_delays_UNR(stationFile: Path, filename: str, dateList: List, returnTime:
     """
     # sort through station zip files
     allstationTarfiles = []
+
     # if URL
     if stationFile.startswith('http'):
-        r = requests.get(stationFile)
-        ziprepo = zipfile.ZipFile(io.BytesIO(r.content))
+        try:
+            r = requests.get(stationFile)
+
+            if not stationFile.lower().endswith('.zip'):
+                logging.warning(f"{stationFile} is not a ZIP file")
+                return None
+
+            # Try to open the ZIP in memory
+            ziprepo = zipfile.ZipFile(io.BytesIO(r.content))
+
+        except (
+            requests.exceptions.RequestException,
+            zipfile.BadZipFile,
+        ) as e:
+            logging.warning(f"Skipping {stationFile}: {e}")
+            return None
+
     else:
         ziprepo = zipfile.ZipFile(stationFile)
+
     # iterate through tarfiles
     stationTarlist = sorted(ziprepo.namelist())
 
