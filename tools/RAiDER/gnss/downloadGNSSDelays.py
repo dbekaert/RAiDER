@@ -329,9 +329,29 @@ def main(inps=None) -> None:
     download_tropo_delays(stats, years, gps_repo=gps_repo, writeDir=out, download=download)
 
     # Combine station data with URL info
-    pathsdf = pd.read_csv(os.path.join(out, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'))
-    pathsdf = pd.merge(left=pathsdf, right=statdf, how='left', left_on='ID', right_on='ID')
-    pathsdf.to_csv(os.path.join(out, f'{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv'), index=False)
+    paths_file = os.path.join(
+        out, f"{gps_repo}{NEW_STATION_FILENAME}_withpaths.csv"
+    )
+
+    pathsdf = pd.read_csv(paths_file)
+
+    pathsdf = pd.merge(
+        left=pathsdf,
+        right=statdf,
+        how='left',
+        left_on='ID',
+        right_on='ID',
+    )
+
+    # Drop duplicates based on ID, year, and path only
+    pathsdf = pathsdf.drop_duplicates(subset=['ID', 'year', 'path'])
+
+    # sort for consistent ordering
+    pathsdf = pathsdf.sort_values(by=['ID', 'year', 'path'], ascending=True)
+
+    # Write cleaned DataFrame back to file
+    pathsdf.to_csv(paths_file, index=False)
+
     del statdf, pathsdf
 
     # Extract delays for each station
