@@ -16,6 +16,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 * [782](https://github.com/dbekaert/RAiDER/pull/782) - Fixed bug with handling corrupted or non-existent UNR hosted GNSS ZIP files.
+* [781](https://github.com/dbekaert/RAiDER/pull/781) - In the combine workflow, accurately pass and write out matching midnight datetimes.
 * [775](https://github.com/dbekaert/RAiDER/pull/775) - Fixed bug in managing longitude conventions for GNSS download bounding box input.
 * [774](https://github.com/dbekaert/RAiDER/pull/774) - Fixed inconsistent Lat/Lon mapping in combine workflow which leads to localtime matching problems.
 * [773](https://github.com/dbekaert/RAiDER/pull/773) - Fixed bug with loading metadata in the stats workflow when replotting data.
