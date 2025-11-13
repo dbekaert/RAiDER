@@ -216,6 +216,10 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
     dfr.drop(columns=['Localtime_l', 'Localtime_u'], inplace=True)
     dfz.drop(columns=['Localtime_l', 'Localtime_u'], inplace=True)
 
+    # Ensure Datetime is pandas datetime64[ns] before returning
+    for _df in (dfr, dfz):
+        _df['Datetime'] = pd.to_datetime(_df['Datetime'], errors='raise')
+
     return dfr, dfz
 
 
@@ -223,8 +227,23 @@ def readZTDFile(filename, col_name='ZTD'):
     """Read and parse a GPS zenith delay file."""
     try:
         data = pd.read_csv(filename, parse_dates=['Date'])
-        times = data['times'].apply(lambda x: dt.timedelta(seconds=x))
-        data['Datetime'] = data['Date'] + times
+        date0 = pd.to_datetime(data['Date'],
+            errors='raise',
+            format='%Y-%m-%d')
+
+        # If present, convert seconds → pandas Timedelta; otherwise zero
+        if 'times' in data.columns:
+            sec = pd.to_numeric(data['times'], errors='coerce').fillna(0)
+            td = pd.to_timedelta(sec, unit='s')
+        else:
+            td = pd.to_timedelta(0, unit='s')
+
+        # Combine using numpy/pandas arrays
+        # (stays in datetime64[ns], never Python objects)
+        dt_vals = date0.values + td.values 
+
+        # Assign back
+        data['Datetime'] = pd.to_datetime(dt_vals)
     except (KeyError, ValueError):
         data = pd.read_csv(filename, parse_dates=['Datetime'])
 
@@ -369,7 +388,7 @@ def main(
     print(f'Merging delay files {raider_file} and {ztd_file}')
 
     # load files
-    dfz = pd.read_csv(ztd_file, parse_dates=['Date'])
+    dfz = pd.read_csv(ztd_file, parse_dates=['Datetime'])
     dfr = pd.read_csv(raider_file, parse_dates=['Datetime'])
 
     # drop extra columns from tropo delay file
@@ -392,19 +411,6 @@ def main(
         lambda x: x - dt.timedelta(minutes=x.minute % 5, seconds=x.second, microseconds=x.microsecond)
     )
 
-    # Handle datetime conversion for the GNSS files that use time in seconds
-    if 'Datetime' not in dfz.keys():
-        if "Date" in dfz.keys():
-            date = dfz['Date'].apply(lambda x: x.strftime('%Y-%m-%d'))
-            if 'times' in dfz.keys():
-                tm = dfz['times'].apply(lambda x: dt.timedelta(seconds=x))
-                dfz['Datetime'] = pd.to_datetime(date) + tm
-            else:
-                dfz['Datetime'] = pd.to_datetime(date)
-        else:
-            raise ValueError(
-                f'Datetime key not found in {ztd_file};\n please ensure that "Datetime" or "Date" plus "times" is included'
-            )
     # drop extra columns
     expected_data_columns = [
         'ID',
@@ -465,4 +471,6 @@ def main(
         dfc.dropna(how='any', inplace=True)
         # drop all duplicate lines
         dfc.drop_duplicates(inplace=True)
-        dfc.to_csv(out_path, index=False)
+        # force consistent datetime format
+        dfc['Datetime'] = pd.to_datetime(dfc['Datetime'], errors='raise')
+        dfc.to_csv(out_path, index=False, date_format='%Y-%m-%d %H:%M:%S')
