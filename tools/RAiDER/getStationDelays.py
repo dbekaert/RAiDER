@@ -265,12 +265,18 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
  
             # Dedup entries in CSV files
             for name in list(set(outputfiles)):
-                # Read + convert date column
-                df = pd.read_csv(name, parse_dates=['Date'])
-                # Drop duplicates and sort ascending by Date
-                df = df.drop_duplicates().sort_values(by='Date', ascending=True)
-                # Overwrite file cleanly
-                df.to_csv(name, index=False)
+                if Path(name).exists():
+                    # Read + convert date column
+                    df = pd.read_csv(name, parse_dates=['Date'])
+                    # Drop duplicates and sort ascending by Date
+                    df = df.drop_duplicates().sort_values(by='Date', ascending=True)
+                    # Overwrite file cleanly
+                    df.to_csv(name, index=False)
+                else:
+                    logger.warning(
+                        f"Station file {name} not found likely"
+                        "no available data in specified time span"
+                    )
 
     # confirm file exists (i.e. valid delays exists for specified time/region).
     outputfiles = [i for i in outputfiles if Path.exists(i)]
