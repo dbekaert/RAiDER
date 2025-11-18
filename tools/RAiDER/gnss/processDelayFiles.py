@@ -575,6 +575,7 @@ def main(
         )
         .reset_index(drop=True)
     )
+    del dfc
 
     # Drop all lines with NaNs and duplicates
     n_before = len(dfc_qm)
@@ -593,3 +594,4 @@ def main(
         date_format="%Y-%m-%d %H:%M:%S",
         float_format="%.6f",
     )
+    del dfc_qm
