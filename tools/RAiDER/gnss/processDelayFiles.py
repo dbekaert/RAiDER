@@ -585,7 +585,7 @@ def main(
     n_dropped = n_before - len(dfc_qm)
 
     logger.warning(
-        f"Dropped {n_dropped} rows containing NaN values "
+        f"Dropped {n_dropped} stations containing NaN values "
         f"({len(dfc_qm)} remaining)."
     )
 
