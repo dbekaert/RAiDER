@@ -15,6 +15,7 @@ import warnings
 
 import matplotlib as mpl
 import numpy as np
+from pathlib import Path
 import pandas as pd
 import rasterio
 from matplotlib import pyplot as plt
@@ -1599,8 +1600,24 @@ class RaiderStats:
 
         if self.grid_delay_mean:
             # Take mean of station-wise means per gridcell
-            unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)[self.col_name].mean()
-            unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
+            if not Path(self.fname).name.endswith('WM_variance.csv'):
+                unique_points = (
+                    self.df.groupby(
+                        ['ID', 'Lon', 'Lat', 'gridnode'], as_index=False
+                    )[self.col_name]
+                    .mean()
+                )
+                unique_points = (
+                    unique_points.groupby(['gridnode'])[self.col_name]
+                    .mean()
+                )
+            else:
+                unique_points = (
+                    self.df.groupby(['gridnode'])[
+                        self.col_name
+                    ].mean()
+                )
+                unique_points.index.name = 'gridnode'
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_mean = (
                 np.array(
@@ -1632,8 +1649,24 @@ class RaiderStats:
 
         if self.grid_delay_median:
             # Take mean of station-wise medians per gridcell
-            unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)[self.col_name].median()
-            unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
+            if not Path(self.fname).name.endswith('WM_variance.csv'):
+                unique_points = (
+                    self.df.groupby(
+                        ['ID', 'Lon', 'Lat', 'gridnode'], as_index=False
+                    )[self.col_name]
+                    .median()
+                )
+                unique_points = (
+                    unique_points.groupby(['gridnode'])[self.col_name]
+                    .mean()
+                )
+            else:
+                unique_points = (
+                    self.df.groupby(['gridnode'])[
+                        self.col_name
+                    ].median()
+                )
+                unique_points.index.name = 'gridnode'
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_median = (
                 np.array(
@@ -1665,8 +1698,24 @@ class RaiderStats:
 
         if self.grid_delay_stdev:
             # Take mean of station-wise stdev per gridcell
-            unique_points = self.df.groupby(['ID', 'Lon', 'Lat', 'gridnode'], as_index=False)[self.col_name].std()
-            unique_points = unique_points.groupby(['gridnode'])[self.col_name].mean()
+            if not Path(self.fname).name.endswith('WM_variance.csv'):
+                unique_points = (
+                    self.df.groupby(
+                        ['ID', 'Lon', 'Lat', 'gridnode'], as_index=False
+                    )[self.col_name]
+                    .std()
+                )
+                unique_points = (
+                    unique_points.groupby(['gridnode'])[self.col_name]
+                    .mean()
+                )
+            else:
+                unique_points = (
+                    self.df.groupby(['gridnode'])[
+                        self.col_name
+                    ].std()
+                )
+                unique_points.index.name = 'gridnode'
             unique_points.dropna(how='any', inplace=True)
             self.grid_delay_stdev = (
                 np.array(
