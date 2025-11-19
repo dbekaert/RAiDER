@@ -9,11 +9,13 @@ from textwrap import dedent
 from typing import Optional
 
 # Third-party
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
 # Local
 from RAiDER.cli.parser import add_verbose
+from RAiDER.logger import logger
 
 
 pd.options.mode.chained_assignment = None  # default='warn'
@@ -251,6 +253,89 @@ def readZTDFile(filename, col_name='ZTD'):
     return data
 
 
+def variance_analysis(group: pd.DataFrame,
+                      allow_nan_for_negative: bool = True,
+                      has_localtime: bool = False) -> pd.Series:
+    """
+    Compute variance terms and time span for one GNSS station.
+
+    Args:
+        group (pd.DataFrame): Subset of rows for a single station ID.
+        allow_nan_for_negative (bool): If True, return NaN when
+            sigma_model^2 < 0; otherwise clamp to 0. Default is True.
+        has_localtime (bool): If True, parse and output Localtime fields.
+
+    Returns:
+        pd.Series: Summary statistics for this station.
+    """
+    # Residuals and valid mask (pairwise)
+    resid = group["ZTD"] - group["totalDelay"]
+    valid = resid.notna()
+    resid = resid[valid]
+    sig = group.loc[valid, "sigZTD"].dropna()
+
+    # Mean-squared terms
+    sigma_res_sq = np.mean(np.square(resid)) if len(resid) else np.nan
+    sigma_gnss_sq = np.mean(np.square(sig)) if len(sig) else np.nan
+
+    # Model variance computation
+    if np.isfinite(sigma_res_sq) and np.isfinite(sigma_gnss_sq):
+        diff = sigma_res_sq - sigma_gnss_sq
+        if diff < 0 and allow_nan_for_negative:
+            sigma_model_sq = np.nan
+        else:
+            sigma_model_sq = max(diff, 0.0)
+    else:
+        sigma_model_sq = np.nan
+
+    # Parse datetime ranges
+    dt = pd.to_datetime(group["Datetime"], errors="coerce")
+
+    # Only parse Localtime if present
+    if has_localtime:
+        lt = pd.to_datetime(group["Localtime"], errors="coerce")
+        lt_min = lt.min()
+        lt_max = lt.max()
+    else:
+        lt_min = pd.NaT
+        lt_max = pd.NaT
+
+    def first_non_null(series: pd.Series):
+        vals = series.dropna()
+        return vals.iloc[0] if not vals.empty else np.nan
+
+    def series_aggregate(series: pd.Series, agg_method: str = "median"):
+        """Aggregate a numeric series with NaN handling."""
+        if series is None or len(series.dropna()) == 0:
+            return np.nan
+        if agg_method == "median":
+            return series.median(skipna=True)
+        if agg_method == "mean":
+            return series.mean(skipna=True)
+        raise ValueError(f"Unknown agg_method: {agg_method!r}")
+
+    return pd.Series(
+        {
+            "ID": group.name,
+            "Lat": first_non_null(group["Lat"]),
+            "Lon": first_non_null(group["Lon"]),
+            "Hgt_m": first_non_null(group["Hgt_m"]),
+            "Datetime": dt.min(),
+            "Enddate_Datetime": dt.max(),
+            "Localtime": lt_min,            # NaT if not present
+            "Enddate_Localtime": lt_max,    # NaT if not present
+            "sigZTD": series_aggregate(group["sigZTD"], "median"),
+            "sigma_res": np.sqrt(sigma_res_sq)
+            if np.isfinite(sigma_res_sq) else np.nan,
+            "sigma_gnss": np.sqrt(sigma_gnss_sq)
+            if np.isfinite(sigma_gnss_sq) else np.nan,
+            "sigma_model": np.sqrt(sigma_model_sq)
+            if np.isfinite(sigma_model_sq) else np.nan,
+            "n_epochs_used": int(valid.sum()),
+        }
+    )
+
+
 def file_choices(p: argparse.ArgumentParser, choices: tuple[str], s: str) -> Path:
     path = Path(s)
     if path.suffix not in choices:
@@ -452,7 +537,8 @@ def main(
     )
 
     # only keep observation closest to Localtime
-    if 'Localtime' in dfc.keys():
+    has_localtime = "Localtime" in dfc.columns
+    if has_localtime:
         dfc['Localtimediff'] = abs((dfc['Datetime'] - dfc['Localtime']).dt.total_seconds() / 3600)
         dfc = dfc.loc[dfc.groupby(['ID', 'Localtime']).Localtimediff.idxmin()].reset_index(drop=True)
         dfc.drop(columns=['Localtimediff'], inplace=True)
@@ -474,3 +560,39 @@ def main(
         # force consistent datetime format
         dfc['Datetime'] = pd.to_datetime(dfc['Datetime'], errors='raise')
         dfc.to_csv(out_path, index=False, date_format='%Y-%m-%d %H:%M:%S')
+
+    # compute and pass separate CSV with weather model variance
+    out_path = out_path.with_name(
+        f"{out_path.stem}_WM_variance{out_path.suffix}"
+    )
+
+    dfc_qm = (
+        dfc.groupby("ID", dropna=False, sort=True)
+        .apply(
+            variance_analysis,
+            allow_nan_for_negative=True,
+            has_localtime=has_localtime,
+            include_groups=False,
+        )
+        .reset_index(drop=True)
+    )
+    del dfc
+
+    # Drop all lines with NaNs and duplicates
+    n_before = len(dfc_qm)
+    dfc_qm.dropna(how="any", inplace=True)
+    dfc_qm.drop_duplicates(inplace=True)
+    n_dropped = n_before - len(dfc_qm)
+
+    logger.warning(
+        f"Dropped {n_dropped} stations containing NaN values "
+        f"({len(dfc_qm)} remaining)."
+    )
+
+    dfc_qm.to_csv(
+        out_path,
+        index=False,
+        date_format="%Y-%m-%d %H:%M:%S",
+        float_format="%.6f",
+    )
+    del dfc_qm
