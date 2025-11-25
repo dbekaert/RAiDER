@@ -30,7 +30,6 @@ from RAiDER.cli.types import (
     RuntimeGroup,
     TimeGroup,
 )
-from RAiDER.aria.prepFromGUNW import identify_which_hrrr
 from RAiDER.cli.validators import DateListAction, date_type
 from RAiDER.gnss.types import RAiDERCombineArgs
 from RAiDER.logger import logger, logging
@@ -335,7 +334,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
         if len(wfiles) == 0:
             logger.error('No weather model data was successfully processed.')
-            raise NoWeatherModelData('Weather model processing failed for all times')
+            raise NoWeatherModelData()
         
         # Get the weather model file
         weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
@@ -610,8 +609,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         args.interpolate_time == 'azimuth_time_grid'
     ):
         gunw_id = args.file.name.replace('.nc', '')
-        weather_model_name = identify_which_hrrr(args.file)
-        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id, weather_model_name):
+        if not RAiDER.aria.prepFromGUNW.check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id):
             raise NoWeatherModelData('The required HRRR data for time-grid interpolation is not available')
 
     if args.file is None:
@@ -707,6 +705,8 @@ def combineZTDFiles() -> None:
         print(f"Raider column name: {args.raider_column_name}")
         print(f"Output name: {args.out_name}")
         print(f"Local time: {args.local_time}")
+        print(f"Observation error threshold: {args.obs_errlimit}")
+        print(f"Nan for negative σ_wm values: {args.allow_nan_for_negative}")
 
     if not args.raider_file.exists():
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
@@ -716,7 +716,8 @@ def combineZTDFiles() -> None:
 
     if not args.gnss_file.exists():
         combineDelayFiles(
-            args.gnss_file, loc=args.gnss_folder, source='GNSS', ref=args.raider_file, col_name=args.column_name
+            args.gnss_file, loc=args.gnss_folder, source='GNSS',
+            ref=args.raider_file, col_name=args.column_name
         )
 
     main(
@@ -726,6 +727,8 @@ def combineZTDFiles() -> None:
         raider_delay=args.raider_column_name,
         out_path=args.out_name,
         local_time=args.local_time,
+        obs_errlimit=args.obs_errlimit,
+        allow_nan_for_negative=args.allow_nan_for_negative,
     )
 
 
