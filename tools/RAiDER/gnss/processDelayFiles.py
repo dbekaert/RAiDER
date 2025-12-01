@@ -497,7 +497,7 @@ def create_parser() -> argparse.ArgumentParser:
         help=dedent(
             """\
             If set, return NaN when σ_model² < 0; otherwise clamp to 0.
-            Default is False.
+            Default is True.
             """
         ),
         action='store_true',
