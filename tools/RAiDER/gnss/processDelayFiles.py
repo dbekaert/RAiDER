@@ -254,7 +254,7 @@ def readZTDFile(filename, col_name='ZTD'):
 
 
 def variance_analysis(group: pd.DataFrame,
-                      allow_nan_for_negative: bool = False,
+                      allow_nan_for_negative: bool = True,
                       has_localtime: bool = False) -> pd.Series:
     """
     Compute variance terms and time span for one GNSS station.
@@ -262,7 +262,7 @@ def variance_analysis(group: pd.DataFrame,
     Args:
         group (pd.DataFrame): Subset of rows for a single station ID.
         allow_nan_for_negative (bool): If True, return NaN when
-            sigma_model^2 < 0; otherwise clamp to 0. Default is False.
+            σ_wm² < 0; otherwise clamp to 0. Default is True.
         has_localtime (bool): If True, parse and output Localtime fields.
 
     Returns:
@@ -270,12 +270,12 @@ def variance_analysis(group: pd.DataFrame,
     """
 
     # Capture wm-gnss residual and sig_ztd
-    resid = group["ZTD_minus_RAiDER"]
+    resid = group["ZTD_minus_RAiDER"] # also mean(R)
     sig = group["sigZTD"]
     n_epochs = len(resid)
 
     # Mean-squared terms
-    # σ_res² = E[r²]
+    # σ_res² = D[r] = E((r - E(r))²)
     sigma_res_sq = (
         np.var(resid, ddof=1)
         if n_epochs > 1
@@ -290,7 +290,7 @@ def variance_analysis(group: pd.DataFrame,
 
     # Model variance computation
     if np.isfinite(sigma_res_sq) and np.isfinite(sigma_gnss_sq):
-        # σ_wm^2 = σ_res^2 - σ_gnss^2
+        # σ_wm² = σ_res² - σ_gnss²
         diff = sigma_res_sq - sigma_gnss_sq
         if diff < 0 and allow_nan_for_negative:
             sigma_model_sq = np.nan
@@ -501,7 +501,7 @@ def create_parser() -> argparse.ArgumentParser:
             """
         ),
         action='store_true',
-        default=False,
+        default=True,
     )
     add_verbose(p)
 
@@ -516,7 +516,7 @@ def main(
     out_path: Optional[Path]=None,
     local_time: str=None,
     obs_errlimit: float=float('inf'),
-    allow_nan_for_negative: bool=False
+    allow_nan_for_negative: bool=True
 ):
     """Merge a combined RAiDER delays file with a GPS ZTD delay file."""
     print(f'Merging delay files {raider_file} and {ztd_file}')
