@@ -707,6 +707,8 @@ def combineZTDFiles() -> None:
         print(f"Raider column name: {args.raider_column_name}")
         print(f"Output name: {args.out_name}")
         print(f"Local time: {args.local_time}")
+        print(f"Observation error threshold: {args.obs_errlimit}")
+        print(f"Nan for negative σ_wm² values: {args.allow_nan_for_negative}")
 
     if not args.raider_file.exists():
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
@@ -716,7 +718,8 @@ def combineZTDFiles() -> None:
 
     if not args.gnss_file.exists():
         combineDelayFiles(
-            args.gnss_file, loc=args.gnss_folder, source='GNSS', ref=args.raider_file, col_name=args.column_name
+            args.gnss_file, loc=args.gnss_folder, source='GNSS',
+            ref=args.raider_file, col_name=args.column_name
         )
 
     main(
@@ -726,6 +729,8 @@ def combineZTDFiles() -> None:
         raider_delay=args.raider_column_name,
         out_path=args.out_name,
         local_time=args.local_time,
+        obs_errlimit=args.obs_errlimit,
+        allow_nan_for_negative=args.allow_nan_for_negative,
     )
 
 

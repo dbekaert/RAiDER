@@ -262,24 +262,35 @@ def variance_analysis(group: pd.DataFrame,
     Args:
         group (pd.DataFrame): Subset of rows for a single station ID.
         allow_nan_for_negative (bool): If True, return NaN when
-            sigma_model^2 < 0; otherwise clamp to 0. Default is True.
+            σ_wm² < 0; otherwise clamp to 0. Default is True.
         has_localtime (bool): If True, parse and output Localtime fields.
 
     Returns:
         pd.Series: Summary statistics for this station.
     """
-    # Residuals and valid mask (pairwise)
-    resid = group["ZTD"] - group["totalDelay"]
-    valid = resid.notna()
-    resid = resid[valid]
-    sig = group.loc[valid, "sigZTD"].dropna()
+
+    # Capture wm-gnss residual and sig_ztd
+    resid = group["ZTD_minus_RAiDER"] # also mean(R)
+    sig = group["sigZTD"]
+    n_epochs = len(resid)
 
     # Mean-squared terms
-    sigma_res_sq = np.mean(np.square(resid)) if len(resid) else np.nan
-    sigma_gnss_sq = np.mean(np.square(sig)) if len(sig) else np.nan
+    # σ_res² = D[r] = E((r - E(r))²)
+    sigma_res_sq = (
+        np.var(resid, ddof=1)
+        if n_epochs > 1
+        else np.var(resid, ddof=0)
+    )
+    # σ_GNSS² = E[sigZTD²]
+    sigma_gnss_sq = (
+        (sig**2).mean()
+        if n_epochs > 1
+        else np.nan
+    )
 
     # Model variance computation
     if np.isfinite(sigma_res_sq) and np.isfinite(sigma_gnss_sq):
+        # σ_wm² = σ_res² - σ_gnss²
         diff = sigma_res_sq - sigma_gnss_sq
         if diff < 0 and allow_nan_for_negative:
             sigma_model_sq = np.nan
@@ -288,52 +299,60 @@ def variance_analysis(group: pd.DataFrame,
     else:
         sigma_model_sq = np.nan
 
+    # Mean bias calculation
+    mean_bias = resid.mean()
+
+    # Uncertainty in mean bias (error propagation)
+    if np.isfinite(sigma_model_sq) and len(sig) > 0:
+        sig_squared = sig**2
+        # Each measurement has uncertainty: σ_i² = σ_GNSS_i² + σ_model²
+        # For mean: σ_mean² = Σ(σ_i²) / n²
+        variance_sum = sig_squared.sum() + len(sig) * sigma_model_sq
+        sigma_mean_bias = np.sqrt(variance_sum) / len(sig)
+    else:
+        sigma_mean_bias = np.nan
+
     # Parse datetime ranges
     dt = pd.to_datetime(group["Datetime"], errors="coerce")
-
-    # Only parse Localtime if present
-    if has_localtime:
-        lt = pd.to_datetime(group["Localtime"], errors="coerce")
-        lt_min = lt.min()
-        lt_max = lt.max()
-    else:
-        lt_min = pd.NaT
-        lt_max = pd.NaT
 
     def first_non_null(series: pd.Series):
         vals = series.dropna()
         return vals.iloc[0] if not vals.empty else np.nan
 
-    def series_aggregate(series: pd.Series, agg_method: str = "median"):
-        """Aggregate a numeric series with NaN handling."""
-        if series is None or len(series.dropna()) == 0:
-            return np.nan
-        if agg_method == "median":
-            return series.median(skipna=True)
-        if agg_method == "mean":
-            return series.mean(skipna=True)
-        raise ValueError(f"Unknown agg_method: {agg_method!r}")
+    data_series = {
+        "ID": group.name,
+        "Lat": first_non_null(group["Lat"]),
+        "Lon": first_non_null(group["Lon"]),
+        "Hgt_m": first_non_null(group["Hgt_m"]),
+        "Datetime": dt.min(),
+        "Enddate_Datetime": dt.max(),
+        "sigZTD": group["sigZTD"].median(),
+        "mean_bias": mean_bias,
+        "sigma_mean_bias": sigma_mean_bias,
+        "sigma_res": np.sqrt(sigma_res_sq)
+        if np.isfinite(sigma_res_sq) else np.nan,
+        "sigma_gnss": np.sqrt(sigma_gnss_sq)
+        if np.isfinite(sigma_gnss_sq) else np.nan,
+        "sigma_model": np.sqrt(sigma_model_sq)
+        if np.isfinite(sigma_model_sq) else np.nan,
+        "n_epochs": n_epochs,
+    }
 
-    return pd.Series(
-        {
-            "ID": group.name,
-            "Lat": first_non_null(group["Lat"]),
-            "Lon": first_non_null(group["Lon"]),
-            "Hgt_m": first_non_null(group["Hgt_m"]),
-            "Datetime": dt.min(),
-            "Enddate_Datetime": dt.max(),
-            "Localtime": lt_min,            # NaT if not present
-            "Enddate_Localtime": lt_max,    # NaT if not present
-            "sigZTD": series_aggregate(group["sigZTD"], "median"),
-            "sigma_res": np.sqrt(sigma_res_sq)
-            if np.isfinite(sigma_res_sq) else np.nan,
-            "sigma_gnss": np.sqrt(sigma_gnss_sq)
-            if np.isfinite(sigma_gnss_sq) else np.nan,
-            "sigma_model": np.sqrt(sigma_model_sq)
-            if np.isfinite(sigma_model_sq) else np.nan,
-            "n_epochs_used": int(valid.sum()),
-        }
-    )
+    # Only parse Localtime if present
+    if has_localtime:
+        lt = pd.to_datetime(
+            group["Localtime"],
+            format="%Y-%m-%d %H:%M:%S",
+            errors="coerce"
+        )
+        data_series.update(
+            {
+                "Localtime": lt.min(),
+                "Enddate_Localtime": lt.max(),
+            }
+        )
+
+    return pd.Series(data_series)
 
 
 def file_choices(p: argparse.ArgumentParser, choices: tuple[str], s: str) -> Path:
@@ -456,6 +475,34 @@ def create_parser() -> argparse.ArgumentParser:
             """),
         default=None,
     )
+
+    p.add_argument(
+        '-oe',
+        '--obs_errlimit',
+        dest='obs_errlimit',
+        help=dedent(
+            """\
+            Observation error threshold for discarding observations
+            with large uncertainties.
+            """
+        ),
+        type=float,
+        default=float('inf'),
+    )
+
+    p.add_argument(
+        '-allownan',
+        '--allow_nan',
+        dest='allow_nan_for_negative',
+        help=dedent(
+            """\
+            If set, return NaN when σ_model² < 0; otherwise clamp to 0.
+            Default is True.
+            """
+        ),
+        action='store_true',
+        default=True,
+    )
     add_verbose(p)
 
     return p
@@ -467,7 +514,9 @@ def main(
     col_name: str='ZTD',
     raider_delay: str='totalDelay',
     out_path: Optional[Path]=None,
-    local_time=None
+    local_time: str=None,
+    obs_errlimit: float=float('inf'),
+    allow_nan_for_negative: bool=True
 ):
     """Merge a combined RAiDER delays file with a GPS ZTD delay file."""
     print(f'Merging delay files {raider_file} and {ztd_file}')
@@ -565,29 +614,44 @@ def main(
     out_path = out_path.with_name(
         f"{out_path.stem}_WM_variance{out_path.suffix}"
     )
+    # filter out obs by error
+    if obs_errlimit != float('inf'):
+        prefilt_len = len(dfc)
+        dfc = dfc[dfc["sigZTD"] <= obs_errlimit]
+        filt_len = len(dfc)
+        errlimit_dropped = prefilt_len - filt_len
+        logger.warning(
+            f"Dropped {errlimit_dropped} observations with sigZTD > input "
+            f"{obs_errlimit} ({filt_len} remaining)."
+        )
 
     dfc_qm = (
         dfc.groupby("ID", dropna=False, sort=True)
         .apply(
             variance_analysis,
-            allow_nan_for_negative=True,
-            has_localtime=has_localtime,
+            allow_nan_for_negative=allow_nan_for_negative,
+            has_localtime=local_time,
             include_groups=False,
         )
         .reset_index(drop=True)
     )
-    del dfc
 
     # Drop all lines with NaNs and duplicates
     n_before = len(dfc_qm)
     dfc_qm.dropna(how="any", inplace=True)
     dfc_qm.drop_duplicates(inplace=True)
-    n_dropped = n_before - len(dfc_qm)
 
-    logger.warning(
-        f"Dropped {n_dropped} stations containing NaN values "
-        f"({len(dfc_qm)} remaining)."
-    )
+    if allow_nan_for_negative:
+        n_flagged = n_before - len(dfc_qm)
+        logger.warning(
+            f"Dropped {n_flagged} stations containing NaN sigma values "
+            f"({len(dfc_qm)} remaining)."
+        )
+    else:
+        n_flagged = (dfc_qm["sigma_model"] == 0).sum()
+        logger.warning(
+            f"{n_flagged}/{len(dfc_qm)} stations contain 0 sigma values."
+        )
 
     dfc_qm.to_csv(
         out_path,
