@@ -328,7 +328,9 @@ def variance_analysis(
     if np.isfinite(sigma_res_sq) and np.isfinite(sigma_gnss_sq):
         # σ_wm² = σ_res² - σ_gnss²
         diff = sigma_res_sq - sigma_gnss_sq
-        if diff < 0:
+        negative_diff = diff < 0
+
+        if negative_diff:
             logger.warning(
                 f"Flagged station {group.name} with negative sigma values, "
                 f"with mean bias {mean_bias}, mean σ_wm² {diff}, "
@@ -336,10 +338,11 @@ def variance_analysis(
                 f"to {coverage_pct}% daily overlap with the "
                 f"input dataset timespan."
             )
-            if allow_nan_for_negative:
-                sigma_model_sq = np.nan
-            else:
-                sigma_model_sq = max(diff, 0.0)
+        sigma_model_sq = (
+            np.nan
+            if negative and allow_nan_for_negative
+            else max(diff, 0.0)
+        )
     else:
         sigma_model_sq = np.nan
 
