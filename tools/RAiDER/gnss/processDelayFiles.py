@@ -729,10 +729,12 @@ def main(
         n_global_days_total_span = (global_end - global_start).days + 1
         # capture reference, maximum temporal sampling
         # using mean time delta of all observations
-        n_global_days = n_global_days_total_span  / int(mean_delta_days)
+        n_global_days = int(n_global_days_total_span  / mean_delta_days)
         logger.warning(
             "The earliest/latest dates found are "
-            f"{global_start} & {global_end}, which spans {n_global_days} days"
+            f"{global_start} & {global_end} "
+            f"which spans {n_global_days_total_span} days, with"
+            f"an average sampling of {n_global_days} days"
         )
 
     dfc_qm = (
