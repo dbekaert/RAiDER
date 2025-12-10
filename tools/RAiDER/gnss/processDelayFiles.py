@@ -712,7 +712,7 @@ def main(
         )
 
     # get temporal sampling stats
-    mean_delta_days, mode_delta_days = sampling_delta_stats(df)
+    mean_delta_days, mode_delta_days = sampling_delta_stats(dfc)
 
     logger.warning(
         f"Global mean delta (days): {mean_delta_days} "
