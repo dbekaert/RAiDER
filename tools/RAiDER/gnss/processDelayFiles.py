@@ -321,26 +321,27 @@ def variance_analysis(
         else np.nan
     )
 
+    # Mean bias calculation
+    mean_bias = resid.mean()
+
     # Model variance computation
     if np.isfinite(sigma_res_sq) and np.isfinite(sigma_gnss_sq):
         # σ_wm² = σ_res² - σ_gnss²
         diff = sigma_res_sq - sigma_gnss_sq
-        if diff < 0 and allow_nan_for_negative:
-            sigma_model_sq = np.nan
+        if diff < 0:
             logger.warning(
-                f"Dropped station {group.name} with NaN sigma values, "
+                f"Flagged station {group.name} with negative sigma values, "s
                 f"with mean bias {mean_bias}, mean σ_wm² {diff}, "
                 f"with {n_unique_days} unique days sampled which translates "
                 f"to {coverage_pct}% daily overlap with the "
                 f"input dataset timespan."
             )
-        else:
-            sigma_model_sq = max(diff, 0.0)
+            if allow_nan_for_negative:
+                sigma_model_sq = np.nan
+            else:
+                sigma_model_sq = max(diff, 0.0)
     else:
         sigma_model_sq = np.nan
-
-    # Mean bias calculation
-    mean_bias = resid.mean()
 
     # Uncertainty in mean bias (error propagation)
     if np.isfinite(sigma_model_sq) and len(sig) > 0:
