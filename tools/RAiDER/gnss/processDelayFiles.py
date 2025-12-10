@@ -14,7 +14,7 @@ import pandas as pd
 from tqdm import tqdm
 
 # Local
-from RAiDER.cli.parser import add_verbose
+from RAiDER.cli.parser import add_verbose, add_allow_nan_options
 from RAiDER.logger import logger
 
 
@@ -253,9 +253,14 @@ def readZTDFile(filename, col_name='ZTD'):
     return data
 
 
-def variance_analysis(group: pd.DataFrame,
-                      allow_nan_for_negative: bool = True,
-                      has_localtime: bool = False) -> pd.Series:
+def variance_analysis(
+    group: pd.DataFrame,
+    allow_nan_for_negative: bool = True,
+    has_localtime: bool = False,
+    global_start=None,
+    global_end=None,
+    n_global_days=None,
+) -> pd.Series:
     """
     Compute variance terms and time span for one GNSS station.
 
@@ -264,6 +269,10 @@ def variance_analysis(group: pd.DataFrame,
         allow_nan_for_negative (bool): If True, return NaN when
             σ_wm² < 0; otherwise clamp to 0. Default is True.
         has_localtime (bool): If True, parse and output Localtime fields.
+        global_start/global_end: Earliest/latest dates across the
+            merged dataset, used for percent coverage tracking.
+        n_global_days (int): Total number of unique days between
+            global_start/global_end (inclusive).
 
     Returns:
         pd.Series: Summary statistics for this station.
@@ -273,6 +282,30 @@ def variance_analysis(group: pd.DataFrame,
     resid = group["ZTD_minus_RAiDER"] # also mean(R)
     sig = group["sigZTD"]
     n_epochs = len(resid)
+
+    # Parse datetime ranges
+    dt = pd.to_datetime(group["Datetime"], errors="coerce")
+
+    # Capture number of observations and unique dates
+    unique_dates = (
+        dt.dt.normalize()
+        .dropna()
+        .drop_duplicates()
+        .sort_values()
+    )
+
+    n_unique_days = unique_dates.size
+    if n_unique_days > 0:
+        station_start = unique_dates.iloc[0]
+        station_end = unique_dates.iloc[-1]
+    else:
+        station_start = pd.NaT
+        station_end = pd.NaT
+
+    if n_global_days is not None and n_global_days > 0:
+        coverage_pct = (n_unique_days / n_global_days) * 100.0
+    else:
+        coverage_pct = np.nan
 
     # Mean-squared terms
     # σ_res² = D[r] = E((r - E(r))²)
@@ -312,9 +345,6 @@ def variance_analysis(group: pd.DataFrame,
     else:
         sigma_mean_bias = np.nan
 
-    # Parse datetime ranges
-    dt = pd.to_datetime(group["Datetime"], errors="coerce")
-
     def first_non_null(series: pd.Series):
         vals = series.dropna()
         return vals.iloc[0] if not vals.empty else np.nan
@@ -324,8 +354,8 @@ def variance_analysis(group: pd.DataFrame,
         "Lat": first_non_null(group["Lat"]),
         "Lon": first_non_null(group["Lon"]),
         "Hgt_m": first_non_null(group["Hgt_m"]),
-        "Datetime": dt.min(),
-        "Enddate_Datetime": dt.max(),
+        "Datetime": station_start,
+        "Enddate_Datetime": station_end,
         "sigZTD": group["sigZTD"].median(),
         "mean_bias": mean_bias,
         "sigma_mean_bias": sigma_mean_bias,
@@ -336,6 +366,8 @@ def variance_analysis(group: pd.DataFrame,
         "sigma_model": np.sqrt(sigma_model_sq)
         if np.isfinite(sigma_model_sq) else np.nan,
         "n_epochs": n_epochs,
+        "n_unique_days": n_unique_days,
+        "pct_days_global": coverage_pct,
     }
 
     # Only parse Localtime if present
@@ -490,19 +522,8 @@ def create_parser() -> argparse.ArgumentParser:
         default=float('inf'),
     )
 
-    p.add_argument(
-        '-allownan',
-        '--allow_nan',
-        dest='allow_nan_for_negative',
-        help=dedent(
-            """\
-            If set, return NaN when σ_model² < 0; otherwise clamp to 0.
-            Default is True.
-            """
-        ),
-        action='store_true',
-        default=True,
-    )
+    # add other args to parser
+    add_allow_nan_options(p)
     add_verbose(p)
 
     return p
@@ -625,12 +646,28 @@ def main(
             f"{obs_errlimit} ({filt_len} remaining)."
         )
 
+    # Determine coverage window across all retained observations
+    df_date = dfc["Datetime"].dt.normalize()
+    global_start = df_date.min()
+    global_end = df_date.max()
+    if pd.isna(global_start) or pd.isna(global_end):
+        n_global_days = 0
+    else:
+        n_global_days = (global_end - global_start).days + 1
+        logger.warning(
+            "The earliest/latest dates found are "
+            f"{global_start} & {global_end}, which spans {n_global_days} days"
+        )
+
     dfc_qm = (
         dfc.groupby("ID", dropna=False, sort=True)
         .apply(
             variance_analysis,
             allow_nan_for_negative=allow_nan_for_negative,
-            has_localtime=local_time,
+            has_localtime=has_localtime,
+            global_start=global_start,
+            global_end=global_end,
+            n_global_days=n_global_days,
             include_groups=False,
         )
         .reset_index(drop=True)
