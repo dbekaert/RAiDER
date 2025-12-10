@@ -733,7 +733,7 @@ def main(
         logger.warning(
             "The earliest/latest dates found are "
             f"{global_start} & {global_end} "
-            f"which spans {n_global_days_total_span} days, with"
+            f"which spans {n_global_days_total_span} days, with "
             f"an average sampling of {n_global_days} days"
         )
 
