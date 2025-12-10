@@ -327,6 +327,13 @@ def variance_analysis(
         diff = sigma_res_sq - sigma_gnss_sq
         if diff < 0 and allow_nan_for_negative:
             sigma_model_sq = np.nan
+            logger.warning(
+                f"Dropped station {group.name} with NaN sigma values, "
+                f"with mean bias {mean_bias}, mean σ_wm² {diff}, "
+                f"with {n_unique_days} unique days sampled which translates "
+                f"to {coverage_pct}% daily overlap with the "
+                f"input dataset timespan."
+            )
         else:
             sigma_model_sq = max(diff, 0.0)
     else:
