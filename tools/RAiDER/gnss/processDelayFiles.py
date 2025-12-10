@@ -253,6 +253,60 @@ def readZTDFile(filename, col_name='ZTD'):
     return data
 
 
+def sampling_delta_stats(df: pd.DataFrame) -> tuple[float, float]:
+    """
+    Compute global temporal sampling statistics.
+    Needed to inform temporal sampling overlap percentage.
+
+    For each station ID:
+        * Sort by Datetime.
+        * Compute time differences (days) between consecutive observations.
+
+    Then, over all stations combined:
+        * Compute the mean time difference in days.
+        * Compute the most common time difference (mode) in days.
+
+    Args:
+        df: Dataframe with columns "ID" and "Datetime".
+            "Datetime" must be datetime-like or parseable as datetime.
+
+    Returns:
+        A tuple of:
+            mean_delta_days: float
+                Mean time difference in days.
+            mode_delta_days: float
+                Most common time difference in days (global mode).
+    """
+    # Ensure Datetime is datetime64
+    if not np.issubdtype(df["Datetime"].dtype, np.datetime64):
+        df = df.copy()
+        df["Datetime"] = pd.to_datetime(df["Datetime"], errors="raise")
+
+    # Work on a sorted view to get correct diffs per station
+    df_sorted = df.sort_values(["ID", "Datetime"])
+
+    # Time differences between consecutive observations per station (in days)
+    delta_days = (
+        df_sorted.groupby("ID", sort=False)["Datetime"]
+        .diff()
+        .dt.total_seconds()
+        .div(86400.0)
+    )
+
+    # Drop NaNs from the first diff in each group
+    delta_days = delta_days.dropna()
+
+    if delta_days.empty:
+        return np.nan, np.nan
+
+    mean_delta_days = float(delta_days.mean())
+
+    # Global mode of all deltas
+    mode_delta_days = float(delta_days.mode().iloc[0])
+
+    return mean_delta_days, mode_delta_days
+
+
 def variance_analysis(
     group: pd.DataFrame,
     allow_nan_for_negative: bool = True,
@@ -340,7 +394,7 @@ def variance_analysis(
             )
         sigma_model_sq = (
             np.nan
-            if negative and allow_nan_for_negative
+            if negative_diff and allow_nan_for_negative
             else max(diff, 0.0)
         )
     else:
@@ -657,14 +711,25 @@ def main(
             f"{obs_errlimit} ({filt_len} remaining)."
         )
 
-    # Determine coverage window across all retained observations
+    # get temporal sampling stats
+    mean_delta_days, mode_delta_days = sampling_delta_stats(df)
+
+    logger.warning(
+        f"Global mean delta (days): {mean_delta_days} "
+        f"Global mode delta (days): {mode_delta_days}"
+    )
+
+    # determine coverage window across all retained observations
     df_date = dfc["Datetime"].dt.normalize()
     global_start = df_date.min()
     global_end = df_date.max()
     if pd.isna(global_start) or pd.isna(global_end):
         n_global_days = 0
     else:
-        n_global_days = (global_end - global_start).days + 1
+        n_global_days_total_span = (global_end - global_start).days + 1
+        # capture reference, maximum temporal sampling
+        # using mean time delta of all observations
+        n_global_days = n_global_days_total_span  / int(mean_delta_days)
         logger.warning(
             "The earliest/latest dates found are "
             f"{global_start} & {global_end}, which spans {n_global_days} days"
