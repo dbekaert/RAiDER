@@ -330,7 +330,7 @@ def variance_analysis(
         diff = sigma_res_sq - sigma_gnss_sq
         if diff < 0:
             logger.warning(
-                f"Flagged station {group.name} with negative sigma values, "s
+                f"Flagged station {group.name} with negative sigma values, "
                 f"with mean bias {mean_bias}, mean σ_wm² {diff}, "
                 f"with {n_unique_days} unique days sampled which translates "
                 f"to {coverage_pct}% daily overlap with the "
