@@ -1040,7 +1040,7 @@ def test_interpolator_ndim_greater_than_2() -> None:
 
     Specifically tests lines 54-56 of interpolator.py.
     """
-    def f(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+    def f(x, y, z):
         return x ** 2 + 3 * y - z
 
     xs = np.linspace(0, 100, 10)
