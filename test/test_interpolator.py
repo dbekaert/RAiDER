@@ -1,17 +1,21 @@
-import os
+"""Tests for RAiDER interpolation functions and interpolator wrapper."""
 from pathlib import Path
+
 import numpy as np
-import rasterio as rio
 import pytest
+import rasterio as rio
+from RAiDER.interpolate import interpolate, interpolate_along_axis
 from scipy.interpolate import RegularGridInterpolator
 
-from RAiDER.interpolate import interpolate, interpolate_along_axis
-from RAiDER.interpolator import RegularGridInterpolator as Interpolator, interpolateDEM
-from RAiDER.interpolator import fillna3D, interp_along_axis, interpVector
+from RAiDER.interpolator import RegularGridInterpolator as Interpolator
+from RAiDER.interpolator import (
+    fillna3D, interpVector, interp_along_axis, interpolateDEM
+)
 
 
 @pytest.fixture
-def nanArr():
+def nanArr() -> tuple[np.ndarray, np.ndarray]:
+    """Create test arrays with NaN values for fillna3D testing."""
     array = np.random.randn(2, 2, 3)
     array[0, 0, 0] = np.nan
     array[0, 0, 1] = np.nan
@@ -30,7 +34,8 @@ def nanArr():
     return array, true_array
 
 
-def test_interpVector():
+def test_interpVector() -> None:
+    """Test interpVector function."""
     assert np.allclose(
         interpVector(
             np.array([
@@ -40,16 +45,20 @@ def test_interpVector():
             ]),
             6
         ),
-        np.array([0.42073549, 0.87538421, 0.52520872, -0.30784124, -0.85786338])
+        np.array([
+            0.42073549, 0.87538421, 0.52520872, -0.30784124, -0.85786338
+        ])
     )
 
 
-def test_fillna3D(nanArr):
+def test_fillna3D(nanArr: tuple[np.ndarray, np.ndarray]) -> None:
+    """Test fillna3D function with NaN arrays."""
     arr, tarr = nanArr
     assert np.allclose(fillna3D(arr), tarr, equal_nan=True)
 
 
-def test_interp_along_axis():
+def test_interp_along_axis() -> None:
+    """Test interpolation along axis with 3D arrays."""
     z2 = np.tile(np.arange(100)[..., np.newaxis], (5, 1, 5)).swapaxes(1, 2)
     zvals = 0.3 * z2 - 12.75
 
@@ -62,12 +71,14 @@ def test_interp_along_axis():
     assert np.allclose(interp_along_axis(z2, newz, zvals, axis=2), corz)
 
 
-def shuffle_along_axis(a, axis):
+def shuffle_along_axis(a: np.ndarray, axis: int) -> np.ndarray:
+    """Shuffle array elements along a specified axis."""
     idx = np.random.rand(*a.shape).argsort(axis=axis)
     return np.take_along_axis(a, idx, axis=axis)
 
 
-def test_interpolate_along_axis():
+def test_interpolate_along_axis() -> None:
+    """Test interpolate_along_axis with various error conditions."""
     # Rejects scalar values
     with pytest.raises(TypeError):
         interpolate_along_axis(np.array(0), np.array(0), np.array(0))
@@ -110,7 +121,8 @@ def test_interpolate_along_axis():
         )
 
 
-def test_interp_along_axis_1d():
+def test_interp_along_axis_1d() -> None:
+    """Test 1D interpolation along axis."""
     def f(x):
         return 2 * x
 
@@ -129,7 +141,8 @@ def test_interp_along_axis_1d():
     )
 
 
-def test_interp_along_axis_1d_out_of_bounds():
+def test_interp_along_axis_1d_out_of_bounds() -> None:
+    """Test 1D interpolation with out of bounds points."""
     def f(x):
         return 2 * x
 
@@ -151,7 +164,8 @@ def test_interp_along_axis_1d_out_of_bounds():
     )
 
 
-def test_interp_along_axis_2d():
+def test_interp_along_axis_2d() -> None:
+    """Test 2D interpolation along axis."""
     def f(x):
         return 2 * x
 
@@ -176,7 +190,8 @@ def test_interp_along_axis_2d():
     )
 
 
-def test_interp_along_axis_2d_threads_edge_case():
+def test_interp_along_axis_2d_threads_edge_case() -> None:
+    """Test 2D interpolation with threading edge case."""
     def f(x):
         return 2 * x
 
@@ -205,12 +220,15 @@ def test_interp_along_axis_2d_threads_edge_case():
         2 * points
     )
     assert np.allclose(
-        interpolate_along_axis(xs, ys, points, axis=1, max_threads=max_threads),
+        interpolate_along_axis(
+            xs, ys, points, axis=1, max_threads=max_threads
+        ),
         2 * points
     )
 
 
-def test_interp_along_axis_3d():
+def test_interp_along_axis_3d() -> None:
+    """Test 3D interpolation along axis 2."""
     def f(x):
         return 2 * x
 
@@ -241,7 +259,8 @@ def test_interp_along_axis_3d():
     )
 
 
-def test_interp_along_axis_3d_axis1():
+def test_interp_along_axis_3d_axis1() -> None:
+    """Test 3D interpolation along axis 1."""
     def f(x):
         return 2 * x
 
@@ -273,7 +292,8 @@ def test_interp_along_axis_3d_axis1():
 
 
 @pytest.mark.parametrize("num_points", (7, 200, 500))
-def test_interp_along_axis_3d_large(num_points):
+def test_interp_along_axis_3d_large(num_points: int) -> None:
+    """Test large 3D interpolation along axis."""
     def f(x):
         return 2 * x
 
@@ -296,7 +316,8 @@ def test_interp_along_axis_3d_large(num_points):
     )
 
 
-def test_interp_along_axis_3d_large_unsorted():
+def test_interp_along_axis_3d_large_unsorted() -> None:
+    """Test large 3D interpolation with unsorted points."""
     def f(x):
         return 2 * x
 
@@ -317,7 +338,8 @@ def test_interp_along_axis_3d_large_unsorted():
     assert np.allclose(interpolate_along_axis(xs, ys, points, axis=2), ans)
 
 
-def test_grid_dim_mismatch():
+def test_grid_dim_mismatch() -> None:
+    """Test grid dimension mismatch error."""
     with pytest.raises(TypeError):
         interpolate(
             points=(np.zeros((10,)), np.zeros((5,))),
@@ -326,7 +348,8 @@ def test_grid_dim_mismatch():
         )
 
 
-def test_basic():
+def test_basic() -> None:
+    """Test basic 1D interpolation."""
     ans = interpolate(
         points=(np.array([0, 1]),),
         values=np.array([0, 1]),
@@ -338,7 +361,8 @@ def test_basic():
     assert ans == np.array([0.5])
 
 
-def test_1d_out_of_bounds():
+def test_1d_out_of_bounds() -> None:
+    """Test 1D interpolation with out of bounds extrapolation."""
     ans = interpolate(
         points=(np.array([0, 1]),),
         values=np.array([0, 1]),
@@ -351,7 +375,8 @@ def test_1d_out_of_bounds():
     assert ans == np.array([100])
 
 
-def test_1d_fill_value():
+def test_1d_fill_value() -> None:
+    """Test 1D interpolation with NaN fill value."""
     ans = interpolate(
         points=(np.array([0, 1]),),
         values=np.array([0, 1]),
@@ -364,7 +389,8 @@ def test_1d_fill_value():
     assert np.all(np.isnan(ans))
 
 
-def test_small():
+def test_small() -> None:
+    """Test small 1D interpolation."""
     ans = interpolate(
         points=(np.array([1, 2, 3, 4, 5, 6]),),
         values=np.array([10, 9, 30, 10, 6, 1]),
@@ -375,7 +401,8 @@ def test_small():
     assert np.allclose(ans, np.array([9.75, 27.9, 29.8, 2.5]), atol=1e-15)
 
 
-def test_small_not_sorted():
+def test_small_not_sorted() -> None:
+    """Test small 1D interpolation with unsorted points."""
     ans = interpolate(
         points=(np.array([1, 2, 3, 4, 5, 6]),),
         values=np.array([10, 9, 30, 10, 6, 1]),
@@ -386,7 +413,8 @@ def test_small_not_sorted():
     assert np.allclose(ans, np.array([27.9, 9.75, 2.5, 29.8]), atol=1e-15)
 
 
-def test_exact_points():
+def test_exact_points() -> None:
+    """Test interpolation at exact grid points."""
     ans = interpolate(
         points=(np.array([1, 2, 3, 4, 5, 6]),),
         values=np.array([10, 9, 30, 10, 6, 1]),
@@ -397,7 +425,8 @@ def test_exact_points():
     assert np.allclose(ans, np.array([10, 9, 30, 10, 6, 1]), atol=1e-15)
 
 
-def test_2d_basic():
+def test_2d_basic() -> None:
+    """Test basic 2D interpolation."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
 
@@ -414,7 +443,8 @@ def test_2d_basic():
     assert ans == np.array([1])
 
 
-def test_2d_out_of_bounds():
+def test_2d_out_of_bounds() -> None:
+    """Test 2D interpolation with out of bounds extrapolation."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
 
@@ -432,7 +462,8 @@ def test_2d_out_of_bounds():
     assert ans == np.array([200])
 
 
-def test_2d_fill_value():
+def test_2d_fill_value() -> None:
+    """Test 2D interpolation with NaN fill value."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
 
@@ -450,7 +481,8 @@ def test_2d_fill_value():
     assert np.all(np.isnan(ans))
 
 
-def test_2d_square_small():
+def test_2d_square_small() -> None:
+    """Test small square 2D interpolation."""
     def f(x, y):
         return x ** 2 + 3 * y
 
@@ -476,7 +508,8 @@ def test_2d_square_small():
     assert np.allclose(ans, ans_scipy, atol=1e-15)
 
 
-def test_2d_rectangle_small():
+def test_2d_rectangle_small() -> None:
+    """Test small rectangular 2D interpolation."""
     def f(x, y):
         return x ** 2 + 3 * y
 
@@ -502,7 +535,8 @@ def test_2d_rectangle_small():
     assert np.allclose(ans, ans_scipy, atol=1e-15)
 
 
-def test_2d_rectangle_small_2():
+def test_2d_rectangle_small_2() -> None:
+    """Test small rectangular 2D interpolation (variant)."""
     def f(x, y):
         return x ** 2 + 3 * y
 
@@ -528,7 +562,8 @@ def test_2d_rectangle_small_2():
     assert np.allclose(ans, ans_scipy, atol=1e-15)
 
 
-def test_2d_square_large():
+def test_2d_square_large() -> None:
+    """Test large square 2D interpolation."""
     def f(x, y):
         return x ** 2 + 3 * y
 
@@ -555,7 +590,8 @@ def test_2d_square_large():
     assert np.allclose(ans, ans_scipy, atol=1e-15)
 
 
-def test_3d_basic():
+def test_3d_basic() -> None:
+    """Test basic 3D interpolation."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
     zs = np.array([0, 1])
@@ -574,7 +610,8 @@ def test_3d_basic():
     assert ans == np.array([1.5])
 
 
-def test_3d_out_of_bounds():
+def test_3d_out_of_bounds() -> None:
+    """Test 3D interpolation with out of bounds extrapolation."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
     zs = np.array([0, 1])
@@ -594,7 +631,8 @@ def test_3d_out_of_bounds():
     assert ans == np.array([300])
 
 
-def test_3d_fill_value():
+def test_3d_fill_value() -> None:
+    """Test 3D interpolation with NaN fill value."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
     zs = np.array([0, 1])
@@ -614,7 +652,8 @@ def test_3d_fill_value():
     assert np.all(np.isnan(ans))
 
 
-def test_3d_cube_small():
+def test_3d_cube_small() -> None:
+    """Test small cubic 3D interpolation."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -642,7 +681,8 @@ def test_3d_cube_small():
     assert np.allclose(ans, ans_scipy, 1e-15)
 
 
-def test_3d_cube_small_not_sorted():
+def test_3d_cube_small_not_sorted() -> None:
+    """Test small cubic 3D interpolation with unsorted points."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -669,7 +709,8 @@ def test_3d_cube_small_not_sorted():
     assert np.allclose(ans, ans_scipy, 1e-15)
 
 
-def test_3d_prism_small():
+def test_3d_prism_small() -> None:
+    """Test small prismatic 3D interpolation."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -697,7 +738,8 @@ def test_3d_prism_small():
     assert np.allclose(ans, ans_scipy, 1e-15)
 
 
-def test_3d_prism_small_2():
+def test_3d_prism_small_2() -> None:
+    """Test small prismatic 3D interpolation (variant 2)."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -725,7 +767,8 @@ def test_3d_prism_small_2():
     assert np.allclose(ans, ans_scipy, 1e-15)
 
 
-def test_3d_prism_small_3():
+def test_3d_prism_small_3() -> None:
+    """Test small prismatic 3D interpolation (variant 3)."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -753,7 +796,8 @@ def test_3d_prism_small_3():
     assert np.allclose(ans, ans_scipy, 1e-15)
 
 
-def test_3d_cube_large():
+def test_3d_cube_large() -> None:
+    """Test large cubic 3D interpolation."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -782,7 +826,8 @@ def test_3d_cube_large():
     assert np.allclose(ans, ans_scipy, 1e-15)
 
 
-def test_4d_basic():
+def test_4d_basic() -> None:
+    """Test basic 4D interpolation."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
     zs = np.array([0, 1])
@@ -801,7 +846,8 @@ def test_4d_basic():
     assert ans == np.array([2])
 
 
-def test_4d_out_of_bounds():
+def test_4d_out_of_bounds() -> None:
+    """Test 4D interpolation with out of bounds extrapolation."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
     zs = np.array([0, 1])
@@ -821,7 +867,8 @@ def test_4d_out_of_bounds():
     assert ans == np.array([400])
 
 
-def test_4d_fill_value():
+def test_4d_fill_value() -> None:
+    """Test 4D interpolation with NaN fill value."""
     xs = np.array([0, 1])
     ys = np.array([0, 1])
     zs = np.array([0, 1])
@@ -841,7 +888,8 @@ def test_4d_fill_value():
     assert np.all(np.isnan(ans))
 
 
-def test_4d_cube_small():
+def test_4d_cube_small() -> None:
+    """Test small 4D hypercube interpolation."""
     def f(x, y, z, w):
         return x ** 2 + 3 * y - z * w
 
@@ -871,7 +919,8 @@ def test_4d_cube_small():
     assert np.allclose(ans, ans_scipy, 1e-15)
 
 
-def test_interpolate_wrapper():
+def test_interpolate_wrapper() -> None:
+    """Test interpolator wrapper with tuple and array inputs."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -899,7 +948,8 @@ def test_interpolate_wrapper():
     assert np.allclose(ans2, ans_scipy, 1e-15, equal_nan=True)
 
 
-def test_interpolate_wrapper2():
+def test_interpolate_wrapper2() -> None:
+    """Test interpolator wrapper with NaN values."""
     def f(x, y, z):
         return x ** 2 + 3 * y - z
 
@@ -930,7 +980,8 @@ def test_interpolate_wrapper2():
     assert np.allclose(ans2, ans_scipy, 1e-15, equal_nan=True)
 
 
-def test_interpolateDEM():
+def test_interpolateDEM() -> None:
+    """Test DEM interpolation with 1D coordinate arrays."""
     from affine import Affine
 
     s = 10
@@ -948,16 +999,17 @@ def test_interpolateDEM():
         ds.write(dem, 1)
         ds.update_tags(AREA_OR_POINT='Point')
 
-    ## random points to interpolate to
-    lons =  np.array([4.5, 8.5])
+    # random points to interpolate to
+    lons = np.array([4.5, 8.5])
     lats = np.array([2.5, 8.5])
-    out  = interpolateDEM(dem_file, (lats, lons))
+    out = interpolateDEM(dem_file, (lats, lons))
     gold = np.array([[4., 8.], [28., 56.]], dtype=float)
     assert np.allclose(out, gold)
     dem_file.unlink()
 
 
-def test_interpolateDEM_2():
+def test_interpolateDEM_2() -> None:
+    """Test DEM interpolation with 2D coordinate arrays."""
     from affine import Affine
     s = 10
     x = np.arange(s)
@@ -974,13 +1026,49 @@ def test_interpolateDEM_2():
         ds.write(dem, 1)
         ds.update_tags(AREA_OR_POINT='Point')
 
-    ## random points to interpolate to
+    # random points to interpolate to
     lons = np.array([[4.5, 8.5], [4.5, 8.5]])
     lats = np.array([[8.5, 2.5], [8.5, 2.5]]).T
-    out  = interpolateDEM(dem_file, (lats, lons))
+    out = interpolateDEM(dem_file, (lats, lons))
     gold = np.array([[4., 8.], [28., 56.]], dtype=float)
     assert np.allclose(out, gold)
     dem_file.unlink()
+
+
+def test_interpolator_ndim_greater_than_2() -> None:
+    """Test RegularGridInterpolator with points.ndim > 2.
+
+    Specifically tests lines 54-56 of interpolator.py.
+    """
+    def f(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+        return x ** 2 + 3 * y - z
+
+    xs = np.linspace(0, 100, 10)
+    ys = np.linspace(0, 100, 10)
+    zs = np.linspace(0, 100, 10)
+
+    values = f(*np.meshgrid(xs, ys, zs, indexing="ij", sparse=True))
+
+    # Create points with ndim > 2 (e.g., shape (2, 3, 3) for 3D points)
+    points = np.array([
+        [[10, 20, 30], [15, 25, 35], [20, 30, 40]],
+        [[25, 35, 45], [30, 40, 50], [35, 45, 55]]
+    ])
+
+    interp = Interpolator((xs, ys, zs), values)
+    ans = interp(points)
+
+    # Verify output shape matches input shape (minus last dimension)
+    assert ans.shape == (2, 3)
+
+    # Verify against scipy for correctness
+    rgi = RegularGridInterpolator((xs, ys, zs), values)
+    # Reshape to 2D for scipy, then reshape back
+    points_2d = points.reshape(-1, 3)
+    ans_scipy = rgi(points_2d).reshape(2, 3)
+
+    assert np.allclose(ans, ans_scipy, atol=1e-15)
+
 
 # TODO: implement an interpolator test that is similar to test_scenario_1.
 # Currently the scipy and C++ interpolators differ on that case.
