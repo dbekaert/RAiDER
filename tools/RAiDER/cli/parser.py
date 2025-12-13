@@ -37,3 +37,21 @@ def add_bbox(parser: argparse.ArgumentParser) -> None:
         action=BBoxAction,
         metavar=('S', 'N', 'W', 'E'),
     )
+
+
+def add_allow_nan_options(parser: argparse.ArgumentParser) -> None:
+    parser.set_defaults(allow_nan_for_negative=True)
+
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        '--allow-nan',
+        dest='allow_nan_for_negative',
+        action='store_true',
+        help="Return NaN when σ_model² < 0 (default).",
+    )
+    group.add_argument(
+        '--no-allow-nan',
+        dest='allow_nan_for_negative',
+        action='store_false',
+        help="Clamp σ_model² < 0 to 0 instead of returning NaN.",
+    )
