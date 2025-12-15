@@ -12,6 +12,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [753](https://github.com/dbekaert/RAiDER/pull/753) - Removed support for ERA-Interim.
 
 ### Changed
+* [788](https://github.com/dbekaert/RAiDER/pull/788) - Streamlined the logic for handling stations where σ_model² < 0, specifically by default such cases are set to nan, but a user may clamp σ_model² to 0 instead by specifying the `--no-allow-nan` for `raiderCombine.py`.
 * [743](https://github.com/dbekaert/RAiDER/pull/743) - Switched from HTTPS to DAP4 for retrieving MERRA2 data, and suppressed a warning for using DAP4 for GMAO data where doing so is not possible.
 
 ### Fixed
@@ -33,7 +34,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [731](https://github.com/dbekaert/RAiDER/pull/731) - Fixed fetch routine for GMAO.
 
 ### Added
-* [788](https://github.com/dbekaert/RAiDER/pull/788) - Introduce `min_pct_days` option to filter stations based on global days percentage.
+* [790](https://github.com/dbekaert/RAiDER/pull/790) - Added a test in `test_interpolator.py` to put test coverage to 100% and linted file.
+* [789](https://github.com/dbekaert/RAiDER/pull/789) - Introduce `min_pct_days` option to filter stations based on global days percentage.
+* [788](https://github.com/dbekaert/RAiDER/pull/788) - Updated `variance_analysis` function to include global date tracking parameters and modified datetime handling for station start and end dates.
 * [784](https://github.com/dbekaert/RAiDER/pull/784) - Added support to compute and pass weather model uncertainty in `raiderCombine.py` and `raiderStats.py` workflow.
 * [771](https://github.com/dbekaert/RAiDER/pull/771) - Support in concatenation script to pass wildcard for `--raiderDir` and `--gnssDir` added back in.
 * [762](https://github.com/dbekaert/RAiDER/pull/762) - Added lockfiles through conda-lock to the repo, documentation, and CircleCI runners.
