@@ -728,7 +728,7 @@ def main(
     # get temporal sampling stats
     mean_delta_days, mode_delta_days = sampling_delta_stats(dfc)
 
-    logger.warning(
+    logger.info(
         f"Global mean delta (days): {mean_delta_days} "
         f"Global mode delta (days): {mode_delta_days}"
     )
@@ -744,7 +744,7 @@ def main(
         # capture reference, maximum temporal sampling
         # using mean time delta of all observations
         n_global_days = int(n_global_days_total_span  / mean_delta_days)
-        logger.warning(
+        logger.info(
             "The earliest/latest dates found are "
             f"{global_start} & {global_end} "
             f"which spans {n_global_days_total_span} days, with "
