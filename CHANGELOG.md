@@ -12,6 +12,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [753](https://github.com/dbekaert/RAiDER/pull/753) - Removed support for ERA-Interim.
 
 ### Changed
+* [791](https://github.com/dbekaert/RAiDER/pull/791) - Updated warning message to reflect the number of dropped stations due to NaN values, and adjust logging lines for `raiderCombine.py` workflow such that every message is not a warning.
 * [788](https://github.com/dbekaert/RAiDER/pull/788) - Streamlined the logic for handling stations where σ_model² < 0, specifically by default such cases are set to nan, but a user may clamp σ_model² to 0 instead by specifying the `--no-allow-nan` for `raiderCombine.py`.
 * [743](https://github.com/dbekaert/RAiDER/pull/743) - Switched from HTTPS to DAP4 for retrieving MERRA2 data, and suppressed a warning for using DAP4 for GMAO data where doing so is not possible.
 
