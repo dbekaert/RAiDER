@@ -34,8 +34,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [731](https://github.com/dbekaert/RAiDER/pull/731) - Fixed fetch routine for GMAO.
 
 ### Added
+* [790](https://github.com/dbekaert/RAiDER/pull/790) - Added a test in `test_interpolator.py` to put test coverage to 100% and linted file.
+* [789](https://github.com/dbekaert/RAiDER/pull/789) - Introduce `min_pct_days` option to filter stations based on global days percentage.
 * [788](https://github.com/dbekaert/RAiDER/pull/788) - Updated `variance_analysis` function to include global date tracking parameters and modified datetime handling for station start and end dates.
-* [790](https://github.com/dbekaert/RAiDER/pull/790) - Added a test in `test_interpolator.py` to put test coverage to 100% and linted file 
 * [784](https://github.com/dbekaert/RAiDER/pull/784) - Added support to compute and pass weather model uncertainty in `raiderCombine.py` and `raiderStats.py` workflow.
 * [771](https://github.com/dbekaert/RAiDER/pull/771) - Support in concatenation script to pass wildcard for `--raiderDir` and `--gnssDir` added back in.
 * [762](https://github.com/dbekaert/RAiDER/pull/762) - Added lockfiles through conda-lock to the repo, documentation, and CircleCI runners.

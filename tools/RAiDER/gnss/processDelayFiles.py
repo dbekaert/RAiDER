@@ -587,6 +587,19 @@ def create_parser() -> argparse.ArgumentParser:
         default=float('inf'),
     )
 
+    p.add_argument(
+        '--min-pct-days',
+        dest='min_pct_days',
+        help=dedent(
+            """\
+            Minimum pct_days_global threshold required to keep a station in
+            the variance CSV. Default 0 means retain all stations.
+            """
+        ),
+        type=float,
+        default=0.0,
+    )
+
     # add other args to parser
     add_allow_nan_options(p)
     add_verbose(p)
@@ -602,7 +615,8 @@ def main(
     out_path: Optional[Path]=None,
     local_time: str=None,
     obs_errlimit: float=float('inf'),
-    allow_nan_for_negative: bool=True
+    allow_nan_for_negative: bool=True,
+    min_pct_days: float=0.0,
 ):
     """Merge a combined RAiDER delays file with a GPS ZTD delay file."""
     print(f'Merging delay files {raider_file} and {ztd_file}')
@@ -755,6 +769,18 @@ def main(
     n_before = len(dfc_qm)
     dfc_qm.dropna(how="any", inplace=True)
     dfc_qm.drop_duplicates(inplace=True)
+
+    if min_pct_days > 0:
+        before_filter = len(dfc_qm)
+        dfc_qm = dfc_qm.loc[dfc_qm["pct_days_global"] > min_pct_days]
+        removed = before_filter - len(dfc_qm)
+        logger.warning(
+            "Dropped %s station(s) with pct_days_global <= %.2f "
+            "(%s retained).",
+            removed,
+            min_pct_days,
+            len(dfc_qm),
+        )
 
     if allow_nan_for_negative:
         n_flagged = n_before - len(dfc_qm)
