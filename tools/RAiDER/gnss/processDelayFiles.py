@@ -766,9 +766,10 @@ def main(
     )
 
     # Drop all lines with NaNs and duplicates
+    dfc_qm.drop_duplicates(inplace=True)
     n_before = len(dfc_qm)
     dfc_qm.dropna(how="any", inplace=True)
-    dfc_qm.drop_duplicates(inplace=True)
+    nan_filt_len = n_before - len(dfc_qm)
 
     if min_pct_days > 0:
         before_filter = len(dfc_qm)
@@ -783,9 +784,8 @@ def main(
         )
 
     if allow_nan_for_negative:
-        n_flagged = n_before - len(dfc_qm)
         logger.warning(
-            f"Dropped {n_flagged} stations containing NaN sigma values "
+            f"Dropped {nan_filt_len} stations containing NaN sigma values "
             f"({len(dfc_qm)} remaining)."
         )
     else:
