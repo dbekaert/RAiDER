@@ -355,11 +355,19 @@ def variance_analysis(
     else:
         station_start = pd.NaT
         station_end = pd.NaT
+        logger.warning(
+            f"Flagged station {group.name} with invalid station start and/or "
+            f"end date(s). Refer to unique dates here: {n_unique_days}."
+        )
 
     if n_global_days is not None and n_global_days > 0:
         coverage_pct = (n_unique_days / n_global_days) * 100.0
     else:
         coverage_pct = np.nan
+        logger.warning(
+            f"Flagged station {group.name} with no valid "
+            f"sampled days {n_global_days}."
+        )
 
     # Mean-squared terms
     # σ_res² = D[r] = E((r - E(r))²)
@@ -375,16 +383,30 @@ def variance_analysis(
         else np.nan
     )
 
+    # report warnings associated with insufficient sampling
+    if not n_epochs > 1:
+        logger.warning(
+            f"Flagged station {group.name} with insufficient valid "
+            f"epochs {n_epochs}, so σ_res² & σ_GNSS² set to NaN"
+        )
+    if not len(sig) > 0:
+        logger.warning(
+            f"Flagged station {group.name} with insufficient valid "
+            f"sigZTD observations {len(sig)}, so σ_mean² set to NaN"
+        )
+
     # Mean bias calculation
     mean_bias = resid.mean()
 
     # Model variance computation
+    sigma_model_neg = False
     if np.isfinite(sigma_res_sq) and np.isfinite(sigma_gnss_sq):
         # σ_wm² = σ_res² - σ_gnss²
         diff = sigma_res_sq - sigma_gnss_sq
         negative_diff = diff < 0
 
         if negative_diff:
+            sigma_model_neg = True
             logger.warning(
                 f"Flagged station {group.name} with negative sigma values, "
                 f"with mean bias {mean_bias}, mean σ_wm² {diff}, "
@@ -410,15 +432,22 @@ def variance_analysis(
     else:
         sigma_mean_bias = np.nan
 
-    def first_non_null(series: pd.Series):
+    def first_non_null(series: pd.Series, label: str):
         vals = series.dropna()
-        return vals.iloc[0] if not vals.empty else np.nan
+        if not vals.empty:
+            return vals.iloc[0]
+        else:
+            logger.warning(
+                f"Flagged station {group.name} with no valid "
+                f"{label} data."
+            )
+            return np.nan
 
     data_series = {
         "ID": group.name,
-        "Lat": first_non_null(group["Lat"]),
-        "Lon": first_non_null(group["Lon"]),
-        "Hgt_m": first_non_null(group["Hgt_m"]),
+        "Lat": first_non_null(group["Lat"], "Lat"),
+        "Lon": first_non_null(group["Lon"], "Lon"),
+        "Hgt_m": first_non_null(group["Hgt_m"], "Hgt_m"),
         "Datetime": station_start,
         "Enddate_Datetime": station_end,
         "sigZTD": group["sigZTD"].median(),
@@ -433,6 +462,7 @@ def variance_analysis(
         "n_epochs": n_epochs,
         "n_unique_days": n_unique_days,
         "pct_days_global": coverage_pct,
+        "sigma_model_neg": sigma_model_neg,
     }
 
     # Only parse Localtime if present
@@ -768,6 +798,8 @@ def main(
     # Drop all lines with NaNs and duplicates
     dfc_qm.drop_duplicates(inplace=True)
     n_before = len(dfc_qm)
+    sigma_model_filt_len = dfc_qm["sigma_model_neg"].sum()
+    dfc_qm = dfc_qm.drop(columns=["sigma_model_neg"])
     dfc_qm.dropna(how="any", inplace=True)
     nan_filt_len = n_before - len(dfc_qm)
 
@@ -785,14 +817,20 @@ def main(
 
     if allow_nan_for_negative:
         logger.warning(
-            f"Dropped {nan_filt_len} stations containing NaN sigma values "
-            f"({len(dfc_qm)} remaining)."
+            f"Dropped {sigma_model_filt_len} stations containing NaN "
+            f"sigma values."
         )
     else:
         n_flagged = (dfc_qm["sigma_model"] == 0).sum()
         logger.warning(
             f"{n_flagged}/{len(dfc_qm)} stations contain 0 sigma values."
         )
+
+    logger.warning(
+        f"Dropped {nan_filt_len} stations containing NaN due to all imposed "
+        f"filters (see other warnings above for more details), "
+        f"({len(dfc_qm)} stations remaining."
+    )
 
     dfc_qm.to_csv(
         out_path,
