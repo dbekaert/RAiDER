@@ -356,8 +356,10 @@ def variance_analysis(
         station_start = pd.NaT
         station_end = pd.NaT
         logger.warning(
-            f"Flagged station {group.name} with invalid station start and/or "
-            f"end date(s). Refer to unique dates here: {n_unique_days}."
+            "Flagged station %s with invalid station start and/or end "
+            "date(s). Refer to unique dates here: %s.",
+            group.name,
+            n_unique_days,
         )
 
     if n_global_days is not None and n_global_days > 0:
@@ -365,8 +367,9 @@ def variance_analysis(
     else:
         coverage_pct = np.nan
         logger.warning(
-            f"Flagged station {group.name} with no valid "
-            f"sampled days {n_global_days}."
+            "Flagged station %s with no valid sampled days %s.",
+            group.name,
+            n_global_days,
         )
 
     # Mean-squared terms
@@ -386,13 +389,17 @@ def variance_analysis(
     # report warnings associated with insufficient sampling
     if not n_epochs > 1:
         logger.warning(
-            f"Flagged station {group.name} with insufficient valid "
-            f"epochs {n_epochs}, so σ_res² & σ_GNSS² set to NaN"
+            "Flagged station %s with insufficient valid epochs %d, so σ_res² "
+            "& σ_GNSS² set to NaN",
+            group.name,
+            n_epochs,
         )
     if not len(sig) > 0:
         logger.warning(
-            f"Flagged station {group.name} with insufficient valid "
-            f"sigZTD observations {len(sig)}, so σ_mean² set to NaN"
+            "Flagged station %s with insufficient valid sigZTD observations "
+            "%d, so σ_mean² set to NaN",
+            group.name,
+            len(sig),
         )
 
     # Mean bias calculation
@@ -408,11 +415,16 @@ def variance_analysis(
         if negative_diff:
             sigma_model_neg = True
             logger.warning(
-                f"Flagged station {group.name} with negative sigma values, "
-                f"with mean bias {mean_bias}, mean σ_wm² {diff}, "
-                f"with {n_unique_days} unique days sampled which translates "
-                f"to {coverage_pct}% daily overlap with the "
-                f"input dataset timespan."
+                "Flagged station %s with negative sigma values, "
+                "with mean bias %s, "
+                "mean σ_wm² %s, with %d unique days sampled "
+                "which translates to %.2f%% daily overlap with the "
+                "input dataset timespan.",
+                group.name,
+                mean_bias,
+                diff,
+                n_unique_days,
+                coverage_pct,
             )
         sigma_model_sq = (
             np.nan
@@ -438,8 +450,9 @@ def variance_analysis(
             return vals.iloc[0]
         else:
             logger.warning(
-                f"Flagged station {group.name} with no valid "
-                f"{label} data."
+                "Flagged station %s with no valid %s data.",
+                group.name,
+                label,
             )
             return np.nan
 
@@ -751,16 +764,20 @@ def main(
         filt_len = len(dfc)
         errlimit_dropped = prefilt_len - filt_len
         logger.warning(
-            f"Dropped {errlimit_dropped} observations with sigZTD > input "
-            f"{obs_errlimit} ({filt_len} remaining)."
+            "Dropped %d observations with sigZTD > input %s (%d remaining).",
+            errlimit_dropped,
+            obs_errlimit,
+            filt_len,
         )
 
     # get temporal sampling stats
     mean_delta_days, mode_delta_days = sampling_delta_stats(dfc)
 
     logger.info(
-        f"Global mean delta (days): {mean_delta_days} "
-        f"Global mode delta (days): {mode_delta_days}"
+        "Global mean delta (days): %s "
+        "Global mode delta (days): %s",
+        mean_delta_days,
+        mode_delta_days,
     )
 
     # determine coverage window across all retained observations
@@ -773,12 +790,14 @@ def main(
         n_global_days_total_span = (global_end - global_start).days + 1
         # capture reference, maximum temporal sampling
         # using mean time delta of all observations
-        n_global_days = int(n_global_days_total_span  / mean_delta_days)
+        n_global_days = math.ceil(n_global_days_total_span  / mode_delta_days)
         logger.info(
-            "The earliest/latest dates found are "
-            f"{global_start} & {global_end} "
-            f"which spans {n_global_days_total_span} days, with "
-            f"an average sampling of {n_global_days} days"
+            "The earliest/latest dates found are %s & %s which spans %d days, "
+            "with a sampling mode of %d days",
+            global_start,
+            global_end,
+            n_global_days_total_span,
+            n_global_days,
         )
 
     dfc_qm = (
@@ -795,10 +814,34 @@ def main(
         .reset_index(drop=True)
     )
 
-    # Drop all lines with NaNs and duplicates
+    # compute statistics for flagged `sigma_model_neg
     dfc_qm.drop_duplicates(inplace=True)
     n_before = len(dfc_qm)
     sigma_model_filt_len = dfc_qm["sigma_model_neg"].sum()
+    if sigma_model_filt_len > 0:
+        df_neg = dfc_qm.loc[dfc_qm["sigma_model_neg"]]
+        stats = df_neg[
+            ["n_unique_days", "pct_days_global"]
+        ].agg(["mean", "median", "min", "max"])
+
+        logger.warning(
+            "Negative σ_model² for %d stations. "
+            "Unique days sampled: mean=%.2f, median=%.2f, "
+            "min=%.2f, max=%.2f. "
+            "Daily overlap: mean=%.2f%%, median=%.2f%%, "
+            "min=%.2f%%, max=%.2f%%.",
+            len(df_neg),
+            stats.loc["mean", "n_unique_days"],
+            stats.loc["median", "n_unique_days"],
+            stats.loc["min", "n_unique_days"],
+            stats.loc["max", "n_unique_days"],
+            stats.loc["mean", "pct_days_global"],
+            stats.loc["median", "pct_days_global"],
+            stats.loc["min", "pct_days_global"],
+            stats.loc["max", "pct_days_global"],
+        )
+
+    # Drop all lines with NaNs and duplicates
     dfc_qm = dfc_qm.drop(columns=["sigma_model_neg"])
     dfc_qm.dropna(how="any", inplace=True)
     nan_filt_len = n_before - len(dfc_qm)
@@ -815,21 +858,43 @@ def main(
             len(dfc_qm),
         )
 
-    if allow_nan_for_negative:
-        logger.warning(
-            f"Dropped {sigma_model_filt_len} stations containing NaN "
-            f"sigma values."
-        )
-    else:
+    if not allow_nan_for_negative:
         n_flagged = (dfc_qm["sigma_model"] == 0).sum()
         logger.warning(
-            f"{n_flagged}/{len(dfc_qm)} stations contain 0 sigma values."
+            "%d/%d stations contain 0 sigma values.",
+            n_flagged,
+            len(dfc_qm),
         )
 
-    logger.warning(
-        f"Dropped {nan_filt_len} stations containing NaN due to all imposed "
-        f"filters (see other warnings above for more details), "
-        f"({len(dfc_qm)}) stations remaining."
+    if nan_filt_len > 0:
+        logger.warning(
+            "Dropped %d stations containing NaN due to all imposed filters "
+            "(see other warnings above for more details), "
+            "(%d) stations remaining.",
+            nan_filt_len,
+            len(dfc_qm),
+        )
+
+    # capture final stats
+    stats = dfc_qm[
+        ["n_unique_days", "pct_days_global"]
+    ].agg(["mean", "median", "min", "max"])
+
+    logger.info(
+        "%d kept stations. "
+        "Unique days sampled: mean=%.2f, median=%.2f, "
+        "min=%.2f, max=%.2f. "
+        "Daily overlap: mean=%.2f%%, median=%.2f%%, "
+        "min=%.2f%%, max=%.2f%%.",
+        len(dfc_qm),
+        stats.loc["mean", "n_unique_days"],
+        stats.loc["median", "n_unique_days"],
+        stats.loc["min", "n_unique_days"],
+        stats.loc["max", "n_unique_days"],
+        stats.loc["mean", "pct_days_global"],
+        stats.loc["median", "pct_days_global"],
+        stats.loc["min", "pct_days_global"],
+        stats.loc["max", "pct_days_global"],
     )
 
     dfc_qm.to_csv(
