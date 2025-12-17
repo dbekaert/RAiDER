@@ -829,7 +829,7 @@ def main(
     logger.warning(
         f"Dropped {nan_filt_len} stations containing NaN due to all imposed "
         f"filters (see other warnings above for more details), "
-        f"({len(dfc_qm)} stations remaining."
+        f"({len(dfc_qm)}) stations remaining."
     )
 
     dfc_qm.to_csv(
