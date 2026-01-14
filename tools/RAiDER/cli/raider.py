@@ -710,6 +710,10 @@ def combineZTDFiles() -> None:
         print(f"Observation error threshold: {args.obs_errlimit}")
         print(f"Nan for negative σ_wm² values: {args.allow_nan_for_negative}")
         print(f"Min% timespan overlap to keep station: {args.min_pct_days}")
+        print(
+            "Subset in time by specified earliest to latest "
+            f"YYYY-MM-DD dates: {args.timeinterval}"
+        )
 
     if not args.raider_file.exists():
         combineDelayFiles(args.raider_file, loc=args.raider_folder)
@@ -733,6 +737,7 @@ def combineZTDFiles() -> None:
         obs_errlimit=args.obs_errlimit,
         allow_nan_for_negative=args.allow_nan_for_negative,
         min_pct_days=args.min_pct_days,
+        timeinterval=args.timeinterval,
     )
 
 
