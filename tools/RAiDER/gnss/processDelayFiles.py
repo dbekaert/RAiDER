@@ -755,12 +755,12 @@ def main(
     # to remove straggling observations outside of specified span
     if timeinterval:
         dfz = dfz[
-            (dfz['Datetime'] >= start_date) & 
-            (dfz['Datetime'] <= end_date)
+            (dfz['Localtime'] >= start_date) & 
+            (dfz['Localtime'] <= end_date)
         ].reset_index(drop=True)
         dfr = dfr[
-            (dfr['Datetime'] >= start_date) & 
-            (dfr['Datetime'] <= end_date)
+            (dfr['Localtime'] >= start_date) & 
+            (dfr['Localtime'] <= end_date)
         ].reset_index(drop=True)
 
     # drop all lines with nans
