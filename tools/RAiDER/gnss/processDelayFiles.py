@@ -7,7 +7,7 @@ import re
 import shutil
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
+from typing import List, Optional, Union
 
 # Third-party
 import numpy as np

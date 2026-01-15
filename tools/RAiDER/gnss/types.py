@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-from typing import Optional, List
+from typing import List, Optional
 
 class RAiDERCombineArgs(argparse.Namespace):
     raider_file: Path
