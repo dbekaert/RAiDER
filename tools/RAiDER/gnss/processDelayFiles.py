@@ -24,12 +24,16 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 def combineDelayFiles(
     out_path: Path,
-    loc: Path=Path.cwd(),
+    loc: Union[List[Path], Path] = Path.cwd(),
     source: str='model',
     ext: str='.csv',
     ref: Optional[Path]=None,
     col_name: str='ZTD'
 ) -> None:
+    # Normalize input: Protects against Python API users passing single Paths
+    if isinstance(loc, Path):
+        loc = [loc]
+
     file_paths = [f for folder in loc for f in folder.glob(f"*{ext}")]
 
     if source == 'model':
@@ -548,6 +552,7 @@ def create_parser() -> argparse.ArgumentParser:
             """),
         type=parse_dir,
         default=[Path.cwd()],
+        nargs='+' # Forces input into a list [Path, Path...]
     )
     p.add_argument(
         '--gnssDir',
@@ -560,6 +565,7 @@ def create_parser() -> argparse.ArgumentParser:
             """),
         type=parse_dir,
         default=[Path.cwd()],
+        nargs='+' # Forces input into a list [Path, Path...]
     )
 
     p.add_argument(
