@@ -5,6 +5,7 @@ import glob
 import math
 import re
 import shutil
+from itertools import chain
 from pathlib import Path
 from textwrap import dedent
 from typing import List, Optional, Union
@@ -30,10 +31,19 @@ def combineDelayFiles(
     ref: Optional[Path]=None,
     col_name: str='ZTD'
 ) -> None:
-    # Normalize input: Protects against Python API users passing single Paths
+
+    # Normalize single Path to List
+    # e.g. Path('folder') -> [Path('folder')]
     if isinstance(loc, Path):
         loc = [loc]
 
+    # Flatten nested lists if they exist
+    # e.g. [[Path('A')], [Path('B')]] -> [Path('A'), Path('B')]
+    # This checks if the list is not empty AND the first item is a list
+    if loc and isinstance(loc[0], list):
+        loc = list(chain.from_iterable(loc))
+
+    # Now 'loc' is guaranteed to be flat: [Path, Path, ...]
     file_paths = [f for folder in loc for f in folder.glob(f"*{ext}")]
 
     if source == 'model':
