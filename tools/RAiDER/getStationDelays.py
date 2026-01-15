@@ -274,7 +274,7 @@ def get_station_data(inFile, dateList, gps_repo=None, numCPUs=8, outDir=None, re
                     df.to_csv(name, index=False)
                 else:
                     logger.warning(
-                        f"Station file {name} not found likely"
+                        f"Station file {name} not found likely "
                         "no available data in specified time span"
                     )
 
