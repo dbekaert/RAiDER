@@ -4,9 +4,11 @@ import datetime as dt
 import glob
 import math
 import re
+import shutil
+from itertools import chain
 from pathlib import Path
 from textwrap import dedent
-from typing import Optional
+from typing import List, Optional, Union
 
 # Third-party
 import numpy as np
@@ -14,7 +16,7 @@ import pandas as pd
 from tqdm import tqdm
 
 # Local
-from RAiDER.cli.parser import add_verbose, add_allow_nan_options
+from RAiDER.cli.parser import add_allow_nan_options, add_verbose
 from RAiDER.logger import logger
 
 
@@ -23,12 +25,25 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 def combineDelayFiles(
     out_path: Path,
-    loc: Path=Path.cwd(),
+    loc: Union[List[Path], Path] = Path.cwd(),
     source: str='model',
     ext: str='.csv',
     ref: Optional[Path]=None,
     col_name: str='ZTD'
 ) -> None:
+
+    # Normalize single Path to List
+    # e.g. Path('folder') -> [Path('folder')]
+    if isinstance(loc, Path):
+        loc = [loc]
+
+    # Flatten nested lists if they exist
+    # e.g. [[Path('A')], [Path('B')]] -> [Path('A'), Path('B')]
+    # This checks if the list is not empty AND the first item is a list
+    if loc and isinstance(loc[0], list):
+        loc = list(chain.from_iterable(loc))
+
+    # Now 'loc' is guaranteed to be flat: [Path, Path, ...]
     file_paths = [f for folder in loc for f in folder.glob(f"*{ext}")]
 
     if source == 'model':
@@ -38,7 +53,6 @@ def combineDelayFiles(
     # If single file, just copy source
     if len(file_paths) == 1:
         if source == 'model':
-            import shutil
             shutil.copy(file_paths[0], out_path)
         else:
             file_paths = readZTDFile(file_paths[0], col_name=col_name)
@@ -548,6 +562,7 @@ def create_parser() -> argparse.ArgumentParser:
             """),
         type=parse_dir,
         default=[Path.cwd()],
+        nargs='+' # Forces input into a list [Path, Path...]
     )
     p.add_argument(
         '--gnssDir',
@@ -560,6 +575,7 @@ def create_parser() -> argparse.ArgumentParser:
             """),
         type=parse_dir,
         default=[Path.cwd()],
+        nargs='+' # Forces input into a list [Path, Path...]
     )
 
     p.add_argument(
@@ -643,6 +659,18 @@ def create_parser() -> argparse.ArgumentParser:
         default=0.0,
     )
 
+    p.add_argument(
+        '--timeinterval',
+        '-ti',
+        dest='timeinterval',
+        type=str,
+        help=dedent("""\
+            Subset in time by specifying earliest YYYY-MM-DD date
+            followed by latest date YYYY-MM-DD.
+            -- Example : '2016-01-01 2019-01-01'."""),
+        default=None,
+    )
+
     # add other args to parser
     add_allow_nan_options(p)
     add_verbose(p)
@@ -660,6 +688,7 @@ def main(
     obs_errlimit: float=float('inf'),
     allow_nan_for_negative: bool=True,
     min_pct_days: float=0.0,
+    timeinterval: str=None,
 ):
     """Merge a combined RAiDER delays file with a GPS ZTD delay file."""
     print(f'Merging delay files {raider_file} and {ztd_file}')
@@ -667,6 +696,29 @@ def main(
     # load files
     dfz = pd.read_csv(ztd_file, parse_dates=['Datetime'])
     dfr = pd.read_csv(raider_file, parse_dates=['Datetime'])
+
+    # time-interval filter
+    # need to add a day buffer to account for time changes
+    if timeinterval:
+        # Parse the time interval string
+        start_str, end_str = timeinterval.split()
+
+        # Convert to datetime objects and apply the 1-day buffer
+        # Subtract 1 day from start, Add 1 day to end
+        start_date = pd.to_datetime(start_str)
+        end_date = pd.to_datetime(end_str)
+        start_date_buffer = start_date - pd.Timedelta(days=1)
+        end_date_buffer = end_date + pd.Timedelta(days=1)
+
+        # apply time filter
+        dfz = dfz[
+            (dfz['Datetime'] >= start_date_buffer) & 
+            (dfz['Datetime'] <= end_date_buffer)
+        ].reset_index(drop=True)
+        dfr = dfr[
+            (dfr['Datetime'] >= start_date_buffer) & 
+            (dfr['Datetime'] <= end_date_buffer)
+        ].reset_index(drop=True)
 
     # drop extra columns from tropo delay file
     expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay', 'hydroDelay', raider_delay]
@@ -714,6 +766,18 @@ def main(
         # only pass common locations and times
         dfz = pass_common_obs(dfr, dfz, localtime='Localtime')
         dfr = pass_common_obs(dfz, dfr, localtime='Localtime')
+
+    # use time-interval again to filter based on 'Localtime'
+    # to remove straggling observations outside of specified span
+    if timeinterval:
+        dfz = dfz[
+            (dfz['Localtime'] >= start_date) & 
+            (dfz['Localtime'] <= end_date)
+        ].reset_index(drop=True)
+        dfr = dfr[
+            (dfr['Localtime'] >= start_date) & 
+            (dfr['Localtime'] <= end_date)
+        ].reset_index(drop=True)
 
     # drop all lines with nans
     dfr.dropna(how='any', inplace=True)
