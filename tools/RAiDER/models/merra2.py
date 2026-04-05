@@ -136,13 +136,13 @@ class MERRA2(WeatherModel):
     def _load_model_level(self, filename) -> None:
         """Get the variables from the GMAO link using OpenDAP."""
         # adding the import here should become absolute when transition to netcdf
-        ds = xr.load_dataset(filename)
-        lons = ds['longitude'].values
-        lats = ds['latitude'].values
-        h = ds['h'].values
-        q = ds['q'].values
-        p = ds['p'].values
-        t = ds['t'].values
+        with xr.open_dataset(filename) as ds:
+            lons = ds['longitude'].values
+            lats = ds['latitude'].values
+            h = ds['h'].values
+            q = ds['q'].values
+            p = ds['p'].values
+            t = ds['t'].values
 
         # Re-structure everything from (heights, lats, lons) to (lons, lats, heights)
         p = np.transpose(p)

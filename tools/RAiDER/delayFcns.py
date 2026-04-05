@@ -28,17 +28,22 @@ def getInterpolators(wm_file: Union[xr.Dataset, Path, str], kind: str='pointwise
     The interpolator grid is (y, x, z)
     """
     # Get the weather model data
-    ds = wm_file if isinstance(wm_file, xr.Dataset) else xr.load_dataset(wm_file)
+    _close_ds = not isinstance(wm_file, xr.Dataset)
+    ds = wm_file if isinstance(wm_file, xr.Dataset) else xr.open_dataset(wm_file)
 
-    xs_wm = np.array(ds.variables['x'][:])
-    ys_wm = np.array(ds.variables['y'][:])
-    zs_wm = np.array(ds.variables['z'][:])
+    try:
+        xs_wm = np.array(ds.variables['x'][:])
+        ys_wm = np.array(ds.variables['y'][:])
+        zs_wm = np.array(ds.variables['z'][:])
 
-    wet = ds.variables['wet_total' if kind == 'total' else 'wet'][:]
-    hydro = ds.variables['hydro_total' if kind == 'total' else 'hydro'][:]
+        wet = ds.variables['wet_total' if kind == 'total' else 'wet'][:]
+        hydro = ds.variables['hydro_total' if kind == 'total' else 'hydro'][:]
 
-    wet = np.array(wet).transpose(1, 2, 0)
-    hydro = np.array(hydro).transpose(1, 2, 0)
+        wet = np.array(wet).transpose(1, 2, 0)
+        hydro = np.array(hydro).transpose(1, 2, 0)
+    finally:
+        if _close_ds:
+            ds.close()
 
     if np.any(np.isnan(wet)) or np.any(np.isnan(hydro)):
         logger.critical('Weather model contains NaNs!')
