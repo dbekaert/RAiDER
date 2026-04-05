@@ -814,41 +814,45 @@ def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, int
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
 
-    # Pull the datetimes from the datasets
-    times: list[dt.datetime] = []
-    for ds in datasets:
-        times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+    try:
+        # Pull the datetimes from the datasets
+        times: list[dt.datetime] = []
+        for ds in datasets:
+            times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
-    if len(times) == 0:
-        raise NoWeatherModelData()
+        if len(times) == 0:
+            raise NoWeatherModelData()
 
-    # calculate relative weights of each dataset
-    if interp_method == 'center_time':
-        wgts = get_weights_time_interp(times, time)
-    elif interp_method == 'azimuth_time_grid':
-        time_grid = get_time_grid_for_aztime_interp(datasets, time, model)
-        wgts = get_inverse_weights_for_dates(time_grid, times)
-    else:  # interp_method == 'none'
-        raise ValueError('Interpolating weather files is not available with interpolation method "none"')
+        # calculate relative weights of each dataset
+        if interp_method == 'center_time':
+            wgts = get_weights_time_interp(times, time)
+        elif interp_method == 'azimuth_time_grid':
+            time_grid = get_time_grid_for_aztime_interp(datasets, time, model)
+            wgts = get_inverse_weights_for_dates(time_grid, times)
+        else:  # interp_method == 'none'
+            raise ValueError('Interpolating weather files is not available with interpolation method "none"')
 
-    # combine datasets
-    ds_out = datasets[0]
-    for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
-        ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
-    ds_out.attrs['Date1'] = 0
-    ds_out.attrs['Date2'] = 0
+        # combine datasets
+        ds_out = datasets[0]
+        for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+            ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
+        ds_out.attrs['Date1'] = 0
+        ds_out.attrs['Date2'] = 0
 
-    # Give the weighted combination a new file name
-    weather_model_file = wfiles[0].parent / (
-        wfiles[0].name.split('_')[0]
-        + '_'
-        + time.strftime('%Y_%m_%dT%H_%M_%S')
-        + STYLE[interp_method]
-        + '_'.join(wfiles[0].name.split('_')[-4:])
-    )
+        # Give the weighted combination a new file name
+        weather_model_file = wfiles[0].parent / (
+            wfiles[0].name.split('_')[0]
+            + '_'
+            + time.strftime('%Y_%m_%dT%H_%M_%S')
+            + STYLE[interp_method]
+            + '_'.join(wfiles[0].name.split('_')[-4:])
+        )
 
-    # write the combined results to disk
-    ds_out.to_netcdf(weather_model_file)
+        # write the combined results to disk (must happen before closing datasets)
+        ds_out.to_netcdf(weather_model_file)
+    finally:
+        for ds in datasets:
+            ds.close()
 
     return weather_model_file
 
@@ -858,36 +862,40 @@ def combine_files_using_azimuth_time(wfiles, time: dt.datetime, times: list[dt.d
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
 
-    # Pull the datetimes from the datasets
-    times: list[dt.datetime] = []
-    for ds in datasets:
-        times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+    try:
+        # Pull the datetimes from the datasets
+        times: list[dt.datetime] = []
+        for ds in datasets:
+            times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
-    model = datasets[0].attrs['model_name']
+        model = datasets[0].attrs['model_name']
 
-    time_grid = get_time_grid_for_aztime_interp(datasets, times, time, model)
+        time_grid = get_time_grid_for_aztime_interp(datasets, times, time, model)
 
-    wgts = get_inverse_weights_for_dates(time_grid, times)
+        wgts = get_inverse_weights_for_dates(time_grid, times)
 
-    # combine datasets
-    ds_out = datasets[0]
-    for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
-        ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
-    ds_out.attrs['Date1'] = 0
-    ds_out.attrs['Date2'] = 0
+        # combine datasets
+        ds_out = datasets[0]
+        for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+            ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
+        ds_out.attrs['Date1'] = 0
+        ds_out.attrs['Date2'] = 0
 
-    # Give the weighted combination a new file name
-    weather_model_file = os.path.join(
-        os.path.dirname(wfiles[0]),
-        os.path.basename(wfiles[0]).split('_')[0]
-        + '_'
-        + time.strftime('%Y_%m_%dT%H_%M_%S')
-        + '_timeInterpAziGrid_'
-        + '_'.join(wfiles[0].split('_')[-4:]),
-    )
+        # Give the weighted combination a new file name
+        weather_model_file = os.path.join(
+            os.path.dirname(wfiles[0]),
+            os.path.basename(wfiles[0]).split('_')[0]
+            + '_'
+            + time.strftime('%Y_%m_%dT%H_%M_%S')
+            + '_timeInterpAziGrid_'
+            + '_'.join(wfiles[0].split('_')[-4:]),
+        )
 
-    # write the combined results to disk
-    ds_out.to_netcdf(weather_model_file)
+        # write the combined results to disk (must happen before closing datasets)
+        ds_out.to_netcdf(weather_model_file)
+    finally:
+        for ds in datasets:
+            ds.close()
 
     return weather_model_file
 
