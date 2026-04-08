@@ -184,7 +184,7 @@ def download_UNR(statID, year, writeDir=".", download=False, baseURL=_UNR_URL):
     dict
         Dictionary with keys 'ID', 'year', and 'path'.
     """
-if baseURL not in [_UNR_URL]:
+    if baseURL not in [_UNR_URL]:
         raise NotImplementedError(
             f"Data repository {baseURL} has not yet been implemented"
         )
