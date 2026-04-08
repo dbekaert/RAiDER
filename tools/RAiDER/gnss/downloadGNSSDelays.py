@@ -69,19 +69,35 @@ def get_station_list(
 
 def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
     """
-    Function to pull lat, lon, height, beginning date, end date, and number of solutions for stations inside the bounding box llhBox.
-    llhBox should be a tuple in SNWE format.
+    Pull lat, lon, height for stations inside the bounding box from 
+    both legacy and IGS20 UNR holdings. Prioritizes IGS20 coordinates.
     """
     if llhBox is None:
         llhBox = [-90, 90, -180, 180]
-    S, N, W, E = llhBox
 
-    stationHoldings = f'{baseURL}NGLStationPages/llh.out'
-    # it's a file like object and works just like a file
+    url_legacy = f'{baseURL}NGLStationPages/llh.out'
+    url_igs20 = f'{baseURL}gps_timeseries/IGS20/llh/llh.out'
+    col_names = ['ID', 'Lat', 'Lon', 'Hgt_m']
 
-    stations = pd.read_csv(stationHoldings, sep=r'\s+', names=['ID', 'Lat', 'Lon', 'Hgt_m'])
+    # Read legacy list
+    try:
+        stat_leg = pd.read_csv(url_legacy, sep=r'\s+', names=col_names)
+    except Exception as e:
+        logger.warning("Failed to fetch legacy llh.out: %s", e)
+        stat_leg = pd.DataFrame(columns=col_names)
 
-    # convert lons from [-360, 0] to [-180, 180]
+    # Read IGS20 list
+    try:
+        stat_igs = pd.read_csv(url_igs20, sep=r'\s+', names=col_names)
+    except Exception as e:
+        logger.warning("Failed to fetch IGS20 llh.out: %s", e)
+        stat_igs = pd.DataFrame(columns=col_names)
+
+    # Combine prioritizing IGS20 (placing it first and keeping 'first')
+    stations = pd.concat([stat_igs, stat_leg], ignore_index=True)
+    stations.drop_duplicates(subset=['ID'], keep='first', inplace=True)
+
+    # Convert lons from [-360, 0] to [-180, 180]
     stations['Lon'] = ((stations['Lon'].values + 180) % 360) - 180
 
     stations = filterToBBox(stations, llhBox)
@@ -142,7 +158,7 @@ def download_tropo_delays(
 def download_UNR(statID, year, writeDir=".", download=False, baseURL=_UNR_URL):
     """
     Download a zip file containing tropospheric delays for a given
-    station and year.
+    station and year, with a fallback to the legacy archive.
 
     The URL format is:
         http://geodesy.unr.edu/gps_timeseries/IGS20/trop/<ssss>/
@@ -168,27 +184,50 @@ def download_UNR(statID, year, writeDir=".", download=False, baseURL=_UNR_URL):
     dict
         Dictionary with keys 'ID', 'year', and 'path'.
     """
-    if baseURL not in [_UNR_URL]:
+if baseURL not in [_UNR_URL]:
         raise NotImplementedError(
             f"Data repository {baseURL} has not yet been implemented"
         )
 
-    URL = (
+    stat_upper = statID.upper()
+
+    # First attempt: IGS20 framework
+    url_igs20 = (
         f"{baseURL}gps_timeseries/IGS20/trop/"
-        f"{statID.upper()}/{statID.upper()}.{year}.trop.zip"
+        f"{stat_upper}/{stat_upper}.{year}.trop.zip"
     )
 
-    logger.debug("Currently checking station %s in %s", statID, year)
+    # Fallback: Legacy operational framework
+    url_legacy = (
+        f"{baseURL}gps_timeseries/trop/"
+        f"{stat_upper}/{stat_upper}.{year}.trop.zip"
+    )
+
+    logger.debug("Checking station %s in %s", statID, year)
 
     if download:
-        saveLoc = os.path.abspath(
-            os.path.join(writeDir, f"{statID.upper()}.{year}.trop.zip")
-        )
-        filepath = download_url(URL, saveLoc)
-        if filepath == "":
-            raise ValueError("Year or station ID does not exist")
+        filename = f"{stat_upper}.{year}.trop.zip"
+        save_loc = os.path.abspath(os.path.join(writeDir, filename))
+
+        # Try IGS20 first
+        filepath = download_url(url_igs20, save_loc)
+
+        # If IGS20 is missing, try legacy
+        if not filepath:
+            logger.debug(
+                "IGS20 not found for %s in %s. Trying legacy.",
+                statID, year
+            )
+            filepath = download_url(url_legacy, save_loc)
+
+        if not filepath:
+            raise ValueError(
+                "Year or station ID does not exist in either archive"
+            )
     else:
-        filepath = check_url(URL)
+        filepath = check_url(url_igs20)
+        if not filepath:
+            filepath = check_url(url_legacy)
 
     return {"ID": statID, "year": year, "path": filepath}
 
