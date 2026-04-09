@@ -17,6 +17,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [743](https://github.com/dbekaert/RAiDER/pull/743) - Switched from HTTPS to DAP4 for retrieving MERRA2 data, and suppressed a warning for using DAP4 for GMAO data where doing so is not possible.
 
 ### Fixed
+* [794](https://github.com/dbekaert/RAiDER/pull/794) - Circumvent ongoing migration of data in the UNR archive such that data from much of the eastern hemisphere is disrupted after 2023. 
 * [787](https://github.com/dbekaert/RAiDER/pull/787) - Updated weather model uncertainty estimation and included error thresholds to discard unreliable observations.
 * [782](https://github.com/dbekaert/RAiDER/pull/782) - Fixed bug with handling corrupted or non-existent UNR hosted GNSS ZIP files.
 * [781](https://github.com/dbekaert/RAiDER/pull/781) - In the combine workflow, accurately pass and write out matching midnight datetimes.
