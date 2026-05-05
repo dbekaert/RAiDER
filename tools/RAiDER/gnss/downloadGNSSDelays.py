@@ -79,30 +79,35 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
     url_igs20 = f'{baseURL}gps_timeseries/IGS20/llh/llh.out'
     col_names = ['ID', 'Lat', 'Lon', 'Hgt_m']
 
-    # Read legacy list
-    try:
-        stat_leg = pd.read_csv(url_legacy, sep=r'\s+', names=col_names)
-    except Exception as e:
-        logger.warning("Failed to fetch legacy llh.out: %s", e)
-        stat_leg = pd.DataFrame(columns=col_names)
-
-    # Read IGS20 list
+    # 1. Fetch IGS20 list
     try:
         stat_igs = pd.read_csv(url_igs20, sep=r'\s+', names=col_names)
+        stat_igs['archive'] = 'igs20'
     except Exception as e:
         logger.warning("Failed to fetch IGS20 llh.out: %s", e)
-        stat_igs = pd.DataFrame(columns=col_names)
+        stat_igs = pd.DataFrame(columns=col_names + ['archive'])
 
-    # Combine prioritizing IGS20 (placing it first and keeping 'first')
-    stations = pd.concat([stat_igs, stat_leg], ignore_index=True)
-    stations.drop_duplicates(subset=['ID'], keep='first', inplace=True)
+    # 2. Fetch Legacy list
+    try:
+        stat_leg = pd.read_csv(url_legacy, sep=r'\s+', names=col_names)
+        stat_leg['archive'] = 'legacy'
+    except Exception as e:
+        logger.warning("Failed to fetch legacy llh.out: %s", e)
+        stat_leg = pd.DataFrame(columns=col_names + ['archive'])
+
+    # 3. Merge and prioritize IGS20
+    stats_combined = pd.concat([stat_igs, stat_leg], ignore_index=True)
+    stats_combined = (
+        stats_combined.drop_duplicates(subset=['ID'], keep='first')
+        .reset_index(drop=True)
+    )
 
     # Convert lons from [-360, 0] to [-180, 180]
-    stations['Lon'] = ((stations['Lon'].values + 180) % 360) - 180
+    stats_combined['Lon'] = ((stats_combined['Lon'].values + 180) % 360) - 180
 
-    stations = filterToBBox(stations, llhBox)
+    stats_combined = filterToBBox(stats_combined, llhBox)
 
-    return stations
+    return stats_combined
 
 
 def download_tropo_delays(
@@ -216,19 +221,38 @@ def download_UNR(statID, year, writeDir=".", download=False, baseURL=_UNR_URL):
         if not filepath:
             logger.debug(
                 "IGS20 not found for %s in %s. Trying legacy.",
-                statID, year
+                statID,
+                year,
             )
             filepath = download_url(url_legacy, save_loc)
 
+        # If BOTH fail, just log a warning. Do not raise ValueError.
         if not filepath:
-            raise ValueError(
-                "Year or station ID does not exist in either archive"
+            logger.warning(
+                "Skipping %s: Not found in either archive for %s.",
+                statID,
+                year,
             )
+
     else:
         filepath = check_url(url_igs20)
         if not filepath:
+            logger.debug(
+                "IGS20 not found for %s in %s. Checking legacy.",
+                statID,
+                year,
+            )
             filepath = check_url(url_legacy)
+            
+        if not filepath:
+            logger.warning(
+                "Skipping %s: Not found in either archive for %s.",
+                statID,
+                year,
+            )
 
+    # If filepath is None/False, the caller's list comprehension will safely
+    # ignore this dictionary because of `if fileurl['path']`
     return {"ID": statID, "year": year, "path": filepath}
 
 
