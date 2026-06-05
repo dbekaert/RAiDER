@@ -1,3 +1,4 @@
+import logging
 import pytest
 import requests
 from unittest import mock
@@ -92,18 +93,37 @@ def test_download_UNR(tmp_path):
         assert outDict["path"] == expected_path
 
 
-def test_download_UNR_2():
+def test_download_UNR_2(caplog):
     statID = "MORZ"
     year = 2000
-    with pytest.raises(ValueError):
-        download_UNR(statID, year, download=True)
+    
+    # Capture logs at the WARNING level and above
+    with caplog.at_level(logging.WARNING):
+        result = download_UNR(statID, year, download=True)
+    
+    # 1. Assert the correct warning was logged
+    expected_warning = f"Skipping {statID}: Not found in either archive for {year}."
+    assert expected_warning in caplog.text
+    
+    # 2. Assert the function returns the expected dictionary with a falsy path
+    assert result["ID"] == statID
+    assert result["year"] == year
+    assert not result["path"]  # Asserts path is None, False, or empty string
 
 
-def test_download_UNR_3():
+def test_download_UNR_3(caplog):
     statID = "DUMY"
     year = 2020
-    with pytest.raises(ValueError):
-        download_UNR(statID, year, download=True)
+    
+    with caplog.at_level(logging.WARNING):
+        result = download_UNR(statID, year, download=True)
+        
+    expected_warning = f"Skipping {statID}: Not found in either archive for {year}."
+    assert expected_warning in caplog.text
+    
+    assert result["ID"] == statID
+    assert result["year"] == year
+    assert not result["path"]
 
 
 def test_download_UNR_4():
