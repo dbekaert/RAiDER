@@ -267,6 +267,25 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
     model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
+    # Batch pre-download for CDS-backed models (ERA5, ERA5T): collect all
+    # datetimes across the full date_list and issue a single API request.
+    if hasattr(model, 'batch_fetch'):
+        _interp = run_config.time_group.interpolate_time or 'none'
+        _step = model.dtime() if model.dtime() is not None else 6
+        _all_times: list[dt.datetime] = []
+        for _t in run_config.date_group.date_list:
+            if _interp == 'center_time':
+                _all_times.extend(get_nearest_wmtimes(_t, _step))
+            elif _interp == 'azimuth_time_grid':
+                _all_times.extend(get_times_for_azimuth_interpolation(_t, _step))
+            else:
+                _all_times.append(_t)
+        RAiDER.processWM.batch_download_weather_model(
+            model,
+            list(dict.fromkeys(_all_times)),  # deduplicate, preserve order
+            wm_bounds,
+        )
+
     wet_paths: list[Path] = []
     t: dt.datetime
     w: str
