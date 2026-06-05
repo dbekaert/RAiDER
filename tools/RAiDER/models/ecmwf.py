@@ -193,6 +193,79 @@ class ECMWF(WeatherModel):
                 )
                 ds_out.to_netcdf(out_path)
 
+    def _batch_get_from_cds(
+        self,
+        times_and_paths: list[tuple[dt.datetime, Path]],
+        lat_min: float,
+        lat_max: float,
+        lon_min: float,
+        lon_max: float,
+    ) -> None:
+        """Download multiple ERA5 time steps in a single CDS request and split into per-datetime files."""
+        import cdsapi
+
+        c = cdsapi.Client(verify=1)
+
+        if c.url == 'https://cds.climate.copernicus.eu/api/v2':
+            logger.warning(
+                'Old CDS API configuration detected: ECMWF released a breaking change in late 2024 that expired all '
+                'existing credentials. This run may fail with a 404 HTTP error, in which case you may have to '
+                'regenerate your CDS API credentials at https://cds.climate.copernicus.eu/how-to-api.'
+            )
+
+        # Build unique date and time lists (CDS takes the Cartesian product)
+        seen_dates: dict[str, None] = {}
+        seen_times: dict[str, None] = {}
+        for corrected_dt, _ in times_and_paths:
+            seen_dates[corrected_dt.strftime('%Y-%m-%d')] = None
+            seen_times[corrected_dt.strftime('%H:%M')] = None
+        date_str = '/'.join(seen_dates)
+        time_str = '/'.join(seen_times)
+
+        with tempfile.TemporaryDirectory() as temp_dir_str:
+            temp_dir = Path(temp_dir_str)
+            batch_combined = temp_dir / 'batch_combined.nc'
+
+            params = {
+                'class': 'ea',
+                'expver': '1',
+                'levelist': 'all',
+                'levtype': self._model_level_type,
+                'stream': 'oper',
+                'type': 'an',
+                'date': date_str,
+                'time': time_str,
+                'step': '0',
+                'area': [lat_max, lon_min, lat_min, lon_max],
+                'grid': [0.25, 0.25],
+                'format': 'netcdf',
+                'param': ['lnsp', 'z', 'q', 't'],
+            }
+            c.retrieve('reanalysis-era5-complete', params, batch_combined)
+
+            with xr.open_dataset(batch_combined) as ds:
+                for corrected_dt, out_path in times_and_paths:
+                    ds_slice = ds.sel(time=corrected_dt)
+                    z_full, _, _ = util.calcgeoh(
+                        lnsp=ds_slice['lnsp'].values.squeeze(),
+                        z_surface=ds_slice['z'].values.squeeze(),
+                        t=ds_slice['t'].values.squeeze(),
+                        q=ds_slice['q'].values.squeeze(),
+                        a=self._a,
+                        b=self._b,
+                        num_levels=self._levels,
+                        R_d=self._R_d,
+                    )
+                    # Re-introduce the size-1 time dimension so the output file
+                    # is identical in structure to what _get_from_cds writes.
+                    ds_out = ds_slice.expand_dims('time').assign(
+                        z=xr.Variable(
+                            dims=ds_slice['t'].expand_dims('time').dims,
+                            data=np.broadcast_to(z_full, (1, *z_full.shape)),
+                        ),
+                    )
+                    ds_out.to_netcdf(out_path)
+
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out: Path) -> None:
         """Used for HRES."""
         from ecmwfapi import ECMWFService
