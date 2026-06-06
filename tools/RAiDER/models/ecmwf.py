@@ -244,8 +244,12 @@ class ECMWF(WeatherModel):
             c.retrieve('reanalysis-era5-complete', params, batch_combined)
 
             with xr.open_dataset(batch_combined) as ds:
+                # CDS API uses 'valid_time' in newer versions, 'time' in older ones
+                time_coord = 'valid_time' if 'valid_time' in ds.coords else 'time'
                 for corrected_dt, out_path in times_and_paths:
-                    ds_slice = ds.sel(time=corrected_dt)
+                    # Strip timezone: numpy datetime64 coordinates are timezone-naive
+                    target = corrected_dt.replace(tzinfo=None)
+                    ds_slice = ds.sel({time_coord: target})
                     z_full, _, _ = util.calcgeoh(
                         lnsp=ds_slice['lnsp'].values.squeeze(),
                         z_surface=ds_slice['z'].values.squeeze(),
@@ -258,9 +262,9 @@ class ECMWF(WeatherModel):
                     )
                     # Re-introduce the size-1 time dimension so the output file
                     # is identical in structure to what _get_from_cds writes.
-                    ds_out = ds_slice.expand_dims('time').assign(
+                    ds_out = ds_slice.expand_dims(time_coord).assign(
                         z=xr.Variable(
-                            dims=ds_slice['t'].expand_dims('time').dims,
+                            dims=ds_slice['t'].expand_dims(time_coord).dims,
                             data=np.broadcast_to(z_full, (1, *z_full.shape)),
                         ),
                     )
