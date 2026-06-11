@@ -52,7 +52,6 @@ def prepareWeatherModel(
 
     # get the path to the less processed weather model file
     path_wm_raw = make_raw_weather_data_filename(wmLoc, weather_model.Model(), time)
-
     # get the path to the more processed (cropped) weather model file
     path_wm_crop = weather_model.out_file(wmLoc)
 
