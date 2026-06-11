@@ -872,8 +872,5 @@ def checkContainment_raw(
 
         return weather_model_box.contains(input_box)
 
-    elif weather_model_box.contains(world_box):
-        return True
-
     else:
-        return False
+        return weather_model_box.contains(input_box)
