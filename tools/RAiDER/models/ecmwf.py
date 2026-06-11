@@ -126,17 +126,20 @@ class ECMWF(WeatherModel):
                 'regenerate your CDS API credentials at https://cds.climate.copernicus.eu/how-to-api.'
             )
 
-        if self._model_level_type == 'ml':
-            param = ['lnsp', 'z', 'q', 't']
-            dataset = 'reanalysis-era5-complete'
-        else:
-            param = ['geopotential', 'temperature', 'q']
-            dataset = 'reanalysis-era5-pressure-levels'
-
         # round to the closest legal time
         corrected_DT = util.round_date(acqTime, dt.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
+
+        if self._model_level_type == 'pl':
+            # Pressure-level downloads share the batch writer so that all
+            # pl files have the same layout and units (z in geopotential m)
+            self._batch_get_from_cds([(corrected_DT, out_path)], lat_min, lat_max, lon_min, lon_max)
+            return
+
+        param = ['lnsp', 'z', 'q', 't']
+        dataset = 'reanalysis-era5-complete'
+
         with tempfile.TemporaryDirectory() as temp_dir_str:
             temp_dir = Path(temp_dir_str)
             out_path_combined = temp_dir / f'{out_path.stem}_combined'
@@ -145,19 +148,19 @@ class ECMWF(WeatherModel):
             # All four variables are fetched in a single CDS request to halve queue wait time.
             # lnsp and z are surface-only fields; t and q span all model levels.
             params = {
-                # 'class': 'ea',
-                # 'expver': '1',
+                'class': 'ea',
+                'expver': '1',
                 'levelist': 'all',
                 'levtype': self._model_level_type,  # 'ml' for model levels or 'pl' for pressure levels
-                # 'stream': 'oper',
-                # 'type': 'an',
+                'stream': 'oper',
+                'type': 'an',
                 'date': corrected_DT.strftime('%Y-%m-%d'),
                 'time': corrected_DT.strftime('%H:%M'),
                 # step: With type=an, step is always "0". With type=fc, step can
                 # be any of "3/6/9/12".
-                # 'step': '0',
+                'step': '0',
                 'area': [lat_max, lon_min, lat_min, lon_max],
-                # 'grid': [0.25, 0.25],
+                'grid': [0.25, 0.25],
                 'format': 'netcdf',
                 'param': param,
             }
@@ -382,7 +385,7 @@ class ECMWF(WeatherModel):
         # read data from netcdf file
         lats, lons, _, _, t, q, lnsp, z = self._makeDataCubes(Path(filename))
 
-        # ECMWF appears to give me this backwards
+        # data ordering
         if lats[0] > lats[1]:
             z: FloatArray3D = z[::-1]
             lnsp: FloatArray2D = lnsp[::-1]
@@ -429,32 +432,48 @@ class ECMWF(WeatherModel):
         self._zs = np.flip(self._zs, axis=2)
 
     def _load_pressure_level(self, filename) -> None:
-        with xr.open_dataset(filename) as block:
-            # Pull the data
-            z = np.squeeze(block['z'].values)
-            t = np.squeeze(block['t'].values)
-            q = np.squeeze(block['q'].values)
-            lats = np.squeeze(block['latitude'].values)
-            lons = np.squeeze(block['longitude'].values)
-            try:
-                levels = np.squeeze(block['level'].values) * 100
-            except KeyError:
-                levels = np.squeeze(block['pressure_level'].values) * 100
+        with xr.open_dataset(filename) as ds:
+            # Drop the singleton time dimension (name varies by CDS API version)
+            for time_dim in ('valid_time', 'time'):
+                if time_dim in ds.dims:
+                    ds = ds.isel({time_dim: 0})
+                    break
 
-        z = np.flip(z, axis=1)
+            lev_dim = 'pressure_level' if 'pressure_level' in ds.dims else 'level'
+            # Normalize dimension order by name so the file's on-disk layout
+            # doesn't matter
+            ds = ds.transpose('latitude', 'longitude', lev_dim)
 
-        # ECMWF appears to give me this backwards
+            z = ds['z'].values.astype(np.float64)
+            t = ds['t'].values
+            q = ds['q'].values
+            lats = ds['latitude'].values
+            lons = ds['longitude'].values
+            levels = ds[lev_dim].values * 100  # hPa -> Pa
+
+        # Files written by _batch_get_from_cds store z as geopotential height
+        # (already divided by g0); raw CDS files store geopotential (m^2/s^2).
+        # Geopotential height tops out below ~50 km, so use that to distinguish.
+        if np.nanmax(z) > 100_000:
+            z = z / self._g0
+
+        # Reorder axes (consistently across all cubes) so lats and lons are
+        # ascending and levels go surface -> TOA
         if lats[0] > lats[1]:
             z = z[::-1]
+            t = t[::-1]
+            q = q[::-1]
+            lats = lats[::-1]
+        if lons[0] > lons[1]:
+            z = z[:, ::-1]
             t = t[:, ::-1]
             q = q[:, ::-1]
-            lats = lats[::-1]
-        # Lons is usually ok, but we'll throw in a check to be safe
-        if lons[0] > lons[1]:
+            lons = lons[::-1]
+        if levels[0] < levels[-1]:
             z = z[..., ::-1]
             t = t[..., ::-1]
             q = q[..., ::-1]
-            lons = lons[::-1]
+            levels = levels[::-1]
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
@@ -465,26 +484,14 @@ class ECMWF(WeatherModel):
 
         # re-assign lons, lats to match heights
         self._lons, self._lats = np.meshgrid(lons, lats)
-        self._lons = self._lons
-        self._lats = self._lats
-
-        geo_hgt = (z / self._g0)
 
         # correct heights for latitude
-        self._get_heights(self._lats, geo_hgt)
+        self._get_heights(self._lats, z)
 
         self._p = np.broadcast_to(levels[np.newaxis, np.newaxis, :], self._zs.shape)
 
-        # Re-structure from (heights, lats, lons) to (lats, lons, heights)
-        # self._t = self._t.transpose(1, 2, 0)
-        # self._q = self._q.transpose(1, 2, 0)
         self._ys = self._lats.copy()
         self._xs = self._lons.copy()
-
-        # flip z to go from surface to toa
-        self._p = np.flip(self._p, axis=2)
-        self._t = np.flip(self._t, axis=2)
-        self._q = np.flip(self._q, axis=2)
 
     def _makeDataCubes(
         self,
