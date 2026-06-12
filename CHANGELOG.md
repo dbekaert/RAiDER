@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### Changedp
+* [795](https://github.com/dbekaert/RAiDER/pull/795) - use xarray.open_dataset instead of load_dataset for memory efficiency. Also convert GNSS heights to geoid instead of native ellipsoid for increased accuracy when intersecting with the weather model cube
+
 ## [0.6.0]
 ### Removed
 * [764](https://github.com/dbekaert/RAiDER/pull/764) - Removed Python 3.8 support. Python 3.9 is now the minimum version officially required to run RAiDER.
