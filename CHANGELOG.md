@@ -6,7 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### Changedp
+### Changed
+* [802](https://github.com/dbekaert/RAiDER/pull/802) - Update the CDS API to request all dates simultaneously when pulling model levels
+- Use the `era5-pressure-levels` archive when accessing pressure level data. 
+- add unit tests to cover the changes
 * [795](https://github.com/dbekaert/RAiDER/pull/795) - use xarray.open_dataset instead of load_dataset for memory efficiency. Also convert GNSS heights to geoid instead of native ellipsoid for increased accuracy when intersecting with the weather model cube
 
 ## [0.6.0]
