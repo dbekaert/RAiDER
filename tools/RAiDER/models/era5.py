@@ -33,7 +33,7 @@ class ERA5(ECMWF):
         # Availability lag time in days
         self._lag_time = relativedelta(months=lag_time)
 
-        self.setLevelType('pl')
+        self.setLevelType('ml')
 
     def _fetch(self, out: Path) -> None:
         """Fetch a weather model from ECMWF."""
