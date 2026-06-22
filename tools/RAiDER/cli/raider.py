@@ -127,7 +127,11 @@ def read_run_config_file(path: Path) -> RunConfig:
 
     return RunConfig(
         look_dir=yaml_data['look_dir'].lower(),
-        weather_model=parse_weather_model(yaml_data['weather_model'], aoi_group.aoi),
+        weather_model=parse_weather_model(
+            yaml_data['weather_model'],
+            aoi_group.aoi,
+            level_type=yaml_data.get('weather_model_levels'),
+        ),
         date_group=parse_dates(DateGroupUnparsed(**yaml_data['date_group'])),
         time_group=TimeGroup(**yaml_data['time_group']),
         aoi_group=aoi_group,
