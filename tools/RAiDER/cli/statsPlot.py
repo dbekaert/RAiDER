@@ -1449,7 +1449,7 @@ class RaiderStats:
             if self.seasonalinterval[0] < self.seasonalinterval[1]:
                 # non leap-year
                 filtered_self = self.df[
-                    (not self.df['Date'].dt.is_leap_year)
+                    (~self.df['Date'].dt.is_leap_year)
                     & (self.df['Date'].dt.dayofyear >= self.seasonalinterval[0])
                     & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[-1])
                 ]
@@ -1466,7 +1466,7 @@ class RaiderStats:
             if self.seasonalinterval[0] > self.seasonalinterval[1]:
                 # non leap-year
                 filtered_self = self.df[
-                    (not self.df['Date'].dt.is_leap_year)
+                    (~self.df['Date'].dt.is_leap_year)
                     & (self.df['Date'].dt.dayofyear >= self.seasonalinterval[-1])
                     & (self.df['Date'].dt.dayofyear <= self.seasonalinterval[0])
                 ]
