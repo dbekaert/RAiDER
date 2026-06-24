@@ -19,6 +19,24 @@ from RAiDER.utilFcns import lla2ecef, write_yaml
 from test import ORB_DIR, TEST_DIR, WM_DIR, pushd
 
 
+def _has_cds_credentials() -> bool:
+    """Return True if CDS API credentials are configured.
+
+    cdsapi reads either a ~/.cdsapirc file or the CDSAPI_URL/CDSAPI_KEY
+    environment variables.  Without them, tests that fall through to a real
+    ERA5 download fail with an HTTP 401 instead of testing anything useful.
+    """
+    if os.path.exists(os.path.expanduser("~/.cdsapirc")):
+        return True
+    return bool(os.environ.get("CDSAPI_KEY") and os.environ.get("CDSAPI_URL"))
+
+
+requires_cds = pytest.mark.skipif(
+    not _has_cds_credentials(),
+    reason="No CDS API credentials (~/.cdsapirc or CDSAPI_URL/CDSAPI_KEY) configured",
+)
+
+
 def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_synth"):
     """Update weather model file by the equation to test, write it to disk.
 
@@ -215,6 +233,7 @@ def test_dl_real(tmp_path, region, mod="ERA5"):
         assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
 
+@requires_cds
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
     """Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp).
@@ -278,6 +297,7 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
     del da
 
 
+@requires_cds
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
     """Test linear part of wet equation.
@@ -354,6 +374,7 @@ def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
             shutil.rmtree(dir_to_del)
 
 
+@requires_cds
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_nonlinear(tmp_path, region, mod="ERA-5"):
     """Test the nonlinear part of the wet equation."""
