@@ -167,8 +167,8 @@ def era5t():
 # ---------------------------------------------------------------------------
 
 class TestERA5Init:
-    def test_level_type_is_pl(self, era5: ERA5) -> None:
-        assert era5._model_level_type == 'pl'
+    def test_default_level_type_is_ml(self, era5: ERA5) -> None:
+        assert era5._model_level_type == 'ml'
 
     def test_name(self, era5: ERA5) -> None:
         assert era5._Name == 'ERA-5'
@@ -185,6 +185,7 @@ class TestERA5Init:
     def test_load_weather_dispatches_to_pl(self, era5: ERA5, tmp_path: Path) -> None:
         """load_weather should call _load_pressure_level for pl type."""
         f = write_pl_file_batch_format(tmp_path / 'test.nc')
+        era5.setLevelType('pl')
         era5.set_latlon_bounds([48.0, 53.0, 9.0, 15.0])
         era5.files = [f]
 
@@ -204,8 +205,8 @@ class TestERA5TInit:
     def test_dataset(self, era5t: ERA5T) -> None:
         assert era5t._dataset == 'era5t'
 
-    def test_inherits_pl_level_type(self, era5t: ERA5T) -> None:
-        assert era5t._model_level_type == 'pl'
+    def test_inherits_ml_level_type(self, era5t: ERA5T) -> None:
+        assert era5t._model_level_type == 'ml'
 
     def test_lag_time_is_one_day(self, era5t: ERA5T) -> None:
         assert era5t._lag_time == dt.timedelta(days=1)
@@ -548,6 +549,7 @@ class TestBatchFetch:
 class TestERA5TLoading:
     def test_load_weather_uses_pl_loader(self, era5t: ERA5T, tmp_path: Path) -> None:
         f = write_pl_file_batch_format(tmp_path / 'test.nc')
+        era5t.setLevelType('pl')
         era5t.set_latlon_bounds([48.0, 53.0, 9.0, 15.0])
 
         era5t.load_weather(f)
