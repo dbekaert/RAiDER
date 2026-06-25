@@ -19,21 +19,14 @@ from RAiDER.utilFcns import lla2ecef, write_yaml
 from test import ORB_DIR, TEST_DIR, WM_DIR, pushd
 
 
-def _has_cds_credentials() -> bool:
-    """Return True if CDS API credentials are configured.
-
-    cdsapi reads either a ~/.cdsapirc file or the CDSAPI_URL/CDSAPI_KEY
-    environment variables.  Without them, tests that fall through to a real
-    ERA5 download fail with an HTTP 401 instead of testing anything useful.
-    """
-    if os.path.exists(os.path.expanduser("~/.cdsapirc")):
-        return True
-    return bool(os.environ.get("CDSAPI_KEY") and os.environ.get("CDSAPI_URL"))
-
-
+# These tests fall through to a real ERA5 download from the CDS API, which
+# fails with an HTTP 401 in CI (a placeholder ~/.cdsapirc is often present, so
+# detecting credential *presence* is not enough -- they have to be valid).
+# Gate them behind an explicit opt-in flag so CI always skips and only someone
+# with working CDS credentials runs them deliberately.
 requires_cds = pytest.mark.skipif(
-    not _has_cds_credentials(),
-    reason="No CDS API credentials (~/.cdsapirc or CDSAPI_URL/CDSAPI_KEY) configured",
+    not os.environ.get("RAIDER_RUN_NETWORK_TESTS"),
+    reason="Real CDS download; set RAIDER_RUN_NETWORK_TESTS=1 (with valid credentials) to run",
 )
 
 
