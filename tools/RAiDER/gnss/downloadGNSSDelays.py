@@ -79,6 +79,15 @@ def get_stats_by_llh(llhBox=None, baseURL=_UNR_URL):
     url_igs20 = f'{baseURL}gps_timeseries/IGS20/llh/llh.out'
     col_names = ['ID', 'Lat', 'Lon', 'Hgt_m']
 
+    # Validate the bounding box convention before any network access so bad
+    # input fails fast rather than after downloading the station holdings.
+    W, E = llhBox[2], llhBox[3]
+    if (W > 180.) or (E > 180.):
+        raise ValueError(
+            f"Check input -b:{llhBox} longitudes appear to be in the "
+            "[0, 360] convention. Expected [-180, 180] convention."
+        )
+
     # 1. Fetch IGS20 list
     try:
         stat_igs = pd.read_csv(url_igs20, sep=r'\s+', names=col_names)
