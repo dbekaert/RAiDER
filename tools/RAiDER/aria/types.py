@@ -15,6 +15,7 @@ class CalcDelaysArgsUnparsed(argparse.Namespace):
     api_key: Optional[str]
     interpolate_time: TimeInterpolationMethod
     output_directory: Path
+    model_levels: Optional[str]
 
 class CalcDelaysArgs(argparse.Namespace):
     bucket: Optional[str]
@@ -26,3 +27,4 @@ class CalcDelaysArgs(argparse.Namespace):
     api_key: Optional[str]
     interpolate_time: TimeInterpolationMethod
     output_directory: Path
+    model_levels: Optional[str]
