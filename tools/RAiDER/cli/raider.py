@@ -596,6 +596,19 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
     )
 
     p.add_argument(
+        '-l',
+        '--model-levels',
+        default=None,
+        choices=['ml', 'model', 'pl', 'pressure'],
+        help=(
+            'Vertical level representation used by the weather model: model/native '
+            "levels ('ml'/'model') or pressure levels ('pl'/'pressure'). If not "
+            "specified, the model's built-in default is used. Note that not every "
+            'model supports every level type.'
+        ),
+    )
+
+    p.add_argument(
         '-interp',
         '--interpolate-time',
         default='azimuth_time_grid',
