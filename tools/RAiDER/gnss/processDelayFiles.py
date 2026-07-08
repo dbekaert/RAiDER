@@ -240,9 +240,20 @@ def local_time_filter(raiderFile, ztdFile, dfr, dfz, localTime):
 
 
 def readZTDFile(filename, col_name='ZTD'):
-    """Read and parse a GPS zenith delay file."""
-    try:
-        data = pd.read_csv(filename, parse_dates=['Date'])
+    """Read and parse a GPS zenith delay file.
+
+    A 'Datetime' column is constructed from whatever time information the
+    file provides, in this order of preference:
+      1. a 'Date' column (optionally combined with a 'times' column of
+         seconds-of-day),
+      2. an existing 'Datetime' column,
+      3. a YYYYMMDDTHHMMSS timestamp parsed from the filename.
+    If none of these are available, a clear error is raised instead of a
+    cryptic pandas parsing error.
+    """
+    data = pd.read_csv(filename)
+
+    if 'Date' in data.columns:
         date0 = pd.to_datetime(data['Date'],
             errors='raise',
             format='%Y-%m-%d')
@@ -256,12 +267,28 @@ def readZTDFile(filename, col_name='ZTD'):
 
         # Combine using numpy/pandas arrays
         # (stays in datetime64[ns], never Python objects)
-        dt_vals = date0.values + td.values 
+        dt_vals = date0.values + td.values
 
         # Assign back
         data['Datetime'] = pd.to_datetime(dt_vals)
-    except (KeyError, ValueError):
-        data = pd.read_csv(filename, parse_dates=['Datetime'])
+    elif 'Datetime' in data.columns:
+        data['Datetime'] = pd.to_datetime(data['Datetime'], errors='raise')
+    else:
+        # Neither a 'Date' nor a 'Datetime' column is present. Try to add a
+        # 'Datetime' column automatically from a timestamp in the filename
+        # (e.g. ..._20210308T000000.csv); if that is not possible, fail with
+        # an informative message rather than a cryptic pandas error.
+        try:
+            data['Datetime'] = getDateTime(Path(filename))
+        except (AttributeError, ValueError):
+            raise ValueError(
+                f"File '{filename}' has no 'Date' or 'Datetime' column and no "
+                "parseable YYYYMMDDTHHMMSS timestamp in its filename, so a "
+                "'Datetime' column cannot be added automatically. Columns "
+                f"found: {list(data.columns)}. If you passed a directory, "
+                "check that it points at the GNSS/model delay files and not, "
+                "e.g., a station-list file."
+            )
 
     data.rename(columns={col_name: 'ZTD'}, inplace=True)
     return data
@@ -724,6 +751,16 @@ def main(
     expected_data_columns = ['ID', 'Lat', 'Lon', 'Hgt_m', 'Datetime', 'wetDelay', 'hydroDelay', raider_delay]
     dfr = dfr.drop(columns=[col for col in dfr if col not in expected_data_columns])
 
+    # Some GNSS ZTD files (e.g. UNR per-station delay files) carry only
+    # ID/Date/ZTD/... and no station coordinates. Backfill Lat/Lon/Hgt_m from
+    # the RAiDER delay file, which is keyed on the same station IDs, so the
+    # GNSS frame is self-consistent for the lat/lon mapping and local-time
+    # estimation below. IDs absent from the RAiDER file get NaNs and are
+    # dropped downstream (they could not be matched anyway).
+    for _coord in ('Lat', 'Lon', 'Hgt_m'):
+        if _coord not in dfz.columns and _coord in dfr.columns:
+            dfz[_coord] = dfz['ID'].map(dict(zip(dfr['ID'], dfr[_coord])))
+
     # Create dictionaries mapping ID → Lat and ID → Lon from GNSS file
     lat_map = dict(zip(dfz["ID"], dfz["Lat"]))
     lon_map = dict(zip(dfz["ID"], dfz["Lon"]))
@@ -757,6 +794,20 @@ def main(
     # only pass common locations and times
     dfz = pass_common_obs(dfr, dfz)
     dfr = pass_common_obs(dfz, dfr)
+
+    # Bail out early with an informative message if the GNSS and RAiDER files
+    # share no common observations. Otherwise the empty frames propagate to the
+    # per-station variance analysis and surface as a cryptic KeyError on a
+    # column that was never created (e.g. 'sigma_model_neg').
+    if dfz.empty or dfr.empty:
+        raise ValueError(
+            f"No common observations between RAiDER file '{raider_file}' and "
+            f"GNSS file '{ztd_file}'. The two datasets do not overlap in "
+            "station ID and/or calendar date (matching is by date and ID). "
+            "Check that the RAiDER delays were computed for the same dates as "
+            "the GNSS observations; a systematic offset of even one day will "
+            "produce zero matches."
+        )
 
     # If specified, convert to local-time reference frame WRT 0 longitude
     common_keys = ['Datetime', 'ID']
