@@ -69,16 +69,18 @@ class MockWeatherModel(WeatherModel):
         self._e = self._t.copy()
         self._e[:, 3:, :] = 2
 
-        _p = np.arange(31, -1, -1)
+        # Exponential pressure profile (like the real atmosphere), so the
+        # true ZTD has an exact closed form independent of the quadrature:
+        # int_z^ztop p0*exp(-z'/H) dz' = H * (p(z) - p(ztop))
+        _H = 2.0e4
+        _p = 32 * np.exp(-self._zs / _H)
         self._p = np.broadcast_to(_p, self._t.shape)
 
         self._true_hydro_refr = np.broadcast_to(_p, (self._t.shape))
         self._true_wet_ztd = 1e-6 * 2 * np.broadcast_to(np.flip(self._zs), (self._t.shape))
         self._true_wet_ztd[:, 3:] = 2 * self._true_wet_ztd[:, 3:]
 
-        self._true_hydro_ztd = np.zeros(self._t.shape)
-        for layer in range(len(self._zs)):
-            self._true_hydro_ztd[:, :, layer] = 1e-6 * 0.5 * (self._zs[-1] - self._zs[layer]) * _p[layer]
+        self._true_hydro_ztd = np.tile(1e-6 * _H * (_p - _p[-1]), (len(self._ys), len(self._xs), 1))
 
         self._true_wet_refr = 2 * np.ones(self._t.shape)
         self._true_wet_refr[:, 3:] = 4

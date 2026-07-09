@@ -435,11 +435,11 @@ class WeatherModel(ABC):
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 
-        # Get the integrated ZTD
-        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-        for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np_trapezoid(wet[..., level:], x=self._zs[level:], axis=2)
-            hydro_total[..., level] = 1e-6 * np_trapezoid(hydro[..., level:], x=self._zs[level:], axis=2)
+        # Get the integrated ZTD. Layers are integrated assuming exponential
+        # variation of refractivity with height; plain trapezoid integration
+        # overestimates ZTD by ~1 cm on the coarse fixed z-levels (convex N).
+        wet_total = 1e-6 * util.cumulative_integral_from_top(wet, self._zs)
+        hydro_total = 1e-6 * util.cumulative_integral_from_top(hydro, self._zs)
         self._hydrostatic_ztd = hydro_total
         self._wet_ztd = wet_total
 
