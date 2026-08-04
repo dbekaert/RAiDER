@@ -112,6 +112,11 @@ class AOIGroupUnparsed:
     lat_file: Optional[str] = None
     lon_file: Optional[str] = None
     station_file: Optional[str] = None
+    # Height datum of the station file's Hgt_m column. 4326 (default) means
+    # heights are already geoid-referenced (MSL); 4979 means WGS84 ellipsoidal
+    # heights (e.g. GNSS/UNR station lists), which will be converted to geoid
+    # heights before sampling the weather model.
+    station_file_crs: Optional[Union[int, str]] = None
     geo_cube: Optional[str] = None
 
 @dataclasses.dataclass

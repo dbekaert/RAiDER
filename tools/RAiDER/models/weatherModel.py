@@ -323,8 +323,33 @@ class WeatherModel(ABC):
         if time > dt.datetime.now(dt.timezone.utc) - self._lag_time:
             raise DatetimeOutsideRange(self.Model(), time)
 
+    def __model_levels__(self) -> None:
+        """Configure the model to use native/model levels.
+
+        Models that support model levels should override this to populate the
+        relevant level arrays (e.g. ``self._levels``, ``self._zlevels``).
+        """
+        raise NotImplementedError(f'Weather model {self.Model()} does not support model levels')
+
+    def __pressure_levels__(self) -> None:
+        """Configure the model to use pressure levels.
+
+        Models that support pressure levels should override this to populate the
+        relevant level arrays (e.g. ``self._levels``, ``self._zlevels``).
+        """
+        raise NotImplementedError(f'Weather model {self.Model()} does not support pressure levels')
+
     def setLevelType(self, levelType: str) -> None:
-        """Set the level type to model levels or pressure levels."""
+        """Set the level type to model levels or pressure levels.
+
+        Accepts the internal codes ('ml', 'nat' for model/native levels;
+        'pl', 'prs' for pressure levels) as well as the user-friendly aliases
+        'model' and 'pressure'.
+        """
+        # Map user-friendly aliases onto the internal codes.
+        aliases = {'model': 'ml', 'pressure': 'pl'}
+        levelType = aliases.get(levelType.lower(), levelType)
+
         if levelType in 'ml pl nat prs'.split():
             self._model_level_type = levelType
         else:
@@ -373,8 +398,19 @@ class WeatherModel(ABC):
         self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
     def _get_hydro_refractivity(self) -> None:
-        """Calculate the hydrostatic delay from pressure and temperature."""
-        self._hydrostatic_refractivity = self._k1 * self._p / self._t
+        """Calculate the hydrostatic refractivity from pressure, temperature, and e.
+
+        Hydrostatic refractivity is k1 * P / Tv = k1 * Rd * rho (rho = total air
+        density, Davis et al. 1985), written here via the exact identity
+        k1 * P / Tv = k1 * (P - (1 - Rd/Rv) * e) / T. Using virtual temperature
+        (not T) is required for consistency with the k2' = k2 - k1*Rd/Rv wet
+        coefficient (0.233 K/Pa) used by all models; pairing k1*P/T with k2'
+        double-counts part of the water-vapor contribution (~2% of the wet
+        delay). This split matches the GNSS ZHD/ZWD convention.
+        """
+        self._hydrostatic_refractivity = (
+            self._k1 * (self._p - (1 - self._R_d / self._R_v) * self._e) / self._t
+        )
 
     def getWetRefractivity(self) -> np.ndarray:
         """Returns the data cube of refractivity."""
@@ -410,11 +446,11 @@ class WeatherModel(ABC):
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 
-        # Get the integrated ZTD
-        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-        for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np_trapezoid(wet[..., level:], x=self._zs[level:], axis=2)
-            hydro_total[..., level] = 1e-6 * np_trapezoid(hydro[..., level:], x=self._zs[level:], axis=2)
+        # Get the integrated ZTD. Layers are integrated assuming exponential
+        # variation of refractivity with height; plain trapezoid integration
+        # overestimates ZTD by ~1 cm on the coarse fixed z-levels (convex N).
+        wet_total = 1e-6 * util.cumulative_integral_from_top(wet, self._zs)
+        hydro_total = 1e-6 * util.cumulative_integral_from_top(hydro, self._zs)
         self._hydrostatic_ztd = hydro_total
         self._wet_ztd = wet_total
 
@@ -451,7 +487,7 @@ class WeatherModel(ABC):
             if not Path.exists(Path(path_weather_model)):
                 raise ValueError('Need to save cropped weather model as netcdf')
 
-            with xr.load_dataset(path_weather_model) as ds:
+            with xr.open_dataset(path_weather_model) as ds:
                 try:
                     xmin, xmax = ds.x.min(), ds.x.max()
                     ymin, ymax = ds.y.min(), ds.y.max()
@@ -872,8 +908,5 @@ def checkContainment_raw(
 
         return weather_model_box.contains(input_box)
 
-    elif weather_model_box.contains(world_box):
-        return True
-
     else:
-        return False
+        return weather_model_box.contains(input_box)

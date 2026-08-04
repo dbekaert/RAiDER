@@ -984,3 +984,41 @@ if int(np.__version__.split('.')[0]) >= 2:
     np_trapezoid = np.trapezoid
 else:
     np_trapezoid = np.trapz
+
+
+def cumulative_integral_from_top(ns: np.ndarray, zs: np.ndarray) -> np.ndarray:
+    """Cumulatively integrate refractivity from each height level to the column top.
+
+    Refractivity decays quasi-exponentially with height, so the trapezoid rule
+    systematically overestimates each layer integral (the chord lies above a
+    convex curve); on the coarse fixed z-levels used for pressure-level models
+    this accumulates to ~1 cm of zenith delay. Instead, each layer is
+    integrated assuming exponential variation between its endpoints
+    (the logarithmic-mean rule):
+
+        int_z0^z1 N dz = (z1 - z0) * (N0 - N1) / ln(N0 / N1)
+
+    which is exact for N(z) = N0 * exp(-(z - z0)/H). Layers where the
+    exponential model is undefined (non-positive or nearly equal endpoint
+    values) fall back to the trapezoid rule.
+
+    Args:
+        ns: refractivity, shape (..., nz), levels ascending in height along the last axis
+        zs: 1-D array of heights (m), length nz, ascending
+
+    Returns:
+        ndarray of shape (..., nz): integral from each level to the top level
+        (the top level is 0 by construction).
+    """
+    n0 = ns[..., :-1].astype(np.float64)
+    n1 = ns[..., 1:].astype(np.float64)
+    dz = np.diff(np.asarray(zs, dtype=np.float64))
+    trap = 0.5 * (n0 + n1) * dz
+    with np.errstate(divide='ignore', invalid='ignore'):
+        lnr = np.log(n0 / n1)
+        expo = dz * (n0 - n1) / lnr
+    use_expo = (n0 > 0) & (n1 > 0) & (np.abs(lnr) > 1e-6) & np.isfinite(expo)
+    seg = np.where(use_expo, expo, trap)
+    out = np.zeros(ns.shape, dtype=np.float64)
+    out[..., :-1] = np.cumsum(seg[..., ::-1], axis=-1)[..., ::-1]
+    return out

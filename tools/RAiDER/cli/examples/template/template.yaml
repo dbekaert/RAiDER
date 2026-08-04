@@ -31,6 +31,15 @@ look_dir: right
 ## for more details and information on licensing
 weather_model:
 
+## OPTIONAL: Vertical level representation used by the weather model.
+## FORMATS: string, one of 'ml'/'model' (model/native levels) or 'pl'/'pressure' (pressure levels)
+## If left blank, each model's built-in default is used (model levels for the
+## ECMWF family, GMAO, MERRA-2, NCMR; native levels for HRRR).
+## NOTE: Not every model supports every level type. The ECMWF family
+## (ERA-5, ERA-5T, HRES) supports both; HRRR supports only native/model levels;
+## GMAO, MERRA-2, and NCMR support only model levels.
+weather_model_levels:
+
 
 ########## 2. Date
 ## REQUIRED: TRUE
@@ -70,12 +79,17 @@ time_group:
 ## 2. Specify a geocoded file, e.g. ARIA GUNW product, from which the AOI will be determined
 ## 3/4. lat/lon raster files (such as those produced by the ISCE software)
 ## 5. A comma-delimited file (station_file) containing at least the columns Lat and Lon, and optionally Hgt_m
+##    station_file_crs declares the height datum of the Hgt_m column:
+##    4326 (default) = heights are geoid-referenced (MSL), matching the weather model z-axis
+##    4979 = heights are WGS84 ellipsoidal (e.g. GNSS/UNR station lists); they will be
+##           converted to geoid heights before the weather model is sampled
 aoi_group:
   bounding_box:
   geocoded_file:
   lat_file:
   lon_file:
   station_file:
+  station_file_crs:
 
 
 ########## 5. Height info

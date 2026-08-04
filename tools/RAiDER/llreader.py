@@ -191,15 +191,138 @@ class AOI:
         self.ypts = np.arange(out_snwe[1], out_snwe[0] - out_spacing, -out_spacing)
 
 
-class StationFile(AOI):
-    """Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns."""
+def _parse_crs(crs: Union[int, str, CRS]) -> CRS:
+    """Parse an EPSG code (int or str), CRS string, or CRS object into a pyproj CRS."""
+    if isinstance(crs, CRS):
+        return crs
+    try:
+        return CRS.from_epsg(crs)
+    except pyproj.exceptions.CRSError:
+        return CRS(crs)
 
-    def __init__(self, station_file, demFile=None, cube_spacing_in_m: Optional[float]=None, output_directory=os.getcwd()) -> None:
+
+def _ellipsoidal_to_geometric(
+    lats: np.ndarray,
+    lons: np.ndarray,
+    heights: np.ndarray,
+    crs: CRS,
+) -> np.ndarray:
+    """Convert heights from ellipsoidal to geometric (geoid-referenced) if needed.
+
+    ERA5 geopotential heights are referenced to the geoid (mean sea level).
+    GNSS-derived station heights (e.g. from UNR MAGNET in IGS20) are ellipsoidal
+    heights above the WGS84 ellipsoid.  In CONUS the geoid sits ~15–35 m below
+    the ellipsoid, so sampling the RAiDER cube with uncorrected GNSS heights
+    places the integration surface too low by that amount, causing a ~5–9 mm
+    positive ZTD bias.
+
+    Conversion targets EPSG:9707 (WGS 84 + EGM96 height).  PROJ requires the
+    EGM96 geoid grid, which ships with the ``proj-data`` conda package.  If the
+    grid is absent locally the function transparently enables the PROJ CDN for a
+    one-time download and then restores the previous network state.  If the
+    download also fails, input heights are returned unchanged with a warning.
+
+    Args:
+        lats:    station latitudes in degrees
+        lons:    station longitudes in degrees
+        heights: station heights in the coordinate system described by ``crs``
+        crs:     pyproj CRS describing the input height datum
+
+    Returns:
+        heights above the EGM96 geoid (~MSL / orthometric),
+        or the input heights unchanged if the CRS has no 3D ellipsoidal vertical.
+    """
+    # A 2D CRS (e.g. EPSG:4326) carries no vertical datum — return unchanged.
+    if len(crs.axis_info) < 3:
+        return heights
+
+    _TARGET = CRS.from_epsg(9707)  # WGS 84 + EGM96 height
+
+    def _build_and_apply() -> tuple:
+        """Return (transformer, converted_heights)."""
+        from pyproj import Transformer
+        t = Transformer.from_crs(crs, _TARGET, always_xy=True)
+        _, _, h = t.transform(lons, lats, heights)
+        return t, h
+
+    try:
+        t, h_geoid = _build_and_apply()
+
+        # PROJ silently falls back to a noop when the EGM96 grid is missing.
+        # Detect this by inspecting the WKT pipeline string.
+        # to_proj4() returns '+proj=noop' when PROJ fell back to a no-op
+        # because the EGM96 grid is absent.  A real geoid transform returns
+        # None (it is too complex to express as a PROJ4 string).
+        if t.to_proj4() == '+proj=noop':
+            logger.info(
+                'EGM96 geoid grid not found locally; attempting download from '
+                'the PROJ CDN.  Install the proj-data conda package for fully '
+                'offline use.'
+            )
+            _was_enabled = pyproj.network.is_network_enabled()
+            pyproj.network.set_network_enabled(True)
+            try:
+                t, h_geoid = _build_and_apply()
+                if t.to_proj4() == '+proj=noop':
+                    logger.warning(
+                        'EGM96 grid unavailable (no local data and CDN '
+                        'unreachable); ellipsoidal heights used unchanged.'
+                    )
+                    return heights
+            finally:
+                pyproj.network.set_network_enabled(_was_enabled)
+
+        logger.debug(
+            'Converted ellipsoidal heights to EGM96 geoid heights; '
+            'mean geoid undulation applied: %.2f m',
+            float(np.nanmean(h_geoid - heights)),
+        )
+        return h_geoid
+
+    except Exception as exc:
+        logger.warning(
+            'Ellipsoidal-to-geoid height conversion failed (%s); '
+            'using input heights unchanged.  '
+            'Ensure proj-data grids are installed for accurate results.',
+            exc,
+        )
+        return heights
+
+
+class StationFile(AOI):
+    """Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns.
+
+    By default heights are assumed to be already geoid-referenced (MSL), matching
+    the ERA5 z-axis convention (``crs=4326``).  Pass ``crs=4979`` when the file
+    contains WGS84 ellipsoidal heights (e.g. from UNR MAGNET / IGS20) so that
+    they are automatically converted to geoid heights before the weather model
+    cube is sampled.
+    """
+
+    def __init__(
+        self,
+        station_file: Union[str, Path],
+        demFile: Optional[Union[str, Path]] = None,
+        cube_spacing_in_m: Optional[float] = None,
+        output_directory: Union[str, Path] = Path.cwd(),
+        crs: Union[int, str, CRS] = 4326,
+    ) -> None:
         super().__init__(cube_spacing_in_m, output_directory)
         self._filename = station_file
         self._demfile = demFile
         self._bounding_box = bounds_from_csv(station_file)
         self._type = 'station_file'
+        self._crs = _parse_crs(crs)
+
+    def update_crs(self, new_crs: Union[int, str, CRS]) -> None:
+        """Update the CRS describing the height datum of the station file.
+
+        Args:
+            new_crs: EPSG code (int or str), CRS string, or pyproj CRS object.
+                     ``4326`` (default) — heights are geoid-referenced (MSL).
+                     ``4979`` — heights are WGS84 ellipsoidal (e.g. from GNSS/UNR).
+        """
+        self._crs = _parse_crs(new_crs)
 
     def readLL(self) -> tuple[np.ndarray, np.ndarray]:
         """Read the station lat/lons from the csv file."""
@@ -207,12 +330,21 @@ class StationFile(AOI):
         return df['Lat'].to_numpy(), df['Lon'].to_numpy()
 
     def readZ(self):
-        """Read the station heights from the file, or download a DEM if not present."""
+        """Read station heights, converting to geoid heights if the CRS is 3D ellipsoidal.
+
+        When constructed with ``crs=4979`` (or any 3D CRS with an ellipsoidal
+        vertical), heights are converted from WGS84 ellipsoidal to EGM96 geoid
+        heights so they are consistent with the ERA5 z-axis reference.
+        DEM-derived heights are already MSL and are never converted.
+        """
         df = pd.read_csv(self._filename).drop_duplicates(subset=['Lat', 'Lon'])
         if 'Hgt_m' in df.columns:
-            return df['Hgt_m'].values
+            heights = df['Hgt_m'].values
+            return _ellipsoidal_to_geometric(
+                df['Lat'].values, df['Lon'].values, heights, self._crs
+            )
         else:
-            # Download the DEM
+            # Download the DEM (DEM heights are MSL; no conversion needed)
             from RAiDER.dem import download_dem
             from RAiDER.interpolator import interpolateDEM
 

@@ -126,7 +126,11 @@ def read_run_config_file(path: Path) -> RunConfig:
 
     return RunConfig(
         look_dir=yaml_data['look_dir'].lower(),
-        weather_model=parse_weather_model(yaml_data['weather_model'], aoi_group.aoi),
+        weather_model=parse_weather_model(
+            yaml_data['weather_model'],
+            aoi_group.aoi,
+            level_type=yaml_data.get('weather_model_levels'),
+        ),
         date_group=parse_dates(DateGroupUnparsed(**yaml_data['date_group'])),
         time_group=TimeGroup(**yaml_data['time_group']),
         aoi_group=aoi_group,
@@ -267,6 +271,25 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
     model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
+    # Batch pre-download for CDS-backed models (ERA5, ERA5T): collect all
+    # datetimes across the full date_list and issue a single API request.
+    if hasattr(model, 'batch_fetch'):
+        _interp = run_config.time_group.interpolate_time or 'none'
+        _step = model.dtime() if model.dtime() is not None else 6
+        _all_times: list[dt.datetime] = []
+        for _t in run_config.date_group.date_list:
+            if _interp == 'center_time':
+                _all_times.extend(get_nearest_wmtimes(_t, _step))
+            elif _interp == 'azimuth_time_grid':
+                _all_times.extend(get_times_for_azimuth_interpolation(_t, _step))
+            else:
+                _all_times.append(_t)
+        RAiDER.processWM.batch_download_weather_model(
+            model,
+            list(dict.fromkeys(_all_times)),  # deduplicate, preserve order
+            wm_bounds,
+        )
+
     wet_paths: list[Path] = []
     t: dt.datetime
     w: str
@@ -335,7 +358,8 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
         if len(wfiles) == 0:
             logger.error('No weather model data was successfully processed.')
-            raise NoWeatherModelData('Weather model processing failed for all times')
+            # raise NoWeatherModelData('Weather model processing failed for all times')
+            continue
         
         # Get the weather model file
         weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
@@ -568,6 +592,19 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         '--api_key',
         default=None,
         help='Weather model API KEY [key, password], depending on model.'
+    )
+
+    p.add_argument(
+        '-l',
+        '--model-levels',
+        default=None,
+        choices=['ml', 'model', 'pl', 'pressure'],
+        help=(
+            'Vertical level representation used by the weather model: model/native '
+            "levels ('ml'/'model') or pressure levels ('pl'/'pressure'). If not "
+            "specified, the model's built-in default is used. Note that not every "
+            'model supports every level type.'
+        ),
     )
 
     p.add_argument(
@@ -814,41 +851,45 @@ def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, int
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
 
-    # Pull the datetimes from the datasets
-    times: list[dt.datetime] = []
-    for ds in datasets:
-        times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+    try:
+        # Pull the datetimes from the datasets
+        times: list[dt.datetime] = []
+        for ds in datasets:
+            times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
-    if len(times) == 0:
-        raise NoWeatherModelData()
+        if len(times) == 0:
+            raise NoWeatherModelData()
 
-    # calculate relative weights of each dataset
-    if interp_method == 'center_time':
-        wgts = get_weights_time_interp(times, time)
-    elif interp_method == 'azimuth_time_grid':
-        time_grid = get_time_grid_for_aztime_interp(datasets, time, model)
-        wgts = get_inverse_weights_for_dates(time_grid, times)
-    else:  # interp_method == 'none'
-        raise ValueError('Interpolating weather files is not available with interpolation method "none"')
+        # calculate relative weights of each dataset
+        if interp_method == 'center_time':
+            wgts = get_weights_time_interp(times, time)
+        elif interp_method == 'azimuth_time_grid':
+            time_grid = get_time_grid_for_aztime_interp(datasets, time, model)
+            wgts = get_inverse_weights_for_dates(time_grid, times)
+        else:  # interp_method == 'none'
+            raise ValueError('Interpolating weather files is not available with interpolation method "none"')
 
-    # combine datasets
-    ds_out = datasets[0]
-    for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
-        ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
-    ds_out.attrs['Date1'] = 0
-    ds_out.attrs['Date2'] = 0
+        # combine datasets
+        ds_out = datasets[0]
+        for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+            ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
+        ds_out.attrs['Date1'] = 0
+        ds_out.attrs['Date2'] = 0
 
-    # Give the weighted combination a new file name
-    weather_model_file = wfiles[0].parent / (
-        wfiles[0].name.split('_')[0]
-        + '_'
-        + time.strftime('%Y_%m_%dT%H_%M_%S')
-        + STYLE[interp_method]
-        + '_'.join(wfiles[0].name.split('_')[-4:])
-    )
+        # Give the weighted combination a new file name
+        weather_model_file = wfiles[0].parent / (
+            wfiles[0].name.split('_')[0]
+            + '_'
+            + time.strftime('%Y_%m_%dT%H_%M_%S')
+            + STYLE[interp_method]
+            + '_'.join(wfiles[0].name.split('_')[-4:])
+        )
 
-    # write the combined results to disk
-    ds_out.to_netcdf(weather_model_file)
+        # write the combined results to disk (must happen before closing datasets)
+        ds_out.to_netcdf(weather_model_file)
+    finally:
+        for ds in datasets:
+            ds.close()
 
     return weather_model_file
 
@@ -858,36 +899,40 @@ def combine_files_using_azimuth_time(wfiles, time: dt.datetime, times: list[dt.d
     # read the individual datetime datasets
     datasets = [xr.open_dataset(f) for f in wfiles]
 
-    # Pull the datetimes from the datasets
-    times: list[dt.datetime] = []
-    for ds in datasets:
-        times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
+    try:
+        # Pull the datetimes from the datasets
+        times: list[dt.datetime] = []
+        for ds in datasets:
+            times.append(dt.datetime.strptime(ds.attrs['datetime'], '%Y_%m_%dT%H_%M_%S'))
 
-    model = datasets[0].attrs['model_name']
+        model = datasets[0].attrs['model_name']
 
-    time_grid = get_time_grid_for_aztime_interp(datasets, times, time, model)
+        time_grid = get_time_grid_for_aztime_interp(datasets, times, time, model)
 
-    wgts = get_inverse_weights_for_dates(time_grid, times)
+        wgts = get_inverse_weights_for_dates(time_grid, times)
 
-    # combine datasets
-    ds_out = datasets[0]
-    for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
-        ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
-    ds_out.attrs['Date1'] = 0
-    ds_out.attrs['Date2'] = 0
+        # combine datasets
+        ds_out = datasets[0]
+        for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
+            ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
+        ds_out.attrs['Date1'] = 0
+        ds_out.attrs['Date2'] = 0
 
-    # Give the weighted combination a new file name
-    weather_model_file = os.path.join(
-        os.path.dirname(wfiles[0]),
-        os.path.basename(wfiles[0]).split('_')[0]
-        + '_'
-        + time.strftime('%Y_%m_%dT%H_%M_%S')
-        + '_timeInterpAziGrid_'
-        + '_'.join(wfiles[0].split('_')[-4:]),
-    )
+        # Give the weighted combination a new file name
+        weather_model_file = os.path.join(
+            os.path.dirname(wfiles[0]),
+            os.path.basename(wfiles[0]).split('_')[0]
+            + '_'
+            + time.strftime('%Y_%m_%dT%H_%M_%S')
+            + '_timeInterpAziGrid_'
+            + '_'.join(wfiles[0].split('_')[-4:]),
+        )
 
-    # write the combined results to disk
-    ds_out.to_netcdf(weather_model_file)
+        # write the combined results to disk (must happen before closing datasets)
+        ds_out.to_netcdf(weather_model_file)
+    finally:
+        for ds in datasets:
+            ds.close()
 
     return weather_model_file
 

@@ -52,7 +52,6 @@ def prepareWeatherModel(
 
     # get the path to the less processed weather model file
     path_wm_raw = make_raw_weather_data_filename(wmLoc, weather_model.Model(), time)
-
     # get the path to the more processed (cropped) weather model file
     path_wm_crop = weather_model.out_file(wmLoc)
 
@@ -133,6 +132,30 @@ def prepareWeatherModel(
         raise ExistingWeatherModelTooSmall
     else:
         return f
+
+
+def batch_download_weather_model(
+    weather_model,
+    times: list,
+    ll_bounds,
+    force_download: bool = False,
+) -> None:
+    """Pre-download all ERA5/ERA5T datetimes in a single CDS API call.
+
+    Writes per-datetime raw files to disk so that subsequent prepareWeatherModel
+    calls find them already present and skip the download step.
+    """
+    wmLoc = weather_model.get_wmLoc()
+    missing: list[tuple] = []
+    for t in times:
+        path_wm_raw = Path(make_raw_weather_data_filename(wmLoc, weather_model.Model(), t))
+        if not force_download and path_wm_raw.exists() and checkContainment_raw(path_wm_raw, ll_bounds):
+            continue
+        os.makedirs(path_wm_raw.parent, exist_ok=True)
+        missing.append((t, path_wm_raw))
+
+    if missing:
+        weather_model.batch_fetch(missing)
 
 
 def _weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, time, out, download_only) -> None:

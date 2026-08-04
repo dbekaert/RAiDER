@@ -35,7 +35,7 @@ from RAiDER.utilFcns import rio_extents, rio_profile
 _BUFFER_SIZE = 0.2  # default buffer size in lat/lon degrees
 
 
-def parse_weather_model(weather_model_name: str, aoi: AOI) -> WeatherModel:
+def parse_weather_model(weather_model_name: str, aoi: AOI, level_type: Optional[str] = None) -> WeatherModel:
     weather_model_name = weather_model_name.upper().replace('-', '')
     try:
         _, Model = get_wm_by_name(weather_model_name)
@@ -47,6 +47,16 @@ def parse_weather_model(weather_model_name: str, aoi: AOI) -> WeatherModel:
     # Check that the user-requested bounding box is within the weather model domain
     model: WeatherModel = Model()
     model.checkValidBounds(aoi.bounds())
+
+    # Optionally override the default vertical level representation (pressure vs.
+    # model levels). If unspecified, the model's built-in default is used.
+    if level_type is not None:
+        try:
+            model.setLevelType(level_type)
+        except (RuntimeError, NotImplementedError) as e:
+            raise ValueError(
+                f'weather_model_levels="{level_type}" is not valid for model {weather_model_name}: {e}'
+            )
 
     return model
 
@@ -155,7 +165,11 @@ def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnpar
         )
 
     elif aoi_group.station_file is not None:
-        query = StationFile(aoi_group.station_file, cube_spacing_in_m=cube_spacing_in_m)
+        query = StationFile(
+            aoi_group.station_file,
+            cube_spacing_in_m=cube_spacing_in_m,
+            crs=aoi_group.station_file_crs if aoi_group.station_file_crs is not None else 4326,
+        )
 
     elif aoi_group.bounding_box is not None:
         bbox = parse_bbox(aoi_group.bounding_box)

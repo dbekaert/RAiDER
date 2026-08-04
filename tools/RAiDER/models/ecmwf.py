@@ -1,5 +1,4 @@
 import datetime as dt
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -132,12 +131,22 @@ class ECMWF(WeatherModel):
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
 
+        if self._model_level_type == 'pl':
+            # Pressure-level downloads share the batch writer so that all
+            # pl files have the same layout and units (z in geopotential m)
+            self._batch_get_from_cds([(corrected_DT, out_path)], lat_min, lat_max, lon_min, lon_max)
+            return
+
+        param = ['lnsp', 'z', 'q', 't']
+        dataset = 'reanalysis-era5-complete'
+
         with tempfile.TemporaryDirectory() as temp_dir_str:
             temp_dir = Path(temp_dir_str)
-            out_path_lnsp_z = temp_dir / f'{out_path.stem}_lnsp_z'
-            out_path_t_q = temp_dir / f'{out_path.stem}_t_q'
+            out_path_combined = temp_dir / f'{out_path.stem}_combined'
 
             # Developed from https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
+            # All four variables are fetched in a single CDS request to halve queue wait time.
+            # lnsp and z are surface-only fields; t and q span all model levels.
             params = {
                 'class': 'ea',
                 'expver': '1',
@@ -153,53 +162,187 @@ class ECMWF(WeatherModel):
                 'area': [lat_max, lon_min, lat_min, lon_max],
                 'grid': [0.25, 0.25],
                 'format': 'netcdf',
+                'param': param,
             }
-            # Make two separate requests: one for lnsp and z, and the other for t and q.
-            params['param'] = ['lnsp', 'z']
-            c.retrieve('reanalysis-era5-complete', params, out_path_lnsp_z)
-            params['param'] = ['q', 't']
-            c.retrieve('reanalysis-era5-complete', params, out_path_t_q)
+            c.retrieve(dataset, params, out_path_combined)
 
-            # RAiDER requires z data for all levels, but ERA-5 only provides it for
-            # the surface level. z can be computed for all levels using lnsp, t, and
-            # q, so that is what we will do.
-            # We will use the t/q dataset as a base to make a full dataset with
-            # lnsp, t, and q, and full z data.
-            shutil.copy(out_path_t_q, out_path)
-
-            with xr.open_dataset(out_path_lnsp_z) as ds_lnsp_z, xr.open_dataset(out_path_t_q) as ds_t_q:
-                # Compute full z
+            with xr.open_dataset(out_path_combined) as ds:
+                # ERA-5 only provides z at the surface level; compute it at all
+                # model levels from lnsp, t, and q via the hypsometric equation.
+                # .squeeze() removes the size-1 time (and level, for lnsp/z) dims,
+                # since calcgeoh expects (level, lat, lon) or (lat, lon) arrays.
                 z_full, _, _ = util.calcgeoh(
-                    # .squeeze(): data comes in with dimensions:
-                    # (valid time, model level, latitude, longitude),
-                    # and we need it in:
-                    # (model level, latitude, longitude),
-                    # and there is always exactly one valid time
-                    # (i.e., shape is always (1, ..., ..., ...)).
-                    lnsp=ds_lnsp_z['lnsp'].values.squeeze(),
-                    z_surface=ds_lnsp_z['z'].values.squeeze(),
-                    t=ds_t_q['t'].values.squeeze(),
-                    q=ds_t_q['q'].values.squeeze(),
+                    lnsp=ds['lnsp'].values.squeeze(),
+                    z_surface=ds['z'].values.squeeze(),
+                    t=ds['t'].values.squeeze(),
+                    q=ds['q'].values.squeeze(),
                     a=self._a,
                     b=self._b,
                     num_levels=self._levels,
                     R_d=self._R_d,
                 )
-                # Add the full z cube to the output dataset.
-                ds_out = ds_t_q.assign(
+                # Replace the surface-only z with the full model-level z cube,
+                # broadcast to match t's (time, level, lat, lon) dimensions.
+                ds_out = ds.assign(
                     z=xr.Variable(
-                        # Copy over t's dimensions as z's.
-                        # Could also have used q; all three are the same.
-                        dims=ds_t_q['t'].dims,
-                        # Present z_full as though it were wrapped in an array to
-                        # match the shape of the rest of the data.
+                        dims=ds['t'].dims,
                         data=np.broadcast_to(z_full, (1, *z_full.shape)),
                     ),
-                    # To fit the shape of the rest of the dataset, this is NaN on
-                    # every level but the first (the surface).
-                    lnsp=ds_lnsp_z['lnsp'],
                 )
                 ds_out.to_netcdf(out_path)
+
+    def _batch_get_from_cds(
+        self,
+        times_and_paths: list[tuple[dt.datetime, Path]],
+        lat_min: float,
+        lat_max: float,
+        lon_min: float,
+        lon_max: float,
+    ) -> None:
+        """Download multiple ERA5 time steps in a single CDS request and split into per-datetime files."""
+        import cdsapi
+
+        c = cdsapi.Client(verify=1)
+
+        if c.url == 'https://cds.climate.copernicus.eu/api/v2':
+            logger.warning(
+                'Old CDS API configuration detected: ECMWF released a breaking change in late 2024 that expired all '
+                'existing credentials. This run may fail with a 404 HTTP error, in which case you may have to '
+                'regenerate your CDS API credentials at https://cds.climate.copernicus.eu/how-to-api.'
+            )
+
+        # Build unique date and time lists (CDS takes the Cartesian product)
+        seen_dates: dict[str, None] = {}
+        seen_times: dict[str, None] = {}
+        for corrected_dt, _ in times_and_paths:
+            seen_dates[corrected_dt.strftime('%Y-%m-%d')] = None
+            seen_times[corrected_dt.strftime('%H:%M')] = None
+        date_str = '/'.join(seen_dates)
+        time_str = '/'.join(seen_times)
+
+        base_params = {
+            'class': 'ea',
+            'expver': '1',
+            'levelist': 'all',
+            'levtype': self._model_level_type,
+            'stream': 'oper',
+            'type': 'an',
+            'date': date_str,
+            'time': time_str,
+            'step': '0',
+            'area': [lat_max, lon_min, lat_min, lon_max],
+            'grid': [0.25, 0.25],
+            'format': 'netcdf',
+        }
+
+        if self._model_level_type == 'ml':
+            param = ['lnsp', 'z', 'q', 't']
+            dataset = 'reanalysis-era5-complete'
+        else:
+            param = ['z', 't', 'q']
+            dataset = 'reanalysis-era5-pressure-levels'
+
+        with tempfile.TemporaryDirectory() as temp_dir_str:
+            temp_dir = Path(temp_dir_str)
+            surface_file = temp_dir / 'batch_surface.nc'
+            ml_file = temp_dir / 'batch_ml.nc'
+
+            if self._model_level_type == 'pl':
+                # MARS for reanalysis-era5-pressure-levels allows only one date per month
+                # per request; multiple same-month dates cause "Duplicate value for month".
+                # The CDS API v3 also auto-splits a list by month before sending to MARS,
+                # so batching is not possible. Issue one request per datetime.
+                for corrected_dt, out_path in times_and_paths:
+                    pl_params = {
+                        'levelist': 'all',
+                        'levtype': 'pl',
+                        'date': corrected_dt.strftime('%Y-%m-%d'),
+                        'time': corrected_dt.strftime('%H:%M'),
+                        'area': [lat_max, lon_min, lat_min, lon_max],
+                        'data_format': 'netcdf',
+                        'param': param,
+                    }
+                    c.retrieve(dataset, pl_params, ml_file)
+
+                    with xr.open_dataset(ml_file) as ds:
+                        tc = 'valid_time' if 'valid_time' in ds.coords else 'time'
+                        target = corrected_dt.replace(tzinfo=None)
+                        ds_slice = ds.isel({tc: 0})
+
+                        z_v = (ds_slice['z'].values.squeeze() / self._g0).transpose(1, 2, 0)[np.newaxis]
+                        t_v = ds_slice['t'].values.squeeze().transpose(1, 2, 0)[np.newaxis]
+                        q_v = ds_slice['q'].values.squeeze().transpose(1, 2, 0)[np.newaxis]
+
+                        ds_out = xr.Dataset(
+                            {
+                                'z': xr.Variable((tc, 'latitude', 'longitude', 'pressure_level'), z_v),
+                                't': xr.Variable((tc, 'latitude', 'longitude', 'pressure_level'), t_v),
+                                'q': xr.Variable((tc, 'latitude', 'longitude', 'pressure_level'), q_v),
+                            },
+                            coords={
+                                tc: np.array([target], dtype='datetime64[ns]'),
+                                'pressure_level': ds_slice['pressure_level'].values,
+                                'latitude': ds_slice['latitude'].values,
+                                'longitude': ds_slice['longitude'].values,
+                            },
+                        )
+                        ds_out.to_netcdf(out_path)
+            else:
+                # Model level requests only include lnsp and z at the surface, so we have to make two requests to get
+                # the full model-level z cube. This is a bit less efficient, but still much better than making
+                # separate requests for each datetime. All four variables are fetched in a single CDS request to
+                # halve queue wait time.
+                # lnsp and z are surface fields; t and q span all model levels.
+                # For multi-datetime batch requests the CDS server returns mixed-level
+                # requests as separate files, so request the two groups independently.
+                c.retrieve('reanalysis-era5-complete', {**base_params, 'param': ['lnsp', 'z']}, surface_file)
+                c.retrieve('reanalysis-era5-complete', {**base_params, 'param': ['t', 'q']}, ml_file)
+
+                with xr.open_dataset(surface_file) as ds_surface, xr.open_dataset(ml_file) as ds_ml:
+                    # CDS API uses 'valid_time' in newer versions, 'time' in older ones
+                    tc_s = 'valid_time' if 'valid_time' in ds_surface.coords else 'time'
+                    tc_m = 'valid_time' if 'valid_time' in ds_ml.coords else 'time'
+
+                    for corrected_dt, out_path in times_and_paths:
+                        # Strip timezone: numpy datetime64 coordinates are timezone-naive
+                        target = corrected_dt.replace(tzinfo=None)
+                        surf_slice = ds_surface.sel({tc_s: target})
+                        ml_slice = ds_ml.sel({tc_m: target})
+
+                        lnsp_v = surf_slice['lnsp'].values.squeeze()   # (nlat, nlon)
+                        z_sfc_v = surf_slice['z'].values.squeeze()     # (nlat, nlon)
+                        t_v = ml_slice['t'].values.squeeze()           # (nlev, nlat, nlon)
+                        q_v = ml_slice['q'].values.squeeze()           # (nlev, nlat, nlon)
+
+                        z_full, _, _ = util.calcgeoh(
+                            lnsp=lnsp_v,
+                            z_surface=z_sfc_v,
+                            t=t_v,
+                            q=q_v,
+                            a=self._a,
+                            b=self._b,
+                            num_levels=self._levels,
+                            R_d=self._R_d,
+                        )
+
+                        # Write a single-time file matching the structure _makeDataCubes
+                        # expects: t/q/z as (time, model_level, lat, lon) and lnsp as
+                        # (time, sfc_level, lat, lon) so that [0,0] indexing gives (lat,lon).
+                        ds_out = xr.Dataset(
+                            {
+                                't':    xr.Variable((tc_m, 'model_level', 'latitude', 'longitude'), t_v[np.newaxis]),
+                                'q':    xr.Variable((tc_m, 'model_level', 'latitude', 'longitude'), q_v[np.newaxis]),
+                                'z':    xr.Variable((tc_m, 'model_level', 'latitude', 'longitude'), z_full[np.newaxis]),
+                                'lnsp': xr.Variable((tc_m, 'sfc_level', 'latitude', 'longitude'), lnsp_v[np.newaxis, np.newaxis]),
+                            },
+                            coords={
+                                tc_m: np.array([target], dtype='datetime64[ns]'),
+                                'model_level': ml_slice['model_level'].values,
+                                'latitude': ml_slice['latitude'].values,
+                                'longitude': ml_slice['longitude'].values,
+                            },
+                        )
+                        ds_out.to_netcdf(out_path)
 
     def _download_ecmwf(self, lat_min, lat_max, lat_step, lon_min, lon_max, lon_step, time, out: Path) -> None:
         """Used for HRES."""
@@ -242,7 +385,7 @@ class ECMWF(WeatherModel):
         # read data from netcdf file
         lats, lons, _, _, t, q, lnsp, z = self._makeDataCubes(Path(filename))
 
-        # ECMWF appears to give me this backwards
+        # data ordering
         if lats[0] > lats[1]:
             z: FloatArray3D = z[::-1]
             lnsp: FloatArray2D = lnsp[::-1]
@@ -289,29 +432,48 @@ class ECMWF(WeatherModel):
         self._zs = np.flip(self._zs, axis=2)
 
     def _load_pressure_level(self, filename) -> None:
-        with xr.open_dataset(filename) as block:
-            # Pull the data
-            z = np.squeeze(block['z'].values)
-            t = np.squeeze(block['t'].values)
-            q = np.squeeze(block['q'].values)
-            lats = np.squeeze(block['latitude'].values)
-            lons = np.squeeze(block['longitude'].values)
-            levels = np.squeeze(block['level'].values) * 100
+        with xr.open_dataset(filename) as ds:
+            # Drop the singleton time dimension (name varies by CDS API version)
+            for time_dim in ('valid_time', 'time'):
+                if time_dim in ds.dims:
+                    ds = ds.isel({time_dim: 0})
+                    break
 
-        z = np.flip(z, axis=1)
+            lev_dim = 'pressure_level' if 'pressure_level' in ds.dims else 'level'
+            # Normalize dimension order by name so the file's on-disk layout
+            # doesn't matter
+            ds = ds.transpose('latitude', 'longitude', lev_dim)
 
-        # ECMWF appears to give me this backwards
+            z = ds['z'].values.astype(np.float64)
+            t = ds['t'].values
+            q = ds['q'].values
+            lats = ds['latitude'].values
+            lons = ds['longitude'].values
+            levels = ds[lev_dim].values * 100  # hPa -> Pa
+
+        # Files written by _batch_get_from_cds store z as geopotential height
+        # (already divided by g0); raw CDS files store geopotential (m^2/s^2).
+        # Geopotential height tops out below ~50 km, so use that to distinguish.
+        if np.nanmax(z) > 100_000:
+            z = z / self._g0
+
+        # Reorder axes (consistently across all cubes) so lats and lons are
+        # ascending and levels go surface -> TOA
         if lats[0] > lats[1]:
             z = z[::-1]
+            t = t[::-1]
+            q = q[::-1]
+            lats = lats[::-1]
+        if lons[0] > lons[1]:
+            z = z[:, ::-1]
             t = t[:, ::-1]
             q = q[:, ::-1]
-            lats = lats[::-1]
-        # Lons is usually ok, but we'll throw in a check to be safe
-        if lons[0] > lons[1]:
+            lons = lons[::-1]
+        if levels[0] < levels[-1]:
             z = z[..., ::-1]
             t = t[..., ::-1]
             q = q[..., ::-1]
-            lons = lons[::-1]
+            levels = levels[::-1]
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
@@ -320,26 +482,16 @@ class ECMWF(WeatherModel):
         self._t = t
         self._q = q
 
-        geo_hgt = (z / self._g0).transpose(1, 2, 0)
-
         # re-assign lons, lats to match heights
         self._lons, self._lats = np.meshgrid(lons, lats)
 
         # correct heights for latitude
-        self._get_heights(self._lats, geo_hgt)
+        self._get_heights(self._lats, z)
 
         self._p = np.broadcast_to(levels[np.newaxis, np.newaxis, :], self._zs.shape)
 
-        # Re-structure from (heights, lats, lons) to (lons, lats, heights)
-        self._t = self._t.transpose(1, 2, 0)
-        self._q = self._q.transpose(1, 2, 0)
         self._ys = self._lats.copy()
         self._xs = self._lons.copy()
-
-        # flip z to go from surface to toa
-        self._p = np.flip(self._p, axis=2)
-        self._t = np.flip(self._t, axis=2)
-        self._q = np.flip(self._q, axis=2)
 
     def _makeDataCubes(
         self,

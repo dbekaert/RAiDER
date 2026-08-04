@@ -58,6 +58,9 @@ class GMAO(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
+    def __model_levels__(self) -> None:
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
+
     def _fetch(self, out: Path) -> None:
         """Fetch weather model data from GMAO."""
         # calculate the array indices for slicing the GMAO variable arrays
