@@ -66,24 +66,25 @@ class MockWeatherModel(WeatherModel):
         self._xs = np.arange(-3, 4) + _LON0
         self._zs = np.linspace(0, 1e5, _N_Z)
         self._t = np.ones((len(self._ys), len(self._xs), _N_Z))
-        self._e = self._t.copy()
-        self._e[:, 3:, :] = 2
 
-        # Exponential pressure profile (like the real atmosphere), so the
-        # true ZTD has an exact closed form independent of the quadrature:
-        # int_z^ztop p0*exp(-z'/H) dz' = H * (p(z) - p(ztop))
+        # Exponential p and e profiles with a common scale height (like the
+        # real atmosphere), so both refractivities are single exponentials
+        # and the true ZTDs have exact closed forms independent of the
+        # quadrature: int_z^ztop N0*exp(-z'/H) dz' = H * (N(z) - N(ztop))
         _H = 2.0e4
-        _p = 32 * np.exp(-self._zs / _H)
+        _decay = np.exp(-self._zs / _H)
+        self._e = np.ones(self._t.shape) * _decay
+        self._e[:, 3:, :] *= 2
+        _p = 32 * _decay
         self._p = np.broadcast_to(_p, self._t.shape)
 
-        self._true_hydro_refr = np.broadcast_to(_p, (self._t.shape))
-        self._true_wet_ztd = 1e-6 * 2 * np.broadcast_to(np.flip(self._zs), (self._t.shape))
-        self._true_wet_ztd[:, 3:] = 2 * self._true_wet_ztd[:, 3:]
+        # wet refractivity: k2*e/t + k3*e/t^2 = 2*e  (k2 = k3 = t = 1)
+        self._true_wet_refr = 2 * self._e
+        self._true_wet_ztd = 1e-6 * 2 * _H * (self._e - self._e[..., -1:])
 
-        self._true_hydro_ztd = np.tile(1e-6 * _H * (_p - _p[-1]), (len(self._ys), len(self._xs), 1))
-
-        self._true_wet_refr = 2 * np.ones(self._t.shape)
-        self._true_wet_refr[:, 3:] = 4
+        # hydrostatic refractivity: k1*(p - (1 - Rd/Rv)*e)/t  (k1 = t = 1)
+        self._true_hydro_refr = self._p - (1 - self._R_d / self._R_v) * self._e
+        self._true_hydro_ztd = 1e-6 * _H * (self._true_hydro_refr - self._true_hydro_refr[..., -1:])
 
     def interpWet(self):  # noqa: ANN201, D102
         _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)

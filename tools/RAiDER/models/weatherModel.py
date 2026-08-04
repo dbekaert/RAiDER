@@ -398,8 +398,19 @@ class WeatherModel(ABC):
         self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
     def _get_hydro_refractivity(self) -> None:
-        """Calculate the hydrostatic delay from pressure and temperature."""
-        self._hydrostatic_refractivity = self._k1 * self._p / self._t
+        """Calculate the hydrostatic refractivity from pressure, temperature, and e.
+
+        Hydrostatic refractivity is k1 * P / Tv = k1 * Rd * rho (rho = total air
+        density, Davis et al. 1985), written here via the exact identity
+        k1 * P / Tv = k1 * (P - (1 - Rd/Rv) * e) / T. Using virtual temperature
+        (not T) is required for consistency with the k2' = k2 - k1*Rd/Rv wet
+        coefficient (0.233 K/Pa) used by all models; pairing k1*P/T with k2'
+        double-counts part of the water-vapor contribution (~2% of the wet
+        delay). This split matches the GNSS ZHD/ZWD convention.
+        """
+        self._hydrostatic_refractivity = (
+            self._k1 * (self._p - (1 - self._R_d / self._R_v) * self._e) / self._t
+        )
 
     def getWetRefractivity(self) -> np.ndarray:
         """Returns the data cube of refractivity."""

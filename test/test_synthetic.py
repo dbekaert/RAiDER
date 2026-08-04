@@ -52,6 +52,7 @@ def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_syn
     e = ds["e"]
     if wm_eq_type == "hydro":
         p = t
+        e = e * 0  # keep N_hydro = k1 constant under the k1*P/Tv formulation
     elif wm_eq_type == "wet_linear":
         e = t
         Obj._k3 = 0
