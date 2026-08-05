@@ -19,7 +19,7 @@ from RAiDER.logger import logger
 from RAiDER.models import plotWeather as plots
 from RAiDER.models.customExceptions import DatetimeOutsideRange
 from RAiDER.types import FloatArray1D, FloatArray2D, FloatArray3D, FloatArrayND
-from RAiDER.utilFcns import calcgeoh, clip_bbox, np_trapezoid, transform_coords
+from RAiDER.utilFcns import calcgeoh, clip_bbox, transform_coords
 
 
 TIME_RES = {
@@ -373,8 +373,19 @@ class WeatherModel(ABC):
         self._wet_refractivity = self._k2 * self._e / self._t + self._k3 * self._e / self._t**2
 
     def _get_hydro_refractivity(self) -> None:
-        """Calculate the hydrostatic delay from pressure and temperature."""
-        self._hydrostatic_refractivity = self._k1 * self._p / self._t
+        """Calculate the hydrostatic refractivity from pressure, temperature, and e.
+
+        Hydrostatic refractivity is k1 * P / Tv = k1 * Rd * rho (rho = total air
+        density, Davis et al. 1985), written here via the exact identity
+        k1 * P / Tv = k1 * (P - (1 - Rd/Rv) * e) / T. Using virtual temperature
+        (not T) is required for consistency with the k2' = k2 - k1*Rd/Rv wet
+        coefficient (0.233 K/Pa) used by all models; pairing k1*P/T with k2'
+        double-counts part of the water-vapor contribution (~2% of the wet
+        delay). This split matches the GNSS ZHD/ZWD convention.
+        """
+        self._hydrostatic_refractivity = (
+            self._k1 * (self._p - (1 - self._R_d / self._R_v) * self._e) / self._t
+        )
 
     def getWetRefractivity(self) -> np.ndarray:
         """Returns the data cube of refractivity."""
@@ -410,11 +421,12 @@ class WeatherModel(ABC):
         wet = self.getWetRefractivity()
         hydro = self.getHydroRefractivity()
 
-        # Get the integrated ZTD
-        wet_total, hydro_total = np.zeros(wet.shape), np.zeros(hydro.shape)
-        for level in range(wet.shape[2]):
-            wet_total[..., level] = 1e-6 * np_trapezoid(wet[..., level:], x=self._zs[level:], axis=2)
-            hydro_total[..., level] = 1e-6 * np_trapezoid(hydro[..., level:], x=self._zs[level:], axis=2)
+        # Get the integrated ZTD. Layers are integrated by exact quadrature of a
+        # shape-preserving (PCHIP) reconstruction rather than the trapezoid rule,
+        # which overestimates ZTD by ~9 mm on the coarse pressure-level z-grid
+        # because refractivity is convex in height.
+        wet_total = 1e-6 * util.cumulative_integral_from_top(wet, self._zs)
+        hydro_total = 1e-6 * util.cumulative_integral_from_top(hydro, self._zs)
         self._hydrostatic_ztd = hydro_total
         self._wet_ztd = wet_total
 

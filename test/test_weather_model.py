@@ -72,16 +72,21 @@ class MockWeatherModel(WeatherModel):
         _p = np.arange(31, -1, -1)
         self._p = np.broadcast_to(_p, self._t.shape)
 
-        self._true_hydro_refr = np.broadcast_to(_p, (self._t.shape))
-        self._true_wet_ztd = 1e-6 * 2 * np.broadcast_to(np.flip(self._zs), (self._t.shape))
-        self._true_wet_ztd[:, 3:] = 2 * self._true_wet_ztd[:, 3:]
-
-        self._true_hydro_ztd = np.zeros(self._t.shape)
-        for layer in range(len(self._zs)):
-            self._true_hydro_ztd[:, :, layer] = 1e-6 * 0.5 * (self._zs[-1] - self._zs[layer]) * _p[layer]
-
+        # Refractivity is linear in z here (p linear, e and t constant), so the
+        # integral has an exact closed form that any consistent quadrature rule
+        # must reproduce -- including the shape-preserving cubic used by
+        # cumulative_integral_from_top, which is exact on linear data.
         self._true_wet_refr = 2 * np.ones(self._t.shape)
         self._true_wet_refr[:, 3:] = 4
+
+        # hydrostatic refractivity uses virtual temperature:
+        # k1 * (p - (1 - Rd/Rv) * e) / t, with k1 = t = 1
+        self._true_hydro_refr = self._p - (1 - self._R_d / self._R_v) * self._e
+
+        # for N linear in z, int_z^ztop N dz = 0.5 * (N(z) + N(ztop)) * (ztop - z)
+        _dz = self._zs[-1] - self._zs
+        self._true_wet_ztd = 1e-6 * 0.5 * (self._true_wet_refr + self._true_wet_refr[..., -1:]) * _dz
+        self._true_hydro_ztd = 1e-6 * 0.5 * (self._true_hydro_refr + self._true_hydro_refr[..., -1:]) * _dz
 
     def interpWet(self):  # noqa: ANN201, D102
         _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)

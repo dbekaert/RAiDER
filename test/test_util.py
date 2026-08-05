@@ -15,6 +15,7 @@ from RAiDER.utilFcns import (
     clip_bbox,
     convertLons,
     cosd,
+    cumulative_integral_from_top,
     ecef2enu,
     enu2ecef,
     floorish,
@@ -1117,3 +1118,75 @@ def test_getChunkSize_no_multiprocessing():
             # Call the function and expect it to raise ImportError
             getChunkSize((500, 800))
 
+
+
+def _trapezoid_from_top(ns, zs):
+    """Reference trapezoid rule, for comparison against the shape-preserving one."""
+    seg = 0.5 * (ns[..., :-1] + ns[..., 1:]) * np.diff(zs)
+    out = np.zeros(ns.shape)
+    out[..., :-1] = np.cumsum(seg[..., ::-1], axis=-1)[..., ::-1]
+    return out
+
+
+def test_cumulative_integral_top_level_is_zero():
+    zs = np.linspace(0, 1e5, 32)
+    ns = np.exp(-zs / 8000.0)
+    out = cumulative_integral_from_top(ns, zs)
+    assert out[-1] == pytest.approx(0.0, abs=1e-12)
+
+
+def test_cumulative_integral_exact_for_constant():
+    zs = np.linspace(0, 1e5, 32)
+    ns = np.full_like(zs, 3.0)
+    out = cumulative_integral_from_top(ns, zs)
+    assert np.allclose(out, 3.0 * (zs[-1] - zs))
+
+
+def test_cumulative_integral_exact_for_linear():
+    """A shape-preserving cubic reproduces linear data exactly."""
+    zs = np.linspace(0, 1e5, 32)
+    ns = 50.0 - 4e-4 * zs
+    out = cumulative_integral_from_top(ns, zs)
+    expected = 0.5 * (ns + ns[-1]) * (zs[-1] - zs)
+    assert np.allclose(out, expected)
+
+
+def test_cumulative_integral_beats_trapezoid_on_exponential():
+    """Refractivity is convex in height, so the trapezoid rule overestimates."""
+    zs = np.linspace(0, 4e4, 32)
+    H = 8000.0
+    ns = 300.0 * np.exp(-zs / H)
+    truth = 300.0 * H * (np.exp(-zs / H) - np.exp(-zs[-1] / H))
+
+    pchip_err = np.abs(cumulative_integral_from_top(ns, zs) - truth).max()
+    trap_err = np.abs(_trapezoid_from_top(ns, zs) - truth).max()
+
+    assert trap_err > 0  # the trapezoid rule really is biased here
+    assert pchip_err < trap_err / 5
+    # and the trapezoid bias is one-signed (an overestimate)
+    assert (_trapezoid_from_top(ns, zs) - truth)[0] > 0
+
+
+def test_cumulative_integral_does_not_overshoot():
+    """The reconstruction must not dip below the data, which would be unphysical.
+
+    A natural cubic spline undershoots into negative refractivity on profiles
+    like this one; the shape-preserving cubic must not.
+    """
+    zs = np.linspace(0, 4e4, 32)
+    ns = np.concatenate([np.linspace(300.0, 5.0, 12), np.full(20, 1e-4)])
+    out = cumulative_integral_from_top(ns, zs)
+    # a non-negative integrand must give a non-increasing-from-top, non-negative integral
+    assert (out >= 0).all()
+    assert (np.diff(out) <= 1e-9).all()
+
+
+def test_cumulative_integral_vectorises_over_columns():
+    zs = np.linspace(0, 4e4, 32)
+    rng = np.random.default_rng(0)
+    cube = np.abs(rng.normal(50, 10, (4, 5, 32)))
+    out = cumulative_integral_from_top(cube, zs)
+    assert out.shape == cube.shape
+    for j in range(4):
+        for i in range(5):
+            assert np.allclose(out[j, i], cumulative_integral_from_top(cube[j, i], zs))
