@@ -1,5 +1,4 @@
 import datetime as dt
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -134,10 +133,11 @@ class ECMWF(WeatherModel):
 
         with tempfile.TemporaryDirectory() as temp_dir_str:
             temp_dir = Path(temp_dir_str)
-            out_path_lnsp_z = temp_dir / f'{out_path.stem}_lnsp_z'
-            out_path_t_q = temp_dir / f'{out_path.stem}_t_q'
+            out_path_combined = temp_dir / f'{out_path.stem}_combined'
 
             # Developed from https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
+            # All four variables are fetched in a single CDS request to halve queue wait time.
+            # lnsp and z are surface-only fields; t and q span all model levels.
             params = {
                 'class': 'ea',
                 'expver': '1',
@@ -153,51 +153,32 @@ class ECMWF(WeatherModel):
                 'area': [lat_max, lon_min, lat_min, lon_max],
                 'grid': [0.25, 0.25],
                 'format': 'netcdf',
+                'param': ['lnsp', 'z', 'q', 't'],
             }
-            # Make two separate requests: one for lnsp and z, and the other for t and q.
-            params['param'] = ['lnsp', 'z']
-            c.retrieve('reanalysis-era5-complete', params, out_path_lnsp_z)
-            params['param'] = ['q', 't']
-            c.retrieve('reanalysis-era5-complete', params, out_path_t_q)
+            c.retrieve('reanalysis-era5-complete', params, out_path_combined)
 
-            # RAiDER requires z data for all levels, but ERA-5 only provides it for
-            # the surface level. z can be computed for all levels using lnsp, t, and
-            # q, so that is what we will do.
-            # We will use the t/q dataset as a base to make a full dataset with
-            # lnsp, t, and q, and full z data.
-            shutil.copy(out_path_t_q, out_path)
-
-            with xr.open_dataset(out_path_lnsp_z) as ds_lnsp_z, xr.open_dataset(out_path_t_q) as ds_t_q:
-                # Compute full z
+            with xr.open_dataset(out_path_combined) as ds:
+                # ERA-5 only provides z at the surface level; compute it at all
+                # model levels from lnsp, t, and q via the hypsometric equation.
+                # .squeeze() removes the size-1 time (and level, for lnsp/z) dims,
+                # since calcgeoh expects (level, lat, lon) or (lat, lon) arrays.
                 z_full, _, _ = util.calcgeoh(
-                    # .squeeze(): data comes in with dimensions:
-                    # (valid time, model level, latitude, longitude),
-                    # and we need it in:
-                    # (model level, latitude, longitude),
-                    # and there is always exactly one valid time
-                    # (i.e., shape is always (1, ..., ..., ...)).
-                    lnsp=ds_lnsp_z['lnsp'].values.squeeze(),
-                    z_surface=ds_lnsp_z['z'].values.squeeze(),
-                    t=ds_t_q['t'].values.squeeze(),
-                    q=ds_t_q['q'].values.squeeze(),
+                    lnsp=ds['lnsp'].values.squeeze(),
+                    z_surface=ds['z'].values.squeeze(),
+                    t=ds['t'].values.squeeze(),
+                    q=ds['q'].values.squeeze(),
                     a=self._a,
                     b=self._b,
                     num_levels=self._levels,
                     R_d=self._R_d,
                 )
-                # Add the full z cube to the output dataset.
-                ds_out = ds_t_q.assign(
+                # Replace the surface-only z with the full model-level z cube,
+                # broadcast to match t's (time, level, lat, lon) dimensions.
+                ds_out = ds.assign(
                     z=xr.Variable(
-                        # Copy over t's dimensions as z's.
-                        # Could also have used q; all three are the same.
-                        dims=ds_t_q['t'].dims,
-                        # Present z_full as though it were wrapped in an array to
-                        # match the shape of the rest of the data.
+                        dims=ds['t'].dims,
                         data=np.broadcast_to(z_full, (1, *z_full.shape)),
                     ),
-                    # To fit the shape of the rest of the dataset, this is NaN on
-                    # every level but the first (the surface).
-                    lnsp=ds_lnsp_z['lnsp'],
                 )
                 ds_out.to_netcdf(out_path)
 
