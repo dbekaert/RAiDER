@@ -835,7 +835,7 @@ def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, int
             raise ValueError('Interpolating weather files is not available with interpolation method "none"')
 
         # combine datasets
-        ds_out = datasets[0]
+        ds_out = datasets[0].copy(deep=False)
         for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
             ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
         ds_out.attrs['Date1'] = 0
@@ -876,7 +876,7 @@ def combine_files_using_azimuth_time(wfiles, time: dt.datetime, times: list[dt.d
         wgts = get_inverse_weights_for_dates(time_grid, times)
 
         # combine datasets
-        ds_out = datasets[0]
+        ds_out = datasets[0].copy(deep=False)
         for var in ['wet', 'hydro', 'wet_total', 'hydro_total']:
             ds_out[var] = sum([wgt * ds[var] for (wgt, ds) in zip(wgts, datasets)])
         ds_out.attrs['Date1'] = 0
