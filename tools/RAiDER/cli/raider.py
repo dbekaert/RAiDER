@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 from collections.abc import Sequence
+from contextlib import ExitStack
 from pathlib import Path
 from textwrap import dedent
 from typing import Any, Optional, cast
@@ -811,10 +812,11 @@ def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, int
     """Interpolate downloaded weather files and save to a single file."""
     STYLE = {'center_time': '_timeInterp_', 'azimuth_time_grid': '_timeInterpAziGrid_'}
 
-    # read the individual datetime datasets
-    datasets = [xr.open_dataset(f) for f in wfiles]
+    # Use ExitStack to ensure invalid files are handled cleanly
+    with ExitStack() as stack:
+        # read the individual datetime datasets
+        datasets = [stack.enter_context(xr.open_dataset(f)) for f in wfiles]
 
-    try:
         # Pull the datetimes from the datasets
         times: list[dt.datetime] = []
         for ds in datasets:
@@ -850,19 +852,18 @@ def combine_weather_files(wfiles: list[Path], time: dt.datetime, model: str, int
 
         # write the combined results to disk (must happen before closing datasets)
         ds_out.to_netcdf(weather_model_file)
-    finally:
-        for ds in datasets:
-            ds.close()
 
     return weather_model_file
 
 
 def combine_files_using_azimuth_time(wfiles, time: dt.datetime, times: list[dt.datetime]):
     """Combine files using azimuth time interpolation."""
-    # read the individual datetime datasets
-    datasets = [xr.open_dataset(f) for f in wfiles]
 
-    try:
+    # Use ExitStack to ensure invalid files are handled cleanly
+    with ExitStack() as stack:
+        # read the individual datetime datasets
+        datasets = [stack.enter_context(xr.open_dataset(f)) for f in wfiles]
+
         # Pull the datetimes from the datasets
         times: list[dt.datetime] = []
         for ds in datasets:
@@ -893,9 +894,6 @@ def combine_files_using_azimuth_time(wfiles, time: dt.datetime, times: list[dt.d
 
         # write the combined results to disk (must happen before closing datasets)
         ds_out.to_netcdf(weather_model_file)
-    finally:
-        for ds in datasets:
-            ds.close()
 
     return weather_model_file
 
