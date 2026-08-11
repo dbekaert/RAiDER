@@ -115,81 +115,17 @@ class ECMWF(WeatherModel):
         out_path: Path,
     ) -> None:
         """Used for ERA5."""
-        import cdsapi
-
-        c = cdsapi.Client(verify=1)
-
-        if c.url == 'https://cds.climate.copernicus.eu/api/v2':
-            logger.warning(
-                'Old CDS API configuration detected: ECMWF released a breaking change in late 2024 that expired all '
-                'existing credentials. This run may fail with a 404 HTTP error, in which case you may have to '
-                'regenerate your CDS API credentials at https://cds.climate.copernicus.eu/how-to-api.'
-            )
-
         # round to the closest legal time
         corrected_DT = util.round_date(acqTime, dt.timedelta(hours=self._time_res))
         if not corrected_DT == acqTime:
             logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
 
-        if self._model_level_type == 'pl':
-            # Pressure-level downloads share the batch writer so that all
-            # pl files have the same layout and units (z in geopotential m)
-            self._batch_get_from_cds([(corrected_DT, out_path)], lat_min, lat_max, lon_min, lon_max)
-            return
-
-        param = ['lnsp', 'z', 'q', 't']
-        dataset = 'reanalysis-era5-complete'
-
-        with tempfile.TemporaryDirectory() as temp_dir_str:
-            temp_dir = Path(temp_dir_str)
-            out_path_combined = temp_dir / f'{out_path.stem}_combined'
-
-            # Developed from https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
-            # All four variables are fetched in a single CDS request to halve queue wait time.
-            # lnsp and z are surface-only fields; t and q span all model levels.
-            params = {
-                'class': 'ea',
-                'expver': '1',
-                'levelist': 'all',
-                'levtype': self._model_level_type,  # 'ml' for model levels or 'pl' for pressure levels
-                'stream': 'oper',
-                'type': 'an',
-                'date': corrected_DT.strftime('%Y-%m-%d'),
-                'time': corrected_DT.strftime('%H:%M'),
-                # step: With type=an, step is always "0". With type=fc, step can
-                # be any of "3/6/9/12".
-                'step': '0',
-                'area': [lat_max, lon_min, lat_min, lon_max],
-                'grid': [0.25, 0.25],
-                'format': 'netcdf',
-                'param': param,
-            }
-            c.retrieve(dataset, params, out_path_combined)
-
-            with xr.open_dataset(out_path_combined) as ds:
-                # ERA-5 only provides z at the surface level; compute it at all
-                # model levels from lnsp, t, and q via the hypsometric equation.
-                # .squeeze() removes the size-1 time (and level, for lnsp/z) dims,
-                # since calcgeoh expects (level, lat, lon) or (lat, lon) arrays.
-                z_full, _, _ = util.calcgeoh(
-                    lnsp=ds['lnsp'].values.squeeze(),
-                    z_surface=ds['z'].values.squeeze(),
-                    t=ds['t'].values.squeeze(),
-                    q=ds['q'].values.squeeze(),
-                    a=self._a,
-                    b=self._b,
-                    num_levels=self._levels,
-                    R_d=self._R_d,
-                )
-                # Replace the surface-only z with the full model-level z cube,
-                # broadcast to match t's (time, level, lat, lon) dimensions.
-                ds_out = ds.assign(
-                    z=xr.Variable(
-                        dims=ds['t'].dims,
-                        data=np.broadcast_to(z_full, (1, *z_full.shape)),
-                    ),
-                )
-                ds_out.to_netcdf(out_path)
+        # A single date is a one-element batch, so both level types go through the
+        # batch writer. That keeps one download path per level type rather than two
+        # that can drift apart: in particular the model-level branch requests the
+        # surface fields (lnsp and z, archived at model level 1 only) separately from
+        # t/q, which CDS will not return alongside each other in a single netCDF.
+        self._batch_get_from_cds([(corrected_DT, out_path)], lat_min, lat_max, lon_min, lon_max)
 
     def _batch_get_from_cds(
         self,
@@ -288,13 +224,11 @@ class ECMWF(WeatherModel):
                         )
                         ds_out.to_netcdf(out_path)
             else:
-                # Model level requests only include lnsp and z at the surface, so we have to make two requests to get
-                # the full model-level z cube. This is a bit less efficient, but still much better than making
-                # separate requests for each datetime. All four variables are fetched in a single CDS request to
-                # halve queue wait time.
-                # lnsp and z are surface fields; t and q span all model levels.
-                # For multi-datetime batch requests the CDS server returns mixed-level
-                # requests as separate files, so request the two groups independently.
+                # lnsp and z are surface fields, archived at model level 1 only; t and q
+                # span all model levels. CDS returns a mixed-level request as separate
+                # files rather than as one netCDF, so the two groups have to be requested
+                # independently. That is two requests instead of one, but still far better
+                # than a separate pair of requests for every datetime.
                 c.retrieve('reanalysis-era5-complete', {**base_params, 'param': ['lnsp', 'z']}, surface_file)
                 c.retrieve('reanalysis-era5-complete', {**base_params, 'param': ['t', 'q']}, ml_file)
 
@@ -387,7 +321,13 @@ class ECMWF(WeatherModel):
 
         # data ordering
         if lats[0] > lats[1]:
-            z: FloatArray3D = z[::-1]
+            # z is (level, lat, lon). It needs BOTH axes reversed: the latitude
+            # axis to match t/q/lnsp, and the level axis because the surface
+            # geopotential is taken as z[0] below (the stored cube runs
+            # top-of-atmosphere -> surface). Reversing only axis 0, as this
+            # previously did, left the height field mirrored north-south
+            # relative to the meteorology.
+            z: FloatArray3D = z[::-1, ::-1]
             lnsp: FloatArray2D = lnsp[::-1]
             t: FloatArray3D = t[:, ::-1]
             q: FloatArray3D = q[:, ::-1]
