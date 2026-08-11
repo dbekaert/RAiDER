@@ -62,8 +62,8 @@ def tropo_delay(
     """
     crs = CRS(out_proj)
 
-    # Load CRS from weather model file
-    with xr.load_dataset(weather_model_file) as ds:
+    # Load CRS and heights from weather model file (single open)
+    with xr.open_dataset(weather_model_file) as ds:
         try:
             wm_proj = CRS.from_wkt(ds['proj'].attrs['crs_wkt'])
         except KeyError:
@@ -71,9 +71,6 @@ def tropo_delay(
                 "WARNING: I can't find a CRS in the weather model file, so I will assume you are using WGS84"
             )
             wm_proj = CRS.from_epsg(4326)
-
-    # get heights
-    with xr.load_dataset(weather_model_file) as ds:
         wm_levels = ds.z.values
         toa = wm_levels.max() - 1
 
@@ -137,7 +134,7 @@ def _get_delays_on_cube(datetime: dt.datetime, weather_model_file, wm_proj, aoi,
     try:
         aoi.xpts
     except AttributeError:
-        with xr.load_dataset(weather_model_file) as ds:
+        with xr.open_dataset(weather_model_file) as ds:
             x_spacing = ds.x.diff(dim='x').values.mean()
             y_spacing = ds.y.diff(dim='y').values.mean()
         aoi.set_output_spacing(ll_res=np.min([x_spacing, y_spacing]))

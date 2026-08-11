@@ -9,6 +9,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Fixed
 * [811](https://github.com/dbekaert/RAiDER/pull/811) - Fixed a north-south flip in the ECMWF/ERA-5 model-level reader. `_load_model_level` reversed only the level axis of the geopotential cube (`z[::-1]`) while `t`, `q`, and `lnsp` had their latitude axis reversed, leaving heights mirrored in latitude relative to the meteorology. Surface height and surface pressure were anti-correlated (r = -0.54 where physics requires ~+1); sea-level ZTD over a 3-degree box spanned 1621-3233 mm instead of 2239-2395 mm. The error is antisymmetric in latitude, so it largely cancels in a domain average while being severe at individual points.
 
+### Changed
+* [808](https://github.com/dbekaert/RAiDER/pull/808) - Use `xarray.open_dataset` instead of `load_dataset` for memory efficiency, and guard weather-model file reads with explicit error handling so that datasets are always closed. Dropped the redundant full-cube `shutil.copy` from the ECMWF model-level download, and added regression tests covering the layout contract between `ECMWF._get_from_cds` and `ECMWF._makeDataCubes`.
+
 ## [0.6.0]
 ### Removed
 * [764](https://github.com/dbekaert/RAiDER/pull/764) - Removed Python 3.8 support. Python 3.9 is now the minimum version officially required to run RAiDER.

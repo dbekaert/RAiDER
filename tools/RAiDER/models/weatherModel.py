@@ -451,7 +451,7 @@ class WeatherModel(ABC):
             if not Path.exists(Path(path_weather_model)):
                 raise ValueError('Need to save cropped weather model as netcdf')
 
-            with xr.load_dataset(path_weather_model) as ds:
+            with xr.open_dataset(path_weather_model) as ds:
                 try:
                     xmin, xmax = ds.x.min(), ds.x.max()
                     ymin, ymax = ds.y.min(), ds.y.max()
