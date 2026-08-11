@@ -133,11 +133,10 @@ class ECMWF(WeatherModel):
 
         with tempfile.TemporaryDirectory() as temp_dir_str:
             temp_dir = Path(temp_dir_str)
-            out_path_combined = temp_dir / f'{out_path.stem}_combined'
+            out_path_lnsp_z = temp_dir / f'{out_path.stem}_lnsp_z'
+            out_path_t_q = temp_dir / f'{out_path.stem}_t_q'
 
             # Developed from https://confluence.ecmwf.int/display/CKB/How+to+download+ERA5
-            # All four variables are fetched in a single CDS request to halve queue wait time.
-            # lnsp and z are surface-only fields; t and q span all model levels.
             params = {
                 'class': 'ea',
                 'expver': '1',
@@ -153,20 +152,28 @@ class ECMWF(WeatherModel):
                 'area': [lat_max, lon_min, lat_min, lon_max],
                 'grid': [0.25, 0.25],
                 'format': 'netcdf',
-                'param': ['lnsp', 'z', 'q', 't'],
             }
-            c.retrieve('reanalysis-era5-complete', params, out_path_combined)
+            # lnsp and z are surface-only fields; t and q span all model levels. These
+            # must be two separate requests: CDS returns a mixed-level request as
+            # separate files rather than as one netCDF, and even where it does return a
+            # single file, the surface fields come back padded onto the full level axis,
+            # which breaks the (lat, lon) shape calcgeoh and _makeDataCubes expect.
+            params['param'] = ['lnsp', 'z']
+            c.retrieve('reanalysis-era5-complete', params, out_path_lnsp_z)
+            params['param'] = ['q', 't']
+            c.retrieve('reanalysis-era5-complete', params, out_path_t_q)
 
-            with xr.open_dataset(out_path_combined) as ds:
+            with xr.open_dataset(out_path_lnsp_z) as ds_lnsp_z, xr.open_dataset(out_path_t_q) as ds_t_q:
                 # ERA-5 only provides z at the surface level; compute it at all
                 # model levels from lnsp, t, and q via the hypsometric equation.
-                # .squeeze() removes the size-1 time (and level, for lnsp/z) dims,
-                # since calcgeoh expects (level, lat, lon) or (lat, lon) arrays.
+                # .squeeze() removes the size-1 time dim (and, for lnsp/z, the
+                # size-1 level dim), since calcgeoh expects (level, lat, lon) or
+                # (lat, lon) arrays.
                 z_full, _, _ = util.calcgeoh(
-                    lnsp=ds['lnsp'].values.squeeze(),
-                    z_surface=ds['z'].values.squeeze(),
-                    t=ds['t'].values.squeeze(),
-                    q=ds['q'].values.squeeze(),
+                    lnsp=ds_lnsp_z['lnsp'].values.squeeze(),
+                    z_surface=ds_lnsp_z['z'].values.squeeze(),
+                    t=ds_t_q['t'].values.squeeze(),
+                    q=ds_t_q['q'].values.squeeze(),
                     a=self._a,
                     b=self._b,
                     num_levels=self._levels,
@@ -174,11 +181,15 @@ class ECMWF(WeatherModel):
                 )
                 # Replace the surface-only z with the full model-level z cube,
                 # broadcast to match t's (time, level, lat, lon) dimensions.
-                ds_out = ds.assign(
+                ds_out = ds_t_q.assign(
                     z=xr.Variable(
-                        dims=ds['t'].dims,
+                        dims=ds_t_q['t'].dims,
                         data=np.broadcast_to(z_full, (1, *z_full.shape)),
                     ),
+                    # xarray aligns on the level coordinate, so this lands on the
+                    # first level and is NaN on every other one. _makeDataCubes
+                    # reads it back as lnsp[0, 0] to recover the (lat, lon) field.
+                    lnsp=ds_lnsp_z['lnsp'],
                 )
                 ds_out.to_netcdf(out_path)
 
