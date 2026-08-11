@@ -279,7 +279,7 @@ def readZTDFile(filename, col_name='ZTD'):
         # (e.g. ..._20210308T000000.csv); if that is not possible, fail with
         # an informative message rather than a cryptic pandas error.
         try:
-            data['Datetime'] = getDateTime(Path(filename))
+            file_datetime = getDateTime(Path(filename))
         except (AttributeError, ValueError):
             raise ValueError(
                 f"File '{filename}' has no 'Date' or 'Datetime' column and no "
@@ -289,6 +289,18 @@ def readZTDFile(filename, col_name='ZTD'):
                 "check that it points at the GNSS/model delay files and not, "
                 "e.g., a station-list file."
             )
+        # The filename carries one timestamp, so every row in the file gets it.
+        # That is correct for a single-epoch delay file and wrong for anything
+        # holding several epochs, so say so rather than silently collapsing them.
+        logger.warning(
+            'File %s has no "Date" or "Datetime" column, so all %d rows are being stamped '
+            'with %s, parsed from the filename. If this file covers more than one epoch, '
+            'those observations are no longer distinguishable in time.',
+            filename,
+            len(data),
+            file_datetime,
+        )
+        data['Datetime'] = file_datetime
 
     data.rename(columns={col_name: 'ZTD'}, inplace=True)
     return data
