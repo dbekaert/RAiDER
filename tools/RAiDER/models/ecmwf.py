@@ -244,7 +244,13 @@ class ECMWF(WeatherModel):
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
-            z: FloatArray3D = z[::-1]
+            # z is (level, lat, lon). It needs BOTH axes reversed: the latitude
+            # axis to match t/q/lnsp, and the level axis because the surface
+            # geopotential is taken as z[0] below (the stored cube runs
+            # top-of-atmosphere -> surface). Reversing only axis 0, as this
+            # previously did, left the height field mirrored north-south
+            # relative to the meteorology.
+            z: FloatArray3D = z[::-1, ::-1]
             lnsp: FloatArray2D = lnsp[::-1]
             t: FloatArray3D = t[:, ::-1]
             q: FloatArray3D = q[:, ::-1]
