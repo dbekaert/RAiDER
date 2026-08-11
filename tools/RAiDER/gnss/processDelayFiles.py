@@ -258,12 +258,14 @@ def readZTDFile(filename, col_name='ZTD'):
             errors='raise',
             format='%Y-%m-%d')
 
-        # If present, convert seconds → pandas Timedelta; otherwise zero
+        # If present, convert seconds → pandas Timedelta; otherwise zero.
+        # sec has to stay a Series either way: pd.to_timedelta on a bare 0
+        # returns a scalar Timedelta, which has no .values for the sum below.
         if 'times' in data.columns:
             sec = pd.to_numeric(data['times'], errors='coerce').fillna(0)
-            td = pd.to_timedelta(sec, unit='s')
         else:
-            td = pd.to_timedelta(0, unit='s')
+            sec = pd.Series(0, index=data.index)
+        td = pd.to_timedelta(sec, unit='s')
 
         # Combine using numpy/pandas arrays
         # (stays in datetime64[ns], never Python objects)
