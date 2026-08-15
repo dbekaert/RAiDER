@@ -7,6 +7,7 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
+* [814](https://github.com/dbekaert/RAiDER/pull/814) - Stopped the test suite from writing derived weather models into the repository. `combine_weather_files` writes the time-interpolated model next to its inputs, so fixtures pointing at tracked directories overwrote two committed `_timeInterp_` files under `test/gunw_test_data` and silently accumulated ~165 MB per run under `test/gunw_azimuth_test_data`, which `.gitignore` hides. The derived products are now untracked and ignored, and the weather-file fixtures hand tests a scratch directory of symlinks so the output lands outside the repo.
 * [811](https://github.com/dbekaert/RAiDER/pull/811) - Fixed a north-south flip in the ECMWF/ERA-5 model-level reader. `_load_model_level` reversed only the level axis of the geopotential cube (`z[::-1]`) while `t`, `q`, and `lnsp` had their latitude axis reversed, leaving heights mirrored in latitude relative to the meteorology. Surface height and surface pressure were anti-correlated (r = -0.54 where physics requires ~+1); sea-level ZTD over a 3-degree box spanned 1621-3233 mm instead of 2239-2395 mm. The error is antisymmetric in latitude, so it largely cancels in a domain average while being severe at individual points.
 
 ### Changed
