@@ -987,7 +987,19 @@ else:
     np_trapezoid = np.trapz
 
 
-def cumulative_integral_from_top(ns: np.ndarray, zs: np.ndarray) -> np.ndarray:
+# Peak working memory of the PCHIP build, in float64 words per input element:
+# the float64 view of the block, the 4 spline coefficients, and the 5
+# coefficients of its antiderivative.
+_PCHIP_WORDS_PER_ELEMENT = 10
+
+# Target working-set size for one chunk of columns. Only bounds the temporaries;
+# the input cube and the output array are unaffected.
+_PCHIP_CHUNK_BYTES = 64 * 1024**2
+
+
+def cumulative_integral_from_top(
+    ns: np.ndarray, zs: np.ndarray, chunk_bytes: int = _PCHIP_CHUNK_BYTES
+) -> np.ndarray:
     """Cumulatively integrate refractivity from each height level to the column top.
 
     Any quadrature rule is exact integration of some interpolant: the trapezoid
@@ -1012,18 +1024,41 @@ def cumulative_integral_from_top(ns: np.ndarray, zs: np.ndarray) -> np.ndarray:
         trapezoid   8.74 mm
         PCHIP       1.46 mm
 
+    Columns are independent, so they are processed in chunks: building one
+    interpolator over a whole weather-model cube costs ~20x the cube in
+    float64 temporaries, which is several GB for a CONUS-sized grid. Chunking
+    bounds that at chunk_bytes without changing the result -- the output is
+    bit-identical for any chunk size.
+
     Args:
         ns: refractivity, shape (..., nz), levels ascending in height along the last axis
         zs: 1-D array of heights (m), length nz, strictly ascending
+        chunk_bytes: approximate ceiling on the temporaries held per chunk
 
     Returns:
         ndarray of shape (..., nz): integral from each level to the top level
         (the top level is 0 by construction).
     """
-    ns = np.asarray(ns, dtype=np.float64)
+    ns = np.asarray(ns)
     zs = np.asarray(zs, dtype=np.float64)
+    nz = zs.size
 
-    # A single interpolator over the whole cube; PCHIP's antiderivative is
-    # evaluated analytically, so this stays vectorised over all columns.
-    antiderivative = PchipInterpolator(zs, ns, axis=-1).antiderivative()
-    return antiderivative(zs[-1])[..., np.newaxis] - antiderivative(zs)
+    if ns.shape[-1] != nz:
+        raise ValueError(f'ns has {ns.shape[-1]} levels along its last axis but zs has {nz}')
+
+    # Flatten the column dimensions so chunking is a single 1-D slice. This is a
+    # view for the C-contiguous cubes the weather models hand us.
+    flat = ns.reshape(-1, nz)
+    out = np.empty(flat.shape, dtype=np.float64)
+
+    per_column = nz * 8 * _PCHIP_WORDS_PER_ELEMENT
+    n_per_chunk = max(1, chunk_bytes // per_column)
+
+    for start in range(0, flat.shape[0], n_per_chunk):
+        block = flat[start : start + n_per_chunk].astype(np.float64, copy=False)
+        # PCHIP's antiderivative is evaluated analytically, so this stays
+        # vectorised over every column in the chunk.
+        antiderivative = PchipInterpolator(zs, block, axis=-1).antiderivative()
+        out[start : start + n_per_chunk] = antiderivative(zs[-1])[:, np.newaxis] - antiderivative(zs)
+
+    return out.reshape(ns.shape)

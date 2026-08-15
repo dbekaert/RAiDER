@@ -1190,3 +1190,21 @@ def test_cumulative_integral_vectorises_over_columns():
     for j in range(4):
         for i in range(5):
             assert np.allclose(out[j, i], cumulative_integral_from_top(cube[j, i], zs))
+
+
+def test_cumulative_integral_chunking_is_exact():
+    """Columns are independent, so the chunk size must not change the answer."""
+    zs = np.linspace(0, 4e4, 32)
+    rng = np.random.default_rng(0)
+    cube = np.abs(rng.normal(50, 10, (7, 9, 32)))
+
+    whole = cumulative_integral_from_top(cube, zs, chunk_bytes=1 << 30)
+    # small enough to force one column per chunk, and an in-between size that
+    # does not divide the 63 columns evenly
+    assert np.array_equal(whole, cumulative_integral_from_top(cube, zs, chunk_bytes=1))
+    assert np.array_equal(whole, cumulative_integral_from_top(cube, zs, chunk_bytes=32 * 8 * 10 * 5))
+
+
+def test_cumulative_integral_rejects_mismatched_levels():
+    with pytest.raises(ValueError, match='levels'):
+        cumulative_integral_from_top(np.ones((4, 5, 16)), np.linspace(0, 1e5, 32))
