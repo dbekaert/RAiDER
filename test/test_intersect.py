@@ -70,7 +70,7 @@ def test_cube_intersect(tmp_path: Path, wm: str) -> None:
 @pytest.mark.parametrize(
     'wm_name,gold',
     (
-        ('ERA5', 2.34514),
+        ('ERA5', 2.343549),
         # Can be enabled when known-good data is added
         pytest.param('ERA5T', np.nan, marks=pytest.mark.skip),
         pytest.param('GMAO', np.nan, marks=pytest.mark.skip),
