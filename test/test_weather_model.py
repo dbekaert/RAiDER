@@ -18,7 +18,13 @@ from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.hres import HRES
-from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
+from RAiDER.models.hrrr import (
+    HRRR,
+    HRRRAK,
+    RETIRED_HERBIE_SOURCES,
+    get_bounds_indices,
+    herbie_priority,
+)
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
 from RAiDER.models.weatherModel import (
@@ -345,6 +351,40 @@ def test_ztd(model: MockWeatherModel) -> None:
 
     assert np.allclose(m._wet_ztd, m._true_wet_ztd)
     assert np.allclose(m._hydrostatic_ztd, m._true_hydro_ztd)
+
+
+@pytest.mark.parametrize('model', ['hrrr', 'hrrrak', 'HRRR', 'HRRRAK'])
+def test_herbie_priority_drops_retired_sources(model: str) -> None:
+    """The retired Utah Pando mirrors must not be offered to Herbie.
+
+    They resolve in DNS but accept no connections, so leaving them in makes any
+    query for an unavailable time raise ConnectTimeout after ~150s instead of
+    reporting the file as unavailable.
+    """
+    priority = herbie_priority(model, 'nat', dt.datetime(2020, 1, 1, 12), 0)
+
+    assert priority, 'no usable sources left'
+    for retired in RETIRED_HERBIE_SOURCES:
+        assert retired not in priority
+    # the working cloud mirrors must survive the filter
+    assert {'aws', 'nomads', 'google'} <= set(priority)
+
+
+@pytest.mark.parametrize('model', ['hrrr', 'hrrrak', 'HRRR', 'HRRRAK'])
+def test_herbie_priority_preserves_herbie_ordering(model: str) -> None:
+    """Filtering must not reorder the sources Herbie chose for each model."""
+    import herbie.models as herbie_models
+    from types import SimpleNamespace
+
+    # Herbie looks templates up by the lower-cased model name
+    probe = SimpleNamespace(
+        model=model.lower(), product='nat', date=dt.datetime(2020, 1, 1, 12), fxx=0, fxx_subh=0
+    )
+    probe.get_remoteFileName = lambda **kwargs: ''
+    getattr(herbie_models, model.lower()).template(probe)
+
+    expected = [s for s in probe.SOURCES if s not in RETIRED_HERBIE_SOURCES]
+    assert herbie_priority(model, 'nat', dt.datetime(2020, 1, 1, 12), 0) == expected
 
 
 def test_get_bounds_indices() -> None:
