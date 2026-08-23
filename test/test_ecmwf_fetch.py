@@ -180,10 +180,38 @@ def test_load_model_level_populates_the_model(era5: ERA5, fetched: Path) -> None
 
 def test_z_surface_round_trips_as_a_surface_field(era5: ERA5, fetched: Path) -> None:
     """The downloaded surface geopotential survives the post-processing unchanged."""
+    with xr.open_dataset(fetched) as ds:
+        # on-disk layout: aligned on the level coordinate, like lnsp
+        assert ds['z_surface'].dims == ds['t'].dims
+
     *_, z_surface = era5._makeDataCubes(fetched)
 
     assert z_surface is not None
     assert np.array_equal(z_surface, np.full((NLAT, NLON), SURFACE_GEOPOTENTIAL))
+
+
+def test_unexpected_z_surface_layout_falls_back(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
+    """A z_surface stored in a foreign layout is ignored, not misread.
+
+    The reader recovers z_surface as ``[0, 0]`` of the level-aligned layout the
+    fetch writes; a 2D (lat, lon) variable read that way would yield a scalar.
+    The reader must fall back to the lowest full level instead of crashing or
+    broadcasting a wrong value.
+    """
+    foreign_path = tmp_path / 'foreign_z_surface.nc'
+    with xr.open_dataset(fetched) as ds:
+        ds = ds.drop_vars('z_surface')
+        ds['z_surface'] = (
+            ('latitude', 'longitude'),
+            np.full((NLAT, NLON), SURFACE_GEOPOTENTIAL),
+        )
+        ds.to_netcdf(foreign_path)
+
+    *_, z_surface = era5._makeDataCubes(foreign_path)
+    assert z_surface is None
+
+    era5._load_model_level(foreign_path)
+    assert np.all(np.isfinite(era5._zs))
 
 
 def test_column_heights_start_at_the_surface(era5: ERA5, fetched: Path) -> None:
@@ -208,8 +236,8 @@ def test_column_heights_start_at_the_surface(era5: ERA5, fetched: Path) -> None:
     # step writes that mutated array back out, so the loader re-applies the
     # moisture factor and lands slightly above the stored cube — for this
     # fixture (q = 1e-3, T <= 290 K) roughly R_d * 0.609e-3 * 290 * alpha / g0
-    # ~ 6 mm at the lowest level. The bug this test guards is three orders of
-    # magnitude above the 0.02 m tolerance.
+    # ~ 6 mm at the lowest level. The ~10 m bug this test guards exceeds the
+    # 0.02 m tolerance with ample margin.
     assert np.allclose(era5._zs[..., 0], expected_lowest, atol=0.02)
 
 

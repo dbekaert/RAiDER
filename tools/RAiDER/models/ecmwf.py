@@ -397,10 +397,12 @@ class ECMWF(WeatherModel):
             # lnsp, it is aligned on the level coordinate and read back from
             # the first level.
             z_surface = block['z_surface'].values[0, 0] if 'z_surface' in block else None
-            if z_surface is not None and not np.all(np.isfinite(z_surface)):
-                # A z_surface that did not land on the first level (or was
-                # written by some other layout) reads back as NaN; treat it
-                # as absent rather than poisoning the integration.
+            if z_surface is not None and (z_surface.shape != lnsp.shape or not np.all(np.isfinite(z_surface))):
+                # A z_surface stored in some other layout does not survive the
+                # [0, 0] read: a different rank yields the wrong shape, and a
+                # field that did not land on the first level reads back as
+                # NaN. Treat both as absent rather than poisoning the
+                # integration.
                 z_surface = None
             lats = block['latitude'].values
             lons = block['longitude'].values
