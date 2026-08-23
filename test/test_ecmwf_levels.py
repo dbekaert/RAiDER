@@ -50,7 +50,10 @@ def _write_synthetic_ml_file(path, include_z_surface=False):
     lnsp = np.log(psurf)
 
     # calcgeoh turns its t argument into virtual temperature in place, so pass
-    # a copy: the file must carry true temperature, as CDS delivers it.
+    # a copy so the synthetic file carries the temperature CDS puts in its raw
+    # response. (Files written by the real fetch currently store the mutated
+    # array instead — a separate defect; this fixture writes the intended
+    # layout.)
     z_full, _, _ = calcgeoh(
         lnsp=lnsp, t=t.copy(), q=q, z_surface=z_surface,
         a=model._a, b=model._b, R_d=model._R_d, num_levels=nlev,

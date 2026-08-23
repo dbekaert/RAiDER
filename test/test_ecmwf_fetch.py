@@ -206,8 +206,10 @@ def test_column_heights_start_at_the_surface(era5: ERA5, fetched: Path) -> None:
     # The tolerance leaves room for a separate, much smaller defect: calcgeoh
     # turns its t argument into virtual temperature in place, and the fetch
     # step writes that mutated array back out, so the loader re-applies the
-    # moisture factor and lands a few mm above the stored cube. The bug this
-    # test guards is three orders of magnitude larger.
+    # moisture factor and lands slightly above the stored cube — for this
+    # fixture (q = 1e-3, T <= 290 K) roughly R_d * 0.609e-3 * 290 * alpha / g0
+    # ~ 6 mm at the lowest level. The bug this test guards is three orders of
+    # magnitude above the 0.02 m tolerance.
     assert np.allclose(era5._zs[..., 0], expected_lowest, atol=0.02)
 
 
