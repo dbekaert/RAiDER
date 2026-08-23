@@ -10,6 +10,7 @@ That failure mode is antisymmetric in latitude, so it very nearly cancels in
 a domain average -- a mean-based check will not catch it. The assertions here
 are deliberately per-column.
 """
+
 import numpy as np
 import pytest
 import xarray as xr
@@ -21,8 +22,8 @@ from RAiDER.utilFcns import calcgeoh, geo_to_ht
 
 # Terrain rising steeply from south to north, so that a latitude reflection is
 # unambiguous: the southern rows are at sea level, the northern rows are high.
-_LATS_DESC = np.array([36.0, 35.0, 34.0, 33.0])   # ECMWF order: descending
-_LONS = np.array([240.0, 241.0, 242.0])           # 0-360, as ECMWF delivers
+_LATS_DESC = np.array([36.0, 35.0, 34.0, 33.0])  # ECMWF order: descending
+_LONS = np.array([240.0, 241.0, 242.0])  # 0-360, as ECMWF delivers
 _TERRAIN = {36.0: 3000.0, 35.0: 2000.0, 34.0: 1000.0, 33.0: 0.0}
 
 
@@ -55,8 +56,14 @@ def _write_synthetic_ml_file(path, include_z_surface=False):
     # array instead — a separate defect; this fixture writes the intended
     # layout.)
     z_full, _, _ = calcgeoh(
-        lnsp=lnsp, t=t.copy(), q=q, z_surface=z_surface,
-        a=model._a, b=model._b, R_d=model._R_d, num_levels=nlev,
+        lnsp=lnsp,
+        t=t.copy(),
+        q=q,
+        z_surface=z_surface,
+        a=model._a,
+        b=model._b,
+        R_d=model._R_d,
+        num_levels=nlev,
     )
 
     dims = ('valid_time', 'model_level', 'latitude', 'longitude')
@@ -113,7 +120,7 @@ def test_surface_height_matches_terrain_per_latitude(loaded_model):
     """
     m = loaded_model
     lats = m._lats[:, 0]
-    surface_height = m._zs[..., 0]   # _zs runs bottom -> top after loading
+    surface_height = m._zs[..., 0]  # _zs runs bottom -> top after loading
 
     expected = np.array([_TERRAIN[round(float(la))] for la in lats])
     # geo_to_ht applies a small geometric correction, so allow a loose tolerance;
