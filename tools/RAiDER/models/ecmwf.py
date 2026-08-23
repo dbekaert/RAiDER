@@ -1,6 +1,7 @@
 import datetime as dt
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import xarray as xr
@@ -186,10 +187,16 @@ class ECMWF(WeatherModel):
                         dims=ds_t_q['t'].dims,
                         data=np.broadcast_to(z_full, (1, *z_full.shape)),
                     ),
-                    # xarray aligns on the level coordinate, so this lands on the
-                    # first level and is NaN on every other one. _makeDataCubes
-                    # reads it back as lnsp[0, 0] to recover the (lat, lon) field.
+                    # xarray aligns lnsp and z_surface on the level coordinate,
+                    # so they land on the first level and are NaN on every other
+                    # one. _makeDataCubes reads them back as [0, 0] to recover
+                    # the (lat, lon) fields.
                     lnsp=ds_lnsp_z['lnsp'],
+                    # Also keep the downloaded surface geopotential: the loader
+                    # needs it to start the hydrostatic integration at the
+                    # terrain surface rather than at the lowest full level,
+                    # which sits roughly 10 m above it.
+                    z_surface=ds_lnsp_z['z'],
                 )
                 ds_out.to_netcdf(out_path)
 
@@ -232,13 +239,13 @@ class ECMWF(WeatherModel):
 
     def _load_model_level(self, filename, *args, **kwargs) -> None:
         # read data from netcdf file
-        lats, lons, _, _, t, q, lnsp, z = self._makeDataCubes(Path(filename))
+        lats, lons, _, _, t, q, lnsp, z, z_surface = self._makeDataCubes(Path(filename))
 
         # ECMWF appears to give me this backwards
         if lats[0] > lats[1]:
             # z is (level, lat, lon). It needs BOTH axes reversed: the latitude
             # axis to match t/q/lnsp, and the level axis because the surface
-            # geopotential is taken as z[0] below (the stored cube runs
+            # geopotential falls back to z[0] below (the stored cube runs
             # top-of-atmosphere -> surface). Reversing only axis 0, as this
             # previously did, left the height field mirrored north-south
             # relative to the meteorology.
@@ -247,6 +254,8 @@ class ECMWF(WeatherModel):
             t: FloatArray3D = t[:, ::-1]
             q: FloatArray3D = q[:, ::-1]
             lats: FloatArray1D = lats[::-1]
+            if z_surface is not None:
+                z_surface = z_surface[::-1]
         # Lons is usually ok, but we'll throw in a check to be safe
         if lons[0] > lons[1]:
             z: FloatArray3D = z[..., ::-1]
@@ -254,12 +263,21 @@ class ECMWF(WeatherModel):
             t: FloatArray3D = t[..., ::-1]
             q: FloatArray3D = q[..., ::-1]
             lons: FloatArray1D = lons[::-1]
+            if z_surface is not None:
+                z_surface = z_surface[..., ::-1]
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
 
-        geo_hgt, p, hgt = self._calculategeoh(z[0, :], lnsp, t, q)
+        if z_surface is None:
+            # Files fetched before z_surface was stored only carry the
+            # recomputed full-level cube: fall back to the lowest full level,
+            # which sits roughly 10 m above the terrain, so every column comes
+            # out shifted up by that amount.
+            z_surface = z[0]
+
+        geo_hgt, p, hgt = self._calculategeoh(z_surface, lnsp, t, q)
 
         self._lons, self._lats = np.meshgrid(lons, lats)
 
@@ -343,7 +361,17 @@ class ECMWF(WeatherModel):
         self,
         path: Path,
         verbose: bool = False,
-    ) -> WeatherModel.DataCubes:
+    ) -> tuple[
+        FloatArray1D,  # lats
+        FloatArray1D,  # lons
+        FloatArray1D,  # xs
+        FloatArray1D,  # ys
+        FloatArray3D,  # t
+        FloatArray3D,  # q
+        FloatArray2D,  # lnsp
+        FloatArray3D,  # z - full model-level geopotential cube
+        Optional[FloatArray2D],  # z_surface - surface geopotential, None for files fetched before it was stored
+    ]:
         """
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels.
@@ -364,10 +392,15 @@ class ECMWF(WeatherModel):
             q = block['q'].values.squeeze()
             lnsp = block['lnsp'].values[0, 0]
             z = block['z'].values.squeeze()
+            # Surface geopotential is only present in files fetched since it
+            # was preserved alongside the recomputed full-level cube; like
+            # lnsp, it is aligned on the level coordinate and read back from
+            # the first level.
+            z_surface = block['z_surface'].values[0, 0] if 'z_surface' in block else None
             lats = block['latitude'].values
             lons = block['longitude'].values
 
         if z.size == 0:
             raise RuntimeError('There is no data in z, you may have a problem with your mask')
 
-        return lats, lons, lats, lons, t, q, lnsp, z
+        return lats, lons, lats, lons, t, q, lnsp, z, z_surface
