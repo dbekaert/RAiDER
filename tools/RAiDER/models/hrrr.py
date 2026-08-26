@@ -26,14 +26,33 @@ HRRR_AK_PROJ = CRS.from_string(
 # Source: https://eric.clst.org/tech/usgeojson/
 AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.union_all("unary")
 
+# Retired HRRR mirrors that resolve in DNS but time out on connection.
+BLOCKED_HRRR_SOURCES = {'pando', 'pando2'}
+
+
+def _filtered_hrrr_sources(when: dt.datetime, model: str) -> List[str]:
+    """Return Herbie source priority with blocked entries removed."""
+    probe = Herbie(
+        when,
+        model=model,
+        product='nat',
+        fxx=0,
+    )
+
+    source_map = getattr(probe, 'SOURCES', {}) or {}
+    ordered_sources = list(source_map.keys())
+    return [src for src in ordered_sources if src not in BLOCKED_HRRR_SOURCES]
+
 
 def check_hrrr_dataset_availability(datetime: dt.datetime, model='hrrr') -> bool:
     """Note a file could still be missing within the models valid range."""
+    priority = _filtered_hrrr_sources(datetime, model)
     herbie = Herbie(
         datetime,
         model=model,
         product='nat',
         fxx=0,
+        priority=priority,
     )
     return herbie.grib_source is not None
 

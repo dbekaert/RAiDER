@@ -479,9 +479,8 @@ def test_provenance_metadata_for_tropo_group(weather_model_name: str,
 
 
 def test_hrrr_availability_check_using_gunw_ids(mocker):
-    """Hits the HRRR servers and makes sure that for certain dates they are indeed flagged as false
+    """Hits the HRRR servers and makes sure that for certain dates they are indeed flagged as false.
     """
-
     # All dates in 2023 are available
     gunw_id = 'S1-GUNW-A-R-106-tops-20230108_20230101-225947-00078W_00041N-PP-4be8-v3_0_0'
     assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
@@ -516,7 +515,8 @@ def test_hyp3_exits_succesfully_when_hrrr_not_available(mocker):
 
 def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_for_azimuth_time_test, mocker):
     """Makes sure for azimuth-time-grid interpolation that an error is raised if one of the files fails to
-    download and does not do additional processing"""
+    download and does not do additional processing.
+    """
     # The first part is the same mock up as done in test_azimuth_timing_interp_against_center_time_interp
     # Maybe better mocks could be done - but this is sufficient or simply a factory for this test given
     # This is reused so many times.
@@ -524,12 +524,12 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
     # These outputs are not needed since the orbits are specified above
     mocker.patch('RAiDER.s1_azimuth_timing.get_slc_id_from_point_and_time',
                 side_effect=[
-                                # Azimuth time
-                                ['reference_slc_id'],
-                                # using two "dummy" ids to mimic GUNW sec granules
-                                # See docstring
-                                ['secondary_slc_id', 'secondary_slc_id'],
-                                ])
+                     # Azimuth time
+                     ['reference_slc_id'],
+                     # using two "dummy" ids to mimic GUNW sec granules
+                     # See docstring
+                     ['secondary_slc_id', 'secondary_slc_id'],
+                ])
 
     mocker.patch(
         'RAiDER.s1_azimuth_timing.get_orbits_from_slc_ids',
@@ -557,7 +557,7 @@ def test_GUNW_workflow_fails_if_a_download_fails(gunw_azimuth_test, orbit_dict_f
 
 
 def test_value_error_for_file_inputs_when_no_data_available(mocker):
-    """See test_hyp3_exits_succesfully_when_hrrr_not_available above
+    """See test_hyp3_exits_succesfully_when_hrrr_not_available above.
 
     In this case if a bucket is specified rather than a file; the program exits successfully!
     """
@@ -576,32 +576,32 @@ def test_value_error_for_file_inputs_when_no_data_available(mocker):
 
 
 def test_get_acq_time_reference():
-  """Tests if function extracts acquisition time for reference"""
+  """Tests if function extracts acquisition time for reference."""
   gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
   expected_time = datetime(2022, 1, 15, 22, 59, 47)
   result = _get_acq_time_from_gunw_id(gunw_id, "reference")
   assert result == expected_time
 
 def test_get_acq_time_secondary():
-  """Tests if function extracts acquisition time for secondary"""
+  """Tests if function extracts acquisition time for secondary."""
   gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
   expected_time = datetime(2021, 12, 22, 22, 59, 47)
   result = _get_acq_time_from_gunw_id(gunw_id, "secondary")
   assert result == expected_time
 
 def test_invalid_reference_or_secondary():
-  """Tests if function raises error for invalid reference_or_secondary value"""
+  """Tests if function raises error for invalid reference_or_secondary value."""
   gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
   with pytest.raises(ValueError):
     _get_acq_time_from_gunw_id(gunw_id, "invalid")
 
 
 def test_check_hrrr_availability_all_true():
-    """Tests if check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation returns True 
-    when all check_hrrr_dataset_availability return True"""
-    
+    """Tests if check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation returns True
+    when all check_hrrr_dataset_availability return True.
+    """
     gunw_id = "S1-GUNW-A-R-106-tops-20220115_20211222-225947-00078W_00041N-PP-4be8-v3_0_0"
-    
+
     # Mock _get_acq_time_from_gunw_id to return expected times
     assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id)
 
@@ -612,16 +612,16 @@ def test_get_slc_ids_from_gunw():
 
     with pytest.raises(FileNotFoundError):
         get_slc_ids_from_gunw(Path('dummy.nc'))
-    
+
     with pytest.raises(ValueError):
         get_slc_ids_from_gunw(test_path, 'tertiary')
-    
+
     with pytest.raises(OSError):
         get_slc_ids_from_gunw(Path('test/weather_files/ERA-5_2020_01_30_T13_52_45_32N_35N_120W_115W.nc'))
 
 
 def test_get_acq_time_valid_slc_id():
-  """Tests if function extracts acquisition time for a valid slc_id"""
+  """Tests if function extracts acquisition time for a valid slc_id."""
   slc_id = "S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
   expected_time = pd.Timestamp("20210731T111940")
   result = get_acq_time_from_slc_id(slc_id)
@@ -629,28 +629,28 @@ def test_get_acq_time_valid_slc_id():
 
 
 def test_get_acq_time_invalid_slc_id():
-  """Tests if function raises error for an invalid slc_id format"""
+  """Tests if function raises error for an invalid slc_id format."""
   invalid_slc_id = "test/gunw_azimuth_test_data/S1B_OPER_AUX_POEORB_OPOD_20210731T111940_V20210710T225942_20210712T005942.EOF"
   with pytest.raises(ValueError):
     get_acq_time_from_slc_id(invalid_slc_id)
 
 
 def test_identify_which_hrrr_1():
-    """Tests if function identifies the correct HRRR file"""
+    """Tests if function identifies the correct HRRR file."""
     gunw_id = Path("test/gunw_azimuth_test_data/S1-GUNW-A-R-064-tops-20210723_20210711-015000-00119W_00033N-PP-6267-v2_0_6.nc")
     result = identify_which_hrrr(gunw_id)
     assert result == "HRRR"
 
 
 def test_identify_which_hrrr_2():
-    """Tests if function identifies the correct HRRR file"""
+    """Tests if function identifies the correct HRRR file."""
     gunw_id = Path("test/gunw_test_data/S1-GUNW-D-R-059-tops-20230320_20220418-180300-00179W_00051N-PP-c92e-v2_0_6.nc")
     result = identify_which_hrrr(gunw_id)
     assert result == "HRRRAK"
 
 
 def test_cast_to_hrrrak_1():
-    """Tests if function casts the HRRR file to HRRRAK"""
+    """Tests if function casts the HRRR file to HRRRAK."""
     ak_bounds = [51.0, 71.0, -175., -130.0]
     conus_bounds = [34.0,35.0, -91,  -90.0]
     model = HRRR()
@@ -660,7 +660,7 @@ def test_cast_to_hrrrak_1():
 
 
 def test_cast_to_hrrrak_2():
-    """Tests if function casts the HRRR file to HRRRAK"""
+    """Tests if function casts the HRRR file to HRRRAK."""
     ak_bounds = [51.0, 71.0, -175., -130.0]
     model = HRRRAK()
     model.checkValidBounds(ak_bounds)
@@ -668,7 +668,7 @@ def test_cast_to_hrrrak_2():
 
 
 def test_cast_to_hrrrak_2b():
-    """Tests if function casts the HRRR file to HRRRAK"""
+    """Tests if function casts the HRRR file to HRRRAK."""
     ak_bounds = [60.0, 65.0, -150., -120.0]
     model = HRRRAK()
     model.checkValidBounds(ak_bounds)
@@ -676,7 +676,7 @@ def test_cast_to_hrrrak_2b():
 
 
 def test_cast_to_hrrrak_3():
-    """Tests if function casts the HRRR file to HRRRAK"""
+    """Tests if function casts the HRRR file to HRRRAK."""
     conus_bounds = [34.0,35.0, -91,  -90.0]
     model = HRRR()
     model.checkValidBounds(conus_bounds)
@@ -684,7 +684,7 @@ def test_cast_to_hrrrak_3():
 
 
 def test_cast_to_hrrrak_4():
-    """Tests if function casts the HRRR file to HRRRAK"""
+    """Tests if function casts the HRRR file to HRRRAK."""
     europe_bounds = [-1, 1, -1, 1]
     model = HRRR()
     with pytest.raises(ValueError):
@@ -692,13 +692,13 @@ def test_cast_to_hrrrak_4():
 
 
 def test_identify_which_hrrr_invalid():
-    """Tests if function raises error for an invalid gunw_id format"""
+    """Tests if function raises error for an invalid gunw_id format."""
     invalid_gunw_id = "dummy.nc"
     with pytest.raises(NoWeatherModelData):
         identify_which_hrrr(invalid_gunw_id)
 
 
 def test_check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation_again():
-    """Tests if function raises error for an invalid gunw_id format"""
+    """Tests if function raises error for an invalid gunw_id format."""
     gunw_id = "S1-GUNW-D-R-044-tops-20240418_20240406-171649-00163W_00069N-PP-af6b-v3_0_1.nc"
     assert check_hrrr_dataset_availablity_for_s1_azimuth_time_interpolation(gunw_id, 'hrrrak') is True
