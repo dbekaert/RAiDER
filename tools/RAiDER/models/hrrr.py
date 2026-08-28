@@ -1,11 +1,13 @@
 import datetime as dt
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import geopandas as gpd
 import numpy as np
 import xarray as xr
 from herbie import Herbie
+from herbie import models as herbie_models
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, box
 from typing import Optional, Union, List, Tuple
@@ -27,6 +29,40 @@ HRRR_AK_PROJ = CRS.from_string(
 AK_GEO = gpd.read_file(Path(__file__).parent / 'data' / 'alaska.geojson.zip').geometry.union_all("unary")
 
 
+# Mirrors Herbie still lists that no longer serve data. The University of Utah
+# Pando archive is being wound down in favour of NOAA's Registry of Open Data on
+# AWS; its hosts still resolve in DNS but accept no connections.
+RETIRED_HERBIE_SOURCES = ('pando', 'pando2')
+
+
+def herbie_priority(model: str, product: str, date: dt.datetime, fxx: int=0) -> List[str]:
+    """Herbie's source order for a model, minus mirrors that no longer serve data.
+
+    Herbie tries each source it knows until one has the file, so a dead mirror
+    only costs time when *no* source has the file -- which is exactly what an
+    availability check asks. With the retired Pando hosts left in, a query for
+    an unavailable time walks the whole list and blocks on each Pando host
+    until TCP timeout, raising ConnectTimeout after ~150s instead of simply
+    reporting the file as unavailable.
+
+    The list is read from the model's own Herbie template rather than
+    hard-coded, so any mirror Herbie adds later is picked up automatically and
+    each model keeps Herbie's own ordering (`hrrr` tries AWS first, `hrrrak`
+    tries NOMADS first).
+    """
+    # Herbie lower-cases the model name before looking up its template, and
+    # callers reach here with either case (e.g. 'HRRR' from the GUNW workflow),
+    # so normalise the same way it does.
+    model = model.lower()
+
+    # The template only reads attributes off `self` to build its URLs, so a
+    # stand-in is enough to recover the source names without any network call.
+    probe = SimpleNamespace(model=model, product=product, date=date, fxx=fxx, fxx_subh=0)
+    probe.get_remoteFileName = lambda **kwargs: ''
+    getattr(herbie_models, model).template(probe)
+    return [source for source in probe.SOURCES if source not in RETIRED_HERBIE_SOURCES]
+
+
 def check_hrrr_dataset_availability(datetime: dt.datetime, model='hrrr') -> bool:
     """Note a file could still be missing within the models valid range."""
     herbie = Herbie(
@@ -34,6 +70,7 @@ def check_hrrr_dataset_availability(datetime: dt.datetime, model='hrrr') -> bool
         model=model,
         product='nat',
         fxx=0,
+        priority=herbie_priority(model, 'nat', datetime, 0),
     )
     return herbie.grib_source is not None
 
@@ -62,6 +99,7 @@ def download_hrrr_file(ll_bounds, DATE, out: Path, model='hrrr', product='nat', 
         overwrite=False,
         verbose=True,
         save_dir=out.parent,
+        priority=herbie_priority(model, product, DATE, fxx),
     )
 
     # Iterate through the list of datasets

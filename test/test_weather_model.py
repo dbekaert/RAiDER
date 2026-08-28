@@ -18,7 +18,13 @@ from RAiDER.models.era5 import ERA5
 from RAiDER.models.era5t import ERA5T
 from RAiDER.models.gmao import GMAO
 from RAiDER.models.hres import HRES
-from RAiDER.models.hrrr import HRRR, HRRRAK, get_bounds_indices
+from RAiDER.models.hrrr import (
+    HRRR,
+    HRRRAK,
+    RETIRED_HERBIE_SOURCES,
+    get_bounds_indices,
+    herbie_priority,
+)
 from RAiDER.models.merra2 import MERRA2
 from RAiDER.models.ncmr import NCMR
 from RAiDER.models.weatherModel import (
@@ -72,16 +78,21 @@ class MockWeatherModel(WeatherModel):
         _p = np.arange(31, -1, -1)
         self._p = np.broadcast_to(_p, self._t.shape)
 
-        self._true_hydro_refr = np.broadcast_to(_p, (self._t.shape))
-        self._true_wet_ztd = 1e-6 * 2 * np.broadcast_to(np.flip(self._zs), (self._t.shape))
-        self._true_wet_ztd[:, 3:] = 2 * self._true_wet_ztd[:, 3:]
-
-        self._true_hydro_ztd = np.zeros(self._t.shape)
-        for layer in range(len(self._zs)):
-            self._true_hydro_ztd[:, :, layer] = 1e-6 * 0.5 * (self._zs[-1] - self._zs[layer]) * _p[layer]
-
+        # Refractivity is linear in z here (p linear, e and t constant), so the
+        # integral has an exact closed form that any consistent quadrature rule
+        # must reproduce -- including the shape-preserving cubic used by
+        # cumulative_integral_from_top, which is exact on linear data.
         self._true_wet_refr = 2 * np.ones(self._t.shape)
         self._true_wet_refr[:, 3:] = 4
+
+        # hydrostatic refractivity uses virtual temperature:
+        # k1 * (p - (1 - Rd/Rv) * e) / t, with k1 = t = 1
+        self._true_hydro_refr = self._p - (1 - self._R_d / self._R_v) * self._e
+
+        # for N linear in z, int_z^ztop N dz = 0.5 * (N(z) + N(ztop)) * (ztop - z)
+        _dz = self._zs[-1] - self._zs
+        self._true_wet_ztd = 1e-6 * 0.5 * (self._true_wet_refr + self._true_wet_refr[..., -1:]) * _dz
+        self._true_hydro_ztd = 1e-6 * 0.5 * (self._true_hydro_refr + self._true_hydro_refr[..., -1:]) * _dz
 
     def interpWet(self):  # noqa: ANN201, D102
         _ifWet = rgi((self._ys, self._xs, self._zs), self._true_wet_refr)
@@ -340,6 +351,40 @@ def test_ztd(model: MockWeatherModel) -> None:
 
     assert np.allclose(m._wet_ztd, m._true_wet_ztd)
     assert np.allclose(m._hydrostatic_ztd, m._true_hydro_ztd)
+
+
+@pytest.mark.parametrize('model', ['hrrr', 'hrrrak', 'HRRR', 'HRRRAK'])
+def test_herbie_priority_drops_retired_sources(model: str) -> None:
+    """The retired Utah Pando mirrors must not be offered to Herbie.
+
+    They resolve in DNS but accept no connections, so leaving them in makes any
+    query for an unavailable time raise ConnectTimeout after ~150s instead of
+    reporting the file as unavailable.
+    """
+    priority = herbie_priority(model, 'nat', dt.datetime(2020, 1, 1, 12), 0)
+
+    assert priority, 'no usable sources left'
+    for retired in RETIRED_HERBIE_SOURCES:
+        assert retired not in priority
+    # the working cloud mirrors must survive the filter
+    assert {'aws', 'nomads', 'google'} <= set(priority)
+
+
+@pytest.mark.parametrize('model', ['hrrr', 'hrrrak', 'HRRR', 'HRRRAK'])
+def test_herbie_priority_preserves_herbie_ordering(model: str) -> None:
+    """Filtering must not reorder the sources Herbie chose for each model."""
+    import herbie.models as herbie_models
+    from types import SimpleNamespace
+
+    # Herbie looks templates up by the lower-cased model name
+    probe = SimpleNamespace(
+        model=model.lower(), product='nat', date=dt.datetime(2020, 1, 1, 12), fxx=0, fxx_subh=0
+    )
+    probe.get_remoteFileName = lambda **kwargs: ''
+    getattr(herbie_models, model.lower()).template(probe)
+
+    expected = [s for s in probe.SOURCES if s not in RETIRED_HERBIE_SOURCES]
+    assert herbie_priority(model, 'nat', dt.datetime(2020, 1, 1, 12), 0) == expected
 
 
 def test_get_bounds_indices() -> None:

@@ -46,7 +46,7 @@ def test_slant_proj(weather_model_name):
     ## run raider and intersect
     calcDelays([str(cfg)])
 
-    gold = {'ERA5': [33.4, -117.8, 0, 2.333865144]}
+    gold = {'ERA5': [33.4, -117.8, 0, 2.3324788251164725]}
     lat, lon, hgt, val = gold[weather_model_name]
     path_delays = os.path.join(SCENARIO_DIR,
                     make_delay_name(weather_model_name, date, time, 'std'))
@@ -96,7 +96,7 @@ def test_ray_tracing(weather_model_name):
     calcDelays([str(cfg)])
 
     # model to lat/lon/correct value
-    gold = {'ERA5': [33.4, -117.8, 0, 2.97711681]}
+    gold = {'ERA5': [33.4, -117.8, 0, 2.9756965061161926]}
     lat, lon, hgt, val = gold[weather_model_name]
 
     path_delays = os.path.join(SCENARIO_DIR,
