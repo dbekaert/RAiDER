@@ -4,7 +4,7 @@ import datetime as dt
 import pathlib
 import re
 from pathlib import Path
-from typing import Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -21,9 +21,13 @@ from RAiDER.constants import R_EARTH_MIN_WGS84 as Rmin
 from RAiDER.constants import _THRESHOLD_SECONDS
 from RAiDER.constants import _g0 as G0
 from RAiDER.constants import _g1 as G1
-from RAiDER.llreader import AOI
 from RAiDER.logger import logger
 from RAiDER.types import BB, RIO, CRSLike, FloatArray2D, FloatArray3D
+
+
+# Only used for type annotations
+if TYPE_CHECKING:
+    from RAiDER.llreader import AOI
 
 
 # Optional imports
@@ -421,7 +425,7 @@ def round_time(datetime: dt.datetime, roundTo: int=60) -> dt.datetime:
 
 
 def writeDelays(
-    aoi: AOI,  #: AOI,
+    aoi: 'AOI',
     wetDelay: ndarray,
     hydroDelay: ndarray,
     wet_path: Path,
