@@ -19,7 +19,6 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [810](https://github.com/dbekaert/RAiDER/pull/810) - Request all dates in a single CDS API call when pulling ERA-5 model levels, rather than one request per date.
   * Use the `reanalysis-era5-pressure-levels` archive when accessing pressure-level data, selectable via the new `level_type` config option (`ml` or `pl`), also exposed through `calcDelaysGUNW` and the example templates.
   * Add unit tests covering the ECMWF/ERA-5 download and geopotential paths.
->>>>>>> e5dc430 (update CHANGELOG)
 * [808](https://github.com/dbekaert/RAiDER/pull/808) - Use `xarray.open_dataset` instead of `load_dataset` for memory efficiency, and guard weather-model file reads with explicit error handling so that datasets are always closed. Dropped the redundant full-cube `shutil.copy` from the ECMWF model-level download, and added regression tests covering the layout contract between `ECMWF._get_from_cds` and `ECMWF._makeDataCubes`.
 
 ## [0.6.0]
