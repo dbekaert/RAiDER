@@ -99,9 +99,13 @@ def write_pl_file_batch_format(
 
     time_val = np.array(['2020-01-01'], dtype='datetime64[ns]')
 
+    # Match what the real writers record: the batch writer stores geopotential
+    # height in metres, a raw CDS file stores geopotential in m**2 s**-2.
+    z_attrs = {'units': 'm**2 s**-2'} if z_as_geopotential else {'units': 'm'}
+
     ds = xr.Dataset(
         {
-            'z': xr.Variable((time_dim_name, 'latitude', 'longitude', lev_dim_name), z4d),
+            'z': xr.Variable((time_dim_name, 'latitude', 'longitude', lev_dim_name), z4d, z_attrs),
             't': xr.Variable((time_dim_name, 'latitude', 'longitude', lev_dim_name), t4d),
             'q': xr.Variable((time_dim_name, 'latitude', 'longitude', lev_dim_name), q4d),
         },

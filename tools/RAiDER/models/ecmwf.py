@@ -182,6 +182,7 @@ class ECMWF(WeatherModel):
             temp_dir = Path(temp_dir_str)
             surface_file = temp_dir / 'batch_surface.nc'
             ml_file = temp_dir / 'batch_ml.nc'
+            pl_file = temp_dir / 'batch_pl.nc'
 
             if self._model_level_type == 'pl':
                 # MARS for reanalysis-era5-pressure-levels allows only one date per month
@@ -190,6 +191,7 @@ class ECMWF(WeatherModel):
                 # so batching is not possible. Issue one request per datetime.
                 for corrected_dt, out_path in times_and_paths:
                     pl_params = {
+                        'product_type': 'reanalysis',
                         'levelist': 'all',
                         'levtype': 'pl',
                         'date': corrected_dt.strftime('%Y-%m-%d'),
@@ -198,9 +200,9 @@ class ECMWF(WeatherModel):
                         'data_format': 'netcdf',
                         'param': param,
                     }
-                    c.retrieve(dataset, pl_params, ml_file)
+                    c.retrieve(dataset, pl_params, pl_file)
 
-                    with xr.open_dataset(ml_file) as ds:
+                    with xr.open_dataset(pl_file) as ds:
                         tc = 'valid_time' if 'valid_time' in ds.coords else 'time'
                         target = corrected_dt.replace(tzinfo=None)
                         ds_slice = ds.isel({tc: 0})
@@ -211,7 +213,14 @@ class ECMWF(WeatherModel):
 
                         ds_out = xr.Dataset(
                             {
-                                'z': xr.Variable((tc, 'latitude', 'longitude', 'pressure_level'), z_v),
+                                # z is written as geopotential HEIGHT (already divided
+                                # by g0). The units attribute records that so
+                                # _load_pressure_level does not have to infer it.
+                                'z': xr.Variable(
+                                    (tc, 'latitude', 'longitude', 'pressure_level'),
+                                    z_v,
+                                    {'units': 'm'},
+                                ),
                                 't': xr.Variable((tc, 'latitude', 'longitude', 'pressure_level'), t_v),
                                 'q': xr.Variable((tc, 'latitude', 'longitude', 'pressure_level'), q_v),
                             },
@@ -390,11 +399,26 @@ class ECMWF(WeatherModel):
             lats = ds['latitude'].values
             lons = ds['longitude'].values
             levels = ds[lev_dim].values * 100  # hPa -> Pa
+            z_units = ds['z'].attrs.get('units', '')
 
-        # Files written by _batch_get_from_cds store z as geopotential height
-        # (already divided by g0); raw CDS files store geopotential (m^2/s^2).
-        # Geopotential height tops out below ~50 km, so use that to distinguish.
-        if np.nanmax(z) > 100_000:
+        # Files written by _batch_get_from_cds store z as geopotential height in
+        # metres and record that in the units attribute; raw CDS files store
+        # geopotential in m**2 s**-2. Trust the units when present -- the
+        # magnitude fallback below misclassifies any file whose levels all sit
+        # below ~10 km.
+        if z_units:
+            is_geopotential = 'm**2' in z_units or 'm2' in z_units
+        else:
+            # 100,000 m**2 s**-2 is only ~10.2 km of geopotential height, so this
+            # is wrong for a request restricted to near-surface pressure levels.
+            is_geopotential = np.nanmax(z) > 100_000
+            logger.warning(
+                'Pressure-level file %s records no units for z; inferring %s from its magnitude.',
+                filename,
+                'geopotential' if is_geopotential else 'geopotential height',
+            )
+
+        if is_geopotential:
             z = z / self._g0
 
         # Reorder axes (consistently across all cubes) so lats and lons are

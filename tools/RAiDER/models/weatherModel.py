@@ -907,7 +907,7 @@ def checkContainment_raw(
         ]
         weather_model_box = unary_union(translates)
 
-        return weather_model_box.contains(input_box)
-
-    else:
-        return weather_model_box.contains(input_box)
+    # The question is always the same -- does the cached model cover the request?
+    # The branch above only widens the model box first, to handle a model whose
+    # longitudes run outside [-180, 180].
+    return weather_model_box.contains(input_box)
