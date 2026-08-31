@@ -372,7 +372,7 @@ def writeResultsToXarray(datetime: dt.datetime, xpts, ypts, zpts, crs, wetDelay,
     # Write z-axis information
     ds.z.attrs['axis'] = 'Z'
     ds.z.attrs['units'] = 'm'
-    ds.z.attrs['description'] = 'height above ellipsoid'
+    ds.z.attrs['description'] = 'height above geoid'
 
     # If in degrees
     if crs.axis_info[0].unit_name == 'degree':
@@ -411,7 +411,7 @@ def transformPoints(
     Args:
         lats: ndarray   - WGS-84 latitude (EPSG: 4326)
         lons: ndarray   - ditto for longitude
-        hgts: ndarray   - Ellipsoidal height in meters
+        hgts: ndarray   - Geoid-referenced (~MSL) height in meters
         old_proj: CRS   - the original projection of the points
         new_proj: CRS   - the new projection in which to return the points
 

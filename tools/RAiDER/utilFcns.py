@@ -369,14 +369,13 @@ def get_Re(lats: ndarray) -> ndarray:
 
 def geo_to_ht(lats: ndarray, hts: ndarray) -> ndarray:
     """
-    Convert geopotential height to ellipsoidal heights referenced to WGS84.
+    Convert geopotential height to geometric (geoid-referenced) height.
 
-    Note that this formula technically computes height above geoid (geometric height)
-    but the geoid is actually a perfect sphere;
-    Thus returned heights are above a reference ellipsoid, which most assume to be
-    a sphere (e.g., ECMWF - see https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height#ERA5:computepressureandgeopotentialonmodellevels,geopotentialheightandgeometricheight-Geopotentialheight
+    This formula computes height above the geoid (geometric height), treating
+    the geoid as a sphere of latitude-varying radius Re (e.g., ECMWF - see
+    https://confluence.ecmwf.int/display/CKB/ERA5%3A+compute+pressure+and+geopotential+on+model+levels%2C+geopotential+height+and+geometric+height#ERA5:computepressureandgeopotentialonmodellevels,geopotentialheightandgeometricheight-Geopotentialheight
     - "Geometric Height" and also https://confluence.ecmwf.int/display/CKB/ERA5%3A+data+documentation#ERA5:datadocumentation-Earthmodel).
-    However, by calculating the ellipsoid here we directly reference to WGS84.
+    The result is geoid-referenced (~MSL), not height above the WGS84 ellipsoid.
 
     Compare to MetPy:
     (https://unidata.github.io/MetPy/latest/api/generated/metpy.calc.geopotential_to_height.html)
@@ -388,10 +387,10 @@ def geo_to_ht(lats: ndarray, hts: ndarray) -> ndarray:
             latitude of points of interest
         hts: ndarray
             geopotential height at points of interest
-    
+
 
     Returns:
-        ndarray: geometric heights. These are approximate ellipsoidal heights referenced to WGS84
+        ndarray: geometric heights, referenced to the geoid (~MSL)
     """
     g_ll = _get_g_ll(lats)  # gravity function of latitude
     Re = get_Re(lats)  # Earth radius function of latitude
