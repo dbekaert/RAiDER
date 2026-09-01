@@ -52,7 +52,6 @@ def prepareWeatherModel(
 
     # get the path to the less processed weather model file
     path_wm_raw = make_raw_weather_data_filename(wmLoc, weather_model.Model(), time)
-
     # get the path to the more processed (cropped) weather model file
     path_wm_crop = weather_model.out_file(wmLoc)
 
@@ -133,6 +132,51 @@ def prepareWeatherModel(
         raise ExistingWeatherModelTooSmall
     else:
         return f
+
+
+def batch_download_weather_model(
+    weather_model,
+    times: list,
+    ll_bounds,
+    force_download: bool = False,
+) -> None:
+    """Pre-download all ERA5/ERA5T datetimes in a single CDS API call.
+
+    Writes per-datetime raw files to disk so that subsequent prepareWeatherModel
+    calls find them already present and skip the download step.
+    """
+    wmLoc = weather_model.get_wmLoc()
+    missing: list[tuple] = []
+    for t in times:
+        # fetch() is what normally screens the datetime; the batch path does not go
+        # through it, so a date inside the model's availability lag would otherwise be
+        # put into the request. prepareWeatherModel raises TryToKeepGoingError for this
+        # date later, which skips only that date instead of the whole stack.
+        try:
+            weather_model.checkTime(t)
+        except DatetimeOutsideRange:
+            logger.warning(
+                'Skipping %s in the batch download: outside the valid range for %s.', t, weather_model.Model()
+            )
+            continue
+
+        # prepareWeatherModel skips the download when EITHER the processed file or a
+        # containing raw file is present, so the batch has to make the same call. Raw
+        # files are commonly deleted to save disk while the processed ones are kept;
+        # checking only the raw file re-requests data that is about to be discarded.
+        if not force_download and weather_model.get_latlon_bounds() is not None:
+            weather_model.setTime(t)
+            if Path(weather_model.out_file(wmLoc)).exists():
+                continue
+
+        path_wm_raw = Path(make_raw_weather_data_filename(wmLoc, weather_model.Model(), t))
+        if not force_download and path_wm_raw.exists() and checkContainment_raw(path_wm_raw, ll_bounds):
+            continue
+        os.makedirs(path_wm_raw.parent, exist_ok=True)
+        missing.append((t, path_wm_raw))
+
+    if missing:
+        weather_model.batch_fetch(missing)
 
 
 def _weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, time, out, download_only) -> None:

@@ -127,7 +127,11 @@ def read_run_config_file(path: Path) -> RunConfig:
 
     return RunConfig(
         look_dir=yaml_data['look_dir'].lower(),
-        weather_model=parse_weather_model(yaml_data['weather_model'], aoi_group.aoi),
+        weather_model=parse_weather_model(
+            yaml_data['weather_model'],
+            aoi_group.aoi,
+            level_type=yaml_data.get('weather_model_levels'),
+        ),
         date_group=parse_dates(DateGroupUnparsed(**yaml_data['date_group'])),
         time_group=TimeGroup(**yaml_data['time_group']),
         aoi_group=aoi_group,
@@ -155,6 +159,33 @@ def drop_nans(d: dict[str, Any]) -> dict[str, Any]:
                 if d[key][k] is None:
                     del d[key][k]
     return d
+
+
+def collect_batch_times(
+    date_list: Sequence[dt.datetime],
+    interp_method: Optional[TimeInterpolationMethod],
+    model_step_hours: Optional[float],
+) -> list[dt.datetime]:
+    """Expand a list of acquisition times into every weather-model time needed.
+
+    Time interpolation makes each acquisition depend on more than one model
+    time, so the batch downloader has to know about all of them up front. The
+    result is deduplicated but keeps its original order, so the CDS request is
+    built from each distinct datetime exactly once.
+    """
+    from RAiDER.utilFcns import get_nearest_wmtimes
+
+    step = model_step_hours if model_step_hours is not None else 6
+    all_times: list[dt.datetime] = []
+    for t in date_list:
+        if interp_method == 'center_time':
+            all_times.extend(get_nearest_wmtimes(t, step))
+        elif interp_method == 'azimuth_time_grid':
+            all_times.extend(get_times_for_azimuth_interpolation(t, step))
+        else:
+            all_times.append(t)
+
+    return list(dict.fromkeys(all_times))  # deduplicate, preserve order
 
 
 def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
@@ -268,7 +299,27 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
 
     model.set_latlon_bounds(wm_bounds, output_spacing=aoi.get_output_spacing())
 
+    # Batch pre-download for CDS-backed models (ERA5, ERA5T): collect all
+    # datetimes across the full date_list and issue a single API request.
+    if hasattr(model, 'batch_fetch'):
+        # The batch is only an optimization: anything it fails to fetch is downloaded
+        # per-date below, with the usual per-date error handling. A failure here must
+        # not abort the run and lose every good date in the stack.
+        try:
+            RAiDER.processWM.batch_download_weather_model(
+                model,
+                collect_batch_times(
+                    run_config.date_group.date_list,
+                    run_config.time_group.interpolate_time,
+                    model.dtime(),
+                ),
+                wm_bounds,
+            )
+        except Exception:
+            logger.warning('Batch pre-download failed; falling back to per-date downloads.', exc_info=True)
+
     wet_paths: list[Path] = []
+    failed_times: list[dt.datetime] = []
     t: dt.datetime
     w: str
     f: str
@@ -335,12 +386,17 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
             continue
 
         if len(wfiles) == 0:
-            logger.error('No weather model data was successfully processed.')
-            raise NoWeatherModelData('Weather model processing failed for all times')
-        
+            # A single bad date should not abort a multi-date run, so record the
+            # failure and move on. If *every* date fails the run still raises,
+            # after the loop, rather than exiting successfully with no output.
+            logger.error('No weather model data was successfully processed for %s.', t)
+            failed_times.append(t)
+            continue
+
         # Get the weather model file
         weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
         if weather_model_file is None:
+            failed_times.append(t)
             continue
 
         # Now process the delays
@@ -356,6 +412,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
             )
         except RuntimeError:
             logger.exception('Datetime %s failed', t)
+            failed_times.append(t)
             continue
 
         # Different options depending on the inputs
@@ -399,6 +456,11 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
                 writeDelays(aoi, wet_delay, hydro_delay, out_path, hydro_path, outformat=run_config.runtime_group.raster_format)
 
         wet_paths.append(out_path)
+
+    if failed_times and len(failed_times) == len(run_config.date_group.date_list):
+        raise NoWeatherModelData(
+            f'Weather model processing failed for all {len(failed_times)} requested times'
+        )
 
     return wet_paths
 
@@ -569,6 +631,19 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         '--api_key',
         default=None,
         help='Weather model API KEY [key, password], depending on model.'
+    )
+
+    p.add_argument(
+        '-l',
+        '--model-levels',
+        default=None,
+        choices=['ml', 'model', 'pl', 'pressure'],
+        help=(
+            'Vertical level representation used by the weather model: model/native '
+            "levels ('ml'/'model') or pressure levels ('pl'/'pressure'). If not "
+            "specified, the model's built-in default is used. Note that not every "
+            'model supports every level type.'
+        ),
     )
 
     p.add_argument(

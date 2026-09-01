@@ -323,8 +323,33 @@ class WeatherModel(ABC):
         if time > dt.datetime.now(dt.timezone.utc) - self._lag_time:
             raise DatetimeOutsideRange(self.Model(), time)
 
+    def __model_levels__(self) -> None:
+        """Configure the model to use native/model levels.
+
+        Models that support model levels should override this to populate the
+        relevant level arrays (e.g. ``self._levels``, ``self._zlevels``).
+        """
+        raise NotImplementedError(f'Weather model {self.Model()} does not support model levels')
+
+    def __pressure_levels__(self) -> None:
+        """Configure the model to use pressure levels.
+
+        Models that support pressure levels should override this to populate the
+        relevant level arrays (e.g. ``self._levels``, ``self._zlevels``).
+        """
+        raise NotImplementedError(f'Weather model {self.Model()} does not support pressure levels')
+
     def setLevelType(self, levelType: str) -> None:
-        """Set the level type to model levels or pressure levels."""
+        """Set the level type to model levels or pressure levels.
+
+        Accepts the internal codes ('ml', 'nat' for model/native levels;
+        'pl', 'prs' for pressure levels) as well as the user-friendly aliases
+        'model' and 'pressure'.
+        """
+        # Map user-friendly aliases onto the internal codes.
+        aliases = {'model': 'ml', 'pressure': 'pl'}
+        levelType = aliases.get(levelType.lower(), levelType)
+
         if levelType in 'ml pl nat prs'.split():
             self._model_level_type = levelType
         else:
@@ -882,10 +907,7 @@ def checkContainment_raw(
         ]
         weather_model_box = unary_union(translates)
 
-        return weather_model_box.contains(input_box)
-
-    elif weather_model_box.contains(world_box):
-        return True
-
-    else:
-        return False
+    # The question is always the same -- does the cached model cover the request?
+    # The branch above only widens the model box first, to handle a model whose
+    # longitudes run outside [-180, 180].
+    return weather_model_box.contains(input_box)

@@ -35,3 +35,19 @@ orbits/
 /GUNW*.yaml
 /*.tif
 .coverage*
+
+# Test and run artifacts produced in-tree
+coverage.xml
+hrrr/
+site/
+test/**/weather_files/
+test/**/GMAO/
+test/weather_files/
+test/**/debug.log
+test/**/*.rdr
+test/**/*.hdr
+test/**/*.aux.xml
+test/**/*_ztd.nc
+test/**/*_ztd.csv
+test/**/*_ztd.tiff
+tools/RAiDER/models/*.grb

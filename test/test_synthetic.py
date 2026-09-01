@@ -19,6 +19,17 @@ from RAiDER.utilFcns import lla2ecef, write_yaml
 from test import ORB_DIR, TEST_DIR, WM_DIR, pushd
 
 
+# These tests fall through to a real ERA5 download from the CDS API, which
+# fails with an HTTP 401 in CI (a placeholder ~/.cdsapirc is often present, so
+# detecting credential *presence* is not enough -- they have to be valid).
+# Gate them behind an explicit opt-in flag so CI always skips and only someone
+# with working CDS credentials runs them deliberately.
+requires_cds = pytest.mark.skipif(
+    not os.environ.get("RAIDER_RUN_NETWORK_TESTS"),
+    reason="Real CDS download; set RAIDER_RUN_NETWORK_TESTS=1 (with valid credentials) to run",
+)
+
+
 def update_model(wm_file: str, wm_eq_type: str, wm_dir: str = "weather_files_synth"):
     """Update weather model file by the equation to test, write it to disk.
 
@@ -215,6 +226,7 @@ def test_dl_real(tmp_path, region, mod="ERA5"):
         assert proc.returncode == 0, 'RAiDER did not complete successfully'
 
 
+@requires_cds
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
     """Test hydrostatic equation: Hydro Refractivity = k1 * (Pressure/Temp).
@@ -278,6 +290,7 @@ def test_hydrostatic_eq(tmp_path, region, mod="ERA-5"):
     del da
 
 
+@requires_cds
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
     """Test linear part of wet equation.
@@ -354,6 +367,7 @@ def test_wet_eq_linear(tmp_path, region, mod="ERA-5"):
             shutil.rmtree(dir_to_del)
 
 
+@requires_cds
 @pytest.mark.parametrize("region", "AK LA Fort".split())
 def test_wet_eq_nonlinear(tmp_path, region, mod="ERA-5"):
     """Test the nonlinear part of the wet equation."""
