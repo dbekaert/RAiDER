@@ -148,6 +148,27 @@ def batch_download_weather_model(
     wmLoc = weather_model.get_wmLoc()
     missing: list[tuple] = []
     for t in times:
+        # fetch() is what normally screens the datetime; the batch path does not go
+        # through it, so a date inside the model's availability lag would otherwise be
+        # put into the request. prepareWeatherModel raises TryToKeepGoingError for this
+        # date later, which skips only that date instead of the whole stack.
+        try:
+            weather_model.checkTime(t)
+        except DatetimeOutsideRange:
+            logger.warning(
+                'Skipping %s in the batch download: outside the valid range for %s.', t, weather_model.Model()
+            )
+            continue
+
+        # prepareWeatherModel skips the download when EITHER the processed file or a
+        # containing raw file is present, so the batch has to make the same call. Raw
+        # files are commonly deleted to save disk while the processed ones are kept;
+        # checking only the raw file re-requests data that is about to be discarded.
+        if not force_download and weather_model.get_latlon_bounds() is not None:
+            weather_model.setTime(t)
+            if Path(weather_model.out_file(wmLoc)).exists():
+                continue
+
         path_wm_raw = Path(make_raw_weather_data_filename(wmLoc, weather_model.Model(), t))
         if not force_download and path_wm_raw.exists() and checkContainment_raw(path_wm_raw, ll_bounds):
             continue

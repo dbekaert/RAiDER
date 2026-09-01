@@ -156,27 +156,27 @@ class ECMWF(WeatherModel):
         date_str = '/'.join(seen_dates)
         time_str = '/'.join(seen_times)
 
-        base_params = {
-            'class': 'ea',
-            'expver': '1',
-            'levelist': 'all',
-            'levtype': self._model_level_type,
-            'stream': 'oper',
-            'type': 'an',
-            'date': date_str,
-            'time': time_str,
-            'step': '0',
-            'area': [lat_max, lon_min, lat_min, lon_max],
-            'grid': [0.25, 0.25],
-            'format': 'netcdf',
-        }
-
         if self._model_level_type == 'ml':
-            param = ['lnsp', 'z', 'q', 't']
             dataset = 'reanalysis-era5-complete'
+            # Only the model-level branch uses these; the pressure-level branch builds
+            # its own request per datetime below.
+            base_params = {
+                'class': 'ea',
+                'expver': '1',
+                'levelist': 'all',
+                'levtype': self._model_level_type,
+                'stream': 'oper',
+                'type': 'an',
+                'date': date_str,
+                'time': time_str,
+                'step': '0',
+                'area': [lat_max, lon_min, lat_min, lon_max],
+                'grid': [0.25, 0.25],
+                'format': 'netcdf',
+            }
         else:
-            param = ['z', 't', 'q']
             dataset = 'reanalysis-era5-pressure-levels'
+            param = ['z', 't', 'q']
 
         with tempfile.TemporaryDirectory() as temp_dir_str:
             temp_dir = Path(temp_dir_str)
@@ -205,11 +205,17 @@ class ECMWF(WeatherModel):
                     with xr.open_dataset(pl_file) as ds:
                         tc = 'valid_time' if 'valid_time' in ds.coords else 'time'
                         target = corrected_dt.replace(tzinfo=None)
-                        ds_slice = ds.isel({tc: 0})
+                        # Resolve the level dimension by name and normalise the axis
+                        # order the same way _load_pressure_level does, rather than
+                        # assuming a positional layout: a positional transpose swaps
+                        # lat/lon identically across z/t/q, so a differently ordered
+                        # response produces garbage with no shape error to catch it.
+                        lev_dim = 'pressure_level' if 'pressure_level' in ds.dims else 'level'
+                        ds_slice = ds.isel({tc: 0}).transpose('latitude', 'longitude', lev_dim, ...)
 
-                        z_v = (ds_slice['z'].values.squeeze() / self._g0).transpose(1, 2, 0)[np.newaxis]
-                        t_v = ds_slice['t'].values.squeeze().transpose(1, 2, 0)[np.newaxis]
-                        q_v = ds_slice['q'].values.squeeze().transpose(1, 2, 0)[np.newaxis]
+                        z_v = (ds_slice['z'].values.squeeze() / self._g0)[np.newaxis]
+                        t_v = ds_slice['t'].values.squeeze()[np.newaxis]
+                        q_v = ds_slice['q'].values.squeeze()[np.newaxis]
 
                         ds_out = xr.Dataset(
                             {
@@ -226,7 +232,7 @@ class ECMWF(WeatherModel):
                             },
                             coords={
                                 tc: np.array([target], dtype='datetime64[ns]'),
-                                'pressure_level': ds_slice['pressure_level'].values,
+                                'pressure_level': ds_slice[lev_dim].values,
                                 'latitude': ds_slice['latitude'].values,
                                 'longitude': ds_slice['longitude'].values,
                             },
@@ -238,13 +244,18 @@ class ECMWF(WeatherModel):
                 # files rather than as one netCDF, so the two groups have to be requested
                 # independently. That is two requests instead of one, but still far better
                 # than a separate pair of requests for every datetime.
-                c.retrieve('reanalysis-era5-complete', {**base_params, 'param': ['lnsp', 'z']}, surface_file)
-                c.retrieve('reanalysis-era5-complete', {**base_params, 'param': ['t', 'q']}, ml_file)
+                c.retrieve(dataset, {**base_params, 'param': ['lnsp', 'z']}, surface_file)
+                c.retrieve(dataset, {**base_params, 'param': ['t', 'q']}, ml_file)
 
                 with xr.open_dataset(surface_file) as ds_surface, xr.open_dataset(ml_file) as ds_ml:
                     # CDS API uses 'valid_time' in newer versions, 'time' in older ones
                     tc_s = 'valid_time' if 'valid_time' in ds_surface.coords else 'time'
                     tc_m = 'valid_time' if 'valid_time' in ds_ml.coords else 'time'
+                    # Same normalisation as the pressure-level branch: resolve the level
+                    # dimension by name and put the axes in the order the writer below
+                    # declares, instead of trusting the response's on-disk layout.
+                    lev_dim = 'model_level' if 'model_level' in ds_ml.dims else 'level'
+                    ds_ml = ds_ml.transpose(..., lev_dim, 'latitude', 'longitude')
 
                     for corrected_dt, out_path in times_and_paths:
                         # Strip timezone: numpy datetime64 coordinates are timezone-naive
@@ -280,7 +291,7 @@ class ECMWF(WeatherModel):
                             },
                             coords={
                                 tc_m: np.array([target], dtype='datetime64[ns]'),
-                                'model_level': ml_slice['model_level'].values,
+                                'model_level': ml_slice[lev_dim].values,
                                 'latitude': ml_slice['latitude'].values,
                                 'longitude': ml_slice['longitude'].values,
                             },
@@ -391,7 +402,10 @@ class ECMWF(WeatherModel):
             lev_dim = 'pressure_level' if 'pressure_level' in ds.dims else 'level'
             # Normalize dimension order by name so the file's on-disk layout
             # doesn't matter
-            ds = ds.transpose('latitude', 'longitude', lev_dim)
+            # The ellipsis absorbs any dim not listed here (ERA-5T responses sometimes
+            # carry an extra 'expver'); without it transpose demands a permutation of
+            # every dim and raises ValueError.
+            ds = ds.transpose('latitude', 'longitude', lev_dim, ...)
 
             z = ds['z'].values.astype(np.float64)
             t = ds['t'].values

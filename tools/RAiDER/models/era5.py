@@ -46,13 +46,17 @@ class ERA5(ECMWF):
 
     def batch_fetch(self, times_and_paths: list[tuple[dt.datetime, Path]]) -> None:
         """Download multiple ERA5 datetimes in a single CDS API call."""
+        # Everything handed in is downloaded. The caller
+        # (processWM.batch_download_weather_model) is the only place that knows whether
+        # an existing file actually covers the requested bounds, and whether
+        # force_download was set; re-testing out_path.exists() here would throw that
+        # decision away.
         rounded: list[tuple[dt.datetime, Path]] = []
         for acqTime, out_path in times_and_paths:
             corrected_DT = util.round_date(acqTime, dt.timedelta(hours=self._time_res))
             if corrected_DT != acqTime:
                 logger.warning('Rounded given datetime from  %s to %s', acqTime, corrected_DT)
-            if not out_path.exists():
-                rounded.append((corrected_DT, out_path))
+            rounded.append((corrected_DT, out_path))
 
         if not rounded:
             return

@@ -481,8 +481,14 @@ class TestLoadModelLevel:
 # ---------------------------------------------------------------------------
 
 class TestBatchFetch:
-    def test_skips_already_downloaded_file(self, era5: ERA5, tmp_path: Path) -> None:
-        """Files that already exist must not be re-queued."""
+    def test_downloads_an_existing_file_when_asked_to(self, era5: ERA5, tmp_path: Path) -> None:
+        """batch_fetch downloads what it is given, existing file or not.
+
+        Only the caller (processWM.batch_download_weather_model) knows whether a file
+        on disk actually covers the requested bounds and whether force_download was
+        set. batch_fetch second-guessing that with its own exists() check is what made
+        force_download a no-op.
+        """
         existing = tmp_path / 'already_there.nc'
         existing.touch()
 
@@ -491,7 +497,8 @@ class TestBatchFetch:
         with patch.object(era5, '_batch_get_from_cds') as mock_batch:
             era5.batch_fetch([(dt.datetime(2020, 1, 1, 0), existing)])
 
-        mock_batch.assert_not_called()
+        mock_batch.assert_called_once()
+        assert [p for _, p in mock_batch.call_args[0][0]] == [existing]
 
     def test_queues_missing_file(self, era5: ERA5, tmp_path: Path) -> None:
         """A file that does not exist must be passed to _batch_get_from_cds."""
@@ -507,7 +514,7 @@ class TestBatchFetch:
         assert missing in queued_paths
 
     def test_mixed_existing_and_missing(self, era5: ERA5, tmp_path: Path) -> None:
-        """Only missing files must be queued; existing ones silently skipped."""
+        """Every path handed in is queued, whether or not it is already on disk."""
         existing = tmp_path / 'exists.nc'
         existing.touch()
         missing = tmp_path / 'new.nc'
@@ -521,10 +528,8 @@ class TestBatchFetch:
             ])
 
         mock_batch.assert_called_once()
-        queued = mock_batch.call_args[0][0]
-        queued_paths = [p for _, p in queued]
-        assert missing in queued_paths
-        assert existing not in queued_paths
+        queued_paths = [p for _, p in mock_batch.call_args[0][0]]
+        assert queued_paths == [existing, missing]
 
     def test_empty_input_does_not_call_batch(self, era5: ERA5, tmp_path: Path) -> None:
         era5.set_latlon_bounds([48.0, 53.0, 9.0, 15.0])

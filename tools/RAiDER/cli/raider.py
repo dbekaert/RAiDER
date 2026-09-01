@@ -302,15 +302,21 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
     # Batch pre-download for CDS-backed models (ERA5, ERA5T): collect all
     # datetimes across the full date_list and issue a single API request.
     if hasattr(model, 'batch_fetch'):
-        RAiDER.processWM.batch_download_weather_model(
-            model,
-            collect_batch_times(
-                run_config.date_group.date_list,
-                run_config.time_group.interpolate_time,
-                model.dtime(),
-            ),
-            wm_bounds,
-        )
+        # The batch is only an optimization: anything it fails to fetch is downloaded
+        # per-date below, with the usual per-date error handling. A failure here must
+        # not abort the run and lose every good date in the stack.
+        try:
+            RAiDER.processWM.batch_download_weather_model(
+                model,
+                collect_batch_times(
+                    run_config.date_group.date_list,
+                    run_config.time_group.interpolate_time,
+                    model.dtime(),
+                ),
+                wm_bounds,
+            )
+        except Exception:
+            logger.warning('Batch pre-download failed; falling back to per-date downloads.', exc_info=True)
 
     wet_paths: list[Path] = []
     failed_times: list[dt.datetime] = []
@@ -390,6 +396,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
         # Get the weather model file
         weather_model_file = getWeatherFile(wfiles, times, t, model._Name, interp_method)
         if weather_model_file is None:
+            failed_times.append(t)
             continue
 
         # Now process the delays
@@ -405,6 +412,7 @@ def calcDelays(iargs: Optional[Sequence[str]]=None) -> list[Path]:
             )
         except RuntimeError:
             logger.exception('Datetime %s failed', t)
+            failed_times.append(t)
             continue
 
         # Different options depending on the inputs
