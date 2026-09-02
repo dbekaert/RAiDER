@@ -201,6 +201,73 @@ def _parse_crs(crs: Union[int, str, CRS]) -> CRS:
         return CRS(crs)
 
 
+_EGM96_CRS = CRS.from_epsg(9707)  # WGS 84 + EGM96 height
+
+
+def _convert_height_datum(
+    lats: np.ndarray,
+    lons: np.ndarray,
+    heights: np.ndarray,
+    src_crs: CRS,
+    dst_crs: CRS,
+) -> np.ndarray:
+    """Transform heights from src_crs to dst_crs via PROJ.
+
+    PROJ requires the EGM96 geoid grid for any EGM96 <-> ellipsoidal
+    conversion, which ships with the ``proj-data`` conda package.  If the
+    grid is absent locally the function transparently enables the PROJ CDN
+    for a one-time download and then restores the previous network state.
+    If the download also fails, input heights are returned unchanged with a
+    warning.
+    """
+    def _build_and_apply() -> tuple:
+        """Return (transformer, converted_heights)."""
+        from pyproj import Transformer
+        t = Transformer.from_crs(src_crs, dst_crs, always_xy=True)
+        _, _, h = t.transform(lons, lats, heights)
+        return t, h
+
+    try:
+        t, h_out = _build_and_apply()
+
+        # PROJ silently falls back to a noop when the EGM96 grid is missing.
+        # to_proj4() returns '+proj=noop' when PROJ fell back to a no-op
+        # because the EGM96 grid is absent.  A real geoid transform returns
+        # None (it is too complex to express as a PROJ4 string).
+        if t.to_proj4() == '+proj=noop':
+            logger.info(
+                'EGM96 geoid grid not found locally; attempting download from '
+                'the PROJ CDN.  Install the proj-data conda package for fully '
+                'offline use.'
+            )
+            _was_enabled = pyproj.network.is_network_enabled()
+            pyproj.network.set_network_enabled(True)
+            try:
+                t, h_out = _build_and_apply()
+                if t.to_proj4() == '+proj=noop':
+                    logger.warning(
+                        'EGM96 grid unavailable (no local data and CDN '
+                        'unreachable); heights used unchanged.'
+                    )
+                    return heights
+            finally:
+                pyproj.network.set_network_enabled(_was_enabled)
+
+        logger.debug(
+            'Converted heights from %s to %s; mean offset applied: %.2f m',
+            src_crs.name, dst_crs.name, float(np.nanmean(h_out - heights)),
+        )
+        return h_out
+
+    except Exception as exc:
+        logger.warning(
+            'Height datum conversion failed (%s); using input heights unchanged.  '
+            'Ensure proj-data grids are installed for accurate results.',
+            exc,
+        )
+        return heights
+
+
 def _ellipsoidal_to_geometric(
     lats: np.ndarray,
     lons: np.ndarray,
@@ -216,11 +283,8 @@ def _ellipsoidal_to_geometric(
     places the integration surface too low by that amount, causing a ~5–9 mm
     positive ZTD bias.
 
-    Conversion targets EPSG:9707 (WGS 84 + EGM96 height).  PROJ requires the
-    EGM96 geoid grid, which ships with the ``proj-data`` conda package.  If the
-    grid is absent locally the function transparently enables the PROJ CDN for a
-    one-time download and then restores the previous network state.  If the
-    download also fails, input heights are returned unchanged with a warning.
+    Conversion targets EPSG:9707 (WGS 84 + EGM96 height). See
+    _convert_height_datum for the PROJ/network fallback behavior.
 
     Args:
         lats:    station latitudes in degrees
@@ -236,57 +300,33 @@ def _ellipsoidal_to_geometric(
     if len(crs.axis_info) < 3:
         return heights
 
-    _TARGET = CRS.from_epsg(9707)  # WGS 84 + EGM96 height
+    return _convert_height_datum(lats, lons, heights, crs, _EGM96_CRS)
 
-    def _build_and_apply() -> tuple:
-        """Return (transformer, converted_heights)."""
-        from pyproj import Transformer
-        t = Transformer.from_crs(crs, _TARGET, always_xy=True)
-        _, _, h = t.transform(lons, lats, heights)
-        return t, h
 
-    try:
-        t, h_geoid = _build_and_apply()
+def _geometric_to_ellipsoidal(
+    lats: np.ndarray,
+    lons: np.ndarray,
+    heights: np.ndarray,
+    crs: CRS = CRS.from_epsg(4979),
+) -> np.ndarray:
+    """Convert geoid-referenced (EGM96) heights to WGS84 ellipsoidal heights.
 
-        # PROJ silently falls back to a noop when the EGM96 grid is missing.
-        # Detect this by inspecting the WKT pipeline string.
-        # to_proj4() returns '+proj=noop' when PROJ fell back to a no-op
-        # because the EGM96 grid is absent.  A real geoid transform returns
-        # None (it is too complex to express as a PROJ4 string).
-        if t.to_proj4() == '+proj=noop':
-            logger.info(
-                'EGM96 geoid grid not found locally; attempting download from '
-                'the PROJ CDN.  Install the proj-data conda package for fully '
-                'offline use.'
-            )
-            _was_enabled = pyproj.network.is_network_enabled()
-            pyproj.network.set_network_enabled(True)
-            try:
-                t, h_geoid = _build_and_apply()
-                if t.to_proj4() == '+proj=noop':
-                    logger.warning(
-                        'EGM96 grid unavailable (no local data and CDN '
-                        'unreachable); ellipsoidal heights used unchanged.'
-                    )
-                    return heights
-            finally:
-                pyproj.network.set_network_enabled(_was_enabled)
+    Inverse of _ellipsoidal_to_geometric.  Used when a caller needs true
+    ellipsoidal heights (e.g. losreader's ECEF/LOS geometry, which requires
+    height above the WGS84 ellipsoid) but the heights on hand are
+    geoid-referenced -- the convention used everywhere else in RAiDER to
+    match the ERA5 z-axis.
 
-        logger.debug(
-            'Converted ellipsoidal heights to EGM96 geoid heights; '
-            'mean geoid undulation applied: %.2f m',
-            float(np.nanmean(h_geoid - heights)),
-        )
-        return h_geoid
+    Args:
+        lats:    latitudes in degrees
+        lons:    longitudes in degrees
+        heights: heights above the EGM96 geoid
+        crs:     target ellipsoidal CRS (default WGS84, EPSG:4979)
 
-    except Exception as exc:
-        logger.warning(
-            'Ellipsoidal-to-geoid height conversion failed (%s); '
-            'using input heights unchanged.  '
-            'Ensure proj-data grids are installed for accurate results.',
-            exc,
-        )
-        return heights
+    Returns:
+        heights above the ellipsoid described by ``crs``.
+    """
+    return _convert_height_datum(lats, lons, heights, _EGM96_CRS, crs)
 
 
 class StationFile(AOI):
@@ -329,22 +369,34 @@ class StationFile(AOI):
         df = pd.read_csv(self._filename).drop_duplicates(subset=['Lat', 'Lon'])
         return df['Lat'].to_numpy(), df['Lon'].to_numpy()
 
-    def readZ(self):
-        """Read station heights, converting to geoid heights if the CRS is 3D ellipsoidal.
+    def readZ(self, ellipsoidal_heights: bool = False):
+        """Read station heights.
 
-        When constructed with ``crs=4979`` (or any 3D CRS with an ellipsoidal
-        vertical), heights are converted from WGS84 ellipsoidal to EGM96 geoid
-        heights so they are consistent with the ERA5 z-axis reference.
-        DEM-derived heights are already MSL and are never converted.
+        By default (``ellipsoidal_heights=False``) returns geoid-referenced
+        (~MSL) heights, matching the ERA5 z-axis convention: heights from a
+        3D-ellipsoidal ``self._crs`` (e.g. ``crs=4979``) are converted from
+        WGS84 ellipsoidal, and DEM-derived heights are already geoid-referenced
+        at the source (see dem.py's ``dst_ellipsoidal_height=False``) so are
+        returned unchanged.
+
+        Pass ``ellipsoidal_heights=True`` to instead get WGS84 ellipsoidal
+        heights (e.g. for losreader's ECEF/LOS geometry): heights already in
+        a 3D-ellipsoidal ``self._crs`` are returned unchanged, and
+        geoid-referenced heights (2D ``self._crs``, or DEM-derived) are
+        converted from geoid to ellipsoidal.
         """
         df = pd.read_csv(self._filename).drop_duplicates(subset=['Lat', 'Lon'])
         if 'Hgt_m' in df.columns:
             heights = df['Hgt_m'].values
-            return _ellipsoidal_to_geometric(
-                df['Lat'].values, df['Lon'].values, heights, self._crs
-            )
+            lats, lons = df['Lat'].values, df['Lon'].values
+            if ellipsoidal_heights:
+                if len(self._crs.axis_info) >= 3:
+                    # self._crs is already 3D ellipsoidal -- no conversion needed.
+                    return heights
+                return _geometric_to_ellipsoidal(lats, lons, heights)
+            return _ellipsoidal_to_geometric(lats, lons, heights, self._crs)
         else:
-            # Download the DEM (DEM heights are MSL; no conversion needed)
+            # Download the DEM (DEM heights are geoid-referenced / MSL)
             from RAiDER.dem import download_dem
             from RAiDER.interpolator import interpolateDEM
 
@@ -370,6 +422,10 @@ class StationFile(AOI):
             df['Hgt_m'] = z_out
             df.to_csv(self._filename, index=False)
             self._demfile = None
+
+            if ellipsoidal_heights:
+                lats, lons = self.readLL()
+                return _geometric_to_ellipsoidal(lats, lons, z_out)
             return z_out
 
 
@@ -410,13 +466,22 @@ class RasterRDR(AOI):
             lons, _ = rio_open(Path(self._lonfile))
             return lats, lons
 
-    def readZ(self) -> np.ndarray:
-        """Read the heights from the raster file, or download a DEM if not present."""
+    def readZ(self, ellipsoidal_heights: bool = False) -> np.ndarray:
+        """Read the heights from the raster file, or download a DEM if not present.
+
+        Heights from an existing hgt_file are assumed to be geoid-referenced
+        (~MSL) -- there is no height datum tracked for hgt_file, so this is
+        an assumption rather than a verified fact. Revisit if that turns out
+        to be wrong for a given hgt_file. DEM-downloaded heights are geoid-
+        referenced at the source (see dem.py's dst_ellipsoidal_height=False).
+
+        Pass ellipsoidal_heights=True to instead get WGS84 ellipsoidal
+        heights, converted from the geoid-referenced heights above.
+        """
         from RAiDER.utilFcns import rio_open
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             hgts, _ = rio_open(self._hgtfile)
-            return hgts
 
         else:
             # Download the DEM
@@ -434,9 +499,17 @@ class RasterRDR(AOI):
                 writeDEM=True,
                 dem_path=Path(demFile),
             )
-            z_out = interpolateDEM(demFile, self.readLL())
+            hgts = interpolateDEM(demFile, self.readLL())
 
-            return z_out
+        if ellipsoidal_heights:
+            if self._lonfile is None:
+                raise NotImplementedError(
+                    'ellipsoidal_heights=True requires separate lat/lon files; '
+                    'RasterRDR was constructed without lon_file.'
+                )
+            lats, lons = self.readLL()
+            return _geometric_to_ellipsoidal(lats, lons, hgts)
+        return hgts
 
 
 class BoundingBox(AOI):
@@ -482,16 +555,30 @@ class GeocodedFile(AOI):
         X, Y = np.meshgrid(x, y)
         return Y, X  # lats, lons
 
-    def readZ(self):
-        """Download a DEM for the file."""
+    def readZ(self, ellipsoidal_heights: bool = False):
+        """Download a DEM for the file (or use it directly if is_dem=True).
+
+        Heights are assumed to be geoid-referenced (~MSL): a downloaded DEM
+        is geoid-referenced at the source (see dem.py's
+        dst_ellipsoidal_height=False), and when is_dem=True with an existing
+        file at that path, its own height datum isn't tracked here either --
+        this is an assumption, not a verified fact. Revisit if that turns out
+        to be wrong for a given DEM file.
+
+        Pass ellipsoidal_heights=True to instead get WGS84 ellipsoidal
+        heights, converted from the geoid-referenced heights above.
+        """
         from RAiDER.dem import download_dem
         from RAiDER.interpolator import interpolateDEM
 
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox = self._bounding_box
         _, _ = download_dem(bbox, writeDEM=True, dem_path=Path(demFile))
-        z_out = interpolateDEM(demFile, self.readLL())
+        lats, lons = self.readLL()
+        z_out = interpolateDEM(demFile, (lats, lons))
 
+        if ellipsoidal_heights:
+            return _geometric_to_ellipsoidal(lats, lons, z_out)
         return z_out
 
 

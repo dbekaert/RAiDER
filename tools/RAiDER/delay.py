@@ -106,7 +106,7 @@ def tropo_delay(
 
         pnt_proj = CRS.from_epsg(4326)
         lats, lons = aoi.readLL()
-        hgts = aoi.readZ()
+        hgts = aoi.readZ()  # geoid-referenced, matches the weather-model cube's z-axis
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
 
         try:
@@ -120,7 +120,8 @@ def tropo_delay(
         # return the delays (ZTD or STD)
         if los.is_Projected():
             los.setTime(datetime)
-            los.setPoints(lats, lons, hgts)
+            hgts_ell = aoi.readZ(ellipsoidal_heights=True)  # LOS/ECEF geometry needs true ellipsoidal heights
+            los.setPoints(lats, lons, hgts_ell)
             wetDelay = los(wetDelay)
             hydroDelay = los(hydroDelay)
 
