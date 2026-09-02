@@ -18,12 +18,12 @@ from RAiDER.utilFcns import rio_open
 
 
 def download_dem(
-        ll_bounds: Union[tuple, List, np.ndarray]=None,
-        dem_path: Path=Path('warpedDEM.rdr'),
-        overwrite: bool=False,
-        writeDEM: bool=False,
-        buf: float=0.02,
-    ) -> tuple[np.ndarray, Optional[RIO.Profile]]:
+    ll_bounds: Union[tuple, List, np.ndarray] = None,
+    dem_path: Path = Path('warpedDEM.rdr'),
+    overwrite: bool = False,
+    writeDEM: bool = False,
+    buf: float = 0.02,
+) -> tuple[np.ndarray, Optional[RIO.Profile]]:
     """Download a DEM if one is not already present.
 
     Args:

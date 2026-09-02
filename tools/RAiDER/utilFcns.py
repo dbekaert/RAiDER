@@ -113,9 +113,9 @@ def enu2ecef(
     return np.stack((u, v, w), axis=-1)
 
 
-def ecef2enu(xyz: Union[float, np.array], 
-             lat: Union[float, np.array], 
-             lon: Union[float, np.array], 
+def ecef2enu(xyz: Union[float, np.array],
+             lat: Union[float, np.array],
+             lon: Union[float, np.array],
              height: Union[float, np.array]) -> np.array:
     """Convert ECEF xyz to ENU."""
     """height is not used here, needs looked at"""
@@ -155,8 +155,8 @@ def rio_extents(profile: RIO.Profile) -> BB.SNWE:
 
 def rio_open(
     path: Union[Path, str],
-    userNDV: Optional[float]=None,
-    band: Optional[int]=None
+    userNDV: Optional[float] = None,
+    band: Optional[int] = None
 ) -> tuple[np.ndarray, RIO.Profile]:
     """Reads a rasterio-compatible raster file and returns the data and profile."""
     path = Path(path)
@@ -202,7 +202,7 @@ def nodataToNan(inarr: np.ndarray, vals: list[Optional[float]]) -> None:
             inarr[inarr == val] = np.nan
 
 
-def rio_stats(path: Path, band: int=1) -> tuple[RIO.Statistics, Optional[CRS], RIO.GDAL]:
+def rio_stats(path: Path, band: int = 1) -> tuple[RIO.Statistics, Optional[CRS], RIO.GDAL]:
     """Read a rasterio-compatible file and pull the metadata.
 
     Args:
@@ -249,10 +249,10 @@ def get_file_and_band(filestr: str) -> tuple[Path, int]:
 def writeArrayToRaster(
     array: np.ndarray,
     path: Path,
-    noDataValue: float=0.0,
-    fmt: str='ENVI',
-    proj: Optional[CRS]=None,
-    gt: Optional[RIO.GDAL]=None
+    noDataValue: float = 0.0,
+    fmt: str = 'ENVI',
+    proj: Optional[CRS] = None,
+    gt: Optional[RIO.GDAL] = None
 ) -> None:
     """Write a numpy array to a GDAL-readable raster."""
     array_shp = np.shape(array)
@@ -407,7 +407,7 @@ def padLower(invar: np.array) -> np.array:
     return np.concatenate((new_var[:, :, np.newaxis], invar), axis=2)
 
 
-def round_time(datetime: dt.datetime, roundTo: int=60) -> dt.datetime:
+def round_time(datetime: dt.datetime, roundTo: int = 60) -> dt.datetime:
     """Round a datetime object to any time lapse in seconds."""
     """
     datetime: dt.datetime object
@@ -424,9 +424,9 @@ def writeDelays(
     wetDelay: ndarray,
     hydroDelay: ndarray,
     wet_path: Path,
-    hydro_path: Optional[Path]=None,
-    outformat: str=None,
-    ndv: float=0.0
+    hydro_path: Optional[Path] = None,
+    outformat: str = None,
+    ndv: float = 0.0
 ) -> None:
     """Write the delay numpy arrays to files in the format specified."""
     if pd is None:
@@ -489,7 +489,7 @@ def letter(coordinates: Union[list, tuple, np.array]) -> str:
     return 'CDEFGHJKLMNPQRSTUVWXX'[int((coordinates[1] + 80) / 8)]
 
 
-def project(coordinates: Union[list, tuple, np.array], z: int=None, ltr: str=None) -> tuple[int, str, float, float]:
+def project(coordinates: Union[list, tuple, np.array], z: int = None, ltr: str = None) -> tuple[int, str, float, float]:
     """Returns zone UTM coordinate."""
     if z is None:
         z = zone(coordinates)
@@ -513,7 +513,7 @@ def unproject(z: int, ltr: str, x: float, y: float) -> tuple[Union[float, np.arr
     return (lng, lat)
 
 
-def WGS84_to_UTM(lon: float, lat: float, common_center: bool=False) -> tuple[np.array]:
+def WGS84_to_UTM(lon: float, lat: float, common_center: bool = False) -> tuple[np.array]:
     """Converts WGS84 to UTM."""
     shp = lat.shape
     lon = np.ravel(lon)
@@ -945,6 +945,7 @@ yaml.add_representer(
 )
 # fmt: on
 
+
 def write_yaml(content: dict[str, Any], dst: Union[str, Path]) -> Path:
     """Write a new yaml file from a dictionary with template.yaml as a base.
 
@@ -1054,10 +1055,10 @@ def cumulative_integral_from_top(
     n_per_chunk = max(1, chunk_bytes // per_column)
 
     for start in range(0, flat.shape[0], n_per_chunk):
-        block = flat[start : start + n_per_chunk].astype(np.float64, copy=False)
+        block = flat[start: start + n_per_chunk].astype(np.float64, copy=False)
         # PCHIP's antiderivative is evaluated analytically, so this stays
         # vectorised over every column in the chunk.
         antiderivative = PchipInterpolator(zs, block, axis=-1).antiderivative()
-        out[start : start + n_per_chunk] = antiderivative(zs[-1])[:, np.newaxis] - antiderivative(zs)
+        out[start: start + n_per_chunk] = antiderivative(zs[-1])[:, np.newaxis] - antiderivative(zs)
 
     return out.reshape(ns.shape)
