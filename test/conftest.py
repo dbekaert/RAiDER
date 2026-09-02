@@ -160,6 +160,7 @@ def weather_model_dict_for_gunw_integration_test(tmp_path_factory):
         'GMAO_2020_01_24_T15_00_00_32N_36N_121W_114W.nc',
     ])}
 
+
 @pytest.fixture(scope='session')
 def data_for_hrrr_ztd():
     '''Obtained via:
