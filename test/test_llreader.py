@@ -14,7 +14,7 @@ from RAiDER.cli.raider import calcDelays
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
     StationFile, RasterRDR, BoundingBox, GeocodedFile, bounds_from_latlon_rasters, bounds_from_csv,
-    _parse_crs, _ellipsoidal_to_geometric,
+    _parse_crs, _ellipsoidal_to_geometric, _geometric_to_ellipsoidal,
 )
 
 SCENARIO0_DIR = TEST_DIR / "scenario_0"
@@ -306,3 +306,218 @@ def test_readZ_sf_converts_when_ellipsoidal(monkeypatch, station_file):
     assert calls.get('called') is True
     assert calls['crs'] == CRS.from_epsg(4979)
     assert np.allclose(z, 0.1 + 5.0)
+
+
+# ---------------------------------------------------------------------------
+# _geometric_to_ellipsoidal
+# ---------------------------------------------------------------------------
+
+def test_geometric_to_ellipsoidal_successful_conversion(monkeypatch):
+    """When PROJ has the EGM96 grid, heights should be converted on the first try."""
+    class FakeTransformer:
+        def to_proj4(self):
+            return '+proj=pipeline'  # anything other than '+proj=noop'
+
+        def transform(self, lons, lats, heights):
+            return lons, lats, heights - 15.0
+
+    captured = {}
+
+    def fake_from_crs(src_crs, dst_crs, always_xy=True):
+        captured['src'] = src_crs
+        captured['dst'] = dst_crs
+        return FakeTransformer()
+
+    monkeypatch.setattr(pyproj.Transformer, 'from_crs', fake_from_crs)
+
+    lats = np.array([34.0, 35.0])
+    lons = np.array([-118.0, -117.0])
+    heights = np.array([100.0, 200.0])  # geoid heights
+
+    result = _geometric_to_ellipsoidal(lats, lons, heights)
+
+    assert np.allclose(result, heights - 15.0)
+    # Default target is WGS84 ellipsoidal, converting from the EGM96 geoid.
+    assert captured['src'] == CRS.from_epsg(9707)
+    assert captured['dst'] == CRS.from_epsg(4979)
+
+
+def test_geometric_to_ellipsoidal_custom_target_crs(monkeypatch):
+    """A caller-supplied target CRS should be used instead of the default."""
+    class FakeTransformer:
+        def to_proj4(self):
+            return '+proj=pipeline'
+
+        def transform(self, lons, lats, heights):
+            return lons, lats, heights
+
+    captured = {}
+
+    def fake_from_crs(src_crs, dst_crs, always_xy=True):
+        captured['dst'] = dst_crs
+        return FakeTransformer()
+
+    monkeypatch.setattr(pyproj.Transformer, 'from_crs', fake_from_crs)
+
+    custom_crs = CRS.from_epsg(4979)
+    _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), np.array([100.0]), crs=custom_crs)
+
+    assert captured['dst'] == custom_crs
+
+
+def test_geometric_to_ellipsoidal_missing_grid_falls_back(monkeypatch):
+    """If the EGM96 grid is missing locally and the CDN is unreachable, heights pass through."""
+    class NoopTransformer:
+        def to_proj4(self):
+            return '+proj=noop'
+
+        def transform(self, lons, lats, heights):
+            return lons, lats, heights
+
+    network_state = {'enabled': False}
+    set_calls = []
+
+    def fake_set_network_enabled(v):
+        set_calls.append(v)
+        network_state['enabled'] = v
+
+    monkeypatch.setattr(pyproj.Transformer, 'from_crs', lambda src, dst, always_xy=True: NoopTransformer())
+    monkeypatch.setattr(pyproj.network, 'is_network_enabled', lambda: network_state['enabled'])
+    monkeypatch.setattr(pyproj.network, 'set_network_enabled', fake_set_network_enabled)
+
+    heights = np.array([100.0])
+    result = _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), heights)
+
+    assert np.array_equal(result, heights)
+    assert set_calls == [True, False]
+
+
+def test_geometric_to_ellipsoidal_exception_falls_back(monkeypatch):
+    """Any unexpected failure during the transform should not crash readZ."""
+    def raise_err(src, dst, always_xy=True):
+        raise RuntimeError('boom')
+
+    monkeypatch.setattr(pyproj.Transformer, 'from_crs', raise_err)
+
+    heights = np.array([100.0])
+    result = _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), heights)
+
+    assert np.array_equal(result, heights)
+
+
+# ---------------------------------------------------------------------------
+# StationFile.readZ(ellipsoidal_heights=True)
+# ---------------------------------------------------------------------------
+
+def test_readZ_sf_ellipsoidal_when_crs_already_ellipsoidal(station_file):
+    """If self._crs is already 3D-ellipsoidal, raw Hgt_m values should pass through unconverted."""
+    query = StationFile(station_file, crs=4979)
+    z = query.readZ(ellipsoidal_heights=True)
+    assert np.allclose(z, 0.1)
+
+
+def test_readZ_sf_ellipsoidal_converts_from_geoid(monkeypatch, station_file):
+    """If self._crs is geoid (default), ellipsoidal_heights=True should convert via _geometric_to_ellipsoidal."""
+    calls = {}
+
+    def fake_convert(lats, lons, heights):
+        calls['called'] = True
+        calls['heights'] = heights
+        return heights + 10.0
+
+    monkeypatch.setattr('RAiDER.llreader._geometric_to_ellipsoidal', fake_convert)
+
+    query = StationFile(station_file)  # default crs=4326 (geoid)
+    z = query.readZ(ellipsoidal_heights=True)
+
+    assert calls.get('called') is True
+    assert np.allclose(z, 0.1 + 10.0)
+
+
+def test_readZ_sf_dem_download_ellipsoidal(monkeypatch, tmp_path):
+    """The no-Hgt_m/DEM-download branch should also convert to ellipsoidal on request."""
+    csv_path = tmp_path / 'stations_no_hgt.csv'
+    csv_path.write_text('ID,Lat,Lon\nA,34.0,-118.0\nB,35.0,-117.0\n')
+
+    def fake_download_dem(*args, **kwargs):
+        return None, None
+
+    def fake_interpolateDEM(dem_file, ll):
+        lats, _ = ll
+        n = len(lats)
+        return np.eye(n) * 100.0  # diagonal = station heights
+
+    calls = {}
+
+    def fake_convert(lats, lons, heights):
+        calls['heights'] = heights
+        return heights + 7.0
+
+    monkeypatch.setattr('RAiDER.dem.download_dem', fake_download_dem)
+    monkeypatch.setattr('RAiDER.interpolator.interpolateDEM', fake_interpolateDEM)
+    monkeypatch.setattr('RAiDER.llreader._geometric_to_ellipsoidal', fake_convert)
+
+    query = StationFile(csv_path)
+    z = query.readZ(ellipsoidal_heights=True)
+
+    assert np.allclose(calls['heights'], 100.0)
+    assert np.allclose(z, 100.0 + 7.0)
+
+
+# ---------------------------------------------------------------------------
+# RasterRDR.readZ(ellipsoidal_heights=True)
+# ---------------------------------------------------------------------------
+
+def test_rasterrdr_readZ_ellipsoidal_converts(monkeypatch):
+    latfile = Path(GEOM_DIR) / 'lat.rdr'
+    lonfile = Path(GEOM_DIR) / 'lon.rdr'
+    query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile), hgt_file=str(latfile))
+
+    calls = {}
+
+    def fake_convert(lats, lons, heights):
+        calls['called'] = True
+        calls['heights'] = heights
+        return heights + 3.0
+
+    monkeypatch.setattr('RAiDER.llreader._geometric_to_ellipsoidal', fake_convert)
+
+    z = query.readZ(ellipsoidal_heights=True)
+
+    assert calls.get('called') is True
+    assert np.allclose(z, calls['heights'] + 3.0)
+
+
+def test_rasterrdr_readZ_ellipsoidal_requires_lonfile():
+    """Without a separate lon_file, readLL() can't provide lons for the conversion."""
+    latfile = Path(GEOM_DIR) / 'lat.rdr'
+    lonfile = Path(GEOM_DIR) / 'lon.rdr'
+    query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile), hgt_file=str(latfile))
+    query._lonfile = None
+
+    with pytest.raises(NotImplementedError):
+        query.readZ(ellipsoidal_heights=True)
+
+
+# ---------------------------------------------------------------------------
+# GeocodedFile.readZ(ellipsoidal_heights=True)
+# ---------------------------------------------------------------------------
+
+def test_GeocodedFile_readZ_ellipsoidal_converts(monkeypatch):
+    aoi = GeocodedFile(SCENARIO0_DIR / 'small_dem.tif', is_dem=True)
+
+    calls = {}
+
+    def fake_convert(lats, lons, heights):
+        calls['called'] = True
+        return heights + 2.0
+
+    monkeypatch.setattr('RAiDER.llreader._geometric_to_ellipsoidal', fake_convert)
+
+    z_geoid = aoi.readZ()
+    z_ell = aoi.readZ(ellipsoidal_heights=True)
+
+    assert calls.get('called') is True
+    # small_dem.tif has no geotransform, so interpolateDEM returns all-NaN heights here;
+    # equal_nan=True since we're only checking the mocked offset was applied elementwise.
+    assert np.allclose(z_ell, z_geoid + 2.0, equal_nan=True)
