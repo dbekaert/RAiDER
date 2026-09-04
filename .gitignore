@@ -26,8 +26,11 @@ test/GUNW/
 dist/
 tools/RAiDER.egg-info/
 tools/bindings/utils/makePoints.c
-gunw_azimuth_test_data/
 test/synthetic_test/*.nc
+# Time-interpolated weather models are derived from the tracked inputs and are
+# rewritten by every test run; see _linked_weather_files in test/conftest.py.
+*_timeInterp_*.nc
+*_timeInterpAziGrid_*.nc
 test/synthetic_test/weather_files_synth/
 orbits/
 .lsp/

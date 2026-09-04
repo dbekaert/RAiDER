@@ -25,6 +25,28 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_isce3)
 
 
+def _linked_weather_files(tmp_path_factory, src_dir: Path, names: list[str]) -> list[Path]:
+    """Expose weather-model files from a scratch directory instead of the repo.
+
+    `combine_weather_files` writes the time-interpolated product next to its
+    inputs (`wfiles[0].parent`, see RAiDER.cli.raider), so handing tests paths
+    inside the tracked fixture directories makes every run deposit derived
+    `_timeInterp_` / `_timeInterpAziGrid_` files there -- overwriting the
+    checked-in copies under test/gunw_test_data, and silently accumulating
+    ~165 MB under test/gunw_azimuth_test_data, which .gitignore hides.
+
+    Symlinking keeps that behaviour intact while redirecting the output: the
+    links are read through transparently, nothing is copied, and
+    `wfiles[0].parent` resolves to the scratch directory. Paths are not
+    resolved anywhere in the delay workflow, so the symlink parent is what the
+    writer sees.
+    """
+    work = tmp_path_factory.mktemp(src_dir.name)
+    for name in names:
+        (work / name).symlink_to(src_dir / name)
+    return [work / name for name in names]
+
+
 @pytest.fixture(scope='session')
 def test_dir_path() -> Path:
     return TEST_DIR
@@ -78,26 +100,27 @@ def slc_id_dict_for_azimuth_time_test():
 
 
 @pytest.fixture(scope='session')
-def weather_model_dict_for_azimuth_time_test():
+def weather_model_dict_for_azimuth_time_test(tmp_path_factory):
     """The order is important; will be closest to InSAR acq time so goes 2, 1, 3 AM."""
     test_data = TEST_DIR / 'gunw_azimuth_test_data' / 'weather_files'
-    return {'HRRR': [test_data / 'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
-                     ]}
+    return {'HRRR': _linked_weather_files(tmp_path_factory, test_data, [
+        'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
+        'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
+        'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
+        'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
+    ])}
 
 
 @pytest.fixture(scope='session')
-def weather_model_dict_for_center_time_test():
+def weather_model_dict_for_center_time_test(tmp_path_factory):
     """Order is important here; will be in chronological order with respect to closest date times"""
     test_data = TEST_DIR / 'gunw_azimuth_test_data' / 'weather_files'
-    return {'HRRR': [test_data / 'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
-                     test_data / 'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
-                     ]
-            }
+    return {'HRRR': _linked_weather_files(tmp_path_factory, test_data, [
+        'HRRR_2021_07_23_T01_00_00_33N_36N_120W_115W.nc',
+        'HRRR_2021_07_23_T02_00_00_33N_36N_120W_115W.nc',
+        'HRRR_2021_07_11_T01_00_00_33N_36N_120W_115W.nc',
+        'HRRR_2021_07_11_T02_00_00_33N_36N_120W_115W.nc',
+    ])}
 
 
 @pytest.fixture(scope='session')
@@ -111,7 +134,7 @@ def orbit_paths_for_duplicate_orbit_xml_test():
 
 
 @pytest.fixture(scope='session')
-def weather_model_dict_for_gunw_integration_test():
+def weather_model_dict_for_gunw_integration_test(tmp_path_factory):
     """Order is important here; will be in chronological order with respect to closest date times.
 
     Generate via:
@@ -130,11 +153,13 @@ def weather_model_dict_for_gunw_integration_test():
     ```
     """
     test_data = TEST_DIR / 'gunw_test_data' / 'weather_files'
-    return {'GMAO': [test_data / 'GMAO_2020_01_30_T12_00_00_32N_36N_121W_114W.nc',
-                     test_data / 'GMAO_2020_01_30_T15_00_00_32N_36N_121W_114W.nc',
-                     test_data / 'GMAO_2020_01_24_T12_00_00_32N_36N_121W_114W.nc',
-                     test_data / 'GMAO_2020_01_24_T15_00_00_32N_36N_121W_114W.nc']
-           }
+    return {'GMAO': _linked_weather_files(tmp_path_factory, test_data, [
+        'GMAO_2020_01_30_T12_00_00_32N_36N_121W_114W.nc',
+        'GMAO_2020_01_30_T15_00_00_32N_36N_121W_114W.nc',
+        'GMAO_2020_01_24_T12_00_00_32N_36N_121W_114W.nc',
+        'GMAO_2020_01_24_T15_00_00_32N_36N_121W_114W.nc',
+    ])}
+
 
 @pytest.fixture(scope='session')
 def data_for_hrrr_ztd():
