@@ -15,15 +15,15 @@ def test_datelist(tmp_path):
     ]
 
     dct_group = {
-       'aoi_group': {'bounding_box': [28, 28.3, -116.3, -116]},
-       'date_group': {'date_list': dates},
-       'time_group': {'time': '00:00:00', 'interpolate_time': 'none'},
-       'weather_model': WM,
-       'runtime_group': {
+        'aoi_group': {'bounding_box': [28, 28.3, -116.3, -116]},
+        'date_group': {'date_list': dates},
+        'time_group': {'time': '00:00:00', 'interpolate_time': 'none'},
+        'weather_model': WM,
+        'runtime_group': {
             'output_directory': SCENARIO_DIR,
             'weather_model_directory': SCENARIO_DIR / 'weather_files'
-            }
-      }
+        }
+    }
 
     with pushd(tmp_path):
         cfg = write_yaml(dct_group, 'temp.yaml')
@@ -41,15 +41,15 @@ def test_datestep(tmp_path):
     ]
 
     dct_group = {
-       'aoi_group': {'bounding_box': [28, 39, -123, -112]},
-       'date_group': {'date_start': st, 'date_end': en, 'date_step': step},
-       'time_group': {'time': '00:00:00', 'interpolate_time': 'none'},
-       'weather_model': WM,
-       'runtime_group': {
+        'aoi_group': {'bounding_box': [28, 39, -123, -112]},
+        'date_group': {'date_start': st, 'date_end': en, 'date_step': step},
+        'time_group': {'time': '00:00:00', 'interpolate_time': 'none'},
+        'weather_model': WM,
+        'runtime_group': {
             'output_directory': SCENARIO_DIR,
             'weather_model_directory': SCENARIO_DIR / 'weather_files'
-            }
-      }
+        }
+    }
 
     with pushd(tmp_path):
         cfg = write_yaml(dct_group, 'temp.yaml')

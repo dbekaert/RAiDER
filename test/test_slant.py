@@ -12,42 +12,43 @@ from test import (
 )
 from RAiDER.utilFcns import write_yaml
 
+
 @pytest.mark.parametrize('weather_model_name', ['ERA5'])
 def test_slant_proj(weather_model_name, tmp_path):
     SCENARIO_DIR = tmp_path / "scenario_3"
 
-    ## make the lat lon grid
+    # make the lat lon grid
     S, N, W, E = 33, 34, -118.25, -116.75
-    date       = 20200130
-    time       ='13:52:45'
+    date = 20200130
+    time = '13:52:45'
 
-    ## make the run config file
+    # make the run config file
     grp = {
-            'date_group': {'date_start': date},
-            'height_group': {'height_levels': [0, 100, 500, 1000]},
-            'time_group': {'time': time, 'interpolate_time': 'none'},
-            'weather_model': weather_model_name,
-            'aoi_group': {'bounding_box': [S, N, W, E]},
-            'runtime_group': {'output_directory': SCENARIO_DIR,
-                              'weather_model_directory': WM_DIR,
-                              },
-           'los_group' : {'ray_trace': False,
-                          'orbit_file': os.path.join(ORB_DIR,
-                                'S1B_OPER_AUX_POEORB_OPOD_20210317T025713_'\
-                                'V20200129T225942_20200131T005942.EOF')
-           }
-        }
+        'date_group': {'date_start': date},
+        'height_group': {'height_levels': [0, 100, 500, 1000]},
+        'time_group': {'time': time, 'interpolate_time': 'none'},
+        'weather_model': weather_model_name,
+        'aoi_group': {'bounding_box': [S, N, W, E]},
+        'runtime_group': {'output_directory': SCENARIO_DIR,
+                          'weather_model_directory': WM_DIR,
+                          },
+        'los_group': {'ray_trace': False,
+                      'orbit_file': os.path.join(ORB_DIR,
+                                                 'S1B_OPER_AUX_POEORB_OPOD_20210317T025713_'\
+                                                 'V20200129T225942_20200131T005942.EOF')
+                      }
+    }
 
-    ## generate the default run config file and overwrite it with new parms
-    cfg  = write_yaml(grp, tmp_path / 'temp.yaml')
+    # generate the default run config file and overwrite it with new parms
+    cfg = write_yaml(grp, tmp_path / 'temp.yaml')
 
-    ## run raider and intersect
+    # run raider and intersect
     calcDelays([str(cfg)])
 
     gold = {'ERA5': [33.4, -117.8, 0, 2.3324788251164725]}
     lat, lon, hgt, val = gold[weather_model_name]
     path_delays = os.path.join(SCENARIO_DIR,
-                    make_delay_name(weather_model_name, date, time, 'std'))
+                               make_delay_name(weather_model_name, date, time, 'std'))
     with xr.open_dataset(path_delays) as ds:
         delay = (ds['hydro'] + ds['wet']).sel(
             y=lat, x=lon, z=hgt, method='nearest').item()
@@ -62,32 +63,32 @@ def test_slant_proj(weather_model_name, tmp_path):
 def test_ray_tracing(weather_model_name, tmp_path):
     SCENARIO_DIR = tmp_path / "scenario_3"
 
-    ## make the lat lon grid
+    # make the lat lon grid
     S, N, W, E = 33, 34, -118.25, -117.25
-    date       = 20200130
-    time       ='13:52:45'
+    date = 20200130
+    time = '13:52:45'
 
-    ## make the run config file
+    # make the run config file
     grp = {
-            'date_group': {'date_start': date},
-            'height_group': {'height_levels': [0, 100, 500, 1000]},
-            'time_group': {'time': time, 'interpolate_time': 'none'},
-            'weather_model': weather_model_name,
-            'aoi_group': {'bounding_box': [S, N, W, E]},
-            'runtime_group': {'output_directory': SCENARIO_DIR,
-                              'weather_model_directory': WM_DIR,
-                              },
-           'los_group' : {'ray_trace': True,
-                          'orbit_file': os.path.join(ORB_DIR,
-                                'S1B_OPER_AUX_POEORB_OPOD_20210317T025713_'\
-                                'V20200129T225942_20200131T005942.EOF')
-           }
-        }
+        'date_group': {'date_start': date},
+        'height_group': {'height_levels': [0, 100, 500, 1000]},
+        'time_group': {'time': time, 'interpolate_time': 'none'},
+        'weather_model': weather_model_name,
+        'aoi_group': {'bounding_box': [S, N, W, E]},
+        'runtime_group': {'output_directory': SCENARIO_DIR,
+                          'weather_model_directory': WM_DIR,
+                          },
+        'los_group': {'ray_trace': True,
+                      'orbit_file': os.path.join(ORB_DIR,
+                                                 'S1B_OPER_AUX_POEORB_OPOD_20210317T025713_'\
+                                                 'V20200129T225942_20200131T005942.EOF')
+                      }
+    }
 
-    ## generate the default run config file and overwrite it with new parms
-    cfg  = write_yaml(grp, tmp_path / 'temp.yaml')
+    # generate the default run config file and overwrite it with new parms
+    cfg = write_yaml(grp, tmp_path / 'temp.yaml')
 
-    ## run raider and intersect
+    # run raider and intersect
     calcDelays([str(cfg)])
 
     # model to lat/lon/correct value
@@ -95,7 +96,7 @@ def test_ray_tracing(weather_model_name, tmp_path):
     lat, lon, hgt, val = gold[weather_model_name]
 
     path_delays = os.path.join(SCENARIO_DIR,
-                    make_delay_name(weather_model_name, date, time, 'ray'))
+                               make_delay_name(weather_model_name, date, time, 'ray'))
     with xr.open_dataset(path_delays) as ds:
         delay = (ds['hydro'] + ds['wet']).sel(
             y=lat, x=lon, z=hgt, method='nearest').item()
@@ -103,4 +104,3 @@ def test_ray_tracing(weather_model_name, tmp_path):
 
     # Clean up files written outside tmp_path
     [os.remove(f) for f in glob.glob(f'{weather_model_name}*')]
-
