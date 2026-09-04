@@ -3,20 +3,18 @@ import pytest
 import glob
 import os
 import subprocess
-import shutil
 
 import numpy as np
 import xarray as xr
 
 from test import (
-    TEST_DIR, WM_DIR, ORB_DIR, make_delay_name
+    WM_DIR, ORB_DIR, make_delay_name
 )
 from RAiDER.utilFcns import write_yaml
 
 @pytest.mark.parametrize('weather_model_name', ['ERA5'])
-def test_slant_proj(weather_model_name):
-    SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
-    os.makedirs(SCENARIO_DIR, exist_ok=True)
+def test_slant_proj(weather_model_name, tmp_path):
+    SCENARIO_DIR = tmp_path / "scenario_3"
 
     ## make the lat lon grid
     S, N, W, E = 33, 34, -118.25, -116.75
@@ -41,7 +39,7 @@ def test_slant_proj(weather_model_name):
         }
 
     ## generate the default run config file and overwrite it with new parms
-    cfg  = write_yaml(grp, 'temp.yaml')
+    cfg  = write_yaml(grp, tmp_path / 'temp.yaml')
 
     ## run raider and intersect
     calcDelays([str(cfg)])
@@ -56,16 +54,13 @@ def test_slant_proj(weather_model_name):
 
     np.testing.assert_almost_equal(val, delay)
 
-    # Clean up files
-    shutil.rmtree(SCENARIO_DIR)
+    # Clean up files written outside tmp_path
     [os.remove(f) for f in glob.glob(f'{weather_model_name}*')]
-    os.remove('temp.yaml')
 
 
 @pytest.mark.parametrize('weather_model_name', ['ERA5'])
-def test_ray_tracing(weather_model_name):
-    SCENARIO_DIR = os.path.join(TEST_DIR, "scenario_3")
-    os.makedirs(SCENARIO_DIR, exist_ok=True)
+def test_ray_tracing(weather_model_name, tmp_path):
+    SCENARIO_DIR = tmp_path / "scenario_3"
 
     ## make the lat lon grid
     S, N, W, E = 33, 34, -118.25, -117.25
@@ -90,7 +85,7 @@ def test_ray_tracing(weather_model_name):
         }
 
     ## generate the default run config file and overwrite it with new parms
-    cfg  = write_yaml(grp, 'temp.yaml')
+    cfg  = write_yaml(grp, tmp_path / 'temp.yaml')
 
     ## run raider and intersect
     calcDelays([str(cfg)])
@@ -106,8 +101,6 @@ def test_ray_tracing(weather_model_name):
             y=lat, x=lon, z=hgt, method='nearest').item()
     np.testing.assert_almost_equal(val, delay)
 
-    # Clean up files
-    shutil.rmtree(SCENARIO_DIR)
+    # Clean up files written outside tmp_path
     [os.remove(f) for f in glob.glob(f'{weather_model_name}*')]
-    os.remove('temp.yaml')
 
