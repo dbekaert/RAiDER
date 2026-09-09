@@ -77,6 +77,12 @@ aoi_group:
   lon_file:
   station_file:
 
+  ## Height datum of station_file's Hgt_m column, as an EPSG code.
+  ## 4979 (default): WGS84 ellipsoidal heights (e.g. from GNSS/UNR MAGNET or IGS20).
+  ## 4326: geoid-referenced (MSL) heights, e.g. from a DEM.
+  ## Ignored if station_file has an Hgt_datum column (that takes precedence) or is not set.
+  station_file_crs: 4979
+
 
 ########## 5. Height info
 ## REQUIRED: FALSE

@@ -93,7 +93,11 @@ def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64) -> None:
         'date_group': {'date_start': date},
         'time_group': {'time': time, 'interpolate_time': 'none'},
         'weather_model': wm_name,
-        'aoi_group': {'station_file': str(gnss_file)},
+        # scenario_6/stations.csv's Hgt_m values are geoid-referenced (MSL), not
+        # ellipsoidal -- e.g. TORP's -5.2 m is a plausible near-sea-level
+        # orthometric height, not a raw GNSS ellipsoidal one (which would be
+        # around -30 to -40 m near LA given the local geoid undulation).
+        'aoi_group': {'station_file': str(gnss_file), 'station_file_crs': 4326},
         'runtime_group': {
             'output_directory': outdir,
             'weather_model_directory': WM_DIR,
