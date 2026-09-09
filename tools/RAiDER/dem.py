@@ -61,7 +61,7 @@ def download_dem(
         zvals, metadata = stitch_dem(
             list(bounds),
             dem_name='glo_30',
-            dst_ellipsoidal_height=False,
+            dst_ellipsoidal_height=True,
             dst_area_or_point=None,
         )
         metadata = cast(RIO.Profile, metadata)

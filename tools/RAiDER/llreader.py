@@ -7,6 +7,7 @@
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 import os
+import warnings
 from pathlib import Path
 from typing import Optional, Union
 
@@ -199,7 +200,62 @@ def _parse_crs(crs: Union[int, str, CRS]) -> CRS:
         return CRS(crs)
 
 
+HGT_DATUM_COLUMN = 'Hgt_datum'
+_ELLIPSOIDAL_LABEL = 'ellipsoidal'
+_GEOID_LABEL = 'geoid'
+
+
+def _source_is_geoid(df: 'pd.DataFrame', fallback_crs: CRS) -> bool:
+    """Determine whether a station file's Hgt_m values are geoid-referenced.
+
+    Prefers the HGT_DATUM_COLUMN column if present -- it's written
+    authoritatively by StationFile.readZ() itself whenever it writes
+    DEM-derived heights, so it survives round-trips through the file
+    regardless of what crs= a later caller happens to pass. Falls back to
+    fallback_crs (the constructor's crs= argument) for files that predate
+    this column.
+    """
+    if HGT_DATUM_COLUMN in df.columns:
+        labels = df[HGT_DATUM_COLUMN].unique()
+        if len(labels) != 1:
+            raise ValueError(
+                f'{HGT_DATUM_COLUMN} column has inconsistent values {list(labels)}; '
+                'expected a single datum for the whole file.'
+            )
+        label = labels[0]
+        if label == _GEOID_LABEL:
+            return True
+        if label == _ELLIPSOIDAL_LABEL:
+            return False
+        raise ValueError(
+            f'Unrecognized {HGT_DATUM_COLUMN} value {label!r}; '
+            f'expected {_ELLIPSOIDAL_LABEL!r} or {_GEOID_LABEL!r}.'
+        )
+    return len(fallback_crs.axis_info) < 3
+
+
 _EGM96_CRS = CRS.from_epsg(9707)  # WGS 84 + EGM96 height
+
+
+def _warn_conversion_unavailable(reason: str) -> None:
+    """Warn loudly that a height-datum conversion did not happen.
+
+    Silent failure here is exactly the bug this conversion machinery exists
+    to prevent: heights that should have been converted between ellipsoidal
+    and geoid are returned unchanged instead. Logs a warning (for anyone
+    watching logs) and also raises a plain UserWarning (visible on stderr by
+    default even if logging isn't being watched), naming the consequence
+    rather than just the failure.
+    """
+    msg = (
+        f'Height datum conversion unavailable ({reason}); heights used '
+        'unchanged. In CONUS the geoid sits up to ~35 m from the WGS84 '
+        'ellipsoid, so skipping this correction translates to a several-mm '
+        'bias in the computed tropospheric delay. Install the proj-data '
+        'conda package for fully offline use.'
+    )
+    logger.warning(msg)
+    warnings.warn(msg, UserWarning, stacklevel=3)
 
 
 def _convert_height_datum(
@@ -243,9 +299,8 @@ def _convert_height_datum(
             try:
                 t, h_out = _build_and_apply()
                 if t.to_proj4() == '+proj=noop':
-                    logger.warning(
-                        'EGM96 grid unavailable (no local data and CDN '
-                        'unreachable); heights used unchanged.'
+                    _warn_conversion_unavailable(
+                        'EGM96 grid not found locally and the PROJ CDN is unreachable'
                     )
                     return heights
             finally:
@@ -258,11 +313,7 @@ def _convert_height_datum(
         return h_out
 
     except Exception as exc:
-        logger.warning(
-            'Height datum conversion failed (%s); using input heights unchanged.  '
-            'Ensure proj-data grids are installed for accurate results.',
-            exc,
-        )
+        _warn_conversion_unavailable(str(exc))
         return heights
 
 
@@ -330,11 +381,14 @@ def _geometric_to_ellipsoidal(
 class StationFile(AOI):
     """Use a .csv file containing at least Lat, Lon, and optionally Hgt_m columns.
 
-    By default heights are assumed to be already geoid-referenced (MSL), matching
-    the ERA5 z-axis convention (``crs=4326``).  Pass ``crs=4979`` when the file
-    contains WGS84 ellipsoidal heights (e.g. from UNR MAGNET / IGS20) so that
-    they are automatically converted to geoid heights before the weather model
-    cube is sampled.
+    By default heights are assumed to be WGS84 ellipsoidal (``crs=4979``),
+    matching the datum of essentially every real source: UNR MAGNET / IGS20
+    GNSS positions, and DEM-derived heights (dem.py downloads with
+    ``dst_ellipsoidal_height=True``).  Pass ``crs=4326`` when the file
+    contains geoid-referenced (MSL) heights instead.  Either way, readZ()
+    converts to geoid only when explicitly asked (``geoid_heights=True``),
+    which is what's needed to sample the weather model cube -- its z-axis
+    matches the ERA5 convention, geoid-referenced.
     """
 
     def __init__(
@@ -343,7 +397,7 @@ class StationFile(AOI):
         demFile: Optional[Union[str, Path]] = None,
         cube_spacing_in_m: Optional[float] = None,
         output_directory: Union[str, Path] = Path.cwd(),
-        crs: Union[int, str, CRS] = 4326,
+        crs: Union[int, str, CRS] = 4979,
     ) -> None:
         super().__init__(cube_spacing_in_m, output_directory)
         self._filename = station_file
@@ -357,8 +411,8 @@ class StationFile(AOI):
 
         Args:
             new_crs: EPSG code (int or str), CRS string, or pyproj CRS object.
-                     ``4326`` (default) — heights are geoid-referenced (MSL).
-                     ``4979`` — heights are WGS84 ellipsoidal (e.g. from GNSS/UNR).
+                     ``4979`` (default) — heights are WGS84 ellipsoidal (e.g. from GNSS/UNR).
+                     ``4326`` — heights are geoid-referenced (MSL).
         """
         self._crs = _parse_crs(new_crs)
 
@@ -367,34 +421,37 @@ class StationFile(AOI):
         df = pd.read_csv(self._filename).drop_duplicates(subset=['Lat', 'Lon'])
         return df['Lat'].to_numpy(), df['Lon'].to_numpy()
 
-    def readZ(self, ellipsoidal_heights: bool = False):
+    def readZ(self, geoid_heights: bool = False):
         """Read station heights.
 
-        By default (``ellipsoidal_heights=False``) returns geoid-referenced
-        (~MSL) heights, matching the ERA5 z-axis convention: heights from a
-        3D-ellipsoidal ``self._crs`` (e.g. ``crs=4979``) are converted from
-        WGS84 ellipsoidal, and DEM-derived heights are already geoid-referenced
-        at the source (see dem.py's ``dst_ellipsoidal_height=False``) so are
-        returned unchanged.
+        By default (``geoid_heights=False``) returns WGS84 ellipsoidal
+        heights -- the native datum for GNSS station positions and for
+        DEM-derived heights (dem.py downloads with
+        ``dst_ellipsoidal_height=True``).
 
-        Pass ``ellipsoidal_heights=True`` to instead get WGS84 ellipsoidal
-        heights (e.g. for losreader's ECEF/LOS geometry): heights already in
-        a 3D-ellipsoidal ``self._crs`` are returned unchanged, and
-        geoid-referenced heights (2D ``self._crs``, or DEM-derived) are
-        converted from geoid to ellipsoidal.
+        Pass ``geoid_heights=True`` to instead get geoid-referenced (~MSL)
+        heights, needed only when sampling the weather-model cube (its
+        z-axis matches the ERA5 convention, geoid-referenced).
+
+        A ``Hgt_m`` column's datum is read from the ``Hgt_datum`` column if
+        present (authoritative -- written by this method whenever it writes
+        DEM-derived heights, so it can't go stale the way ``self._crs``
+        could), otherwise from ``self._crs`` (default WGS84 ellipsoidal,
+        ``crs=4979``) for files written before that column existed.  If the
+        file has no ``Hgt_m`` column, heights are DEM-derived (always
+        ellipsoidal, regardless of ``self._crs``) and written back to the
+        file along with their datum, and ``self._crs`` is updated to match --
+        so a later call is never misled by whatever datum was declared for a
+        ``Hgt_m`` column that, at that point, didn't even exist yet.
         """
         df = pd.read_csv(self._filename).drop_duplicates(subset=['Lat', 'Lon'])
         if 'Hgt_m' in df.columns:
             heights = df['Hgt_m'].values
             lats, lons = df['Lat'].values, df['Lon'].values
-            if ellipsoidal_heights:
-                if len(self._crs.axis_info) >= 3:
-                    # self._crs is already 3D ellipsoidal -- no conversion needed.
-                    return heights
-                return _geometric_to_ellipsoidal(lats, lons, heights)
-            return _ellipsoidal_to_geometric(lats, lons, heights, self._crs)
+            source_is_geoid = _source_is_geoid(df, self._crs)
         else:
-            # Download the DEM (DEM heights are geoid-referenced / MSL)
+            # Download the DEM (DEM heights are WGS84 ellipsoidal at the
+            # source, see dem.py's dst_ellipsoidal_height=True)
             from RAiDER.dem import download_dem
             from RAiDER.interpolator import interpolateDEM
 
@@ -414,17 +471,24 @@ class StationFile(AOI):
             z_out0 = interpolateDEM(demFile, self.readLL())
             if np.isnan(z_out0).all():
                 raise Exception('DEM interpolation failed. Check DEM bounds and station coords.')
-            z_out = np.diag(z_out0)  # the diagonal is the actual stations coordinates
+            heights = np.diag(z_out0)  # the diagonal is the actual stations coordinates
+            lats, lons = self.readLL()
 
-            # write the elevations to the file
-            df['Hgt_m'] = z_out
+            # write the elevations to the file and record the datum so a
+            # later readZ() call -- on this object or a fresh one -- knows
+            # what it's looking at, whatever crs= it happens to be given.
+            df['Hgt_m'] = heights
+            df[HGT_DATUM_COLUMN] = _ELLIPSOIDAL_LABEL
             df.to_csv(self._filename, index=False)
             self._demfile = None
+            self._crs = CRS.from_epsg(4979)
+            source_is_geoid = False
 
-            if ellipsoidal_heights:
-                lats, lons = self.readLL()
-                return _geometric_to_ellipsoidal(lats, lons, z_out)
-            return z_out
+        if geoid_heights == source_is_geoid:
+            return heights
+        if geoid_heights:
+            return _ellipsoidal_to_geometric(lats, lons, heights, self._crs)
+        return _geometric_to_ellipsoidal(lats, lons, heights)
 
 
 class RasterRDR(AOI):
@@ -464,22 +528,23 @@ class RasterRDR(AOI):
             lons, _ = rio_open(Path(self._lonfile))
             return lats, lons
 
-    def readZ(self, ellipsoidal_heights: bool = False) -> np.ndarray:
+    def readZ(self, geoid_heights: bool = False) -> np.ndarray:
         """Read the heights from the raster file, or download a DEM if not present.
 
         Heights from an existing hgt_file are assumed to be geoid-referenced
         (~MSL) -- there is no height datum tracked for hgt_file, so this is
         an assumption rather than a verified fact. Revisit if that turns out
-        to be wrong for a given hgt_file. DEM-downloaded heights are geoid-
-        referenced at the source (see dem.py's dst_ellipsoidal_height=False).
+        to be wrong for a given hgt_file. DEM-downloaded heights are WGS84
+        ellipsoidal at the source (see dem.py's dst_ellipsoidal_height=True).
 
-        Pass ellipsoidal_heights=True to instead get WGS84 ellipsoidal
-        heights, converted from the geoid-referenced heights above.
+        By default (geoid_heights=False) returns WGS84 ellipsoidal heights.
+        Pass geoid_heights=True to instead get geoid-referenced (~MSL) heights.
         """
         from RAiDER.utilFcns import rio_open
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             hgts, _ = rio_open(self._hgtfile)
+            source_is_geoid = True
 
         else:
             # Download the DEM
@@ -498,16 +563,20 @@ class RasterRDR(AOI):
                 dem_path=Path(demFile),
             )
             hgts = interpolateDEM(demFile, self.readLL())
+            source_is_geoid = False
 
-        if ellipsoidal_heights:
-            if self._lonfile is None:
-                raise NotImplementedError(
-                    'ellipsoidal_heights=True requires separate lat/lon files; '
-                    'RasterRDR was constructed without lon_file.'
-                )
-            lats, lons = self.readLL()
-            return _geometric_to_ellipsoidal(lats, lons, hgts)
-        return hgts
+        if geoid_heights == source_is_geoid:
+            return hgts
+
+        if self._lonfile is None:
+            raise NotImplementedError(
+                'Height-datum conversion requires separate lat/lon files; '
+                'RasterRDR was constructed without lon_file.'
+            )
+        lats, lons = self.readLL()
+        if geoid_heights:
+            return _ellipsoidal_to_geometric(lats, lons, hgts, CRS.from_epsg(4979))
+        return _geometric_to_ellipsoidal(lats, lons, hgts)
 
 
 class BoundingBox(AOI):
@@ -553,31 +622,38 @@ class GeocodedFile(AOI):
         X, Y = np.meshgrid(x, y)
         return Y, X  # lats, lons
 
-    def readZ(self, ellipsoidal_heights: bool = False):
+    def readZ(self, geoid_heights: bool = False):
         """Download a DEM for the file (or use it directly if is_dem=True).
 
-        Heights are assumed to be geoid-referenced (~MSL): a downloaded DEM
-        is geoid-referenced at the source (see dem.py's
-        dst_ellipsoidal_height=False), and when is_dem=True with an existing
-        file at that path, its own height datum isn't tracked here either --
-        this is an assumption, not a verified fact. Revisit if that turns out
-        to be wrong for a given DEM file.
+        A downloaded DEM is WGS84 ellipsoidal at the source (see dem.py's
+        dst_ellipsoidal_height=True). When is_dem=True and a file already
+        exists at that path, download_dem() reuses it as-is rather than
+        downloading -- its own height datum isn't tracked here, so it's
+        assumed to be geoid-referenced (~MSL), matching RasterRDR's hgt_file
+        assumption. This is an assumption, not a verified fact for that
+        specific case; revisit if that turns out to be wrong.
 
-        Pass ellipsoidal_heights=True to instead get WGS84 ellipsoidal
-        heights, converted from the geoid-referenced heights above.
+        By default (geoid_heights=False) returns WGS84 ellipsoidal heights.
+        Pass geoid_heights=True to instead get geoid-referenced (~MSL) heights.
         """
         from RAiDER.dem import download_dem
         from RAiDER.interpolator import interpolateDEM
 
         demFile = self._filename if self._is_dem else 'GLO30_fullres_dem.tif'
         bbox = self._bounding_box
+        # download_dem() silently reuses an existing file at demFile instead
+        # of downloading, so this mirrors the same check to know which case
+        # we're in for datum purposes.
+        source_is_geoid = self._is_dem and Path(demFile).exists()
         _, _ = download_dem(bbox, writeDEM=True, dem_path=Path(demFile))
         lats, lons = self.readLL()
         z_out = interpolateDEM(demFile, (lats, lons))
 
-        if ellipsoidal_heights:
-            return _geometric_to_ellipsoidal(lats, lons, z_out)
-        return z_out
+        if geoid_heights == source_is_geoid:
+            return z_out
+        if geoid_heights:
+            return _ellipsoidal_to_geometric(lats, lons, z_out, CRS.from_epsg(4979))
+        return _geometric_to_ellipsoidal(lats, lons, z_out)
 
 
 class Geocube(AOI):
