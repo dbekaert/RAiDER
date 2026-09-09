@@ -312,6 +312,15 @@ def _convert_height_datum(
         )
         return h_out
 
+    except Warning:
+        # _warn_conversion_unavailable() raises when the caller configured
+        # warnings as errors (-W error, or pytest's filterwarnings=error).
+        # That's an explicit request for strictness, so let it propagate --
+        # catching it below would re-warn with this message as its own reason
+        # (a nested duplicate) and then silently return unconverted heights,
+        # which is exactly what the loud warning exists to prevent.
+        raise
+
     except Exception as exc:
         _warn_conversion_unavailable(str(exc))
         return heights
@@ -567,6 +576,10 @@ class RasterRDR(AOI):
         if not geoid_heights:
             return hgts
 
+        # Defense-in-depth: currently unreachable, since __init__ cannot build
+        # a RasterRDR without a lon_file (bounds_from_latlon_rasters raises).
+        # It would become reachable if the advertised single 2-band lat/lon
+        # raster is ever actually implemented.
         if self._lonfile is None:
             raise NotImplementedError(
                 'Height-datum conversion requires separate lat/lon files; '

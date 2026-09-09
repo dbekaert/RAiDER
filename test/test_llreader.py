@@ -1,10 +1,12 @@
 import os
+import warnings
 from pathlib import Path
 import pytest
 
 import numpy as np
 import pandas as pd
 import pyproj
+import xarray as xr
 
 from test import GEOM_DIR, TEST_DIR
 from pyproj import CRS
@@ -13,7 +15,7 @@ from RAiDER.cli.raider import calcDelays
 
 from RAiDER.utilFcns import rio_open
 from RAiDER.llreader import (
-    StationFile, RasterRDR, BoundingBox, GeocodedFile, bounds_from_latlon_rasters, bounds_from_csv,
+    StationFile, RasterRDR, BoundingBox, GeocodedFile, Geocube, bounds_from_latlon_rasters, bounds_from_csv,
     _parse_crs, _ellipsoidal_to_geometric, _geometric_to_ellipsoidal, _source_is_geoid,
     HGT_DATUM_COLUMN,
 )
@@ -36,6 +38,62 @@ def station_file():
 @pytest.fixture
 def llfiles():
     return SCENARIO1_DIR / 'lat.dat', SCENARIO1_DIR / 'lon.dat'
+
+
+@pytest.fixture
+def patch_transformer(monkeypatch):
+    """Install a fake pyproj Transformer in place of the real one.
+
+    Returns an installer function taking:
+      offset:  what transform() adds to the heights it is given
+      proj4:   what to_proj4() reports -- '+proj=noop' is what PROJ returns
+               when it silently fell back to a no-op because the EGM96 grid
+               is missing, which the production code detects
+      raises:  an exception for from_crs() to raise instead of returning
+
+    The installer returns a record dict capturing the CRSs each from_crs()
+    call received ('src'/'dst' from the last call, 'calls' for all of them).
+    """
+    def install(offset=0.0, proj4='+proj=pipeline', raises=None):
+        record = {'calls': []}
+
+        class _FakeTransformer:
+            def to_proj4(self):
+                return proj4
+
+            def transform(self, lons, lats, heights):
+                return lons, lats, heights + offset
+
+        def fake_from_crs(src_crs, dst_crs, always_xy=True):
+            record['calls'].append((src_crs, dst_crs))
+            record['src'], record['dst'] = src_crs, dst_crs
+            if raises is not None:
+                raise raises
+            return _FakeTransformer()
+
+        monkeypatch.setattr(pyproj.Transformer, 'from_crs', fake_from_crs)
+        return record
+
+    return install
+
+
+@pytest.fixture
+def patch_proj_network(monkeypatch):
+    """Track PROJ CDN network toggling, starting from disabled.
+
+    Returns a state dict whose 'set_calls' records every value the production
+    code passed to set_network_enabled -- [True, False] means it enabled the
+    CDN for a retry and then restored the previous state.
+    """
+    state = {'enabled': False, 'set_calls': []}
+
+    def fake_set_network_enabled(value):
+        state['set_calls'].append(value)
+        state['enabled'] = value
+
+    monkeypatch.setattr(pyproj.network, 'is_network_enabled', lambda: state['enabled'])
+    monkeypatch.setattr(pyproj.network, 'set_network_enabled', fake_set_network_enabled)
+    return state
 
 
 def test_latlon_reader_2():
@@ -197,18 +255,9 @@ def test_ellipsoidal_to_geometric_2d_crs_passthrough():
     assert np.array_equal(result, heights)
 
 
-def test_ellipsoidal_to_geometric_successful_conversion(monkeypatch):
+def test_ellipsoidal_to_geometric_successful_conversion(patch_transformer, patch_proj_network):
     """When PROJ has the EGM96 grid, heights should be converted on the first try."""
-    class FakeTransformer:
-        def to_proj4(self):
-            return '+proj=pipeline'  # anything other than '+proj=noop'
-
-        def transform(self, lons, lats, heights):
-            return lons, lats, heights + 20.0
-
-    network_calls = []
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', lambda crs, target, always_xy=True: FakeTransformer())
-    monkeypatch.setattr(pyproj.network, 'set_network_enabled', lambda v: network_calls.append(v))
+    patch_transformer(offset=20.0)
 
     lats = np.array([34.0, 35.0])
     lons = np.array([-118.0, -117.0])
@@ -218,28 +267,12 @@ def test_ellipsoidal_to_geometric_successful_conversion(monkeypatch):
 
     assert np.allclose(result, heights + 20.0)
     # Network was never touched since the first attempt already succeeded.
-    assert network_calls == []
+    assert patch_proj_network['set_calls'] == []
 
 
-def test_ellipsoidal_to_geometric_missing_grid_falls_back(monkeypatch):
+def test_ellipsoidal_to_geometric_missing_grid_falls_back(patch_transformer, patch_proj_network):
     """If the EGM96 grid is missing locally and the CDN is unreachable, heights pass through."""
-    class NoopTransformer:
-        def to_proj4(self):
-            return '+proj=noop'
-
-        def transform(self, lons, lats, heights):
-            return lons, lats, heights
-
-    network_state = {'enabled': False}
-    set_calls = []
-
-    def fake_set_network_enabled(v):
-        set_calls.append(v)
-        network_state['enabled'] = v
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', lambda crs, target, always_xy=True: NoopTransformer())
-    monkeypatch.setattr(pyproj.network, 'is_network_enabled', lambda: network_state['enabled'])
-    monkeypatch.setattr(pyproj.network, 'set_network_enabled', fake_set_network_enabled)
+    patch_transformer(proj4='+proj=noop')
 
     lats = np.array([34.0])
     lons = np.array([-118.0])
@@ -249,15 +282,12 @@ def test_ellipsoidal_to_geometric_missing_grid_falls_back(monkeypatch):
 
     assert np.array_equal(result, heights)
     # Network enabled to attempt the CDN download, then restored to its prior state.
-    assert set_calls == [True, False]
+    assert patch_proj_network['set_calls'] == [True, False]
 
 
-def test_ellipsoidal_to_geometric_exception_falls_back(monkeypatch):
+def test_ellipsoidal_to_geometric_exception_falls_back(patch_transformer):
     """Any unexpected failure during the transform should not crash readZ."""
-    def raise_err(crs, target, always_xy=True):
-        raise RuntimeError('boom')
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', raise_err)
+    patch_transformer(raises=RuntimeError('boom'))
 
     lats = np.array([34.0])
     lons = np.array([-118.0])
@@ -343,23 +373,9 @@ def test_readZ_sf_geoid_request_converts_from_ellipsoidal(monkeypatch, station_f
 # _geometric_to_ellipsoidal
 # ---------------------------------------------------------------------------
 
-def test_geometric_to_ellipsoidal_successful_conversion(monkeypatch):
+def test_geometric_to_ellipsoidal_successful_conversion(patch_transformer):
     """When PROJ has the EGM96 grid, heights should be converted on the first try."""
-    class FakeTransformer:
-        def to_proj4(self):
-            return '+proj=pipeline'  # anything other than '+proj=noop'
-
-        def transform(self, lons, lats, heights):
-            return lons, lats, heights - 15.0
-
-    captured = {}
-
-    def fake_from_crs(src_crs, dst_crs, always_xy=True):
-        captured['src'] = src_crs
-        captured['dst'] = dst_crs
-        return FakeTransformer()
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', fake_from_crs)
+    record = patch_transformer(offset=-15.0)
 
     lats = np.array([34.0, 35.0])
     lons = np.array([-118.0, -117.0])
@@ -369,66 +385,34 @@ def test_geometric_to_ellipsoidal_successful_conversion(monkeypatch):
 
     assert np.allclose(result, heights - 15.0)
     # Default target is WGS84 ellipsoidal, converting from the EGM96 geoid.
-    assert captured['src'] == CRS.from_epsg(9707)
-    assert captured['dst'] == CRS.from_epsg(4979)
+    assert record['src'] == CRS.from_epsg(9707)
+    assert record['dst'] == CRS.from_epsg(4979)
 
 
-def test_geometric_to_ellipsoidal_custom_target_crs(monkeypatch):
+def test_geometric_to_ellipsoidal_custom_target_crs(patch_transformer):
     """A caller-supplied target CRS should be used instead of the default."""
-    class FakeTransformer:
-        def to_proj4(self):
-            return '+proj=pipeline'
-
-        def transform(self, lons, lats, heights):
-            return lons, lats, heights
-
-    captured = {}
-
-    def fake_from_crs(src_crs, dst_crs, always_xy=True):
-        captured['dst'] = dst_crs
-        return FakeTransformer()
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', fake_from_crs)
+    record = patch_transformer()
 
     custom_crs = CRS.from_epsg(4979)
     _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), np.array([100.0]), crs=custom_crs)
 
-    assert captured['dst'] == custom_crs
+    assert record['dst'] == custom_crs
 
 
-def test_geometric_to_ellipsoidal_missing_grid_falls_back(monkeypatch):
+def test_geometric_to_ellipsoidal_missing_grid_falls_back(patch_transformer, patch_proj_network):
     """If the EGM96 grid is missing locally and the CDN is unreachable, heights pass through."""
-    class NoopTransformer:
-        def to_proj4(self):
-            return '+proj=noop'
-
-        def transform(self, lons, lats, heights):
-            return lons, lats, heights
-
-    network_state = {'enabled': False}
-    set_calls = []
-
-    def fake_set_network_enabled(v):
-        set_calls.append(v)
-        network_state['enabled'] = v
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', lambda src, dst, always_xy=True: NoopTransformer())
-    monkeypatch.setattr(pyproj.network, 'is_network_enabled', lambda: network_state['enabled'])
-    monkeypatch.setattr(pyproj.network, 'set_network_enabled', fake_set_network_enabled)
+    patch_transformer(proj4='+proj=noop')
 
     heights = np.array([100.0])
     result = _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), heights)
 
     assert np.array_equal(result, heights)
-    assert set_calls == [True, False]
+    assert patch_proj_network['set_calls'] == [True, False]
 
 
-def test_geometric_to_ellipsoidal_exception_falls_back(monkeypatch):
+def test_geometric_to_ellipsoidal_exception_falls_back(patch_transformer):
     """Any unexpected failure during the transform should not crash readZ."""
-    def raise_err(src, dst, always_xy=True):
-        raise RuntimeError('boom')
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', raise_err)
+    patch_transformer(raises=RuntimeError('boom'))
 
     heights = np.array([100.0])
     result = _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), heights)
@@ -570,16 +554,23 @@ def test_rasterrdr_readZ_geoid_request_converts_from_hgtfile_ellipsoidal(monkeyp
     assert np.allclose(z, calls['heights'] + 3.0)
 
 
-def test_rasterrdr_readZ_geoid_request_requires_lonfile():
-    """Without a separate lon_file, readLL() can't provide lons for the conversion
-    a geoid_heights=True request now needs, since hgt_file is ellipsoidal."""
-    latfile = Path(GEOM_DIR) / 'lat.rdr'
-    lonfile = Path(GEOM_DIR) / 'lon.rdr'
-    query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile), hgt_file=str(latfile))
-    query._lonfile = None
+def test_rasterrdr_requires_lon_file():
+    """A RasterRDR cannot currently be built without a lon_file.
 
-    with pytest.raises(NotImplementedError):
-        query.readZ(geoid_heights=True)
+    The class docstring advertises a single 2-band lat/lon raster, and both
+    __init__ and readLL() have branches for lon_file=None, but the feature is
+    unimplemented: __init__ always routes through bounds_from_latlon_rasters(),
+    which cannot handle a None lon_file. This test pins the real, current
+    behavior via the public API.
+
+    Consequence worth knowing: readZ()'s NotImplementedError guard for a
+    missing lon_file is therefore unreachable defense-in-depth, not a path any
+    caller can actually reach today.
+    """
+    latfile = Path(GEOM_DIR) / 'lat.rdr'
+
+    with pytest.raises(ValueError):
+        RasterRDR(lat_file=str(latfile), lon_file=None)
 
 
 # ---------------------------------------------------------------------------
@@ -695,17 +686,8 @@ def test_readZ_sf_datum_column_protects_against_wrong_crs(tmp_path, monkeypatch)
 # Loud warning on missing-grid / conversion failure
 # ---------------------------------------------------------------------------
 
-def test_convert_missing_grid_raises_user_warning(monkeypatch):
-    class NoopTransformer:
-        def to_proj4(self):
-            return '+proj=noop'
-
-        def transform(self, lons, lats, heights):
-            return lons, lats, heights
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', lambda src, dst, always_xy=True: NoopTransformer())
-    monkeypatch.setattr(pyproj.network, 'is_network_enabled', lambda: False)
-    monkeypatch.setattr(pyproj.network, 'set_network_enabled', lambda v: None)
+def test_convert_missing_grid_raises_user_warning(patch_transformer, patch_proj_network):
+    patch_transformer(proj4='+proj=noop')
 
     heights = np.array([100.0])
     with pytest.warns(UserWarning, match='Height datum conversion unavailable'):
@@ -714,14 +696,104 @@ def test_convert_missing_grid_raises_user_warning(monkeypatch):
     assert np.array_equal(result, heights)
 
 
-def test_convert_exception_raises_user_warning(monkeypatch):
-    def raise_err(src, dst, always_xy=True):
-        raise RuntimeError('boom')
-
-    monkeypatch.setattr(pyproj.Transformer, 'from_crs', raise_err)
+def test_convert_exception_raises_user_warning(patch_transformer):
+    patch_transformer(raises=RuntimeError('boom'))
 
     heights = np.array([100.0])
     with pytest.warns(UserWarning, match='Height datum conversion unavailable'):
         result = _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), heights)
 
     assert np.array_equal(result, heights)
+
+
+def test_convert_propagates_when_warnings_are_errors(patch_transformer, patch_proj_network):
+    """With warnings configured as errors, the warning must propagate cleanly.
+
+    _convert_height_datum's broad `except Exception` would otherwise catch our
+    own warning-turned-error, warn a second time with the first message as its
+    reason (a message nested inside itself), and then silently return
+    unconverted heights -- defeating the whole point of warning loudly for a
+    caller who explicitly asked for strictness.
+    """
+    patch_transformer(proj4='+proj=noop')
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', UserWarning)
+        with pytest.raises(UserWarning) as excinfo:
+            _geometric_to_ellipsoidal(np.array([34.0]), np.array([-118.0]), np.array([100.0]))
+
+    # Exactly once -- not nested inside itself.
+    assert str(excinfo.value).count('Height datum conversion unavailable') == 1
+
+
+# ---------------------------------------------------------------------------
+# Geocube.readZ (previously untested)
+# ---------------------------------------------------------------------------
+
+def test_geocube_readZ(tmp_path):
+    """Geocube.readZ() reads the 'heights' variable directly from the cube.
+
+    Constructed via __new__ rather than the real constructor: __init__ also
+    calls rio_stats() for _proj/_geotransform metadata (needs a real
+    georeferenced raster via GDAL's netCDF driver) that readZ() itself never
+    touches, so building one just to test readZ() would make this test
+    depend on machinery unrelated to what it's checking.
+    """
+    heights = np.arange(24.0).reshape(2, 3, 4)
+    ds = xr.Dataset({'heights': (('z', 'y', 'x'), heights)})
+    nc_path = tmp_path / 'cube.nc'
+    ds.to_netcdf(nc_path)
+
+    aoi = Geocube.__new__(Geocube)
+    aoi.path = nc_path
+
+    result = aoi.readZ()
+    assert np.array_equal(result, heights)
+
+
+# ---------------------------------------------------------------------------
+# Real EGM96 grid (no mocking) -- catches an inverted conversion direction,
+# which every other test in this file structurally cannot, since they all
+# mock the Transformer/conversion functions directly.
+# ---------------------------------------------------------------------------
+
+_LA_LAT = np.array([34.05])
+_LA_LON = np.array([-118.25])
+# Near Los Angeles the geoid sits roughly 30-35 m below the WGS84 ellipsoid,
+# so geoid-referenced (orthometric) height should come out *larger* than
+# ellipsoidal height at the same physical point, by roughly that magnitude.
+# A wide-but-signed range: loose enough to tolerate real EGM96 variation,
+# tight enough that a sign-inverted transform (~-30 to -35) fails it clearly.
+_EXPECTED_UNDULATION_RANGE = (20.0, 45.0)
+
+
+def test_ellipsoidal_to_geometric_real_grid_los_angeles():
+    ellipsoidal_height = np.array([0.0])
+
+    geoid_height = _ellipsoidal_to_geometric(_LA_LAT, _LA_LON, ellipsoidal_height, CRS.from_epsg(4979))
+
+    if np.allclose(geoid_height, ellipsoidal_height):
+        pytest.skip('EGM96 grid unavailable locally and the PROJ CDN is unreachable; cannot verify a real conversion.')
+
+    undulation = geoid_height[0] - ellipsoidal_height[0]
+    low, high = _EXPECTED_UNDULATION_RANGE
+    assert low < undulation < high, (
+        f'geoid - ellipsoidal = {undulation:.2f} m, expected roughly {low}-{high} m near LA '
+        '(a negative value here would mean the conversion is inverted)'
+    )
+
+
+def test_geometric_to_ellipsoidal_real_grid_los_angeles():
+    geoid_height = np.array([100.0])
+
+    ellipsoidal_height = _geometric_to_ellipsoidal(_LA_LAT, _LA_LON, geoid_height)
+
+    if np.allclose(ellipsoidal_height, geoid_height):
+        pytest.skip('EGM96 grid unavailable locally and the PROJ CDN is unreachable; cannot verify a real conversion.')
+
+    undulation = geoid_height[0] - ellipsoidal_height[0]
+    low, high = _EXPECTED_UNDULATION_RANGE
+    assert low < undulation < high, (
+        f'geoid - ellipsoidal = {undulation:.2f} m, expected roughly {low}-{high} m near LA '
+        '(a negative value here would mean the conversion is inverted)'
+    )
