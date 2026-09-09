@@ -530,29 +530,8 @@ def test_readZ_sf_write_back_then_read_again_stays_consistent(tmp_path, monkeypa
 # RasterRDR.readZ
 # ---------------------------------------------------------------------------
 
-def test_rasterrdr_readZ_default_converts_from_hgtfile_geoid(monkeypatch):
-    """hgt_file is assumed geoid; the default (ellipsoidal) request converts via _geometric_to_ellipsoidal."""
-    latfile = Path(GEOM_DIR) / 'lat.rdr'
-    lonfile = Path(GEOM_DIR) / 'lon.rdr'
-    query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile), hgt_file=str(latfile))
-
-    calls = {}
-
-    def fake_convert(lats, lons, heights):
-        calls['called'] = True
-        calls['heights'] = heights
-        return heights + 3.0
-
-    monkeypatch.setattr('RAiDER.llreader._geometric_to_ellipsoidal', fake_convert)
-
-    z = query.readZ()
-
-    assert calls.get('called') is True
-    assert np.allclose(z, calls['heights'] + 3.0)
-
-
-def test_rasterrdr_readZ_geoid_request_no_conversion(monkeypatch):
-    """hgt_file is assumed geoid; requesting geoid_heights=True needs no conversion."""
+def test_rasterrdr_readZ_default_no_conversion(monkeypatch):
+    """hgt_file is ISCE-convention ellipsoidal; the default (ellipsoidal) request needs no conversion."""
     latfile = Path(GEOM_DIR) / 'lat.rdr'
     lonfile = Path(GEOM_DIR) / 'lon.rdr'
     query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile), hgt_file=str(latfile))
@@ -564,20 +543,43 @@ def test_rasterrdr_readZ_geoid_request_no_conversion(monkeypatch):
     monkeypatch.setattr('RAiDER.llreader._ellipsoidal_to_geometric', fail_if_called)
     monkeypatch.setattr('RAiDER.llreader._geometric_to_ellipsoidal', fail_if_called)
 
-    z = query.readZ(geoid_heights=True)
+    z = query.readZ()
     assert np.allclose(z, raw_hgts, equal_nan=True)
 
 
-def test_rasterrdr_readZ_default_requires_lonfile():
+def test_rasterrdr_readZ_geoid_request_converts_from_hgtfile_ellipsoidal(monkeypatch):
+    """hgt_file is ISCE-convention ellipsoidal; requesting geoid_heights=True converts via _ellipsoidal_to_geometric."""
+    latfile = Path(GEOM_DIR) / 'lat.rdr'
+    lonfile = Path(GEOM_DIR) / 'lon.rdr'
+    query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile), hgt_file=str(latfile))
+
+    calls = {}
+
+    def fake_convert(lats, lons, heights, crs):
+        calls['called'] = True
+        calls['heights'] = heights
+        calls['crs'] = crs
+        return heights + 3.0
+
+    monkeypatch.setattr('RAiDER.llreader._ellipsoidal_to_geometric', fake_convert)
+
+    z = query.readZ(geoid_heights=True)
+
+    assert calls.get('called') is True
+    assert calls['crs'] == CRS.from_epsg(4979)
+    assert np.allclose(z, calls['heights'] + 3.0)
+
+
+def test_rasterrdr_readZ_geoid_request_requires_lonfile():
     """Without a separate lon_file, readLL() can't provide lons for the conversion
-    the default (ellipsoidal) request now needs, since hgt_file is assumed geoid."""
+    a geoid_heights=True request now needs, since hgt_file is ellipsoidal."""
     latfile = Path(GEOM_DIR) / 'lat.rdr'
     lonfile = Path(GEOM_DIR) / 'lon.rdr'
     query = RasterRDR(lat_file=str(latfile), lon_file=str(lonfile), hgt_file=str(latfile))
     query._lonfile = None
 
     with pytest.raises(NotImplementedError):
-        query.readZ()
+        query.readZ(geoid_heights=True)
 
 
 # ---------------------------------------------------------------------------

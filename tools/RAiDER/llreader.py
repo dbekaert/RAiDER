@@ -531,20 +531,20 @@ class RasterRDR(AOI):
     def readZ(self, geoid_heights: bool = False) -> np.ndarray:
         """Read the heights from the raster file, or download a DEM if not present.
 
-        Heights from an existing hgt_file are assumed to be geoid-referenced
-        (~MSL) -- there is no height datum tracked for hgt_file, so this is
-        an assumption rather than a verified fact. Revisit if that turns out
-        to be wrong for a given hgt_file. DEM-downloaded heights are WGS84
-        ellipsoidal at the source (see dem.py's dst_ellipsoidal_height=True).
+        Heights are WGS84 ellipsoidal at the source either way: an existing
+        hgt_file follows the ISCE convention (heights above the WGS84
+        ellipsoid, matching RasterRDR's own lat/lon/geometry rasters), and a
+        downloaded DEM is ellipsoidal too (see dem.py's
+        dst_ellipsoidal_height=True).
 
-        By default (geoid_heights=False) returns WGS84 ellipsoidal heights.
-        Pass geoid_heights=True to instead get geoid-referenced (~MSL) heights.
+        By default (geoid_heights=False) returns WGS84 ellipsoidal heights
+        unchanged. Pass geoid_heights=True to instead get geoid-referenced
+        (~MSL) heights, needed only when sampling the weather-model cube.
         """
         from RAiDER.utilFcns import rio_open
         if self._hgtfile is not None and os.path.exists(self._hgtfile):
             logger.info('Using existing heights at: %s', self._hgtfile)
             hgts, _ = rio_open(self._hgtfile)
-            source_is_geoid = True
 
         else:
             # Download the DEM
@@ -563,9 +563,8 @@ class RasterRDR(AOI):
                 dem_path=Path(demFile),
             )
             hgts = interpolateDEM(demFile, self.readLL())
-            source_is_geoid = False
 
-        if geoid_heights == source_is_geoid:
+        if not geoid_heights:
             return hgts
 
         if self._lonfile is None:
@@ -574,9 +573,7 @@ class RasterRDR(AOI):
                 'RasterRDR was constructed without lon_file.'
             )
         lats, lons = self.readLL()
-        if geoid_heights:
-            return _ellipsoidal_to_geometric(lats, lons, hgts, CRS.from_epsg(4979))
-        return _geometric_to_ellipsoidal(lats, lons, hgts)
+        return _ellipsoidal_to_geometric(lats, lons, hgts, CRS.from_epsg(4979))
 
 
 class BoundingBox(AOI):
@@ -628,10 +625,11 @@ class GeocodedFile(AOI):
         A downloaded DEM is WGS84 ellipsoidal at the source (see dem.py's
         dst_ellipsoidal_height=True). When is_dem=True and a file already
         exists at that path, download_dem() reuses it as-is rather than
-        downloading -- its own height datum isn't tracked here, so it's
-        assumed to be geoid-referenced (~MSL), matching RasterRDR's hgt_file
-        assumption. This is an assumption, not a verified fact for that
-        specific case; revisit if that turns out to be wrong.
+        downloading -- its own height datum isn't tracked here (unlike
+        RasterRDR's hgt_file, which is a known ISCE-convention ellipsoidal
+        format), so it's assumed to be geoid-referenced (~MSL). This is an
+        assumption, not a verified fact for that specific case; revisit if
+        that turns out to be wrong.
 
         By default (geoid_heights=False) returns WGS84 ellipsoidal heights.
         Pass geoid_heights=True to instead get geoid-referenced (~MSL) heights.
