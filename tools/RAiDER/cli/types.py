@@ -112,6 +112,7 @@ class AOIGroupUnparsed:
     lat_file: Optional[str] = None
     lon_file: Optional[str] = None
     station_file: Optional[str] = None
+    station_file_crs: Union[int, str] = 4979
     geo_cube: Optional[str] = None
 
 @dataclasses.dataclass

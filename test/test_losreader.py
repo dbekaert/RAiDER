@@ -280,7 +280,7 @@ def test_Zenith():
     with pytest.raises(RuntimeError):
         z.setPoints(lats=None)
 
-    z.setPoints(lats=lats, lons=lons, heights = hgts)
+    z.setPoints(lats=lats, lons=lons, ellipsoidal_heights=hgts)
     assert z._lats.shape == (4,)
     assert z._lats.shape == z._lons.shape
     assert np.allclose(z._heights, hgts)

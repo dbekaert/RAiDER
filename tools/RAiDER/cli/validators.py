@@ -155,7 +155,9 @@ def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnpar
         )
 
     elif aoi_group.station_file is not None:
-        query = StationFile(aoi_group.station_file, cube_spacing_in_m=cube_spacing_in_m)
+        query = StationFile(
+            aoi_group.station_file, cube_spacing_in_m=cube_spacing_in_m, crs=aoi_group.station_file_crs
+        )
 
     elif aoi_group.bounding_box is not None:
         bbox = parse_bbox(aoi_group.bounding_box)

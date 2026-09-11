@@ -42,7 +42,7 @@ def tropo_delay(
     zref: Optional[np.float64] = None,
 ):
     """Calculate integrated delays on query points.
-    
+
     Options are:
     1. Zenith delays (ZTD)
     2. Zenith delays projected to the line-of-sight (STD-projected)
@@ -99,14 +99,14 @@ def tropo_delay(
         # CRS can be an int, str, or CRS object
         try:
             if isinstance(out_proj, str):
-                out_proj = out_proj.split(':')[-1] # handle the case where "EPSG:" is included
+                out_proj = out_proj.split(':')[-1]  # handle the case where "EPSG:" is included
             out_proj = CRS.from_epsg(out_proj)
         except pyproj.exceptions.CRSError:
             pass
 
         pnt_proj = CRS.from_epsg(4326)
         lats, lons = aoi.readLL()
-        hgts = aoi.readZ()
+        hgts = aoi.readZ(geoid_heights=True)  # geoid-referenced, matches the weather-model cube's z-axis
         pnts = transformPoints(lats, lons, hgts, pnt_proj, out_proj)
 
         try:
@@ -120,7 +120,8 @@ def tropo_delay(
         # return the delays (ZTD or STD)
         if los.is_Projected():
             los.setTime(datetime)
-            los.setPoints(lats, lons, hgts)
+            hgts_ell = aoi.readZ()  # ellipsoidal (default) -- LOS/ECEF geometry needs true ellipsoidal heights
+            los.setPoints(lats, lons, hgts_ell)
             wetDelay = los(wetDelay)
             hydroDelay = los(hydroDelay)
 
@@ -172,7 +173,7 @@ def _get_delays_on_cube(datetime: dt.datetime, weather_model_file, wm_proj, aoi,
                 aoi.xpts, aoi.ypts, zpts, los, wm_proj, crs, [ifWet, ifHydro], MAX_TROPO_HEIGHT=zref
             )
 
-        ### Use multi-processing here
+        # Use multi-processing here
         else:
             # Pre-build output arrays
 
@@ -251,7 +252,7 @@ def _build_cube_ray(
 
     # Loop over heights of output cube and compute delays
     for hh, ht in enumerate(zpts):
-        logger.info(f'Processing slice {hh+1} / {len(zpts)}: {ht}')
+        logger.info(f'Processing slice {hh + 1} / {len(zpts)}: {ht}')
         # Slices to fill on output
         outSubs = [x[hh, ...] for x in outputArrs]
 
@@ -372,7 +373,7 @@ def writeResultsToXarray(datetime: dt.datetime, xpts, ypts, zpts, crs, wetDelay,
     # Write z-axis information
     ds.z.attrs['axis'] = 'Z'
     ds.z.attrs['units'] = 'm'
-    ds.z.attrs['description'] = 'height above ellipsoid'
+    ds.z.attrs['description'] = 'height above geoid'
 
     # If in degrees
     if crs.axis_info[0].unit_name == 'degree':
@@ -411,7 +412,7 @@ def transformPoints(
     Args:
         lats: ndarray   - WGS-84 latitude (EPSG: 4326)
         lons: ndarray   - ditto for longitude
-        hgts: ndarray   - Ellipsoidal height in meters
+        hgts: ndarray   - Geoid-referenced (~MSL) height in meters
         old_proj: CRS   - the original projection of the points
         new_proj: CRS   - the new projection in which to return the points
 

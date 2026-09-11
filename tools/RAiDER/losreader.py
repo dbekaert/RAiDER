@@ -39,8 +39,10 @@ class LOS(ABC):
         self._is_zenith = False
         self._is_projected = False
 
-    def setPoints(self, lats, lons=None, heights=None) -> None:
-        """Set the pixel locations."""
+    def setPoints(self, lats, lons=None, ellipsoidal_heights=None) -> None:
+        """
+        Set the pixel locations. NOTE: These MUST be ellipsoidal heights.
+        """
         if (lats is None) and (self._lats is None):
             raise RuntimeError("You haven't given any point locations yet")
 
@@ -50,14 +52,14 @@ class LOS(ABC):
             self._lats = llh[..., 0]
             self._lons = llh[..., 1]
             self._heights = llh[..., 2]
-        elif heights is None:
+        elif ellipsoidal_heights is None:
             self._lats = lats
             self._lons = lons
             self._heights = np.zeros((len(lats), 1))
         else:
             self._lats = lats
             self._lons = lons
-            self._heights = heights
+            self._heights = ellipsoidal_heights
 
     def setTime(self, datetime) -> None:
         self._time = datetime
