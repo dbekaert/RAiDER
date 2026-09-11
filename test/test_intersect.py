@@ -70,7 +70,12 @@ def test_cube_intersect(tmp_path: Path, wm: str) -> None:
 @pytest.mark.parametrize(
     'wm_name,gold',
     (
-        ('ERA5', 2.343549),
+        # Updated with the height-datum fix (#822): the station heights are
+        # ellipsoidal, so sampling now happens ~34 m higher, at the geoid-
+        # referenced height the weather-model cube's z-axis actually uses.
+        # Less atmosphere overhead => ~11 mm less delay than the old value of
+        # 2.343549, which was computed while the two datums were mixed.
+        ('ERA5', 2.332483),
         # Can be enabled when known-good data is added
         pytest.param('ERA5T', np.nan, marks=pytest.mark.skip),
         pytest.param('GMAO', np.nan, marks=pytest.mark.skip),
@@ -93,11 +98,13 @@ def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64) -> None:
         'date_group': {'date_start': date},
         'time_group': {'time': time, 'interpolate_time': 'none'},
         'weather_model': wm_name,
-        # scenario_6/stations.csv's Hgt_m values are geoid-referenced (MSL), not
-        # ellipsoidal -- e.g. TORP's -5.2 m is a plausible near-sea-level
-        # orthometric height, not a raw GNSS ellipsoidal one (which would be
-        # around -30 to -40 m near LA given the local geoid undulation).
-        'aoi_group': {'station_file': str(gnss_file), 'station_file_crs': 4326},
+        # scenario_6/stations.csv holds UNR MAGNET ellipsoidal heights. TORP's
+        # -5.2 m is the WGS84 ellipsoidal height of a station ~30 m above sea
+        # level: the geoid sits ~35 m below the ellipsoid near LA, so
+        # h = H + N = 30 - 35. Read as MSL it would put Torrance (true
+        # elevation ~25-27 m) below sea level. Stated explicitly though 4979 is
+        # default, since getting this wrong silently disables the conversion.
+        'aoi_group': {'station_file': str(gnss_file), 'station_file_crs': 4979},
         'runtime_group': {
             'output_directory': outdir,
             'weather_model_directory': WM_DIR,

@@ -17,7 +17,7 @@ dependencies:
  - cdsapi
  - cfgrib
  - dask
- - dem_stitcher>=3.0.0
+ - dem_stitcher>=2.5.8
  - ecmwf-api-client
  - geopandas
  - h5netcdf
@@ -32,7 +32,7 @@ dependencies:
  - progressbar
  - pydap>3.2.2
  - pyogrio
- - pyproj>=2.2.0
+ - pyproj>=3.1.0
  - pyyaml
  - rasterio>=1.3.0
  - requests
