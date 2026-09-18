@@ -37,6 +37,7 @@ column-wise, so that is sufficient and keeps the fixture small enough to commit.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -176,3 +177,55 @@ def test_opera_tropo_zhd_does_not_ramp_with_terrain(zhd_residual_mm):
         f'proportional to the column. High-terrain OPERA tiles would be worst '
         f'affected.'
     )
+
+
+def test_report_delta_against_opera_production(zhd_residual_mm, capsys):
+    """Report how far this build moves OPERA's shipped numbers. Never fails.
+
+    The assertions above are the contract: they say the delay is physically
+    right, and no one can regenerate them into passing. This one is a notice
+    board. It prints the per-column difference against what OPERA L4
+    TROPO-ZENITH ships today so a reviewer can see, in CI, that a change
+    reaches an operational product and by how much.
+
+    It deliberately does not assert. Whether a given delta is acceptable
+    depends on reprocessing cost and product requirements that live in
+    `opera-adt/tropo`, not here -- and a threshold a RAiDER reviewer cannot
+    evaluate is one they would raise until it stopped complaining. The
+    corresponding hard check belongs downstream, pinned by the people who own
+    the product.
+    """
+    baseline_path = DATA.parent / 'opera_production_zhd.json'
+    if not baseline_path.exists():
+        pytest.skip(f'missing baseline {baseline_path}')
+    baseline = json.loads(baseline_path.read_text())
+
+    fixture = dict(np.load(DATA))
+    zhd, zs = _run_opera_tropo_path(fixture)
+    terrain = fixture['terrain'].astype(float)
+
+    here, shipped = [], baseline['production_zhd_m']
+    for i in range(terrain.shape[0]):
+        for j in range(terrain.shape[1]):
+            here.append(float(np.interp(terrain[i, j], zs, zhd[i, j, :])))
+
+    delta_mm = np.array([(a - b) * 1000.0 for a, b in zip(here, shipped)])
+    heights = np.array(baseline['terrain_m'])
+
+    lines = [
+        '',
+        'OPERA L4 TROPO-ZENITH impact of this build (informational, never fails):',
+        f'  {"terrain (m)":>12s} {"shipped (mm)":>14s} {"this build":>12s} {"delta":>9s}',
+    ]
+    for h, s, d in zip(heights, shipped, delta_mm):
+        lines.append(f'  {h:12.0f} {s * 1000:14.2f} {s * 1000 + d:12.2f} {d:+9.2f}')
+    lines.append(
+        f'  median {np.median(delta_mm):+.2f} mm, range {delta_mm.min():+.2f} to '
+        f'{delta_mm.max():+.2f} mm over {heights.min():.0f}-{heights.max():.0f} m terrain.'
+    )
+    lines.append(
+        '  A non-zero delta is expected on this branch: it is the calcgeoh fix. '
+        'If you did not intend to move these numbers, that is the finding.'
+    )
+    with capsys.disabled():
+        print('\n'.join(lines))
