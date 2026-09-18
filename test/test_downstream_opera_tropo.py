@@ -22,10 +22,9 @@ surface pressure and latitude alone.
     ZHD = 0.0022768 * p_s[hPa] / (1 - 0.00266*cos(2*phi) - 0.00028*h_km)
 
 A golden file regenerated from a broken run defends the breakage; a closed form
-cannot be regenerated. On the fixture below a correct RAiDER lands at 1.0 mm
-RMS. RAiDER 0.5.3 -- whose `calcgeoh` returns the half-level pressure ABOVE
-each full level instead of the mean of the two bracketing it -- lands at
-29.9 mm, biased -23.8 mm and ramping +3.6 mm per km of terrain.
+cannot be regenerated. On the fixture below, with the half-level average
+restored, RAiDER lands at 1.55 mm RMS; without it, at 31.5 mm, biased -23.9 mm
+and ramping +4.09 mm per km of terrain.
 
 THE FIXTURE
 -----------
@@ -48,10 +47,11 @@ from RAiDER.models.hres import HRES
 
 DATA = Path(__file__).parent / 'opera_tropo_data' / 'hres_columns_9.npz'
 
-#: Measured on this fixture. A correct RAiDER gives 1.0 mm RMS / -0.9 mm bias /
-#: -0.4 mm per km; RAiDER 0.5.3 gives 29.9 / -23.8 / +3.6. These sit clear of
-#: the first and well under the second, so they neither flap nor pass the
-#: defect. Widen them only with a measurement to justify the new number.
+#: Measured on this fixture, on this branch: 1.55 mm RMS / -1.37 mm bias /
+#: +0.17 mm per km. Without the half-level average: 33.1 / -23.9 / +4.70.
+#: The thresholds sit clear of the first and well under the second, so they
+#: neither flap nor pass the defect. Widen them only with a measurement to
+#: justify the new number.
 ZHD_RMS_TOLERANCE_MM = 5.0
 ZHD_BIAS_TOLERANCE_MM = 3.0
 ZHD_SLOPE_TOLERANCE_MM_PER_KM = 1.5
@@ -80,14 +80,23 @@ def _run_opera_tropo_path(fixture):
     model._lons = fixture['lons'].astype(float)
     model._lats = fixture['lats'].astype(float)
 
-    # pressure, geopotential and geopotential height from surface fields.
-    # NOTE: this signature changed after v0.5.3 -- it used to read t/q off the
-    # model instance. opera-adt/tropo still calls the two-argument form, so it
-    # will raise TypeError on upgrade until it is updated.
+    # NOTE 1: this signature changed after v0.5.3 -- it used to read t/q off
+    # the model instance. opera-adt/tropo still calls the two-argument form, so
+    # it will raise TypeError on upgrade until it is updated.
+    #
+    # NOTE 2: t is passed as a COPY on purpose. calcgeoh converts temperature
+    # to virtual temperature with an in-place multiply (issue #819), so the
+    # caller's array comes back inflated by up to 0.65 % and every later step
+    # -- _find_e, both refractivity getters -- then sees moisture-inflated
+    # temperatures. That is a real defect and a real consequence for callers,
+    # but it is not the one this PR fixes. Copying isolates the pressure path,
+    # so these assertions measure one thing. On this fixture the mutation
+    # costs an extra 1.7 mm RMS (3.26 vs 1.55) and +0.6 mm/km of slope; when
+    # #819 lands, drop the .copy() and the numbers should not move.
     _, pressure, geo_height = model._calculategeoh(
         fixture['z_surface'].astype(float),
         fixture['lnsp'].astype(float),
-        model._t,
+        model._t.copy(),
         model._q,
     )
     model._p = pressure
