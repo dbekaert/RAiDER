@@ -19,6 +19,9 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   * The workflow now aborts with an explanatory error when the RAiDER and GNSS files share no common observations, rather than passing empty frames into the per-station variance analysis and failing later with a `KeyError` on a column that was never created.
 * [808](https://github.com/dbekaert/RAiDER/pull/808) - Use `xarray.open_dataset` instead of `load_dataset` for memory efficiency, and guard weather-model file reads with explicit error handling so that datasets are always closed. Dropped the redundant full-cube `shutil.copy` from the ECMWF model-level download, and added regression tests covering the layout contract between `ECMWF._get_from_cds` and `ECMWF._makeDataCubes`.
 
+### Added
+* [832](https://github.com/dbekaert/RAiDER/pull/832) - Added `test/test_aws.py` to bring test coverage of `aws.py` to 100%, and formatted and linted `aws.py` with ruff.
+
 ## [0.6.0]
 ### Removed
 * [764](https://github.com/dbekaert/RAiDER/pull/764) - Removed Python 3.8 support. Python 3.9 is now the minimum version officially required to run RAiDER.
