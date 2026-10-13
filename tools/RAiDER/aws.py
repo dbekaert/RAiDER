@@ -16,14 +16,7 @@ def get_tag_set(file_name: str) -> dict:
     else:
         file_type = 'product'
 
-    tag_set = {
-        'TagSet': [
-            {
-                'Key': 'file_type',
-                'Value': file_type
-            }
-        ]
-    }
+    tag_set = {'TagSet': [{'Key': 'file_type', 'Value': file_type}]}
     return tag_set
 
 
