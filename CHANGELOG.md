@@ -20,6 +20,7 @@ and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [808](https://github.com/dbekaert/RAiDER/pull/808) - Use `xarray.open_dataset` instead of `load_dataset` for memory efficiency, and guard weather-model file reads with explicit error handling so that datasets are always closed. Dropped the redundant full-cube `shutil.copy` from the ECMWF model-level download, and added regression tests covering the layout contract between `ECMWF._get_from_cds` and `ECMWF._makeDataCubes`.
 
 ### Added
+* [833](https://github.com/dbekaert/RAiDER/pull/833) - Added tests to `test/test_processWM.py` to bring test coverage of `processWM.py` to 100%, formatted and linted `processWM.py` with ruff, and removed the unused and broken `_weather_model_debug` function.
 * [832](https://github.com/dbekaert/RAiDER/pull/832) - Added `test/test_aws.py` to bring test coverage of `aws.py` to 100%, and formatted and linted `aws.py` with ruff.
 
 ## [0.6.0]
