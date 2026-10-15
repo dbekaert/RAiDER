@@ -1,0 +1,33 @@
+{
+ "_comment": [
+  "Zenith hydrostatic delay at each fixture column's own surface, in metres.",
+  "production_zhd_m: what OPERA L4 TROPO-ZENITH ships today, produced with the",
+  "  RAiDER release it pins (v0.5.3). It carries the calcgeoh half-level defect.",
+  "This file is NOT an assertion. It exists so RAiDER CI can report how far a",
+  "change moves an operational downstream product. The pass/fail decision on",
+  "that delta belongs to opera-adt/tropo, which owns the product and the",
+  "reprocessing budget -- not to a RAiDER reviewer who has no way to judge it."
+ ],
+ "terrain_m": [
+  -24.422,
+  96.386,
+  465.599,
+  4467.657,
+  4800.216,
+  4970.5,
+  5110.417,
+  5287.688,
+  6274.483
+ ],
+ "production_zhd_m": [
+  2.285075,
+  2.256031,
+  2.160184,
+  1.329189,
+  1.273976,
+  1.247068,
+  1.222733,
+  1.196973,
+  1.050539
+ ]
+}
