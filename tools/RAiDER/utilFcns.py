@@ -833,7 +833,10 @@ def calcgeoh(
         ph_lev: FloatArray2D = a[level - 1] + (b[level - 1] * sp)
         ph_levplusone: FloatArray2D = a[level] + (b[level] * sp)
 
-        p[idx_level] = ph_lev  # + Ph_levplusone) / 2  # average pressure at half-levels above and below
+        # ECMWF defines pressure on HALF levels; the full-level value is the
+        # mean of the two that bracket it. geopotential[idx_level] below is a
+        # FULL-level height, so it must be paired with the full-level pressure.
+        p[idx_level] = (ph_lev + ph_levplusone) / 2
 
         if level == 1:
             d_logp: FloatArray2D = np.log(ph_levplusone / 0.1)
