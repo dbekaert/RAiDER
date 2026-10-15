@@ -16,6 +16,7 @@ from RAiDER.types import BB, LookDir, TimeInterpolationMethod
 
 
 LOSConvention = Literal['isce', 'hyp3']
+HeightDatum = Literal['geoid', 'ellipsoidal']
 
 @dataclasses.dataclass
 class DateGroupUnparsed:
@@ -127,6 +128,13 @@ class HeightGroupUnparsed:
     use_dem_latlon: bool = False
     height_file_rdr: Optional[str] = None
     height_levels: Optional[Union[str, list[Union[float, int]]]] = None
+    # Datum of the heights supplied for the query points -- the station file's
+    # Hgt_m column. GNSS positions are ellipsoidal, so that is the default.
+    height_datum: HeightDatum = 'ellipsoidal'
+    # Datum of any DEM, whether downloaded or passed in via dem. GLO-30 and
+    # SRTM are both distributed against the geoid, as is anything RAiDER
+    # downloads itself, so that is the default.
+    dem_height_datum: HeightDatum = 'geoid'
 
 @dataclasses.dataclass
 class HeightGroup:
@@ -134,6 +142,8 @@ class HeightGroup:
     use_dem_latlon: bool
     height_file_rdr: Optional[str]
     height_levels: Optional[list[float]]
+    height_datum: HeightDatum = 'ellipsoidal'
+    dem_height_datum: HeightDatum = 'geoid'
 
 
 @dataclasses.dataclass

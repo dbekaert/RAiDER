@@ -8,7 +8,7 @@ from scipy.interpolate import griddata
 
 from RAiDER.cli.raider import calcDelays
 from RAiDER.utilFcns import write_yaml
-from test import TEST_DIR, WM_DIR
+from test import TEST_DIR
 
 
 SCENARIO_DIR = TEST_DIR / 'scenario_6'
@@ -16,7 +16,7 @@ SCENARIO_DIR = TEST_DIR / 'scenario_6'
 
 @pytest.mark.skip(reason='The lats/lons in scenario_6 are all offshore and there is no DEM')
 @pytest.mark.parametrize('wm', 'ERA5'.split())
-def test_cube_intersect(tmp_path: Path, wm: str) -> None:
+def test_cube_intersect(tmp_path: Path, wm: str, weather_model_dir: Path) -> None:
     """Test the intersection of lat/lon files with the DEM (model height levels?)."""
     outdir = tmp_path / 'output'
     ## make the lat lon grid
@@ -36,7 +36,7 @@ def test_cube_intersect(tmp_path: Path, wm: str) -> None:
         },
         'runtime_group': {
             'output_directory': outdir,
-            'weather_model_directory': WM_DIR,
+            'weather_model_directory': weather_model_dir,
         },
         'verbose': False,
     }
@@ -70,7 +70,14 @@ def test_cube_intersect(tmp_path: Path, wm: str) -> None:
 @pytest.mark.parametrize(
     'wm_name,gold',
     (
-        ('ERA5', 2.343549),
+        # Updated with the height-datum fix (#822): the station heights are
+        # ellipsoidal, so sampling now happens ~34 m higher, at the geoid-
+        # referenced height the weather-model cube's z-axis actually uses.
+        # Less atmosphere overhead => ~11 mm less delay (2.343549 -> 2.332483).
+        # Then +45.2 mm when the processed ERA-5 fixture was regenerated from
+        # raw with the half-level pressure fix (#826): +43.6 mm from the
+        # pressure itself, +1.6 mm from reprocessing the 2023-era fixture.
+        ('ERA5', 2.377665),
         # Can be enabled when known-good data is added
         pytest.param('ERA5T', np.nan, marks=pytest.mark.skip),
         pytest.param('GMAO', np.nan, marks=pytest.mark.skip),
@@ -79,7 +86,7 @@ def test_cube_intersect(tmp_path: Path, wm: str) -> None:
         pytest.param('HRRR', np.nan, marks=pytest.mark.skip),
     ),
 )
-def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64) -> None:
+def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64, weather_model_dir: Path) -> None:
     gnss_file = SCENARIO_DIR / 'stations.csv'
     outdir = tmp_path / 'output'
 
@@ -93,10 +100,17 @@ def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64) -> None:
         'date_group': {'date_start': date},
         'time_group': {'time': time, 'interpolate_time': 'none'},
         'weather_model': wm_name,
+        # scenario_6/stations.csv holds UNR MAGNET ellipsoidal heights. TORP's
+        # -5.2 m is the WGS84 ellipsoidal height of a station ~30 m above sea
+        # level: the geoid sits ~35 m below the ellipsoid near LA, so
+        # h = H + N = 30 - 35. Read as MSL it would put Torrance (true
+        # elevation ~25-27 m) below sea level. Stated explicitly though it is
+        # default, since getting this wrong silently disables the conversion.
         'aoi_group': {'station_file': str(gnss_file)},
+        'height_group': {'height_datum': 'ellipsoidal'},
         'runtime_group': {
             'output_directory': outdir,
-            'weather_model_directory': WM_DIR,
+            'weather_model_directory': weather_model_dir,
         },
         'verbose': False,
     }

@@ -104,6 +104,20 @@ height_group:
   height_file_rdr:
   height_levels:
 
+  ## Datum of the heights supplied for the query points -- i.e. a station
+  ## file's Hgt_m column. Either 'ellipsoidal' or 'geoid'.
+  ## 'ellipsoidal' (default): heights above the WGS84 ellipsoid, which is what
+  ##   GNSS positions (UNR MAGNET, IGS20) and ISCE geometry rasters carry.
+  ## 'geoid': heights above the geoid / mean sea level.
+  ## Ignored if the station file has an Hgt_datum column, which takes precedence.
+  height_datum: ellipsoidal
+
+  ## Datum of the DEM, whether downloaded by RAiDER or supplied above via 'dem'.
+  ## 'geoid' (default): the native datum of GLO-30 and SRTM, and of anything
+  ##   RAiDER downloads itself.
+  ## 'ellipsoidal': for a custom DEM already referenced to the WGS84 ellipsoid.
+  dem_height_datum: geoid
+
 
 ########## 6. Line-of-sight or zenith calculations
 ## REQUIRED: FALSE

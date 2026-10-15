@@ -26,7 +26,6 @@ test/GUNW/
 dist/
 tools/RAiDER.egg-info/
 tools/bindings/utils/makePoints.c
-gunw_azimuth_test_data/
 test/synthetic_test/*.nc
 test/synthetic_test/weather_files_synth/
 orbits/
