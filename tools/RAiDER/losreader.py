@@ -9,6 +9,7 @@
 import datetime as dt
 import os
 import shelve
+import warnings
 from abc import ABC
 from pathlib import PosixPath
 from typing import Literal, NoReturn, Union
@@ -39,8 +40,23 @@ class LOS(ABC):
         self._is_zenith = False
         self._is_projected = False
 
-    def setPoints(self, lats, lons=None, heights=None) -> None:
-        """Set the pixel locations."""
+    def setPoints(self, lats, lons=None, ellipsoidal_heights=None, heights=None) -> None:
+        """
+        Set the pixel locations. NOTE: These MUST be ellipsoidal heights.
+        """
+        if heights is not None:
+            # `heights` was renamed to say which datum it has to be in. RAiDER is
+            # consumed as a library, so keep the old keyword working for a release
+            # rather than breaking external callers outright.
+            warnings.warn(
+                'LOS.setPoints(heights=...) is deprecated; use ellipsoidal_heights=... '
+                'instead. The values must be heights above the WGS84 ellipsoid.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if ellipsoidal_heights is None:
+                ellipsoidal_heights = heights
+
         if (lats is None) and (self._lats is None):
             raise RuntimeError("You haven't given any point locations yet")
 
@@ -50,14 +66,14 @@ class LOS(ABC):
             self._lats = llh[..., 0]
             self._lons = llh[..., 1]
             self._heights = llh[..., 2]
-        elif heights is None:
+        elif ellipsoidal_heights is None:
             self._lats = lats
             self._lons = lons
             self._heights = np.zeros((len(lats), 1))
         else:
             self._lats = lats
             self._lons = lons
-            self._heights = heights
+            self._heights = ellipsoidal_heights
 
     def setTime(self, datetime) -> None:
         self._time = datetime

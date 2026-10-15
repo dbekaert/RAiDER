@@ -1,3 +1,4 @@
+import datetime as dt
 import os
 import pytest
 
@@ -8,7 +9,7 @@ from pyproj import CRS, Transformer
 from test import TEST_DIR
 
 from RAiDER.delayFcns import getInterpolators
-from RAiDER.delay import transformPoints
+from RAiDER.delay import transformPoints, tropo_delay
 
 SCENARIO1_DIR = os.path.join(TEST_DIR, "scenario_1", "golden_data")
 
@@ -97,6 +98,67 @@ def test_transformPoints_3():
     assert np.allclose(x, [6378137., 0, -6378137])
     assert np.allclose(y, [0, -6378137., 0])
     assert np.allclose(z, [0, 0, 0])
+
+
+def test_tropo_delay_requests_correct_height_datum(monkeypatch, tmp_path):
+    """Orchestration test for tropo_delay's own wiring: the weather-model
+    sampling call (transformPoints) must get geoid heights, and the LOS/ECEF
+    call (los.setPoints) must get ellipsoidal heights. This is exactly the
+    shape of bug found and fixed earlier in this branch's history -- both
+    calls silently using the same (wrong-for-one-of-them) height array --
+    which no per-branch unit test on readZ() alone can catch.
+    """
+    ds_wm = xr.Dataset({'z': ('z', [0.0, 100.0])})
+    wm_file = tmp_path / 'wm.nc'
+    ds_wm.to_netcdf(wm_file)
+
+    calls = {}
+
+    class FakeAOI:
+        def readLL(self):
+            return np.array([34.0]), np.array([-118.0])
+
+        def readZ(self, geoid_heights=False):
+            calls.setdefault('readZ_calls', []).append(geoid_heights)
+            return np.array([100.0 if geoid_heights else 65.0])
+
+    class FakeLOS:
+        def is_Projected(self):
+            return True
+
+        def setTime(self, datetime):
+            pass
+
+        def setPoints(self, lats, lons, heights):
+            calls['setPoints_heights'] = heights
+
+        def __call__(self, delays):
+            return delays
+
+    def fake_get_delays_on_cube(*args, **kwargs):
+        return xr.Dataset()
+
+    def fake_transformPoints(lats, lons, hgts, pnt_proj, out_proj):
+        calls.setdefault('transformPoints_heights', []).append(hgts)
+        return np.zeros((len(hgts), 3))
+
+    def fake_getInterpolators(ds, kind):
+        return (lambda pnts: np.zeros(len(pnts)), lambda pnts: np.zeros(len(pnts)))
+
+    monkeypatch.setattr('RAiDER.delay._get_delays_on_cube', fake_get_delays_on_cube)
+    monkeypatch.setattr('RAiDER.delay.transformPoints', fake_transformPoints)
+    monkeypatch.setattr('RAiDER.delay.getInterpolators', fake_getInterpolators)
+
+    tropo_delay(
+        datetime=dt.datetime(2020, 1, 30, 13, 52, 45),
+        weather_model_file=str(wm_file),
+        aoi=FakeAOI(),
+        los=FakeLOS(),
+    )
+
+    assert calls['readZ_calls'] == [True, False]  # geoid first (sampling), then ellipsoidal (LOS)
+    assert np.allclose(calls['transformPoints_heights'][0], 100.0)
+    assert np.allclose(calls['setPoints_heights'], 65.0)
 
 
 

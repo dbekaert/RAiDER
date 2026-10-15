@@ -85,6 +85,8 @@ def get_heights(height_group: HeightGroupUnparsed, aoi_group: AOIGroupUnparsed, 
         use_dem_latlon=height_group.use_dem_latlon,
         height_file_rdr=height_group.height_file_rdr,
         height_levels=None,
+        height_datum=height_group.height_datum,
+        dem_height_datum=height_group.dem_height_datum,
     )
 
     if height_group.dem is not None:
@@ -143,7 +145,12 @@ def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnpar
     # Get bounds from the inputs
     # make sure this is first
     if height_group.use_dem_latlon:
-        query = GeocodedFile(Path(height_group.dem), is_dem=True, cube_spacing_in_m=cube_spacing_in_m)
+        query = GeocodedFile(
+            Path(height_group.dem),
+            is_dem=True,
+            cube_spacing_in_m=cube_spacing_in_m,
+            dem_height_datum=height_group.dem_height_datum,
+        )
 
     elif aoi_group.lat_file is not None or aoi_group.lon_file is not None:
         if aoi_group.lat_file is None or aoi_group.lon_file is None:
@@ -151,11 +158,17 @@ def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnpar
         query = RasterRDR(
             aoi_group.lat_file, aoi_group.lon_file,
             hgt_file=height_group.height_file_rdr, dem_file=height_group.dem,
-            cube_spacing_in_m=cube_spacing_in_m
+            cube_spacing_in_m=cube_spacing_in_m,
+            dem_height_datum=height_group.dem_height_datum,
         )
 
     elif aoi_group.station_file is not None:
-        query = StationFile(aoi_group.station_file, cube_spacing_in_m=cube_spacing_in_m)
+        query = StationFile(
+            aoi_group.station_file,
+            cube_spacing_in_m=cube_spacing_in_m,
+            height_datum=height_group.height_datum,
+            dem_height_datum=height_group.dem_height_datum,
+        )
 
     elif aoi_group.bounding_box is not None:
         bbox = parse_bbox(aoi_group.bounding_box)
@@ -171,7 +184,12 @@ def get_query_region(aoi_group: AOIGroupUnparsed, height_group: HeightGroupUnpar
             is_dem = True
         else:
             is_dem = False
-        query = GeocodedFile(geocoded_file_path, is_dem=is_dem, cube_spacing_in_m=cube_spacing_in_m)
+        query = GeocodedFile(
+            geocoded_file_path,
+            is_dem=is_dem,
+            cube_spacing_in_m=cube_spacing_in_m,
+            dem_height_datum=height_group.dem_height_datum,
+        )
 
     # untested
     elif aoi_group.geo_cube is not None:
