@@ -8,7 +8,7 @@ from scipy.interpolate import griddata
 
 from RAiDER.cli.raider import calcDelays
 from RAiDER.utilFcns import write_yaml
-from test import TEST_DIR, WM_DIR
+from test import TEST_DIR
 
 
 SCENARIO_DIR = TEST_DIR / 'scenario_6'
@@ -16,7 +16,7 @@ SCENARIO_DIR = TEST_DIR / 'scenario_6'
 
 @pytest.mark.skip(reason='The lats/lons in scenario_6 are all offshore and there is no DEM')
 @pytest.mark.parametrize('wm', 'ERA5'.split())
-def test_cube_intersect(tmp_path: Path, wm: str) -> None:
+def test_cube_intersect(tmp_path: Path, wm: str, weather_model_dir: Path) -> None:
     """Test the intersection of lat/lon files with the DEM (model height levels?)."""
     outdir = tmp_path / 'output'
     ## make the lat lon grid
@@ -36,7 +36,7 @@ def test_cube_intersect(tmp_path: Path, wm: str) -> None:
         },
         'runtime_group': {
             'output_directory': outdir,
-            'weather_model_directory': WM_DIR,
+            'weather_model_directory': weather_model_dir,
         },
         'verbose': False,
     }
@@ -79,7 +79,7 @@ def test_cube_intersect(tmp_path: Path, wm: str) -> None:
         pytest.param('HRRR', np.nan, marks=pytest.mark.skip),
     ),
 )
-def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64) -> None:
+def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64, weather_model_dir: Path) -> None:
     gnss_file = SCENARIO_DIR / 'stations.csv'
     outdir = tmp_path / 'output'
 
@@ -96,7 +96,7 @@ def test_gnss_intersect(tmp_path: Path, wm_name: str, gold: np.float64) -> None:
         'aoi_group': {'station_file': str(gnss_file)},
         'runtime_group': {
             'output_directory': outdir,
-            'weather_model_directory': WM_DIR,
+            'weather_model_directory': weather_model_dir,
         },
         'verbose': False,
     }
