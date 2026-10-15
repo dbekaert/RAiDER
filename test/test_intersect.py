@@ -73,9 +73,11 @@ def test_cube_intersect(tmp_path: Path, wm: str, weather_model_dir: Path) -> Non
         # Updated with the height-datum fix (#822): the station heights are
         # ellipsoidal, so sampling now happens ~34 m higher, at the geoid-
         # referenced height the weather-model cube's z-axis actually uses.
-        # Less atmosphere overhead => ~11 mm less delay than the old value of
-        # 2.343549, which was computed while the two datums were mixed.
-        ('ERA5', 2.332483),
+        # Less atmosphere overhead => ~11 mm less delay (2.343549 -> 2.332483).
+        # Then +45.2 mm when the processed ERA-5 fixture was regenerated from
+        # raw with the half-level pressure fix (#826): +43.6 mm from the
+        # pressure itself, +1.6 mm from reprocessing the 2023-era fixture.
+        ('ERA5', 2.377665),
         # Can be enabled when known-good data is added
         pytest.param('ERA5T', np.nan, marks=pytest.mark.skip),
         pytest.param('GMAO', np.nan, marks=pytest.mark.skip),

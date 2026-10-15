@@ -44,7 +44,8 @@ def test_slant_proj(weather_model_name, tmp_path, weather_model_dir):
     with pushd(tmp_path):
         calcDelays([str(cfg)])
 
-    gold = {'ERA5': [33.4, -117.8, 0, 2.3324788251164725]}
+    # +45.3 mm from regenerating the ERA-5 fixture with the #826 pressure fix
+    gold = {'ERA5': [33.4, -117.8, 0, 2.3777603525703994]}
     lat, lon, hgt, val = gold[weather_model_name]
     path_delays = os.path.join(SCENARIO_DIR,
                                make_delay_name(weather_model_name, date, time, 'std'))
@@ -89,7 +90,8 @@ def test_ray_tracing(weather_model_name, tmp_path, weather_model_dir):
         calcDelays([str(cfg)])
 
     # model to lat/lon/correct value
-    gold = {'ERA5': [33.4, -117.8, 0, 2.9756965061161926]}
+    # +57.6 mm from regenerating the ERA-5 fixture with the #826 pressure fix
+    gold = {'ERA5': [33.4, -117.8, 0, 3.0333238453080433]}
     lat, lon, hgt, val = gold[weather_model_name]
 
     path_delays = os.path.join(SCENARIO_DIR,
