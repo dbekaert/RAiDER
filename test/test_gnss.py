@@ -20,6 +20,14 @@ from test import TEST_DIR, pushd
 SCENARIO2_DIR = os.path.join(TEST_DIR, "scenario_2")
 
 
+# Tests that perform real bulk GNSS-delay downloads can take many minutes and
+# hang CI.  They are skipped unless RAIDER_RUN_NETWORK_TESTS is set.
+requires_network = pytest.mark.skipif(
+    not os.environ.get("RAIDER_RUN_NETWORK_TESTS"),
+    reason="Real network download; set RAIDER_RUN_NETWORK_TESTS=1 to run",
+)
+
+
 def file_len(path: Path) -> int:
     with path.open('rb') as f:
         return sum(1 for _ in f)
@@ -97,6 +105,7 @@ def test_concatDelayFiles(tmp_path, temp_file):
     assert file_len(out_path) == file_length
 
 
+@requires_network
 def test_get_stats_by_llh2():
     stations = get_stats_by_llh(llhBox=[10, 18, -93, -88])
     assert isinstance(stations, pd.DataFrame)
@@ -120,11 +129,13 @@ def test_download_tropo_delays1():
                               2022], gps_repo='dummy_repo')
 
 
-def test_download_tropo_delays2():
+@requires_network
+def test_download_tropo_delays_no_data():
     with pytest.raises(NoStationDataFoundError):
         download_tropo_delays(stats=['dummy_station'], years=[2022])
 
 
+@requires_network
 def test_download_tropo_delays2(tmp_path):
     with pushd(tmp_path):
         stations, output_file = get_station_list(
