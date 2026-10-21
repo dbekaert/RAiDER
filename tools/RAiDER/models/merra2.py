@@ -68,6 +68,9 @@ class MERRA2(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
+    def __model_levels__(self) -> None:
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
+
     def _fetch(self, out: Path) -> None:
         """Fetch weather model data from GMAO: note we only extract the lat/lon bounds for this weather model; fetching data is not needed here as we don't actually download any data using OpenDAP."""
         time = self._time
