@@ -5,7 +5,13 @@
 #  RESERVED. United States Government Sponsorship acknowledged.
 #
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-import os
+# The module name is camelCase, but renaming it would break every import of it.
+# ruff: noqa: N999
+"""Download and prepare weather model data for delay calculations."""
+
+from __future__ import annotations
+
+import datetime as dt
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -18,17 +24,17 @@ from RAiDER.models.customExceptions import (
     ExistingWeatherModelTooSmall,
     TryToKeepGoingError,
 )
-from RAiDER.models.weatherModel import checkContainment_raw, make_raw_weather_data_filename, make_weather_model_filename
+from RAiDER.models.weatherModel import WeatherModel, checkContainment_raw, make_raw_weather_data_filename
 
 
 def prepareWeatherModel(
-    weather_model,
-    time,
-    ll_bounds,
+    weather_model: WeatherModel,
+    time: dt.datetime,
+    ll_bounds: list | tuple | np.ndarray,
     download_only: bool = False,
     makePlots: bool = False,
     force_download: bool = False,
-) -> str:
+) -> str | None:
     """Parse inputs to download and prepare a weather model grid for interpolation.
 
     Args:
@@ -57,14 +63,14 @@ def prepareWeatherModel(
     path_wm_crop = weather_model.out_file(wmLoc)
 
     # check whether weather model files exists and/or or should be downloaded
-    if os.path.exists(path_wm_crop) and not force_download:
+    if Path(path_wm_crop).exists() and not force_download:
         logger.warning(
             'Processed weather model already exists, please remove it ("%s") if you want to download a new one.',
             path_wm_crop,
         )
 
     # check whether the raw weather model covers this area
-    elif os.path.exists(path_wm_raw) and checkContainment_raw(path_wm_raw, ll_bounds) and not force_download:
+    elif Path(path_wm_raw).exists() and checkContainment_raw(path_wm_raw, ll_bounds) and not force_download:
         logger.warning(
             'Raw weather model already exists, please remove it ("%s") if you want to download a new one.',
             path_wm_raw,
@@ -72,7 +78,7 @@ def prepareWeatherModel(
 
     # if no weather model files supplied, check the standard location
     else:
-        os.makedirs(os.path.dirname(path_wm_raw), exist_ok=True)
+        Path(path_wm_raw).parent.mkdir(parents=True, exist_ok=True)
         try:
             weather_model.fetch(Path(path_wm_raw), time)
         except DatetimeOutsideRange:
@@ -90,7 +96,7 @@ def prepareWeatherModel(
         logger.warning('The processed weather model file already exists, so I will use that.')
 
         containment = weather_model.checkContainment(ll_bounds)
-        if not containment and weather_model.Model() not in 'HRRR HRRRAK'.split():
+        if not containment and weather_model.Model() not in ['HRRR', 'HRRRAK']:
             raise ExistingWeatherModelTooSmall
 
         return f
@@ -123,46 +129,13 @@ def prepareWeatherModel(
     except Exception as e:
         logger.exception('Unable to save weathermodel to file')
         logger.exception(e)
-        raise CriticalError
+        raise CriticalError from e
 
     finally:
         wm = weather_model.Model()
         del weather_model
 
-    if not containment and wm not in 'HRRR'.split():
+    if not containment and wm not in ['HRRR']:
         raise ExistingWeatherModelTooSmall
     else:
         return f
-
-
-def _weather_model_debug(los, lats, lons, ll_bounds, weather_model, wmLoc, time, out, download_only) -> None:
-    """RaiderWeatherModelDebug main function."""
-    logger.debug('Starting to run the weather model calculation with debugging plots')
-    logger.debug('Time type: %s', type(time))
-    logger.debug('Time: %s', time.strftime('%Y%m%d'))
-
-    # location of the weather model files
-    logger.debug('Beginning weather model pre-processing')
-    logger.debug('Download-only is %s', download_only)
-    if wmLoc is None:
-        wmLoc = os.path.join(out, 'weather_files')
-
-    # weather model calculation
-    wm_filename = make_weather_model_filename(weather_model['name'], time, ll_bounds)
-    weather_model_file = os.path.join(wmLoc, wm_filename)
-
-    if not os.path.exists(weather_model_file):
-        prepareWeatherModel(
-            weather_model,
-            time,
-            wmLoc=wmLoc,
-            lats=lats,
-            lons=lons,
-            ll_bounds=ll_bounds,
-            download_only=download_only,
-            makePlots=True,
-        )
-        try:
-            weather_model.write2NETCDF4(weather_model_file)
-        except:
-            logger.exception('Unable to save weathermodel to file')
