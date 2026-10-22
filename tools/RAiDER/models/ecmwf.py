@@ -32,14 +32,22 @@ def _as_surface_field(field: xr.DataArray) -> Optional[FloatArray2D]:
     (time, level, whatever a converter adds) is folded into one leading axis
     and inspected. Squeezing instead would also drop a latitude or longitude
     axis of length one, which a small query domain can produce.
+
+    Every slice along that leading axis must be either all-NaN padding or a
+    fully finite field, and the finite ones must all be the same field. A
+    slice that is only partly finite, or that holds Inf, is neither, so the
+    variable is rejected rather than read from whichever slices happen to be
+    complete: a file whose levels disagree must not load from one of them.
     """
     leading = [dim for dim in field.dims if dim not in ('latitude', 'longitude')]
     field = field.transpose(*leading, 'latitude', 'longitude')
     values = field.values.reshape(-1, *field.shape[-2:])
-    finite = np.isfinite(values).reshape(values.shape[0], -1).all(axis=1)
-    if not finite.any():
+    flat = values.reshape(values.shape[0], -1)
+    complete = np.isfinite(flat).all(axis=1)
+    padding = np.isnan(flat).all(axis=1)
+    if not complete.any() or not (complete | padding).all():
         return None
-    candidates = values[finite]
+    candidates = values[complete]
     if np.array_equal(candidates, np.broadcast_to(candidates[0], candidates.shape)):
         return candidates[0].copy()
     return None
@@ -443,6 +451,15 @@ class ECMWF(WeatherModel):
                 # field, so this is None for files fetched by v0.6.0 up to
                 # this change, and the loader falls back.
                 z_surface = _as_surface_field(block['z'])
+                if z_surface is None and (z.shape != t.shape or not np.all(np.isfinite(z[-1]))):
+                    # The loader will fall back to the lowest full level of
+                    # z, so z has to be a complete model-level cube for that
+                    # to mean anything. A cube that is neither a surface
+                    # field nor whole is an unrecognized layout.
+                    raise ValueError(
+                        f'{path}: z is neither a surface field nor a full model-level cube '
+                        f'(shape {z.shape}, t shape {t.shape}); cannot start the integration from it'
+                    )
             if z_surface is not None and z_surface.shape != lnsp.shape:
                 raise ValueError(f'{path}: surface geopotential shape {z_surface.shape} != lnsp shape {lnsp.shape}')
             lats = block['latitude'].values

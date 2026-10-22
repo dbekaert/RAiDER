@@ -235,6 +235,60 @@ def test_unreadable_z_surface_raises(era5: ERA5, fetched: Path, tmp_path: Path) 
         era5._makeDataCubes(bad_path)
 
 
+def test_conflicting_partial_level_raises(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
+    """A level that is only partly finite is neither padding nor a surface field.
+
+    The reader must not quietly read the one complete level of a variable
+    whose other levels disagree with it: a surface field plus a second level
+    that differs by 10 km but has a single NaN is a damaged file, not a
+    padded one.
+    """
+    for name in ('z_surface', 'lnsp'):
+        bad_path = tmp_path / f'{name}_conflicting_partial_level.nc'
+        with xr.open_dataset(fetched) as ds:
+            values = ds[name].values.copy()
+            values[0, 1] = values[0, 0] + 10_000.0
+            values[0, 1, 0, 0] = np.nan
+            ds[name] = (ds[name].dims, values)
+            ds.to_netcdf(bad_path)
+
+        with pytest.raises(ValueError, match=name):
+            era5._makeDataCubes(bad_path)
+
+
+def test_inf_padding_raises(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
+    """Padding is NaN; levels filled with Inf are not recognized as padding."""
+    bad_path = tmp_path / 'z_surface_inf_padding.nc'
+    with xr.open_dataset(fetched) as ds:
+        values = ds['z_surface'].values.copy()
+        values[0, 1:] = np.inf
+        ds['z_surface'] = (ds['z_surface'].dims, values)
+        ds.to_netcdf(bad_path)
+
+    with pytest.raises(ValueError, match='z_surface'):
+        era5._makeDataCubes(bad_path)
+
+
+def test_damaged_full_level_z_raises(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
+    """Without z_surface, a z cube that is neither a surface field nor whole is rejected.
+
+    A cube whose top level is complete but whose other levels each miss a
+    cell must not be read as a surface field from that top level (the
+    integration would start ~80 km up), nor handed to the lowest-full-level
+    fallback, whose level is not finite.
+    """
+    bad_path = tmp_path / 'damaged_full_level_z.nc'
+    with xr.open_dataset(fetched) as ds:
+        ds = ds.drop_vars('z_surface')
+        z = ds['z'].values.copy()
+        z[0, 1:, 0, 0] = np.nan
+        ds['z'] = (ds['z'].dims, z)
+        ds.to_netcdf(bad_path)
+
+    with pytest.raises(ValueError, match='full model-level cube'):
+        era5._makeDataCubes(bad_path)
+
+
 def test_unreadable_lnsp_raises(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
     """The lnsp field is held to the same contract as z_surface."""
     bad_path = tmp_path / 'lnsp_all_nan.nc'
