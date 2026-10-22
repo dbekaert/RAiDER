@@ -8,11 +8,16 @@ post-processing and the reader against each other.
 The layout contract is:
 
 * `t`, `q`, `z` are ``(time, level, lat, lon)`` cubes spanning all model levels
-* `lnsp` is a surface field, recovered by the reader as ``lnsp[0, 0]``
+* `lnsp` is a surface field, stored on the first level of the shared level
+  axis and NaN on the others; the reader keys on the stored layout and also
+  accepts a size-1 level axis of its own, no level axis at all, or the same
+  field repeated on every level
 * `z_surface` is the downloaded surface geopotential, kept alongside the
-  recomputed full-level `z` cube and recovered the same way as `lnsp`; the
-  reader starts the hydrostatic integration from it, falling back to the
-  lowest full level for files fetched before it was stored
+  recomputed full-level `z` cube in the same layout as `lnsp`; the reader
+  starts the hydrostatic integration from it. Files fetched by v0.6.0 before
+  it was stored carry only the full-level cube and fall back, with a warning,
+  to the lowest full level; files fetched before v0.6.0 store the surface
+  geopotential itself in `z` and are read from it
 
 ERA-5 archives `lnsp` and `z` at model level 1 only, so they have to be
 requested separately from `t`/`q`: CDS returns a mixed-level request as separate
@@ -20,6 +25,7 @@ files rather than as a single netCDF.
 """
 
 import datetime as dt
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -38,6 +44,9 @@ LONS = np.arange(9.0, 10.1, 0.25)
 NLAT, NLON = len(LATS), len(LONS)
 
 TIME = np.array(['2020-01-01T00:00:00'], dtype='datetime64[ns]')
+# A raw file written by RAiDER v0.5.x (grib_to_netcdf output): z and lnsp are the
+# downloaded surface fields, on level 1 of the shared level axis and NaN elsewhere.
+PRE_V060_RAW = Path(__file__).parent / 'weather_files' / 'ERA-5_2019_11_17_T20_51_58.nc'
 SURFACE_PRESSURE = 95_000.0  # Pa
 SURFACE_GEOPOTENTIAL = 500.0 * 9.80665  # 500 m, in m^2/s^2
 
@@ -190,28 +199,67 @@ def test_z_surface_round_trips_as_a_surface_field(era5: ERA5, fetched: Path) -> 
     assert np.array_equal(z_surface, np.full((NLAT, NLON), SURFACE_GEOPOTENTIAL))
 
 
-def test_unexpected_z_surface_layout_falls_back(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
-    """A z_surface stored in a foreign layout is ignored, not misread.
+def test_z_surface_without_level_axis_is_read(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
+    """A 2D (lat, lon) z_surface is unambiguous and read as-is.
 
-    The reader recovers z_surface as ``[0, 0]`` of the level-aligned layout the
-    fetch writes; a 2D (lat, lon) variable read that way would yield a scalar.
-    The reader must fall back to the lowest full level instead of crashing or
-    broadcasting a wrong value.
+    The fetch writes z_surface aligned on the level axis, but the reader keys
+    on the stored layout rather than on who wrote the file, so a surface field
+    with no level axis is recovered just the same.
     """
-    foreign_path = tmp_path / 'foreign_z_surface.nc'
+    no_axis_path = tmp_path / 'z_surface_no_level_axis.nc'
     with xr.open_dataset(fetched) as ds:
         ds = ds.drop_vars('z_surface')
         ds['z_surface'] = (
             ('latitude', 'longitude'),
             np.full((NLAT, NLON), SURFACE_GEOPOTENTIAL),
         )
-        ds.to_netcdf(foreign_path)
+        ds.to_netcdf(no_axis_path)
 
-    *_, z_surface = era5._makeDataCubes(foreign_path)
-    assert z_surface is None
+    *_, z_surface = era5._makeDataCubes(no_axis_path)
+    assert np.array_equal(z_surface, np.full((NLAT, NLON), SURFACE_GEOPOTENTIAL))
 
-    era5._load_model_level(foreign_path)
+    era5._load_model_level(no_axis_path)
     assert np.all(np.isfinite(era5._zs))
+
+
+def test_unreadable_z_surface_raises(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
+    """A z_surface whose levels differ is not a surface field: raise, do not fall back."""
+    bad_path = tmp_path / 'z_surface_two_levels.nc'
+    with xr.open_dataset(fetched) as ds:
+        z_surface = ds['z_surface'].values.copy()
+        z_surface[0, 1] = z_surface[0, 0] + 1.0  # a second finite level, different from the first
+        ds['z_surface'] = (ds['z_surface'].dims, z_surface)
+        ds.to_netcdf(bad_path)
+
+    with pytest.raises(ValueError, match='z_surface'):
+        era5._makeDataCubes(bad_path)
+
+
+def test_unreadable_lnsp_raises(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
+    """The lnsp field is held to the same contract as z_surface."""
+    bad_path = tmp_path / 'lnsp_all_nan.nc'
+    with xr.open_dataset(fetched) as ds:
+        ds['lnsp'] = (ds['lnsp'].dims, np.full(ds['lnsp'].shape, np.nan))
+        ds.to_netcdf(bad_path)
+
+    with pytest.raises(ValueError, match='lnsp'):
+        era5._makeDataCubes(bad_path)
+
+
+def test_single_row_domain_keeps_surface_fields_2d(era5: ERA5, fetched: Path) -> None:
+    """A query domain one grid row wide must not collapse the surface fields.
+
+    The reader folds the time and level axes by name and keeps latitude and
+    longitude even when one of them has length one. A plain ``squeeze`` would
+    drop the latitude axis here and hand calcgeoh 1D surface fields.
+    """
+    era5._ll_bounds = (49.9, 50.1, 8.9, 10.1)  # only the 50.0 N row (set_latlon_bounds would pad this)
+
+    *_, t, q, lnsp, z, z_surface = era5._makeDataCubes(fetched)
+
+    assert lnsp.shape == (1, NLON)
+    assert z_surface.shape == (1, NLON)
+    assert np.array_equal(z_surface, np.full((1, NLON), SURFACE_GEOPOTENTIAL))
 
 
 def test_column_heights_start_at_the_surface(era5: ERA5, fetched: Path) -> None:
@@ -241,8 +289,10 @@ def test_column_heights_start_at_the_surface(era5: ERA5, fetched: Path) -> None:
     assert np.allclose(era5._zs[..., 0], expected_lowest, atol=0.02)
 
 
-def test_legacy_file_without_z_surface_falls_back(era5: ERA5, fetched: Path, tmp_path: Path) -> None:
-    """Files fetched before z_surface was stored still load, with the old offset."""
+def test_legacy_file_without_z_surface_falls_back(
+    era5: ERA5, fetched: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Files fetched by v0.6.0 before z_surface was stored still load, with the old offset and a warning."""
     legacy_path = tmp_path / 'legacy.nc'
     with xr.open_dataset(fetched) as ds:
         ds.drop_vars('z_surface').to_netcdf(legacy_path)
@@ -250,8 +300,14 @@ def test_legacy_file_without_z_surface_falls_back(era5: ERA5, fetched: Path, tmp
     *_, z, z_surface = era5._makeDataCubes(legacy_path)
     assert z_surface is None
 
-    era5._load_model_level(legacy_path)
+    with caplog.at_level(logging.WARNING, logger='RAiDER'):
+        era5._load_model_level(legacy_path)
     zs_legacy = era5._zs.copy()
+
+    # The fallback is not silent: cached raws are reused by processWM, so the
+    # user has to be told the file is stale and how to replace it.
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert any(str(legacy_path) in w and 'surface geopotential' in w and 'Delete the file' in w for w in warnings)
     era5._load_model_level(fetched)
 
     # The fallback starts the integration at the lowest full level, so every
@@ -259,3 +315,67 @@ def test_legacy_file_without_z_surface_falls_back(era5: ERA5, fetched: Path, tmp
     # above the terrain.
     lowest_level_agl = (z[-1, ::-1] - SURFACE_GEOPOTENTIAL) / _g0
     assert np.allclose(zs_legacy[..., 0] - era5._zs[..., 0], lowest_level_agl, atol=1e-2)
+
+
+def _surface_only_variants(tmp_path: Path) -> dict[str, Path]:
+    """The pre-v0.6.0 raw as tracked, and rewritten into the other surface-only layouts."""
+    with xr.open_dataset(PRE_V060_RAW) as ds:
+        ds = ds.load()
+    level = ds['z'].dims[1]
+    paths = {'padded_on_level_axis': PRE_V060_RAW}
+
+    own_axis = ds.copy()
+    for name in ('z', 'lnsp'):
+        own_axis[name] = ds[name].isel({level: [0]}).rename({level: 'surface_level'})
+    paths['own_size1_level_axis'] = tmp_path / 'own_axis.nc'
+    own_axis.to_netcdf(paths['own_size1_level_axis'])
+
+    no_axis = ds.copy()
+    for name in ('z', 'lnsp'):
+        no_axis[name] = ds[name].isel({level: 0}, drop=True)
+    paths['no_level_axis'] = tmp_path / 'no_axis.nc'
+    no_axis.to_netcdf(paths['no_level_axis'])
+    return paths
+
+
+def _model_for(path: Path) -> ERA5:
+    """An ERA5 model whose bounds keep every point of the file."""
+    model = ERA5()
+    model.setLevelType('ml')
+    with xr.open_dataset(path) as ds:
+        lats = ds['latitude'].values
+        lons = ((ds['longitude'].values + 180) % 360) - 180
+    model._ll_bounds = (lats.min() - 0.01, lats.max() + 0.01, lons.min() - 0.01, lons.max() + 0.01)
+    return model
+
+
+def test_surface_only_z_layouts_load_identically(tmp_path: Path) -> None:
+    """Every surface-only layout of z/lnsp yields the same finite heights.
+
+    Files written by v0.5.x store the downloaded surface geopotential itself
+    in z, on one level of the shared level axis; v0.6.0 up to this change read
+    them as all-NaN heights without raising. HRES model-level files go through
+    the same reader and very likely use one of these layouts.
+    """
+    paths = _surface_only_variants(tmp_path)
+    loaded = {}
+    for name, path in paths.items():
+        model = _model_for(path)
+        model._load_model_level(path)
+        assert np.all(np.isfinite(model._zs)), name
+        loaded[name] = model._zs
+
+    reference = loaded.pop('padded_on_level_axis')
+    for name, zs in loaded.items():
+        assert np.array_equal(zs, reference), name
+
+
+def test_pre_v060_file_starts_columns_at_the_terrain() -> None:
+    """The lowest full level sits a few metres to tens of metres above the stored surface."""
+    model = _model_for(PRE_V060_RAW)
+    *_, z_surface = model._makeDataCubes(PRE_V060_RAW)
+    model._load_model_level(PRE_V060_RAW)
+
+    terrain = geo_to_ht(model._lats, z_surface[::-1] / _g0)  # file latitude is descending
+    above = model._zs[..., 0] - terrain
+    assert np.all((above > 5) & (above < 30))
