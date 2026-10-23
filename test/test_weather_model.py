@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from functools import reduce
 from pathlib import Path
 from typing import TypeVar
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -253,6 +254,16 @@ def test_hres() -> None:
 
     wm.update_a_b()
     assert wm._levels == 91
+
+
+@pytest.mark.parametrize('time, expect_91', [(dt.datetime(2012, 1, 1), True), (dt.datetime(2024, 6, 1), False)])
+def test_hres_load_weather_level_switch(time: dt.datetime, expect_91: bool) -> None:
+    """HRES switches to the 91-level coefficients only for times before 2013-06-26."""
+    wm = HRES()
+    wm.setTime(time)
+    with patch.object(HRES, '_load_model_level'), patch.object(HRES, 'update_a_b') as update_a_b:
+        wm.load_weather('unused.nc')
+    assert update_a_b.called == expect_91
 
 
 def test_gmao() -> None:
