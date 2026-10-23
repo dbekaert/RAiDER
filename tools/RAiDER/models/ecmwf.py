@@ -1,6 +1,7 @@
 import datetime as dt
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import xarray as xr
@@ -16,6 +17,40 @@ from RAiDER.models.model_levels import (
 )
 from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 from RAiDER.types import FloatArray1D, FloatArray2D, FloatArray3D
+
+
+def _as_surface_field(field: xr.DataArray) -> Optional[FloatArray2D]:
+    """Return the (lat, lon) field if ``field`` holds a single surface field, else None.
+
+    ECMWF model-level files store surface fields (lnsp, surface z) in several
+    layouts: with no level axis, with a size-1 level axis of their own, or on
+    the shared level axis with the field on one level and NaN on the rest (or
+    the same field repeated on every level). All of these are recognized. A
+    full model-level cube, whose levels differ, is not a surface field.
+
+    Only the latitude and longitude axes are kept by name; every other axis
+    (time, level, whatever a converter adds) is folded into one leading axis
+    and inspected. Squeezing instead would also drop a latitude or longitude
+    axis of length one, which a small query domain can produce.
+
+    Every slice along that leading axis must be either all-NaN padding or a
+    fully finite field, and the finite ones must all be the same field. A
+    slice that is only partly finite, or that holds Inf, is neither, so the
+    variable is rejected rather than read from whichever slices happen to be
+    complete: a file whose levels disagree must not load from one of them.
+    """
+    leading = [dim for dim in field.dims if dim not in ('latitude', 'longitude')]
+    field = field.transpose(*leading, 'latitude', 'longitude')
+    values = field.values.reshape(-1, *field.shape[-2:])
+    flat = values.reshape(values.shape[0], -1)
+    complete = np.isfinite(flat).all(axis=1)
+    padding = np.isnan(flat).all(axis=1)
+    if not complete.any() or not (complete | padding).all():
+        return None
+    candidates = values[complete]
+    if np.array_equal(candidates, np.broadcast_to(candidates[0], candidates.shape)):
+        return candidates[0].copy()
+    return None
 
 
 class ECMWF(WeatherModel):
@@ -186,10 +221,17 @@ class ECMWF(WeatherModel):
                         dims=ds_t_q['t'].dims,
                         data=np.broadcast_to(z_full, (1, *z_full.shape)),
                     ),
-                    # xarray aligns on the level coordinate, so this lands on the
-                    # first level and is NaN on every other one. _makeDataCubes
-                    # reads it back as lnsp[0, 0] to recover the (lat, lon) field.
+                    # xarray aligns lnsp and z_surface on the level coordinate,
+                    # so they land on the first level and are NaN on every other
+                    # one. _makeDataCubes recognizes that layout (among others)
+                    # and recovers the (lat, lon) fields.
                     lnsp=ds_lnsp_z['lnsp'],
+                    # Also keep the downloaded surface geopotential: the loader
+                    # needs it to start the hydrostatic integration at the
+                    # terrain surface rather than at the lowest full level,
+                    # which sits roughly 10 m above it. It inherits the CDS
+                    # attrs of z, so give it a long_name of its own.
+                    z_surface=ds_lnsp_z['z'].assign_attrs(long_name='Surface geopotential'),
                 )
                 ds_out.to_netcdf(out_path)
 
@@ -232,34 +274,49 @@ class ECMWF(WeatherModel):
 
     def _load_model_level(self, filename, *args, **kwargs) -> None:
         # read data from netcdf file
-        lats, lons, _, _, t, q, lnsp, z = self._makeDataCubes(Path(filename))
+        lats, lons, _, _, t, q, lnsp, z, z_surface = self._makeDataCubes(Path(filename))
 
-        # ECMWF appears to give me this backwards
+        if z_surface is None:
+            # Files fetched by v0.6.0 up to this change carry only the
+            # recomputed full-level cube, stored top-of-atmosphere -> surface:
+            # fall back to its lowest full level, which sits roughly 10 m
+            # above the terrain, so every column comes out shifted up by that
+            # amount. Taken here, before the orientation fixes below, so the
+            # fallback does not depend on which axes get reversed.
+            logger.warning(
+                '%s has no surface geopotential (fetched before it was stored). Starting the '
+                'hydrostatic integration at the lowest full model level, ~10 m above the terrain, '
+                'which raises every column by that amount and biases delays by roughly +3 mm. '
+                'Delete the file to re-download it.',
+                filename,
+            )
+            z_surface = z[-1]
+
+        # ECMWF appears to give me this backwards. The surface geopotential
+        # has to be reversed on the same axes as t/q/lnsp, or the heights end
+        # up mirrored relative to the meteorology (the z cube itself is not
+        # used past this point).
         if lats[0] > lats[1]:
-            # z is (level, lat, lon). It needs BOTH axes reversed: the latitude
-            # axis to match t/q/lnsp, and the level axis because the surface
-            # geopotential is taken as z[0] below (the stored cube runs
-            # top-of-atmosphere -> surface). Reversing only axis 0, as this
-            # previously did, left the height field mirrored north-south
-            # relative to the meteorology.
-            z: FloatArray3D = z[::-1, ::-1]
             lnsp: FloatArray2D = lnsp[::-1]
             t: FloatArray3D = t[:, ::-1]
             q: FloatArray3D = q[:, ::-1]
             lats: FloatArray1D = lats[::-1]
+            z_surface = z_surface[::-1]
         # Lons is usually ok, but we'll throw in a check to be safe
         if lons[0] > lons[1]:
-            z: FloatArray3D = z[..., ::-1]
             lnsp: FloatArray2D = lnsp[..., ::-1]
             t: FloatArray3D = t[..., ::-1]
             q: FloatArray3D = q[..., ::-1]
             lons: FloatArray1D = lons[::-1]
+            z_surface = z_surface[..., ::-1]
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
         lons[lons > 180] -= 360
 
-        geo_hgt, p, hgt = self._calculategeoh(z[0, :], lnsp, t, q)
+        geo_hgt, p, hgt = self._calculategeoh(z_surface, lnsp, t, q)
+        if not np.all(np.isfinite(hgt)):
+            raise RuntimeError(f'{filename}: model-level heights contain non-finite values; unrecognized file layout?')
 
         self._lons, self._lats = np.meshgrid(lons, lats)
 
@@ -343,7 +400,17 @@ class ECMWF(WeatherModel):
         self,
         path: Path,
         verbose: bool = False,
-    ) -> WeatherModel.DataCubes:
+    ) -> tuple[
+        FloatArray1D,  # lats
+        FloatArray1D,  # lons
+        FloatArray1D,  # xs
+        FloatArray1D,  # ys
+        FloatArray3D,  # t
+        FloatArray3D,  # q
+        FloatArray2D,  # lnsp
+        FloatArray3D,  # z - full model-level geopotential cube
+        Optional[FloatArray2D],  # z_surface - surface geopotential, None for files that only carry the full-level cube
+    ]:
         """
         Create a cube of data representing temperature and relative humidity
         at specified pressure levels.
@@ -362,12 +429,43 @@ class ECMWF(WeatherModel):
             # Pull the data
             t = block['t'].values.squeeze()
             q = block['q'].values.squeeze()
-            lnsp = block['lnsp'].values[0, 0]
             z = block['z'].values.squeeze()
+            # The surface fields are keyed on their stored layout, not on the
+            # model that wrote the file: ERA-5 and HRES files from different
+            # RAiDER versions and converters all go through this reader.
+            lnsp = _as_surface_field(block['lnsp'])
+            if lnsp is None:
+                raise ValueError(f'{path}: cannot recover a (lat, lon) surface field from lnsp {block["lnsp"].dims}')
+            if 'z_surface' in block:
+                # Files fetched since the surface geopotential was preserved
+                # alongside the recomputed full-level z cube.
+                z_surface = _as_surface_field(block['z_surface'])
+                if z_surface is None:
+                    raise ValueError(
+                        f'{path}: cannot recover a (lat, lon) surface field from z_surface {block["z_surface"].dims}'
+                    )
+            else:
+                # Files fetched before v0.6.0 (and any other file that stores
+                # the downloaded geopotential as-is) carry the surface field
+                # itself in z. A recomputed full-level cube is not a surface
+                # field, so this is None for files fetched by v0.6.0 up to
+                # this change, and the loader falls back.
+                z_surface = _as_surface_field(block['z'])
+                if z_surface is None and (z.shape != t.shape or not np.all(np.isfinite(z[-1]))):
+                    # The loader will fall back to the lowest full level of
+                    # z, so z has to be a complete model-level cube for that
+                    # to mean anything. A cube that is neither a surface
+                    # field nor whole is an unrecognized layout.
+                    raise ValueError(
+                        f'{path}: z is neither a surface field nor a full model-level cube '
+                        f'(shape {z.shape}, t shape {t.shape}); cannot start the integration from it'
+                    )
+            if z_surface is not None and z_surface.shape != lnsp.shape:
+                raise ValueError(f'{path}: surface geopotential shape {z_surface.shape} != lnsp shape {lnsp.shape}')
             lats = block['latitude'].values
             lons = block['longitude'].values
 
         if z.size == 0:
             raise RuntimeError('There is no data in z, you may have a problem with your mask')
 
-        return lats, lons, lats, lons, t, q, lnsp, z
+        return lats, lons, lats, lons, t, q, lnsp, z, z_surface
