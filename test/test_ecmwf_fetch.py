@@ -433,3 +433,18 @@ def test_pre_v060_file_starts_columns_at_the_terrain() -> None:
     terrain = geo_to_ht(model._lats, z_surface[::-1] / _g0)  # file latitude is descending
     above = model._zs[..., 0] - terrain
     assert np.all((above > 5) & (above < 30))
+
+
+def test_temperature_is_written_as_downloaded(era5: ERA5, fetched: Path) -> None:
+    """_get_from_cds must store the downloaded t, not the virtual temperature calcgeoh uses (#819)."""
+    _, _, _, _, t, *_ = era5._makeDataCubes(fetched)
+
+    np.testing.assert_array_equal(t, _t())
+
+
+def test_load_model_level_keeps_the_real_temperature(era5: ERA5, fetched: Path) -> None:
+    """_load_model_level must not pick up calcgeoh's virtual temperature either (#819)."""
+    era5._load_model_level(fetched)
+
+    # (level, lat, lon) top-to-bottom -> (lat, lon, level) bottom-to-top
+    np.testing.assert_array_equal(era5._t, np.flip(_t().transpose(1, 2, 0), axis=2))
