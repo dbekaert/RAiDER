@@ -340,6 +340,9 @@ def test_column_heights_start_at_the_surface(era5: ERA5, fetched: Path) -> None:
     # fixture (q = 1e-3, T <= 290 K) roughly R_d * 0.609e-3 * 290 * alpha / g0
     # ~ 6 mm at the lowest level. The ~10 m bug this test guards exceeds the
     # 0.02 m tolerance with ample margin.
+    # Note (#819): calcgeoh no longer modifies its t argument, so the loader now
+    # reproduces the stored lowest level exactly (residual 0 m on this fixture).
+    # The room this tolerance leaves for that defect is no longer needed.
     assert np.allclose(era5._zs[..., 0], expected_lowest, atol=0.02)
 
 
