@@ -333,17 +333,11 @@ def test_column_heights_start_at_the_surface(era5: ERA5, fetched: Path) -> None:
     # stored cube runs top -> surface with descending latitude; _zs runs
     # surface -> top with ascending latitude
     expected_lowest = geo_to_ht(era5._lats, z[-1, ::-1] / _g0)
-    # The tolerance leaves room for a separate, much smaller defect: calcgeoh
-    # turns its t argument into virtual temperature in place, and the fetch
-    # step writes that mutated array back out, so the loader re-applies the
-    # moisture factor and lands slightly above the stored cube — for this
-    # fixture (q = 1e-3, T <= 290 K) roughly R_d * 0.609e-3 * 290 * alpha / g0
-    # ~ 6 mm at the lowest level. The ~10 m bug this test guards exceeds the
-    # 0.02 m tolerance with ample margin.
-    # Note (#819): calcgeoh no longer modifies its t argument, so the loader now
-    # reproduces the stored lowest level exactly (residual 0 m on this fixture).
-    # The room this tolerance leaves for that defect is no longer needed.
-    assert np.allclose(era5._zs[..., 0], expected_lowest, atol=0.02)
+    # The match is exact (0 m on this fixture), so the tolerance only absorbs
+    # rounding. That also makes this an end-to-end guard for #819: if the fetch
+    # stored virtual temperature as t again, the loader would apply the moisture
+    # factor twice and land ~6 mm above the stored level.
+    assert np.allclose(era5._zs[..., 0], expected_lowest, atol=1e-6)
 
 
 def test_legacy_file_without_z_surface_falls_back(
@@ -451,3 +445,72 @@ def test_load_model_level_keeps_the_real_temperature(era5: ERA5, fetched: Path) 
 
     # (level, lat, lon) top-to-bottom -> (lat, lon, level) bottom-to-top
     np.testing.assert_array_equal(era5._t, np.flip(_t().transpose(1, 2, 0), axis=2))
+
+
+def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+
+
+def test_correct_file_is_not_flagged_as_storing_virtual_temperature(
+    era5: ERA5, fetched: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A file fetched with the fix reproduces its stored lowest level exactly and loads without the warning."""
+    with caplog.at_level(logging.WARNING, logger='RAiDER'):
+        era5._load_model_level(fetched)
+
+    assert not any('virtual temperature' in w for w in _warnings(caplog))
+
+
+def test_file_storing_virtual_temperature_is_flagged(
+    era5: ERA5, fetched: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A raw fetched before the #819 fix stores virtual temperature as t; it must not load silently."""
+    stale_path = tmp_path / 'stale.nc'
+    with xr.open_dataset(fetched) as ds:
+        ds = ds.load()
+    ds['t'] = ds['t'] * (1 + 0.609133 * ds['q'])
+    ds.to_netcdf(stale_path)
+
+    with caplog.at_level(logging.WARNING, logger='RAiDER'):
+        era5._load_model_level(stale_path)
+
+    assert any(
+        str(stale_path) in w and 'virtual temperature' in w and 'Delete the file' in w for w in _warnings(caplog)
+    )
+
+
+def test_surface_only_layouts_are_not_flagged_as_storing_virtual_temperature(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Pre-v0.6.0 files store no full-level z to check against, and their t is the downloaded temperature."""
+    paths = _surface_only_variants(tmp_path)
+    with xr.open_dataset(PRE_V060_RAW) as ds:
+        ds = ds.load()
+    # The surface field repeated on every level, which the reader also accepts. Its
+    # z has the full cube's shape and is finite, so only the comparison with the
+    # surface field keeps it from being checked as if it stored a full level.
+    repeated = ds.copy()
+    repeated['z'] = (ds['z'].dims, np.broadcast_to(ds['z'].values[:, :1], ds['z'].shape).copy())
+    assert np.isfinite(repeated['z'].values).all()
+    paths['repeated_on_every_level'] = tmp_path / 'repeated.nc'
+    repeated.to_netcdf(paths['repeated_on_every_level'])
+
+    for name, path in paths.items():
+        caplog.clear()
+        with caplog.at_level(logging.WARNING, logger='RAiDER'):
+            _model_for(path)._load_model_level(path)
+        assert not any('virtual temperature' in w for w in _warnings(caplog)), name
+
+
+def test_fallback_warning_also_flags_virtual_temperature(
+    era5: ERA5, fetched: Path, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Every file without z_surface came from a fetch that also stored virtual temperature as t (#819)."""
+    legacy_path = tmp_path / 'legacy.nc'
+    with xr.open_dataset(fetched) as ds:
+        ds.drop_vars('z_surface').to_netcdf(legacy_path)
+
+    with caplog.at_level(logging.WARNING, logger='RAiDER'):
+        era5._load_model_level(legacy_path)
+
+    assert any('surface geopotential' in w and 'virtual temperature' in w for w in _warnings(caplog))

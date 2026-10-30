@@ -12,8 +12,9 @@ download it was cut from:
 2. The result is processed with `prepareWeatherModel` over the raw's full extent,
    which reproduces each fixture's grid exactly.
 
-No network access or CDS credentials are needed. Run it from the repository root
-in the RAiDER environment:
+No network access or CDS credentials are needed, but the LA raw is read from git
+history, so a shallow clone has to be deepened first (`git fetch --unshallow`).
+Run it from the repository root in the RAiDER environment:
 
     python test/scripts/regenerate_era5_fixtures.py          # rebuild and compare
     python test/scripts/regenerate_era5_fixtures.py --write  # also overwrite the fixtures
@@ -21,6 +22,8 @@ in the RAiDER environment:
 After writing, rerun test_intersect.py and test_slant.py and update their golden
 values, and run test_fixture_sanity.py.
 """
+
+from __future__ import annotations
 
 import argparse
 import datetime as dt
@@ -40,21 +43,25 @@ from RAiDER.processWM import prepareWeatherModel
 REPO = Path(__file__).resolve().parents[2]
 WEATHER_FILES = REPO / 'test' / 'weather_files'
 
-# (raw file, processed fixture, fixture time). A raw given as 'commit:path' is read
-# from git history: the tracked LA raw was later replaced by a Mexico domain.
+# (raw file, commit to read it from, processed fixture, fixture time). A commit of
+# None reads the working tree; the tracked LA raw was later replaced by a Mexico
+# domain, so that one is read from the commit that still had it.
 CASES = [
     (
         'test/weather_files/ERA-5_2019_11_17_T20_51_58.nc',
+        None,
         'ERA-5_2019_11_17_T20_51_58_5S_2S_41W_37W.nc',
         dt.datetime(2019, 11, 17, 20, 51, 58, tzinfo=dt.timezone.utc),
     ),
     (
-        '5f5d3807:test/weather_files/ERA-5_2020_01_30_T13_52_45.nc',
+        'test/weather_files/ERA-5_2020_01_30_T13_52_45.nc',
+        '5f5d3807',
         'ERA-5_2020_01_30_T13_52_45_32N_35N_120W_115W.nc',
         dt.datetime(2020, 1, 30, 13, 52, 45, tzinfo=dt.timezone.utc),
     ),
     (
         'test/weather_files/ERA-5_2022_08_29_T17_00_01.nc',
+        None,
         'ERA-5_2022_08_29_T17_00_01_69N_73N_159W_152W.nc',
         dt.datetime(2022, 8, 29, 17, 0, 1, tzinfo=dt.timezone.utc),
     ),
@@ -63,15 +70,21 @@ CASES = [
 COMPARED_VARS = ('t', 'p', 'e', 'wet', 'hydro', 'wet_total', 'hydro_total')
 
 
-def load_raw(source: str, work_dir: Path) -> xr.Dataset:
-    """Load a raw file from the working tree, or from git history if given as 'commit:path'."""
-    if ':' in source:
-        path = work_dir / Path(source.split(':', 1)[1]).name
-        path.write_bytes(
-            subprocess.run(['git', '-C', str(REPO), 'show', source], capture_output=True, check=True).stdout
-        )
+def load_raw(raw_file: str, commit: str | None, work_dir: Path) -> xr.Dataset:
+    """Load a raw file from the working tree, or from git history if a commit is given."""
+    if commit is None:
+        path = REPO / raw_file
     else:
-        path = REPO / source
+        path = work_dir / Path(raw_file).name
+        result = subprocess.run(
+            ['git', '-C', str(REPO), 'show', f'{commit}:{raw_file}'], capture_output=True, check=False
+        )
+        if result.returncode != 0:
+            raise SystemExit(
+                f'Cannot read {raw_file} from commit {commit}: {result.stderr.decode().strip().rstrip(".")}. '
+                'This needs the full git history; on a shallow clone run `git fetch --unshallow` first.'
+            )
+        path.write_bytes(result.stdout)
     with xr.open_dataset(path) as raw:
         return raw.load()
 
@@ -143,9 +156,9 @@ def main() -> None:
 
     with tempfile.TemporaryDirectory() as tmp:
         work_dir = Path(tmp)
-        for source, fixture, time in CASES:
-            print(f'{fixture}  (from {source})')
-            new_path = rebuild(load_raw(source, work_dir), time, work_dir / 'weather_files')
+        for raw_file, commit, fixture, time in CASES:
+            print(f'{fixture}  (from {raw_file}{f" at {commit}" if commit else ""})')
+            new_path = rebuild(load_raw(raw_file, commit, work_dir), time, work_dir / 'weather_files')
             compare(new_path, WEATHER_FILES / fixture)
             if args.write:
                 shutil.copyfile(new_path, WEATHER_FILES / fixture)
