@@ -77,7 +77,11 @@ def test_cube_intersect(tmp_path: Path, wm: str, weather_model_dir: Path) -> Non
         # Then +45.2 mm when the processed ERA-5 fixture was regenerated from
         # raw with the half-level pressure fix (#826): +43.6 mm from the
         # pressure itself, +1.6 mm from reprocessing the 2023-era fixture.
-        ('ERA5', 2.377665),
+        # Then +1.5 mm when the fixture was regenerated with calcgeoh no longer
+        # converting the caller's t to virtual temperature in place (#819),
+        # and -3.0 mm from starting the integration at the true surface
+        # geopotential (#812), which that regeneration also picked up.
+        ('ERA5', 2.376185),
         # Can be enabled when known-good data is added
         pytest.param('ERA5T', np.nan, marks=pytest.mark.skip),
         pytest.param('GMAO', np.nan, marks=pytest.mark.skip),

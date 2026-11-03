@@ -8,6 +8,7 @@ import xarray as xr
 from pyproj import CRS
 
 from RAiDER import utilFcns as util
+from RAiDER.constants import _g0
 from RAiDER.logger import logger
 from RAiDER.models.model_levels import (
     A_137_HRES,
@@ -17,6 +18,12 @@ from RAiDER.models.model_levels import (
 )
 from RAiDER.models.weatherModel import TIME_RES, WeatherModel
 from RAiDER.types import FloatArray1D, FloatArray2D, FloatArray3D
+
+
+# How far (in m) a file's reconstructed lowest model level may sit from the stored
+# one before it is flagged as storing virtual temperature as t (#819). Correct
+# files match exactly; stale ones are off by centimetres on real scenes.
+_STALE_T_TOLERANCE_M = 1e-3
 
 
 def _as_surface_field(field: xr.DataArray) -> Optional[FloatArray2D]:
@@ -276,32 +283,46 @@ class ECMWF(WeatherModel):
         # read data from netcdf file
         lats, lons, _, _, t, q, lnsp, z, z_surface = self._makeDataCubes(Path(filename))
 
+        # The stored lowest full level, to check the loaded t against below. Only
+        # files whose z is a genuine full-level cube alongside a separate surface
+        # field can be checked: the fallback starts the integration at that level,
+        # so it would match trivially, and surface-only layouts (z padded with NaN,
+        # or the surface field repeated on every level) have no full level stored.
+        is_full_cube = z.shape == t.shape and np.all(np.isfinite(z[-1]))
+        has_separate_surface = z_surface is not None and is_full_cube and not np.array_equal(z[-1], z_surface)
+        z_lowest_stored = z[-1] if has_separate_surface else None
+
         if z_surface is None:
             # Files fetched by v0.6.0 up to this change carry only the
             # recomputed full-level cube, stored top-of-atmosphere -> surface:
             # fall back to its lowest full level, which sits roughly 10 m
             # above the terrain, so every column comes out shifted up by that
             # amount. Taken here, before the orientation fixes below, so the
-            # fallback does not depend on which axes get reversed.
+            # fallback does not depend on which axes get reversed. Every file
+            # in this layout was also written by a fetch that stored virtual
+            # temperature as t (#819).
             logger.warning(
                 '%s has no surface geopotential (fetched before it was stored). Starting the '
                 'hydrostatic integration at the lowest full model level, ~10 m above the terrain, '
                 'which raises every column by that amount and biases delays by roughly +3 mm. '
-                'Delete the file to re-download it.',
+                'It also stores virtual temperature as t (#819), so temperature, humidity and '
+                'delays computed from it are biased too. Delete the file to re-download it.',
                 filename,
             )
             z_surface = z[-1]
 
         # ECMWF appears to give me this backwards. The surface geopotential
         # has to be reversed on the same axes as t/q/lnsp, or the heights end
-        # up mirrored relative to the meteorology (the z cube itself is not
-        # used past this point).
+        # up mirrored relative to the meteorology, and so does the stored
+        # lowest level that the reconstruction is checked against.
         if lats[0] > lats[1]:
             lnsp: FloatArray2D = lnsp[::-1]
             t: FloatArray3D = t[:, ::-1]
             q: FloatArray3D = q[:, ::-1]
             lats: FloatArray1D = lats[::-1]
             z_surface = z_surface[::-1]
+            if z_lowest_stored is not None:
+                z_lowest_stored = z_lowest_stored[::-1]
         # Lons is usually ok, but we'll throw in a check to be safe
         if lons[0] > lons[1]:
             lnsp: FloatArray2D = lnsp[..., ::-1]
@@ -309,6 +330,8 @@ class ECMWF(WeatherModel):
             q: FloatArray3D = q[..., ::-1]
             lons: FloatArray1D = lons[::-1]
             z_surface = z_surface[..., ::-1]
+            if z_lowest_stored is not None:
+                z_lowest_stored = z_lowest_stored[..., ::-1]
         # pyproj gets fussy if the latitude is wrong, plus our
         # interpolator isn't clever enough to pick up on the fact that
         # they are the same
@@ -317,6 +340,23 @@ class ECMWF(WeatherModel):
         geo_hgt, p, hgt = self._calculategeoh(z_surface, lnsp, t, q)
         if not np.all(np.isfinite(hgt)):
             raise RuntimeError(f'{filename}: model-level heights contain non-finite values; unrecognized file layout?')
+
+        if z_lowest_stored is not None:
+            # The fetch computed the stored z cube with this same integration from
+            # the same inputs, so a file whose t is real temperature reproduces its
+            # lowest level exactly. Files fetched between #820 and the fix for #819
+            # store virtual temperature as t; integrating that applies the moisture
+            # factor twice and lands above the stored level, by centimetres on real
+            # scenes.
+            offset = float(np.nanmax(np.abs(geo_hgt[-1] - z_lowest_stored))) / _g0
+            if offset > _STALE_T_TOLERANCE_M:
+                logger.warning(
+                    '%s stores virtual temperature as t (fetched before the fix for #819): its '
+                    'reconstructed lowest model level is %.3f m off the stored one, and temperature, '
+                    'humidity and delays computed from it are biased. Delete the file to re-download it.',
+                    filename,
+                    offset,
+                )
 
         self._lons, self._lats = np.meshgrid(lons, lats)
 

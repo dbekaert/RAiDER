@@ -111,3 +111,32 @@ def test_half_level_pressure_biases_the_delay():
     # the delay comes out too SMALL. Magnitude is ~4 cm on a sea-level column.
     assert deficit_mm < 0
     assert 20.0 < abs(deficit_mm) < 80.0, f'expected a few cm, got {deficit_mm:.1f} mm'
+
+
+def test_calcgeoh_does_not_modify_its_inputs():
+    """`calcgeoh` must leave the caller's t and q untouched (#819).
+
+    It uses virtual temperature internally, and used to compute it with an
+    in-place multiply on a view of `t`, so the caller got virtual temperature
+    back in place of the real one.
+    """
+    model = ERA5()
+    nlev = model._levels
+    nlat, nlon = len(_LATS), len(_LONS)
+    t = np.broadcast_to(np.linspace(200.0, 300.0, nlev)[:, None, None], (nlev, nlat, nlon)).copy()
+    q = np.full((nlev, nlat, nlon), 1e-2)
+    t_before, q_before = t.copy(), q.copy()
+
+    calcgeoh(
+        lnsp=np.full((nlat, nlon), np.log(_P_SURFACE)),
+        t=t,
+        q=q,
+        z_surface=np.zeros((nlat, nlon)),
+        a=model._a,
+        b=model._b,
+        R_d=model._R_d,
+        num_levels=nlev,
+    )
+
+    np.testing.assert_array_equal(t, t_before)
+    np.testing.assert_array_equal(q, q_before)

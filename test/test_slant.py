@@ -44,8 +44,10 @@ def test_slant_proj(weather_model_name, tmp_path, weather_model_dir):
     with pushd(tmp_path):
         calcDelays([str(cfg)])
 
-    # +45.3 mm from regenerating the ERA-5 fixture with the #826 pressure fix
-    gold = {'ERA5': [33.4, -117.8, 0, 2.3777603525703994]}
+    # +45.3 mm from regenerating the ERA-5 fixture with the #826 pressure fix,
+    # then +1.3 mm from regenerating it with the calcgeoh in-place t fix (#819)
+    # and -3.4 mm from the surface-geopotential fix (#812) in the same regeneration
+    gold = {'ERA5': [33.4, -117.8, 0, 2.375699252248787]}
     lat, lon, hgt, val = gold[weather_model_name]
     path_delays = os.path.join(SCENARIO_DIR,
                                make_delay_name(weather_model_name, date, time, 'std'))
@@ -90,8 +92,10 @@ def test_ray_tracing(weather_model_name, tmp_path, weather_model_dir):
         calcDelays([str(cfg)])
 
     # model to lat/lon/correct value
-    # +57.6 mm from regenerating the ERA-5 fixture with the #826 pressure fix
-    gold = {'ERA5': [33.4, -117.8, 0, 3.0333238453080433]}
+    # +57.6 mm from regenerating the ERA-5 fixture with the #826 pressure fix,
+    # then +1.8 mm from regenerating it with the calcgeoh in-place t fix (#819)
+    # and -4.3 mm from the surface-geopotential fix (#812) in the same regeneration
+    gold = {'ERA5': [33.4, -117.8, 0, 3.030738060199655]}
     lat, lon, hgt, val = gold[weather_model_name]
 
     path_delays = os.path.join(SCENARIO_DIR,
