@@ -137,7 +137,7 @@ def read_run_config_file(path: Path) -> RunConfig:
             runtime_group=runtime_group,
         ),
         los_group=LOSGroup(
-            los=get_los(LOSGroupUnparsed(**yaml_data['los_group'])),
+            los=get_los(LOSGroupUnparsed(**yaml_data['los_group']), look_dir=yaml_data['look_dir'].lower()),
             **yaml_data['los_group']
         ),
         runtime_group=runtime_group,
@@ -627,7 +627,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         )
         if args.file is None:
             raise ValueError(
-                'GUNW product file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
+                'GUNW product file could not be found at ' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
         if args.weather_model == 'HRRR' and args.interpolate_time == 'azimuth_time_grid':
             gunw_id = args.file.name.replace('.nc', '')
@@ -651,7 +651,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         )
         if json_file_path is None:
             raise ValueError(
-                'GUNW metadata file could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
+                'GUNW metadata file could not be found at ' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
         with json_file_path.open() as f:
             json_data = json.load(f)
@@ -663,7 +663,7 @@ def calcDelaysGUNW(iargs: Optional[list[str]] = None) -> Optional[xr.Dataset]:
         browse_file_path = aws.get_s3_file(args.bucket, args.input_bucket_prefix, '.png')
         if browse_file_path is None:
             raise ValueError(
-                'GUNW browse image could not be found at' f's3://{args.bucket}/{args.input_bucket_prefix}'
+                'GUNW browse image could not be found at ' f's3://{args.bucket}/{args.input_bucket_prefix}'
             )
 
     args = cast(CalcDelaysArgs, args)

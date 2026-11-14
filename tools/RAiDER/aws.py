@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from mimetypes import guess_type
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import boto3
 
@@ -54,7 +54,8 @@ def upload_file_to_s3(path_to_file: Path, bucket: str, prefix: str = '') -> None
         bucket: Name of the destination bucket.
         prefix: Key prefix to upload the file under.
     """
-    key = str(Path(prefix) / path_to_file.name)
+    # S3 keys always use '/', whatever the local OS separator is.
+    key = str(PurePosixPath(prefix) / path_to_file.name)
     extra_args = {'ContentType': get_content_type(key)}
 
     logger.info(f'Uploading s3://{bucket}/{key}')
@@ -79,7 +80,8 @@ def get_s3_file(bucket_name: str, bucket_prefix: str, file_type: str) -> Path | 
         Path to the downloaded file, or None if no key matches.
     """
     result = S3_CLIENT.list_objects_v2(Bucket=bucket_name, Prefix=bucket_prefix)
-    for s3_object in result['Contents']:
+    # S3 omits 'Contents' entirely when nothing matches the prefix.
+    for s3_object in result.get('Contents', []):
         key = s3_object['Key']
         if key.endswith(file_type):
             file_name = Path(key).name

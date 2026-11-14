@@ -28,7 +28,7 @@ from RAiDER.llreader import AOI, BoundingBox, GeocodedFile, Geocube, RasterRDR, 
 from RAiDER.logger import logger
 from RAiDER.losreader import LOS, Conventional, Zenith
 from RAiDER.models.weatherModel import WeatherModel
-from RAiDER.types import BB
+from RAiDER.types import BB, LookDir
 from RAiDER.utilFcns import rio_extents, rio_profile
 
 
@@ -51,18 +51,22 @@ def parse_weather_model(weather_model_name: str, aoi: AOI) -> WeatherModel:
     return model
 
 
-def get_los(los_group: LOSGroupUnparsed) -> LOS:
+def get_los(los_group: LOSGroupUnparsed, look_dir: LookDir = 'right') -> LOS:
+    """Build the LOS object for a run.
+
+    look_dir only affects ray tracing; Conventional and Zenith don't use it.
+    """
     if los_group.orbit_file is not None:
         if los_group.ray_trace:
             from RAiDER.losreader import Raytracing
-            los = Raytracing(los_group.orbit_file)
+            los = Raytracing(los_group.orbit_file, look_dir=look_dir)
         else:
             los = Conventional(los_group.orbit_file)
 
     elif los_group.los_file is not None:
         if los_group.ray_trace:
             from RAiDER.losreader import Raytracing
-            los = Raytracing(los_group.los_file, los_group.los_convention)
+            los = Raytracing(los_group.los_file, los_group.los_convention, look_dir=look_dir)
         else:
             los = Conventional(los_group.los_file, los_group.los_convention)
 
