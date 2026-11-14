@@ -54,11 +54,19 @@ def test_upload_file_to_s3_no_prefix(s3_client):
     )
 
 
-def test_upload_file_to_s3_with_prefix(s3_client):
+@pytest.mark.parametrize(
+    'prefix, expected_key',
+    [
+        ('my-prefix', 'my-prefix/product.json'),
+        # Regression test for #834: nested prefixes must use '/' on every OS.
+        ('a/b', 'a/b/product.json'),
+    ],
+)
+def test_upload_file_to_s3_with_prefix(s3_client, prefix, expected_key):
+    # Expected keys are literal strings: building them with Path would repeat the bug on Windows.
     path_to_file = Path('product.json')
-    expected_key = str(Path('my-prefix') / 'product.json')
 
-    aws.upload_file_to_s3(path_to_file, 'my-bucket', 'my-prefix')
+    aws.upload_file_to_s3(path_to_file, 'my-bucket', prefix)
 
     s3_client.upload_file.assert_called_once_with(
         'product.json', 'my-bucket', expected_key, {'ContentType': 'application/json'}
@@ -119,6 +127,16 @@ def test_get_s3_file_returns_first_match(s3_client):
 
     s3_client.download_file.assert_called_once_with('my-bucket', 'my-prefix/first.nc', 'first.nc')
     assert result == Path('first.nc')
+
+
+def test_get_s3_file_empty_prefix(s3_client):
+    """Regression test for #834: S3 omits 'Contents' when no objects match the prefix."""
+    s3_client.list_objects_v2.return_value = {'KeyCount': 0}
+
+    result = aws.get_s3_file('my-bucket', 'missing-prefix', '.nc')
+
+    s3_client.download_file.assert_not_called()
+    assert result is None
 
 
 def test_get_s3_file_no_match(s3_client, bucket_contents):

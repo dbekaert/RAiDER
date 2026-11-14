@@ -146,7 +146,9 @@ def interpolateDEM(dem_path: Union[Path, str], outLL: Tuple[np.ndarray, np.ndarr
         data = xrr.open_rasterio(dem_path, band_as_variable=True)
         assert isinstance(data, Dataset), 'DEM could not be opened as a rioxarray dataset'
         da_dem = data['band_1']
-        z_out: np.ndarray = da_dem.interp(y=np.sort(lats)[::-1], x=lons).data
+        # Query points stay in input order so z_out[i, i] belongs to point i;
+        # xarray only needs the DEM's own coordinates to be monotonic.
+        z_out: np.ndarray = da_dem.interp(y=lats, x=lons).data
     
     return z_out
 

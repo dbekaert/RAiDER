@@ -76,6 +76,46 @@ def test_get_los_ray(args1):
     assert los.is_Projected()
 
 
+@pytest.mark.parametrize(
+    'look_dir_kwargs,expected',
+    [({}, 'Right'), ({'look_dir': 'right'}, 'Right'), ({'look_dir': 'left'}, 'Left')],
+)
+def test_get_los_raytracing_look_dir(args1, look_dir_kwargs, expected):
+    """Regression test for #676: look_dir must reach Raytracing."""
+    isce = pytest.importorskip('isce3')
+    los_group_unparsed = LOSGroupUnparsed(**{**args1, 'ray_trace': True})
+    los = get_los(los_group_unparsed, **look_dir_kwargs)
+    assert los.ray_trace()
+    assert los.getLookDirection() == getattr(isce.core.LookSide, expected)
+
+
+def test_run_config_look_dir_reaches_raytracing(args1, tmp_path):
+    """Regression test for #676: a run config's look_dir must reach the LOS object."""
+    isce = pytest.importorskip('isce3')
+    from RAiDER.cli.raider import read_run_config_file
+    from RAiDER.utilFcns import write_yaml
+    from test import WM, pushd
+
+    dct_group = {
+        'look_dir': 'left',
+        'aoi_group': {'bounding_box': [28, 28.3, -116.3, -116]},
+        'date_group': {'date_list': ['20200124']},
+        'time_group': {'time': '00:00:00', 'interpolate_time': 'none'},
+        'weather_model': WM,
+        'los_group': {**args1, 'ray_trace': True},
+        'runtime_group': {
+            'output_directory': tmp_path,
+            'weather_model_directory': tmp_path / 'weather_files',
+        },
+    }
+
+    with pushd(tmp_path):
+        cfg = write_yaml(dct_group, 'temp.yaml')
+        run_config = read_run_config_file(cfg)
+
+    assert run_config.los_group.los.getLookDirection() == isce.core.LookSide.Left
+
+
 def test_date_type():
     assert coerce_into_date("2020-10-1") == date(2020, 10, 1)
     assert coerce_into_date("2020101") == date(2020, 10, 1)
