@@ -7,7 +7,7 @@ and this project adheres to [PEP 440](https://www.python.org/dev/peps/pep-0440/)
 and uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
-* [839](https://github.com/dbekaert/RAiDER/pull/839) - Fixed three bugs found in release triage, with regression tests for each:
+* [839](https://github.com/dbekaert/RAiDER/pull/839) - Fixed three bugs with issue tickets (#825, #676, #834), with regression tests for each:
   * `interpolateDEM` gave stations without an `Hgt_m` column the wrong heights unless the file was sorted by descending latitude ([825](https://github.com/dbekaert/RAiDER/issues/825)).
   * The run config's `look_dir` now reaches `Raytracing`, so left-looking sensors such as NISAR get the correct geometry ([676](https://github.com/dbekaert/RAiDER/issues/676)).
   * `get_s3_file` returns `None` instead of raising `KeyError` for an empty S3 prefix, uploaded S3 keys always use `/`, and three `calcDelaysGUNW` error messages now have a space before the S3 URL ([834](https://github.com/dbekaert/RAiDER/issues/834)).
