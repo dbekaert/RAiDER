@@ -68,7 +68,7 @@ class HRES(ECMWF):
         f = self.files[0] if f is None else f
 
         if self._model_level_type == 'ml':
-            if self._time < dt.datetime(2013, 6, 26, 0, 0, 0):
+            if self._time < dt.datetime(2013, 6, 26, 0, 0, 0).replace(tzinfo=dt.timezone(offset=dt.timedelta())):
                 self.update_a_b()
             self._load_model_level(f)
         elif self._model_level_type == 'pl':

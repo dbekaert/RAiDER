@@ -84,19 +84,13 @@ def _run_opera_tropo_path(fixture):
     # the model instance. opera-adt/tropo still calls the two-argument form, so
     # it will raise TypeError on upgrade until it is updated.
     #
-    # NOTE 2: t is passed as a COPY on purpose. calcgeoh converts temperature
-    # to virtual temperature with an in-place multiply (issue #819), so the
-    # caller's array comes back inflated by up to 0.65 % and every later step
-    # -- _find_e, both refractivity getters -- then sees moisture-inflated
-    # temperatures. That is a real defect and a real consequence for callers,
-    # but it is not the one this PR fixes. Copying isolates the pressure path,
-    # so these assertions measure one thing. On this fixture the mutation
-    # costs an extra 1.7 mm RMS (3.26 vs 1.55) and +0.6 mm/km of slope; when
-    # #819 lands, drop the .copy() and the numbers should not move.
+    # NOTE 2: t used to be passed as a copy here, because calcgeoh converted
+    # the caller's temperature to virtual temperature in place (#819). It no
+    # longer does, so model._t is passed directly and the numbers are unchanged.
     _, pressure, geo_height = model._calculategeoh(
         fixture['z_surface'].astype(float),
         fixture['lnsp'].astype(float),
-        model._t.copy(),
+        model._t,
         model._q,
     )
     model._p = pressure

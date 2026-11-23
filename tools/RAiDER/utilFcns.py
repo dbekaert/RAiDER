@@ -827,7 +827,7 @@ def calcgeoh(
         idx_level = level - 1
 
         # compute moist temperature
-        t_level *= 1 + 0.609133 * q_level
+        t_level = t_level * (1 + 0.609133 * q_level)
 
         # compute the pressures (on half-levels)
         ph_lev: FloatArray2D = a[level - 1] + (b[level - 1] * sp)

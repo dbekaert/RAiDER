@@ -524,6 +524,46 @@ def test_readZ_sf_dem_download_default_converts_to_ellipsoidal(monkeypatch, tmp_
     assert np.allclose(z, 100.0 - 34.0)
 
 
+def test_readZ_sf_dem_download_unsorted_stations_get_own_heights(monkeypatch, tmp_path):
+    """Regression test for #825.
+
+    Stations not sorted by descending latitude used to receive heights sampled
+    at another station's latitude. Uses the real interpolateDEM against a small
+    DEM whose value at pixel centre (lon, lat) is (9.5 - lat) * (lon - 0.5).
+    """
+    import rasterio as rio
+    from affine import Affine
+
+    s = 10
+    x = np.arange(s)
+    dem_path = tmp_path / 'dem.tif'
+    metadata = {
+        'driver': 'GTiff',
+        'dtype': 'float32',
+        'width': s,
+        'height': s,
+        'count': 1,
+        'transform': Affine.from_gdal(0, 1, 0, 10, 0, -1),
+        'crs': rio.crs.CRS.from_epsg(4326),
+    }
+    with rio.open(dem_path, 'w', **metadata) as ds:
+        ds.write(np.outer(x, x).astype('float32'), 1)
+
+    csv_path = tmp_path / 'stations_no_hgt.csv'
+    csv_path.write_text('ID,Lat,Lon\nA,2.5,4.5\nB,8.5,8.5\nC,5.5,1.5\n')
+
+    def fake_download_dem(*args, **kwargs):
+        return None, None
+
+    monkeypatch.setattr('RAiDER.dem.download_dem', fake_download_dem)
+
+    query = StationFile(csv_path, demFile=dem_path)
+    z = query.readZ(geoid_heights=True)
+
+    # A: row 7, col 4; B: row 1, col 8; C: row 4, col 1. The old code gave [4, 32, 7].
+    assert np.allclose(z, [28.0, 8.0, 4.0])
+
+
 def test_readZ_sf_write_back_then_read_again_stays_consistent(tmp_path, monkeypatch):
     """Regression test for the stale-_crs bug.
 

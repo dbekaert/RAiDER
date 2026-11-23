@@ -1003,8 +1003,11 @@ def test_interpolateDEM() -> None:
     lons = np.array([4.5, 8.5])
     lats = np.array([2.5, 8.5])
     out = interpolateDEM(dem_file, (lats, lons))
-    gold = np.array([[4., 8.], [28., 56.]], dtype=float)
+    # Rows follow the input latitudes and columns the input longitudes, so the
+    # diagonal is each point's own height (#825).
+    gold = np.array([[28.0, 56.0], [4.0, 8.0]], dtype=float)
     assert np.allclose(out, gold)
+    assert np.allclose(np.diag(out), [28.0, 8.0])
     dem_file.unlink()
 
 
