@@ -72,7 +72,7 @@ class HRES(ECMWF):
                 self.update_a_b()
             self._load_model_level(f)
         elif self._model_level_type == 'pl':
-            self._load_pressure_levels(f)
+            self._load_pressure_level(f)
 
     def _fetch(self, out: Path) -> None:
         """Fetch a weather model from ECMWF."""

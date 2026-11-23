@@ -31,6 +31,15 @@ look_dir: right
 ## for more details and information on licensing
 weather_model:
 
+## OPTIONAL: Vertical level representation used by the weather model.
+## FORMATS: string, one of 'ml'/'model' (model/native levels) or 'pl'/'pressure' (pressure levels)
+## If left blank, each model's built-in default is used (model levels for the
+## ECMWF family, GMAO, MERRA-2, NCMR; native levels for HRRR).
+## NOTE: Not every model supports every level type. The ECMWF family
+## (ERA-5, ERA-5T, HRES) supports both; HRRR supports only native/model levels;
+## GMAO, MERRA-2, and NCMR support only model levels.
+weather_model_levels:
+
 
 ########## 2. Date
 ## REQUIRED: TRUE

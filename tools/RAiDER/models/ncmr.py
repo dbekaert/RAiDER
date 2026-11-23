@@ -63,6 +63,9 @@ class NCMR(WeatherModel):
         # Projection
         self._proj = CRS.from_epsg(4326)
 
+    def __model_levels__(self) -> None:
+        self._zlevels = np.flipud(LEVELS_137_HEIGHTS)
+
     def _fetch(self, out: Path) -> None:
         """
         Fetch weather model data from NCMR: note we only extract the lat/lon bounds for this weather model;

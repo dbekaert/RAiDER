@@ -360,6 +360,10 @@ def main(args: CalcDelaysArgs) -> tuple[Path, float]:
 
     raider_cfg = {
         'weather_model': args.weather_model,
+        # Optionally override the model's default vertical level representation
+        # (model/native vs. pressure levels). Left out when not specified so the
+        # model's built-in default is used.
+        **({'weather_model_levels': args.model_levels} if getattr(args, 'model_levels', None) is not None else {}),
         'look_dir': GUNWObj.look_dir,
         'aoi_group': {'bounding_box': GUNWObj.SNWE},
         'height_group': {'height_levels': GUNWObj.heights},
